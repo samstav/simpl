@@ -196,7 +196,10 @@ class Driver(DbBase):
         resources = self._get_resources(deployment.get("resources", None),
                                         with_ids=False,
                                         with_secrets=with_secrets)
-        return flatten(resources)
+        flat = flatten(resources)
+        if flat:
+            self.convert_data('resources', flat)
+        return flat
 
     def get_deployment(self, api_id, with_secrets=None):
         deployment = self._get_object('deployments', api_id,
@@ -206,7 +209,7 @@ class Driver(DbBase):
             deployment["resources"] = self._dereferenced_resources(
                 deployment,
                 with_secrets=with_secrets)
-            self.convert_data("resources", deployment['resources'])
+
         return deployment
 
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=0,
@@ -569,6 +572,7 @@ class Driver(DbBase):
             if results:
                 if with_secrets is True:
                     self.merge_secrets(klass, api_id, results)
+                self.convert_data(klass, results)
 
         return results
 
@@ -608,12 +612,10 @@ class Driver(DbBase):
             response['results'] = {}
 
             for entry in results:
-                self.convert_data(klass, entry)
                 if with_secrets is True:
-                    response['results'][entry['id']] = self.merge_secrets(
-                        klass, entry['id'], entry)
-                else:
-                    response['results'][entry['id']] = entry
+                    entry = self.merge_secrets(klass, entry['id'], entry)
+                self.convert_data(klass, entry)
+                response['results'][entry['id']] = entry
 
             if with_count:
                 response['collection-count'] = self._get_count(
