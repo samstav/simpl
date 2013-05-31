@@ -10,6 +10,9 @@ from checkmate.exceptions import (
 )
 from checkmate.providers import ProviderBase
 from morpheus import MorpheusDict as dict
+from morpheus import dict as exceptions
+
+exceptions.ValidationError = CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
 
@@ -62,20 +65,7 @@ class Resource(dict):
 
     class DesiredState(dict):
         '''The Desired State section of a Resource'''
-        SCHEMA = [
+        __schema__ = [
             'region', 'flavor', 'image', 'disk', 'protocol',
             'port', 'status', 'databases'
         ]
-
-        def __init__(self, obj):
-            Resource.DesiredState.validate(obj)
-            super(Resource.DesiredState, self).__init__(**obj)
-
-        def __setitem__(self, key, value):
-            _validate({key: value}, Resource.DesiredState.SCHEMA)
-            super(Resource.DesiredState, self).__setitem__(key, value)
-
-        @classmethod
-        def validate(cls, obj):
-            '''Validate Desired State Schema'''
-            _validate(obj, Resource.DesiredState.SCHEMA)
