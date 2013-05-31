@@ -2331,6 +2331,8 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.data = data;
       $scope.data_json = JSON.stringify(data, null, 2);
       $scope.formatted_data = deploymentDataParser.formatData(data);
+      $scope.abs_url = $location.absUrl();
+      $scope.clippy_element = "#deployment_summary_clipping"
 
       if ($scope.data.operation !== undefined && $scope.data.operation.status != 'COMPLETE') {
         $scope.delayed_refresh();

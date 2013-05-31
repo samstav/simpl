@@ -1,3 +1,19 @@
+<div class='hidden' id='deployment_summary_clipping'>
+From: {{abs_url}}
+App URL: {{formatted_data.path}}
+App IP: {{formatted_data.vip}}
+Servers:
+{{formatted_data.clippy.server_data}}
+Databases:
+{{formatted_data.clippy.database_data}}
+Load balancers:
+{{formatted_data.clippy.lb_data}}
+Applications:
+User:     {{formatted_data.username}}
+Password: {{formatted_data.password}}
+Priv Key: {{formatted_data.private_key}}
+</div>
+
 <div class="entries container-fluid">
   <div class="entry well">
     <div class="row-fluid">
@@ -115,6 +131,7 @@
         <button class="btn toggle-button" ng-click="showAdvancedDetails = !showAdvancedDetails">Show me the old completion screen</button>
         <div collapse="!showAdvancedDetails">
           <div class="well well-large">
+            <clippy clippy-element="{{clippy_element}}" style="top:0" bgcolor="#f5f5f5"></clippy>
             <div ng-hide="!formatted_data.path"><p><strong>Access your application</strong> from <a ng-href="{{formatted_data.path}}" target="_blank">{{formatted_data.path}}</a>.</p>
             <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
             <p><pre>echo "{{formatted_data.vip}}  {{formatted_data.domain}}" >> /etc/hosts</pre></p>

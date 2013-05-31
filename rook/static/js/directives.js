@@ -56,13 +56,14 @@ directives.directive('clippy', function factory() {
     replace: true,
     transclude: false,
     restrict: 'E',
-    scope: {content: '@content', swf: '@swf', bgcolor: '@bgcolor'},
+    scope: {content: '@content', swf: '@swf', bgcolor: '@bgcolor', clipElement: '@clippyElement' },
     compile: function(tElement, tAttrs, transclude) {
         return {
             post: function(scope, elm, attrs, ctrl) {
                 // observe changes to interpolated attribute and only add sources when we have data
-                attrs.$observe('content', function(value) {
-                  if (value) {
+
+                function appendClipping(value){
+                  if (scope.content) {
                     var clippy_html = '<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"\
                                 width="110"\
                                 height="14">\
@@ -86,6 +87,15 @@ directives.directive('clippy', function factory() {
                     elm.children('object').remove();
                     elm.append(clippy_html);
                   }
+                }
+
+                attrs.$observe('content', appendClipping);
+                attrs.$observe('clippyElement', function(value) {
+                  if(value) {
+                    angular.element(elm).attr('content', angular.element(value).text());
+                    scope.content = angular.element(value).text();
+                  }
+                  appendClipping(value);
                 });
             }
         };

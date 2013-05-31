@@ -9,7 +9,7 @@ describe('DeploymentController', function(){
 
   beforeEach(function(){
     scope = {};
-    location = { path: emptyFunction };
+    location = { path: emptyFunction, absUrl: emptyFunction };
     resource = sinon.stub().returns({ get: emptyFunction });
     routeParams = undefined;
     dialog = undefined;

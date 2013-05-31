@@ -107,18 +107,20 @@ describe('deploymentDataParser', function(){
     });
 
     it('should set the master server', function(){
-      var data = { resources: { "0":
-                                { component: 'linux_instance', service: 'master' }
-                              }
+      var master_server = { component: 'linux_instance',
+                            service: 'master',
+                            instance: { password: 'cats' }  },
+          data = { resources: { "0": master_server }
                  },
           result = this.deploymentDataParser.formatData(data);
 
-      expect(result.master_server).toEqual({ component: 'linux_instance', service: 'master'});
+      expect(result.master_server).toEqual(master_server);
     });
 
     it('should not set the master server if no master', function(){
       var data = { resources: { "0":
-                                { component: 'linux_instance', service: 'slave' }
+                                { component: 'linux_instance', service: 'slave',
+                                  instance: { password: 'cats' }  }
                               }
                  },
           result = this.deploymentDataParser.formatData(data);

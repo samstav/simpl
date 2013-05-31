@@ -1468,8 +1468,72 @@ services.factory('deploymentDataParser', function(){
     formatted_data.master_server = _.find(formatted_data.resources, function(resource) {
         return (resource.component == 'linux_instance' && resource.service == 'master');
     });
-    return formatted_data;
 
+    formatted_data.clippy = {};
+    var server_data = [];
+    var database_data = [];
+    var lb_data = [];
+    _.each(formatted_data.resources, function(resource) {
+        if (resource.component == 'linux_instance') {
+            server_data.push('  ' + resource.service + ' server: ' + resource['dns-name']);
+            try {
+              if (resource.instance.public_ip === undefined) {
+                for (var nindex in resource.instance.interfaces.host.networks) {
+                    var network = resource.instance.interfaces.host.networks[nindex];
+                    if (network.name == 'public_net') {
+                        for (var cindex in network.connections) {
+                            var connection = network.connections[cindex];
+                            if (connection.type == 'ipv4') {
+                                resource.instance.public_ip = connection.value;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+              }
+              server_data.push('    IP:      ' + resource.instance.public_ip);
+            } catch (err) {}
+            server_data.push('    Role:    ' + resource.service);
+            server_data.push('    root pw: ' + resource.instance.password);
+        }
+        else if(resource.type == 'database') {
+          database_data.push('  ' + resource.service + ' database: ' + resource['dns-name']);
+          try {
+            database_data.push('    Host:       ' + resource.instance.interfaces.mysql.host);
+            database_data.push('    Username:   ' + (resource.instance.interfaces.mysql.username || formatted_data.username));
+            database_data.push('    Password:   ' + (resource.instance.interfaces.mysql.password || formatted_data.password));
+            database_data.push('    DB Name:    ' + resource.instance.interfaces.mysql.database_name);
+          } catch(err) {
+            // Do nothing - probably a MySQL on VMs build
+          }
+        }
+        else if(resource.type == 'load-balancer') {
+          lb_data.push('  ' + resource.service + ' load-balancer: ' + resource['dns-name']);
+          lb_data.push('    Public VIP:       ' + resource.instance.public_ip);
+        }
+    });
+
+    if (formatted_data.username === undefined) {
+        _.each(formatted_data.resources, function(resource) {
+            if (resource.type == 'application' && resource.instance !== undefined) {
+                _.each(resource.instance, function(instance) {
+                    if (instance.admin_user !== undefined) {
+                        formatted_data.username = instance.admin_user;
+                    }
+                    if (instance.admin_password !== undefined) {
+                        formatted_data.password = instance.admin_password;
+                    }
+                });
+            }
+        });
+    }
+
+    formatted_data.clippy.server_data = server_data.join('\n');
+    formatted_data.clippy.database_data = database_data.join('\n');
+    formatted_data.clippy.lb_data = lb_data.join('\n');
+
+    return formatted_data;
   }
   return { formatData: formatData };
 });
