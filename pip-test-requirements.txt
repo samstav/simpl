@@ -10,6 +10,7 @@
 coverage
 flake8
 hacking  # plugins for enforcement of HACKING.rst
+mock
 pep8
 pylint
 nose

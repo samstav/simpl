@@ -26,6 +26,7 @@ from checkmate.exceptions import (
 )
 from checkmate.inputs import Input
 from checkmate.providers import ProviderBase
+from checkmate.resource import Resource
 from checkmate.utils import (
     get_time_string,
     evaluate,
@@ -183,36 +184,6 @@ def generate_keys(deployment):
         delattr(deployment, '_settings')
 
     return copy.copy(dep_keys)
-
-
-class Resource():
-    '''A Checkmate resource: a deployment can have many resources'''
-    def __init__(self, key, obj):
-        Resource.validate(obj)
-        self.key = key
-        self.dict = obj
-
-    @classmethod
-    def validate(cls, obj):
-        """Validate Schema"""
-        errors = schema.validate(obj, schema.RESOURCE_SCHEMA)
-        if errors:
-            raise CheckmateValidationException("Invalid resource: %s" %
-                                               '\n'.join(errors))
-
-    def get_settings(self, provider):
-        """Get all settings for this resource
-
-        :param deployment: the dict of the deployment
-        :param context: the current planning context
-        :param provider: the instance of the provider (subclasses ProviderBase)
-        """
-        assert isinstance(provider, ProviderBase)
-        component = provider.get_component(self.dict['component'])
-        if not component:
-            raise (CheckmateException("Could not find component '%s' in "
-                   "provider %s.%s's catalog" % (self.dict['component'],
-                   provider.vendor, provider.name)))
 
 
 class Deployment(ExtensibleDict):
