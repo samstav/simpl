@@ -1,20 +1,30 @@
 '''The Resource Class is an extensible dict containing all of the details of
 a deployment's resources
 '''
+import logging
+
 from checkmate.common import schema
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException
 )
 from checkmate.providers import ProviderBase
+from morpheus import MorpheusDict as dict
+
+LOG = logging.getLogger(__name__)
 
 
-def _validate(obj, obj_schema):
+def _validate(obj, obj_schema, deprecated_schema=[]):
     '''Validate Schema'''
-    errors = schema.validate(obj, obj_schema)
+    # First check includes deprecated keys
+    errors = schema.validate(obj, obj_schema + deprecated_schema)
     if errors:
         raise CheckmateValidationException("Invalid resource: %s" %
                                            '\n'.join(errors))
+    # Second check without deprecated keys logs a warning
+    errors = schema.validate(obj, obj_schema)
+    if errors:
+        LOG.warn('DEPRECATED KEY: %s', errors)
 
 
 class Resource(dict):
@@ -23,6 +33,9 @@ class Resource(dict):
         'index', 'name', 'provider', 'relations', 'hosted_on',
         'hosts', 'type', 'component', 'dns-name', 'instance',
         'service', 'status', 'desired-state'
+    ]
+    SCHEMA_DEPRECATED = [
+        'id', 'flavor', 'image', 'disk', 'region', 'protocol', 'port'
     ]
 
     def __init__(self, key, obj):
@@ -34,7 +47,7 @@ class Resource(dict):
         super(Resource, self).__init__(**obj)
 
     def __setitem__(self, key, value):
-        _validate({key: value}, Resource.SCHEMA)
+        _validate({key: value}, Resource.SCHEMA, Resource.SCHEMA_DEPRECATED)
         if key == 'desired-state':
             if not isinstance(value, Resource.DesiredState):
                 value = Resource.DesiredState(value)
@@ -43,7 +56,7 @@ class Resource(dict):
     @classmethod
     def validate(cls, obj):
         '''Validate Resource Schema'''
-        _validate(obj, Resource.SCHEMA)
+        _validate(obj, Resource.SCHEMA, Resource.SCHEMA_DEPRECATED)
         if 'desired-state' in obj:
             Resource.DesiredState.validate(obj['desired-state'])
 

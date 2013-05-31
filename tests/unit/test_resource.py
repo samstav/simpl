@@ -9,44 +9,66 @@ For tests, we don't care about:
     W0232 - Class has no __init__ method
 '''
 import unittest2 as unittest
+import mock
 import json
 import yaml
+
 from checkmate import utils
 from checkmate.exceptions import CheckmateValidationException
-from checkmate.resource import Resource
+from checkmate.resource import Resource, LOG
 
 
 class TestResource(unittest.TestCase):
+    error_string = (
+        "'%s' not a valid value. Only index, name, provider, relations, "
+        "hosted_on, hosts, type, component, dns-name, instance, service, "
+        "status, desired-state allowed"
+    )
+
+    def setUp(self):
+        LOG.warn = mock.Mock()
+
     def test_empty_dict_is_valid(self):
         Resource.validate({})
 
-    def test_id_key_at_root_is_invalid(self):
+    def test_invalid_key_at_root(self):
         with self.assertRaises(CheckmateValidationException):
-            Resource.validate({'id': 'i-really-am-21'})
+            Resource.validate({'blerg': 'blerf'})
 
-    def test_flavor_key_at_root_is_invalid(self):
-        with self.assertRaises(CheckmateValidationException):
-            Resource.validate({'flavor': 'cookies-n-cream'})
+    def test_id_key_at_root_logs_warning(self):
+        Resource.validate({'id': 'i-really-am-21'})
+        LOG.warn.assert_called_with(
+            'DEPRECATED KEY: %s', [self.error_string % 'id'])
 
-    def test_image_key_at_root_is_invalid(self):
-        with self.assertRaises(CheckmateValidationException):
-            Resource.validate({'image': 'iconic'})
+    def test_flavor_key_at_root_logs_warning(self):
+        Resource.validate({'flavor': 'cookies-n-cream'})
+        LOG.warn.assert_called_with(
+            'DEPRECATED KEY: %s', [self.error_string % 'flavor'])
 
-    def test_disk_key_at_root_is_invalid(self):
-        with self.assertRaises(CheckmateValidationException):
-            Resource.validate({'disk': 'vinyl'})
+    def test_image_key_at_root_logs_warning(self):
+        Resource.validate({'image': 'iconic'})
+        LOG.warn.assert_called_with(
+            'DEPRECATED KEY: %s', [self.error_string % 'image'])
 
-    def test_region_key_at_root_is_invalid(self):
-        with self.assertRaises(CheckmateValidationException):
-            Resource.validate({'region': 'Mendoza Province'})
+    def test_disk_key_at_root_logs_warning(self):
+        Resource.validate({'disk': 'vinyl'})
+        LOG.warn.assert_called_with(
+            'DEPRECATED KEY: %s', [self.error_string % 'disk'])
 
-    def test_protocol_key_at_root_is_invalid(self):
-        with self.assertRaises(CheckmateValidationException):
-            Resource.validate({'protocol': 'Kyoto'})
+    def test_region_key_at_root_logs_warning(self):
+        Resource.validate({'region': 'Mendoza Province'})
+        LOG.warn.assert_called_with(
+            'DEPRECATED KEY: %s', [self.error_string % 'region'])
 
-    def test_port_key_at_root_is_invalid(self):
-        with self.assertRaises(CheckmateValidationException):
-            Resource.validate({'port': 'Sydney Harbor'})
+    def test_protocol_key_at_root_logs_warning(self):
+        Resource.validate({'protocol': 'Kyoto'})
+        LOG.warn.assert_called_with(
+            'DEPRECATED KEY: %s', [self.error_string % 'protocol'])
+
+    def test_port_key_at_root_logs_warning(self):
+        Resource.validate({'port': 'Sydney Harbor'})
+        LOG.warn.assert_called_with(
+            'DEPRECATED KEY: %s', [self.error_string % 'port'])
 
     def test_all_valid_root_keys(self):
         Resource.validate({
@@ -86,7 +108,7 @@ class TestResource(unittest.TestCase):
     def test_set_invalid_root_resource_key(self):
         resource = Resource('0', {})
         with self.assertRaises(CheckmateValidationException):
-            resource['protocol'] = 'Kyoto'
+            resource['blerg'] = 'blerf'
 
     def test_set_invalid_desired_state_key(self):
         resource = Resource('0', {'desired-state': {}})

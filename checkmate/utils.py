@@ -238,9 +238,6 @@ def to_yaml(data):
     objects derived from MutableMapping)"""
     if isinstance(data, MutableMapping) and hasattr(data, '_data'):
         return yaml.safe_dump(data._data, default_flow_style=False)
-    if type(data) is not dict and issubclass(type(data), dict):
-        return yaml.safe_dump(dict(data), default_flow_style=False)
-
     return yaml.safe_dump(data, default_flow_style=False)
 
 
