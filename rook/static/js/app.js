@@ -2596,7 +2596,6 @@ document.addEventListener('DOMContentLoaded', function(e) {
   window.scrollTo(0, 0);
 
   //angular.bootstrap(document, ['checkmate']);
-  $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
   $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
   $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
 }, false);
