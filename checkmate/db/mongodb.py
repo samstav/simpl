@@ -206,6 +206,7 @@ class Driver(DbBase):
             deployment["resources"] = self._dereferenced_resources(
                 deployment,
                 with_secrets=with_secrets)
+            self.convert_data("resources", deployment['resources'])
         return deployment
 
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=0,

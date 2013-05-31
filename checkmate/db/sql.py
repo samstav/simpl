@@ -403,6 +403,7 @@ class Driver(DbBase):
         if results and results.count() > 0:
             first = results.first()
             body = first.body
+            self.convert_data(klass.__tablename__, body)
             if "tenantId" in body:
                 first.tenant_id = body["tenantId"]
             elif first.tenant_id:

@@ -1250,7 +1250,7 @@ def update_deployment_status(deployment_id, new_status, error_message=None,
     if new_status:
         delta['status'] = new_status
     if error_message:
-        delta['error_message'] = error_message
+        delta['error-message'] = error_message
     if delta:
         try:
             driver.save_deployment(deployment_id, delta, partial=True)

@@ -59,7 +59,7 @@ class TestDeployments(unittest.TestCase):
                     "instance:0": {
                                    "status": "ACTIVE",
                                    "instance": {
-                                                "statusmsg": ""
+                                                "status-message": ""
                                                 }
                                    }
                     }

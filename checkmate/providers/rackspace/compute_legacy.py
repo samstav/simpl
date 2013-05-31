@@ -561,7 +561,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
     if server.status == 'ERROR':
         msg = "Server %s build failed" % server_id
         results = {'status': "ERROR"}
-        results['errmessage'] = msg
+        results['error-message'] = msg
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
@@ -611,7 +611,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         msg = "Server %s creation error: %" % (server_id,
                                                server.status)
         results = {'status': "ERROR"}
-        results['errmessage'] = msg
+        results['error-message'] = msg
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
