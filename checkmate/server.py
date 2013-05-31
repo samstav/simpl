@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""" Module to initialize and run Checkmate server"""
+''' Module to initialize and run Checkmate server'''
 import os
 import json
 import logging
@@ -27,6 +27,7 @@ from checkmate.exceptions import (
 )
 from checkmate import middleware
 from checkmate import utils
+from checkmate.common.gzip_middleware import Gzipper
 
 LOG = logging.getLogger(__name__)
 
@@ -36,11 +37,11 @@ try:
     if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
                                                       'MongoBackend']:
         LOG.warning("Celery backend does not seem to be configured for a "
-                    "database: %s" % current_app.backend.__class__.__name__)
+                    "database: %s", current_app.backend.__class__.__name__)
     if not current_app.conf.get("CELERY_RESULT_DBURI"):
         LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
                     "checkmate environment loaded?")
-except:
+except StandardError:
     pass
 
 
@@ -64,7 +65,7 @@ DEFAULT_AUTH_ENDPOINTS = [{
 
 
 def error_formatter(error):
-    """Catch errors and output them in the correct format/media-type"""
+    '''Catch errors and output them in the correct format/media-type'''
     output = {}
     accept = request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
@@ -110,10 +111,11 @@ def error_formatter(error):
 
 
 def main_func():
-    """ Start the server based on passed in arguments. Called by __main__ """
+    '''Start the server based on passed in arguments. Called by __main__'''
 
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(default_config="/etc/default/checkmate-svr-log.conf")
+    global LOG  # pylint: disable=W0603
     LOG = logging.getLogger(__name__)  # reload
     if utils.get_debug_level() == logging.DEBUG:
         bottle.debug(True)
@@ -214,6 +216,8 @@ def main_func():
         LOG.debug("Routes: %s", ['%s %s' % (r.method, r.rule) for r in
                                  app().routes])
 
+    next_app = Gzipper(next_app, compresslevel=8)
+
     worker = None
     if '--worker' in sys.argv:
         celery = Celery(log=LOG, set_as_current=True)
@@ -225,16 +229,16 @@ def main_func():
         worker_thread.start()
 
     # Pick up IP/port from last param (default is 127.0.0.1:8080)
-    ip = '127.0.0.1'
+    ip_address = '127.0.0.1'
     port = 8080
     if len(sys.argv) > 0:
         supplied = sys.argv[-1]
         if len([c for c in supplied if c in '%s:.' % string.digits]) == \
                 len(supplied):
             if ':' in supplied:
-                ip, port = supplied.split(':')
+                ip_address, port = supplied.split(':')
             else:
-                ip = supplied
+                ip_address = supplied
 
     # Select server (wsgiref by default. eventlet if requested)
     reloader = True
@@ -245,7 +249,8 @@ def main_func():
 
     # Start listening. Enable reload by default to pick up file changes
     try:
-        run(app=next_app, host=ip, port=port, reloader=reloader, server=server)
+        run(app=next_app, host=ip_address, port=port, reloader=reloader,
+            server=server)
     finally:
         if worker:
             worker.stop()
