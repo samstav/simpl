@@ -17,7 +17,8 @@ from checkmate.classes import ExtensibleDict
 from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
 from checkmate.exceptions import (
     CheckmateDatabaseConnectionError,
-    CheckmateException)
+    CheckmateException,
+)
 from checkmate.db.db_lock import DbLock
 from checkmate.utils import flatten
 from checkmate.utils import merge_dictionary
@@ -56,6 +57,24 @@ class Driver(DbBase):
         self._database = None
         self._connection = None
         self._client = None
+
+    def tune(self):
+        '''Documenting & Automating Index Creation'''
+        self.database()['deployments'].create_index(
+            [("created", pymongo.DESCENDING)],
+            background=True,
+            name="deployments_created",
+        )
+        self.database()['deployments'].create_index(
+            [("tenantId", pymongo.DESCENDING)],
+            background=True,
+            name="deployments_tenantId",
+        )
+        self.database()['workflows'].create_index(
+            [("tenantId", pymongo.DESCENDING)],
+            background=True,
+            name="workflows_created",
+        )
 
     def __getstate__(self):
         '''Support serializing to connection string'''
@@ -565,8 +584,7 @@ class Driver(DbBase):
         :param with_secrets: Merge secrets with the results
         '''
         with self._get_client().start_request():
-            results = self.database()[klass].find_one({
-                                                          '_id': api_id},
+            results = self.database()[klass].find_one({'_id': api_id},
                                                       self._object_projection)
 
             if results:
@@ -682,7 +700,7 @@ class Driver(DbBase):
                                                      "specified")
             body['_id'] = api_id
             self.database()[klass].update({'_id': api_id}, body,
-                                          not merge_existing, # Upsert new
+                                          not merge_existing,  # Upsert new
                                           False, check_keys=False)
             if secrets:
                 secrets['_id'] = api_id
