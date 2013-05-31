@@ -41,17 +41,19 @@ class TestDbBase(unittest.TestCase):
         dbb.convert_data('deployments', data)
         self.assertDictEqual(data, expected)
         
-        data = {
+        data = { "1": {
                 'statusmsg': '',
                 'instance': {
                              'statusmsg': ''
                             }
-                }
-        expected = {
+                      }
+               }
+        expected = { "1": {
                     'status-message': '',
                     'instance': {
                                  'status-message': ''
                                 }
+                          }
                    }
         dbb.convert_data('resources', data)
         self.assertDictEqual(data, expected)
