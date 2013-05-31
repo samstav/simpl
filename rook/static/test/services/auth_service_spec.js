@@ -5,10 +5,11 @@ describe('auth Service', function(){
       endpoint,
       headers,
       params,
-      user;
+      user,
+      $rootScope;
 
   beforeEach(module('checkmate.services'));
-  beforeEach(inject(function(auth, $resource, $rootScope){
+  beforeEach(inject(function(auth, $resource, $q, _$rootScope_){
     this.auth = auth;
     request = { getResponseHeader: emptyFunction };
     user = {};
@@ -16,6 +17,7 @@ describe('auth Service', function(){
     endpoint = {};
     headers = sinon.stub().returns('True');
     params = { headers: headers, endpoint: endpoint };
+    $rootScope = _$rootScope_;
   }));
 
   describe('create_identity', function(){
@@ -100,7 +102,7 @@ describe('auth Service', function(){
   });
 
   describe('#create_context', function() {
-    var response, endpoint;
+    var response, endpoint, params;
 
     beforeEach(function() {
       response = {
@@ -109,47 +111,48 @@ describe('auth Service', function(){
           token: { tenant: { id: 'fakeid' } },
           serviceCatalog: {},
         }
-      }; // response.access.token.tenant.id
+      };
       endpoint = { uri: 'fakeuri', scheme: 'fakescheme' };
+      params = { endpoint: endpoint };
     });
 
     it('should create a context based on a response', function() {
-      expect(this.auth.create_context(response, endpoint)).not.toBe(null);
+      expect(this.auth.create_context(response, params)).not.toBe(null);
     });
 
     it('should set context user according to response object', function() {
-      expect(this.auth.create_context(response, endpoint).user).toEqual({ name: 'fakename' });
+      expect(this.auth.create_context(response, params).user).toEqual({ name: 'fakename' });
     });
 
     it('should set context token according to response object', function() {
-      expect(this.auth.create_context(response, endpoint).token).toEqual({ tenant: { id: 'fakeid' } });
+      expect(this.auth.create_context(response, params).token).toEqual({ tenant: { id: 'fakeid' } });
     });
 
     it('should set context auth_url according to response object', function() {
-      expect(this.auth.create_context(response, endpoint).auth_url).toEqual('fakeuri');
+      expect(this.auth.create_context(response, params).auth_url).toEqual('fakeuri');
     });
 
     it('should set context username user.name if it is present', function() {
-      expect(this.auth.create_context(response, endpoint).username).toEqual('fakename');
+      expect(this.auth.create_context(response, params).username).toEqual('fakename');
     });
 
     it('should set context username user.id if name does not exist', function() {
       delete response.access.user.name;
       response.access.user.id = 'fakeuserid';
-      expect(this.auth.create_context(response, endpoint).username).toEqual('fakeuserid');
+      expect(this.auth.create_context(response, params).username).toEqual('fakeuserid');
     });
 
     describe('#context and endpoint schemes', function() {
       it('should set context based on GlobalAuth', function() {
-        endpoint.scheme = 'GlobalAuth';
-        var context = this.auth.create_context(response, endpoint);
+        params.endpoint.scheme = 'GlobalAuth';
+        var context = this.auth.create_context(response, params);
         expect(context.tenantId).toBe(null);
         expect(context.catalog).toEqual({});
         expect(context.impersonated).toBe(false);
       });
 
       it('should set context based on different endpoint schemes with tenant', function() {
-        var context = this.auth.create_context(response, endpoint);
+        var context = this.auth.create_context(response, params);
         expect(context.impersonated).toBe(false);
         expect(context.catalog).toEqual({});
         expect(context.tenantId).toEqual('fakeid');
@@ -158,7 +161,7 @@ describe('auth Service', function(){
       it('should set context based on different endpoint schemes without tenant', function() {
         delete response.access.token.tenant;
         this.auth.fetch_identity_tenants = jasmine.createSpy('fetch_identity_tenants');
-        var context = this.auth.create_context(response, endpoint);
+        var context = this.auth.create_context(response, params);
         expect(context.impersonated).toBe(false);
         expect(context.catalog).toEqual({});
         expect(context.tenantId).toEqual(null);
@@ -168,53 +171,76 @@ describe('auth Service', function(){
 
     it('should get context regions from response', function() {
       this.auth.get_regions = jasmine.createSpy('get_regions');
-      this.auth.create_context(response, endpoint);
+      this.auth.create_context(response, params);
       expect(this.auth.get_regions).toHaveBeenCalled();
     });
 
   });
 
-  describe('#save_context', function() {
+  describe('#create_identity', function() {
+    var response, params;
+    beforeEach(function() {
+      params = {};
+      params.headers = sinon.stub();
+      params.endpoint = {};
+      response = { access: { user: {}, token: {} } };
+      localStorage.previous_tenants = "[{}, {}, {}]";
+    });
+
+    it('should load previous tenants from localStorage if user is admin', function() {
+      params.headers.returns('True');
+      var identity = this.auth.create_identity(response, params);
+      expect(identity.tenants.length).toBe(3);
+    });
+
+    it('should not load previous tenants from localStorage if user is not admin', function() {
+      params.headers.returns('Truish');
+      var identity = this.auth.create_identity(response, params);
+      expect(identity.tenants).toBe(undefined);
+    });
+  });
+
+  describe('#store_context', function() {
     beforeEach(function() {
       context1 = { username: 'user1', id: 1 };
       context2 = { username: 'user2', id: 2 };
     });
 
     it('should save context after impersonating user', function() {
-      this.auth.save_context(context1);
+      this.auth.store_context(context1);
       expect(this.auth.identity.tenants).not.toBe(null);
       expect(this.auth.identity.tenants.length).toBe(1);
     });
 
     it('should save two or more contexts after impersonating users', function() {
-      this.auth.save_context(context1);
-      this.auth.save_context(context2);
+      this.auth.store_context(context1);
+      this.auth.store_context(context2);
       expect(this.auth.identity.tenants.length).toBe(2);
     });
 
     it('should save contexts to the beginning of the array', function() {
-      this.auth.save_context(context1);
-      this.auth.save_context(context2);
+      this.auth.store_context(context1);
+      this.auth.store_context(context2);
       expect(this.auth.identity.tenants[0].username).toBe('user2');
     });
 
     it('should not save the same context twice', function() {
-      this.auth.save_context(context1);
-      this.auth.save_context(context1);
+      this.auth.store_context(context1);
+      this.auth.store_context(context1);
       expect(this.auth.identity.tenants.length).toBe(1);
     });
 
     it('should save a new instace of contexts, to prevent outside changes', function() {
-      this.auth.save_context(context1);
+      this.auth.store_context(context1);
       context1.username = 'userX';
-      this.auth.save_context(context1);
+      this.auth.store_context(context1);
       expect(this.auth.identity.tenants.length).toBe(2);
     });
 
     it('should not store more than 10 contexts', function() {
       for(var num=1 ; num<=11 ; num++) {
         context1.username = 'user' + num;
-        this.auth.save_context(context1);
+        this.auth.store_context(context1);
       }
       expect(this.auth.identity.tenants.length).toBe(10);
     });
@@ -241,6 +267,19 @@ describe('auth Service', function(){
 
       this.auth.parseWWWAuthenticateHeaders(headers);
       expect(this.auth.endpoints).toEqual([expected_endpoint1, expected_endpoint2, expected_endpoint3]);
+    });
+
+    it('should sort endpoints with priority 0', function(){
+      var header1 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="0"';
+      var expected_endpoint1 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 0 };
+
+      var header2 = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="1"';
+      var expected_endpoint2 = { scheme : 'Keystone', realm : 'US Cloud', uri : 'https://identity.api.rackspacecloud.com/v2.0/tokens', priority: 1 };
+
+      var headers = [header2, header1].join(',');
+
+      this.auth.parseWWWAuthenticateHeaders(headers);
+      expect(this.auth.endpoints).toEqual([expected_endpoint1, expected_endpoint2]);
     });
 
     it('should sort endpoints without a priority at the end of the list', function(){
@@ -289,6 +328,111 @@ describe('auth Service', function(){
     });
   });
 
+  describe('#impersonate', function() {
+    var $httpBackend, $q, deferred;
+
+    beforeEach(inject(function($injector) {
+      $httpBackend = $injector.get('$httpBackend');
+      $q = $injector.get('$q');
+      this.auth.identity.token = {};
+      spyOn(this.auth, 'generate_impersonation_data');
+      spyOn(this.auth, 'get_impersonation_url');
+      spyOn(this.auth, 'impersonate_success');
+      spyOn(this.auth, 'impersonate_error');
+      deferred = $q.defer();
+    }));
+
+    it('- on success: should call impersonate_success', function() {
+      $httpBackend.when('POST', '/authproxy').respond(200, deferred.promise);
+      this.auth.impersonate("fakeusername");
+      $httpBackend.flush();
+      expect(this.auth.impersonate_success).toHaveBeenCalled();
+    });
+
+    it('- on error: should call impersonate_error', function() {
+      $httpBackend.when('POST', '/authproxy').respond(401, deferred.promise);
+      this.auth.impersonate("fakeusername");
+      $httpBackend.flush();
+      expect(this.auth.impersonate_error).toHaveBeenCalled();
+    });
+  });
+
+  describe('#impersonate_success', function() {
+    var $rootScope, $q, deferred, get_tenant_id_deferred, username;
+    beforeEach(inject(function($injector) {
+      $q = $injector.get('$q');
+      $rootScope = $injector.get('$rootScope');;
+      deferred = $q.defer();
+      get_tenant_id_deferred = $q.defer();
+      spyOn(this.auth, 'get_tenant_id').andReturn(get_tenant_id_deferred.promise);
+      response.data = { access: { token: { id: "faketoken" } } };
+      username = "fakeusername";
+    }));
+
+    describe('when tenant_id was retrieved', function() {
+      beforeEach(function() {
+        spyOn(this.auth, 'store_context');
+        spyOn(this.auth, 'save');
+        spyOn(this.auth, 'check_state');
+        spyOn(deferred, 'resolve');
+        get_tenant_id_deferred.resolve("666666");
+        this.auth.impersonate_success(username, response, deferred);
+        $rootScope.$apply();
+      });
+
+      it('should set context username', function() {
+        expect(this.auth.context.username).toEqual("fakeusername");
+      });
+
+      it('should set context token', function() {
+        expect(this.auth.context.token).toEqual( { id: "faketoken" } );
+      });
+
+      it('should set context auth_url', function() {
+        expect(this.auth.context.auth_url).toEqual("https://identity.api.rackspacecloud.com/v2.0/tokens");
+      });
+
+      it('should set tenantId', function() {
+        expect(this.auth.context.tenantId).toEqual("666666");
+      });
+
+      it('should store context for future use', function() {
+        expect(this.auth.store_context).toHaveBeenCalled();
+      });
+
+      it('should save auth for future use', function() {
+        expect(this.auth.save).toHaveBeenCalled();
+      });
+
+      it('should check authentication state', function() {
+        expect(this.auth.check_state).toHaveBeenCalled();
+      });
+
+      it('should resolve the deferred promise', function() {
+        expect(deferred.resolve).toHaveBeenCalled();
+      });
+    });
+
+    describe('when tenant_id was not retrieved', function() {
+      it('should reject deferred promise', function() {
+        spyOn(this.auth, 'impersonate_error');
+        get_tenant_id_deferred.reject();
+        this.auth.impersonate_success(username, response, deferred);
+        $rootScope.$apply();
+        expect(this.auth.impersonate_error).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('#impersonate_error', function() {
+    it('should reject deferred promise', function() {
+      var response = "fakeresponse";
+      var deferred = { reject: sinon.spy() };
+      this.auth.impersonate_error(response, deferred);
+      expect(deferred.reject).toHaveBeenCalled();
+    });
+  });
+
   describe('#exit_impersonation', function() {
     beforeEach(function() {
       original_context = { context_info: "fakeoriginalcontext" };
@@ -328,4 +472,83 @@ describe('auth Service', function(){
     });
   });
 
+  describe('#save', function() {
+    var previous_tenants;
+    beforeEach(function() {
+      this.auth.identity.tenants = [
+        { username: "fakeusername1", tenantId: "fakeid1", sensitive1: "sensitiveinformation1" },
+        { username: "fakeusername2", tenantId: "fakeid2", sensitive2: "sensitiveinformation2" },
+        { username: "fakeusername3", tenantId: "fakeid3", sensitive3: "sensitiveinformation3" },
+      ];
+      this.auth.save();
+      previous_tenants = JSON.parse(localStorage.previous_tenants);
+    });
+
+    it('should save previous tenants information to localStorage', function() {
+      expect(localStorage.previous_tenants).not.toBe(null);
+    });
+
+    it('should save previous tenant username localStorage', function() {
+      expect(previous_tenants[0].username).not.toBe(undefined);
+    });
+
+    it('should save previous tenant ID to localStorage', function() {
+      expect(previous_tenants[0].tenantId).not.toBe(undefined);
+    });
+
+    it('should should not save any other information from previous tenants to localStorage', function() {
+      expect(previous_tenants[0].sensitive1).toBe(undefined);
+      expect(Object.keys(previous_tenants[0]).length).toBe(2);
+    });
+  });
+
+  describe('#logOut', function() {
+    beforeEach(function() {
+      checkmate.config.header_defaults = {
+        headers: {
+          common: {
+            'X-Auth-Token': "faketoken",
+            'X-Auth-Source': "fakesource",
+          }
+        }
+      };
+      spyOn(this.auth, 'clear');
+      spyOn($rootScope, '$broadcast');
+    });
+
+    describe('regardless of flag status', function() {
+      beforeEach(function() {
+        spyOn(localStorage, 'removeItem');
+        this.auth.logOut();
+      });
+
+      it('should call auth#clear', function() {
+        expect(this.auth.clear).toHaveBeenCalled();
+      });
+
+      it('should clear checkmate default headers', function() {
+        expect(checkmate.config.header_defaults.headers.common['X-Auth-Token']).toBe(undefined);
+        expect(checkmate.config.header_defaults.headers.common['X-Auth-Source']).toBe(undefined);
+      });
+
+      it('should remove auth information from localStorage', function() {
+        expect(localStorage.removeItem).toHaveBeenCalledWith('auth');
+      });
+    });
+
+    it('should default broadcast to true', function() {
+      this.auth.logOut();
+      expect($rootScope.$broadcast).toHaveBeenCalled();
+    });
+
+    it('should broadcast logOut if flag is set to true', function() {
+      this.auth.logOut(true);
+      expect($rootScope.$broadcast).toHaveBeenCalled();
+    });
+
+    it('should not broadcast logOut if flag is set to false', function() {
+      this.auth.logOut(false);
+      expect($rootScope.$broadcast).not.toHaveBeenCalled();
+    });
+  });
 });

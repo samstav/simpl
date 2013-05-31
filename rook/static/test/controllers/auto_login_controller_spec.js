@@ -11,7 +11,7 @@ describe('AutoLoginController', function(){
     cookies = {};
     auth = {};
     controller = new AutoLoginController(scope, location, cookies, auth);
-    mixpanel = { track: emptyFunction }; //We are dependent on this being a global var
+    mixpanel = { track: emptyFunction }; // TODO: We are dependent on this being a global var
   });
 
   it('should assign autologin callbacks and method to the scope', function(){

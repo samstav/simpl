@@ -397,6 +397,23 @@ body {
   font-size: 12px;
 }
 
+/* NavBar Loading Indicator */
+.navbar .loading {
+  width: 16px;
+  height: 16px;
+}
+
+/* NavBar Search */
+.navSearch .search-query {
+  height: 15px;
+}
+
+/* Feedback Menu */
+#feedback-dropdown {
+  padding: 15px 15px 0;
+  color: black;
+}
+
 /* Tenant Impersonation */
 form#impersonate {
   margin: 0 20px 0; /* top left/right bottom */
@@ -422,9 +439,22 @@ form#impersonate input {
 }
 .modal .announcement {
   text-align: center;
+  position: relative;
 }
 .modal .announcement img {
   position: absolute;
-  left: 30px;
-  top: 30px;
+  left: 15px;
+  top: -30px;
+}
+
+.blueprint-name {
+  position: relative;
+}
+
+.blueprint_loading { 
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  top: 0;
+  right: 0;
 }
