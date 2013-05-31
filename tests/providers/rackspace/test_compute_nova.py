@@ -119,23 +119,26 @@ class TestNovaCompute(test.ProviderTester):
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
-        
+
     def test_on_failure(self):
-        """Test create servrer on failure postback data"""
+        """
+        Test create servrer on failure postback data
+        """
+
         exc = self.mox.CreateMockAnything()
         exc.message = "some message"
         task_id = "1234"
-        args = [ {
+        args = [{
                 'deployment_id': '4321',
                 'resource_key': '0'
-                } ]
+                }]
         kwargs = {}
         einfo = self.mox.CreateMockAnything()
         einfo.traceback = "some traceback"
-        
+
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
-        
+
         expected = {
                     "instance:0": {
                     'status': 'ERROR',
@@ -145,13 +148,9 @@ class TestNovaCompute(test.ProviderTester):
                     }
                 }
 
-        resource_postback.delay("4321",
-                                expected).AndReturn(True)
-                                
+        resource_postback.delay("4321", expected).AndReturn(True)
         self.mox.ReplayAll()
-        
         _on_failure(exc, task_id, args, kwargs, einfo, "deleting", "method")
-        
         self.mox.VerifyAll()
 
     def test_wait_on_build_rackconnect_pending(self):
