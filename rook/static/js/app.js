@@ -203,7 +203,7 @@ function AutoLoginController($scope, $location, $cookies, auth) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth, $route) {
+function AppController($scope, $http, $location, $resource, auth, $route, $q) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
@@ -305,45 +305,42 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
   };
 
   // Display log in prompt
-  $scope.loginPrompt = function(success_callback, failure_callback) {
-    var modal = $('#modalAuth');
-    modal.modal({
-      keyboard: false,
-      show: true
-    });
-
-    modal[0].success_callback = success_callback;
-    modal[0].failure_callback = failure_callback;
-    modal.on('shown', function () {
-      $('input:text:visible:first', this).focus();
-    });
-    modal.modal('show');
+  $scope.deferred_login = null;
+  $scope.display_login_prompt = false;
+  $scope.login_prompt_opts = {
+    backdropFade: true,
+    dialogFade: true,
+  };
+  $scope.loginPrompt = function() {
+    $scope.deferred_login = $q.defer();
+    $scope.display_login_prompt = true;
+    // TODO: focus on username field
+    return $scope.deferred_login.promise;
+  };
+  $scope.close_login_prompt = function() {
+    $scope.display_login_prompt = false;
+    if ($scope.deferred_login !== null) {
+      $scope.deferred_login.reject({ logged_in: false, reason: 'dismissed' });
+    }
   };
 
-  $scope.on_auth_success = function(json) {
+  $scope.on_auth_success = function() {
     //reset controls
     $scope.bound_creds.username = '';
     $scope.bound_creds.password = '';
     $scope.bound_creds.apikey   = '';
     auth.error_message = null;
 
-    $('#modalAuth').modal('hide');
-    if ($('#modalAuth')[0] && typeof $('#modalAuth')[0].success_callback == 'function') {
-        $('#modalAuth')[0].success_callback();
-        delete $('#modalAuth')[0].success_callback;
-        delete $('#modalAuth')[0].failure_callback;
-      }
+    $scope.deferred_login.resolve({ logged_in: true });
+    $scope.deferred_login = null;
+    $scope.close_login_prompt();
+
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
     $route.reload(); // needed in case of token expiration
   };
 
   $scope.auth_error_message = function() { return auth.error_message; };
   $scope.on_auth_failed = function(response) {
-    if (typeof $('#modalAuth')[0].failure_callback == 'function') {
-        $('#modalAuth')[0].failure_callback();
-        delete $('#modalAuth')[0].success_callback;
-        delete $('#modalAuth')[0].failure_callback;
-      }
     mixpanel.track("Log In Failed", {'problem': response.statusText});
     auth.error_message = response.statusText + ". Check that you typed in the correct credentials.";
   };
@@ -1096,7 +1093,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $('#modalError').modal('show');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() { console.log("Failed") }); //TODO: implement a callback
     }
   };
 
@@ -1140,7 +1137,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $('#modalError').modal('show');
         });
     } else {
-      $scope.loginPrompt(this); //TODO: implement a callback
+      $scope.loginPrompt().then(this); //TODO: implement a callback
     }
   };
 
@@ -1259,7 +1256,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   //Init
   if (!auth.identity.loggedIn) {
-    $scope.loginPrompt($scope.load);
+    $scope.loginPrompt().then($scope.load);
   } else if ($location.path().split('/').slice(-1)[0] == '+preview') {
     if (typeof workflow.preview == 'object') {
       $scope.parse(workflow.preview['workflow']);
@@ -1761,7 +1758,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
           $('#modalError').modal('show');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
 
@@ -2407,7 +2404,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $('#modalError').modal('show');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
 
@@ -2430,7 +2427,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $('#modalError').modal('show');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
 
@@ -2450,7 +2447,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $('#modalError').modal('show');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
 

@@ -5,6 +5,7 @@ describe('AppController', function(){
       resource,
       auth,
       $route,
+      $q,
       controller,
       api_stub;
 
@@ -15,8 +16,10 @@ describe('AppController', function(){
     resource = function(){ return api_stub; };
     auth = {};
     $route = {};
+    $q = { defer: sinon.stub().returns( { promise: "fakepromise", reject: sinon.spy() } ) };
     api_stub = { get: emptyFunction };
-    controller = new AppController(scope, http, location, resource, auth, $route);
+    controller = new AppController(scope, http, location, resource, auth, $route, $q);
+    mixpanel = { track: sinon.spy() }; // TODO: We are dependent on this being a global var
   });
 
   it('should display the header', function(){
@@ -334,8 +337,11 @@ describe('AppController', function(){
   });
 
   describe('#on_auth_success', function() {
+    var deferred_login;
     beforeEach(function() {
-      mixpanel = { track: emptyFunction }; // TODO: We are dependent on this being a global var
+      deferred_login = { resolve: sinon.spy() };
+      scope.deferred_login = deferred_login;
+      spyOn(scope, 'close_login_prompt');
       auth.identity = { username: "fakeusername" };
       $route.reload = sinon.spy();
       scope.on_auth_success();
@@ -357,8 +363,79 @@ describe('AppController', function(){
       expect(auth.error_message).toBeFalsy();
     });
 
+    it('should resolve the deferred login promise', function() {
+      expect(deferred_login.resolve).toHaveBeenCalledWith({ logged_in: true });
+    });
+
+    it('should erase the deferred login promise', function() {
+      expect(scope.deferred_login).toBe(null);
+    });
+
+    it('should close the login prompt', function() {
+      expect(scope.close_login_prompt).toHaveBeenCalled();
+    });
+
     it('should reload current route', function() {
       expect($route.reload).toHaveBeenCalled();
+    });
+  });
+
+  describe('#on_auth_failed', function() {
+    beforeEach(function() {
+      var response = { statusText: "fakestatustext" };
+      scope.on_auth_failed(response);
+    });
+
+    it('should log response to mixpanel', function() {
+      expect(mixpanel.track).toHaveBeenCalledWith('Log In Failed', { problem: "fakestatustext" });
+    });
+
+    it('should add an error message to auth service', function() {
+      expect(auth.error_message).toEqual("fakestatustext. Check that you typed in the correct credentials.");
+    });
+  });
+
+  describe('login_prompt_opts', function() {
+    it('should set backdropFade to true', function() {
+      expect(scope.login_prompt_opts.backdropFade).toBe(true);
+    });
+
+    it('should set dialogFade to true', function() {
+      expect(scope.login_prompt_opts.dialogFade).toBe(true);
+    });
+  });
+
+  describe('display_login_prompt', function() {
+    it('should default to false', function() {
+      expect(scope.display_login_prompt).toBe(false);
+    });
+  });
+
+  describe('#loginPrompt', function() {
+    var deferred_login_promise;
+    beforeEach(function() {
+      deferred_login_promise = scope.loginPrompt();
+    });
+
+    it('should set display_login_prompt to true', function() {
+      expect(scope.display_login_prompt).toBe(true);
+    });
+
+    it('should return a deferred login promise', function() {
+      expect(deferred_login_promise).toEqual("fakepromise");
+    });
+  });
+
+  describe('#close_login_prompt', function() {
+    it('should set display_login_prompt to false', function() {
+      scope.close_login_prompt();
+      expect(scope.display_login_prompt).toBe(false);
+    });
+
+    it('should reject the login promise if it has not been cleared', function() {
+      scope.deferred_login = $q.defer();
+      scope.close_login_prompt();
+      expect(scope.deferred_login.reject).toHaveBeenCalledWith({ logged_in: false, reason: 'dismissed' });
     });
   });
 

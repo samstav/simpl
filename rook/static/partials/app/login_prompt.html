@@ -1,6 +1,6 @@
-<div id="modalAuth" class="modal hide fade">
+<div id="modalAuth" modal="display_login_prompt" close="close_login_prompt()" options="login_prompt_opts">
   <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <button type="button" class="close" ng-click="close_login_prompt()">&times;</button>
     <h3>Welcome to Checkmate!</h3>
     <br>
     <div id="auth_error" class="alert alert-error" ng-show="auth_error_message()">

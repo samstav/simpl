@@ -13,7 +13,7 @@ describe('WorkflowController', function(){
       deploymentDataParser;
 
   beforeEach(function(){
-    $scope = { loginPrompt: emptyFunction };
+    $scope = { loginPrompt: sinon.stub().returns({ then: emptyFunction }) };
     $resource = {};
     $http = {};
     $routeParams = {};
