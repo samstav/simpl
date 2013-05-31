@@ -825,7 +825,8 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
     except cloudlb.errors.NotFound:
         pass
     if (not dlb) or "DELETED" == dlb.status:
-        return {inst_key: {'status': 'DELETED'}}
+        return {inst_key: {'status': 'DELETED',
+                           'status-message': 'LB %s was deleted' % inst_key}}
     else:
         msg = ("Waiting on state DELETED. Load balancer is in state %s"
                % dlb.status)
@@ -1066,6 +1067,7 @@ def wait_on_build(context, lbid, region, api=None):
         raise CheckmateException(msg)
     elif loadbalancer.status == "ACTIVE":
         results['status'] = "ACTIVE"
+        results['status-message'] = ""
         results['id'] = lbid
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}

@@ -664,6 +664,7 @@ def wait_on_build(context, instance_id, region, api=None):
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
         results['id'] = instance_id
+        results['status-message'] = ""
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)

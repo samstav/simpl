@@ -904,6 +904,7 @@ def wait_on_build(context, server_id, region, resource,
         results = {
             'instance:%s' % resource_key: {
                 'status': "ACTIVE",
+                'status-message': "",
                 'ip': '4.4.4.%s' % resource_key,
                 'public_ip': '4.4.4.%s' % resource_key,
                 'private_ip': '10.1.2.%s' % resource_key,
