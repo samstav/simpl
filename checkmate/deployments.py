@@ -763,7 +763,7 @@ def delete_deployment(api_id, tenant_id=None, driver=DB):
     if not deployment:
         abort(404, "No deployment with id %s" % api_id)
     deployment = Deployment(deployment)
-    if 'force' not in request.query_string:
+    if request.query_string.get('force') != '1':
         if not deployment.fsm.has_path_to('DELETED'):
             abort(400, "Deployment %s cannot be deleted while in status %s." %
                   (api_id, deployment.get("status", "UNKNOWN")))
