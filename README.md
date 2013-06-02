@@ -330,7 +330,8 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     POST/GET [/:tid]/deployments/:id/+deploy
     POST/GET [/:tid]/deployments/:id/+clone
     POST/GET [/:tid]/deployments/:id/+sync
-    PUT/GET/POST/DELETE [/:tid]/deployments/:id
+    PUT/GET/POST [/:tid]/deployments/:id
+    DELETE [/:tid]/deployments/:id[?force=1]
     GET [/:tid]/deployments/:id/status
     POST/GET [/:tid]/deployments/:id/secrets
     GET [/:tid]/deployments/:id/resources
@@ -340,7 +341,10 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     POST [/:tid]/workflows
     PUT/GET/POST [/:tid]/workflows/:id
     GET [/:tid]/workflows/:id/status
-    POST [/:tid]/workflows/:id/+execute
+    GET/POST [/:tid]/workflows/:id/+execute
+    GET/POST [/:tid]/workflows/:id/+pause
+    GET/POST [/:tid]/workflows/:id/+resume
+
     GET/POST [/:tid]/workflows/:id/tasks/:task_id
     POST [/:tid]/workflows/:id/tasks/:task_id/+execute
     POST [/:tid]/workflows/:id/tasks/:task_id/+resubmit
@@ -358,6 +362,7 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
 
     GET /admin/status/celery
     GET /admin/status/libraries
+    GET /admin/deployments/[?offset=OFFSET&limit=LIMIT?show_deleted=1]
 
     # If the server is started with --with-simulator, the following calls are available:
 
