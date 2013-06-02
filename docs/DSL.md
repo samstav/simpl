@@ -357,6 +357,155 @@ inputs:
 Note:  A common use case is to supply the url and keys. A shortcut is available that accepts a key called `url` that can be used to supply the url without having to provide all the components of the url.
 
 
+Display Outputs
+===============
+
+Display outputs is how a blueprint author determines what information to provide to the end user to be able to use the deployment (credentials, urls, etc).
+
+Display outputs can be specified in three ways:
+
+1 - under a component in blueprint services
+```yaml
+
+service:
+    database:
+    component:
+      display-outputs:
+        "Password":
+          label:"blah"
+          order: 1
+          source: mysql://passwd
+```
+
+2 - in a blueprint option by setting `display-output` to the boolean value `true`
+```yaml
+options:
+    "AdminUser":
+       display-output: true
+```
+
+3 - as a map _under the blueprint_
+
+```yaml
+
+blueprint:
+  display-outputs: # used to return outputs that the client (Rook, Pawn, Reach) will display to the end-user
+    "Site Address":
+      type: url
+      source: options://url
+      extra-sources:
+        ipv4: "resources://instance/vip?resource.service=lb&type=resource.load-balancer"
+      order: 1
+      group: application
+    "Admin Username":
+      type: string
+      source: options://username
+      order: 2
+      group: application
+    "Admin Password":
+      type: password
+      source: options://password
+      order: 3
+      group: application
+    "Private Key":
+      type: private-key
+      source: "resources://instance/private_key?resource.index=deployment-keys"
+      order: 4
+      group: application
+    "Database Username":
+      source: options://db_username
+      order: 5
+      group: database
+    "Database Password":
+      type: password
+      source: options://db_password
+      order: 6
+      group: database
+    "Database Host":
+      source: "resources://instance/interfaces/mysql/host?resource.service=db&resource.type=compute"
+      order: 7
+      group: database
+```
+
+### Syntax
+
+display-outputs.**source**: use this to specify where the data will come from. Use cases identified so far are under options and resources. I'm proposing using the same URL syntax we are using in the Chefmap with additional enhancements as per discussions on the networking pull request.
+
+The syntax would be:
+
+    {root}://{path}
+
+    root = "options" | "resources" | "services"
+    path = [/keys]/result (ends with value to return)
+
+Examples:
+
+    # Get the value of the 'url' option
+    source: options://url
+
+    # Get the private_key of the 'url' option
+    source: options://url/private_key
+
+    # Get the private_key of the deployment keys
+    source: "resources://deployment-keys/instance/private_key"
+
+    # Get the database password
+    source: "services://db/interfaces/mysql/datebase_password"
+
+
+- display-outputs.**extra-sources**: for some types, like URLs, we need to provide additional information like the IP address so that the UI can display things like scripts to set up /etc/hosts. This is a map of key/value where value follows the same syntax as source.
+
+- display-outputs.**type**: string, integer, url, boolean (same as options)
+- display-outputs.**label**: used by clients and overrides the key the display outputs is created under
+- display-outputs.**order**: for display ordering
+- display-outputs.**group**: for display option grouping
+- display-outputs.**is-secret**: boolean to mark this as a protected piece of data
+
+
+When the deployment runs, new map _on the deployemnt_ where the actual display-outputs will be stored is created. These will be used by the client (Rook, Pawn, Reach) to display to the end-user.
+
+
+```yaml
+# under deployment
+display-outputs:
+  Site Address:
+    type: url
+    uri: http://example.com/
+    extra-info:
+      ipv4: 4.4.4.204
+    order: 1
+    group: application
+  Admin Username:
+    type: string
+    value: john
+    order: 2
+    group: application
+  Admin Password:
+    type: password
+    value: w34ot8how87h34t
+    order: 3
+    group: application
+  Private Key:
+    type: private-key
+    value: |
+      -----BEGIN RSA PRIVATE KEY-----
+      MIIEpAIBAAKCAQEAu1R+vwvUR3o5rQa6ny79OlhLT2qWYY0xKVg5bxW0DGKhn/6e
+      gI8yWSf9kUmbEWdO1xuQiEiMnAA2wY0w+TXHCNkCX305shCGL/ejt4XrPLloK7c6
+      anCS2MTdcDUjppeHhhNi7TdotN9E5wxY8x1IBtioCldNVIkJVwZMhiMORteGpOZ2
+      DV+OZ2GquZKrrrRN9tJtIwMMbqjVno1k3Lz3iJfvRZn4D5xZFSd/lgTp+H0bpc4o
+      9kS9Z4k44l9chMvZItGjAgwQ07ORny5cPnKCAPewO+F20ng+WT19KerGWQq/58T3
+      -----END RSA PRIVATE KEY-----
+    order: 4
+    group: application
+```
+
+Additional Information:
+
+- We identify and separate sensitive data (passwords, private keys) from non-sensitive data so a client can choose to handle them differently.
+- There is an API to destroy sensitive data so future clients can be prevented from accessing the data.
+- Destruction of sensitive data does not block Checkmate from accessing the resources itself for future operations. Ther only way to completely remove sensitive data from checkmate is to delete the deployment.
+- Given we are looking to having blueprints become components that can be included in other blueprints, the keyword `outputs` will probably be used for generating the outputs in that case. So the key for this is called `display-outputs` and is optional.
+
 
 Deployments
 ===========
