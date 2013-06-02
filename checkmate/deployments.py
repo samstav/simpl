@@ -776,21 +776,22 @@ def delete_deployment(api_id, tenant_id=None, driver=DB):
     if tasks:
         common_tasks.update_operation.s(api_id, status="IN PROGRESS",
                                         driver=driver).delay()
-        chord(tasks)(delete_deployment_task.si(api_id, driver=driver),
-                     interval=2, max_retries=120)
+        async_task = chord(tasks)(delete_deployment_task.si(api_id,
+                                                            driver=driver),
+                                  interval=2, max_retries=120)
     else:
         LOG.warn("No delete tasks for deployment %s", api_id)
-        delete_deployment_task.delay(api_id, driver=driver)
+        async_task = delete_deployment_task.delay(api_id, driver=driver)
 
     # Set headers
     location = "/deployments/%s" % api_id
-    link = "/canvases/%s" % api_id
+    link = "/canvases/%s" % async_task
     if tenant_id:
         location = "/%s%s" % (tenant_id, location)
         link = "/%s%s" % (tenant_id, link)
     response.set_header("Location", location)
     response.set_header("Link", '<%s>; rel="canvas"; title="Delete Deployment"'
-                        % location)
+                        % link)
 
     response.status = 202  # Accepted (i.e. not done yet)
     return write_body(deployment, request, response)
