@@ -250,32 +250,32 @@ def post_deployment(tenant_id=None, driver=DB):
     deployment = _content_to_deployment(request, tenant_id=tenant_id)
     if request.context.simulation is True:
         deployment['id'] = 'simulate%s' % uuid.uuid4().hex[0:12]
-    oid = str(deployment['id'])
+    api_id = str(deployment['id'])
     if 'asynchronous' in request.query:
-        save_deployment_and_execute_plan(tenant_id, driver, oid, deployment)
+        save_deployment_and_execute_plan(tenant_id, driver, api_id, deployment)
     else:
-        write_deploy_headers(oid, tenant_id=tenant_id)
+        write_deploy_headers(api_id, tenant_id=tenant_id)
         process_post_deployment(deployment, request.context, driver=driver)
     return write_body(deployment, request, response)
 
 
-@post('/deployments/<oid>/+clone')
+@post('/deployments/<api_id>/+clone')
 @with_tenant
-def clone_deployment(oid, tenant_id=None, driver=DB):
+def clone_deployment(api_id, tenant_id=None, driver=DB):
     """
     Creates deployment and wokflow based on deleted/active
     deployment information
     """
-    assert oid, "Deployment ID cannot be empty"
+    assert api_id, "Deployment ID cannot be empty"
 
-    deployment = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+    deployment = get_a_deployment(api_id, tenant_id=tenant_id, driver=driver)
     if not deployment:
-        abort(404, 'No deployment found with deployment id %s' % oid)
+        abort(404, 'No deployment found with deployment id %s' % api_id)
 
     if deployment['status'] != 'DELETED':
         raise CheckmateBadState(
             "Deployment '%s' is in '%s' status and must be "
-            "in 'DELETED' to recreate" % (oid, deployment['status'])
+            "in 'DELETED' to recreate" % (api_id, deployment['status'])
         )
 
     # give a new deployment ID
@@ -284,7 +284,7 @@ def clone_deployment(oid, tenant_id=None, driver=DB):
     else:
         deployment['id'] = uuid.uuid4().hex
 
-    new_oid = str(deployment['id'])
+    new_api_id = str(deployment['id'])
 
     # delete resources
     if 'resources' in deployment:
@@ -295,21 +295,22 @@ def clone_deployment(oid, tenant_id=None, driver=DB):
 
     deployment['status'] = 'NEW'
 
-    save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment)
+    save_deployment_and_execute_plan(tenant_id, driver, new_api_id, deployment)
 
     return write_body(deployment, request, response)
 
 
-def save_deployment_and_execute_plan(tenant_id, driver, new_oid, deployment):
+def save_deployment_and_execute_plan(tenant_id, driver, new_api_id,
+                                     deployment):
     # save deployment
-    _save_deployment(deployment, deployment_id=new_oid, tenant_id=tenant_id,
+    _save_deployment(deployment, deployment_id=new_api_id, tenant_id=tenant_id,
                      driver=driver)
 
-    write_deploy_headers(new_oid, tenant_id=tenant_id)
+    write_deploy_headers(new_api_id, tenant_id=tenant_id)
 
     # can't pass actual request
     request_context = copy.deepcopy(request.context)
-    execute_plan(new_oid,
+    execute_plan(new_api_id,
                  request_context,
                  driver=driver,
                  asynchronous=('asynchronous' in request.query))
@@ -396,16 +397,16 @@ def preview_deployment(tenant_id=None):
     return write_body(results, request, response)
 
 
-@route('/deployments/<oid>', method=['PUT'])
+@route('/deployments/<api_id>', method=['PUT'])
 @with_tenant
-def update_deployment(oid, tenant_id=None, driver=DB):
+def update_deployment(api_id, tenant_id=None, driver=DB):
     """Store a deployment on this server"""
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
-    deployment = _content_to_deployment(request, deployment_id=oid,
+    deployment = _content_to_deployment(request, deployment_id=api_id,
                                         tenant_id=tenant_id)
-    entity = driver.get_deployment(oid)
-    results = _save_deployment(deployment, deployment_id=oid,
+    entity = driver.get_deployment(api_id)
+    results = _save_deployment(deployment, deployment_id=api_id,
                                tenant_id=tenant_id, driver=driver)
     # Return response (with new resource location in header)
     if entity:
@@ -414,46 +415,46 @@ def update_deployment(oid, tenant_id=None, driver=DB):
         response.status = 201  # Created
         if tenant_id:
             response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
-                                                                    oid))
+                                                                    api_id))
         else:
-            response.add_header('Location', "/deployments/%s" % oid)
+            response.add_header('Location', "/deployments/%s" % api_id)
     return write_body(results, request, response)
 
 
-@route('/deployments/<oid>/+plan', method=['POST', 'GET'])
+@route('/deployments/<api_id>/+plan', method=['POST', 'GET'])
 @with_tenant
-def plan_deployment(oid, tenant_id=None, driver=DB):
+def plan_deployment(api_id, tenant_id=None, driver=DB):
     """Plan a NEW deployment and save it as PLANNED"""
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
-    if any_id_problems(oid):
-        abort(406, any_id_problems(oid))
-    entity = driver.get_deployment(oid, with_secrets=True)
+    if any_id_problems(api_id):
+        abort(406, any_id_problems(api_id))
+    entity = driver.get_deployment(api_id, with_secrets=True)
     if not entity:
-        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+        raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
     if entity.get('status', 'NEW') != 'NEW':
         raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
                                 "be in 'NEW' to be planned" %
-                                (oid, entity.get('status')))
+                                (api_id, entity.get('status')))
     deployment = Deployment(entity)  # Also validates syntax
     planned_deployment = plan(deployment, request.context)
-    results = _save_deployment(planned_deployment, deployment_id=oid,
+    results = _save_deployment(planned_deployment, deployment_id=api_id,
                                tenant_id=tenant_id, driver=driver)
     return write_body(results, request, response)
 
 
 # pylint: disable=W0613
-@route('/deployments/<oid>/+sync', method=['POST', 'GET'])
+@route('/deployments/<api_id>/+sync', method=['POST', 'GET'])
 @with_tenant
-def sync_deployment(oid, tenant_id=None, driver=DB):
+def sync_deployment(api_id, tenant_id=None, driver=DB):
     """Sync existing deployment objects with current cloud status"""
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
-    if any_id_problems(oid):
-        abort(406, any_id_problems(oid))
-    entity = driver.get_deployment(oid)
+    if any_id_problems(api_id):
+        abort(406, any_id_problems(api_id))
+    entity = driver.get_deployment(api_id)
     if not entity:
-        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+        raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
     deployment = Deployment(entity)
     env = deployment.environment()
     resources = {}
@@ -461,77 +462,77 @@ def sync_deployment(oid, tenant_id=None, driver=DB):
         if key.isdigit() and 'provider' in resource:
             provider = env.get_provider(resource['provider'])
             result = provider.get_resource_status(request.context,
-                                                  oid, resource, key)
+                                                  api_id, resource, key)
             if result:
                 resources.update(result)
-                resource_postback.delay(oid, result, driver=driver)
+                resource_postback.delay(api_id, result, driver=driver)
     return write_body(resources, request, response)
 
 
 # pylint: disable=W0613
-@route('/deployments/<oid>/+deploy', method=['POST', 'GET'])
+@route('/deployments/<api_id>/+deploy', method=['POST', 'GET'])
 @with_tenant
-def deploy_deployment(oid, tenant_id=None, driver=DB):
+def deploy_deployment(api_id, tenant_id=None, driver=DB):
     """Deploy a NEW or PLANNED deployment and save it as DEPLOYED"""
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
-    if any_id_problems(oid):
-        raise CheckmateValidationException(any_id_problems(oid))
-    entity = driver.get_deployment(oid, with_secrets=True)
+    if any_id_problems(api_id):
+        raise CheckmateValidationException(any_id_problems(api_id))
+    entity = driver.get_deployment(api_id, with_secrets=True)
     if not entity:
-        CheckmateDoesNotExist('No deployment with id %s' % oid)
+        CheckmateDoesNotExist('No deployment with id %s' % api_id)
     deployment = Deployment(entity)  # Also validates syntax
     if entity.get('status', 'NEW') == 'NEW':
         deployment = plan(deployment, request.context)
     if entity.get('status') != 'PLANNED':
         raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
                                 "be in 'PLANNED' or 'NEW' status to be "
-                                "deployed" % (oid, entity.get('status')))
+                                "deployed" % (api_id, entity.get('status')))
 
     # Create a 'new deployment' workflow
     _deploy(deployment, request.context, driver=driver)
 
     #Trigger the workflow
-    async_task = execute(oid, driver=driver)
+    async_task = execute(api_id, driver=driver)
     LOG.debug("Triggered workflow (task='%s')", async_task)
 
     return write_body(deployment, request, response)
 
 
-@get('/deployments/<oid>')
+@get('/deployments/<api_id>')
 @with_tenant
-def get_deployment(oid, tenant_id=None, driver=DB):
+def get_deployment(api_id, tenant_id=None, driver=DB):
     """Return deployment with given ID"""
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
 
     try:
-        entity = _get_a_deployment_with_request(oid, tenant_id=tenant_id,
+        entity = _get_a_deployment_with_request(api_id, tenant_id=tenant_id,
                                                 driver=driver)
     except CheckmateDoesNotExist:
         abort(404)
     if tenant_id is not None and tenant_id != entity.get('tenantId'):
         LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
-                    "%s", oid, tenant_id, request.context.username)
+                    "%s", api_id, tenant_id, request.context.username)
         abort(404)
 
     return write_body(entity, request, response)
 
 
-@get('/deployments/<oid>/secrets')
+@get('/deployments/<api_id>/secrets')
 @with_tenant
-def get_deployment_secrets(oid, tenant_id=None, driver=DB):
+def get_deployment_secrets(api_id, tenant_id=None, driver=DB):
     """Return deployment secrets"""
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
 
     try:
-        entity = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+        entity = get_a_deployment(api_id, tenant_id=tenant_id, driver=driver)
     except CheckmateDoesNotExist:
         abort(404)
     if tenant_id is not None and tenant_id != entity.get('tenantId'):
         LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
-                    "%s", oid, tenant_id, request.context.username)
+                    "%s", api_id, tenant_id, request.context.username)
         abort(404)
 
     if not (request.context.is_admin is True or
@@ -541,26 +542,27 @@ def get_deployment_secrets(oid, tenant_id=None, driver=DB):
         abort(401, "You must be the creator of a deployment or an admin to "
               "retrieve its secrets")
 
-    data = get_a_deployments_secrets(oid, tenant_id=tenant_id, driver=driver)
+    data = get_a_deployments_secrets(api_id, tenant_id=tenant_id,
+                                     driver=driver)
     return write_body(data, request, response)
 
 
-@post('/deployments/<oid>/secrets')
+@post('/deployments/<api_id>/secrets')
 @with_tenant
-def update_deployment_secrets(oid, tenant_id=None, driver=DB):
+def update_deployment_secrets(api_id, tenant_id=None, driver=DB):
     """Update/Lock deployment secrets"""
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
 
     partial = read_body(request)
     try:
-        entity = get_a_deployment(oid, tenant_id=tenant_id, driver=driver,
+        entity = get_a_deployment(api_id, tenant_id=tenant_id, driver=driver,
                                   with_secrets=True)
     except CheckmateDoesNotExist:
         abort(404)
     if tenant_id is not None and tenant_id != entity.get('tenantId'):
         LOG.warning("Attempt to access deployment %s from wrong tenant %s by "
-                    "%s", oid, tenant_id, request.context.username)
+                    "%s", api_id, tenant_id, request.context.username)
         abort(404)
 
     if not (request.context.is_admin is True or
@@ -592,30 +594,30 @@ def update_deployment_secrets(oid, tenant_id=None, driver=DB):
 
     if updates:
         body, secrets = extract_sensitive_data(updates)
-        driver.save_deployment(oid, body, secrets, tenant_id=tenant_id,
+        driver.save_deployment(api_id, body, secrets, tenant_id=tenant_id,
                                partial=True)
     return write_body({'secrets': updates.get('display-outputs')}, request,
                       response)
 
 
-def _get_a_deployment_with_request(oid, tenant_id=None, driver=DB):
+def _get_a_deployment_with_request(api_id, tenant_id=None, driver=DB):
     """
     Lookup a deployment with secrets if needed. With secrets is stored
     on the request.
     """
     if 'with_secrets' in request.query:  # TODO: verify admin-ness
-        return get_a_deployment(oid, tenant_id, driver, with_secrets=True)
+        return get_a_deployment(api_id, tenant_id, driver, with_secrets=True)
     else:
-        return get_a_deployment(oid, tenant_id, driver, with_secrets=False)
+        return get_a_deployment(api_id, tenant_id, driver, with_secrets=False)
 
 
-def get_a_deployment(oid, tenant_id=None, driver=DB, with_secrets=False):
+def get_a_deployment(api_id, tenant_id=None, driver=DB, with_secrets=False):
     """
     Get a single deployment by id.
     """
-    entity = driver.get_deployment(oid, with_secrets=with_secrets)
+    entity = driver.get_deployment(api_id, with_secrets=with_secrets)
     if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
-        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+        raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
     # Strip secrets
     # FIXME(zns): this is not the place to do this / temp HACK to prove API
@@ -641,17 +643,16 @@ def get_a_deployment(oid, tenant_id=None, driver=DB, with_secrets=False):
     except StandardError as exc:
         # Skip errors in exprimental code
         LOG.exception(exc)
-        pass
     return entity
 
 
-def get_a_deployments_secrets(oid, tenant_id=None, driver=DB):
+def get_a_deployments_secrets(api_id, tenant_id=None, driver=DB):
     """
     Get the passwords and keys of a single deployment by id.
     """
-    entity = driver.get_deployment(oid, with_secrets=True)
+    entity = driver.get_deployment(api_id, with_secrets=True)
     if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
-        raise CheckmateDoesNotExist('No deployment with id %s' % oid)
+        raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
     secrets = {
         key: value
@@ -659,7 +660,7 @@ def get_a_deployments_secrets(oid, tenant_id=None, driver=DB):
         if value.get('is-secret', False) is True
     }
     data = {
-        'id': oid,
+        'id': api_id,
         'tenantId': tenant_id,
         'secrets': secrets,
     }
@@ -674,25 +675,25 @@ def _get_dep_resources(deployment):
     abort(404, "No resources found for deployment %s" % deployment.get("id"))
 
 
-@get('/deployments/<oid>/resources')
+@get('/deployments/<api_id>/resources')
 @with_tenant
-def get_deployment_resources(oid, tenant_id=None, driver=DB):
+def get_deployment_resources(api_id, tenant_id=None, driver=DB):
     """ Return the resources for a deployment """
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
-    deployment = _get_a_deployment_with_request(oid, tenant_id=tenant_id,
+    deployment = _get_a_deployment_with_request(api_id, tenant_id=tenant_id,
                                                 driver=driver)
     resources = _get_dep_resources(deployment)
     return write_body(resources, request, response)
 
 
-@get('/deployments/<oid>/resources/status')
+@get('/deployments/<api_id>/resources/status')
 @with_tenant
-def get_resources_statuses(oid, tenant_id=None, driver=DB):
+def get_resources_statuses(api_id, tenant_id=None, driver=DB):
     """ Get basic status of all deployment resources """
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
-    deployment = _get_a_deployment_with_request(oid, tenant_id=tenant_id,
+    deployment = _get_a_deployment_with_request(api_id, tenant_id=tenant_id,
                                                 driver=driver)
     resources = _get_dep_resources(deployment)
     resp = {}
@@ -727,62 +728,63 @@ def get_resources_statuses(oid, tenant_id=None, driver=DB):
     return write_body(resp, request, response)
 
 
-@get('/deployments/<oid>/resources/<rid>')
+@get('/deployments/<api_id>/resources/<rid>')
 @with_tenant
-def get_resource(oid, rid, tenant_id=None, driver=DB):
+def get_resource(api_id, rid, tenant_id=None, driver=DB):
     """ Get a specific resource from a deployment """
     try:
-        return write_body(get_resource_by_id(oid, rid, tenant_id, driver),
+        return write_body(get_resource_by_id(api_id, rid, tenant_id, driver),
                           request, response)
     except ValueError as not_found:
         abort(404, not_found.value)
 
 
-def get_resource_by_id(oid, rid, tenant_id=None, driver=DB):
+def get_resource_by_id(api_id, rid, tenant_id=None, driver=DB):
     '''Attempt to retrieve a resource from a deployment'''
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
-    deployment = get_a_deployment(oid, tenant_id=tenant_id, driver=driver)
+    deployment = get_a_deployment(api_id, tenant_id=tenant_id, driver=driver)
     resources = deployment.get("resources")
     if rid in resources:
         return resources.get(rid)
-    raise ValueError("No resource %s in deployment %s" % (rid, oid))
+    raise ValueError("No resource %s in deployment %s" % (rid, api_id))
 
 
-@delete('/deployments/<oid>')
+@delete('/deployments/<api_id>')
 @with_tenant
-def delete_deployment(oid, tenant_id=None, driver=DB):
+def delete_deployment(api_id, tenant_id=None, driver=DB):
     """
     Delete the specified deployment
     """
-    if is_simulation(oid):
+    if is_simulation(api_id):
         request.context.simulation = True
         driver = SIMULATOR_DB
-    deployment = driver.get_deployment(oid)
+    deployment = driver.get_deployment(api_id)
     if not deployment:
-        abort(404, "No deployment with id %s" % oid)
+        abort(404, "No deployment with id %s" % api_id)
     deployment = Deployment(deployment)
     if 'force' not in request.query_string:
         if not deployment.fsm.has_path_to('DELETED'):
             abort(400, "Deployment %s cannot be deleted while in status %s." %
-                  (oid, deployment.get("status", "UNKNOWN")))
+                  (api_id, deployment.get("status", "UNKNOWN")))
     planner = Plan(deployment)
     tasks = planner.plan_delete(request.context)
     create_delete_operation(deployment, tenant_id=tenant_id)
 
-    driver.save_deployment(oid, deployment, tenant_id=tenant_id, partial=False)
+    driver.save_deployment(api_id, deployment, tenant_id=tenant_id,
+                           partial=False)
     if tasks:
-        common_tasks.update_operation.s(oid, status="IN PROGRESS",
+        common_tasks.update_operation.s(api_id, status="IN PROGRESS",
                                         driver=driver).delay()
-        chord(tasks)(delete_deployment_task.si(oid, driver=driver), interval=2,
-                     max_retries=120)
+        chord(tasks)(delete_deployment_task.si(api_id, driver=driver),
+                     interval=2, max_retries=120)
     else:
-        LOG.warn("No delete tasks for deployment %s", oid)
-        delete_deployment_task.delay(oid, driver=driver)
+        LOG.warn("No delete tasks for deployment %s", api_id)
+        delete_deployment_task.delay(api_id, driver=driver)
 
     # Set headers
-    location = "/deployments/%s" % oid
-    link = "/canvases/%s" % oid
+    location = "/deployments/%s" % api_id
+    link = "/canvases/%s" % api_id
     if tenant_id:
         location = "/%s%s" % (tenant_id, location)
         link = "/%s%s" % (tenant_id, link)
@@ -794,15 +796,15 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
     return write_body(deployment, request, response)
 
 
-@get('/deployments/<oid>/status')
+@get('/deployments/<api_id>/status')
 @with_tenant
-def get_deployment_status(oid, tenant_id=None, driver=DB):
+def get_deployment_status(api_id, tenant_id=None, driver=DB):
     """Return workflow status of given deployment"""
-    if is_simulation(oid):
+    if is_simulation(api_id):
         driver = SIMULATOR_DB
-    deployment = driver.get_deployment(oid)
+    deployment = driver.get_deployment(api_id)
     if not deployment:
-        abort(404, 'No deployment with id %s' % oid)
+        abort(404, 'No deployment with id %s' % api_id)
 
     resources = deployment.get('resources', {})
     results = {}
@@ -844,7 +846,7 @@ def get_deployment_status(oid, tenant_id=None, driver=DB):
     return write_body(results, request, response)
 
 
-def execute(oid, timeout=180, tenant_id=None, driver=DB):
+def execute(api_id, timeout=180, tenant_id=None, driver=DB):
     """Process a checkmate deployment workflow
 
     Executes and moves the workflow forward.
@@ -854,14 +856,15 @@ def execute(oid, timeout=180, tenant_id=None, driver=DB):
     :param id: checkmate deployment id
     :returns: the async task
     """
-    if any_id_problems(oid):
-        abort(406, any_id_problems(oid))
+    if any_id_problems(api_id):
+        abort(406, any_id_problems(api_id))
 
-    deployment = driver.get_deployment(oid)
+    deployment = driver.get_deployment(api_id)
     if not deployment:
-        abort(404, 'No deployment with id %s' % oid)
+        abort(404, 'No deployment with id %s' % api_id)
 
-    result = orchestrator.run_workflow.delay(oid, timeout=3600, driver=driver)
+    result = orchestrator.run_workflow.delay(api_id, timeout=3600,
+                                             driver=driver)
     return result
 
 
@@ -933,9 +936,10 @@ def delete_deployment_task(dep_id, driver=DB):
             else:
                 updates = {}
                 if resource.get('status', 'DELETED') != 'DELETED':
-                    updates['status-message'] = ('WARNING: Resource should have '
-                                            'been in status DELETED but was '
-                                            'in %s.' % resource.get('status'))
+                    updates['status-message'] = (
+                        'WARNING: Resource should have been in status DELETED '
+                        'but was in %s.' % resource.get('status')
+                    )
                     updates['status'] = 'ERROR'
                 else:
                     updates['status'] = 'DELETED'
