@@ -2477,11 +2477,14 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     }
   };
 
-  $scope.delete_deployment = function() {
+  $scope.delete_deployment = function(force) {
     if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
       var thang = new klass();
-      thang.$delete($routeParams, function(returned, getHeaders){
+      var params = jQuery.extend({}, $routeParams);
+      if (typeof(force) !== undefined)
+        params.force = force;
+      thang.$delete(params, function(returned, getHeaders){
           // Update model
           $scope.data = returned;
           $scope.data_json = JSON.stringify(returned, null, 2);

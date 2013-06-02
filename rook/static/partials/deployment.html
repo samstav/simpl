@@ -8,6 +8,7 @@
           </li>
           <li><a href="#" ng-click="save()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
           <li><a href="#" data-target="#deleteWarning" class="tip" title="Delete Resources and Deployment" data-toggle="modal"><i class="icon-remove"></i> Delete</a></li>
+          <li><a href="#" data-target="#forceDeleteWarning" class="tip" title="Delete Resources and Deployment even if status does not allow it" data-toggle="modal"><i class="icon-remove"></i> Force Delete</a></li>
           <li><a href="#" ng-show="auth.identity.is_admin" ng-click="sync()" class="tip" title="Sync the deployment resources"><i class="icon-retweet"></i> Sync</a></li>
             <!-- deleteWarning -->
             <div id="deleteWarning" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
@@ -19,6 +20,20 @@
               </div>
               <div class="modal-footer">
                 <button class="btn btn-primary" data-dismiss="modal" href="#" ng-click="delete_deployment()">Go ahead and Delete</button>
+                <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+              </div>
+            </div>
+            <!-- forceDeleteWarning -->
+            <div id="forceDeleteWarning" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="forceDeleteWarningLabel" aria-hidden="true">
+              <div class="modal-header">
+                <h3 id="forceDeleteWarningLabel" class="alert alert-danger">Warning! Data Destructive Task</h3>
+              </div>
+              <div class="modal-body">
+                <p>Deleting the deployment will also delete all resources and data in it.</p>
+                <p>A forced delete may also result in a deployment that is broken and in an indeterminate state.</p>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-primary" data-dismiss="modal" href="#" ng-click="delete_deployment('1')">Go ahead and Force Delete</button>
                 <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
               </div>
             </div>
