@@ -63,15 +63,16 @@ class TestSingleTask(unittest.TestCase):
     def test_concurrent_tasks(self):
         lock_key = "async_dep_writer:DEP_10"
         self.driver.lock(lock_key, 3600)
-        self.do_nothing.lock_db = self.driver
-        self.assertRaises(ObjectLockedError, self.do_nothing, "DEP_10")
+        do_nothing.lock_db = self.driver
+        self.assertRaises(ObjectLockedError, do_nothing, "DEP_10")
         self.driver.unlock(lock_key)
-        self.do_nothing("DEP_10")
+        do_nothing("DEP_10")
 
-    @task(base=celery.SingleTask, default_retry_delay=1, max_retries=4,
-          lock_db=None, lock_key="async_dep_writer:{args[0]}", lock_timeout=50)
-    def do_nothing(key):
-        pass
+
+@task(base=celery.SingleTask, default_retry_delay=1, max_retries=4,
+      lock_db=None, lock_key="async_dep_writer:{args[0]}", lock_timeout=50)
+def do_nothing(key):
+    pass
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

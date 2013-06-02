@@ -3,7 +3,7 @@
 #
 # Note - uncomment the following line to have this also install checkmate
 # (Note the relative directory, must run pip from the correct relative directory.)
-#-e ./
+# -e ./
 #
 # Items from internal Enterprise github.rackspace.com
 

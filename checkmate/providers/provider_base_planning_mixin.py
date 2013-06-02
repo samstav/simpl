@@ -1,6 +1,4 @@
 import os
-import platform
-import checkmate
 
 
 class ProviderBasePlanningMixIn(object):
@@ -52,6 +50,6 @@ class ProviderBasePlanningMixIn(object):
         """Implemented in the specific Provider classes"""
         pass
 
-    def verify_access(self, context):
+    def verify_access(self, context, resources):
         """Implemented in the specific Provider classes"""
         pass

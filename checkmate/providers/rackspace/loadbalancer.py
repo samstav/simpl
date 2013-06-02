@@ -9,7 +9,7 @@ from cloudlb.errors import CloudlbException, NotFound
 from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.common.caching import Memorize
+from checkmate.common.caching import Memorize, MemorizeMethod
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -20,10 +20,17 @@ from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateBadState
 )
+from eventlet.patcher import import_patched
+cloudlb = import_patched("cloudlb")
+from checkmate.providers.base import ProviderBase, user_has_access
+from eventlet.greenpool import GreenPile
+from checkmate.providers.rackspace import dns
+import sys
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
 from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
+
+
 
 LOG = logging.getLogger(__name__)
 
@@ -44,6 +51,7 @@ PROTOCOL_PAIRS = {
 
 API_ALGORTIHM_CACHE = {}
 API_PROTOCOL_CACHE = {}
+LB_API_CACHE = {}
 
 
 class Provider(ProviderBase):
@@ -137,13 +145,63 @@ class Provider(ProviderBase):
 
         return reduce(lambda x, y: x | y, values)
 
+    @MemorizeMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
+    def _get_abs_limits(self, api_endpoint, auth_token):
+        api = cloudlb.CloudLoadBalancer('ignore', 'ignore', None, 'localhost')
+        api.client.auth_token = auth_token
+        api.client.management_url = api_endpoint
+        return api.loadbalancers.get_absolute_limits()
+
     def verify_limits(self, context, resources):
-        # TODO: Check loadbalancer against limits API
-        pass
+        messages = []
+        region = Provider.find_a_region(context.catalog)
+        url = Provider.find_url(context.catalog, region)
+        abs_limits = self._get_abs_limits(url, context.auth_token)
+        max_nodes = abs_limits.get("NODE_LIMIT", sys.maxint)
+        max_lbs = abs_limits.get("LOADBALANCER_LIMIT", sys.maxint)
+        clb = self.connect(context, region=region)
+        cur_lbs = len(clb.loadbalancers.list() or [])
+        avail_lbs = max_lbs - cur_lbs
+        req_lbs = len(resources or {})
+        if avail_lbs < req_lbs:
+            messages.append({
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "This deployment would create %s Cloud Load "
+                           "Balancers.  You have %s instances available."
+                           % (req_lbs, avail_lbs),
+                'provider': self.name,
+                'severity': "CRITICAL"
+            })
+        for res in resources:
+            nodes = len(res.get("relations", {}))
+            if max_nodes < nodes:
+                messages.append({
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "Cloud Load Balancer %s would have %s nodes. You "
+                           "may only associate up to %s nodes with a Cloud "
+                           "Load Balancer."
+                           % (res.get("index"), nodes, max_nodes),
+                'provider': self.name,
+                'severity': "CRITICAL"
+            })
+        return messages
 
     def verify_access(self, context):
-        # TODO: Check RBAC access
-        pass
+        roles = ['identity:user-admin', 'LBaaS:admin', 'LBaaS:creator']
+        if user_has_access(context, roles):
+            return {
+                'type': "ACCESS-OK",
+                'message': "You have access to create Cloud Load Balancers",
+                'provider': self.name,
+                'severity': "INFORMATIONAL"
+            }
+        else:
+            return {
+                'type': "NO-ACCESS",
+                'message': "You do not have access to create Cloud Load Balancers",
+                'provider': self.name,
+                'severity': "CRITICAL"
+            }
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
@@ -544,8 +602,6 @@ def _get_algorithms(api_endpoint, auth_token):
     LOG.info("Calling Cloud Load Balancers to get algorithms for %s",
              api.client.region_account_url)
 
-    return api.get_algorithms()
-
 
 @Memorize(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
 def _get_protocols(api_endpoint, auth_token):
@@ -559,11 +615,6 @@ def _get_protocols(api_endpoint, auth_token):
 
     return api.get_protocols()
 
-
-#
-# Celery tasks to manipulate Rackspace Cloud Load Balancers """
-#
-import cloudlb
 from celery.task import task
 
 from checkmate.providers.rackspace.dns import parse_domain, delete_record

@@ -31,6 +31,116 @@ class TestLoadBalancer(test.ProviderTester):
         provider = loadbalancer.Provider({})
         self.assertEqual(provider.key, 'rackspace.load-balancer')
 
+    def verify_limits(self, max_lbs, max_nodes):
+        """Test the verify_limits() method"""
+        resources = [{
+            "status": "BUILD",
+            "index": "0",
+            "service": "lb",
+            "region": "DFW",
+            "component": "http",
+            "relations": {
+              "lb-master-1": {
+                "name": "lb-master",
+                "state": "planned",
+                "requires-key": "application",
+                "relation": "reference",
+                "interface": "http",
+                "relation-key": "master",
+                "target": "1"
+              },
+              "lb-web-3": {
+                "name": "lb-web",
+                "state": "planned",
+                "requires-key": "application",
+                "relation": "reference",
+                "interface": "http",
+                "relation-key": "web",
+                "target": "3"
+              }
+            }
+        }, {
+            "status": "BUILD",
+            "index": "1",
+            "service": "lb2",
+            "region": "DFW",
+            "component": "http",
+            "relations": {
+              "lb-master-1": {
+                "name": "lb2-master",
+                "state": "planned",
+                "requires-key": "application",
+                "relation": "reference",
+                "interface": "https",
+                "relation-key": "master",
+                "target": "1"
+              },
+              "lb-web-3": {
+                "name": "lb2-web",
+                "state": "planned",
+                "requires-key": "application",
+                "relation": "reference",
+                "interface": "https",
+                "relation-key": "web",
+                "target": "3"
+              }
+            }
+        }]
+        context = RequestContext()
+        self.mox.StubOutWithMock(loadbalancer.Provider, 'find_a_region')
+        self.mox.StubOutWithMock(loadbalancer.Provider, 'find_url')
+        self.mox.StubOutWithMock(loadbalancer.Provider, '_get_abs_limits')
+        limits = {
+          "NODE_LIMIT": max_nodes,
+          "LOADBALANCER_LIMIT": max_lbs
+        }
+        loadbalancer.Provider.find_a_region(mox.IgnoreArg()).AndReturn("DFW")
+        loadbalancer.Provider.find_url(mox.IgnoreArg(),
+                                       mox.IgnoreArg()).AndReturn("fake url")
+        (loadbalancer.Provider
+         ._get_abs_limits(mox.IgnoreArg(), mox.IgnoreArg())
+         .AndReturn(limits))
+        clb = self.mox.CreateMockAnything()
+        clb_lbs = self.mox.CreateMockAnything()
+        clb.loadbalancers = clb_lbs
+        clb_lbs.list().AndReturn([])
+        self.mox.StubOutWithMock(loadbalancer.Provider, "connect")
+        loadbalancer.Provider.connect(mox.IgnoreArg(),
+                                      region=mox.IgnoreArg()).AndReturn(clb)
+        self.mox.ReplayAll()
+        provider = loadbalancer.Provider({})
+        result = provider.verify_limits(context, resources)
+        self.mox.VerifyAll()
+        return result
+
+    def test_verify_limits_negative(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        result = self.verify_limits(1, 0)
+        self.assertEqual(3, len(result))
+        self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
+
+    def test_verify_access_positive(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'identity:user-admin'
+        provider = loadbalancer.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'LBaaS:admin'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'LBaaS:creator'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+
+    def test_verify_access_negative(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'LBaaS:observer'
+        provider = loadbalancer.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'NO-ACCESS')
+
 
 class TestCeleryTasks(unittest.TestCase):
 
