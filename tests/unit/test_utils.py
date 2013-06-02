@@ -462,7 +462,7 @@ class TestUtils(unittest.TestCase):
             },
             0, None, response, 'deployments', ''
         )
-        self.assertEquals(200, response.status)
+        self.assertEquals(200, response.status_code)
         self.assertEquals(
             [
                 ('Content-Range', 'deployments 0-3/4'),
@@ -479,7 +479,7 @@ class TestUtils(unittest.TestCase):
             },
             1, 2, response, 'deployments', 'T3'
         )
-        self.assertEquals(206, response.status)
+        self.assertEquals(206, response.status_code)
         self.assertEquals(
             [
                 ('Link', '</T3/deployments?limit=2>; rel="first"; title="First page"'),
