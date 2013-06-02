@@ -444,7 +444,8 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(200, response.status_code)
 
     def test_pagination_headers_no_ranges_no_results(self):
-        utils._write_pagination_headers({'results': {}}, 0, None, response, 'deployments', '')
+        utils._write_pagination_headers({'results': {}}, 0, None, response,
+                                        'deployments', '')
         self.assertEquals(200, response.status_code)
         self.assertEquals(
             [
@@ -482,8 +483,10 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(206, response.status_code)
         self.assertEquals(
             [
-                ('Link', '</T3/deployments?limit=2>; rel="first"; title="First page"'),
-                ('Link', '</T3/deployments?offset=2>; rel="last"; title="Last page"'),
+                ('Link', '</T3/deployments?limit=2>; rel="first"; '
+                         'title="First page"'),
+                ('Link', '</T3/deployments?offset=2>; rel="last"; '
+                         'title="Last page"'),
                 ('Content-Range', 'deployments 1-2/4'),
                 ('Content-Type', 'text/html; charset=UTF-8')
             ],
