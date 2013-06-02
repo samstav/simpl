@@ -766,11 +766,6 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
         if not deployment.fsm.has_path_to('DELETED'):
             abort(400, "Deployment %s cannot be deleted while in status %s." %
                   (oid, deployment.get("status", "UNKNOWN")))
-    loc = "/deployments/%s" % oid
-    link = "/canvases/%s" % oid
-    if tenant_id:
-        loc = "/%s%s" % (tenant_id, loc)
-        link = "/%s%s" % (tenant_id, link)
     planner = Plan(deployment)
     tasks = planner.plan_delete(request.context)
     create_delete_operation(deployment, tenant_id=tenant_id)
@@ -784,9 +779,16 @@ def delete_deployment(oid, tenant_id=None, driver=DB):
     else:
         LOG.warn("No delete tasks for deployment %s", oid)
         delete_deployment_task.delay(oid, driver=driver)
-    response.set_header("Location", loc)
+
+    # Set headers
+    location = "/deployments/%s" % oid
+    link = "/canvases/%s" % oid
+    if tenant_id:
+        location = "/%s%s" % (tenant_id, location)
+        link = "/%s%s" % (tenant_id, link)
+    response.set_header("Location", location)
     response.set_header("Link", '<%s>; rel="canvas"; title="Delete Deployment"'
-                        % loc)
+                        % location)
 
     response.status = 202  # Accepted (i.e. not done yet)
     return write_body(deployment, request, response)
