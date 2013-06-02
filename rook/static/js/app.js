@@ -2479,7 +2479,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
 
   $scope.delete_deployment = function(force) {
     if ($scope.auth.identity.loggedIn) {
-      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'save': {method:'PUT'}});
       var thang = new klass();
       var params = jQuery.extend({}, $routeParams);
       if (typeof(force) !== undefined)
@@ -2488,7 +2488,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           // Update model
           $scope.data = returned;
           $scope.data_json = JSON.stringify(returned, null, 2);
-          $scope.notify(returned.status);
+          $scope.notify('Deleting deployment');
           $scope.delayed_refresh();
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
