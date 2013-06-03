@@ -759,6 +759,13 @@ def create_server(context, name, region, api_object=None, flavor="2",
 def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
+    if context.get('simulation') is True:
+        return {
+            key: {
+                "status": resource.get('status', 'DELETED')
+            }
+        }
+
     if api is None:
         api = Provider.connect(context, resource.get("region"))
     try:

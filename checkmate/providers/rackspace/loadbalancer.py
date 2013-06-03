@@ -788,6 +788,13 @@ def collect_record_data(deployment_id, resource_key, record):
 def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
+    if context.get('simulation') is True:
+        return {
+            key: {
+                "status": resource.get('status', 'DELETED')
+            }
+        }
+
     if api is None:
         api = Provider.connect(context, resource.get("region"))
     try:

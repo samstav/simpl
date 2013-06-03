@@ -909,6 +909,12 @@ def add_user(context, instance_id, databases, username, password, region,
 def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
+    if context.get('simulation') is True:
+        return {
+            key: {
+                "status": resource.get('status', 'DELETED')
+            }
+        }
     if api is None:
         instance = resource.get("instance")
         if 'region' in instance:
