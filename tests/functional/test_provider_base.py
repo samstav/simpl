@@ -6,7 +6,7 @@ import mox
 from mox import IsA
 import unittest2 as unittest
 
-from checkmate.deployments import Deployment
+from checkmate.deployment import Deployment
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.base import (
     ProviderBase,

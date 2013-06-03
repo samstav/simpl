@@ -15,7 +15,10 @@ import bottle
 from bottle import app, run, request, response, HeaderDict, default_app, load
 from celery import Celery
 
+from checkmate import db
 from checkmate import celeryconfig
+from checkmate.api.admin import Router as AdminRouter
+from checkmate.deployments import DeploymentsRouter, DeploymentsManager
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
@@ -30,6 +33,10 @@ from checkmate import utils
 from checkmate.common.gzip_middleware import Gzipper
 
 LOG = logging.getLogger(__name__)
+DRIVERS = {}
+MANAGERS = {}
+ROUTERS = {}
+
 
 # Check our configuration
 from celery import current_app
@@ -137,14 +144,6 @@ def main_func():
         # deprecated load("checkmate.simulator")
         with_simulator = True
 
-    # Load admin routes if requested
-    with_admin = False
-    if '--with-admin' in sys.argv:
-        LOG.info("Loading Admin Endpoints")
-        load("checkmate.admin")
-        with_admin = True
-        resources.append('admin')
-
     # Build WSGI Chain:
     LOG.info("Loading Application")
     next_app = default_app()  # This is the main checkmate app
@@ -158,6 +157,29 @@ def main_func():
         415: error_formatter,
     }
     next_app.catchall = True
+
+    DRIVERS['default'] = db.get_driver()
+    DRIVERS['simulation'] = db.get_driver(
+        connection_string=os.environ.get(
+            'CHECKMATE_SIMULATOR_CONNECTION_STRING',
+            os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
+        )
+    )
+
+    MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+
+    # Load admin routes if requested
+    with_admin = False
+    if '--with-admin' in sys.argv:
+        LOG.info("Loading Admin Endpoints")
+        ROUTERS['admin'] = AdminRouter(next_app, MANAGERS['deployments'])
+        with_admin = True
+        resources.append('admin')
+
+    #Load API Calls
+    ROUTERS['deployments'] = DeploymentsRouter(next_app,
+                                               MANAGERS['deployments'])
+
     next_app = middleware.AuthorizationMiddleware(next_app,
                                                   anonymous_paths=['version'],
                                                   admin_paths=['admin'])

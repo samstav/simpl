@@ -20,7 +20,6 @@ from checkmate.common.caching import Memorize
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
-    get_resource_by_id,
 )
 from checkmate.exceptions import (
     CheckmateNoTokenError,
@@ -109,6 +108,21 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
 API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
 API_LIMITS_CACHE = {}
+
+#FIXME: delete tasks talk to database directly, so we load drivers and manager
+from checkmate import db
+from checkmate.deployments import DeploymentsManager
+DRIVERS = {}
+DB = DRIVERS['default'] = db.get_driver()
+SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
+    connection_string=os.environ.get(
+        'CHECKMATE_SIMULATOR_CONNECTION_STRING',
+        os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
+    )
+)
+MANAGERS = {}
+MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
 class RackspaceComputeProviderBase(ProviderBase):
@@ -745,6 +759,13 @@ def create_server(context, name, region, api_object=None, flavor="2",
 def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
+    if context.get('simulation') is True:
+        return {
+            key: {
+                "status": resource.get('status', 'DELETED')
+            }
+        }
+
     if api is None:
         api = Provider.connect(context, resource.get("region"))
     try:

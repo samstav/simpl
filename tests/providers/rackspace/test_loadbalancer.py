@@ -16,7 +16,8 @@ LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
 from checkmate.exceptions import CheckmateException
-from checkmate.deployments import resource_postback, Deployment, plan
+from checkmate.deployment import Deployment
+from checkmate.deployments import resource_postback, DeploymentsManager
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import loadbalancer
@@ -395,7 +396,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
         self.context = RequestContext(auth_token='MOCK_TOKEN',
                                       username='MOCK_USER')
-        plan(self.deployment, self.context)
+        DeploymentsManager.plan(self.deployment, self.context)
 
     def test_workflow_task_generation_for_vip_load_balancer(self):
         vip_deployment = Deployment(utils.yaml_to_dict("""
@@ -464,7 +465,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: https
                             - compute: linux
             """))
-        plan(vip_deployment, self.context)
+        DeploymentsManager.plan(vip_deployment, self.context)
         workflow = create_workflow_deploy(vip_deployment, self.context)
 
         task_list = workflow.spec.task_specs.keys()
@@ -544,7 +545,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: http
                             - compute: linux
             """))
-        plan(deployment_with_allow_unencrypted, self.context)
+        DeploymentsManager.plan(deployment_with_allow_unencrypted, self.context)
         workflow = create_workflow_deploy(deployment_with_allow_unencrypted,
                                           self.context)
 

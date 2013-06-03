@@ -6,6 +6,7 @@ import os
 import unittest2 as unittest
 import uuid
 
+import bottle
 from celery.app import default_app  # @UnresolvedImport
 from celery.result import AsyncResult  # @UnresolvedImport
 import mox
@@ -18,7 +19,8 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate.deployments import Deployment, plan
+from checkmate.deployment import Deployment
+from checkmate.deployments import DeploymentsManager
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                                  'data')
@@ -248,7 +250,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                      username="MOCK_USER", catalog=CATALOG,
                                      base_url='http://MOCK')
         if self.deployment.get('status') == 'NEW':
-            plan(self.deployment, context)
+            DeploymentsManager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
 
         workflow = create_workflow_deploy(self.deployment, context)
@@ -1005,3 +1007,24 @@ class ProviderTester(unittest.TestCase):
 
     def tearDown(self):
         self.mox.UnsetStubs()
+
+
+class MockContext(dict):
+    '''Used to mock RequestContext'''
+    is_admin = False
+    tenant = None
+    username = "Ziad"
+    simulation = False
+
+
+class MockWsgiFilters(object):
+    '''Used to mock Context, Extension, and Tenant Middleware'''
+
+    def __init__(self, app):
+        self.app = app
+        self.context = MockContext()
+
+    def __call__(self, environ, start_response):
+        bottle.request.context = self.context
+        bottle.request.accept = 'application/json'
+        return self.app(environ, start_response)

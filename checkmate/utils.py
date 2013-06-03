@@ -623,6 +623,19 @@ def support_only(types):
     return wrap
 
 
+def only_admins(fxn):
+    """ Decorator to limit access to admins only """
+    def wrapped(*args, **kwargs):
+        if request.context.is_admin is True:
+            LOG.debug("Admin account '%s' accessing '%s'",
+                      request.context.username, request.path)
+            return fxn(*args, **kwargs)
+        else:
+            abort(403, "Administrator privileges needed for this "
+                  "operation")
+    return wrapped
+
+
 def get_time_string(time=None):
     """Central function that returns time (UTC in ISO format) as a string
 

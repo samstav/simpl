@@ -14,26 +14,21 @@ import bottle
 from bottle import HTTPError
 import mox
 from mox import IgnoreArg, ContainsKeyValue
+from webtest import TestApp
 
 import checkmate
-from checkmate import keys
+from checkmate import keys, test
 from checkmate.common import tasks as common_tasks
-from checkmate.deployments import (
+from checkmate.deployment import (
     Deployment,
-    plan,
-    get_deployments_count,
-    get_deployments_by_bp_count,
-    _deploy,
     generate_keys,
-    delete_deployment,
+)
+from checkmate.deployments import (
+    DeploymentsManager,
+    DeploymentsRouter,
     delete_deployment_task,
-    post_deployment,
-    get_deployment_resources,
-    get_resources_statuses,
     update_all_provider_resources,
     resource_postback,
-    clone_deployment,
-    get_deployments,
 )
 from checkmate.exceptions import (
     CheckmateValidationException,
@@ -132,7 +127,8 @@ class TestDeploymentParser(unittest.TestCase):
             },
         }
         original = copy.copy(deployment)
-        parsed = plan(Deployment(deployment), RequestContext())
+        parsed = DeploymentsManager.plan(Deployment(deployment),
+                                         RequestContext())
         del parsed['status']  # we expect this to get added
         del parsed['created']  # we expect this to get added
         self.assertDictEqual(original, parsed._data)
@@ -184,8 +180,21 @@ class TestDeploymentParser(unittest.TestCase):
 
 
 class TestDeploymentDeployer(unittest.TestCase):
+    def setUp(self):
+        self._mox = mox.Mox()
+
+    def tearDown(self):
+        self._mox.UnsetStubs()
+
     def test_deployer(self):
         """Test the deployer works on a minimal deployment"""
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        db.save_workflow(IgnoreArg(), IgnoreArg(), IgnoreArg(),
+                         tenant_id=IgnoreArg()).AndReturn(True)
+        db.save_deployment(IgnoreArg(), IgnoreArg(), IgnoreArg(),
+                           tenant_id=IgnoreArg(), partial=False).AndReturn(True)
+
         deployment = {
             'id': 'test',
             'tenantId': 'T1000',
@@ -197,8 +206,10 @@ class TestDeploymentDeployer(unittest.TestCase):
                 'providers': {},
             },
         }
-        parsed = plan(Deployment(deployment), RequestContext())
-        operation = _deploy(parsed, RequestContext())
+        self._mox.ReplayAll()
+        parsed = manager.plan(Deployment(deployment), RequestContext())
+        operation = manager.deploy(parsed, RequestContext())
+        self._mox.VerifyAll()
         expected = {
             'status': 'IN PROGRESS',
             'tasks': 2,
@@ -272,7 +283,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        plan(deployment, RequestContext())
+        DeploymentsManager.plan(deployment, RequestContext())
         resources = deployment['resources'].values()
         self.assertEqual(len([r for r in resources
                               if r.get('service') == 'front']), 1)
@@ -329,7 +340,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        parsed = plan(deployment, RequestContext())
+        parsed = DeploymentsManager.plan(deployment, RequestContext())
         resources = parsed['resources']
         self.assertIn("myResource", resources)
         expected = {'component': 'small_widget',
@@ -365,7 +376,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                   providers: {}
             """ % "\n                        ".join(private['PEM'].split(
             "\n"))))
-        parsed = plan(deployment, RequestContext())
+        parsed = DeploymentsManager.plan(deployment, RequestContext())
         resources = parsed['resources']
 
         # User
@@ -445,7 +456,7 @@ class TestDeploymentRelationParser(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        parsed = plan(deployment, RequestContext())
+        parsed = DeploymentsManager.plan(deployment, RequestContext())
         expected_connections = {
             'balanced-front': {'interface': 'foo'},
             'allyourbase': {'interface': 'bar'},
@@ -480,7 +491,7 @@ class TestComponentSearch(unittest.TestCase):
                             - widget: foo
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        plan(deployment, RequestContext())
+        DeploymentsManager.plan(deployment, RequestContext())
         self.assertEquals(deployment['resources'].values()[0]['component'],
                           'small_widget')
 
@@ -518,7 +529,7 @@ class TestComponentSearch(unittest.TestCase):
                             - widget: bar
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        plan(deployment, RequestContext())
+        DeploymentsManager.plan(deployment, RequestContext())
         components = [r['component'] for r in deployment['resources'].values()]
         self.assertIn('big_widget', components)
         self.assertIn('small_widget', components)
@@ -560,7 +571,7 @@ class TestComponentSearch(unittest.TestCase):
                         username: tester
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        plan(deployment, RequestContext())
+        DeploymentsManager.plan(deployment, RequestContext())
         components = [r['component'] for r in deployment['resources'].values()]
         self.assertIn('big_widget', components)
         self.assertIn('small_widget', components)
@@ -601,7 +612,7 @@ class TestComponentSearch(unittest.TestCase):
                             - web
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        plan(deployment, RequestContext())
+        DeploymentsManager.plan(deployment, RequestContext())
         self.assertEquals(deployment['resources'].values()[0]['component'],
                           'small_widget')
 
@@ -826,7 +837,7 @@ class TestDeploymentSettings(unittest.TestCase):
         ]
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        parsed = plan(deployment, RequestContext())
+        parsed = DeploymentsManager.plan(deployment, RequestContext())
         for test in cases[:-1]:  # TODO: last case broken without env providers
             value = parsed.get_setting(test['name'],
                                        service_name=test.get('service'),
@@ -885,7 +896,7 @@ class TestDeploymentSettings(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        parsed = plan(deployment, RequestContext())
+        parsed = DeploymentsManager.plan(deployment, RequestContext())
         resources = parsed['resources']
         self.assertIn("myResource", resources)
         self.assertIn("myUser", resources)
@@ -965,7 +976,7 @@ class TestDeploymentSettings(unittest.TestCase):
         ]
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        parsed = plan(deployment, RequestContext())
+        parsed = DeploymentsManager.plan(deployment, RequestContext())
         for test in cases[:-1]:  # TODO: last case broken without env providers
             value = parsed.get_setting(test['name'],
                                        service_name=test.get('service'),
@@ -1081,7 +1092,7 @@ class TestDeploymentSettings(unittest.TestCase):
                             - widget: bar
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        planned = plan(deployment, RequestContext())
+        planned = DeploymentsManager.plan(deployment, RequestContext())
         # Use service and type
         value = planned.get_setting('username', service_name='single',
                                     resource_type='widget')
@@ -1112,7 +1123,8 @@ class TestDeploymentSettings(unittest.TestCase):
                 inputs: {}
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        self.assertRaises(CheckmateValidationException, plan, deployment,
+        self.assertRaises(CheckmateValidationException,
+                          DeploymentsManager.plan, deployment,
                           RequestContext())
 
     def test_objectify(self):
@@ -1149,74 +1161,6 @@ class TestDeploymentSettings(unittest.TestCase):
                           option_key="my_option")
 
 
-class TestDeploymentCounts(unittest.TestCase):
-    """ Tests getting deployment numbers """
-
-    def __init__(self, methodName="runTest"):
-        self._mox = mox.Mox()
-        self._deployments = {}
-        unittest.TestCase.__init__(self, methodName)
-
-    def setUp(self):
-        self._deployments = json.load(open(os.path.join(
-            os.path.dirname(__file__), '../data', 'deployments.json')))
-        self._mox.StubOutWithMock(checkmate.deployments, "DB")
-        bottle.request.bind({})
-        bottle.request.context = Context()
-        bottle.request.context.tenant = None
-        unittest.TestCase.setUp(self)
-
-    def tearDown(self):
-        self._mox.UnsetStubs()
-        unittest.TestCase.tearDown(self)
-
-    def test_get_count_all(self):
-        checkmate.deployments.DB.get_deployments(tenant_id=mox.IgnoreArg()
-                                                 ).AndReturn(self._deployments)
-        self._mox.ReplayAll()
-        self._assert_good_count(json.loads(get_deployments_count(
-                                driver=checkmate.deployments.DB)), 3)
-
-    def test_get_count_tenant(self):
-        # remove the extra deployment
-        self._deployments.pop("3fgh")
-        checkmate.deployments.DB.get_deployments(tenant_id="12345").AndReturn(
-            self._deployments)
-        self._mox.ReplayAll()
-        self._assert_good_count(json.loads(get_deployments_count(
-            tenant_id="12345", driver=checkmate.deployments.DB)), 2)
-
-    def test_get_count_deployment(self):
-        checkmate.deployments.DB.get_deployments(tenant_id=None).AndReturn(
-            self._deployments)
-        self._mox.ReplayAll()
-        self._assert_good_count(json.loads(get_deployments_by_bp_count(
-            "blp-123-aabc-efg", driver=checkmate.deployments.DB)), 2)
-
-    def test_get_count_deployment_and_tenant(self):
-        raw_deployments = self._deployments.copy()
-        raw_deployments.pop("3fgh")
-        self._deployments.pop("2def")
-        self._deployments.pop("1abc")
-        checkmate.deployments.DB.get_deployments(tenant_id="854673"
-                                                 ).AndReturn(self._deployments)
-        checkmate.deployments.DB.get_deployments(tenant_id="12345"
-                                                 ).AndReturn(raw_deployments)
-        self._mox.ReplayAll()
-        self._assert_good_count(json.loads(get_deployments_by_bp_count(
-            "blp-123-aabc-efg", tenant_id="854673",
-            driver=checkmate.deployments.DB)), 1)
-        self._assert_good_count(json.loads(get_deployments_by_bp_count(
-            "blp123avc", tenant_id="12345", driver=checkmate.deployments.DB)),
-            1)
-
-    def _assert_good_count(self, ret, expected_count):
-        self.assertIsNotNone(ret, "No count returned")
-        self.assertIn("count", ret, "Return does not contain count")
-        self.assertEqual(expected_count, ret.get("count", -1),
-                         "Wrong count returned")
-
-
 class TestDeploymentScenarios(unittest.TestCase):
 
     def test_deployment_scenarios(self):
@@ -1236,7 +1180,7 @@ class TestDeploymentScenarios(unittest.TestCase):
     def plan_deployment(content):
         """ Wrapper for deployment planning """
         deployment = Deployment(yaml_to_dict(content))
-        return plan(deployment, RequestContext())
+        return DeploymentsManager.plan(deployment, RequestContext())
 
 
 class TestGetDeployments(unittest.TestCase):
@@ -1246,12 +1190,18 @@ class TestGetDeployments(unittest.TestCase):
 class TestPostDeployments(unittest.TestCase):
     """ Test POST /deployments endpoint """
 
-    def __init__(self, methodName="runTest"):
-        self._mox = mox.Mox()
-        unittest.TestCase.__init__(self, methodName)
-
     def setUp(self):
-        bottle.request.bind({})
+        self._mox = mox.Mox()
+
+        self.root_app = bottle.Bottle()
+        self.root_app.catchall = False
+        self.filters = test.MockWsgiFilters(self.root_app)
+        self.filters.context.tenant = "T1000"
+        self.app = TestApp(self.filters)
+
+        self.manager = self._mox.CreateMockAnything()
+        self.router = DeploymentsRouter(self.root_app, self.manager)
+
         self._deployment = {
             'id': '1234',
             'tenantId': 'T1000',
@@ -1261,94 +1211,53 @@ class TestPostDeployments(unittest.TestCase):
                 'services': {}
             }
         }
-        bottle.request.context = Context()
-        bottle.request.context.tenant = 'T1000'
+
+        unittest.TestCase.setUp(self)
 
     def tearDown(self):
         self._mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
 
-    def test_async_post(self):
-        """ Test that POST /deployments?asynchronous returns a 202 """
-
-        self._mox.StubOutWithMock(checkmate.deployments, "request")
-        context = RequestContext(simulation=False)
-        checkmate.deployments.request.context = context
-        checkmate.deployments.request.query = {'asynchronous': '1'}
-        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
-        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
-                                         IgnoreArg()).AndReturn('')
-
-        self._mox.StubOutWithMock(checkmate.deployments,
-                                  "_content_to_deployment")
-        checkmate.deployments._content_to_deployment(IgnoreArg(),
-                                                     tenant_id='T1000')\
-            .AndReturn(self._deployment)
-
-        self._mox.StubOutWithMock(checkmate.deployments, "_save_deployment")
-        checkmate.deployments._save_deployment(self._deployment,
-                                               deployment_id='1234',
-                                               tenant_id='T1000',
-                                               driver=IgnoreArg())\
-            .AndReturn(True)
-
-        self._mox.StubOutWithMock(checkmate.deployments, "execute_plan")
-        checkmate.deployments.execute_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.execute_plan.__call__('1234', IgnoreArg(),
-                                                    asynchronous=True,
-                                                    driver=IgnoreArg())\
-            .AndReturn(True)
+    def test_post_asynchronous(self):
+        """ Test that POST /deployments?asynchronous=1 returns a 202 """
+        self.manager.save_deployment(IgnoreArg(), api_id='1234',
+                                     tenant_id="T1000").AndReturn(None)
+        self._mox.StubOutWithMock(checkmate.deployments.router, "tasks")
+        tasks = checkmate.deployments.router.tasks
+        tasks.process_post_deployment = self._mox.CreateMockAnything()
+        tasks.process_post_deployment.delay(IgnoreArg(),
+                                            IgnoreArg()).AndReturn(None)
 
         self._mox.ReplayAll()
-        post_deployment()
-        self._mox.VerifyAll()
-        self.assertEquals(202, bottle.response.status_code)
+        res = self.app.post('/deployments?asynchronous=1',
+                            json.dumps(self._deployment),
+                            content_type='application/json')
+        self.assertEqual(res.status, '202 Accepted')
+        self.assertEqual(res.content_type, 'application/json')
 
-    def test_sync_post(self):
-        """ Test that POST /deployments also returns a 202 """
-
-        self._mox.StubOutWithMock(checkmate.deployments, "request")
-        context = RequestContext(simulation=False)
-        checkmate.deployments.request.context = context
-        checkmate.deployments.request.query = {}
-        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
-        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
-                                         IgnoreArg()).AndReturn('')
-
-        self._mox.StubOutWithMock(checkmate.deployments,
-                                  "_content_to_deployment")
-        checkmate.deployments._content_to_deployment(IgnoreArg(),
-                                                     tenant_id='T1000')\
-            .AndReturn(self._deployment)
-
-        self._mox.StubOutWithMock(checkmate.deployments, "execute_plan")
-        checkmate.deployments.execute = self._mox.CreateMockAnything()
-        checkmate.deployments.execute.__call__('1234',
-                                               driver=IgnoreArg())\
-            .AndReturn(True)
-
-        self._mox.StubOutWithMock(checkmate.deployments, "_save_deployment")
-        checkmate.deployments._save_deployment(ContainsKeyValue('id', '1234'),
-                                               driver=IgnoreArg())\
-            .AndReturn(True)
+    def test_post_synchronous(self):
+        """ Test that POST /deployments returns a 202 """
+        self.manager.select_driver('1234').AndReturn(self.manager)
+        self.manager.save_deployment(self._deployment, IgnoreArg(),
+                                     tenant_id="T1000").AndReturn(None)
+        self._mox.StubOutWithMock(checkmate.deployments.router, "tasks")
+        tasks = checkmate.deployments.router.tasks
+        tasks.process_post_deployment(IgnoreArg(), IgnoreArg(),
+                                      driver=IgnoreArg()).AndReturn(None)
 
         self._mox.ReplayAll()
-        post_deployment()
-        self._mox.VerifyAll()
-        self.assertEquals(202, bottle.response.status_code)
+        res = self.app.post('/deployments',
+                            json.dumps(self._deployment),
+                            content_type='application/json')
+        self.assertEqual(res.status, '202 Accepted')
+        self.assertEqual(res.content_type, 'application/json')
 
 
 class TestCloneDeployments(unittest.TestCase):
     """ Test clone_deployment """
 
-    def __init__(self, methodName="runTest"):
-        self._mox = mox.Mox()
-        unittest.TestCase.__init__(self, methodName)
-
     def setUp(self):
-        bottle.request.bind({})
-        bottle.request.context = Context()
-        bottle.request.context.tenant = None
+        self._mox = mox.Mox()
         self._deployment = {
             'id': '1234',
             'status': 'PLANNED',
@@ -1359,40 +1268,22 @@ class TestCloneDeployments(unittest.TestCase):
                 }
             }
         }
-        unittest.TestCase.setUp(self)
 
     def tearDown(self):
         self._mox.UnsetStubs()
-        unittest.TestCase.tearDown(self)
 
     def test_clone_deployment_failure_path(self):
         """ Test when deployment status is not 'DELETED', clone
         deployment operation would fail """
 
-        self._mox.StubOutWithMock(checkmate.deployments, "request")
-        context = RequestContext(simulation=False)
-        checkmate.deployments.request.context = context
-        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
-
-        self._mox.StubOutWithMock(checkmate.deployments,
-                                  "get_a_deployment")
-        checkmate.deployments.get_a_deployment('123',
-                                               tenant_id=IgnoreArg(),
-                                               driver=IgnoreArg())\
+        manager = DeploymentsManager({})
+        self._mox.StubOutWithMock(manager, "get_a_deployment")
+        manager.get_a_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
 
-        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
-                                         IgnoreArg()).AndReturn('')
-
-        self._mox.StubOutWithMock(checkmate.deployments,
-                                  "save_deployment_and_execute_plan")
-        checkmate.deployments.save_deployment_and_execute_plan(IgnoreArg(),
-                                                               IgnoreArg(),
-                                                               IgnoreArg(),
-                                                               IgnoreArg())
         self._mox.ReplayAll()
         try:
-            clone_deployment('123', tenant_id='1234', driver=checkmate.deployments.DB)
+            manager.clone('1234', {}, tenant_id='T1000')
             self.fail("Expected exception not raised.")
         except CheckmateBadState:
             pass
@@ -1400,32 +1291,40 @@ class TestCloneDeployments(unittest.TestCase):
     def test_clone_deployment_happy_path(self):
         """ clone deployment success """
         self._deployment['status'] = 'DELETED'
-        self._mox.StubOutWithMock(checkmate.deployments, "request")
-        context = RequestContext(simulation=False)
-        checkmate.deployments.request.context = context
 
-        self._mox.StubOutWithMock(checkmate.deployments, "write_body")
-
-        self._mox.StubOutWithMock(checkmate.deployments,
-                                  "get_a_deployment")
-        checkmate.deployments.get_a_deployment('123',
-                                               tenant_id=IgnoreArg(),
-                                               driver=IgnoreArg())\
+        manager = DeploymentsManager({})
+        self._mox.StubOutWithMock(manager, "get_a_deployment")
+        manager.get_a_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
 
-        checkmate.deployments.write_body(IgnoreArg(), IgnoreArg(),
-                                         IgnoreArg()).AndReturn('')
+        context = RequestContext(simulation=False)
+        self._mox.StubOutWithMock(manager, "deploy")
+        manager.deploy(IgnoreArg(), context)
 
-
-
-        self._mox.StubOutWithMock(checkmate.deployments,
-                                  "save_deployment_and_execute_plan")
-        checkmate.deployments.save_deployment_and_execute_plan(IgnoreArg(),
-                                                               IgnoreArg(),
-                                                               IgnoreArg(),
-                                                               IgnoreArg())
+        manager.get_a_deployment(IgnoreArg(), tenant_id='T1000')\
+            .AndReturn({'id': 'NEW'})
         self._mox.ReplayAll()
-        clone_deployment('123', tenant_id='1234', driver=checkmate.deployments.DB)
+        manager.clone('1234', context, tenant_id='T1000')
+        self._mox.VerifyAll()
+
+    def test_clone_deployment_simulation(self):
+        """ clone deployment simulation """
+        self._deployment['status'] = 'DELETED'
+
+        manager = DeploymentsManager({})
+        self._mox.StubOutWithMock(manager, "get_a_deployment")
+        manager.get_a_deployment('1234', tenant_id='T1000')\
+            .AndReturn(self._deployment)
+
+        context = RequestContext(simulation=True)
+        self._mox.StubOutWithMock(manager, "deploy")
+        manager.deploy(IgnoreArg(), context)
+
+        manager.get_a_deployment(IgnoreArg(), tenant_id='T1000')\
+            .AndReturn(self._deployment)
+
+        self._mox.ReplayAll()
+        manager.clone('1234', context, tenant_id='T1000')
         self._mox.VerifyAll()
 
 
@@ -1458,12 +1357,15 @@ class TestDeleteDeployments(unittest.TestCase):
 
     def test_bad_status(self):
         """ Test when deployment status is invalid for delete """
-        self._mox.StubOutWithMock(checkmate.deployments, "DB")
-        checkmate.deployments.DB.get_deployment('1234'
-                                                ).AndReturn(self._deployment)
+        manager = self._mox.CreateMockAnything()
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager.get_deployment('1234').AndReturn(self._deployment)
+        manager.save_deployment('1234', IgnoreArg(), tenant_id=None,
+                                partial=False).AndReturn(None)
+
         self._mox.ReplayAll()
         try:
-            delete_deployment('1234', driver=checkmate.deployments.DB)
+            router.delete_deployment('1234')
             self.fail("Delete deployment with bad status did not raise "
                       "exception")
         except HTTPError as exc:
@@ -1473,12 +1375,12 @@ class TestDeleteDeployments(unittest.TestCase):
 
     def test_not_found(self):
         """ Test deployment not found """
-        self._mox.StubOutWithMock(checkmate.deployments, "DB")
-        checkmate.deployments.DB.get_deployment('1234'
-                                                ).AndReturn(None)
+        manager = self._mox.CreateMockAnything()
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager.get_deployment('1234').AndReturn(None)
         self._mox.ReplayAll()
         try:
-            delete_deployment('1234', driver=checkmate.deployments.DB)
+            router.delete_deployment('1234')
             self.fail("Delete deployment with not found did not raise "
                       "exception")
         except HTTPError as exc:
@@ -1487,21 +1389,22 @@ class TestDeleteDeployments(unittest.TestCase):
 
     def test_no_tasks(self):
         """ Test when there are no resource tasks for delete """
-        self._mox.StubOutWithMock(checkmate.deployments, "DB")
         self._deployment['status'] = 'UP'
-        checkmate.deployments.DB.get_deployment('1234'
-                                                ).AndReturn(self._deployment)
-        self._mox.StubOutWithMock(checkmate.deployments, "Plan")
-        checkmate.deployments.Plan = self._mox.CreateMockAnything()
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        self._mox.StubOutWithMock(manager, "get_a_deployment")
+        manager.get_deployment('1234').AndReturn(self._deployment)
+
+        self._mox.StubOutWithMock(checkmate.deployments.router, "Plan")
+        checkmate.deployments.router.Plan = self._mox.CreateMockAnything()
         mock_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.Plan.__call__(IgnoreArg()).AndReturn(mock_plan)
+        checkmate.deployments.router.Plan.__call__(IgnoreArg()).AndReturn(mock_plan)
         mock_plan.plan_delete(IgnoreArg()).AndReturn([])
-        self._mox.StubOutWithMock(checkmate.deployments.delete_deployment_task,
-                                  "delay")
-        checkmate.deployments.delete_deployment_task.delay('1234',
-                                                           driver=checkmate.
-                                                           deployments.DB
-                                                           ).AndReturn(True)
+        self._mox.StubOutWithMock(checkmate.deployments.tasks.
+                                  delete_deployment_task, "delay")
+        checkmate.deployments.tasks.delete_deployment_task.delay('1234')\
+            .AndReturn(True)
         delete_op = {
             'link': '/canvases/1234',
             'type': 'DELETE',
@@ -1509,37 +1412,40 @@ class TestDeleteDeployments(unittest.TestCase):
             'tasks': 0,
             'complete': 0,
         }
-        checkmate.deployments.DB.save_deployment(
-            '1234',
+        self._mox.StubOutWithMock(manager, 'save_deployment')
+        manager.save_deployment(
             ContainsKeyValue('operation', delete_op),
-            partial=False,
+            api_id='1234',
             tenant_id=None).AndReturn(None)
         self._mox.ReplayAll()
-        delete_deployment('1234', driver=checkmate.deployments.DB)
+        router.delete_deployment('1234')
         self._mox.VerifyAll()
         self.assertEqual(202, bottle.response.status_code)
 
     def test_happy_path(self):
         """ When it all goes right """
-        mock_driver = self._mox.CreateMockAnything()
         self._deployment['status'] = 'UP'
-        mock_driver.get_deployment('1234').AndReturn(self._deployment)
+
+        mock_driver = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': mock_driver})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+
+        mock_driver.get_deployment('1234', with_secrets=False).AndReturn(self._deployment)
         self._mox.StubOutWithMock(checkmate.deployments, "Plan")
-        checkmate.deployments.Plan = self._mox.CreateMockAnything()
+        checkmate.deployments.router.Plan = self._mox.CreateMockAnything()
         mock_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.Plan.__call__(IgnoreArg()).AndReturn(mock_plan)
+        checkmate.deployments.router.Plan.__call__(IgnoreArg()).AndReturn(mock_plan)
         mock_delete_step1 = self._mox.CreateMockAnything()
         mock_delete_step2 = self._mox.CreateMockAnything()
         mock_steps = [mock_delete_step1, mock_delete_step2]
         mock_plan.plan_delete(IgnoreArg()).AndReturn(mock_steps)
         self._mox.StubOutWithMock(common_tasks.update_operation, "s")
         mock_subtask = self._mox.CreateMockAnything()
-        common_tasks.update_operation.s('1234', status='IN PROGRESS',
-                                        driver=mock_driver)\
+        common_tasks.update_operation.s('1234', status='IN PROGRESS')\
             .AndReturn(mock_subtask)
         mock_subtask.delay().AndReturn(True)
-        self._mox.StubOutClassWithMocks(checkmate.deployments, "chord")
-        mock_chord = checkmate.deployments.chord(mock_steps)
+        self._mox.StubOutClassWithMocks(checkmate.deployments.router, "chord")
+        mock_chord = checkmate.deployments.router.chord(mock_steps)
         mock_delete_dep = self._mox.CreateMockAnything()
         delete_op = {
             'link': '/canvases/1234',
@@ -1548,19 +1454,18 @@ class TestDeleteDeployments(unittest.TestCase):
             'tasks': 0,
             'complete': 0,
         }
-        mock_driver.save_deployment('1234',
-                                    ContainsKeyValue('operation', delete_op),
-                                    partial=False,
-                                    tenant_id=None).AndReturn(None)
-        self._mox.StubOutWithMock(checkmate.deployments.delete_deployment_task,
+        self._mox.StubOutWithMock(manager, "save_deployment")
+        manager.save_deployment(ContainsKeyValue('operation', delete_op),
+                                api_id='1234',
+                                tenant_id=None).AndReturn(None)
+        self._mox.StubOutWithMock(checkmate.deployments.tasks.delete_deployment_task,
                                   "si")
-        checkmate.deployments.delete_deployment_task.si(IgnoreArg(),
-                                                        driver=mock_driver)\
+        checkmate.deployments.tasks.delete_deployment_task.si(IgnoreArg())\
             .AndReturn(mock_delete_dep)
         mock_chord.__call__(IgnoreArg(), interval=IgnoreArg(),
                             max_retries=IgnoreArg()).AndReturn(True)
         self._mox.ReplayAll()
-        delete_deployment('1234', driver=mock_driver)
+        router.delete_deployment('1234')
         self._mox.VerifyAll()
         self.assertEquals(202, bottle.response.status_code)
 
@@ -1588,12 +1493,8 @@ class TestDeleteDeployments(unittest.TestCase):
 class TestGetResourceStuff(unittest.TestCase):
     """ Test resource and resource status endpoints """
 
-    def __init__(self, methodName="runTest"):
-        self._mox = mox.Mox()
-        unittest.TestCase.__init__(self, methodName)
-
     def setUp(self):
-        self._mox.StubOutWithMock(checkmate.deployments, "DB")
+        self._mox = mox.Mox()
         bottle.request.bind({})
         bottle.request.context = Context()
         bottle.request.context.tenant = None
@@ -1623,22 +1524,24 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_happy_resources(self):
         """ When getting the resources should work """
-        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
-        ret = json.loads(get_deployment_resources('1234',
-                                                  driver=checkmate.deployments.
-                                                  DB))
+        ret = json.loads(router.get_deployment_resources('1234'))
         self.assertDictEqual(self._deployment.get('resources'), ret)
 
     def test_happy_status(self):
         """ When getting the resource statuses should work """
-        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
-        ret = json.loads(get_resources_statuses('1234',
-                                                driver=checkmate.deployments.
-                                                DB))
+        ret = json.loads(router.get_resources_statuses('1234'))
         self.assertNotIn('fake', ret)
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
@@ -1649,39 +1552,41 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_no_resources(self):
         """ Test when no resources in deployment """
         del self._deployment['resources']
-        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
+
         self._mox.ReplayAll()
-        try:
-            get_deployment_resources('1234', driver=checkmate.deployments.DB)
-            self.fail("get_deployment_resources with not found did not raise"
-                      " exception")
-        except HTTPError as exc:
-            self.assertEqual(404, exc.status)
-            self.assertIn("No resources found for deployment 1234",
-                          exc.output)
+        self.assertRaisesRegexp(CheckmateDoesNotExist, "No resources found "
+                                "for deployment 1234",
+                                router.get_deployment_resources, '1234')
 
     def test_no_res_status(self):
         """ Test when no resources in deployment """
         del self._deployment['resources']
-        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
+
         self._mox.ReplayAll()
-        try:
-            get_resources_statuses('1234', driver=checkmate.deployments.DB)
-            self.fail("get_resources_status with not found did not raise "
-                      "exception")
-        except HTTPError as exc:
-            self.assertEqual(404, exc.status)
-            self.assertIn("No resources found for deployment 1234", exc.output)
+        self.assertRaisesRegexp(CheckmateDoesNotExist, "No resources found "
+                                "for deployment 1234",
+                                router.get_resources_statuses, '1234')
 
     def test_dep_404(self):
         """ Test when deployment not found """
-        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
-            .AndReturn(None)
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        db.get_deployment('1234', with_secrets=False).AndReturn(None)
+
         self._mox.ReplayAll()
         try:
-            get_deployment_resources('1234', driver=checkmate.deployments.DB)
+            router.get_deployment_resources('1234')
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
@@ -1689,11 +1594,14 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_dep_404_status(self):
         """ Test when deployment not found """
-        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
-            .AndReturn(None)
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        db.get_deployment('1234', with_secrets=False).AndReturn(None)
+
         self._mox.ReplayAll()
         try:
-            get_resources_statuses('1234', driver=checkmate.deployments.DB)
+            router.get_resources_statuses('1234')
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
@@ -1701,13 +1609,15 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_status_trace(self):
         """ Make sure trace is included if query param present """
-        checkmate.deployments.DB.get_deployment('1234', with_secrets=False)\
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
+
         self._mox.ReplayAll()
         bottle.request.environ['QUERY_STRING'] = "?trace"
-        ret = json.loads(get_resources_statuses('1234',
-                                                driver=checkmate.
-                                                deployments.DB))
+        ret = json.loads(router.get_resources_statuses('1234'))
         self.assertNotIn('fake', ret)
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
@@ -1719,12 +1629,8 @@ class TestGetResourceStuff(unittest.TestCase):
 class TestPostbackHelpers(unittest.TestCase):
     """ Test deployment update helpers """
 
-    def __init__(self, methodName="runTest"):
-        self._mox = mox.Mox()
-        unittest.TestCase.__init__(self, methodName)
-
     def setUp(self):
-        self._mox.StubOutWithMock(checkmate.deployments, "DB")
+        self._mox = mox.Mox()
         bottle.request.bind({})
         bottle.request.context = Context()
         bottle.request.context.tenant = None
@@ -1762,20 +1668,19 @@ class TestPostbackHelpers(unittest.TestCase):
 
     def test_provider_update(self):
         """ Test mass provider resource updates """
-        checkmate.deployments.DB.get_deployment('1234')\
-            .AndReturn(self._deployment)
-        self._mox.StubOutWithMock(checkmate.deployments.resource_postback,
-                                  "delay")
-        checkmate.deployments.resource_postback.delay('1234',
-                                                      IgnoreArg(),
-                                                      driver=checkmate.
-                                                      deployments.DB
-                                                      ).AndReturn(True)
+        db = self._mox.CreateMockAnything()
+        manager = DeploymentsManager({'default': db})
+        router = DeploymentsRouter(bottle.default_app(), manager)
+        db.get_deployment('1234').AndReturn(self._deployment)
+        self._mox.StubOutWithMock(
+            checkmate.deployments.tasks.resource_postback, "delay")
+        checkmate.deployments.tasks.resource_postback.delay(
+            '1234', IgnoreArg(), driver=db).AndReturn(True)
         self._mox.ReplayAll()
         ret = update_all_provider_resources('foo', '1234', 'NEW',
                                             message='I test u',
                                             trace='A trace',
-                                            driver=checkmate.deployments.DB)
+                                            driver=db)
         self.assertIn('instance:1', ret)
         self.assertIn('instance:9', ret)
         self.assertEquals('NEW', ret.get('instance:1', {}).get('status'))

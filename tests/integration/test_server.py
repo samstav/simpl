@@ -8,13 +8,15 @@ import uuid
 from bottle import default_app
 from webtest import TestApp
 
-from checkmate.server import error_formatter
-from checkmate import blueprints, deployments, environments, workflows
+from checkmate import db
+from checkmate import blueprints, environments, workflows
+from checkmate.deployments import DeploymentsRouter, DeploymentsManager
 from checkmate.middleware import (
     TenantMiddleware,
     ContextMiddleware,
     ExtensionsMiddleware,
 )
+from checkmate.server import error_formatter
 
 
 class TestServer(unittest.TestCase):
@@ -24,11 +26,14 @@ class TestServer(unittest.TestCase):
         os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
         default_app.push()
         reload(blueprints)
-        reload(deployments)
         reload(environments)
         reload(workflows)
         self.root_app = default_app.pop()
         self.root_app.catchall = False
+
+        manager = DeploymentsManager({'default': workflows.DB})
+        self.router = DeploymentsRouter(self.root_app, manager)
+
         tenant = TenantMiddleware(self.root_app)
         context = ContextMiddleware(tenant)
         extension = ExtensionsMiddleware(context)

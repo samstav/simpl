@@ -12,7 +12,7 @@ init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from string import Template
-from checkmate.deployments import Deployment
+from checkmate.deployment import Deployment
 from checkmate.test import StubbedWorkflowBase, ENV_VARS
 from checkmate.utils import yaml_to_dict
 from checkmate.providers import base
