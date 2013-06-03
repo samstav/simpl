@@ -223,7 +223,7 @@ Priv Key: {{formatted_data.private_key}}
 
         <textarea id="source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="data_json"></textarea>
 
-        <alert close="closeAlert($index)">
+        <alert close="$parent.hide_alert('deployment_overwrite_secrets')" ng-show="$parent.display_alert('deployment_overwrite_secrets')">
           <strong>Warning!</strong>
           If your updates include any 'secret' values (like password or private keys)
           and you have not opened this screen with a <code>?with_secrets</code> query

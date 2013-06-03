@@ -374,6 +374,14 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q) {
     $scope[modal_window] = false;
   };
 
+  $scope.hidden_alerts = {};
+  $scope.hide_alert = function(alert_id) {
+    $scope.hidden_alerts[alert_id] = true;
+  };
+  $scope.display_alert = function(alert_id) {
+    return !$scope.hidden_alerts[alert_id];
+  };
+
   // Display log in prompt
   $scope.deferred_login = null;
   $scope.display_login_prompt = false;
@@ -1287,6 +1295,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.reset_task = function() {
+    $scope.close_modal('reset_warning');
     return $scope.task_action($scope.current_task.id, 'reset');
   };
 

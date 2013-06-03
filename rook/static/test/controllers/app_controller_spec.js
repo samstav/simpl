@@ -509,4 +509,28 @@ describe('AppController', function(){
       expect(scope.fakemodal).toBe(false);
     });
   });
+
+  describe('hidden_alerts', function() {
+    it('should default to empty object', function() {
+      expect(scope.hidden_alerts).toEqual({});
+    });
+  });
+
+  describe('#hide_alert', function() {
+    it('should set hidden alert flag to true', function() {
+      scope.hide_alert('fakealert');
+      expect(scope.hidden_alerts.fakealert).toBe(true);
+    });
+  });
+
+  describe('#display_alert', function() {
+    it('should display alerts that have not been hidden', function() {
+      expect(scope.display_alert('fakealert')).toBe(true);
+    });
+
+    it('should not display alerts that have explicitly been hidden', function() {
+      scope.hidden_alerts.fakealert = true;
+      expect(scope.display_alert('fakealert')).toBe(false);
+    });
+  });
 });
