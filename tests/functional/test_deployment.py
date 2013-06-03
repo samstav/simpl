@@ -12,9 +12,9 @@ import unittest2 as unittest
 
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
-from checkmate.deployments import Deployment, plan
+from checkmate.deployment import Deployment
+from checkmate.deployments import DeploymentsManager, Plan
 from checkmate.middleware import RequestContext
-from checkmate.plan import Plan
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException,
@@ -515,7 +515,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        plan(deployment, RequestContext())
+        DeploymentsManager.plan(deployment, RequestContext())
         resources = deployment['resources']
 
         expected = utils.yaml_to_dict("""
@@ -545,7 +545,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                         id: bar
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        plan(deployment, RequestContext())
+        DeploymentsManager.plan(deployment, RequestContext())
         assigned_name = deployment['resources']['0']['dns-name']
         expected_name = "web01.checkmate.local"
         self.assertEqual(assigned_name, expected_name)
@@ -571,7 +571,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                 inputs: {}
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        plan(deployment, RequestContext())
+        DeploymentsManager.plan(deployment, RequestContext())
         assigned_name = deployment['resources']['0']['dns-name']
         expected_name = "web.checkmate.local"
         self.assertEqual(assigned_name, expected_name)

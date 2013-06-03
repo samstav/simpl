@@ -12,19 +12,29 @@ import os
 import unittest2 as unittest
 import uuid
 
+import bottle
 import mox
+from webtest import TestApp
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
-from checkmate import deployments
-from checkmate.deployments import Deployment
+from checkmate import deployments, test, utils
+from checkmate.deployment import Deployment
 
 
 class TestAPICalls(unittest.TestCase):
 
     def setUp(self):
-        os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
-        reload(deployments)
         self.mox = mox.Mox()
+
+        self.root_app = bottle.Bottle()
+        self.root_app.catchall = False
+        self.filters = test.MockWsgiFilters(self.root_app)
+        self.filters.context.is_admin = True
+        self.app = TestApp(self.filters)
+
+        self.manager = self.mox.CreateMockAnything()
+        self.router = deployments.DeploymentsRouter(self.root_app,
+                                                    self.manager)
 
     def tearDown(self):
         self.mox.UnsetStubs()
@@ -33,11 +43,12 @@ class TestAPICalls(unittest.TestCase):
         req = self.mox.CreateMockAnything()
         req.context = self.mox.CreateMockAnything()
         req.context.username = 'john'
-        self.mox.StubOutWithMock(deployments, 'read_body')
-        deployments.read_body(req).AndReturn({})
+        self.mox.StubOutWithMock(utils, 'read_body')
+        utils.read_body(req).AndReturn({})
         self.mox.ReplayAll()
-        result = deployments._content_to_deployment(req, deployment_id="1",
-                                                    tenant_id="A")
+        result = deployments.router._content_to_deployment(req,
+                                                           deployment_id="1",
+                                                           tenant_id="A")
         self.mox.VerifyAll()
         self.assertIn('created', result)
         expected = {
@@ -53,11 +64,12 @@ class TestAPICalls(unittest.TestCase):
         req = self.mox.CreateMockAnything()
         req.context = self.mox.CreateMockAnything()
         req.context.username = 'john'
-        self.mox.StubOutWithMock(deployments, 'read_body')
-        deployments.read_body(req).AndReturn({'created-by': 'tom'})
+        self.mox.StubOutWithMock(utils, 'read_body')
+        utils.read_body(req).AndReturn({'created-by': 'tom'})
         self.mox.ReplayAll()
-        result = deployments._content_to_deployment(req, deployment_id="1",
-                                                    tenant_id="A")
+        result = deployments.router._content_to_deployment(req,
+                                                           deployment_id="1",
+                                                           tenant_id="A")
         self.mox.VerifyAll()
         self.assertEqual(result['created-by'], 'tom')
 
@@ -89,9 +101,11 @@ class TestAPICalls(unittest.TestCase):
         driver = self.mox.CreateMockAnything()
         driver.get_deployment(id1, with_secrets=False).AndReturn(deployment)
 
+        manager = deployments.DeploymentsManager({'default': driver})
+
         self.mox.ReplayAll()
-        dep = deployments.get_a_deployment(id1, tenant_id="T1000",
-                                           driver=driver, with_secrets=False)
+        dep = manager.get_a_deployment(id1, tenant_id="T1000",
+                                       with_secrets=False)
         self.mox.VerifyAll()
 
         self.assertEqual(dep['id'], id1)

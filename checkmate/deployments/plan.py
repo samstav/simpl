@@ -12,7 +12,7 @@ from checkmate.middleware import RequestContext
 from checkmate import utils
 from checkmate.deployment import (
     validate_blueprint_options,
-    validate_input_constraints
+    validate_input_constraints,
 )
 from checkmate.resource import Resource
 import eventlet

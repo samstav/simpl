@@ -15,7 +15,9 @@ import bottle
 from bottle import app, run, request, response, HeaderDict, default_app, load
 from celery import Celery
 
+from checkmate import db
 from checkmate import celeryconfig
+from checkmate.deployments import DeploymentsRouter, DeploymentsManager
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
@@ -30,6 +32,10 @@ from checkmate import utils
 from checkmate.common.gzip_middleware import Gzipper
 
 LOG = logging.getLogger(__name__)
+DRIVERS = {}
+MANAGERS = {}
+ROUTERS = {}
+
 
 # Check our configuration
 from celery import current_app
@@ -158,6 +164,21 @@ def main_func():
         415: error_formatter,
     }
     next_app.catchall = True
+
+    DRIVERS['default'] = db.get_driver()
+    DRIVERS['simulation'] = db.get_driver(
+        connection_string=os.environ.get(
+            'CHECKMATE_SIMULATOR_CONNECTION_STRING',
+            os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
+        )
+    )
+
+    MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+
+    #Load API Calls
+    ROUTERS['deployments'] = DeploymentsRouter(next_app,
+                                               MANAGERS['deployments'])
+
     next_app = middleware.AuthorizationMiddleware(next_app,
                                                   anonymous_paths=['version'],
                                                   admin_paths=['admin'])
