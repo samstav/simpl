@@ -59,20 +59,15 @@ Priv Key: {{formatted_data.private_key}}
                 'label-info': data.status == 'PLANNED',
                 'label-inverse': data.status == 'DELETED'
               }" style="margin-right: 10px; margin-bottom: 5px;">{{deployment_status()}}</div> <!-- if there's an operation running, operation type, otherwise data.status -->
-                <div ng-cloak ng-show="display_progress_bar()">
-                  <div id="deployment_progress" class="progress progress-striped">
-                    <div class="bar background"></div>
-                    <div class="bar" ng-style="{width: operation_progress() + '%'}"></div> <!-- operation status -->
-                    <span>{{operation_status()}}</span>
-                  </div>
-                  <button class="btn btn-mini tip" title="Auto refresh" ng-class="{active: auto_refresh}" ng-click="toggle_auto_refresh()"><i class="icon-refresh"></i></button>
-                  <div><a ng-href="{{data.operation.link}}/status" ng-cloak ng-show="display_workflow()">View {{data.operation.type}} operation status</a></div>
-                </div>
               </div>
             </div>
 
             <div ng-controller="WorkflowController">
               <div class="control-group" ng-cloak ng-show="timeRemaining">
+                <label class="control-label">Progress:</label>
+                  <div class="controls progress">
+                    <div class="bar" style="width: {{percentComplete()}}%;"></div>
+                  </div>
                   <div class="controls">
                     <p><span class="label label-info cmtip" title="Total items">{{count}}</span> tasks total:</p>
                     <p>&nbsp;&nbsp;<span class="label label-success cmtip" title="Completed">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>
@@ -86,7 +81,7 @@ Priv Key: {{formatted_data.private_key}}
                   <div class="alert controls">You can access an <a href=".">advanced</a> view of
                   the workflow to manage any errors or hack at the workflow.</div>
               </div>
-              <div ng-show="!timeRemaining" class="control-group">
+              <div ng-cloak ng-show="!timeRemaining" class="control-group">
                 <div class="alert controls">The advanced view of the workflow can still be reached <a ng-href="/{{auth.context.tenantId}}/workflows/{{data.id}}">here</a>.</div>
               </div>
             </div>
