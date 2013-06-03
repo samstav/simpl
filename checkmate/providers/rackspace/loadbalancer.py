@@ -52,6 +52,15 @@ API_ALGORTIHM_CACHE = {}
 API_PROTOCOL_CACHE = {}
 LB_API_CACHE = {}
 
+__schema__ = {
+              'ACTIVE': 'ACTIVE',
+              'BUILD': 'BUILD',
+              'DELETED': 'DELETED',
+              'ERROR': 'ERROR',
+              'PENDING_UPDATE': 'CONFIGURE',
+              'PENDING_DELETE': 'DELETING',
+              'SUSPENDED': 'ERROR'
+}
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 import os
 from checkmate import db
