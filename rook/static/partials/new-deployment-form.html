@@ -292,9 +292,9 @@ url: shows "Address Builder" to handle url options
           <label class="control-label required" for="domain_for_{{option.id}}">Domain</label>
           <div class="controls">
             <div class="input-append">
-              <input id="domain_for_{{option.id}}" type="text" class="input" data-provide="typeahead" data-source="{{domain_names}}" placeholder="example.com" ng-model="domain" ng-change="UpdateURL(this, option.id)"></input>
-              <button class="btn dropdown-toggle" type="button" data-toggle="dropdown" data-target="#domains_menu_for_{{option.id}}"><b class="caret"></b></button>
-              <div id="domains_menu_for_{{option.id}}" class="dropdown">
+              <div class="btn-group">
+                <input type="text" ng-model="domain" typeahead="domain for domain in domain_names | filter:$viewValue" placeholder="example.com" ng-change="UpdateURL(this, option.id)" />
+                <button class="btn dropdown-toggle" type="button"><b class="caret"></b></button>
                 <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
                   <li ng-hide="auth.identity.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
                   <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.context.tenantId}}</li>
