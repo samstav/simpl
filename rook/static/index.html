@@ -165,7 +165,10 @@
                   Help<b class="caret"></b>
                 </a>
                 <ul class="dropdown-menu">
-                  <li id="nav-support"><a href="#" data-toggle="modal" data-target="#modalSLA">General Info</a></li>
+                  <li id="nav-support">
+                    <a href="#" ng-click="open_modal('modal_sla')">General Info</a>
+                    <ng-include src="'/partials/app/modal_sla.html'"></ng-include>
+                  </li>
                   <li id="nav-wiki"><a href="https://one.rackspace.com/display/Checkmate/" target="_blank">Checkmate Wiki</a></li>
 
                   <li class="divider"></li>
@@ -274,47 +277,6 @@
     </div>
     <div class="modal-footer">
       <a href="#" class="btn" data-dismiss="modal">Close</a>
-    </div>
-  </div>
-
-  <div id="modalSLA" class="modal hide fade">
-    <div class="modal-header">
-      <button type="button" class="close" data-dismiss="modal">&times;</button>
-      <h3>Support for Checkmate</h3>
-    </div>
-    <div class="modal-body">
-      <dl class="dl-horizontal">
-        <dt>About 24 hours</dt>
-        <dd>
-          We don't have a 24x7 team. The code is an advanced prototype, but
-          a prototype nonetheless, so there could be show-stopping bugs in
-          here and we can't guarantee a time by which we could get them fixed.
-        </dd>
-      </dl>
-
-      <dl class="dl-horizontal">
-        <dt>Passion</dt>
-        <dd>
-          That said, we love this product and believe in it. We'll do our
-          best to make it rock and to make your experience using it awesome.
-        </dd>
-      </dl>
-
-      <dl class="dl-horizontal">
-        <dt>Helping each other out</dt>
-        <dd>
-          You can help (or help us help you) by giving us feedback or letting
-          us know about issues from the Help/Submit Feedback menu, by
-          <a target="_blank" href="mailto:checkmate@lists.rackspace.com">email</a>,
-          <a href="irc://irc.intra.rackspace.com/#checkmate" target="_blank">IRC</a>,
-          or contributing on
-          <a href="http://github.rackspace.com/checkmate">github</a>.
-        </dd>
-      </dl>
-    </div>
-    <div class="modal-footer">
-      <small class="pull-left"><b>Checkmate version:</b> {{api_version}}<br />
-      <b>Rook version:</b> {{rook_version}}</small>
     </div>
   </div>
 

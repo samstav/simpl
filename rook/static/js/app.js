@@ -363,6 +363,17 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q) {
     apikey: ''
   };
 
+  $scope.modal_opts = {
+    backdropFade: true,
+    dialogFade: true,
+  };
+  $scope.open_modal = function(modal_window) {
+    $scope[modal_window] = true;
+  };
+  $scope.close_modal = function(modal_window) {
+    $scope[modal_window] = false;
+  };
+
   // Display log in prompt
   $scope.deferred_login = null;
   $scope.display_login_prompt = false;

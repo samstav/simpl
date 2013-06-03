@@ -469,4 +469,28 @@ describe('AppController', function(){
       expect(auth.logOut).toHaveBeenCalled();
     });
   });
+
+  describe('modal_opts', function() {
+    it('should set backdropFade to true', function() {
+      expect(scope.login_prompt_opts.backdropFade).toBe(true);
+    });
+
+    it('should set dialogFade to true', function() {
+      expect(scope.login_prompt_opts.dialogFade).toBe(true);
+    });
+  });
+
+  describe('#open_modal', function() {
+    it('should set modal flag to true', function() {
+      scope.open_modal('fakemodal');
+      expect(scope.fakemodal).toBe(true);
+    });
+  });
+
+  describe('#close_modal', function() {
+    it('should set modal flag to false', function() {
+      scope.close_modal('fakemodal');
+      expect(scope.fakemodal).toBe(false);
+    });
+  });
 });
