@@ -1,7 +1,7 @@
 from checkmate.deployment import Deployment
 import unittest2 as unittest
 
-from checkmate.plan import Plan
+from checkmate.deployments import Plan
 
 
 class TestPlan(unittest.TestCase):

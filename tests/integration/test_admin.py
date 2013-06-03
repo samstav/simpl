@@ -7,7 +7,8 @@ import bottle
 import mox
 from webtest import TestApp
 
-from checkmate import admin, test
+from checkmate import test
+from checkmate.api import admin
 
 LOG = logging.getLogger(__name__)
 
