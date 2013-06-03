@@ -91,7 +91,7 @@
               </li>
 
               <li class="dropdown pull-right" ng-cloak ng-show="auth.identity.loggedIn" title="Token expires {{auth.context.token.expires | formattedDate}}">
-                <a href="#" class="dropdown-toggle" data-toggle="dropdown" id="user_button">
+                <a href="#" class="dropdown-toggle" id="user_button">
                       <i class="icon-user icon-white"></i> {{auth.context.username}}
                       <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
                       <b class="caret"></b>
@@ -121,7 +121,7 @@
               <li id="nav-workflows"><a ng-href="/{{auth.context.tenantId}}/workflows">Workflows</a></li>
               <li id="nav-blueprints"><a ng-href="/{{auth.context.tenantId}}/blueprints">Blueprints</a></li>
               <!--<li class="dropdown">
-                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Other<b class="caret"></b></a>
+                <a href="#" class="dropdown-toggle">Other<b class="caret"></b></a>
                 <ul class="dropdown-menu">
                   <li id="nav-environments"><a href="/{{auth.context.tenantId}}/environments">Environments</a></li>
                   <li id="nav-providers"><a href="/{{auth.context.tenantId}}/providers">Providers</a></li>
@@ -138,7 +138,7 @@
             </ul>
             <ul id="nav-support" class="nav">
               <li class="dropdown">
-                <a href="#" ng-cloak ng-show="in_admin_context()" class="dropdown-toggle" data-toggle="dropdown">
+                <a href="#" ng-cloak ng-show="in_admin_context()" class="dropdown-toggle">
                   Admin<b class="caret"></b>
                 </a>
                 <ul class="dropdown-menu">
@@ -161,7 +161,7 @@
                 </ul>
               </li>
               <li class="dropdown">
-                <a id="support-menu" href="#" class="dropdown-toggle" data-toggle="dropdown">
+                <a id="support-menu" href="#" class="dropdown-toggle">
                   Help<b class="caret"></b>
                 </a>
                 <ul class="dropdown-menu">
@@ -173,7 +173,7 @@
 
                   <li class="divider"></li>
                   <li id="nav-feedback" class="dropdown-submenu">
-                    <a id="feedback-menu" class="dropdown-toggle" data-toggle="dropdown" data-target="#feedback-dropdown" href="#">
+                    <a id="feedback-menu" class="dropdown-toggle" href="#">
                       Submit Feedback
                     </a>
                     <div id="feedback-dropdown" class="dropdown-menu">
