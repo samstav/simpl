@@ -425,9 +425,8 @@ class Router(object):
                         utils.get_time_string()
 
         if updates:
-            body, secrets = utils.extract_sensitive_data(updates)
-            self.manager.save_deployment(api_id, body, secrets,
-                                         tenant_id=tenant_id, partial=True)
+            self.manager.save_deployment(updates, api_id=api_id, tenant_id=tenant_id,
+                                         partial=True)
         return utils.write_body({'secrets': updates.get('display-outputs')},
                                 request, response)
 

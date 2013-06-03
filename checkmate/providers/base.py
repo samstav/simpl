@@ -519,6 +519,15 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             LOG.debug("%s.%s.get_resource_status called, but was not "
                       "implemented", self.vendor, self.name)
 
+    def _verify_existing_resource(self, resource, key):
+        '''Private method for Resource verification'''
+        msg = None
+        if (resource.get('status') != "DELETED" and
+                resource.get("provider") != self.name):
+            msg = "%s did not provide resource %s" % (self.name, key)
+        if msg:
+            raise CheckmateException(msg)
+
 
 def register_providers(providers):
     """Add provider classes to list of available providers"""

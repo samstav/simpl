@@ -57,7 +57,8 @@ class DeploymentsManager(Manager):
             with_deleted=with_deleted
         )
 
-    def save_deployment(self, deployment, api_id=None, tenant_id=None):
+    def save_deployment(self, deployment, api_id=None, tenant_id=None,
+                        partial=False):
         '''Sync ID and tenant and save deployment
 
         :returns: saved deployment
@@ -90,7 +91,7 @@ class DeploymentsManager(Manager):
         return self.select_driver(api_id).save_deployment(api_id, body,
                                                           secrets,
                                                           tenant_id=tenant_id,
-                                                          partial=False)
+                                                          partial=partial)
 
     def deploy(self, deployment, context):
         '''Deploys a deployment and returns the operation'''

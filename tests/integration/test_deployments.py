@@ -1559,14 +1559,9 @@ class TestGetResourceStuff(unittest.TestCase):
             .AndReturn(self._deployment)
 
         self._mox.ReplayAll()
-        try:
-            router.get_deployment_resources('1234')
-            self.fail("get_deployment_resources with not found did not raise"
-                      " exception")
-        except HTTPError as exc:
-            self.assertEqual(404, exc.status)
-            self.assertIn("No resources found for deployment 1234",
-                          exc.output)
+        self.assertRaisesRegexp(CheckmateDoesNotExist, "No resources found "
+                                "for deployment 1234",
+                                router.get_deployment_resources, '1234')
 
     def test_no_res_status(self):
         """ Test when no resources in deployment """
@@ -1578,13 +1573,9 @@ class TestGetResourceStuff(unittest.TestCase):
             .AndReturn(self._deployment)
 
         self._mox.ReplayAll()
-        try:
-            router.get_resources_statuses('1234')
-            self.fail("get_resources_status with not found did not raise "
-                      "exception")
-        except HTTPError as exc:
-            self.assertEqual(404, exc.status)
-            self.assertIn("No resources found for deployment 1234", exc.output)
+        self.assertRaisesRegexp(CheckmateDoesNotExist, "No resources found "
+                                "for deployment 1234",
+                                router.get_resources_statuses, '1234')
 
     def test_dep_404(self):
         """ Test when deployment not found """
@@ -1681,12 +1672,10 @@ class TestPostbackHelpers(unittest.TestCase):
         manager = DeploymentsManager({'default': db})
         router = DeploymentsRouter(bottle.default_app(), manager)
         db.get_deployment('1234').AndReturn(self._deployment)
-        self._mox.StubOutWithMock(checkmate.deployments.tasks.resource_postback,
-                                  "delay")
-        checkmate.deployments.tasks.resource_postback.delay('1234',
-                                                      IgnoreArg(),
-                                                      driver=db
-                                                      ).AndReturn(True)
+        self._mox.StubOutWithMock(
+            checkmate.deployments.tasks.resource_postback, "delay")
+        checkmate.deployments.tasks.resource_postback.delay(
+            '1234', IgnoreArg(), driver=db).AndReturn(True)
         self._mox.ReplayAll()
         ret = update_all_provider_resources('foo', '1234', 'NEW',
                                             message='I test u',
