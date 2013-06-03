@@ -865,7 +865,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.load();
 }
 
-function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, workflow, items, scroll) {
+function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, workflow, items, scroll, deploymentDataParser) {
   //Scope variables
   $scope.showStatus = true;
   $scope.showHeader = true;
@@ -898,97 +898,16 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
       $scope.count = items.all.length;
       workflow.calculateStatistics($scope, items.all);
-      if ($location.path().split('/').slice(-1)[0] == 'status') {
+      var path_parts = $location.path().split('/');
+      if (path_parts.slice(-1)[0] == 'status' || path_parts.slice(2,3) == 'deployments') {
         if ($scope.taskStates.completed < $scope.count) {
           var original_url = $location.url();
           setTimeout(function() {$scope.reload(original_url);}, 2000);
         } else {
           var d = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json?with_secrets');
           d.get($routeParams, function(object, getResponseHeaders){
-            $scope.output = {};
-            //Get load balancer IP
-            try {
-              var lb = _.find(object.resources, function(r, k) { return r.type == 'load-balancer';});
-              if ('instance' in lb) {
-                $scope.output.vip = lb.instance.public_ip;
-              }
-            }
-            catch (error) {
-              console.log(error);
-            }
 
-            var url = null;
-            //Find url in inputs
-            try {
-              // URL can be either a string or an object with a url property
-              if (typeof object.inputs.blueprint.url == "string") {
-                url = object.inputs.blueprint.url;
-              } else {
-                url = object.inputs.blueprint.url.url;
-              }
-              $scope.output.path = url;
-              var u = URI(url);
-              $scope.output.domain = u.hostname();
-            }
-            catch (error) {
-              console.log("url not found", error);
-
-              var domain = null;
-              //Find domain in inputs
-              try {
-                domain = object.inputs.blueprint.domain;
-                $scope.output.domain = domain;
-              }
-              catch (error) {
-                console.log(error);
-              }
-              //If no domain, use load-balancer VIP
-              if (domain === null) {
-                domain = $scope.output.vip;
-              }
-              //Find path in inputs
-              var path = "/";
-              try {
-                path = object.inputs.blueprint.path;
-              }
-              catch (error) {
-                console.log(error);
-              }
-              if (domain !== undefined && path !== undefined)
-                $scope.output.path = "http://" + domain + path;
-            }
-
-
-            //Get user name/password
-            try {
-              var user = _.find(object.resources, function(r, k) { return r.type == 'user';});
-              if (user !== undefined && 'instance' in user) {
-                $scope.output.username = user.instance.name;
-                $scope.output.password = user.instance.password;
-              }
-            }
-            catch (error) {
-              console.log(error);
-            }
-
-            //Get the private key
-            try {
-              var keypair = _.find(object.resources, function(r, k) { return r.type == 'key-pair';});
-              if (keypair !== undefined && 'instance' in keypair) {
-                $scope.output.private_key = keypair.instance.private_key;
-              }
-            }
-            catch (error) {
-              console.log(error);
-            }
-
-            //Copy resources into output as array (angular filters prefer arrays)
-            $scope.output.resources = _.toArray(object.resources);
-            //Get master server
-            $scope.output.master_server = _.find($scope.output.resources, function(resource) {
-                return (resource.component == 'linux_instance' && resource.service == 'master');
-            });
-
+            $scope.output = deploymentDataParser.formatData(object);
             //Copy all data to all_data for clipboard use
             var all_data = [];
             all_data.push('From: ' + $location.absUrl());
@@ -2369,10 +2288,12 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog) {
+function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
+  $scope.showAdvancedDetails = false;
+  $scope.showInstructions = false;
   $scope.auto_refresh = true;
 
   $scope.name = 'Deployment';
@@ -2410,6 +2331,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     this.klass.get($routeParams, function(data, getResponseHeaders){
       $scope.data = data;
       $scope.data_json = JSON.stringify(data, null, 2);
+      $scope.formatted_data = deploymentDataParser.formatData(data);
+      $scope.abs_url = $location.absUrl();
+      $scope.clippy_element = "#deployment_summary_clipping"
+
       if ($scope.data.operation !== undefined && $scope.data.operation.status != 'COMPLETE') {
         $scope.delayed_refresh();
       }
@@ -2477,15 +2402,18 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     }
   };
 
-  $scope.delete_deployment = function() {
+  $scope.delete_deployment = function(force) {
     if ($scope.auth.identity.loggedIn) {
-      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
+      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'save': {method:'PUT'}});
       var thang = new klass();
-      thang.$delete($routeParams, function(returned, getHeaders){
+      var params = jQuery.extend({}, $routeParams);
+      if (typeof(force) !== undefined)
+        params.force = force;
+      thang.$delete(params, function(returned, getHeaders){
           // Update model
           $scope.data = returned;
           $scope.data_json = JSON.stringify(returned, null, 2);
-          $scope.notify(returned.status);
+          $scope.notify('Deleting deployment');
           $scope.delayed_refresh();
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",

@@ -14,8 +14,11 @@
   <div class="summaryHeader" ng-cloak ng-show="data">
     <div class="top well" ng-cloak ng-show="showStatus">
       <div class="row-fluid" style="height: 20px;">
-        <div class="span10 actions">
+        <div class="span6 actions">
           Workflow
+        </div>
+        <div class="deployment_link span6 pull-right">
+          <a data-ng-href="/{{auth.context.tenantId}}/deployments/{{data.id}}">See deployment</a>
         </div>
 
         <div class="span2 actions">

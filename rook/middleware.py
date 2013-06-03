@@ -453,23 +453,26 @@ class RackspaceSSOAuthMiddleware(object):
                                    endpoint['uri'],
                                    endpoint['kwargs'].get('realm')))
         self.service_token = None
-        self.service_username = endpoint['kwargs'].get('username')
-        self.service_password = endpoint['kwargs'].get('password')
         if 'kwargs' in endpoint:
+            self.service_username = endpoint['kwargs'].get('username')
+            self.service_password = endpoint['kwargs'].get('password')
             self.admin_role = {"name": endpoint['kwargs'].get('admin_role')}
         else:
+            self.service_username = None
+            self.service_password = None
             self.admin_role = None
 
         # FIXME: temporary logic. Make this get a new token when needed
-        try:
-            result = self._auth_keystone(RequestContext(),
-                                         username=self.service_username,
-                                         password=self.service_password)
-            self.service_token = result['access']['token']['id']
-        except Exception:
-            LOG.error("Unable to authenticate to Global Auth. Endpoint '%s' "
-                      "will be disabled", endpoint.get('kwargs', {}).
-                      get('realm'))
+        if self.service_username:
+            try:
+                result = self._auth_keystone(RequestContext(),
+                                             username=self.service_username,
+                                             password=self.service_password)
+                self.service_token = result['access']['token']['id']
+            except Exception:
+                LOG.error("Unable to authenticate to Global Auth. Endpoint "
+                          "'%s' will be disabled", endpoint.get('kwargs', {}).
+                          get('realm'))
 
     def __call__(self, environ, start_response):
         """Authenticate calls with X-Auth-Token to the source auth service"""
