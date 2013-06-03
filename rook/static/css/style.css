@@ -459,3 +459,14 @@ form#impersonate input {
   top: 0;
   right: 0;
 }
+
+/* Carousel */
+#applogos { margin-bottom: 0px; }
+#applogos .applogo { margin-top: -45px; }
+.applogo img { opacity: 0.5; }
+.thumbnails .spot-padding { padding-top: 35px; }
+.carousel-indicators { display: none; }
+.carousel .thumbnails {
+  padding-left: 65px;
+  padding-right: 65px; 
+}
