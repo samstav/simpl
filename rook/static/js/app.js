@@ -689,6 +689,11 @@ function NavBarController($scope, $location, $http) {
   $scope.feedback = "";
   $scope.email = "";
 
+  $scope.collapse_navbar = true;
+  $scope.toggle_navbar = function() {
+    $scope.collapse_navbar = !$scope.collapse_navbar;
+  };
+
   $scope.hasPendingRequests = function() {
     return $http.pendingRequests.length > 0;
   };
