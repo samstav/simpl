@@ -437,6 +437,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q) {
     return (endpoint.scheme == 'GlobalAuthImpersonation');
   };
 
+  $scope.is_sso = function(endpoint) {
+    return endpoint.uri == 'https://identity-internal.api.rackspacecloud.com/v2.0/tokens';
+  };
+
   $scope.select_endpoint = function(endpoint) {
     auth.selected_endpoint = endpoint;
     localStorage.setItem('selected_endpoint', JSON.stringify(endpoint));

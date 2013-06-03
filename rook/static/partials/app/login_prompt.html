@@ -13,17 +13,20 @@
     </div>
   </div>
   <div class="modal-body">
-    <form class="form-horizontal" style="margin-bottom: 0px" ng-init="selected_endpoint=null" name="loginForm" ng-submit="logIn()">
+    <form class="form-horizontal" style="margin-bottom: 0px" name="loginForm" ng-submit="logIn()">
       <fieldset>
         <ul class="nav nav-tabs">
           <li ng-repeat="endpoint in auth.endpoints" ng-class="is_active(endpoint) + ' ' + realm_name(endpoint)">
-            <a href="#" data-toggle="tab" ng-hide="is_hidden(endpoint)" ng-click="$parent.select_endpoint(endpoint)">
+            <a href="#" ng-hide="is_hidden(endpoint)" ng-click="select_endpoint(endpoint)">
               <i class="icon-fire" ng-show="display_announcement()"></i>{{endpoint['realm']}}
             </a>
           </li>
         </ul>
         <div class="control-group">
-          <label class="control-label" for="username">Username<span ng-hide="selected.uri != 'https://identity-internal.api.rackspacecloud.com/v2.0/tokens'"> (SSO)</span></label>
+          <label class="control-label" for="username">
+            Username
+            <span ng-show="is_sso(get_selected_endpoint())">(SSO)</span>
+          </label>
           <div class="controls">
             <input type="text" class="input-xlarge" id="username" ng-model="bound_creds.username" />
           </div>

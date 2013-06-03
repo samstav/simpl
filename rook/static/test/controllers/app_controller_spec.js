@@ -137,6 +137,22 @@ describe('AppController', function(){
     });
   });
 
+  describe('#is_sso', function() {
+    var endpoint;
+    beforeEach(function() {
+      endpoint = { uri: "fakeuri" };
+    });
+
+    it('should return true if endpoint is an SSO endpoint', function() {
+      endpoint = { uri: "https://identity-internal.api.rackspacecloud.com/v2.0/tokens" };
+      expect(scope.is_sso(endpoint)).toBe(true);
+    });
+
+    it('should return false if endpoint is not an SSO endpoint', function() {
+      expect(scope.is_sso(endpoint)).toBe(false);
+    });
+  });
+
   describe('#impersonate', function() {
     var $rootScope, deferred;
     beforeEach(inject(function(_$rootScope_, $q) {
