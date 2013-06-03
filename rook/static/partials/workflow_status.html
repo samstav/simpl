@@ -2,6 +2,7 @@
   <div class="row-fluid">
     <section class="span10 offset1">
         <h4>{{data.wf_spec.name}}</h4>
+        <div class="alert">This page is being retired - see the updated deployment page <a data-ng-href="/{{auth.context.tenantId}}/deployments/{{data.id}}">here</a></div>
         <div class="row-fluid" ng-cloak ng-show="timeRemaining == 0">
           <div class="alert alert-success">
               <clippy style="top:0" content="{{all_data}}" bgcolor="#DFF0D8"></clippy>

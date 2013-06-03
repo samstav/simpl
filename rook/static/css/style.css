@@ -363,6 +363,7 @@ body {
 }
 
 /* code mirror fixes - ZNS */
+.deployment_container .CodeMirror { height: 600px }
 .CodeMirror { height: inherit; }
 .CodeMirror-scroll { height: 80%; }
 .CodeMirror pre {
@@ -451,7 +452,7 @@ form#impersonate input {
   position: relative;
 }
 
-.blueprint_loading { 
+.blueprint_loading {
   position: absolute;
   width: 10px;
   height: 10px;
