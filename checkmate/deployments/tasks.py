@@ -36,7 +36,7 @@ def process_post_deployment(deployment, request_context, driver=DB):
 
     #Assess work to be done & resources to be created
     parsed_deployment = MANAGERS['deployments'].plan(deployment,
-                                                        request_context)
+                                                     request_context)
 
     # Create a 'new deployment' workflow
     MANAGERS['deployments'].deploy(parsed_deployment, request_context)
@@ -178,7 +178,8 @@ def resource_postback(deployment_id, contents, driver=DB):
             value.pop('status', None)
             if r_status == "ERROR":
                 r_msg = value.get('error-message')
-                utils.write_path(updates, 'resources/%s/error-message' % r_id, r_msg)
+                utils.write_path(updates, 'resources/%s/error-message' % r_id,
+                                 r_msg)
                 value.pop('error-message', None)
                 updates['status'] = "FAILED"
                 updates['error-message'] = deployment.get('error-message', [])

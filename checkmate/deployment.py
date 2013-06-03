@@ -25,7 +25,6 @@ from checkmate.exceptions import (
     CheckmateValidationException,
 )
 from checkmate.inputs import Input
-from checkmate.providers import ProviderBase
 from checkmate.resource import Resource
 from checkmate.utils import (
     get_time_string,
@@ -1249,9 +1248,10 @@ def update_deployment_status_new(deployment_id, new_status, driver=DB):
                      "Deployment %s", deployment_id)
             raise
 
+
 def get_status(deployment_id):
     '''
-    Gets the deployment status by deployment id. 
+    Gets the deployment status by deployment id.
     Protects against invalid types and key errors.
     '''
     deployment = DB.get_deployment(deployment_id)

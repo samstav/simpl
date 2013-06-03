@@ -7,12 +7,11 @@ For tests, we don't care about:
     R0904 - Too many public methods
     W0212 - Access to protected member of a client class
     W0232 - Class has no __init__ method '''
-
 import unittest2 as unittest
+
 import mox
 from mox import IgnoreArg
 
-from checkmate import utils
 
 class TestDeployments(unittest.TestCase):
     """Functional tests for the deployments module"""
@@ -71,11 +70,11 @@ class TestDeployments(unittest.TestCase):
                                               resources["0"], "0")\
                                               .AndReturn(expected1)
 
-        deployments = self.mox.CreateMockAnything()                      
+        deployments = self.mox.CreateMockAnything()
         results = deployments.write_body(IgnoreArg(), IgnoreArg(),
                                          IgnoreArg()).AndReturn(expected2)
-        
-        self.mox.ReplayAll()                                 
+
+        self.mox.ReplayAll()
         self.assertDictEqual(expected2, results)
 
 
@@ -84,4 +83,3 @@ if __name__ == '__main__':
     import sys
     from checkmate.test import run_with_params
     run_with_params(sys.argv[:])
-

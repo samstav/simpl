@@ -778,7 +778,6 @@ class Provider(ProviderBase):
                 self._dict['catalog'] = catalog
             return catalog
 
-
     def get_remote_catalog(self, source=None):
         """Gets the remote catalog from a repo by obtaining a Chefmap file, if
         it exists, and parsing it"""

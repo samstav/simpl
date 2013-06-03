@@ -171,8 +171,8 @@ class Router(object):
             check_access = True
         deployment = _content_to_deployment(request, tenant_id=tenant_id)
         results = self.manager.plan(deployment, request.context,
-                                       check_limits=check_limits,
-                                       check_access=check_access)
+                                    check_limits=check_limits,
+                                    check_access=check_access)
         return utils.write_body(results, request, response)
 
     @with_tenant
@@ -199,10 +199,10 @@ class Router(object):
         try:
             if 'with_secrets' in request.query:  # TODO: verify admin-ness
                 entity = self.manager.get_a_deployment(api_id, tenant_id,
-                                                          with_secrets=True)
+                                                       with_secrets=True)
             else:
                 entity = self.manager.get_a_deployment(api_id, tenant_id,
-                                                          with_secrets=False)
+                                                       with_secrets=False)
 
         except CheckmateDoesNotExist:
             abort(404)
@@ -308,8 +308,8 @@ class Router(object):
         deployment = Deployment(entity)  # Also validates syntax
         planned_deployment = self.manager.plan(deployment, request.context)
         results = self.manager.save_deployment(planned_deployment,
-                                                  deployment_id=api_id,
-                                                  tenant_id=tenant_id)
+                                               deployment_id=api_id,
+                                               tenant_id=tenant_id)
         return utils.write_body(results, request, response)
 
     @with_tenant
@@ -330,7 +330,7 @@ class Router(object):
                                                       api_id, resource, key)
                 if result:
                     resources.update(result)
-                    manager.resource_postback.delay(api_id, result)
+                    tasks.resource_postback.delay(api_id, result)
         return utils.write_body(resources, request, response)
 
     @with_tenant
@@ -363,8 +363,7 @@ class Router(object):
     def get_deployment_secrets(self, api_id, tenant_id=None):
         '''Return deployment secrets'''
         try:
-            entity = self.manager.get_a_deployment(api_id,
-                                                      tenant_id=tenant_id)
+            entity = self.manager.get_a_deployment(api_id, tenant_id=tenant_id)
         except CheckmateDoesNotExist:
             abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
@@ -380,7 +379,7 @@ class Router(object):
                   "to retrieve its secrets")
 
         data = self.manager.get_a_deployments_secrets(api_id,
-                                                         tenant_id=tenant_id)
+                                                      tenant_id=tenant_id)
         return utils.write_body(data, request, response)
 
     @with_tenant
@@ -389,8 +388,8 @@ class Router(object):
         partial = utils.read_body(request)
         try:
             entity = self.manager.get_a_deployment(api_id,
-                                                      tenant_id=tenant_id,
-                                                      with_secrets=True)
+                                                   tenant_id=tenant_id,
+                                                   with_secrets=True)
         except CheckmateDoesNotExist:
             abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
@@ -428,7 +427,7 @@ class Router(object):
         if updates:
             body, secrets = utils.extract_sensitive_data(updates)
             self.manager.save_deployment(api_id, body, secrets,
-                                            tenant_id=tenant_id, partial=True)
+                                         tenant_id=tenant_id, partial=True)
         return utils.write_body({'secrets': updates.get('display-outputs')},
                                 request, response)
 
@@ -437,10 +436,10 @@ class Router(object):
         ''' Return the resources for a deployment '''
         if 'with_secrets' in request.query:  # TODO: verify admin-ness
             deployment = self.manager.get_a_deployment(api_id, tenant_id,
-                                                          with_secrets=True)
+                                                       with_secrets=True)
         else:
             deployment = self.manager.get_a_deployment(api_id, tenant_id,
-                                                          with_secrets=False)
+                                                       with_secrets=False)
 
         resources = self.manager._get_dep_resources(deployment)
         return utils.write_body(resources, request, response)
@@ -450,10 +449,10 @@ class Router(object):
         ''' Get basic status of all deployment resources '''
         if 'with_secrets' in request.query:  # TODO: verify admin-ness
             deployment = self.manager.get_a_deployment(api_id, tenant_id,
-                                                          with_secrets=True)
+                                                       with_secrets=True)
         else:
             deployment = self.manager.get_a_deployment(api_id, tenant_id,
-                                                          with_secrets=False)
+                                                       with_secrets=False)
         resources = self.manager._get_dep_resources(deployment)
         resp = {}
 
@@ -465,9 +464,11 @@ class Router(object):
                         "status": (val.get("status") or
                                    val.get("instance", {}).get("status")),
                         'message': (val.get('error-message') or
-                                    val.get('instance', {}).get("error-message") or
+                                    val.get('instance', {}).get(
+                                        "error-message") or
                                     val.get('status-message') or
-                                    val.get("instance", {}).get("status-message")),
+                                    val.get("instance", {}).get(
+                                        "status-message")),
                         "type": val.get("type", "UNKNOWN"),
                         "component": val.get("component", "UNKNOWN"),
                         "provider": val.get("provider", "core")

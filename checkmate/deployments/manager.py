@@ -6,7 +6,6 @@ Handles deployment logic
 import logging
 import uuid
 
-from bottle import abort
 import eventlet
 from SpiffWorkflow.storage import DictionarySerializer
 
@@ -14,13 +13,18 @@ from .plan import Plan
 from checkmate import db, utils, operations, orchestrator
 from checkmate.base import Manager
 from checkmate.deployment import Deployment, generate_keys
-from checkmate.exceptions import CheckmateBadState, CheckmateDoesNotExist
+from checkmate.exceptions import (
+    CheckmateBadState,
+    CheckmateDoesNotExist,
+    CheckmateValidationException,
+)
 from checkmate.workflow import create_workflow_deploy, init_operation
 
 LOG = logging.getLogger(__name__)
 
 
 class DeploymentsManager(Manager):
+    '''Contains Deployments Model and Logic for Accessing Deployments'''
 
     def count(self, tenant_id=None, blueprint_id=None):
         '''Return count of deployments filtered by passed in parameters'''
@@ -54,10 +58,10 @@ class DeploymentsManager(Manager):
         )
 
     def save_deployment(self, deployment, api_id=None, tenant_id=None):
-        """Sync ID and tenant and save deployment
+        '''Sync ID and tenant and save deployment
 
         :returns: saved deployment
-        """
+        '''
         if not api_id:
             if 'id' not in deployment:
                 api_id = uuid.uuid4().hex
@@ -89,11 +93,12 @@ class DeploymentsManager(Manager):
                                                           partial=False)
 
     def deploy(self, deployment, context):
-        """Deploys a deployment and returns the operation"""
+        '''Deploys a deployment and returns the operation'''
         if deployment.get('status') != 'PLANNED':
-            raise CheckmateBadState("Deployment '%s' is in '%s' status and must "
-                                    "be in 'PLANNED' status to be deployed" %
-                                    (deployment['id'], deployment.get('status')))
+            raise CheckmateBadState("Deployment '%s' is in '%s' status and "
+                                    "must be in 'PLANNED' status to be "
+                                    "deployed" % (deployment['id'],
+                                    deployment.get('status')))
         generate_keys(deployment)
 
         deployment['display-outputs'] = deployment.calculate_outputs()
@@ -107,9 +112,9 @@ class DeploymentsManager(Manager):
         return operation
 
     def get_a_deployment(self, api_id, tenant_id=None, with_secrets=False):
-        """
+        '''
         Get a single deployment by id.
-        """
+        '''
         entity = self.select_driver(api_id).get_deployment(api_id,
                                                            with_secrets=
                                                            with_secrets)
@@ -143,10 +148,11 @@ class DeploymentsManager(Manager):
         return entity
 
     def get_a_deployments_secrets(self, api_id, tenant_id=None):
-        """
+        '''
         Get the passwords and keys of a single deployment by id.
-        """
-        entity = self.select_driver(api_id).get_deployment(api_id, with_secrets=True)
+        '''
+        entity = self.select_driver(api_id).get_deployment(api_id,
+                                                           with_secrets=True)
         if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
@@ -174,7 +180,7 @@ class DeploymentsManager(Manager):
         raise ValueError("No resource %s in deployment %s" % (rid, api_id))
 
     def execute(self, api_id, timeout=180, tenant_id=None):
-        """Process a checkmate deployment workflow
+        '''Process a checkmate deployment workflow
 
         Executes and moves the workflow forward.
         Retrieves results (final or intermediate) and updates them into
@@ -182,19 +188,21 @@ class DeploymentsManager(Manager):
 
         :param id: checkmate deployment id
         :returns: the async task
-        """
+        '''
         if db.any_id_problems(api_id):
-            abort(406, db.any_id_problems(api_id))
+            raise CheckmateValidationException(db.any_id_problems(api_id))
 
         deployment = self.get_a_deployment(api_id)
         if not deployment:
-            abort(404, 'No deployment with id %s' % api_id)
+            raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
+        driver = self.select_driver(api_id)
         result = orchestrator.run_workflow.delay(api_id, timeout=3600,
-                                                 driver=self.select_driver(api_id))
+                                                 driver=driver)
         return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):
+        '''Launch a new deployment from a deleted one'''
         deployment = self.get_a_deployment(api_id, tenant_id=tenant_id)
 
         if deployment['status'] != 'DELETED':
@@ -223,27 +231,29 @@ class DeploymentsManager(Manager):
 
     @staticmethod
     def _get_dep_resources(deployment):
-        """ Return the resources for the deployment or abort if not found """
+        ''' Return the resources for the deployment or abort if not found '''
         if deployment and "resources" in deployment:
             return deployment.get("resources")
-        abort(404, "No resources found for deployment %s" % deployment.get("id"))
+        raise CheckmateDoesNotExist("No resources found for deployment %s" %
+                                    deployment.get("id"))
 
     @staticmethod
     def plan(deployment, context, check_limits=False, check_access=False):
-        """Process a new checkmate deployment and plan for execution.
+        '''Process a new checkmate deployment and plan for execution.
 
         This creates templates for resources and connections that will be used for
         the actual creation of resources.
 
         :param deployment: checkmate deployment instance (dict)
         :param context: RequestContext (auth data, etc) for making API calls
-        """
+        '''
         assert context.__class__.__name__ == 'RequestContext'
         assert deployment.get('status') == 'NEW'
         assert isinstance(deployment, Deployment)
         if "chef-local" in deployment.environment().get_providers(context):
-            abort(406, "Provider 'chef-local' deprecated. Use 'chef-solo' "
-                  "instead.")
+            raise CheckmateValidationException("Provider 'chef-local' "
+                                               "deprecated. Use 'chef-solo' "
+                                               "instead.")
 
         # Analyze Deployment and Create plan
         planner = Plan(deployment)
@@ -262,9 +272,9 @@ class DeploymentsManager(Manager):
             deployment['check-access-results'] = access.wait()
 
         # Save plan details for future rehydration/use
-        deployment['plan'] = planner._data  # get the dict so we can serialize it
+        deployment['plan'] = planner._data  # get dict so we can serialize it
 
-        # Mark deployment as planned and return it (nothing has been saved so far)
+        # Mark deployment as planned and return it (nothing has been saved yet)
         deployment['status'] = 'PLANNED'
         LOG.info("Deployment '%s' planning complete and status changed to %s",
                  deployment['id'], deployment['status'])
@@ -286,7 +296,8 @@ class DeploymentsManager(Manager):
         operation = operations.add_operation(deployment, 'BUILD', **wf_data)
 
         body, secrets = utils.extract_sensitive_data(workflow)
-        self.select_driver(api_id).save_workflow(workflow_id, body, secrets,
+        driver = self.select_driver(api_id)
+        driver.save_workflow(workflow_id, body, secrets,
                              tenant_id=deployment['tenantId'])
 
         return operation
@@ -297,9 +308,9 @@ class DeploymentsManager(Manager):
             link = "/%s/canvases/%s" % (tenant_id, deployment['id'])
         else:
             link = "/canvases/%s" % deployment['id']
+        task_count = len(deployment.get('resources', {}))
         operation = operations.add_operation(deployment, 'DELETE', link=link,
                                              status='NEW',
-                                             tasks=len(deployment.get('resources',
-                                                       {})),
+                                             tasks=task_count,
                                              complete=0)
         return operation
