@@ -141,9 +141,8 @@ Priv Key: {{formatted_data.private_key}}
           </tbody>
         </table>
 
-        <button class="btn toggle-button" ng-click="showAdvancedDetails = !showAdvancedDetails">Show me the old completion screen</button>
-        <div collapse="!showAdvancedDetails">
-          <div class="well well-large">
+        <accordion>
+          <accordion-group heading="Show me the old completion screen">
             <clippy clippy-element="{{clippy_element}}" style="top:0" bgcolor="#f5f5f5"></clippy>
             <div ng-hide="!formatted_data.path"><p><strong>Access your application</strong> from <a ng-href="{{formatted_data.path}}" target="_blank">{{formatted_data.path}}</a>.</p>
             <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
@@ -161,20 +160,21 @@ Priv Key: {{formatted_data.private_key}}
                   <td>{{resource.service}}</td>
                   <td>{{resource.instance.public_ip}}</td>
                   <td>{{resource.instance.password}}</td>
-              </tr></tbody></table>
+              </tr></tbody>
+            </table>
 
-              <p><strong>Databases</strong><br>
-              <table class="table table-condensed" ng-repeat="resource in formatted_data.resources | filter:{type:'database'}">
-                <tr><td>Name:</td><td>
-                  <a ng-cloak ng-show="resource.provider=='database'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
-                  <a ng-cloak ng-show="resource.provider=='chef-local'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
-                  <a ng-cloak ng-show="resource.provider=='chef-solo'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
-                <tr><td>Role:</td><td>{{resource.service}}</td></tr>
-                <tr><td>Host:</td><td>{{resource.instance.interfaces.mysql.host}}</td></tr>
-                <tr><td>Database:</td><td>{{resource.instance.interfaces.mysql.database_name}}</td></tr>
-                <tr><td>Username:</td><td>{{resource.instance.interfaces.mysql.username || formatted_data.username}}</td></tr>
-                <tr><td>Password:</td><td>{{resource.instance.interfaces.mysql.password || formatted_data.password}}</td></tr>
-              </table>
+            <p><strong>Databases</strong><br>
+            <table class="table table-condensed" ng-repeat="resource in formatted_data.resources | filter:{type:'database'}">
+              <tr><td>Name:</td><td>
+                <a ng-cloak ng-show="resource.provider=='database'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-cloak ng-show="resource.provider=='chef-local'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-cloak ng-show="resource.provider=='chef-solo'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+              <tr><td>Role:</td><td>{{resource.service}}</td></tr>
+              <tr><td>Host:</td><td>{{resource.instance.interfaces.mysql.host}}</td></tr>
+              <tr><td>Database:</td><td>{{resource.instance.interfaces.mysql.database_name}}</td></tr>
+              <tr><td>Username:</td><td>{{resource.instance.interfaces.mysql.username || formatted_data.username}}</td></tr>
+              <tr><td>Password:</td><td>{{resource.instance.interfaces.mysql.password || formatted_data.password}}</td></tr>
+            </table>
 
             <p><strong>Access your application</strong> using these administrative credentials:
             <pre>username: {{formatted_data.username}}<br>password: {{formatted_data.password}}</pre></p>
@@ -182,17 +182,18 @@ Priv Key: {{formatted_data.private_key}}
             </p>
             <p ng-cloak ng-show="formatted_data.private_key"><pre>{{formatted_data.private_key}}</pre></p>
             <p>The advanced view of the workflow can still be reached <a ng-href="/{{auth.context.tenantId}}/workflows/{{data.id}}">here</a>.</p>
-          </div>
+          </accordion-group>
+        </accordion>
+
+        <div ng-cloak ng-show="data.blueprint.documentation.instructions">
+          <accordion>
+            <accordion-group heading="Instructions">
+              <p class="help-block" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>
+            </accordion-group>
+          </accordion>
         </div>
 
         <hr>
-
-        <button class="btn toggle-button" ng-click="showInstructions = !showInstructions">Display Instructions</button>
-        <div collapse="!showInstructions">
-
-          <p class="lead" ng-cloak ng-show="data.blueprint.documentation.instructions">Instructions</p>
-          <p class="help-block" ng-cloak ng-show="data.blueprint.documentation.instructions" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>
-        </div>
 
         <p class="lead">Raw Source</p>
 
