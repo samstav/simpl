@@ -138,6 +138,7 @@ __schema__ = {
               'RESCUE': 'CONFIGURE',
               'RESIZE': 'CONFIGURE',
               'REVERT_RESIZE': 'CONFIGURE',
+              'SHUTOFF': 'CONFIGURE',
               'SUSPENDED': 'ERROR',
               'UNKNOWN': 'ERROR',
               'VERIFY_RESIZE': 'CONFIGURE'
