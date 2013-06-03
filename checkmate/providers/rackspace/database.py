@@ -16,7 +16,6 @@ from checkmate.common.caching import Memorize
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
-    get_resource_by_id
 )
 from checkmate.exceptions import (
     CheckmateException,
@@ -39,6 +38,22 @@ REGION_MAP = {
     'sydney': 'SYD',
 }
 API_FLAVOR_CACHE = {}
+
+#FIXME: delete tasks talk to database directly, so we load drivers and manager
+import os
+from checkmate import db
+from checkmate.deployments import DeploymentsManager
+DRIVERS = {}
+DB = DRIVERS['default'] = db.get_driver()
+SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
+    connection_string=os.environ.get(
+        'CHECKMATE_SIMULATOR_CONNECTION_STRING',
+        os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
+    )
+)
+MANAGERS = {}
+MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
 class Provider(ProviderBase):

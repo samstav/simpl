@@ -11,7 +11,8 @@ LOG = logging.getLogger(__name__)
 
 from checkmate import test
 from checkmate.exceptions import CheckmateException
-from checkmate.deployments import Deployment, resource_postback
+from checkmate.deployment import Deployment
+from checkmate.deployments import resource_postback
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import database
 from checkmate.test import StubbedWorkflowBase, ProviderTester
@@ -319,7 +320,7 @@ class TestDatabase(ProviderTester):
 
         self.assertListEqual(results, expected)
         self.mox.VerifyAll()
-        
+
     def test_db_sync_resource_task(self):
         """Tests db sync_resource_task via mox"""
         #Mock instance
