@@ -28,7 +28,10 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
 def update_operation(deployment_id, driver=None, **kwargs):
     '''Exposes operations.update_operation as a task'''
-    return operations.update_operation(deployment_id, driver=driver, **kwargs)
+    if driver:
+        return operations.update_operation(deployment_id, driver=driver, **kwargs)
+    else:
+        return operations.update_operation(deployment_id, **kwargs)
 
 
 @task(base=celery.SingleTask, default_retry_delay=3, max_retries=10,
@@ -36,5 +39,8 @@ def update_operation(deployment_id, driver=None, **kwargs):
 def update_deployment_status(deployment_id, new_status, driver=None):
     '''Exposes deployment.update_deployment_status as a task'''
     # TODO: rename without _new
-    return deployment.update_deployment_status_new(deployment_id, new_status,
-                                                   driver=driver)
+    if driver:
+        return deployment.update_deployment_status_new(deployment_id, new_status,
+                                                       driver=driver)
+    else:
+        return deployment.update_deployment_status_new(deployment_id, new_status)
