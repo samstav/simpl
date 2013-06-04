@@ -137,6 +137,61 @@ def update_all_provider_resources(provider, deployment_id, status,
             resource_postback.delay(deployment_id, ret, driver=driver)
             return ret
 
+@task(default_retry_delay=0.5, max_retries=6)
+def deployment_postback(deployment_id, contents, driver=DB):
+    #FIXME: we need to receive a context and check access?
+    """Accepts back results from a remote call and updates the deployment with
+    the result data.
+
+    The data updated must be a dict containing any/all of the following:
+    - a deployment status: must be checkmate valid
+    - a operation: dict containing operation data
+        "operation": {
+                      "status": "COMPLETE",
+                      "tasks": 64,
+                      "complete": 64,
+                      "type": "BUILD"
+                     }
+    - a resources dict containing resources data
+        "resources": {
+                      "1": {
+                      "status": "ACTIVE",
+                      "status-message": ""
+                      "instance": {
+                                   "status": "ACTIVE"
+                                   "status-message": ""
+                                  }
+                           }
+                     }
+    """
+
+    utils.match_celery_logging(LOG)
+    if utils.is_simulation(deployment_id):
+        driver = SIMULATOR_DB
+
+    deployment = driver.get_deployment(deployment_id, with_secrets=True)
+    deployment = Deployment(deployment)
+    
+    if not isinstance(contents, dict):
+        raise CheckmateException("Contents passed to deployment_postback is "
+                                 "invalid")
+    
+    keys = ['status','resources','operation']
+    if any(myDict.get(key) for key in keys):
+        deployment.on_deployment_postback(contents, target=deployment)
+        try:
+            body, secrets = utils.extract_sensitive_data(updates)
+            driver.save_deployment(deployment_id, body, secrets, partial=True)
+
+            LOG.debug("Updated deployment %s with post-back", deployment_id,
+                      extra=dict(data=contents))
+        except ObjectLockedError:
+            LOG.warn("Object lock collision in resource_postback on "
+                     "Deployment %s", deployment_id)
+            deployment_postback.retry()
+    else:
+        raise CheckmateException("Contents passed to deployment_postback is "
+                                 "invalid")
 
 @task(default_retry_delay=0.5, max_retries=6)
 def resource_postback(deployment_id, contents, driver=DB):
