@@ -125,25 +125,6 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
 MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
-__schema__ = {
-              'ACTIVE': 'ACTIVE',
-              'BUILD': 'BUILD',
-              'DELETED': 'DELETED',
-              'ERROR': 'ERROR',
-              'HARD_REBOOT': 'CONFIGURE',
-              'MIGRATING': 'CONFIGURE',
-              'PASSWORD': 'CONFIGURE',
-              'REBOOT': 'CONFIGURE',
-              'REBUILD': 'BUILD',
-              'RESCUE': 'CONFIGURE',
-              'RESIZE': 'CONFIGURE',
-              'REVERT_RESIZE': 'CONFIGURE',
-              'SHUTOFF': 'CONFIGURE',
-              'SUSPENDED': 'ERROR',
-              'UNKNOWN': 'ERROR',
-              'VERIFY_RESIZE': 'CONFIGURE'
-              }
-
 class RackspaceComputeProviderBase(ProviderBase):
     """Generic functions for rackspace Compute providers"""
     vendor = 'rackspace'
@@ -183,6 +164,24 @@ class RackspaceComputeProviderBase(ProviderBase):
 class Provider(RackspaceComputeProviderBase):
     '''The Base Provider Class for Rackspace NOVA'''
     name = 'nova'
+    __schema__ = {
+                  'ACTIVE': 'ACTIVE',
+                  'BUILD': 'BUILD',
+                  'DELETED': 'DELETED',
+                  'ERROR': 'ERROR',
+                  'HARD_REBOOT': 'CONFIGURE',
+                  'MIGRATING': 'CONFIGURE',
+                  'PASSWORD': 'CONFIGURE',
+                  'REBOOT': 'CONFIGURE',
+                  'REBUILD': 'BUILD',
+                  'RESCUE': 'CONFIGURE',
+                  'RESIZE': 'CONFIGURE',
+                  'REVERT_RESIZE': 'CONFIGURE',
+                  'SHUTOFF': 'CONFIGURE',
+                  'SUSPENDED': 'ERROR',
+                  'UNKNOWN': 'ERROR',
+                  'VERIFY_RESIZE': 'CONFIGURE'
+                 }
 
     # pylint: disable=R0913
     def generate_template(self, deployment, resource_type, service, context,

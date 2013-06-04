@@ -51,16 +51,6 @@ PROTOCOL_PAIRS = {
 API_ALGORTIHM_CACHE = {}
 API_PROTOCOL_CACHE = {}
 LB_API_CACHE = {}
-
-__schema__ = {
-              'ACTIVE': 'ACTIVE',
-              'BUILD': 'BUILD',
-              'DELETED': 'DELETED',
-              'ERROR': 'ERROR',
-              'PENDING_UPDATE': 'CONFIGURE',
-              'PENDING_DELETE': 'DELETING',
-              'SUSPENDED': 'ERROR'
-             }
               
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 import os
@@ -82,6 +72,15 @@ class Provider(ProviderBase):
     '''Rackspace load balancer provider'''
     name = 'load-balancer'
     vendor = 'rackspace'
+    __schema__ = {
+                  'ACTIVE': 'ACTIVE',
+                  'BUILD': 'BUILD',
+                  'DELETED': 'DELETED',
+                  'ERROR': 'ERROR',
+                  'PENDING_UPDATE': 'CONFIGURE',
+                  'PENDING_DELETE': 'DELETING',
+                  'SUSPENDED': 'ERROR'
+                 }
 
     def _get_connection_params(self, connections, deployment, index,
                                resource_type, service):

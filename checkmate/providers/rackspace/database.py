@@ -56,18 +56,17 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
 MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
-__schema__ = {
-              'ACTIVE': 'ACTIVE',
-              'BLOCKED': 'ERROR',
-              'BUILD': 'BUILD',
-              'REBOOT': 'CONFIGURE',
-              'RESIZE': 'CONFIGURE',
-              'SHUTDOWN': 'CONFIGURE'
-}
-
 class Provider(ProviderBase):
     name = 'database'
     vendor = 'rackspace'
+    __schema__ = {
+                  'ACTIVE': 'ACTIVE',
+                  'BLOCKED': 'ERROR',
+                  'BUILD': 'BUILD',
+                  'REBOOT': 'CONFIGURE',
+                  'RESIZE': 'CONFIGURE',
+                  'SHUTDOWN': 'CONFIGURE'
+                 }
 
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition):
