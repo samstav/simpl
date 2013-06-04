@@ -501,6 +501,15 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         if instance_kwargs:
             resources['resources']['instance'] = instance_kwargs
         return resources
+
+    @staticmethod
+    def get_checkmate_status(status):
+        """Return checkmate status for resource based on schema"""
+        if self.__schema__ and status and status in self.__schema__:
+            return self.__shcema__[status]
+        else:
+            LOG.debug("Resource status %s was not found in schema" % status)
+            return "ERROR"
         
     # pylint: disable=W0613
     def delete_resource_tasks(self, context, deployment_id, resource, key):

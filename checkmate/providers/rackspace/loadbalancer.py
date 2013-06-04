@@ -1211,7 +1211,7 @@ def wait_on_build(context, lbid, region, api=None):
                    'status': 'ERROR',
                    instance_key: {
                                   'status': 'ERROR',
-                                  'status-message': ''
+                                  'status-message': msg
             }
         }
         resource_postback.delay(context['deployment'], results)
