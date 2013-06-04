@@ -6,6 +6,7 @@ describe('AppController', function(){
       auth,
       $route,
       $q,
+      webengage,
       controller,
       api_stub;
 
@@ -18,7 +19,8 @@ describe('AppController', function(){
     $route = {};
     $q = { defer: sinon.stub().returns( { promise: "fakepromise", reject: sinon.spy() } ) };
     api_stub = { get: emptyFunction };
-    controller = new AppController(scope, http, location, resource, auth, $route, $q);
+    webengage = { init: emptyFunction };
+    controller = new AppController(scope, http, location, resource, auth, $route, $q, webengage);
     mixpanel = { track: sinon.spy() }; // TODO: We are dependent on this being a global var
   });
 

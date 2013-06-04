@@ -262,7 +262,8 @@ function AutoLoginController($scope, $location, $cookies, auth) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth, $route, $q) {
+function AppController($scope, $http, $location, $resource, auth, $route, $q, webengage) {
+  $scope.init_webengage = webengage.init;
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
