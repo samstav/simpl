@@ -20,7 +20,7 @@ import sys
 import threading
 from time import gmtime, strftime
 import uuid
-import subprocess
+from subprocess import check_output
 import shutil
 
 from bottle import abort, request, response
@@ -715,42 +715,29 @@ def is_simulation(api_id):
     return str(api_id).startswith('simulate')
 
 
-def shell_command(cmd, working_dir):
-    """Run command in a subprocess and wait for it to finish."""
-    proc = subprocess.Popen(cmd, cwd=working_dir)
-    proc.wait()
+def git_clone(repo_dir, url, branch="master"):
+    """Do a git checkout of `head' in `repo_dir'."""
+    return check_output(['git', 'clone', url, repo_dir, '--branch', branch])
 
 
-def git_update_tag(repo_dir, remote, tag):
-    """Update git tags."""
-    shell_command(['git', 'fetch', remote, 'tag', tag], repo_dir)
+def git_tags(repo_dir):
+    """Return a list of git tags for the git repo in `repo_dir'."""
+    return check_output(['git', 'tag', '-l'], cwd=repo_dir).split("\n")
 
 
 def git_checkout(repo_dir, head):
-    """Do a git checkout of `head' in `repo_dir'.
-
-    The checkout method in GitPython has a bug.  This is just a
-    temporary fix.
-
-    GitPython bug report:
-    https://github.com/gitpython-developers/GitPython/issues/106
-    """
-    shell_command(['git', 'checkout', head], repo_dir)
+    """Do a git checkout of `head' in `repo_dir'."""
+    return check_output(['git', 'checkout', head], cwd=repo_dir)
 
 
-def git_pull(repo_dir, remote, head):
-    """Do a git pull of `head' from `remote'.
+def git_fetch(repo_dir, refspec, remote="origin"):
+    """Do a git fetch of `refspec' in `repo_dir'."""
+    return check_output(['git', 'fetch', remote, refspec], cwd=repo_dir)
 
-    The pull method in GitPython has a bug.  This is just a temporary
-    fix.
 
-    GitPython bug report:
-    https://github.com/gitpython-developers/GitPython/issues/32
-    https://github.rackspace.com/checkmate/checkmate/issues/505
-    http://jbd.corp.rackspace.com/pastebin/201305091629.txt
-
-    """
-    shell_command(['git', 'pull', remote, head], repo_dir)
+def git_pull(repo_dir, head, remote="origin"):
+    """Do a git pull of `head' from `remote'."""
+    return check_output(['git', 'pull', remote, head], cwd=repo_dir)
 
 
 def copy_contents(source, dest, with_overwrite=False, create_path=True):
