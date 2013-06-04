@@ -710,61 +710,6 @@ def evaluate(function_string):
     raise NameError("Unsupported function: %s" % function_string)
 
 
-def check_all_output(params, find="ERROR"):
-    """
-
-    Similar to subprocess.check_output, but parses both stdout and stderr
-    and detects any string passed in as the find parameter.
-
-    :returns: tuple (stdout, stderr, lines with :param:find in them)
-
-    We used this for processing Knife output where the details of the error
-    were piped to stdout and the actual error did not have everything we
-    needed because knife did not exit with an error code, but now we're just
-    keeping it for the script provider (coming soon)
-
-    """
-    ON_POSIX = 'posix' in sys.builtin_module_names
-
-    def start_thread(func, *args):
-        t = threading.Thread(target=func, args=args)
-        t.daemon = True
-        t.start()
-        return t
-
-    def consume(infile, output, found):
-        for line in iter(infile.readline, ''):
-            output(line)
-            if find in line:
-                found(line)
-        infile.close()
-
-    p = Popen(params, stdout=PIPE, stderr=PIPE, bufsize=1, close_fds=ON_POSIX)
-
-    # preserve last N lines of stdout and stderr
-    N = 100
-    stdout = deque(maxlen=N)  # will capture stdout
-    stderr = deque(maxlen=N)  # will capture stderr
-    found = deque(maxlen=N)  # will capture found (contain param find)
-    threads = [start_thread(consume, *args)
-               for args in (p.stdout, stdout.append, found.append),
-               (p.stderr, stderr.append, found.append)]
-    for t in threads:
-        t.join()  # wait for IO completion
-
-    retcode = p.wait()
-
-    if retcode == 0:
-        return (stdout, stderr, found)
-    else:
-        msg = "stdout: %s \n stderr: %s \n Found: %s" % (stdout, stderr, found)
-        LOG.debug(msg)
-        raise CalledProcessError(retcode, ' '.join(params),
-                                 output='\n'.join(stdout),
-                                 error_info='%s%s' % ('\n'.join(stderr),
-                                                      '\n'.join(found)))
-
-
 def is_simulation(api_id):
     '''Determine if the current object is in simulation'''
     return str(api_id).startswith('simulate')
