@@ -104,28 +104,6 @@ directives.directive('clippy', function factory() {
   return directiveDefinitionObject;
 });
 
-directives.directive('popover', function(){
-  return function(scope, element, attrs) {
-    var popover = element.popover({
-      content: function() {
-        if ('target' in attrs)
-          if ($(attrs['target']).length > 0)
-            return $(attrs['target']).html();
-      }
-    });
-
-    //Update when scope changes
-    if ('target' in attrs) {
-      scope.$parent.$watch(function() {
-        if ($(attrs['target']).length > 0 && popover.data('popover') !== undefined) {
-          popover.data('popover').setContent($(attrs['target']).html());
-          popover.data('popover').$tip.addClass(popover.data('popover').options.placement);
-        }
-      });
-    }
-  };
-});
-
 //Validates a control against the supplied option's constraints and sets the
 //constraint.valid and option.invalid values
 directives.directive('validateOption', function () {
