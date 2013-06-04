@@ -1071,7 +1071,7 @@ class Deployment(ExtensibleDict):
         #TODO: Provider key can be used from withing the provider class. But
         #if we do that then the planning mixin will start reading data
         #from the child class
-
+        LOG.debug("Getting resource templates for %s: %s" % (provider_key, component))
         resources = provider.generate_template(
             self,
             component.get('is'),

@@ -1,4 +1,7 @@
 import os
+import logging
+
+LOG = logging.getLogger(__name__)
 
 
 class ProviderBasePlanningMixIn(object):
@@ -21,6 +24,7 @@ class ProviderBasePlanningMixIn(object):
 
     def generate_template(self, deployment, resource_type, service, context,
                           index, provider_key, definition):
+        LOG.debug("Getting %s template for service %s", resource_type, service)
         default_domain = os.environ.get('CHECKMATE_DOMAIN',
                                         'checkmate.local')
         domain = deployment.get_setting('domain',
@@ -50,6 +54,6 @@ class ProviderBasePlanningMixIn(object):
         """Implemented in the specific Provider classes"""
         pass
 
-    def verify_access(self, context, resources):
+    def verify_access(self, context):
         """Implemented in the specific Provider classes"""
         pass

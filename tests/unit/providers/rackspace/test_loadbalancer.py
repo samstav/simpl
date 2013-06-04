@@ -3,6 +3,7 @@ import mox
 
 from checkmate.middleware import RequestContext
 from checkmate.providers.rackspace import loadbalancer
+from mox import IgnoreArg
 
 
 class TestLoadBalancer(unittest.TestCase):
@@ -32,10 +33,11 @@ class TestLoadBalancer(unittest.TestCase):
                                     provider_key=self.provider.key,
                                     default="http") \
             .AndReturn('http')
-        self.deployment.get_setting('domain', provider_key=self.provider.key,
+        self.deployment.get_setting('domain',
+                                    provider_key=self.provider.key,
                                     resource_type='load-balancer',
                                     service_name='lb',
-                                    default='checkmate.local') \
+                                    default=IgnoreArg()) \
             .AndReturn('test.checkmate')
         self.deployment._constrained_to_one('lb').AndReturn(True)
         self.deployment.get_setting("inbound",
@@ -44,6 +46,11 @@ class TestLoadBalancer(unittest.TestCase):
                                     service_name='lb',
                                     relation='master',
                                     default="http/80").AndReturn('http/80')
+        (self.deployment.get_setting('create_dns',
+                                     resource_type='load-balancer',
+                                     service_name='lb',
+                                     default=IgnoreArg())
+            .AndReturn('false'))
 
         expected = {
             'service': 'lb',
@@ -98,15 +105,20 @@ class TestLoadBalancer(unittest.TestCase):
         self.deployment.get_setting('domain', provider_key=self.provider.key,
                                     resource_type='load-balancer',
                                     service_name='lb',
-                                    default='checkmate.local') \
+                                    default=IgnoreArg()) \
             .AndReturn('test.checkmate')
         self.deployment._constrained_to_one('lb').AndReturn(True)
         self.deployment.get_setting('domain', provider_key=self.provider.key,
                                     resource_type='load-balancer',
                                     service_name='lb',
-                                    default='checkmate.local') \
+                                    default=IgnoreArg()) \
             .AndReturn('test.checkmate')
         self.deployment._constrained_to_one('lb').AndReturn(True)
+        (self.deployment.get_setting('create_dns',
+                                     resource_type='load-balancer',
+                                     service_name='lb',
+                                     default=IgnoreArg())
+            .AndReturn('false'))
         self.deployment_mocker.ReplayAll()
         results = self.provider.generate_template(self.deployment,
                                                   'load-balancer', 'lb',
