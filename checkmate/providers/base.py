@@ -494,6 +494,14 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             return matches[0].values()[0]
         return default
 
+    @staticmethod
+    def format_postback(instance_kwargs=None, **resource_kwargs):
+        """Return formatted resources for deployment postback"""
+        resources = {'resources': resource_kwargs}
+        if instance_kwargs:
+            resources['resources']['instance'] = instance_kwargs
+        return resources
+        
     # pylint: disable=W0613
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         """Return a celery task/canvas for deleting the resource"""
