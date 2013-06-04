@@ -1424,6 +1424,55 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     });
   };
 
+  $scope.batman = function(){
+    var w = 960,
+    h = 500;
+
+    d3.select(".entries").select("svg").remove();
+    var vis = d3.select(".entries").append("svg:svg")
+        .attr("width", w)
+        .attr("height", h);
+    var nodes = _.map($scope.data.wf_spec.task_specs, function(t, k) {return t;});
+    var circle = vis.selectAll("circle").data(nodes);;
+
+    var enter = circle.enter().append("circle");
+
+    enter.attr("cy", function(d) { return 100 + 45* parseInt(d.properties.resource) || 0;});
+
+    enter.attr("cx", 160);
+
+    enter.attr("r", function(d) {
+      return Math.sqrt(100 + 15*parseInt(d.properties.resource) || 0);
+    });
+  }
+
+  $scope.giant = function(){
+    var w = 960,
+    h = 500;
+
+    d3.select(".entries").select("svg").remove();
+    var vis = d3.select(".entries").append("svg:svg")
+        .attr("width", w)
+        .attr("height", h);
+    var tasks = [
+
+      {
+          "startDate": new Date("Sun Dec 09 01:36:45 EST 2012"),
+              "endDate": new Date("Sun Dec 09 02:36:45 EST 2012"),
+                  "taskName": "E Job",
+                      "status": "FAILED"
+    },
+
+    {
+          "startDate": new Date("Sun Dec 09 04:56:32 EST 2012"),
+              "endDate": new Date("Sun Dec 09 06:35:47 EST 2012"),
+                  "taskName": "A Job",
+                      "status": "RUNNING"
+    }];
+    var gantt = d3.gantt().taskStatus(taskStatus);
+    gantt(tasks);
+  }
+
   $scope.play = function() {
     var w = 960,
     h = 500;
