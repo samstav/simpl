@@ -31,7 +31,12 @@ def get_environments(tenant_id=None):
             abort(403, "Administrator privileges needed for this operation")
     else:
         results = DB.get_environments(tenant_id=tenant_id)
-    return write_body(results, request, response)
+
+    return write_body(
+        results,
+        request,
+        response
+    )
 
 
 @post('/environments')
@@ -265,9 +270,3 @@ def provider_proxy(provider_id, tenant_id=None, path=None):
     results = provider.proxy(path, request, tenant_id=tenant_id)
 
     return write_body(results, request, response)
-
-
-#
-# @route('/providers/<provider_id>/proxy/<path:path>') is added by the
-# BrowserMiddleware to support proxy calls to providers from the UI
-#

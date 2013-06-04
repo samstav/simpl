@@ -263,12 +263,11 @@ def _cache_blueprint(source_repo):
 
         if last_update > cache_expire_time:
             LOG.debug("Updating repo: %s", repo_cache)
-            if branch in repo.tags:  # Does `branch' point to a tag?
-                try:
-                    utils.git_update_tag(repo_cache, "origin", branch)
-                except:
-                    raise CheckmateException("Unable to fetch tag: %s" %
-                                             branch)
+            if branch in repo.tags:
+                tag = branch
+                refspec = "refs/tags/" + tag + ":refs/tags/" + tag
+                repo.remotes.origin.fetch(refspec)
+                utils.git_checkout(repo_cache, tag)
             else:
                 try:
                     utils.git_pull(repo_cache, "origin", branch)
@@ -287,12 +286,21 @@ def _cache_blueprint(source_repo):
             raise CheckmateException("Git repository could not be cloned "
                                      "from '%s'.  The error returned was "
                                      "'%s'", url, exc)
-        if branch in repo.tags:  # Does `branch' point to a tag?
-            LOG.debug("'branch' points to a tag.")
-            utils.git_checkout(repo_cache, branch)
+        if branch in repo.tags:
+            tag = branch
+            utils.git_checkout(repo_cache, tag)
 
 
-def _copy_kitchen_blueprint(dest, source_repo):
+def _blueprint_exists(source, dest):
+    """Check that all files in the source blueprint exist in the destination"""
+    for source_file in os.listdir(source):
+        dest_file = os.path.join(dest, source_file)
+        if not os.path.exists(dest_file):
+            return False
+    return True
+
+
+def _ensure_kitchen_blueprint(dest, source_repo):
     """Update the blueprint cache and copy the blueprint to the kitchen.
 
     Arguments:
@@ -307,10 +315,11 @@ def _copy_kitchen_blueprint(dest, source_repo):
                                  repo_cache)
     LOG.debug("repo_cache: %s" % repo_cache)
     LOG.debug("dest: %s" % dest)
-    if os.path.exists(os.path.join(repo_cache, "site-cookbooks")):
-        os.remove(os.path.join(dest, 'site-cookbooks', '.gitkeep'))
-        os.rmdir(os.path.join(dest, 'site-cookbooks'))
-    utils.copy_contents(repo_cache, dest, create_path=True)
+    if not _blueprint_exists(repo_cache, dest):
+        utils.copy_contents(repo_cache,
+                            dest,
+                            create_path=True,
+                            with_overwrite=True)
 
 
 def _create_kitchen(dep_id, service_name, path, secret_key=None,
@@ -397,7 +406,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
 
     # Copy blueprint files to kitchen
     if source_repo:
-        _copy_kitchen_blueprint(kitchen_path, source_repo)
+        _ensure_kitchen_blueprint(kitchen_path, source_repo)
 
     LOG.debug("Finished creating kitchen: %s" % kitchen_path)
     return {"kitchen": kitchen_path}
@@ -438,14 +447,14 @@ def write_databag(environment, bagname, itemname, contents, resource,
                 host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
                 ret.update({k: {'status': 'ERROR',
-                                'errmessage': ('Error writing software '
+                                'error-message': ('Error writing software '
                                                'configuration to host '
                                                '%s: %s' % (host, exc.message)),
                                 'trace': 'Task %s: %s' % (task_id,
                                                           einfo.traceback)}})
                 if host_k:
                     ret.update({host_k: {'status': 'ERROR',
-                                         'errmessage': ('Error installing '
+                                         'error-message': ('Error installing '
                                                         'software resource %s'
                                                         % resource.get('index')
                                                         )}})
@@ -580,13 +589,13 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
                 host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
                 ret.update({k: {'status': 'ERROR',
-                                'errmessage': ('Error installing to host %s:'
+                                'error-message': ('Error installing to host %s:'
                                                '%s' % (host, exc.message)),
                                 'trace': 'Task %s: %s' % (task_id,
                                                           einfo.traceback)}})
                 if host_k:
                     ret.update({host_k: {'status': 'ERROR',
-                                         'errmessage': ('Error installing '
+                                         'error-message': ('Error installing '
                                                         'software resource %s'
                                                         % resource.get('index')
                                                         )}})
@@ -883,13 +892,13 @@ def register_node(host, environment, resource, path=None, password=None,
                 host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
                 ret.update({k: {'status': 'ERROR',
-                                'errmessage': ('Error registering host %s: %s'
+                                'error-message': ('Error registering host %s: %s'
                                                % (host, exc.message)),
                                 'trace': 'Task %s: %s' % (task_id,
                                                           einfo.traceback)}})
                 if host_k:
                     ret.update({host_k: {'status': 'ERROR',
-                                         'errmessage': ('Error installing '
+                                         'error-message': ('Error installing '
                                                         'software resource %s'
                                                         % resource.get('index')
                                                         )}})
@@ -1002,7 +1011,7 @@ def manage_role(name, environment, resource, path=None, desc=None,
         msg = ("Encountered a chef role in Ruby. Only JSON "
                "roles can be manipulated by Checkmate: %s" % the_ruby)
         results['status'] = "ERROR"
-        results['errmessage'] = msg
+        results['error-message'] = msg
         instance_key = 'instance:%s' % resource['index']
         results = {instance_key: results}
         resource_postback.delay(environment, results)

@@ -1,0 +1,43 @@
+{
+    "access": {
+        "metadata": {
+            "is_admin": 0,
+            "roles": [
+                "user"
+            ]
+        },
+        "serviceCatalog": [
+            {
+                "endpoints": [
+                    {
+                        "publicURL": "https://10.1.1.1/v2/T1000",
+                        "region": "North"
+                    }
+                ],
+                "endpoints_links": [],
+                "name": "Compute Service",
+                "type": "compute"
+            }
+        ],
+        "token": {
+            "expires": "2013-05-18T00:00:00Z",
+            "id": "01c589509763d002131e1d990449c595",
+            "tenant": {
+                "enabled": true,
+                "id": "T1000",
+                "name": "T1000"
+            }
+        },
+        "user": {
+            "id": "john.smith",
+            "name": "John Smith",
+            "roles": [
+                {
+                    "name": "user"
+                }
+            ],
+            "roles_links": [],
+            "username": "johnsmith"
+        }
+    }
+}

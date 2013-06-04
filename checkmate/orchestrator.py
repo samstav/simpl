@@ -4,15 +4,21 @@
 import logging
 import time
 
+import checkmate.workflow as cm_workflow
+
 from celery.task import task
+from celery.exceptions import MaxRetriesExceededError
 from SpiffWorkflow import Workflow, Task
+from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate.common.tasks import (
+    update_operation,
+    update_deployment_status,
+)
 from checkmate.db.common import ObjectLockedError
-from checkmate.deployment import update_operation, update_deployment_status
 from checkmate.middleware import RequestContext
 from checkmate.utils import extract_sensitive_data, match_celery_logging
-from checkmate.workflow import update_workflow_status
 
 LOG = logging.getLogger(__name__)
 
@@ -29,6 +35,54 @@ def count_seconds(seconds):
                                    meta={'complete': elapsed,
                                          'total': seconds})
     return seconds
+
+
+@task(default_retry_delay=10, max_retries=300)
+def pause_workflow(w_id, driver):
+    '''
+    Waits for all the waiting celery tasks to move to ready and then marks the
+    operation as paused
+    :param w_id: Wolkflow id
+    :param driver: DB driver
+    :return:
+    '''
+    number_of_waiting_celery_tasks = 0
+    try:
+        workflow, key = driver.lock_workflow(w_id, with_secrets=True)
+    except ObjectLockedError:
+        pause_workflow.retry()
+
+    deployment_id = workflow["attributes"]["deploymentId"] or w_id
+    serializer = DictionarySerializer()
+    d_wf = Workflow.deserialize(serializer, workflow)
+
+    for task in Task.Iterator(d_wf.task_tree, Task.WAITING):
+        if (isinstance(task.task_spec, Celery) and
+                not cm_workflow.is_failed_task(task)):
+            task.task_spec._update_state(task)
+            if task._has_state(Task.WAITING):
+                number_of_waiting_celery_tasks += 1
+
+    LOG.debug("Workflow %s has %s waiting celery tasks", w_id,
+              number_of_waiting_celery_tasks)
+    kwargs = {"action-completes-after": number_of_waiting_celery_tasks}
+
+    if number_of_waiting_celery_tasks == 0:
+        LOG.debug("No waiting celery tasks for workflow %s", w_id)
+        kwargs.update({"status": "PAUSED", "action-response": None,
+                       "action": None})
+        update_operation.delay(deployment_id, driver=driver, **kwargs)
+        cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
+                                    status="PAUSED", driver=driver)
+        driver.unlock_workflow(w_id, key)
+        return True
+    else:
+        update_operation.delay(deployment_id, driver=driver, **kwargs)
+        cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
+                                    driver=driver)
+        driver.unlock_workflow(w_id, key)
+
+    pause_workflow.retry()
 
 
 @task(default_retry_delay=10, max_retries=300)
@@ -57,6 +111,18 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     except ObjectLockedError:
         run_workflow.retry()
 
+    deployment_id = workflow["attributes"]["deploymentId"]
+    deployment = driver.get_deployment(deployment_id)
+
+    action = deployment["operation"].get("action")
+
+    if action and action == "PAUSE":
+        kwargs = {"action-response": "ACK"}
+        update_operation.delay(deployment_id, driver=driver, **kwargs)
+        driver.unlock_workflow(w_id, key)
+        pause_workflow.delay(w_id, driver)
+        return False
+
     # Get the workflow
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
@@ -66,13 +132,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     # Prepare to run it
     if d_wf.is_completed():
         if d_wf.get_attribute('status') != "COMPLETE":
-            #TODO: make DRY
-            update_workflow_status(d_wf)
-            updated = d_wf.serialize(serializer)
-            body, secrets = extract_sensitive_data(updated)
-            body['tenantId'] = workflow.get('tenantId')
-            body['id'] = w_id
-            driver.save_workflow(w_id, body, secrets=secrets)
+            cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
+                                        driver=driver)
             dep_id = d_wf.get_attribute('deploymentId') or w_id
             update_deployment_status.delay(dep_id, 'UP', driver=driver)
             LOG.debug("Workflow '%s' is already complete. Marked it so.", w_id)
@@ -88,6 +149,11 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     # Run!
     try:
         d_wf.complete_all()
+    except MaxRetriesExceededError as max_retries:
+        LOG.exception(max_retries)
+        update_deployment_status.delay(dep_id, 'FAILED', driver=driver)
+        driver.unlock_workflow(w_id, key)
+        return False
     except Exception as exc:
         LOG.exception(exc)
         driver.unlock_workflow(w_id, key)
@@ -99,28 +165,31 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         if before != after:
             # We made some progress, so save and prioritize next run
             #TODO: make DRY
-            update_workflow_status(d_wf)
-            updated = d_wf.serialize(serializer)
-            body, secrets = extract_sensitive_data(updated)
-            body['tenantId'] = workflow.get('tenantId')
-            body['id'] = w_id
-            driver.save_workflow(w_id, body, secrets=secrets)
+            cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
+                                        driver=driver)
             wait = 1
 
             # Report progress
             completed = d_wf.get_attribute('completed')
             total = d_wf.get_attribute('total')
-            status = d_wf.get_attribute('status')
+            workflow_status = operation_status = d_wf.get_attribute('status')
             dep_id = d_wf.get_attribute('deploymentId') or w_id
-            update_operation.delay(dep_id, driver=driver, status=status,
-                                   tasks=total, complete=completed)
+            failed_tasks = cm_workflow.get_failed_tasks(d_wf)
+            if failed_tasks:
+                operation_status = "ERROR"
+
+            update_operation.delay(dep_id, driver=driver,
+                                   status=operation_status, tasks=total,
+                                   complete=completed,
+                                   errors=failed_tasks)
             if total == completed:
                 update_deployment_status.delay(dep_id, 'UP', driver=driver)
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
-                      total, status))
+                                                             total,
+                                                             workflow_status))
             run_workflow.update_state(state="PROGRESS",
                                       meta={'complete': completed,
-                                      'total': total})
+                                            'total': total})
 
         else:
             # No progress made. So drop priority (to max of 20s wait)
@@ -211,7 +280,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
             LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
                      "progressed", task_id, workflow_id, task.get_state_name())
             return False
-        update_workflow_status(d_wf)
+        cm_workflow.update_workflow_status(d_wf)
         updated = d_wf.serialize(serializer)
         if original != updated:
             LOG.debug("Task '%s' in Workflow '%s' completion result: %s" % (

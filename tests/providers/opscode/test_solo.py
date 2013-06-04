@@ -24,7 +24,8 @@ init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
-from checkmate.deployments import Deployment, plan
+from checkmate.deployment import Deployment
+from checkmate.deployments import DeploymentsManager
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
@@ -97,7 +98,7 @@ class TestChefSoloProvider(test.ProviderTester):
                   targets:
                   - attributes://clients
             """)
-        plan(deployment, RequestContext())
+        DeploymentsManager.plan(deployment, RequestContext())
         provider = deployment.environment().get_provider('chef-solo')
 
         # Check requirement map
@@ -196,9 +197,16 @@ class TestCeleryTasks(unittest.TestCase):
 
     def setUp(self):
         self.mox = mox.Mox()
+        self.original_local_path = os.environ.get('CHECKMATE_CHEF_LOCAL_PATH')
+        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/tmp/checkmate-chefmap'
+        self.local_path = '/tmp/checkmate-chefmap'
 
     def tearDown(self):
         self.mox.UnsetStubs()
+        if os.path.exists(self.local_path):
+            shutil.rmtree('/tmp/checkmate-chefmap')
+        if self.original_local_path:
+          os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
 
     def test_cook(self):
         """Test that cook task picks up run_list and attributes"""
@@ -308,7 +316,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             """))
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        plan(self.deployment, context)
+        DeploymentsManager.plan(self.deployment, context)
 
     def test_workflow_task_generation(self):
         """Verify workflow task creation"""
@@ -495,7 +503,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
 
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        plan(self.deployment, context)
+        DeploymentsManager.plan(self.deployment, context)
 
         workflow = create_workflow_deploy(self.deployment, context)
 
@@ -625,7 +633,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        plan(self.deployment, context)
+        DeploymentsManager.plan(self.deployment, context)
         workflow = create_workflow_deploy(self.deployment, context)
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
@@ -657,7 +665,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        plan(self.deployment, context)
+        DeploymentsManager.plan(self.deployment, context)
         self.mox.VerifyAll()
 
         # Create new mox queue for running workflow
@@ -909,7 +917,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        plan(self.deployment, context)
+        DeploymentsManager.plan(self.deployment, context)
         workflow = create_workflow_deploy(self.deployment, context)
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
@@ -1040,7 +1048,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        plan(self.deployment, context)
+        DeploymentsManager.plan(self.deployment, context)
         self.mox.VerifyAll()
 
         # Create new mox queue for running workflow

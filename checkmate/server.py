@@ -1,17 +1,24 @@
 #!/usr/bin/env python
-""" Module to initialize and run Checkmate server"""
+''' Module to initialize and run Checkmate server'''
 import os
 import json
 import logging
 import string
 import sys
+import threading
 
 # pylint: disable=W0611
 import checkmate.common.tracer  # module runs on import
 
 # pylint: disable=E0611
+import bottle
 from bottle import app, run, request, response, HeaderDict, default_app, load
+from celery import Celery
 
+from checkmate import db
+from checkmate import celeryconfig
+from checkmate.api.admin import Router as AdminRouter
+from checkmate.deployments import DeploymentsRouter, DeploymentsManager
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
@@ -23,8 +30,13 @@ from checkmate.exceptions import (
 )
 from checkmate import middleware
 from checkmate import utils
+from checkmate.common.gzip_middleware import Gzipper
 
 LOG = logging.getLogger(__name__)
+DRIVERS = {}
+MANAGERS = {}
+ROUTERS = {}
+
 
 # Check our configuration
 from celery import current_app
@@ -32,11 +44,11 @@ try:
     if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
                                                       'MongoBackend']:
         LOG.warning("Celery backend does not seem to be configured for a "
-                    "database: %s" % current_app.backend.__class__.__name__)
+                    "database: %s", current_app.backend.__class__.__name__)
     if not current_app.conf.get("CELERY_RESULT_DBURI"):
         LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
                     "checkmate environment loaded?")
-except:
+except StandardError:
     pass
 
 
@@ -60,14 +72,14 @@ DEFAULT_AUTH_ENDPOINTS = [{
 
 
 def error_formatter(error):
-    """Catch errors and output them in the correct format/media-type"""
+    '''Catch errors and output them in the correct format/media-type'''
     output = {}
-    accept = request.get_header("Accept")
-    if "application/json" in accept:
-        error.headers = HeaderDict({"content-type": "application/json"})
-        error.apply(response)
-    elif "application/x-yaml" in accept:
+    accept = request.get_header("Accept") or ""
+    if "application/x-yaml" in accept:
         error.headers = HeaderDict({"content-type": "application/x-yaml"})
+        error.apply(response)
+    else:  # default to JSON
+        error.headers = HeaderDict({"content-type": "application/json"})
         error.apply(response)
 
     if isinstance(error.exception, CheckmateNoMapping):
@@ -88,7 +100,7 @@ def error_formatter(error):
     elif isinstance(error.exception, CheckmateDatabaseConnectionError):
         error.status = 500
         error.output = "Database connection error on server."
-        output['reason'] = error.exception.__str__()
+        output['message'] = error.exception.__str__()
     elif isinstance(error.exception, CheckmateException):
         error.output = error.exception.__str__()
     elif isinstance(error.exception, AssertionError):
@@ -97,7 +109,7 @@ def error_formatter(error):
     else:
         # For other 500's, provide underlying cause
         if error.exception:
-            output['reason'] = error.exception.__str__()
+            output['message'] = error.exception.__str__()
 
     output['description'] = error.output
     output['code'] = error.status
@@ -106,10 +118,16 @@ def error_formatter(error):
 
 
 def main_func():
-    """ Start the server based on passed in arguments. Called by __main__ """
+    '''Start the server based on passed in arguments. Called by __main__'''
 
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(default_config="/etc/default/checkmate-svr-log.conf")
+    global LOG  # pylint: disable=W0603
+    LOG = logging.getLogger(__name__)  # reload
+    if utils.get_debug_level() == logging.DEBUG:
+        bottle.debug(True)
+
+    resources = ['version']
 
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
@@ -126,12 +144,6 @@ def main_func():
         # deprecated load("checkmate.simulator")
         with_simulator = True
 
-    # Load admin routes if requested
-    with_admin = False
-    if '--with-admin' in sys.argv:
-        load("checkmate.admin")
-        with_admin = True
-
     # Build WSGI Chain:
     LOG.info("Loading Application")
     next_app = default_app()  # This is the main checkmate app
@@ -145,22 +157,53 @@ def main_func():
         415: error_formatter,
     }
     next_app.catchall = True
+
+    DRIVERS['default'] = db.get_driver()
+    DRIVERS['simulation'] = db.get_driver(
+        connection_string=os.environ.get(
+            'CHECKMATE_SIMULATOR_CONNECTION_STRING',
+            os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
+        )
+    )
+
+    MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+
+    # Load admin routes if requested
+    with_admin = False
+    if '--with-admin' in sys.argv:
+        LOG.info("Loading Admin Endpoints")
+        ROUTERS['admin'] = AdminRouter(next_app, MANAGERS['deployments'])
+        with_admin = True
+        resources.append('admin')
+
+    #Load API Calls
+    ROUTERS['deployments'] = DeploymentsRouter(next_app,
+                                               MANAGERS['deployments'])
+
     next_app = middleware.AuthorizationMiddleware(next_app,
-                                                  anonymous_paths=utils.STATIC)
+                                                  anonymous_paths=['version'],
+                                                  admin_paths=['admin'])
     endpoints = os.environ.get('CHECKMATE_AUTH_ENDPOINTS')
     if endpoints:
         endpoints = json.loads(endpoints)
     else:
         endpoints = DEFAULT_AUTH_ENDPOINTS
-    next_app = middleware.AuthTokenRouterMiddleware(next_app, endpoints,
-                                                    anonymous_paths=
-                                                    utils.STATIC)
+    next_app = middleware.AuthTokenRouterMiddleware(
+        next_app,
+        endpoints,
+        anonymous_paths=['version']
+    )
 
-    # Load Rook if requested
+    next_app = middleware.TenantMiddleware(next_app, resources=resources)
+    next_app = middleware.StripPathMiddleware(next_app)
+    next_app = middleware.ExtensionsMiddleware(next_app)
+
+    # Load Rook if requested (after Context as Rook depends on it)
     if '--with-ui' in sys.argv:
         try:
             from rook.middleware import BrowserMiddleware
-            next_app = BrowserMiddleware(next_app, proxy_endpoints=endpoints,
+            next_app = BrowserMiddleware(next_app,
+                                         proxy_endpoints=endpoints,
                                          with_simulator=with_simulator,
                                          with_admin=with_admin)
         except ImportError as exc:
@@ -171,10 +214,7 @@ def main_func():
             print msg
             sys.exit(1)
 
-    next_app = middleware.TenantMiddleware(next_app)
     next_app = middleware.ContextMiddleware(next_app)
-    next_app = middleware.StripPathMiddleware(next_app)
-    next_app = middleware.ExtensionsMiddleware(next_app)
 
     # Load NewRelic inspection if requested
     if '--newrelic' in sys.argv:
@@ -195,28 +235,47 @@ def main_func():
     # Load request/response dumping if debugging enabled
     if '--debug' in sys.argv:
         next_app = middleware.DebugMiddleware(next_app)
-        LOG.debug("Routes: %s" % ['%s %s' % (r.method, r.rule) for r in
-                                  app().routes])
+        LOG.debug("Routes: %s", ['%s %s' % (r.method, r.rule) for r in
+                                 app().routes])
+
+    next_app = Gzipper(next_app, compresslevel=8)
+
+    worker = None
+    if '--worker' in sys.argv:
+        celery = Celery(log=LOG, set_as_current=True)
+        celery.config_from_object(celeryconfig)
+        worker = celery.WorkController(pool_cls="solo")
+        worker.disable_rate_limits = True
+        worker.concurrency = 1
+        worker_thread = threading.Thread(target=worker.start)
+        worker_thread.start()
 
     # Pick up IP/port from last param (default is 127.0.0.1:8080)
-    ip = '127.0.0.1'
+    ip_address = '127.0.0.1'
     port = 8080
     if len(sys.argv) > 0:
         supplied = sys.argv[-1]
         if len([c for c in supplied if c in '%s:.' % string.digits]) == \
                 len(supplied):
             if ':' in supplied:
-                ip, port = supplied.split(':')
+                ip_address, port = supplied.split(':')
             else:
-                ip = supplied
+                ip_address = supplied
 
     # Select server (wsgiref by default. eventlet if requested)
+    reloader = True
     server = 'wsgiref'
     if '--eventlet' in sys.argv:
         server = 'eventlet'
+        reloader = False  # assume eventlet is prod, so don't reload
 
     # Start listening. Enable reload by default to pick up file changes
-    run(app=next_app, host=ip, port=port, reloader=True, server=server)
+    try:
+        run(app=next_app, host=ip_address, port=port, reloader=reloader,
+            server=server)
+    finally:
+        if worker:
+            worker.stop()
 
 
 #

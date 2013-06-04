@@ -29,6 +29,10 @@ Use your best judgement. Most test cases will obviously fit one category. For th
 - If it's somewhere between Unit and Functional, the safe choice is Functional
 - If it's somewhere between Functional and Integraion, the safe choice is Integration
 
+### The Airplane Test
+
+All developer tests should pass without a network connection. Integration tests that absolutely require a network connection should check for network connectivity before running and be skipped if no network is detected. This provides a high level of flexibility in development, since everything can be handled on the local (dev) machine. See `test_dns.py` for an example.
+
 ___Tests should never be placed in the root 'tests' folder. They should always be put in one of the subdirectories: unit, functional or integration.___
 
 

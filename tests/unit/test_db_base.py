@@ -11,22 +11,56 @@ For tests, we don't care about:
 import pickle
 import unittest2 as unittest
 
-from checkmate.db import DbBase
+from checkmate import db
 
 
 class TestDbBase(unittest.TestCase):
 
     def test_instantiation(self):
-        dbb = DbBase("connection-string://")
+        dbb = db.DbBase("connection-string://")
         self.assertEquals(dbb.connection_string, "connection-string://")
 
     def test_serialization(self):
-        dbb = DbBase("connection-string://")
+        dbb = db.DbBase("connection-string://")
         self.assertEqual(str(dbb), "connection-string://")
         self.assertEqual(repr(dbb), "<checkmate.db.base.DbBase "
                          "connection_string='connection-string://'>")
         dbb2 = pickle.loads(pickle.dumps(dbb))
         self.assertEqual(dbb2.connection_string, "connection-string://")
+
+    def test_convert_data_status(self):
+        dbb = db.DbBase("connection-string://")
+        data = {
+            'status': 'BUILD',
+            'errmessage': '',
+        }
+        expected = {
+            'status': 'UP',
+            'error-message': '',
+        }
+        dbb.convert_data('deployments', data)
+        self.assertDictEqual(data, expected)
+
+    def test_convert_data_messages(self):
+        dbb = db.DbBase("connection-string://")
+        data = {
+            "1": {
+                'statusmsg': '',
+                'instance': {
+                    'statusmsg': '',
+                }
+            }
+        }
+        expected = {
+            "1": {
+                'status-message': '',
+                'instance': {
+                    'status-message': '',
+                }
+            }
+        }
+        dbb.convert_data('resources', data)
+        self.assertDictEqual(data, expected)
 
 
 if __name__ == '__main__':

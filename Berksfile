@@ -18,3 +18,6 @@ cookbook 'checkmate',
 cookbook 'rvm',
   :git => 'https://github.com/fnichol/chef-rvm',
   :ref => '485e042818063dcf40e8da1404d9758fb26de65d'
+
+cookbook 'rackspacecloud',
+  :git => 'https://github.com/rackspace-cookbooks/rackspacecloud'

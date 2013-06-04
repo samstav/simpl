@@ -13,5 +13,12 @@ else
     pip install -r $WORKSPACE/pip-requirements.txt $WORKSPACE/
 fi
 
+if [ "$CLEAN_DEPS" != "false" ]
+then
+    pip install -U --force-reinstall -r $WORKSPACE/pip-test-requirements.txt $WORKSPACE/
+else
+    pip install -r $WORKSPACE/pip-test-requirements.txt $WORKSPACE/
+fi
+
 # make sure we pull the latest chef recipies
 find ./checkmate -type d -name chef-stockton -exec rm -rf {} \; || exit 0

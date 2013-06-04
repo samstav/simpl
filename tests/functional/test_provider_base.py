@@ -6,61 +6,17 @@ import mox
 from mox import IsA
 import unittest2 as unittest
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
-
-from checkmate.deployments import Deployment
+from checkmate.deployment import Deployment
 from checkmate.exceptions import CheckmateException
-from checkmate.middleware import RequestContext
-from checkmate.providers.base import (ProviderBase,
-                                      PROVIDER_CLASSES,
-                                      CheckmateInvalidProvider,
-                                      ProviderBasePlanningMixIn)
+from checkmate.providers.base import (
+    ProviderBase,
+    PROVIDER_CLASSES,
+    CheckmateInvalidProvider,
+)
 from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
-
-
-class TestProviderBasePlanningMixIn(unittest.TestCase):
-
-    def __init__(self, methodName="runTest"):
-        self._mox = mox.Mox()
-        self._prov_planner = ProviderBasePlanningMixIn()
-        self._prov_planner.key = "test_key"
-        self._req_context = RequestContext()
-        unittest.TestCase.__init__(self, methodName=methodName)
-
-    def test_template(self):
-        template = self._prov_planner.generate_template(
-            {'id': "1234567890", 'name': 'test_deployment'},
-            "test_type",
-            None,
-            self._req_context)
-        self.assertIn("type", template, "No type")
-        self.assertEqual("test_type",
-                         template.get("type", "NONE"),
-                         "Type not set")
-        self.assertIn("provider", template, "No provider in template")
-        self.assertEqual("test_key",
-                         template.get("provider", "NONE"),
-                         "Provider not set")
-        self.assertIn("instance", template, "No instance in template")
-        self.assertIn("dns-name", template, "No dns-name in template")
-        self.assertEqual("test_type",
-                         template.get("dns-name", "NONE"),
-                         "dns-name not set")
-        req_ctx_dict = self._req_context.get_queued_task_dict()
-
-    def test_template_without_deployment_name(self):
-        template = self._prov_planner.generate_template({'id': "1234567890"},
-                                                        "test_type",
-                                                        None,
-                                                        self._req_context)
-        self.assertEqual("test_type",
-                         template.get("dns-name", "NONE"),
-                         "dns-name not set")
 
 
 class TestProviderBase(unittest.TestCase):
@@ -202,6 +158,53 @@ class TestProviderBase(unittest.TestCase):
         self.assertEqual(provider.get_setting('test', default=1), 1)
         self.assertEqual(provider.get_setting('foo'), 'bar')
         self.assertEqual(provider.get_setting('foo', default='ignore!'), 'bar')
+
+    def test_provider_base_get_resource_status(self):
+        """Mox tests for get_resource_status of provider base"""
+        _mox = mox.Mox()
+        data = {"provides": "foo"}
+        base = ProviderBase(data)
+        deployment_id = "someid123"
+        key = "0"
+        api = "dummy_api_object"
+        resource = {
+            'name': 'db1.checkmate.local',
+            'provider': 'base',
+            'status': 'ACTIVE',
+            'region': 'ORD',
+            'instance': {
+                'id': 'dummy_id',
+                'databases': ''
+            }
+        }
+
+        def sync_resource_task(ctx, resource, key, api):
+            """Dummy method for testing"""
+            return {
+                'ctx': ctx,
+                'resource': resource,
+                'key': key,
+                'api': api
+            }
+
+        ctx = "dummy_queued_task_dict"
+        context_mock = _mox.CreateMockAnything()
+        context_mock.get_queued_task_dict(deployment=deployment_id,
+                                          resource=key).AndReturn(ctx)
+
+        expected = {
+            'ctx': ctx,
+            'resource': resource,
+            'key': key,
+            'api': api,
+        }
+
+        _mox.ReplayAll()
+        results = base.get_resource_status(context_mock, deployment_id,
+                                           resource, key,
+                                           sync_callable=sync_resource_task)
+        _mox.UnsetStubs()
+        self.assertItemsEqual(expected, results)
 
 
 class TestProviderBaseWorkflow(StubbedWorkflowBase):

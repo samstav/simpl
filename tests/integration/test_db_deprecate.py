@@ -8,8 +8,6 @@ from bottle import HTTPError
 from checkmate.utils import init_console_logging
 from checkmate.db.common import DatabaseTimeoutException, \
     DEFAULT_STALE_LOCK_TIMEOUT
-from copy import deepcopy
-import uuid
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
@@ -70,171 +68,93 @@ class TestDatabase(unittest.TestCase):
         entity = {
             'id': 1,
             'name': 'My Component',
+            'status': 'NEW',
             'credentials': ['My Secrets']
         }
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.klass, entity['id'], body, secrets,
-                                tenant_id='T1000')
-
+        self.driver._save_object(
+            self.klass,
+            entity['id'],
+            body,
+            secrets,
+            tenant_id='T1000'
+        )
         entity['id'] = 2
         entity['name'] = 'My Second Component'
+        entity['status'] = 'NEW'
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.klass, entity['id'], body, secrets,
-                                tenant_id='T1000')
-
+        self.driver._save_object(
+            self.klass,
+            entity['id'],
+            body,
+            secrets,
+            tenant_id='T1000'
+        )
         entity['id'] = 3
         entity['name'] = 'My Third Component'
+        entity['status'] = 'NEW'
         body, secrets = extract_sensitive_data(entity)
-        self.driver.save_object(self.klass, entity['id'], body, secrets,
-                                tenant_id='T1000')
-
+        self.driver._save_object(
+            self.klass,
+            entity['id'],
+            body,
+            secrets,
+            tenant_id='T1000'
+        )
         expected = {
-            1: {
-                'id': 1,
-                'name': 'My Component',
-                'tenantId': 'T1000'},
-            2: {
-                'id': 2,
-                'name': 'My Second Component',
-                'tenantId': 'T1000',
-            }
-        }
-        results = self.driver.get_objects(self.klass, tenant_id='T1000',
-                                          limit=2,
-                                          include_total_count=False)
-        results_decode = self._decode_dict(results)
-        self.assertEqual(len(results_decode), 2)
-        self.assertDictEqual(results_decode, expected)
-
-        expected = {
-            2: {
-                'id': 2,
-                'name': 'My Second Component',
-                'tenantId': 'T1000',
-            },
-            3: {
-                'id': 3,
-                'name': 'My Third Component',
-                'tenantId': 'T1000',
-            }
-        }
-        results = self.driver.get_objects(self.klass, tenant_id='T1000',
-                                          offset=1, limit=2,
-                                          include_total_count=False)
-        results_decode = self._decode_dict(results)
-        self.assertEqual(len(results_decode), 2)
-        self.assertDictEqual(results_decode, expected)
-
-    def test_update_secrets(self):
-        _id = str(uuid.uuid4())
-        data = {
-            "id": _id,
-            "tenantId": "12345",
-            "employee": {
-                "name": "Bob",
-                "title": "Mr.",
-                "ssh_public_key": "rsa public key",
-                "ssh_private_key": "a private key",
-                "password": "password",
-                "position": "left"
-            },
-            "server": {
-                "access": {
-                    "server_root_password": "password",
-                    "server_privatekey": "private_key",
-                    "server_public_key": "public_key"
+            '_links': {},
+            'results': {
+                1: {
+                    'id': 1,
+                    'name': 'My Component',
+                    'tenantId': 'T1000',
+                    'status': 'NEW'
                 },
-                "private_ip": "123.45.67.89",
-                "public_ip": "127.0.0.1",
-                "host_name": "server1"
-            },
-            "safe_val": "hithere",
-            "secret_value": "Immasecret"
-        }
-
-        safe = {
-            "id": _id,
-            "tenantId": "12345",
-            "employee": {
-                "name": "Bob",
-                "title": "Mr.",
-                "ssh_public_key": "rsa public key",
-                "position": "left"
-            },
-            "server": {
-                "access": {
-                    "server_public_key": "public_key"
-                },
-                "private_ip": "123.45.67.89",
-                "public_ip": "127.0.0.1",
-                "host_name": "server1"
-            },
-            "safe_val": "hithere",
-            "secret_value": "Immasecret"
-        }
-
-        secret = {
-            "employee": {
-                "ssh_private_key": "a private key",
-                "password": "password",
-            },
-            "server": {
-                "access": {
-                    "server_root_password": "password",
-                    "server_privatekey": "private_key",
+                2: {
+                    'id': 2,
+                    'name': 'My Second Component',
+                    'tenantId': 'T1000',
+                    'status': 'NEW'
                 }
             }
         }
-        original = deepcopy(data)
-        body, secrets = extract_sensitive_data(data)
-        self.assertDictEqual(safe, self._decode_dict(body))
-        self.assertDictEqual(secret, secrets)
-        results = self.driver.save_object(Deployment, _id, body,
-                                          secrets=secrets)
-        self.assertDictEqual(results, body)
-        # retrieve the object with secrets to make sure we get them correctly
-        results = self.driver.get_object(Deployment, _id,
-                                         with_secrets=True)
-        self.assertDictEqual(original, results)
-        # use the "safe" version and add a new secret
-        results = self.driver.save_object(Deployment, _id, safe,
-                                          secrets={"global_password":
-                                                   "password secret"})
-        self.assertDictEqual(safe, results)
-        # update the copy with the new secret
-        original['global_password'] = "password secret"
-        # retrieve with secrets and make sure it was updated correctly
-        results = self.driver.get_object(Deployment, _id, with_secrets=True)
-        self.assertDictEqual(original, self._decode_dict(results))
+        results = self.driver._get_objects(
+            self.klass,
+            tenant_id='T1000',
+            limit=2,
+            with_count=False
+        )
+        results_decode = self._decode_dict(results)
+        self.assertEqual(len(results_decode), 2)
+        self.assertDictEqual(results_decode, expected)
 
-    def test_workflows(self):
-        entity = {
-            'id': 1,
-            'name': 'My Workflow',
-            'credentials': ['My Secrets']
+        expected = {
+            '_links': {},
+            'results': {
+                2: {
+                    'id': 2,
+                    'name': 'My Second Component',
+                    'tenantId': 'T1000',
+                    'status': 'NEW'
+                },
+                3: {
+                    'id': 3,
+                    'name': 'My Third Component',
+                    'tenantId': 'T1000',
+                    'status': 'NEW'
+                }
+            }
         }
-        body, secrets = extract_sensitive_data(entity)
-        results = self.driver.save_workflow(entity['id'], body, secrets,
-                                            tenant_id='T1000')
-        self.assertDictEqual(results, body)
-
-        results = self.driver.get_workflow(entity['id'], with_secrets=True)
-        entity['tenantId'] = 'T1000'  # gets added
-        self.assertDictEqual(results, entity)
-        self.assertIn('credentials', results)
-
-        body['name'] = 'My Updated Workflow'
-        entity['name'] = 'My Updated Workflow'
-        results = self.driver.save_workflow(entity['id'], body)
-
-        results = self.driver.get_workflow(entity['id'], with_secrets=True)
-        self.assertIn('credentials', results)
-        self.assertDictEqual(results, entity)
-
-        results = self.driver.get_workflow(entity['id'], with_secrets=False)
-        self.assertNotIn('credentials', results)
-        body['tenantId'] = 'T1000'  # gets added
-        self.assertDictEqual(results, body)
+        results = self.driver._get_objects(
+            self.klass,
+            tenant_id='T1000',
+            offset=1,
+            limit=2,
+            with_count=False
+        )
+        results_decode = self._decode_dict(results)
+        self.assertEqual(len(results_decode), 2)
+        self.assertDictEqual(results_decode, expected)
 
     def test_new_deployment_locking(self):
         self.driver.session.query(self.klass).filter_by(
@@ -364,15 +284,17 @@ class TestDatabase(unittest.TestCase):
                           .first())
         if filter_obj:
             filter_obj.delete()
-        self.driver.save_object(klass, obj_id, {"id": obj_id, "test": obj_id},
-                                tenant_id='T1000')
-
+        self.driver._save_object(
+            klass,
+            obj_id,
+            {"id": obj_id, "test": obj_id},
+            tenant_id='T1000'
+        )
         _, key = self.driver.lock_object(klass, obj_id)
         #was a key generated?
         self.assertTrue(key)
         stored_object = self.driver.session.query(klass).filter_by(
             id=obj_id).first()
-
         #was the key stored correctly?
         self.assertEqual(key, stored_object.lock)
         #was a _lock_timestamp generated
@@ -407,7 +329,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(locked_object, unlocked_object)
 
         # Confirm object is intact
-        final = self.driver.get_object(klass, obj_id)
+        final = self.driver._get_object(klass, obj_id)
         original['tenantId'] = 'T1000'
         self.assertDictEqual(final, original)
 
@@ -434,7 +356,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(locked_object, unlocked_object)
 
         # Confirm object is intact
-        final = self.driver.get_object(klass, obj_id)
+        final = self.driver._get_object(klass, obj_id)
         self.assertDictEqual(final, original)
 
     def test_lock_locked_object(self):

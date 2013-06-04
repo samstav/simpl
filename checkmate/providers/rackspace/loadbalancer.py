@@ -1,24 +1,35 @@
-""" Rackspace Cloud Load Balancer provider and celery tasks """
+'''
+Rackspace Cloud Load Balancer provider and celery tasks
+'''
 import copy
 import logging
 
+from celery.canvas import chain, group
+from cloudlb.errors import CloudlbException, NotFound
 from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.deployments import (resource_postback, alt_resource_postback,
-                                  get_resource_by_id)
+from checkmate.common.caching import Memorize, MemorizeMethod
+from checkmate.deployments import (
+    resource_postback,
+    alt_resource_postback,
+)
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
     CheckmateBadState
 )
+from eventlet.patcher import import_patched
+cloudlb = import_patched("cloudlb")
+from checkmate.providers.base import ProviderBase, user_has_access
+from eventlet.greenpool import GreenPile
+from checkmate.providers.rackspace import dns
+import sys
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
 from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
-from copy import deepcopy
-from celery.canvas import chain, group
-from cloudlb.errors import CloudlbException
+
+
 
 LOG = logging.getLogger(__name__)
 
@@ -27,6 +38,7 @@ REGION_MAP = {
     'dallas': 'DFW',
     'chicago': 'ORD',
     'london': 'LON',
+    'sydney': 'SYD',
 }
 
 PROTOCOL_PAIRS = {
@@ -36,44 +48,193 @@ PROTOCOL_PAIRS = {
     'pop3s': 'pop3',
 }
 
+API_ALGORTIHM_CACHE = {}
+API_PROTOCOL_CACHE = {}
+LB_API_CACHE = {}
+
+#FIXME: delete tasks talk to database directly, so we load drivers and manager
+import os
+from checkmate import db
+from checkmate.deployments import DeploymentsManager
+DRIVERS = {}
+DB = DRIVERS['default'] = db.get_driver()
+SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
+    connection_string=os.environ.get(
+        'CHECKMATE_SIMULATOR_CONNECTION_STRING',
+        os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
+    )
+)
+MANAGERS = {}
+MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
+
 
 class Provider(ProviderBase):
-    """Rackspace load balancer provider"""
+    '''Rackspace load balancer provider'''
     name = 'load-balancer'
     vendor = 'rackspace'
 
-    def generate_template(self, deployment, resource_type, service, context,
-                          name=None):
-        template = ProviderBase.generate_template(self, deployment,
-                                                  resource_type, service,
-                                                  context, name=name)
+    def _get_connection_params(self, connections, deployment, index,
+                               resource_type, service):
+        relation = connections[connections.keys()[index]]['relation-key']
+        inbound = deployment.get_setting("inbound",
+                                         resource_type=resource_type,
+                                         service_name=service,
+                                         provider_key=self.key,
+                                         relation=relation,
+                                         default="http/80")
+        return {"protocol": inbound.split('/')[0],
+                "port": inbound.split('/')[1]}
 
+    def generate_template(self, deployment, resource_type, service, context,
+                          index, key, definition):
         # Get region
+        templates = []
         region = deployment.get_setting('region', resource_type=resource_type,
                                         service_name=service,
                                         provider_key=self.key)
         if not region:
             raise CheckmateException("Could not identify which region to "
                                      "create load-balancer in")
+        number_of_resources = 1
+        interface = \
+            deployment.get('blueprint')['services'][service]['component'][
+                'interface']
+        protocol = deployment.get_setting("protocol",
+                                          resource_type=resource_type,
+                                          service_name=service,
+                                          provider_key=self.key,
+                                          default="http").lower()
+        support_unencrypted = self._support_unencrypted(deployment,
+                                                        protocol,
+                                                        resource_type=resource_type,
+                                                        service=service)
+        if support_unencrypted:
+            number_of_resources += 1
+        if interface == 'vip':
+            connections = definition.get('connections', None)
+            number_of_resources = len(connections)
 
-        template['region'] = region
-        return template
+        for index_of_resource in range(index, index + number_of_resources):
+            generated_templates = ProviderBase.generate_template(self,
+                                                                 deployment,
+                                                                 resource_type,
+                                                                 service,
+                                                                 context,
+                                                                 index_of_resource,
+                                                                 self.key,
+                                                                 definition)
+            for template in generated_templates:
+                if interface == 'vip':
+                    params = self._get_connection_params(connections,
+                                                         deployment,
+                                                         index - index_of_resource,
+                                                         resource_type,
+                                                         service)
+                    for key, value in params.iteritems():
+                        template[key] = value
+
+                template['region'] = region
+                templates.append(template)
+
+        if support_unencrypted:
+            templates[len(templates) - 1]['protocol'] = PROTOCOL_PAIRS[
+                protocol]
+        return templates
+
+    def _support_unencrypted(self, deployment, protocol, resource_type=None,
+                             service=None):
+        values = [False]
+        if protocol in PROTOCOL_PAIRS:
+            for setting in ['allow_insecure', 'allow_unencrypted']:
+                value = deployment.get_setting(setting,
+                                               resource_type=resource_type,
+                                               service_name=service,
+                                               provider_key=self.key,
+                                               default=False)
+                value = str(value).lower() in ['1', 'yes', 'true', '-1']
+                values.append(value)
+                if setting == 'allow_insecure' and value:
+                    LOG.warning("allow_insecure setting is deprecated."
+                                "Please use allow_unencrypted")
+
+        return reduce(lambda x, y: x | y, values)
+
+    @MemorizeMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
+    def _get_abs_limits(self, api_endpoint, auth_token):
+        api = cloudlb.CloudLoadBalancer('ignore', 'ignore', None, 'localhost')
+        api.client.auth_token = auth_token
+        api.client.management_url = api_endpoint
+        return api.loadbalancers.get_absolute_limits()
+
+    def verify_limits(self, context, resources):
+        messages = []
+        region = Provider.find_a_region(context.catalog)
+        url = Provider.find_url(context.catalog, region)
+        abs_limits = self._get_abs_limits(url, context.auth_token)
+        max_nodes = abs_limits.get("NODE_LIMIT", sys.maxint)
+        max_lbs = abs_limits.get("LOADBALANCER_LIMIT", sys.maxint)
+        clb = self.connect(context, region=region)
+        cur_lbs = len(clb.loadbalancers.list() or [])
+        avail_lbs = max_lbs - cur_lbs
+        req_lbs = len(resources or {})
+        if avail_lbs < req_lbs:
+            messages.append({
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "This deployment would create %s Cloud Load "
+                           "Balancers.  You have %s instances available."
+                           % (req_lbs, avail_lbs),
+                'provider': self.name,
+                'severity': "CRITICAL"
+            })
+        for res in resources:
+            nodes = len(res.get("relations", {}))
+            if max_nodes < nodes:
+                messages.append({
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': "Cloud Load Balancer %s would have %s nodes. You "
+                           "may only associate up to %s nodes with a Cloud "
+                           "Load Balancer."
+                           % (res.get("index"), nodes, max_nodes),
+                'provider': self.name,
+                'severity': "CRITICAL"
+            })
+        return messages
+
+    def verify_access(self, context):
+        roles = ['identity:user-admin', 'LBaaS:admin', 'LBaaS:creator']
+        if user_has_access(context, roles):
+            return {
+                'type': "ACCESS-OK",
+                'message': "You have access to create Cloud Load Balancers",
+                'provider': self.name,
+                'severity': "INFORMATIONAL"
+            }
+        else:
+            return {
+                'type': "NO-ACCESS",
+                'message': "You do not have access to create Cloud Load Balancers",
+                'provider': self.name,
+                'severity': "CRITICAL"
+            }
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         service_name = resource.get('service')
         resource_type = resource.get('type')
-        proto = deployment.get_setting("protocol",
-                                       resource_type=resource_type,
-                                       service_name=service_name,
-                                       provider_key=self.key,
-                                       default="http").lower()
+        proto = resource['protocol'] if resource.get('protocol', None) \
+            else deployment.get_setting("protocol",
+                                        resource_type=resource_type,
+                                        service_name=service_name,
+                                        provider_key=self.key,
+                                        default="http").lower()
 
-        port = deployment.get_setting("port",
-                                      resource_type=resource_type,
-                                      service_name=service_name,
-                                      provider_key=self.key,
-                                      default=None)
+        port = resource['port'] if resource.get('port', None) \
+            else deployment.get_setting("port",
+                                        resource_type=resource_type,
+                                        service_name=service_name,
+                                        provider_key=self.key,
+                                        default=None)
 
         algorithm = deployment.get_setting("algorithm",
                                            resource_type=resource_type,
@@ -87,27 +248,16 @@ class Provider(ProviderBase):
                                          default="false"))
 
         dns = (dns.lower() == 'true' or dns == '1' or dns.lower() == 'yes')
+        create_lb_task_tags = ['create', 'root', 'vip']
 
-        allow_insecure = deployment.get_setting("allow_insecure",
-                                                resource_type=resource_type,
-                                                service_name=service_name,
-                                                provider_key=self.key,
-                                                default=False)
-        allow_insecure = str(allow_insecure).lower() in ['1', 'yes', 'true',
-                                                         '-1']
+        #Find existing task which has created the vip
+        vip_tasks = self.find_tasks(wfspec, provider=self.key, tag='vip')
+        parent_lb = None
 
-        extra_protocols = set()
-        # handle our custom protocol
-        if proto == "http_and_https":
-            proto = 'https'
-            allow_insecure = True
-
-        # add support for arbitrary combinations of secure and
-        # unsecure protocols (ftp/ftps for example)
-        if allow_insecure and proto in PROTOCOL_PAIRS:
-            unencrypted = PROTOCOL_PAIRS[proto]
-            LOG.debug("Adding unencrypted protocol '%s'" % unencrypted)
-            extra_protocols.add(unencrypted)
+        if vip_tasks:
+            parent_lb_resource_id = vip_tasks[0].get_property('resource')
+            parent_lb = PathAttrib("instance:%s/id" % parent_lb_resource_id)
+            create_lb_task_tags.remove('vip')
 
         create_lb = Celery(wfspec,
                            'Create %s Loadbalancer (%s)' % (proto.upper(),
@@ -126,12 +276,18 @@ class Provider(ProviderBase):
                            # FIXME: final task should be the one that finishes
                            # when all extra_protocols are done, not this one
                            properties={'estimated_duration': 30,
-                                       'task_tags': ['create', 'root']},
+                                       'task_tags': create_lb_task_tags
+                           },
                            dns=dns,
                            algorithm=algorithm,
-                           tag=self.generate_resource_tag(context.base_url,
-                               context.tenant, deployment['id'], key),
-                           port=port)
+                           tags=self.generate_resource_tag(context.base_url,
+                                                           context.tenant,
+                                                           deployment['id'],
+                                                           key),
+                           port=port,
+                           parent_lb=parent_lb)
+        if vip_tasks:
+            vip_tasks[0].connect(create_lb)
 
         task_name = ('Wait for Loadbalancer %s (%s) build' %
                      (key, resource['service']))
@@ -139,8 +295,8 @@ class Provider(ProviderBase):
                        'wait_on_build')
         build_wait_task = Celery(wfspec, task_name, celery_call,
                                  call_args=[context.get_queued_task_dict(
-                                            deployment=deployment['id'],
-                                            resource=key),
+                                     deployment=deployment['id'],
+                                     resource=key),
                                             PathAttrib('instance:%s/id' % key),
                                             resource['region']],
                                  properties={'estimated_druation': 150},
@@ -186,8 +342,8 @@ class Provider(ProviderBase):
         celery_call = 'checkmate.providers.rackspace.loadbalancer.set_monitor'
         set_monitor_task = Celery(wfspec, task_name, celery_call,
                                   call_args=[context.get_queued_task_dict(
-                                             deployment=deployment['id'],
-                                             resource=key),
+                                      deployment=deployment['id'],
+                                      resource=key),
                                              PathAttrib('instance:%s/id' %
                                                         key),
                                              proto.upper(),
@@ -197,117 +353,17 @@ class Provider(ProviderBase):
                                                task_tags=['final']))
 
         build_wait_task.connect(set_monitor_task)
-
         final = set_monitor_task
-
-        for extra_protocol in extra_protocols:
-            # FIXME: these resources should be generated during
-            # planning, not here
-            resource2 = deepcopy(resource)
-            resource2['index'] = str(
-                len([res for res in deployment.get("resources").keys()
-                     if res.isdigit()]))
-            resource2['dns-name'] = '%s-%s' % (resource2['index'],
-                                               resource2['dns-name'])
-            if 'relations' not in resource2:
-                resource2['relations'] = {}
-            resource2['relations'].update({
-                "lb%s-lb%s" % (key, resource2['index']): {
-                    "interface": "vip",
-                    "source": resource['index'],
-                    "state": "planned",
-                    "name": "lb%s-lb%s" % (key, resource2['index'])
-                }
-            })
-            if "relations" not in resource:
-                resource['relations'] = {}
-            resource['relations'].update({
-                "lb%s-lb%s" % (resource2['index'], key): {
-                    "interface": "vip",
-                    "target": resource2['index'],
-                    "state": "planned",
-                    "name": "lb%s-lb%s" % (resource2['index'],
-                                           key)
-                }
-            })
-            deployment['resources'].update({resource2['index']: resource2})
-            LOG.debug("Added resource '%s' for extra protocol '%s'" %
-                      (resource2['index'], extra_protocol))
-
-            create_lb2 = Celery(wfspec,
-                                'Create %s Loadbalancer (%s)' % (
-                                    extra_protocol.upper(),
-                                    resource2['index']),
-                                'checkmate.providers.rackspace.loadbalancer.'
-                                'create_loadbalancer',
-                                call_args=[
-                                    context.get_queued_task_dict(
-                                        deployment=deployment['id'],
-                                        resource=resource2['index']),
-                                    resource2.get('dns-name'),
-                                    'PUBLIC',
-                                    extra_protocol.upper(),
-                                    resource2['region']
-                                ],
-                                defines={
-                                    'resource': resource2['index'],
-                                    'provider': self.key
-                                },
-                                properties={
-                                    'estimated_duration': 30,
-                                    'task_tags': ['create']
-                                },
-                                parent_lb=PathAttrib("instance:%s/id" %
-                                                     resource2['index']),
-                                algorithm=algorithm,
-                                port=port)
-            create_lb2.follow(create_lb)
-            task_name = 'Wait for Loadbalancer %s (%s) build' % (
-                resource2['index'], resource['service'])
-            celery_call = ('checkmate.providers.rackspace.loadbalancer.'
-                           'wait_on_build')
-            build_wait_task2 = Celery(wfspec, task_name, celery_call,
-                                      call_args=[
-                                          context.get_queued_task_dict(
-                                              deployment=deployment['id'],
-                                              resource=resource2['index']),
-                                          PathAttrib('instance:%s/id' %
-                                                     resource2['index']),
-                                          resource['region']],
-                                      properties={'estimated_druation': 150},
-                                      merge_results=True,
-                                      defines=dict(
-                                          resource=resource2['index'],
-                                          provider=self.key,
-                                          task_tags=['complete']
-                                      ))
-            create_lb2.connect(build_wait_task2)
-
-            task_name = 'Add monitor to Loadbalancer %s (%s) build' % (
-                resource2['index'], resource['service'])
-            celery_call = ('checkmate.providers.rackspace.loadbalancer.'
-                           'set_monitor')
-            set_monitor_task2 = Celery(wfspec, task_name, celery_call,
-                                       call_args=[context.get_queued_task_dict(
-                                                  deployment=deployment['id'],
-                                                  resource=resource2['index']),
-                                                  PathAttrib('instance:%s/id' %
-                                                             resource2[
-                                                             'index']),
-                                                  extra_protocol.upper(),
-                                                  resource['region'],
-                                                  '/', 10, 10, 3, '(.*)',
-                                                  '^[234][0-9][0-9]$'
-                                                  ],
-                                       defines=dict(
-                                           resource=resource2['index'],
-                                           provider=self.key,
-                                           task_tags=['final']))
-
-            build_wait_task2.connect(set_monitor_task2)
-            final = set_monitor_task2
-
         return dict(root=create_lb, final=final)
+
+    def get_resource_status(self, context, deployment_id, resource, key,
+                            sync_callable=None, api=None):
+        return super(Provider, self).get_resource_status(context,
+                                                         deployment_id,
+                                                         resource, key,
+                                                         sync_callable=
+                                                         sync_resource_task,
+                                                         api=api)
 
     def sync_resource_status(self, context, deployment_id, resource,
                              key):
@@ -326,13 +382,13 @@ class Provider(ProviderBase):
         rec_id = resource.get("instance", {}).get("record_id")
         region = resource.get("region")
         if isinstance(context, RequestContext):
-          context = context.get_queued_task_dict(deployment=deployment_id,
-                                           resource=key)
+            context = context.get_queued_task_dict(deployment=deployment_id,
+                                                   resource=key)
         else:
-          context['deployment'] = deployment_id
-          context['resource'] = key
+            context['deployment'] = deployment_id
+            context['resource'] = key
 
-        del_task = chain(delete_lb_task.s(context, key, lb_id,region),
+        del_task = chain(delete_lb_task.s(context, key, lb_id, region),
                          alt_resource_postback.s(deployment_id),
                          wait_on_lb_delete.si(context, key, deployment_id,
                                               lb_id, region),
@@ -344,7 +400,6 @@ class Provider(ProviderBase):
                                  delete_record.s(context, dom_id,
                                                  rec_id))
         return delete_stuff
-
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
@@ -381,7 +436,7 @@ class Provider(ProviderBase):
             target = target_resource['hosted_on']
         else:
             target = relation['target']
-        # determine the port based on protocol
+            # determine the port based on protocol
         #Create the add node task
         add_node_task = Celery(wfspec,
                                "Add Node %s to LB %s" % (relation['target'],
@@ -426,8 +481,9 @@ class Provider(ProviderBase):
 
         # build a live catalog ()this would be the on_get_catalog called if no
         # stored/override existed
-        api = self._connect(context)
         results = {}
+        region = Provider.find_a_region(context.catalog)
+        api_endpoint = Provider.find_url(context.catalog, region)
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -442,7 +498,7 @@ class Provider(ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'load-balancer':
-            algorithms = api.get_algorithms()
+            algorithms = _get_algorithms(api_endpoint, context.auth_token)
             options = {
                 'algorithm': {
                     'type': 'list',
@@ -467,7 +523,7 @@ class Provider(ProviderBase):
 
             # provide list of available load balancer types
 
-            protocols = api.get_protocols()
+            protocols = _get_protocols(api_endpoint, context.auth_token)
             protocols = [p.lower() for p in protocols]
             for protocol in protocols:
                 item = {'id': protocol, 'is': 'load-balancer',
@@ -502,11 +558,29 @@ class Provider(ProviderBase):
         return results
 
     @staticmethod
-    def _connect(context, region=None):
+    def find_url(catalog, region):
+        """Find endpoint URL for region"""
+        for service in catalog:
+            if service['type'] == 'rax:load-balancer':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        return endpoint['publicURL']
+
+    @staticmethod
+    def find_a_region(catalog):
+        """Any region"""
+        for service in catalog:
+            if service['type'] == 'rax:load-balancer':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    return endpoint['region']
+
+    @staticmethod
+    def connect(context, region=None):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
-            from checkmate.middleware import RequestContext
             context = RequestContext(**context)
         if not context.auth_token:
             raise CheckmateNoTokenError()
@@ -515,31 +589,14 @@ class Provider(ProviderBase):
         if region in REGION_MAP:
             region = REGION_MAP[region]
 
-        def find_url(catalog, region):
-            """Find endpoint URL for region"""
-            for service in catalog:
-                if service['type'] == 'rax:load-balancer':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        if endpoint.get('region') == region:
-                            return endpoint['publicURL']
-
-        def find_a_region(catalog):
-            """Any region"""
-            for service in catalog:
-                if service['type'] == 'rax:load-balancer':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        return endpoint['region']
-
         if not region:
-            region = find_a_region(context.catalog)
+            region = Provider.find_a_region(context.catalog)
             if not region:
                 raise CheckmateException("Unable to locate a load-balancer "
                                          "endpoint")
 
         #TODO: instead of hacking auth using a token, submit patch upstream
-        url = find_url(context.catalog, region)
+        url = Provider.find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for LBaaS "
                                      "for region '%s'" % region)
@@ -549,9 +606,30 @@ class Provider(ProviderBase):
 
         return api
 
-""" Celery tasks to manipulate Rackspace Cloud Load Balancers """
 
-import cloudlb
+@Memorize(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
+def _get_algorithms(api_endpoint, auth_token):
+    '''Ask CLB for Algorithms'''
+    # the region must be supplied but is not used
+    api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
+    api.client.auth_token = auth_token
+    api.client.region_account_url = api_endpoint
+    LOG.info("Calling Cloud Load Balancers to get algorithms for %s",
+             api.client.region_account_url)
+
+
+@Memorize(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
+def _get_protocols(api_endpoint, auth_token):
+    '''Ask CLB for Protocols'''
+    # the region must be supplied but is not used
+    api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
+    api.client.auth_token = auth_token
+    api.client.region_account_url = api_endpoint
+    LOG.info("Calling Cloud Load Balancers to get protocols for %s",
+             api.client.region_account_url)
+
+    return api.get_protocols()
+
 from celery.task import task
 
 from checkmate.providers.rackspace.dns import parse_domain, delete_record
@@ -569,7 +647,7 @@ PLACEHOLDER_IP = '1.2.3.4'
 @task
 def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
-                        tag=None,
+                        tags=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
@@ -579,13 +657,20 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
 
     if context.get('simulation') is True:
         resource_key = context['resource']
+        vip = "4.4.4.20%s" % resource_key
         results = {
             'instance:%s' % resource_key: {
                 'status': "BUILD",
                 'id': "LB0%s" % resource_key,
-                'public_ip': "4.4.4.20%s" % resource_key,
+                'public_ip': vip,
                 'port': port,
                 'protocol': protocol,
+                'interfaces': {
+                    'vip': {
+                        'ip': vip,
+                        'public_ip': vip,
+                    },
+                },
             }
         }
         # Send data back to deployment
@@ -593,7 +678,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         return results
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     #FIXME: should pull default from lb api but thats not exposed via the
     #       client yet
@@ -625,7 +710,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     instance_key = 'instance:%s' % context['resource']
     # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
-    meta = tag or context.get("metadata", None)
+    meta = tags or context.get("metadata", None)
     if meta:
         # attach checkmate metadata to the lb if available
         new_meta = []
@@ -663,7 +748,13 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             'public_ip': vip,
             'port': loadbalancer.port,
             'protocol': loadbalancer.protocol,
-            'status': "BUILD"
+            'status': "BUILD",
+            'interfaces': {
+                'vip': {
+                    'ip': vip,
+                    'public_ip': vip,
+                }
+            }
         }
     }
 
@@ -697,19 +788,37 @@ def collect_record_data(deployment_id, resource_key, record):
 def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
-    if api is None:
-        api = Provider._connect(context, resource.get("region"))
-    try:
-        lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
+    if context.get('simulation') is True:
         return {
             key: {
-                "status": lb.status,
-                'port': lb.port,
-                'protocol': lb.protocol
+                "status": resource.get('status', 'DELETED')
             }
         }
-    except cloudlb.errors.NotFound:
-        return {key: {}}
+
+    if api is None:
+        api = Provider.connect(context, resource.get("region"))
+    try:
+        lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
+        #need to go thru actual vs expected scenarios
+        #instance = {'port': resource['instance']['port'],
+        #            'protocol': resource['instance']['protocol']}
+        #if hasattr(lb, 'port') and resource['instance']['port'] != lb.port:
+        #    instance['port'] = lb.port
+        #if hasattr(lb, 'port') and
+        #   resource['instance']['protocol'] != lb.protocol:
+        #    instance['protocol'] = lb.protocol
+        return {
+            key: {
+                "status": lb.status
+                #'instance': instance
+            }
+        }
+    except NotFound:
+        return {
+            key: {
+                "status": "DELETED"
+            }
+        }
 
 
 @task
@@ -721,8 +830,8 @@ def delete_lb_task(context, key, lbid, region, api=None):
         resource_key = context['resource']
         results = {
             "instance:%s" % resource_key: {
-                "status": "DELETING",  # set it done in wait_on_delete
-                "status_msg": "Waiting on resource deletion"
+                "status": "DELETING", # set it done in wait_on_delete
+                "status-message": "Waiting on resource deletion"
             }
         }
         return results
@@ -730,7 +839,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     def on_failure(exc, task_id, args, kwargs, einfo):
         k = "instance:%s" % args[1]
         ret = {k: {'status': 'ERROR',
-                   'errmessage': ('Unexpected error deleting loadbalancer'
+                   'error-message': ('Unexpected error deleting loadbalancer'
                                   ' %s' % key),
                    'trace': 'Tassk %s: %s' % (task_id, einfo.traceback)}}
         resource_postback.delay(args[2], ret)
@@ -742,7 +851,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         return
     instance_key = "instance:%s" % key
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
     try:
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
@@ -755,14 +864,13 @@ def delete_lb_task(context, key, lbid, region, api=None):
     return {
         instance_key: {
             "status": "DELETING",
-            "status_msg": "Waiting on resource deletion"
+            "status-message": "Waiting on resource deletion"
         }
     }
 
 
 @task(default_retry_delay=2, max_retries=60)
 def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
-
     match_celery_logging(LOG)
     inst_key = "instance:%s" % key
 
@@ -774,7 +882,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
         """ Handle task failure """
         k = "instance:%s" % args[1]
         ret = {k: {'status': 'ERROR',
-                   'errmessage': ('Unexpected error waiting on loadbalancer'
+                   'error-message': ('Unexpected error waiting on loadbalancer'
                                   ' %s delete' % key),
                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
         resource_postback.delay(args[2], ret)
@@ -782,7 +890,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
     wait_on_lb_delete.on_failure = on_failure
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
     dlb = None
     LOG.debug("Checking on loadbalancer %s delete status", lbid)
     try:
@@ -790,12 +898,13 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
     except cloudlb.errors.NotFound:
         pass
     if (not dlb) or "DELETED" == dlb.status:
-        return {inst_key: {'status': 'DELETED'}}
+        return {inst_key: {'status': 'DELETED',
+                           'status-message': 'LB %s was deleted' % inst_key}}
     else:
         msg = ("Waiting on state DELETED. Load balancer is in state %s"
                % dlb.status)
         resource_postback.delay(dep_id, {inst_key: {'status': 'DELETING',
-                                                    "status_msg": msg}})
+                                                    "status-message": msg}})
         wait_on_lb_delete.retry(exc=CheckmateException(msg))
 
 
@@ -809,7 +918,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
         return results
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     if ipaddr == PLACEHOLDER_IP:
         raise CheckmateException("IP %s is reserved as a placeholder IP by "
@@ -828,10 +937,10 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
     results = None
     port = loadbalancer.port
 
-#    status_results = {'status': "CONFIGURE"}
-#    instance_key = 'instance:%s' % context['resource']
-#    status_results = {instance_key: status_results}
-#    resource_postback.delay(context['deployment'], status_results)
+    #    status_results = {'status': "CONFIGURE"}
+    #    instance_key = 'instance:%s' % context['resource']
+    #    status_results = {instance_key: status_results}
+    #    resource_postback.delay(context['deployment'], status_results)
 
     # Check existing nodes and asses what we need to do
     new_node = None  # We store our new node here
@@ -849,7 +958,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                 node.update()
                 LOG.debug("Updated %s:%d from load balancer %d", node.address,
                           node.port, lbid)
-            # We return this at the end of the call
+                # We return this at the end of the call
             results = {'id': node.id}
         elif node.address == PLACEHOLDER_IP:
             # This is the dummy, placeholder node
@@ -912,7 +1021,7 @@ def delete_node(context, lbid, ipaddr, port, region, api=None):
         return
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     loadbalancer = api.loadbalancers.get(lbid)
     node_to_delete = None
@@ -953,7 +1062,7 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
         return
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     LOG.debug("Setting monitor on lbid: %s", lbid)
     loadbalancer = api.loadbalancers.get(lbid)
@@ -1008,7 +1117,7 @@ def wait_on_build(context, lbid, region, api=None):
         return results
 
     if api is None:
-        api = Provider._connect(context, region)
+        api = Provider.connect(context, region)
 
     loadbalancer = api.loadbalancers.get(lbid)
 
@@ -1017,19 +1126,21 @@ def wait_on_build(context, lbid, region, api=None):
     if loadbalancer.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Loadbalancer %s build failed" % (lbid))
-        results['errmessage'] = msg
+        results['error-message'] = msg
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         # Delete the loadbalancer if it failed building
         Provider({}).delete_resource_tasks(context,
-                              context['deployment'],
-                              get_resource_by_id(context['deployment'],
-                                            context['resource']),
-                              instance_key).apply_async()
+                                           context['deployment'],
+                                           get_resource_by_id(
+                                               context['deployment'],
+                                               context['resource']),
+                                           instance_key).apply_async()
         raise CheckmateException(msg)
     elif loadbalancer.status == "ACTIVE":
         results['status'] = "ACTIVE"
+        results['status-message'] = ""
         results['id'] = lbid
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}

@@ -1,17 +1,21 @@
+'''Analyzes a Checkmate deployment and persists the analysis results'''
 import copy
 import logging
-import os
 
 from checkmate import keys
 from checkmate.classes import ExtensibleDict
-from checkmate.exceptions import CheckmateException,\
+from checkmate.exceptions import (
+    CheckmateException,
     CheckmateValidationException
+)
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase
 from checkmate import utils
-from checkmate.deployment import verify_required_blueprint_options_supplied,\
-    Resource, verify_inputs_against_constraints
-from celery.canvas import group
+from checkmate.deployment import (
+    validate_blueprint_options,
+    validate_input_constraints,
+)
+from checkmate.resource import Resource
+import eventlet
 
 LOG = logging.getLogger(__name__)
 
@@ -78,8 +82,8 @@ class Plan(ExtensibleDict):
                                                "Nowhere to deploy to.")
 
         # Quick validations
-        verify_required_blueprint_options_supplied(deployment)
-        verify_inputs_against_constraints(deployment)
+        validate_blueprint_options(deployment)
+        validate_input_constraints(deployment)
 
     def plan(self, context):
         """Perform plan analysis. Returns a reference to planned resources"""
@@ -102,6 +106,52 @@ class Plan(ExtensibleDict):
         LOG.debug("RESOURCES\n%s", utils.dict_to_yaml(self.resources))
         return self.resources
 
+    def _unique_providers(self):
+        """Returns a list of provider instances, one per provider type."""
+        providers = []
+        names = []
+        for name, provider in self.environment.providers.iteritems():
+            if name not in names:
+                providers.append(provider)
+                names.append(name)
+        return providers
+
+    def verify_limits(self, context):
+        """Ensure provider resources can be allocated.
+
+        Checks API limits against resources that will be spun up
+        during deployment.
+
+        :param context: a RequestContext
+        :return: Returns a list of warning/error messages
+        """
+        pile = eventlet.GreenPile()
+        providers = self._unique_providers()
+        for provider in providers:
+            resources = utils.filter_resources(self.resources, provider.name)
+            pile.spawn(provider.verify_limits, context, resources)
+        results = []
+        for result in pile:
+            if result:
+                results.extend(result)
+        return results
+
+    def verify_access(self, context):
+        """Ensure user has RBAC permissions to allocate provider resources.
+
+        :param context: a RequestContext
+        :return: Returns a list of warning/error messages
+        """
+        pile = eventlet.GreenPile()
+        providers = self._unique_providers()
+        for provider in providers:
+            pile.spawn(provider.verify_access, context)
+        results = []
+        for result in pile:
+            if result:
+                results.append(result)
+        return results
+
     def plan_delete(self, context):
         """
         Collect delete resource tasks from the deployment
@@ -113,7 +163,7 @@ class Plan(ExtensibleDict):
         del_tasks = []
         dep_id = self.deployment.get("id")
         for res_key, resource in self.deployment.get("resources",
-                                                     {}).iteritems():
+                {}).iteritems():
             prov_key = resource.get('provider')
             if not prov_key:
                 LOG.warn("Deployment %s resource %s does not specify a "
@@ -122,17 +172,15 @@ class Plan(ExtensibleDict):
             provider = self.environment.get_provider(resource.get("provider"))
             if not provider:
                 LOG.warn("Deployment %s resource %s has an unknown provider:"
-                         " %s" % (dep_id, res_key, resource.get("provider")))
+                         " %s", dep_id, res_key, resource.get("provider"))
                 continue
             new_tasks = provider.delete_resource_tasks(context, dep_id,
                                                        resource, res_key)
             if new_tasks:
                 del_tasks.append(new_tasks)
-        if del_tasks:
-            return del_tasks
-        else:
-            LOG.warn("No delete resource tasks for deployment %s" %
-                     dep_id)
+        if not del_tasks:
+            LOG.warn("No delete resource tasks for deployment %s", dep_id)
+        return del_tasks
 
     def evaluate_defaults(self):
         """
@@ -143,7 +191,7 @@ class Plan(ExtensibleDict):
         defaults are not evaluated once per workflow or once per component.
 
         """
-        for key, option in self.blueprint.get('options', {}).iteritems():
+        for _, option in self.blueprint.get('options', {}).iteritems():
             if 'default' in option:
                 default = option['default']
                 if (isinstance(default, basestring,) and
@@ -157,7 +205,6 @@ class Plan(ExtensibleDict):
         """
         blueprint = self.blueprint
         environment = self.environment
-        resources = self.resources
         services = blueprint.get('services', {})
 
         # counter we increment and use as a new resource key
@@ -167,8 +214,8 @@ class Plan(ExtensibleDict):
         # Prepare resources and connections to create
         #
         LOG.debug("Add resources")
-        for service_name, service in services.iteritems():
-            LOG.debug("  For service '%s'" % service_name)
+        for service_name, _ in services.iteritems():
+            LOG.debug("  For service '%s'", service_name)
             service_analysis = self['services'][service_name]
             definition = service_analysis['component']
 
@@ -183,77 +230,74 @@ class Plan(ExtensibleDict):
                                            service_name=service_name,
                                            default=1)
 
-            #TODO: shouldn't this live in the provider?
-            default_domain = os.environ.get('CHECKMATE_DOMAIN',
-                                            'checkmate.local')
-            domain = deployment.get_setting('domain',
-                                            provider_key=provider_key,
-                                            resource_type=resource_type,
-                                            service_name=service_name,
-                                            default=default_domain)
-
             # Create as many as we have been asked to create
             for service_index in range(1, count + 1):
                 # Create the main resource template
-                resource = deployment.create_resource_template(service_index,
-                                                               definition,
-                                                               service_name,
-                                                               domain, context)
-                resource['status'] = 'PLANNED'
-                # Add it to resources
-                self.add_resource(resource, definition)
+                resources = deployment.create_resource_template(service_index,
+                                                                definition,
+                                                                service_name,
+                                                                context)
+                for resource in resources:
+                    resource['status'] = 'PLANNED'
+                    # Add it to resources
+                    self.add_resource(resource, definition, service_name)
 
-                # Add host and other requirements that exist in this service
-                extra_components = service_analysis.get('extra-components', {})
-                for key, extra_def in extra_components.iteritems():
-                    LOG.debug("    Processing extra component '%s' for '%s'" %
-                              (key, service_name))
-                    extra_resource = deployment.create_resource_template(
-                        service_index,
-                        extra_def,
-                        service_name, domain,
-                        context)
-                    self.add_resource(extra_resource, extra_def)
+                    # Add host and other requirements that exist in this service
+                    extra_components = service_analysis.get('extra-components',
+                        {})
+                    for key, extra_def in extra_components.iteritems():
+                        LOG.debug(
+                            "    Processing extra component '%s' for '%s'" %
+                            (key, service_name))
+                        extra_resources = deployment.create_resource_template(
+                            service_index,
+                            extra_def,
+                            service_name,
+                            context)
+                        for extra_resource in extra_resources:
+                            self.add_resource(extra_resource, extra_def)
 
-                    # Connnect extra components
+                            # Connnect extra components
 
-                    if key in definition.get('host-keys', []):
-                        # connect hosts
-                        connections = definition.get('connections', {})
-                        if key not in connections:
-                            continue
-                        connection = connections[key]
-                        if connection.get('relation') == 'reference':
-                            continue
-                        if connection['direction'] == 'inbound':
-                            continue
-                        self.connect_instances(resource, extra_resource,
-                                               connection, key)
+                            if key in definition.get('host-keys', []):
+                                # connect hosts
+                                connections = definition.get('connections', {})
+                                if key not in connections:
+                                    continue
+                                connection = connections[key]
+                                if connection.get('relation') == 'reference':
+                                    continue
+                                if connection['direction'] == 'inbound':
+                                    continue
+                                self.connect_instances(resource,
+                                                       extra_resource,
+                                                       connection, key)
 
     def connect_resources(self):
+        '''Wire up resource connections within a Plan'''
         # Add connections
         LOG.debug("Connect resources")
-        for service_name, service_plan in self['services'].iteritems():
+        for _, service_plan in self['services'].iteritems():
             # Do main component
             definition = service_plan['component']
             for index in definition.get('instances', []):
                 self.connect_resource(self.resources[index], definition)
-            # Do extra components
+                # Do extra components
             extras = service_plan.get('extra-components')
             if extras:
                 for definition in extras.values():
                     for index in definition.get('instances', []):
                         self.connect_resource(self.resources[index],
                                               definition)
-        #Write resources and connections to deployment
+                        #Write resources and connections to deployment
         if self.connections:
             self.resources['connections'] = self.connections
 
     def add_static_resources(self, deployment, context):
+        '''Generate static resources and add them to resources collection'''
         blueprint = self.blueprint
         environment = self.environment
         resources = self.resources
-        services = blueprint.get('services', {})
 
         # Generate static resources
         LOG.debug("Prepare static resources")
@@ -261,20 +305,13 @@ class Plan(ExtensibleDict):
             component = environment.find_component(resource, context)
             if component:
                 provider = component.provider
-                #TODO: shouldn't this live in the provider?
-                default_domain = os.environ.get('CHECKMATE_DOMAIN',
-                                                'checkmate.local')
-                domain = deployment.get_setting('domain',
-                                                provider_key=provider.key,
-                                                resource_type=resource['type'],
-                                                default=default_domain)
-
-                name = "shared%s.%s" % (key, domain)
-
                 # Call provider to give us a resource template
-                result = (provider.generate_template(deployment,
-                          resource['type'], None, context, name=name))
-                result['component'] = component['id']
+                results = (provider.generate_template(deployment,
+                                                      resource['type'], None,
+                                                      context, 1, provider.key,
+                                                      None))
+                for result in results:
+                    result['component'] = component['id']
             else:
                 # TODO: These should come from a provider (ex. AD, LDAP, PKI,
                 # etc...)
@@ -332,24 +369,34 @@ class Plan(ExtensibleDict):
                 else:
                     raise CheckmateException("Could not find provider for the "
                                              "'%s' resource" % key)
-            # Add it to resources
+                    # Add it to resources
             resources[str(key)] = result
             result['index'] = str(key)
-            LOG.debug("  Adding a %s resource with resource key %s" % (
+            LOG.debug("  Adding a %s resource with resource key %s",
                       resources[str(key)]['type'],
-                      key))
+                      key)
             Resource.validate(result)
 
-    def add_resource(self, resource, definition):
+    def add_resource(self, resource, definition, service_name=None):
         """Add a resource to the list of resources to be created"""
         resource['index'] = str(self.resource_index)
+
         self.resource_index += 1
-        LOG.debug("  Adding a '%s' resource with resource key '%s'" % (
-                  resource.get('type'), resource['index']))
+        LOG.debug("  Adding a '%s' resource with resource key '%s'",
+                  resource.get('type'), resource['index'])
         self.resources[resource['index']] = resource
         if 'instances' not in definition:
             definition['instances'] = []
         definition['instances'].append(resource['index'])
+
+        #TODO: Refactor this
+        if service_name:
+            interface = self.blueprint["services"][service_name][
+                "component"].get("interface")
+            if interface == 'vip':
+                connections = definition["connections"]
+                connections[connections.keys()[int(resource['index'])]][
+                    "outbound-from"] = resource['index']
 
     def connect_resource(self, resource, definition):
         """
@@ -362,8 +409,11 @@ class Plan(ExtensibleDict):
 
         """
         for key, connection in definition.get('connections', {}).iteritems():
+            if connection.get('outbound-from') and connection.get(
+                    'outbound-from') != resource['index']:
+                continue
             if (connection.get('relation', 'reference') == 'host'
-                    and connection['direction'] == 'inbound'):
+                and connection['direction'] == 'inbound'):
                 continue  # we don't write host relation on host
 
             target_service = self['services'][connection['service']]
@@ -372,19 +422,25 @@ class Plan(ExtensibleDict):
                 target_def = target_service['extra-components'][extra_key]
             else:
                 target_def = target_service['component']
-            for target_index in target_def.get('instances', []):
+            if target_def["connections"].get(resource["service"]) and target_def["connections"][resource["service"]].get("outbound-from"):
+                instances = target_def["connections"][resource["service"]]["outbound-from"]
+            else:
+                instances = target_def.get('instances', [])
+            for target_index in instances:
                 target = self.resources[target_index]
+
                 self.connect_instances(resource, target, connection, key)
 
-            #TODO: this is just copied in for legacy compatibility
+                #TODO: this is just copied in for legacy compatibility
             if (connection['direction'] == 'outbound'
-                    and 'extra-key' not in connection):
+                and 'extra-key' not in connection):
                 rel_key = key  # connection['name']
                 if rel_key not in self.connections:
                     con_def = {'interface': connection['interface']}
                     self.connections[rel_key] = con_def
 
-    def connect_instances(self, resource, target, connection, connection_key):
+    @staticmethod
+    def connect_instances(resource, target, connection, connection_key):
         """Connect two resources based on the provided connection definition"""
         relation_type = connection.get('relation', 'reference')
         if relation_type == 'host':
@@ -407,7 +463,7 @@ class Plan(ExtensibleDict):
         if 'attribute' in connection:
             LOG.warning("Using v0.2 feature")
             result['attribute'] = connection['attribute']
-        #END v0.2 feature
+            #END v0.2 feature
 
         if 'relation-key' in connection:
             result['relation-key'] = connection['relation-key']
@@ -421,7 +477,7 @@ class Plan(ExtensibleDict):
             else:
                 CheckmateException("Conflicting relation named '%s' exists in "
                                    "service '%s'" % (write_key,
-                                   target['service']))
+                                                     target['service']))
 
         # Write relation
 
@@ -433,7 +489,8 @@ class Plan(ExtensibleDict):
                 raise CheckmateException("Resource '%s' is already set to be "
                                          "hosted on '%s'. Cannot change host "
                                          "to '%s'" % (resource['index'],
-                                         resource['hosted_on'], target['index']
+                                                      resource['hosted_on'],
+                                                      target['index']
                                          ))
 
             resource['hosted_on'] = target['index']
@@ -457,11 +514,11 @@ class Plan(ExtensibleDict):
         services = self.deployment['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
             definition = service['component']
-            LOG.debug("Identifying component '%s' for service '%s'" % (
-                      definition, service_name))
+            LOG.debug("Identifying component '%s' for service '%s'",
+                      definition, service_name)
             component = self.identify_component(definition, context)
-            LOG.debug("Component '%s' identified as '%s' for service '%s'" % (
-                      definition, component['id'], service_name))
+            LOG.debug("Component '%s' identified as '%s' for service '%s'",
+                      definition, component['id'], service_name)
             self['services'][service_name]['component'] = component
 
     def resolve_relations(self):
@@ -484,7 +541,7 @@ class Plan(ExtensibleDict):
                 if rel['service'] not in services:
                     msg = ("Cannot find service '%s' for '%s' to connect to "
                            "in deployment %s" % (rel['service'], service_name,
-                           self.deployment['id']))
+                                                 self.deployment['id']))
                     LOG.info(msg)
                     raise CheckmateValidationException(msg)
 
@@ -497,8 +554,8 @@ class Plan(ExtensibleDict):
                                                        "source for relation "
                                                        "'%s'" % rel_key)
 
-                LOG.debug("  Matched relation '%s' to requirement '%s'" % (
-                          rel_key, requires_match))
+                LOG.debug("  Matched relation '%s' to requirement '%s'",
+                          rel_key, requires_match)
                 target = self['services'][rel['service']]['component']
                 requirement = source['requires'][requires_match]
                 if 'satisfied-by' not in requirement:
@@ -536,7 +593,8 @@ class Plan(ExtensibleDict):
 
         LOG.debug("All relations successfully matched with target services")
 
-    def connect(self, source, target, interface, connection_key,
+    @staticmethod
+    def connect(source, target, interface, connection_key,
                 relation_type='reference', relation_key=None, attribute=None):
         """
 
@@ -646,15 +704,15 @@ class Plan(ExtensibleDict):
 
                 # Identify the component
                 LOG.debug("Identifying component '%s' to satisfy requirement "
-                          "'%s' in service '%s'" % (definition, key,
-                          service_name))
+                          "'%s' in service '%s'", definition, key,
+                          service_name)
                 component = self.identify_component(definition, context)
                 if not component:
                     raise CheckmateException("Could not resolve component '%s'"
                                              % definition)
                 LOG.debug("Component '%s' identified as '%s'  to satisfy "
-                          "requirement '%s' for service '%s'" % (definition,
-                          component['id'], key, service_name))
+                          "requirement '%s' for service '%s'", definition,
+                          component['id'], key, service_name)
 
                 # Add it to the 'extra-components' list in the service
                 if 'extra-components' not in service:
@@ -703,8 +761,8 @@ class Plan(ExtensibleDict):
         for service_name, service in services.iteritems():
             if 'extra-components' not in service:
                 continue
-            for component_key, component in service['extra-components']\
-                    .iteritems():
+            for component_key, component in service['extra-components'] \
+                .iteritems():
                 requirements = component['requires']
                 for key, requirement in requirements.iteritems():
                     # Skip if already matched
@@ -861,8 +919,8 @@ class Plan(ExtensibleDict):
                 final_key = '%s-%s' % (service, key)
                 final_map['service'] = key
                 final_map['interface'] = value
-            LOG.debug("  _format_relation translated (%s, %s) to (%s, %s)" % (
-                      key, value, final_key, final_map))
+            LOG.debug("  _format_relation translated (%s, %s) to (%s, %s)",
+                      key, value, final_key, final_map)
         # FIXME: this is for v0.2 only
         if 'service' not in final_map:
             LOG.warning("Skipping validation for v0.2 compatibility")

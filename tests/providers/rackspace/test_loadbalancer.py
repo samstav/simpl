@@ -16,7 +16,8 @@ LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
 from checkmate.exceptions import CheckmateException
-from checkmate.deployments import resource_postback, Deployment, plan
+from checkmate.deployment import Deployment
+from checkmate.deployments import resource_postback, DeploymentsManager
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import loadbalancer
@@ -30,6 +31,116 @@ class TestLoadBalancer(test.ProviderTester):
     def test_provider(self):
         provider = loadbalancer.Provider({})
         self.assertEqual(provider.key, 'rackspace.load-balancer')
+
+    def verify_limits(self, max_lbs, max_nodes):
+        """Test the verify_limits() method"""
+        resources = [{
+            "status": "BUILD",
+            "index": "0",
+            "service": "lb",
+            "region": "DFW",
+            "component": "http",
+            "relations": {
+              "lb-master-1": {
+                "name": "lb-master",
+                "state": "planned",
+                "requires-key": "application",
+                "relation": "reference",
+                "interface": "http",
+                "relation-key": "master",
+                "target": "1"
+              },
+              "lb-web-3": {
+                "name": "lb-web",
+                "state": "planned",
+                "requires-key": "application",
+                "relation": "reference",
+                "interface": "http",
+                "relation-key": "web",
+                "target": "3"
+              }
+            }
+        }, {
+            "status": "BUILD",
+            "index": "1",
+            "service": "lb2",
+            "region": "DFW",
+            "component": "http",
+            "relations": {
+              "lb-master-1": {
+                "name": "lb2-master",
+                "state": "planned",
+                "requires-key": "application",
+                "relation": "reference",
+                "interface": "https",
+                "relation-key": "master",
+                "target": "1"
+              },
+              "lb-web-3": {
+                "name": "lb2-web",
+                "state": "planned",
+                "requires-key": "application",
+                "relation": "reference",
+                "interface": "https",
+                "relation-key": "web",
+                "target": "3"
+              }
+            }
+        }]
+        context = RequestContext()
+        self.mox.StubOutWithMock(loadbalancer.Provider, 'find_a_region')
+        self.mox.StubOutWithMock(loadbalancer.Provider, 'find_url')
+        self.mox.StubOutWithMock(loadbalancer.Provider, '_get_abs_limits')
+        limits = {
+          "NODE_LIMIT": max_nodes,
+          "LOADBALANCER_LIMIT": max_lbs
+        }
+        loadbalancer.Provider.find_a_region(mox.IgnoreArg()).AndReturn("DFW")
+        loadbalancer.Provider.find_url(mox.IgnoreArg(),
+                                       mox.IgnoreArg()).AndReturn("fake url")
+        (loadbalancer.Provider
+         ._get_abs_limits(mox.IgnoreArg(), mox.IgnoreArg())
+         .AndReturn(limits))
+        clb = self.mox.CreateMockAnything()
+        clb_lbs = self.mox.CreateMockAnything()
+        clb.loadbalancers = clb_lbs
+        clb_lbs.list().AndReturn([])
+        self.mox.StubOutWithMock(loadbalancer.Provider, "connect")
+        loadbalancer.Provider.connect(mox.IgnoreArg(),
+                                      region=mox.IgnoreArg()).AndReturn(clb)
+        self.mox.ReplayAll()
+        provider = loadbalancer.Provider({})
+        result = provider.verify_limits(context, resources)
+        self.mox.VerifyAll()
+        return result
+
+    def test_verify_limits_negative(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        result = self.verify_limits(1, 0)
+        self.assertEqual(3, len(result))
+        self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
+
+    def test_verify_access_positive(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'identity:user-admin'
+        provider = loadbalancer.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'LBaaS:admin'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'LBaaS:creator'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+
+    def test_verify_access_negative(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'LBaaS:observer'
+        provider = loadbalancer.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'NO-ACCESS')
 
 
 class TestCeleryTasks(unittest.TestCase):
@@ -94,7 +205,13 @@ class TestCeleryTasks(unittest.TestCase):
                 'public_ip': public_ip,
                 'port': 80,
                 'protocol': protocol,
-                'status': status
+                'status': status,
+                'interfaces': {
+                    'vip': {
+                        'public_ip': public_ip,
+                        'ip': public_ip,
+                    },
+                }
             }
         }
         instance_id = {
@@ -122,7 +239,7 @@ class TestCeleryTasks(unittest.TestCase):
         expect = {
             "instance:1": {
                 "status": "DELETING",
-                "status_msg": "Waiting on resource deletion"
+                "status-message": "Waiting on resource deletion"
             }
         }
         api = self.mox.CreateMockAnything()
@@ -140,7 +257,12 @@ class TestCeleryTasks(unittest.TestCase):
     def test_wait_on_lb_delete(self):
         """ Test wait on delete task """
         context = {}
-        expect = {'instance:1': {'status': 'DELETED'}}
+        expect = {
+                  'instance:1': {
+                                  'status': 'DELETED',
+                                  'status-message': 'LB instance:1 was deleted'
+                                }
+                 }
         api = self.mox.CreateMockAnything()
         api.loadbalancers = self.mox.CreateMockAnything()
         m_lb = self.mox.CreateMockAnything()
@@ -166,7 +288,7 @@ class TestCeleryTasks(unittest.TestCase):
         content = {
             'instance:1': {
                 'status': 'DELETING',
-                "status_msg": IgnoreArg(),
+                "status-message": IgnoreArg(),
             }
         }
         loadbalancer.resource_postback.delay('1234', content).AndReturn(None)
@@ -178,43 +300,43 @@ class TestCeleryTasks(unittest.TestCase):
                           api=api)
         self.mox.VerifyAll()
 
+    def test_lb_sync_resource_task(self):
+        """Tests db sync_resource_task via mox"""
+        #Mock instance
+        lb = self.mox.CreateMockAnything()
+        lb.id = 'fake_lb_id'
+        lb.name = 'fake_lb'
+        lb.status = 'ERROR'
 
-class TestLoadBalancerGenerateTemplate(unittest.TestCase):
-    """Test Load Balancer Provider's functions"""
+        resource_key = "1"
 
-    def setUp(self):
-        self.mox = mox.Mox()
+        context = dict(deployment='DEP', resource='1')
 
-    def tearDown(self):
-        self.mox.UnsetStubs()
+        resource = {
+                    'name': 'fake_lb',
+                    'provider': 'load-balancers',
+                    'status': 'ERROR',
+                    'instance': {
+                                 'id': 'fake_lb_id'
+                            }
+                    }
 
-    def test_template_generation(self):
-        """Test template generation"""
-        provider = loadbalancer.Provider({})
+        lb_api_mock = self.mox.CreateMockAnything()
+        lb_api_mock.loadbalancers = self.mox.CreateMockAnything()
 
-        #Mock Base Provider, context and deployment
-        deployment = self.mox.CreateMockAnything()
-        context = RequestContext()
-
-        deployment.get_setting('region', resource_type='load-balancer',
-                               service_name='lb',
-                               provider_key=provider.key).AndReturn('NORTH')
+        lb_api_mock.loadbalancers.get(lb.id).AndReturn(lb)
 
         expected = {
-            'service': 'lb',
-            'region': 'NORTH',
-            'dns-name': 'fake_name',
-            'instance': {},
-            'type': 'load-balancer',
-            'provider': provider.key,
-        }
+                    'instance:1': {
+                                   "status": "ERROR"
+                                   }
+                    }
 
         self.mox.ReplayAll()
-        results = provider.generate_template(deployment, 'load-balancer', 'lb',
-                                             context, name='fake_name')
+        results = loadbalancer.sync_resource_task(context, resource, resource_key,
+                                                  lb_api_mock)
 
         self.assertDictEqual(results, expected)
-        self.mox.VerifyAll()
 
 
 class TestBasicWorkflow(test.StubbedWorkflowBase):
@@ -271,15 +393,191 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: http
                             - compute: linux
             """))
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
-        plan(self.deployment, context)
+
+        self.context = RequestContext(auth_token='MOCK_TOKEN',
+                                      username='MOCK_USER')
+        DeploymentsManager.plan(self.deployment, self.context)
+
+    def test_workflow_task_generation_for_vip_load_balancer(self):
+        vip_deployment = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: vip
+                        constraints:
+                          - region: North
+                      relations:
+                        master:
+                          service: master
+                          interface: https
+                          attributes:
+                            inbound: http/80
+                            algorithm: round-robin
+                        web:
+                          service: web
+                          interface: http
+                          attributes:
+                            inbound: http/80
+                            algorithm: random
+                    master:
+                      component:
+                        type: application
+                        role: master
+                        name: wordpress
+                    web:
+                      component:
+                        type: application
+                        role: web
+                        name: wordpress
+                      relations:
+                        master: ssh
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: vip
+                            requires:
+                            - application: http
+                            - application: https
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http, https]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            roles:
+                            - master
+                            - web
+                            provides:
+                            - application: http
+                            - application: https
+                            - compute: linux
+            """))
+        DeploymentsManager.plan(vip_deployment, self.context)
+        workflow = create_workflow_deploy(vip_deployment, self.context)
+
+        task_list = workflow.spec.task_specs.keys()
+        expected = ['Root', 'Start',
+                    'Create Resource 3',
+                    'Create HTTP Loadbalancer (0)',
+                    'Wait for Loadbalancer 0 (lb) build',
+                    'Add monitor to Loadbalancer 0 (lb) build',
+                    'Create Resource 2',
+                    'Create HTTP Loadbalancer (1)',
+                    'Wait for Loadbalancer 1 (lb) build',
+                    'Add monitor to Loadbalancer 1 (lb) build',
+                    'Wait before adding 3 to LB 0',
+                    'Add Node 3 to LB 0',
+                    'Wait before adding 2 to LB 1',
+                    'Add Node 2 to LB 1'
+                    ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
+
+    def test_workflow_task_generation_with_allow_unencrypted_setting(self):
+        deployment_with_allow_unencrypted = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: http
+                        constraints:
+                          - region: North
+                          - algorithm: round-robin
+                      relations:
+                        master: http
+                        web: http
+                    master:
+                      component:
+                        type: application
+                        role: master
+                        name: wordpress
+                    web:
+                      component:
+                        type: application
+                        role: web
+                        name: wordpress
+                inputs:
+                  blueprint:
+                    protocol: https
+                    allow_unencrypted: true
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: http
+                            requires:
+                            - application: http
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http, https]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            roles:
+                            - master
+                            - web
+                            provides:
+                            - application: http
+                            - compute: linux
+            """))
+        DeploymentsManager.plan(deployment_with_allow_unencrypted, self.context)
+        workflow = create_workflow_deploy(deployment_with_allow_unencrypted,
+                                          self.context)
+
+        task_list = workflow.spec.task_specs.keys()
+        expected = [
+            'Root',
+            'Start',
+            'Create Resource 3',
+            'Create HTTPS Loadbalancer (0)',
+            'Wait for Loadbalancer 0 (lb) build',
+            'Add monitor to Loadbalancer 0 (lb) build',
+            'Create Resource 2',
+            'Create HTTP Loadbalancer (1)',
+            'Wait for Loadbalancer 1 (lb) build',
+            'Add monitor to Loadbalancer 1 (lb) build',
+            'Wait before adding 3 to LB 0',
+            'Wait before adding 2 to LB 0',
+            'Add Node 3 to LB 0',
+            'Add Node 3 to LB 1',
+            'Wait before adding 2 to LB 1',
+            'Wait before adding 3 to LB 1',
+            'Add Node 2 to LB 1',
+            'Add Node 2 to LB 0',
+        ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_task_generation(self):
         """Verify workflow task creation"""
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
-        workflow = create_workflow_deploy(self.deployment, context)
+
+        workflow = create_workflow_deploy(self.deployment, self.context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = [
@@ -315,16 +613,16 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             'private_ip': '10.1.2.1',
                             'addresses': {
                                 'public': [{
-                                    'version': 4,
-                                    'addr': '4.4.4.1'
-                                }, {
-                                    'version': 6,
-                                    'addr': '2001:babe::ff04:36c1'
-                                }],
+                                               'version': 4,
+                                               'addr': '4.4.4.1'
+                                           }, {
+                                               'version': 6,
+                                               'addr': '2001:babe::ff04:36c1'
+                                           }],
                                 'private': [{
-                                    'version': 4,
-                                    'addr': '10.1.2.1'
-                                }]
+                                                'version': 4,
+                                                'addr': '10.1.2.1'
+                                            }]
                             },
                         }
                     },
@@ -348,7 +646,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'dns': False,
                         'algorithm': 'ROUND_ROBIN',
                         'port': None,
-                        'tag': 'http://MOCK/TMOCK/deployments/DEP-ID-1000/resources/0',
+                        'tags': {'RAX-CHECKMATE': 'http://MOCK/TMOCK/deployments/DEP-ID-1000/resources/0'},
+                        'parent_lb': None,
                     },
                     'post_back_result': True,
                     'result': {
@@ -390,11 +689,6 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     'resource': key,
                 })
 
-        #resource_postback mock
-        #self.mox.StubOutWithMock(resource_postback, 'delay')
-        #resource_postback.delay(mox.IgnoreArg(), mox.IgnoreArg())\
-        #.AndReturn(True)
-
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 
         self.mox.ReplayAll()
@@ -405,9 +699,11 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
         self.mox.VerifyAll()
 
+
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
     import sys
+
     args = sys.argv[:]
     # Our --debug means --verbose for unittest
     if '--debug' in args:

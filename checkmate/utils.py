@@ -23,7 +23,8 @@ import uuid
 import subprocess
 import shutil
 
-from bottle import abort, request
+from bottle import abort, request, response
+from functools import wraps
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 from yaml.composer import ComposerError
@@ -33,16 +34,6 @@ from yaml.parser import ParserError
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
-RESOURCES = [
-    'deployments',
-    'workflows',
-    'blueprints',
-    'environments',
-    'components',
-    'providers',
-    'test',
-    'status',
-]
 DEFAULT_SENSITIVE_KEYS = [
     'credentials',
     'apikey',
@@ -51,7 +42,6 @@ DEFAULT_SENSITIVE_KEYS = [
     re.compile('password$'),
     re.compile('^password'),
 ]
-STATIC = ['test', 'version']
 
 
 def get_debug_level():
@@ -272,64 +262,100 @@ HANDLERS = {
 }
 
 
-def write_pagination_headers(data, request, response, uripath, tenant_id):
-    """Add pagination headers to the response body"""    
-    offset = request.query.get('offset')
-    limit = request.query.get('limit')
-    if offset:
-        offset = int(offset)
-    
-    if limit:
-        limit = int(limit)
-    
-    if 'collection-count' in data:
-        total = int(data['collection-count'])
-        del data['collection-count']
-    else:
-        total = 0
+def formatted_response(uripath, with_pagination=False):
+    '''A function decorator that adds pagination information to the response
+    header of a route/get/post/put function
+    '''
+    def _formatted_response(fxn):
+        def _decorator(*args, **kwargs):
+            try:
+                _validate_range_values(request, 'offset', kwargs)
+                _validate_range_values(request, 'limit', kwargs)
+            except ValueError:
+                response.status = 416
+                response.set_header('Content-Range', '%s */*' % uripath)
+                return
 
-    if not offset:
-        offset = 0
-    
-    if not limit:
-        limit = total
+            data = fxn(*args, **kwargs)
+            if with_pagination:
+                _write_pagination_headers(
+                    data,
+                    kwargs.get('offset') or 0,
+                    kwargs.get('limit'),
+                    response,
+                    uripath,
+                    kwargs.get('tenant_id', request.context.tenant)
+                )
+            return write_body(
+                data,
+                request,
+                response
+            )
+        return wraps(fxn)(_decorator)
+    return _formatted_response
+
+
+def _validate_range_values(request, label, kwargs):
+    value = None
+    if label not in kwargs:
+        value = request.query.get(label)
+    else:
+        value = kwargs[label]
+    if value:
+        kwargs[label] = int(value)
+        if kwargs[label] < 0:
+            raise ValueError
+
+
+def _write_pagination_headers(data, offset, limit, response, uripath, tenant_id):
+    """Add pagination headers to the response body"""
+    count = len(data.get('results'))
+    if 'collection-count' in data:
+        total = int(data.get('collection-count', 0))
+    elif offset == 0 and (limit is None or limit > data['results'].count()):
+        total = count
+    else:
+        total = None
 
     # Set 'content-range' header
-    response.set_header('Content-Range', 
-                    "%s %d-%d/%d" % (uripath, offset, offset + limit, total))
+    response.set_header(
+        'Content-Range',
+        "%s %d-%d/%s" % (uripath, offset, offset + max(count - 1, 0),
+                         total if total is not None else '*')
+    )
 
-    if offset + limit < total:
-        response.status = 206 # Partial
-    else:
-        response.status = 200 # OK / Complete
+    if offset != 0 or total > count:
+        response.status = 206  # Partial
 
-    # Add Next page link to http header
-    nextfmt = '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
-    if (offset + limit) < total:
-        response.add_header("Link", 
-                            nextfmt % (tenant_id, uripath, limit, offset+limit))
+        # Add Next page link to http header
+        if (offset + limit) < total - 1:
+            nextfmt = '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
+            response.add_header(
+                "Link", nextfmt % (tenant_id, uripath, limit, offset+limit)
+            )
 
-    # Add Previous page link to http header
-    prevfmt = '</%s/%s?limit=%d&offset=%d>; rel="previous"; \
-title="Previous page"'
-    if offset > 0 and (offset - limit) >= 0:
-        response.add_header("Link", 
-                            prevfmt % (tenant_id, uripath, limit, offset-limit))
+        # Add Previous page link to http header
+        if offset > 0 and (offset - limit) >= 0:
+            prevfmt = '</%s/%s?limit=%d&offset=%d>; rel="previous"; \
+            title="Previous page"'
+            response.add_header(
+                "Link", prevfmt % (tenant_id, uripath, limit, offset-limit)
+            )
 
-    # Add first page link to http header    
-    firstfmt = '</%s/%s?limit=%d>; rel="first"; title="First page"'
-    if offset > 0:
-        response.add_header("Link", firstfmt % (tenant_id, uripath, limit))
+        # Add first page link to http header
+        if offset > 0:
+            firstfmt = '</%s/%s?limit=%d>; rel="first"; title="First page"'
+            response.add_header("Link", firstfmt % (tenant_id, uripath, limit))
 
-    # Add last page link to http header
-    lastfmt = '</%s/%s?offset=%d>; rel="last"; title="Last page"'
-    if limit and total % limit:
-        last_offset = total - (total % limit)
-    else:
-        last_offset = total - limit
-    if limit and limit < total:
-        response.add_header("Link",
-                            lastfmt % (tenant_id, uripath, last_offset))
+        # Add last page link to http header
+        if limit and limit < total:
+            lastfmt = '</%s/%s?offset=%d>; rel="last"; title="Last page"'
+            if limit and total % limit:
+                last_offset = total - (total % limit)
+            else:
+                last_offset = total - limit
+            response.add_header("Link",
+                                lastfmt % (tenant_id, uripath, last_offset))
 
 
 def write_body(data, request, response):
@@ -340,10 +366,6 @@ def write_body(data, request, response):
     """
     response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
     accept = request.get_header('Accept', ['application/json'])
-
-    # if the data contains collection-count, remove it
-    if 'collection-count' in data:        
-        del data['collection-count']
 
     for content_type in HANDLERS:
         if content_type in accept:
@@ -453,6 +475,16 @@ def extract_sensitive_data(data, sensitive_keys=None):
         sensitive_keys = DEFAULT_SENSITIVE_KEYS
     clean, sensitive = recursive_split(data, sensitive_keys=sensitive_keys)
     return clean, sensitive
+
+
+def flatten(list_of_dict):
+    """Converts a list of dictionary to a single dictionary. If 2 or more
+     dictionaries have the same key then the data from the last dictionary in
+     the list will be taken."""
+    result = {}
+    for d in list_of_dict:
+        result.update(d)
+    return result
 
 
 def merge_dictionary(dst, src, extend_lists=False):
@@ -566,7 +598,7 @@ def with_tenant(fxn):
     """A function decorator that ensures a context tenant_id is passed in to
     the decorated function as a kwarg"""
     def wrapped(*args, **kwargs):
-        if kwargs and kwargs.get('tenant_id'):
+        if kwargs.get('tenant_id'):
             # Tenant ID is being passed in
             return fxn(*args, **kwargs)
         else:
@@ -589,6 +621,19 @@ def support_only(types):
             raise abort(415, "Unsupported media type")
         return wrapped
     return wrap
+
+
+def only_admins(fxn):
+    """ Decorator to limit access to admins only """
+    def wrapped(*args, **kwargs):
+        if request.context.is_admin is True:
+            LOG.debug("Admin account '%s' accessing '%s'",
+                      request.context.username, request.path)
+            return fxn(*args, **kwargs)
+        else:
+            abort(403, "Administrator privileges needed for this "
+                  "operation")
+    return wrapped
 
 
 def get_time_string(time=None):
@@ -722,7 +767,7 @@ def check_all_output(params, find="ERROR"):
 
 def is_simulation(api_id):
     '''Determine if the current object is in simulation'''
-    return api_id.startswith('simulate')
+    return str(api_id).startswith('simulate')
 
 
 def shell_command(cmd, working_dir):
@@ -792,3 +837,13 @@ def copy_contents(source, dest, with_overwrite=False, create_path=True):
                                       "overwrite destination." % dest)
         else:
             shutil.copy(source_path, dest)
+
+
+def filter_resources(resources, provider_name):
+    """Return resources of a specified type"""
+    results = []
+    for resource in resources.values():
+        if 'provider' in resource:
+            if resource['provider'] == provider_name:
+                results.append(resource)
+    return results

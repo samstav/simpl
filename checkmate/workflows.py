@@ -10,9 +10,10 @@ import logging
 import os
 import uuid
 
-from SpiffWorkflow import Workflow as SpiffWorkflow, Task
+from SpiffWorkflow import Workflow as SpiffWorkflow, Task, Workflow
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate.common.tasks import update_operation
 from checkmate.db import (
     get_driver,
     any_id_problems,
@@ -21,15 +22,15 @@ from checkmate.db import (
 )
 from checkmate import orchestrator
 from checkmate.utils import (
-    write_body,
-    read_body,
     extract_sensitive_data,
-    merge_dictionary,
-    with_tenant,
+    formatted_response,
     is_simulation,
-    write_pagination_headers,
+    merge_dictionary,
+    read_body,
+    with_tenant,
+    write_body,
 )
-from checkmate.workflow import get_SpiffWorkflow_status
+from checkmate import workflow as wf_import  # TODO: rename
 
 DB = get_driver()
 SIMULATOR_DB = get_driver(connection_string=os.environ.get(
@@ -44,13 +45,8 @@ LOG = logging.getLogger(__name__)
 #
 @get('/workflows')
 @with_tenant
-def get_workflows(tenant_id=None, driver=DB):
-    offset = request.query.get('offset')
-    limit = request.query.get('limit')
-    if offset:
-        offset = int(offset)
-    if limit:
-        limit = int(limit)
+@formatted_response('workflows', with_pagination=True)
+def get_workflows(tenant_id=None, offset=None, limit=None, driver=DB):
     if 'with_secrets' in request.query:
         if request.context.is_admin is True:
             LOG.info("Administrator accessing workflows with secrets: %s",
@@ -61,14 +57,12 @@ def get_workflows(tenant_id=None, driver=DB):
         else:
             abort(403, "Administrator privileges needed for this operation")
     else:
-        results = driver.get_workflows(tenant_id=tenant_id, offset=offset,
-                                       limit=limit)
-    write_pagination_headers(results,
-                             request,
-                             response,
-                             "workflows",
-                             tenant_id)
-    return write_body(results, request, response)
+        results = driver.get_workflows(
+            tenant_id=tenant_id,
+            offset=offset,
+            limit=limit
+        )
+    return results
 
 
 def safe_workflow_save(obj_id, body, secrets=None, tenant_id=None, driver=DB):
@@ -166,8 +160,10 @@ def get_workflow(id, tenant_id=None, driver=DB):
         abort(404, 'No workflow with id %s' % id)
     if 'id' not in results:
         results['id'] = str(id)
-    assert tenant_id is None or tenant_id == results.get('tenant_id',
-                                                         tenant_id)
+    if tenant_id is not None and tenant_id != results.get('tenantId'):
+        LOG.warning("Attempt to access workflow %s from wrong tenant %s by "
+                    "%s", id, tenant_id, request.context.username)
+        abort(404)
     return write_body(results, request, response)
 
 
@@ -181,7 +177,8 @@ def get_workflow_status(id, tenant_id=None, driver=DB):
         abort(404, 'No workflow with id %s' % id)
     serializer = DictionarySerializer()
     wf = SpiffWorkflow.deserialize(serializer, entity)
-    return write_body(get_SpiffWorkflow_status(wf), request, response)
+    return write_body(wf_import.get_SpiffWorkflow_status(wf),
+                      request, response)
 
 
 @route('/workflows/<id>/+execute', method=['GET', 'POST'])
@@ -207,6 +204,57 @@ def execute_workflow(id, tenant_id=None, driver=DB):
     entity = driver.get_workflow(id)
     return write_body(entity, request, response)
 
+
+@route('/workflows/<id>/+pause', method=['GET', 'POST'])
+@with_tenant
+def pause_workflow(id, tenant_id=None, driver=DB):
+    """Process a checkmate deployment workflow
+
+    Pauses the workflow.
+    Updates the operation status to pauses when done
+
+    :param id: checkmate workflow id
+    """
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+    workflow = driver.get_workflow(id)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    dep_id = workflow["attributes"]["deploymentId"] or id
+    deployment = driver.get_deployment(dep_id)
+    operation = deployment.get("operation")
+
+    if (operation and operation.get('action') != "PAUSE" and
+            operation["status"] != "PAUSED"):
+        update_operation.delay(dep_id, driver=driver, action='PAUSE')
+    return write_body(workflow, request, response)
+
+
+@route('/workflows/<id>/+resume', method=['GET', 'POST'])
+@with_tenant
+def resume_workflow(id, tenant_id=None, driver=DB):
+    """Process a checkmate deployment workflow
+
+    Executes the workflow again
+
+    :param id: checkmate workflow id
+    """
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+    workflow = driver.get_workflow(id)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    dep_id = workflow["attributes"]["deploymentId"] or id
+    deployment = driver.get_deployment(dep_id)
+    operation = deployment.get("operation")
+    if operation and operation.get("status") == "PAUSED":
+        async_call = orchestrator.run_workflow.delay(id, timeout=1800,
+                                                     driver=driver)
+        LOG.debug("Executed a task to run workflow '%s'", async_call)
+        workflow = driver.get_workflow(id)
+    return write_body(workflow, request, response)
 
 #
 # Workflow Specs
@@ -328,7 +376,7 @@ def post_workflow_task(id, task_id, tenant_id=None, driver=DB):
         task._state = entity['state']
 
     # Save workflow (with secrets)
-    orchestrator.update_workflow_status(wf)
+    wf_import.update_workflow_status(wf)
     serializer = DictionarySerializer()
     body, secrets = extract_sensitive_data(wf.serialize(serializer))
     body['tenantId'] = workflow.get('tenantId', tenant_id)
@@ -384,7 +432,7 @@ def reset_workflow_task(id, task_id, tenant_id=None, driver=DB):
     task._state = Task.FUTURE
     task.parent._state = Task.READY
 
-    orchestrator.update_workflow_status(wf)
+    wf_import.update_workflow_status(wf)
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
@@ -452,7 +500,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
                                                       task.get_state_name()))
             task.task_spec._update_state(task)
 
-        orchestrator.update_workflow_status(wf)
+        wf_import.update_workflow_status(wf)
         serializer = DictionarySerializer()
         entity = wf.serialize(serializer)
         body, secrets = extract_sensitive_data(entity)

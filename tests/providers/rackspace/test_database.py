@@ -11,11 +11,13 @@ LOG = logging.getLogger(__name__)
 
 from checkmate import test
 from checkmate.exceptions import CheckmateException
-from checkmate.deployments import Deployment, resource_postback
+from checkmate.deployment import Deployment
+from checkmate.deployments import resource_postback
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import database
 from checkmate.test import StubbedWorkflowBase, ProviderTester
 from checkmate import utils
+from checkmate.middleware import RequestContext
 
 from celery.task import task
 
@@ -24,7 +26,9 @@ from celery.task import task
 class TestDatabase(ProviderTester):
     """ Test Database Provider """
 
-    klass = database.Provider
+    def setUp(self):
+        self.mox = mox.Mox()
+        self.deployment = self.mox.CreateMockAnything()
 
     def test_create_instance(self):
         #Mock instance
@@ -129,10 +133,10 @@ class TestDatabase(ProviderTester):
 
         expected = {
             'instance:1': {
-                'status': 'ERROR', 
-                'errmessage': 'Instance fake_instance_id build failed'
+                'status': 'ERROR',
+                'error-message': 'Instance fake_instance_id build failed'
                 }
-            } 
+            }
 
         expected_resource = {
             '0' : {
@@ -150,7 +154,7 @@ class TestDatabase(ProviderTester):
         #expect resource postback to be called
         resource_postback.delay(context['deployment'], expected)
 
-        self.mox.StubOutWithMock(database, 'get_resource_by_id')        
+        self.mox.StubOutWithMock(database, 'get_resource_by_id')
         database.get_resource_by_id(context['deployment'], context['resource'])\
                                     .AndReturn(expected_resource)
 
@@ -171,7 +175,7 @@ class TestDatabase(ProviderTester):
         )
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
-  
+
     def test_create_database(self):
         context = dict(deployment='DEP', resource='1')
 
@@ -219,6 +223,13 @@ class TestDatabase(ProviderTester):
         self.mox.VerifyAll()
 
     def test_template_generation_database(self):
+        self.deployment.get_setting('domain', default='checkmate.local',
+                                    provider_key='rackspace.database',
+                                    resource_type='database',
+                                    service_name='master'). \
+            AndReturn("test.checkmate")
+        self.deployment._constrained_to_one('master').AndReturn(True)
+
         catalog = {
             'database': {
                 'mysql_database': {
@@ -230,23 +241,22 @@ class TestDatabase(ProviderTester):
         provider = database.Provider({'catalog': catalog})
 
         #Mock Base Provider, context and deployment
-        deployment = self.mox.CreateMockAnything()
         context = self.mox.CreateMockAnything()
         context.kwargs = {}
 
-        expected = {
+        expected = [{
             'instance': {},
-            'dns-name': 'fake_name',
+            'dns-name': 'master.test.checkmate',
             'type': 'database',
             'provider': provider.key,
             'service': 'master',
-        }
+        }]
 
         self.mox.ReplayAll()
-        results = provider.generate_template(deployment, 'database', 'master',
-                                             context, name='fake_name')
+        results = provider.generate_template(self.deployment, 'database', 'master',
+                                             context, 1, provider.key, None)
 
-        self.assertDictEqual(results, expected)
+        self.assertListEqual(results, expected)
         self.mox.VerifyAll()
 
 
@@ -274,37 +284,171 @@ class TestDatabase(ProviderTester):
         provider = database.Provider({'catalog': catalog})
 
         #Mock Base Provider, context and deployment
-        deployment = self.mox.CreateMockAnything()
+        self.deployment.get_setting('domain', default='checkmate.local',
+                                    provider_key='rackspace.database',
+                                    resource_type='compute',
+                                    service_name='master')\
+            .AndReturn("test.domain")
+        self.deployment._constrained_to_one('master').AndReturn(True)
         context = self.mox.CreateMockAnything()
         context.kwargs = {}
 
-        deployment.get_setting('memory', resource_type='compute',
+        self.deployment.get_setting('memory', resource_type='compute',
                                service_name='master',
                                provider_key=provider.key).AndReturn(1025)
-        deployment.get_setting('disk', resource_type='compute',
+        self.deployment.get_setting('disk', resource_type='compute',
                                service_name='master',
                                provider_key=provider.key,
                                default=1).AndReturn(2)
-        deployment.get_setting('region', resource_type='compute',
+        self.deployment.get_setting('region', resource_type='compute',
                                service_name='master',
                                provider_key=provider.key).AndReturn('North')
-        expected = {
+        expected = [{
             'instance': {},
-            'dns-name': 'fake_name',
+            'dns-name': 'master.test.domain',
             'type': 'compute',
             'provider': provider.key,
             'service': 'master',
             'region': 'North',
             'disk': 2,
             'flavor': '2'
-        }
+        }]
 
         self.mox.ReplayAll()
-        results = provider.generate_template(deployment, 'compute', 'master',
-                                             context, name='fake_name')
+        results = provider.generate_template(self.deployment, 'compute', 'master',
+                                             context, 1, provider.key, None)
+
+        self.assertListEqual(results, expected)
+        self.mox.VerifyAll()
+
+    def test_db_sync_resource_task(self):
+        """Tests db sync_resource_task via mox"""
+        #Mock instance
+        instance = self.mox.CreateMockAnything()
+        instance.id = 'fake_instance_id'
+        instance.name = 'fake_instance'
+        instance.status = 'ERROR'
+
+        resource_key = "1"
+
+        context = dict(deployment='DEP', resource='1')
+
+        resource = {
+                    'name': 'fake_instance',
+                    'provider': 'database',
+                    'status': 'ERROR',
+                    'instance': {
+                                 'id': 'fake_instance_id'
+                            }
+                    }
+
+        database_api_mock = self.mox.CreateMockAnything()
+        database_api_mock.get_instance = self.mox.CreateMockAnything()
+
+        database_api_mock.get_instance(instance.id).AndReturn(instance)
+
+        expected = {
+                    'instance:1': {
+                                   "status": "ERROR"
+                                   }
+                    }
+
+        self.mox.ReplayAll()
+        results = database.sync_resource_task(context, resource, resource_key,
+                                             database_api_mock)
 
         self.assertDictEqual(results, expected)
+
+    def verify_limits(self, volume_size_used):
+        """Test the verify_limits() method"""
+        context = RequestContext()
+        resources = [
+            {'component': 'mysql_database',
+             'dns-name': 'backend01.wordpress.cldsrvr.com',
+             'hosted_on': '6',
+             'index': '5',
+             'instance': {},
+             'provider': 'database',
+             'relations': {'host': {'interface': 'mysql',
+                                    'name': 'compute',
+                                    'relation': 'host',
+                                    'requires-key': 'compute',
+                                    'state': 'planned',
+                                    'target': '6'},
+                           'master-backend-1': {'interface': 'mysql',
+                                                'name': 'master-backend',
+                                                'relation': 'reference',
+                                                'relation-key': 'backend',
+                                                'source': '1',
+                                                'state': 'planned'},
+                           'web-backend-3': {'interface': 'mysql',
+                                             'name': 'web-backend',
+                                             'relation': 'reference',
+                                             'relation-key': 'backend',
+                                             'source': '3',
+                                             'state': 'planned'}},
+             'service': 'backend',
+             'status': 'PLANNED',
+             'type': 'database'},
+            {'component': 'mysql_instance',
+             'disk': 1,
+             'dns-name': 'backend01.wordpress.cldsrvr.com',
+             'flavor': '1',
+             'hosts': ['5'],
+             'index': '6',
+             'instance': {},
+             'provider': 'database',
+             'region': 'ORD',
+             'service': 'backend',
+             'status': 'NEW',
+             'type': 'compute'}
+        ]
+        instance1 = self.mox.CreateMockAnything()
+        instance1.volume = {'size': volume_size_used}
+        instance2 = self.mox.CreateMockAnything()
+        instance2.volume = {'size': volume_size_used}
+        instances = [instance1, instance2]
+        self.mox.StubOutWithMock(database.Provider, 'connect')
+        cdb = self.mox.CreateMockAnything()
+        database.Provider.connect(mox.IgnoreArg()).AndReturn(cdb)
+        cdb.get_instances().AndReturn(instances)
+        self.mox.ReplayAll()
+        provider = database.Provider({})
+        result = provider.verify_limits(context, resources)
         self.mox.VerifyAll()
+        return result
+
+    def test_verify_limits_negative(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        result = self.verify_limits(100)  # Will be 200 total (2 instances)
+        self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
+
+    def test_verify_limits_positive(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        result = self.verify_limits(1)
+        self.assertEqual(result, [])
+
+    def test_verify_access_positive(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'identity:user-admin'
+        provider = database.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'dbaas:admin'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'dbaas:creator'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+
+    def test_verify_access_negative(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'dbaas:observer'
+        provider = database.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'NO-ACCESS')
 
 
 class TestCatalog(unittest.TestCase):
@@ -318,8 +462,6 @@ class TestCatalog(unittest.TestCase):
     def test_generation(self):
         provider = database.Provider({})
         context = self.mox.CreateMockAnything()
-        api = self.mox.CreateMockAnything()
-        flavors = self.mox.CreateMockAnything()
         flavor1 = self.mox.CreateMockAnything()
         flavor1.id = '1'
         flavor1.ram = 1024
@@ -341,6 +483,7 @@ class TestCatalog(unittest.TestCase):
             "name": "cloudDatabases",
             "type": "rax:database"
         }]
+        context.auth_token = "DUMMY_TOKEN"
         expected = {
             'compute': {
                 'mysql_instance': {
@@ -403,10 +546,9 @@ class TestCatalog(unittest.TestCase):
             }
         }
 
-        self.mox.StubOutWithMock(provider, '_connect')
-        provider._connect(context).AndReturn(api)
-        api.flavors = flavors
-        flavors.list_flavors().AndReturn([flavor1])
+        self.mox.StubOutWithMock(database, '_get_flavors')
+        database._get_flavors('https://north.databases.com/v1/55BB',
+                              'DUMMY_TOKEN').AndReturn([flavor1])
 
         self.mox.ReplayAll()
         results = provider.get_catalog(context)

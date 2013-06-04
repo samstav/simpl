@@ -1,3 +1,6 @@
+'''The Deployment class, the Resource class and functions
+for dealing with same.
+'''
 import collections
 import copy
 import logging
@@ -13,7 +16,7 @@ from checkmate.classes import ExtensibleDict
 from checkmate.common.fysom import Fysom, FysomError
 from checkmate.constraints import Constraint
 from checkmate.common import schema
-from checkmate.db import get_driver
+from checkmate.db import any_id_problems, get_driver
 from checkmate.db.common import ObjectLockedError
 from checkmate.environment import Environment
 from checkmate.exceptions import (
@@ -22,15 +25,17 @@ from checkmate.exceptions import (
     CheckmateValidationException,
 )
 from checkmate.inputs import Input
-from checkmate.providers import ProviderBase
+from checkmate.resource import Resource
 from checkmate.utils import (
-    merge_dictionary,
     get_time_string,
-    is_ssh_key,
     evaluate,
     is_evaluable,
-    match_celery_logging,
     is_simulation,
+    is_ssh_key,
+    match_celery_logging,
+    merge_dictionary,
+    read_path,
+    write_path,
 )
 
 LOG = logging.getLogger(__name__)
@@ -40,7 +45,7 @@ SIMULATOR_DB = get_driver(connection_string=os.environ.get(
     os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
 
 
-def verify_required_blueprint_options_supplied(deployment):
+def validate_blueprint_options(deployment):
     """Check that blueprint options marked 'required' are supplied.
 
     Raise error if not
@@ -58,7 +63,7 @@ def verify_required_blueprint_options_supplied(deployment):
                                                        "supplied" % key)
 
 
-def verify_inputs_against_constraints(deployment):
+def validate_input_constraints(deployment):
     """Check that inputs meet the option constraint criteria
 
     Raise error if not
@@ -97,8 +102,8 @@ def get_os_env_keys():
                 os.environ['CHECKMATE_PUBLIC_KEY']))):
         try:
             path = os.path.expanduser(os.environ['CHECKMATE_PUBLIC_KEY'])
-            with file(path, 'r') as fi:
-                key = fi.read()
+            with file(path, 'r') as f_input:
+                key = f_input.read()
             if is_ssh_key(key):
                 dkeys['checkmate'] = {'public_key_ssh': key,
                                       'public_key_path': path}
@@ -107,12 +112,12 @@ def get_os_env_keys():
                                       'public_key_path': path}
         except IOError as(errno, strerror):
             LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
-                      "'%s' environment variable (%s): %s" % (
-                      os.environ['CHECKMATE_PUBLIC_KEY'], errno, strerror))
+                      "'%s' environment variable (%s): %s",
+                      os.environ['CHECKMATE_PUBLIC_KEY'], errno, strerror)
         except StandardError as exc:
             LOG.error("Error reading public key from CHECKMATE_PUBLIC_KEY="
-                      "'%s' environment variable: %s" % (
-                      os.environ['CHECKMATE_PUBLIC_KEY'], exc))
+                      "'%s' environment variable: %s",
+                      os.environ['CHECKMATE_PUBLIC_KEY'], exc)
     return dkeys
 
 
@@ -180,35 +185,6 @@ def generate_keys(deployment):
     return copy.copy(dep_keys)
 
 
-class Resource():
-    def __init__(self, key, obj):
-        Resource.validate(obj)
-        self.key = key
-        self.dict = obj
-
-    @classmethod
-    def validate(cls, obj):
-        """Validate Schema"""
-        errors = schema.validate(obj, schema.RESOURCE_SCHEMA)
-        if errors:
-            raise CheckmateValidationException("Invalid resource: %s" %
-                                               '\n'.join(errors))
-
-    def get_settings(self, deployment, context, provider):
-        """Get all settings for this resource
-
-        :param deployment: the dict of the deployment
-        :param context: the current planning context
-        :param provider: the instance of the provider (subclasses ProviderBase)
-        """
-        assert isinstance(provider, ProviderBase)
-        component = provider.get_component(self.dict['component'])
-        if not component:
-            raise (CheckmateException("Could not find component '%s' in "
-                   "provider %s.%s's catalog" % (self.dict['component'],
-                   provider.vendor, provider.name)))
-
-
 class Deployment(ExtensibleDict):
     """A checkmate deployment.
 
@@ -224,6 +200,7 @@ class Deployment(ExtensibleDict):
         "ACTIVE": 'UP',
         'ERROR': 'FAILED',
         'DELETING': 'UP',
+        'LAUNCHED': 'UP',
     }
 
     def __init__(self, *args, **kwargs):
@@ -237,10 +214,15 @@ class Deployment(ExtensibleDict):
 
         if 'status' not in self:
             self['status'] = 'NEW'
-        else:
-            if self['status'] not in schema.DEPLOYMENT_STATUSES:
-                raise CheckmateValidationException("Invalid deployment status "
-                                                   "%s" % self['status'])
+        elif self['status'] in self.legacy_statuses:
+            ExtensibleDict.__setitem__(self, 'status',
+                                       self.legacy_statuses[self['status']])
+            self.fsm.current = self['status']
+
+        elif self['status'] not in schema.DEPLOYMENT_STATUSES:
+            raise CheckmateValidationException("Invalid deployment status "
+                                               "%s" % self['status'])
+
         if 'created' not in self:
             self['created'] = get_time_string()
 
@@ -250,7 +232,7 @@ class Deployment(ExtensibleDict):
                 value = self.legacy_statuses[value]
             if value != self.fsm.current:
                 try:
-                    LOG.warn("Deployment %s going from %s to %s",
+                    LOG.info("Deployment %s going from %s to %s",
                              self.get('id'), self.get('status'), value)
                     self.fsm.go_to(value)
                 except FysomError:
@@ -261,6 +243,10 @@ class Deployment(ExtensibleDict):
     @classmethod
     def inspect(cls, obj):
         errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
+        if 'id' in obj:
+            error = any_id_problems(obj['id'])
+            if error:
+                errors.append(error)
         errors.extend(schema.validate_inputs(obj))
         if 'blueprint' in obj:
             if not Blueprint.is_supported_syntax(obj['blueprint']):
@@ -338,7 +324,7 @@ class Deployment(ExtensibleDict):
         return results
 
     def get_setting(self, name, resource_type=None, service_name=None,
-                    provider_key=None, default=None):
+                    provider_key=None, relation=None, default=None):
         """Find a value that an option was set to.
 
         Look in this order:
@@ -357,80 +343,89 @@ class Deployment(ExtensibleDict):
                 compute, database)
         :param default: value to return if no match found
         """
-        result = None
+        if relation:
+            result = self._get_svc_relation_attribute(name, service_name,
+                                                      relation)
+            if result is not None:
+                LOG.debug(
+                    "Setting '%s' matched in _get_svc_relation_attribute", name
+                )
+                return result
         if service_name:
             result = (self._get_input_service_override(name, service_name,
                       resource_type=resource_type))
-            if result:
-                LOG.debug("Setting '%s' matched in _get_input_service_override"
-                          % name)
+            if result is not None:
+                LOG.debug(
+                    "Setting '%s' matched in _get_input_service_override", name
+                )
                 return result
 
             result = self._get_constrained_svc_cmp_setting(name, service_name)
-            if result:
+            if result is not None:
                 LOG.debug("Setting '%s' matched in "
-                          "_get_constrained_svc_cmp_setting" % name)
+                          "_get_constrained_svc_cmp_setting", name)
                 return result
 
         if provider_key:
             result = (self._get_input_provider_option(name, provider_key,
                       resource_type=resource_type))
-            if result:
-                LOG.debug("Setting '%s' matched in _get_input_provider_option"
-                          % name)
+            if result is not None:
+                LOG.debug(
+                    "Setting '%s' matched in _get_input_provider_option", name
+                )
                 return result
 
         result = (self._get_constrained_static_resource_setting(name,
                   service_name=service_name, resource_type=resource_type))
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in "
-                      "_get_constrained_static_resource_setting" % name)
+                      "_get_constrained_static_resource_setting", name)
             return result
 
         result = (self._get_input_blueprint_option_constraint(name,
                   service_name=service_name, resource_type=resource_type))
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in "
-                      "_get_input_blueprint_option_constraint" % name)
+                      "_get_input_blueprint_option_constraint", name)
             return result
 
         result = self._get_input_simple(name)
-        if result:
-            LOG.debug("Setting '%s' matched in _get_input_simple" % name)
+        if result is not None:
+            LOG.debug("Setting '%s' matched in _get_input_simple", name)
             return result
 
         result = self._get_input_global(name)
-        if result:
-            LOG.debug("Setting '%s' matched in _get_input_global" % name)
+        if result is not None:
+            LOG.debug("Setting '%s' matched in _get_input_global", name)
             return result
 
         result = (self._get_environment_provider_constraint(name, provider_key,
                   resource_type=resource_type))
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched in "
-                      "_get_environment_provider_constraint" % name)
+                      "_get_environment_provider_constraint", name)
             return result
 
         result = (self._get_environment_provider_constraint(name, 'common',
                   resource_type=resource_type))
-        if result:
+        if result is not None:
             LOG.debug("Setting '%s' matched 'common' setting in "
-                      "_get_environment_provider_constraint" % name)
+                      "_get_environment_provider_constraint", name)
             return result
 
         result = self._get_resource_setting(name)
-        if result:
-            LOG.debug("Setting '%s' matched in _get_resource_setting" % name)
+        if result is not None:
+            LOG.debug("Setting '%s' matched in _get_resource_setting", name)
             return result
 
         result = self._get_setting_value(name)
-        if result:
-            LOG.debug("Setting '%s' matched in _get_setting_value" % name)
+        if result is not None:
+            LOG.debug("Setting '%s' matched in _get_setting_value", name)
             return result
 
         LOG.debug("Setting '%s' unmatched with resource_type=%s, service=%s, "
-                  "provider_key=%s and returning default '%s'" % (name,
-                  resource_type, service_name, provider_key, default))
+                  "provider_key=%s and returning default '%s'", name,
+                  resource_type, service_name, provider_key, default)
         return default
 
     def _get_resource_setting(self, name):
@@ -463,9 +458,9 @@ class Deployment(ExtensibleDict):
                             result = self._apply_constraint(path, constraint,
                                                             option=option,
                                                             option_key=key)
-                            if result:
+                            if result is not None:
                                 LOG.debug("Found setting '%s' from constraint."
-                                          " %s=%s" % (path, key, result))
+                                          " %s=%s", path, key, result)
                                 return result
         return default
 
@@ -488,8 +483,8 @@ class Deployment(ExtensibleDict):
         inputs = self.inputs()
         if name in inputs:
             result = inputs[name]
-            LOG.debug("Found setting '%s' in inputs. %s=%s" %
-                      (name, name, result))
+            LOG.debug("Found setting '%s' in inputs. %s=%s",
+                      name, name, result)
             return result
 
     def _get_input_simple(self, name):
@@ -500,8 +495,8 @@ class Deployment(ExtensibleDict):
             # Direct, simple entry
             if name in blueprint_inputs:
                 result = blueprint_inputs[name]
-                LOG.debug("Found setting '%s' in inputs/blueprint. %s=%s" %
-                          (name, name, result))
+                LOG.debug("Found setting '%s' in inputs/blueprint. %s=%s",
+                          name, name, result)
                 return result
 
     def _get_input_blueprint_option_constraint(self, name, service_name=None,
@@ -526,9 +521,9 @@ class Deployment(ExtensibleDict):
                             result = self._apply_constraint(name, constraint,
                                                             option=option,
                                                             option_key=key)
-                            if result:
+                            if result is not None:
                                 LOG.debug("Found setting '%s' from constraint."
-                                          " %s=%s" % (name, name, result))
+                                          " %s=%s", name, name, result)
                                 return result
 
     def _get_constrained_static_resource_setting(self, name, service_name=None,
@@ -554,11 +549,41 @@ class Deployment(ExtensibleDict):
                             instance = self['resources'][key]['instance']
                             result = self._apply_constraint(name, constraint,
                                                             resource=instance)
-                            if result:
+                            if result is not None:
                                 LOG.debug("Found setting '%s' from constraint "
-                                          "in blueprint resource '%s'. %s=%s" %
-                                          (name, key, name, result))
+                                          "in blueprint resource '%s'. %s=%s",
+                                          name, key, name, result)
                                 return result
+
+    def _get_svc_relation_attribute(self, name, service_name, relation_to):
+        """Get a setting implied through a blueprint service attribute
+
+        :param name: the name of the setting
+        :param service_name: the name of the service being evaluated
+        :param relation_to: the name of the service ot which the service_name
+        is related
+        """
+        blueprint = self['blueprint']
+        if 'services' in blueprint:
+            services = blueprint['services']
+            service = services.get(service_name, None)
+            if service:
+                if 'relations' in service:
+                    relations = service['relations']
+                    for relation_key, relation in relations.iteritems():
+                        if (relation_key == relation_to or
+                                relation.get('service', None) == relation_to):
+                            attributes = relation.get('attributes', None)
+                            if attributes:
+                                for attrib_key, attribute \
+                                        in attributes.iteritems():
+                                    if attrib_key == name:
+                                        LOG.debug(
+                                            "Found setting '%s' as a service "
+                                            "attribute in service '%s'. %s=%s",
+                                            name, service_name,
+                                            name, attribute)
+                                        return attribute
 
     def _get_constrained_svc_cmp_setting(self, name, service_name):
         """Get a setting implied through a blueprint service constraint
@@ -579,8 +604,8 @@ class Deployment(ExtensibleDict):
                         if name == constraint['setting']:
                             result = self._apply_constraint(name, constraint)
                             LOG.debug("Found setting '%s' as a service "
-                                      "constraint in service '%s'. %s=%s"
-                                      % (name, service_name, name, result))
+                                      "constraint in service '%s'. %s=%s",
+                                      name, service_name, name, result)
                             return result
                 # Check constraints under component
                 if 'component' in service:
@@ -594,8 +619,8 @@ class Deployment(ExtensibleDict):
                                                                     constraint)
                                     LOG.debug("Found setting '%s' as a "
                                               "service comoponent constraint "
-                                              "in service '%s'. %s=%s" % (name,
-                                              service_name, name, result))
+                                              "in service '%s'. %s=%s", name,
+                                              service_name, name, result)
                                     return result
 
     @staticmethod
@@ -613,7 +638,7 @@ class Deployment(ExtensibleDict):
         if isinstance(constraints, list):
             constraint_list = constraints
         elif isinstance(constraints, dict):
-            LOG.warning("Constraints not a list: %s" % constraints)
+            LOG.warning("Constraints not a list: %s", constraints)
             for key, value in constraints.iteritems():
                 constraint_list.append({'setting': key,
                                         'value': value})
@@ -629,7 +654,8 @@ class Deployment(ExtensibleDict):
 
         return parsed
 
-    def constraint_applies(self, constraint, name, resource_type=None,
+    @staticmethod
+    def constraint_applies(constraint, name, resource_type=None,
                            service_name=None):
         """Checks if a constraint applies
 
@@ -652,8 +678,8 @@ class Deployment(ExtensibleDict):
             if resource_type is None or \
                     constraint['resource'] != resource_type:
                 return False
-        LOG.debug("Constraint '%s' for '%s' applied to '%s/%s'" % (
-                  constraint, name, service_name or '*', resource_type or '*'))
+        LOG.debug("Constraint '%s' for '%s' applied to '%s/%s'",
+                  constraint, name, service_name or '*', resource_type or '*')
         return True
 
     def _apply_constraint(self, name, constraint, option=None, resource=None,
@@ -684,11 +710,11 @@ class Deployment(ExtensibleDict):
         else:
             if option_key:
                 value = self._get_input_simple(option_key)
-            if (not value) and option and 'default' in option:
+            if value is None and option and 'default' in option:
                 value = option.get('default')
                 LOG.debug("Default setting '%s' obtained from constraint "
-                          "in blueprint input '%s': default=%s" % (
-                          name, option_key, value))
+                          "in blueprint input '%s': default=%s",
+                          name, option_key, value)
 
         # objectify the value it if it is a typed option
 
@@ -700,7 +726,7 @@ class Deployment(ExtensibleDict):
         if 'attribute' in constraint:
             attribute = constraint['attribute']
 
-            if value:
+            if value is not None:
                 result = None
                 if isinstance(value, Input):
                     if hasattr(value, attribute):
@@ -714,18 +740,18 @@ class Deployment(ExtensibleDict):
                                              "since value is of type %s" % (
                                              attribute, name,
                                              type(value).__name__))
-                if result:
-                    LOG.debug("Found setting '%s' from constraint. %s=%s" % (
-                              name, option_key or name, result))
+                if result is not None:
+                    LOG.debug("Found setting '%s' from constraint. %s=%s",
+                              name, option_key or name, result)
                     return result
 
-        if value:
-            LOG.debug("Found setting '%s' from constraint in blueprint "
-                      "input '%s'. %s=%s" % (name, option_key, option_key,
-                      value))
+        if value is not None:
+            LOG.debug("Found setting '%s' from constraint in blueprint input "
+                      "'%s'. %s=%s", name, option_key, option_key, value)
             return value
 
-    def _objectify(self, option, value):
+    @staticmethod
+    def _objectify(option, value):
         """Parse option based on type into an object of that type"""
         if 'type' not in option:
             return value
@@ -757,10 +783,9 @@ class Deployment(ExtensibleDict):
                     options = service_object[resource_type]
                     if name in options:
                         result = options[name]
-                        LOG.debug("Found setting '%s' as service "
-                                  "setting in blueprint/services/%s/%s'. %s=%s"
-                                  % (name, service_name, resource_type, name,
-                                  result))
+                        LOG.debug("Found setting '%s' as service setting "
+                                  "in blueprint/services/%s/%s'. %s=%s", name,
+                                  service_name, resource_type, name, result)
                         return result
 
     def _get_input_provider_option(self, name, provider_key,
@@ -783,10 +808,9 @@ class Deployment(ExtensibleDict):
                     options = provider[resource_type]
                     if options and name in options:
                         result = options[name]
-                        LOG.debug("Found setting '%s' as provider "
-                                  "setting in blueprint/providers/%s/%s'."
-                                  " %s=%s" % (name, provider_key,
-                                  resource_type, name, result))
+                        LOG.debug("Found setting '%s' as provider setting in "
+                                  "blueprint/providers/%s/%s'. %s=%s", name,
+                                  provider_key, resource_type, name, result)
                         return result
 
     def _get_environment_provider_constraint(self, name, provider_key,
@@ -811,8 +835,8 @@ class Deployment(ExtensibleDict):
                                            resource_type=resource_type):
                     result = self._apply_constraint(name, constraint)
                     LOG.debug("Found setting '%s' as a provider constraint in "
-                              "the environment for provider '%s'. %s=%s"
-                              % (name, provider_key, name, result))
+                              "the environment for provider '%s'. %s=%s",
+                              name, provider_key, name, result)
                     return result
 
     def get_components(self, context):
@@ -826,16 +850,16 @@ class Deployment(ExtensibleDict):
         services = self['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
             service_component = service['component']
-            LOG.debug("Identifying component '%s' for service '%s'" % (
-                      service_component, service_name))
+            LOG.debug("Identifying component '%s' for service '%s'",
+                      service_component, service_name)
             assert not isinstance(service_component, list)  # deprecated syntax
             component = self.environment().find_component(service_component,
                                                           context)
             if not component:
                 raise CheckmateException("Could not resolve component '%s'"
                                          % service_component)
-            LOG.debug("Component '%s' identified as '%s' for service '%s'" % (
-                      service_component, component['id'], service_name))
+            LOG.debug("Component '%s' identified as '%s' for service '%s'",
+                      service_component, component['id'], service_name)
             results[service_name] = component
         return results
 
@@ -862,6 +886,7 @@ class Deployment(ExtensibleDict):
                         return True
         return False
 
+    # pylint: disable=C0103
     @staticmethod
     def parse_source_URI(uri):
         """
@@ -884,47 +909,156 @@ class Deployment(ExtensibleDict):
             'query': parts.query,
             'fragment': parts.fragment,
         }
-        if parts.scheme in ['options', 'resources']:
+        if parts.scheme in ['options', 'resources', 'services']:
             result['path'] = os.path.join(parts.netloc.strip('/'),
                                           parts.path.strip('/')).strip('/')
         return result
 
-    def evaluator(self, parsed_url):
+    def evaluator(self, parsed_url, **kwargs):
         '''given a parsed source URI, evaluate and return the value'''
         if parsed_url['scheme'] == 'options':
             return self.get_setting(parsed_url['netloc'])
+        elif parsed_url['scheme'] == 'resources':
+            return read_path(self, 'resources/%s' % parsed_url['path'])
+        elif parsed_url['scheme'] == 'services':
+            return read_path(kwargs['services'], parsed_url['path'])
+        else:
+            raise CheckmateValidationException("display-output scheme not "
+                                               "supported: %s" %
+                                               parsed_url['scheme'])
         return None
+
+    def find_display_output_definitions(self):
+        '''Finds all display-output definitions'''
+        result = {}
+        if 'blueprint' not in self:
+            return result
+        # Get explicitly defined display-outputs
+        result.update(self['blueprint'].get('display-outputs', {}))
+
+        # Get options marked as outputs
+        options = self['blueprint'].get('options') or {}
+        marked = {
+            k: {
+                'type': o.get('type'),
+                'source': 'options://%s' % k,
+            }
+            for (k, o) in options.items()
+            if o.get('display-output') is True
+        }
+        if marked:
+            result.update(marked)
+
+        # Find definitions in services
+        if 'services' in self['blueprint']:
+            for key, service in self['blueprint']['services'].items():
+                if 'display-outputs' not in service:
+                    continue
+                for do_key, output in service['display-outputs'].items():
+                    if 'source' not in output:
+                        raise CheckmateValidationException("display-output "
+                                                           "without a source: "
+                                                           "%s" % do_key)
+                    definition = copy.deepcopy(output)
+                    # Target output to this service
+                    definition['source'] = 'services://%s/%s' % (key,
+                                                                 output
+                                                                 ['source'])
+                    result[do_key] = definition
+
+        for value in result.values():
+            # Mark password types as secrets unless already marked by author
+            if value.get('type') == 'password':
+                if 'is-secret' not in value:
+                    value['is-secret'] = True
+
+        return result
 
     def calculate_outputs(self):
         '''Parse display-outputs definitions and generate display-outputs'''
-        if 'blueprint' not in self:
-            return
-        definitions = self['blueprint'].get('display-outputs', {})
+        definitions = self.find_display_output_definitions()
         if not definitions:
             return
         results = {}
+        services = self.calculate_services()
         for name, definition in definitions.items():
             entry = {}
             if 'type' in definition:
                 entry['type'] = definition['type']
+            if definition.get('is-secret', False) is True:
+                entry['is-secret'] = True
+                entry['status'] = 'GENERATING'
+                results[name] = entry
             try:
                 parsed = Deployment.parse_source_URI(definition['source'])
-                value = self.evaluator(parsed)
+                value = self.evaluator(parsed, services=services)
                 if value is not None:
                     entry['value'] = value
                     results[name] = entry
-            except (KeyError, AttributeError):
-                pass
+                    if definition.get('is-secret', False) is True:
+                        entry['status'] = 'AVAILABLE'
+            except (KeyError, AttributeError) as exc:
+                LOG.debug("Error in display-output: %s in %s", exc, name)
+            if 'extra-sources' in definition:
+                for key, source in definition['extra-sources'].items():
+                    try:
+                        parsed = Deployment.parse_source_URI(source)
+                        value = self.evaluator(parsed, services=services)
+                        if value is not None:
+                            entry[key] = value
+                    except (KeyError, AttributeError) as exc:
+                        LOG.debug("Error in extra-sources: %s in %s", exc, key)
 
         return results
 
-    def create_resource_template(self, index, definition, service_name, domain,
+    def calculate_services(self):
+        '''Generates list of services with interfaces and output data'''
+        services = {}
+
+        # Populate services key in deployment
+        service_definitions = read_path(self, 'blueprint/services') or {}
+        for key, definition in service_definitions.iteritems():
+            services[key] = {}
+            # Write resource list for each service
+            resources = self.get('resources') or {}
+            resource_list = [index for index, r in resources.items()
+                             if 'service' in r and r['service'] == key]
+            services[key]['resources'] = resource_list
+            # Find primary resource
+            if resource_list:
+                primary = resource_list[0]  # default
+                for index, resource in resources.iteritems():
+                    if index not in resource_list:
+                        continue
+                    if 'hosts' in resource:
+                        continue
+                    primary = resource
+                    break
+            else:
+                primary = None
+            # Write interfaces for each service
+            component = definition.get('component')
+            if primary:
+                instance = primary.get('instance') or {}
+                interfaces = instance.get('interfaces')
+                if interfaces:
+                    output = interfaces.get(component['interface'])
+                else:
+                    output = {}
+            else:
+                output = {}
+            if component and 'interface' in component:
+                write_path(services[key],
+                           'interfaces/%s' % component['interface'],
+                           output)
+        return services
+
+    def create_resource_template(self, index, definition, service_name,
                                  context):
         """Create a new resource dict to add to the deployment
 
         :param index: the index of the resource within its service (ex. web2)
         :param definition: the component definition coming from the Plan
-        :param domain: the DNS domain to use for resource names
         :param context: RequestContext (auth token, etc) for catalog calls
 
         :returns: a validated dict of the resource ready to add to deployment
@@ -934,22 +1068,24 @@ class Deployment(ExtensibleDict):
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
         component = provider.get_component(context, definition['id'])
+        #TODO: Provider key can be used from withing the provider class. But
+        #if we do that then the planning mixin will start reading data
+        #from the child class
 
-        # If resource is constrained to 1, don't append a number to the name
-        if service_name:
-            if self._constrained_to_one(service_name):
-                name = "%s.%s" % (service_name, domain)
-            else:
-                name = "%s%02d.%s" % (service_name, index, domain)
-        else:
-            name = "resource%02d.%s" % (index, domain)
-
-        resource = provider.generate_template(self, component.get('is'),
-                                              service_name, context, name=name)
-        resource['component'] = definition['id']
-        resource['status'] = "NEW"
-        Resource.validate(resource)
-        return resource
+        resources = provider.generate_template(
+            self,
+            component.get('is'),
+            service_name,
+            context,
+            index,
+            provider.key,
+            definition
+        )
+        for resource in resources:
+            resource['component'] = definition['id']
+            resource['status'] = "NEW"
+            Resource.validate(resource)
+        return resources
 
     def on_resource_postback(self, contents, target=None):
         """Called to merge in contents when a postback with new resource data
@@ -1041,14 +1177,16 @@ class Deployment(ExtensibleDict):
                                               "yet supported: %s" % key)
 
 
-@task
+@task(default_retry_delay=0.3, max_retries=2)
 def update_operation(deployment_id, driver=DB, **kwargs):
-    '''Update the the operation in the deployment
-
-    :param deployment_id: the string ID of the deployment
-    :param driver: the backend driver to use to get the deployments
-    :param kwargs: the key/value pairs to write into the operation
     '''
+
+    DEPRECATED - will be removed around v0.14
+
+    Use checkmate.common.tasks.update_operation
+
+    '''
+    LOG.warn("DEPRECATED CALL: deployment.update_operation called")
     match_celery_logging(LOG)
     if kwargs:
         if is_simulation(deployment_id):
@@ -1062,10 +1200,18 @@ def update_operation(deployment_id, driver=DB, **kwargs):
             update_operation.retry()
 
 
-@task
+@task(default_retry_delay=1, max_retries=4)
 def update_deployment_status(deployment_id, new_status, error_message=None,
                              driver=DB):
-    """ Update the status of the specified deployment """
+    '''
+
+    DEPRECATED - will be removed around v0.14
+
+    Use update_deployment_status_new
+
+    '''
+    LOG.warn("DEPRECATED CALL: deployment.update_deployment_status called")
+
     match_celery_logging(LOG)
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
@@ -1074,7 +1220,7 @@ def update_deployment_status(deployment_id, new_status, error_message=None,
     if new_status:
         delta['status'] = new_status
     if error_message:
-        delta['error_message'] = error_message
+        delta['error-message'] = error_message
     if delta:
         try:
             driver.save_deployment(deployment_id, delta, partial=True)
@@ -1082,3 +1228,32 @@ def update_deployment_status(deployment_id, new_status, error_message=None,
             LOG.warn("Object lock collision in update_deployment_status on "
                      "Deployment %s", deployment_id)
             update_deployment_status.retry()
+
+
+def update_deployment_status_new(deployment_id, new_status, driver=DB):
+    '''Update the status of the specified deployment'''
+    # TODO: rename without _new
+
+    if is_simulation(deployment_id):
+        driver = SIMULATOR_DB
+
+    delta = {}
+    if new_status:
+        delta['status'] = new_status
+    if delta:
+        try:
+            driver.save_deployment(deployment_id, delta, partial=True)
+        except ObjectLockedError:
+            LOG.warn("Object lock collision in update_deployment_status on "
+                     "Deployment %s", deployment_id)
+            raise
+
+
+def get_status(deployment_id):
+    '''
+    Gets the deployment status by deployment id.
+    Protects against invalid types and key errors.
+    '''
+    deployment = DB.get_deployment(deployment_id)
+    if hasattr(deployment, '__getitem__'):
+        return deployment.get('status')

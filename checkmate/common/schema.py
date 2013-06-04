@@ -134,6 +134,16 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       sftp:
       https:
       ldap:
+      vip:
+         fields:
+           ip:
+             type: string
+             required: true
+           private_ip:
+             type: string,
+             required: false
+           public_ip:
+             type: string
       ldaps:
       smtp:
       pop3:
@@ -167,12 +177,6 @@ RESOURCE_TYPES = [
     'widget', 'gadget',  # last two for testing
 ]
 
-RESOURCE_SCHEMA = [
-    'id', 'index', 'name', 'provider', 'relations', 'hosted_on', 'hosts',
-    'type', 'component', 'dns-name', 'instance', 'flavor', 'image', 'disk',
-    'region', 'service', 'status',
-]
-
 BLUEPRINT_SCHEMA = [
     'id', 'name', 'services', 'options', 'resources', 'meta-data',
     'description', 'display-outputs', 'documentation', 'version',
@@ -181,8 +185,9 @@ BLUEPRINT_SCHEMA = [
 DEPLOYMENT_SCHEMA = [
     'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
     'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
-    'error_messages', 'live', 'plan', 'operations-history',
-    'errmessage',  # to be deprecated
+    'error-messages', 'live', 'plan', 'operations-history', 'created-by',
+    'secrets',
+    'error-message',  # to be deprecated
     'includes',  # used to place YAML-referenced parts but then removed
 ]
 
@@ -276,6 +281,7 @@ OPTION_SCHEMA = [
     'constrains',
     'constraints',
     'display-hints',
+    'display-output',
 ]
 
 # Add parts used internally by providers, but not part of the public schema

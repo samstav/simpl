@@ -206,6 +206,7 @@ Note: this is the schema that is being supported in v0.7 of the engine. The sche
 
 **....encrypted-protocols**: The subset of protocols that are encrypted so that we know when to show ssl cert controls. Ex. [https, pop3s]
 **....always-accept-certificates**: if a blueprint always accepts and handles the certificates (especially if the url is entered in free-form supporting any protocol)
+**....default-protocol**: The default protocol to display to the user. If not supplied, clients should default to an unencrypted protocol since it is the simpler option for the user and does not present certificate options which could deter a user from launching the blueprint.
 
 **default**: The default value to use. YAML will assume numbers are ints, so enclose strings in "quotation marks" as a best practice. Special values for this are `=generate_password()` which will generate a random password on the server. We are considering adding parameters to `generate_password()` so the blueprint author can make the password generated match their (or their application's) requirements. This would be used by the blueprint author in tandem with constraints (below) for validation on the client side.
 **type**: the data type of this option. Valid types are: string, integer, boolean, password, url, region, and text (multi-line string). See later for a description of the `url` type which has some special attributes.
@@ -222,17 +223,18 @@ choice:
 **constrains**: a list of mappings that are used as a way to set or limit aspects of the blueprint with the value (or parts of) the option.
 **required**: true/false. Set to true if this option must be supplied by the user.
 **constraints**: an array of mappings (key/value pairs) in the standard Checkmate constraints syntax. Supported constraints are:
-* _greater-than_: self-explanatory
-* _less-than_: self-explanatory
-* _greater-than-or-equal-to_: self-explanatory
-* _less-than-or-equal-to_: self-explanatory
-* _min-length_: for strings
-* _max-length_: for strings
-* _allowed-chars_: Ex. "ABCDEFGabcdefg01234565789!&@"- self-explanatory [TODO: see if regex can be used]
-* _required-chars_: Ex. "ABCDEFG" - self-explanatory [TODO: see if regex can be used]
+* _greater-than_: self-explanatory (for strings or integers)
+* _less-than_: self-explanatory (for strings or integers)
+* _greater-than-or-equal-to_: self-explanatory (for strings or integers)
+* _less-than-or-equal-to_: self-explanatory (for strings or integers)
+* _min-length_: for strings or text
+* _max-length_: for strings or text (including URLs)
+* _allowed-chars_: for strings and text types. Ex. "ABCDEFGabcdefg01234565789!&@"
+* _required-chars_: for strings and text types. Ex. "ABCDEFG"
 * _in_: a list of acceptable values (these could also be used by clients to display drop-downs)
-* _protocols_: unique to URL types. This lists allowed protocols in the URL.
+* _protocols_: unique to URL types. This lists allowed protocols in the URL. See also display-hints for `encrypted-protocols`
 * _regex_: do not use look-forward/behind. Keep these simple so they are supported in javascript (client) and python (server). While many of the above can also be written as regex rules, both are available to blueprint authors to use the one that suits them best.
+
 
 **....message**: you can add a message key/value pair to any of these constraints. Always add a message to regex constraints so it is easy to understand what they do when read and so clients (rook, etc) and the server can generate useful error messages and people reading the blueprint don't have to decipher the regexs. Ex. "must have 8-16 characters"
 
@@ -294,7 +296,7 @@ It is useful, however, to be able to handle different parts of a URL (i.e the sc
 * port: this is the port if specified (e.g. the port in http://localhost:8080 is 8080)
 * path: the path of the resource or file
 * private_key: the private_key of a certificate to use if the protocol is an encrypted one
-* public_key: the public_key of a certificate to use if the protocol is an encrypted one
+* certificate: the public_key of a certificate to use if the protocol is an encrypted one
 * intermediate_key: the intermediate key chain of a certificate to use if the protocol is an encrypted one
 
 These attributes can be specified in constraints:
@@ -348,12 +350,161 @@ inputs:
       -----  BEGIN ...
     intermediate_key: |
       -----  BEGIN ...
-    public_key: |
+    certificate: |
       -----  BEGIN ...
 ```
 
 Note:  A common use case is to supply the url and keys. A shortcut is available that accepts a key called `url` that can be used to supply the url without having to provide all the components of the url.
 
+
+Display Outputs
+===============
+
+Display outputs is how a blueprint author determines what information to provide to the end user to be able to use the deployment (credentials, urls, etc).
+
+Display outputs can be specified in three ways:
+
+1 - under a component in blueprint services
+```yaml
+
+service:
+    database:
+    component:
+      display-outputs:
+        "Password":
+          label:"blah"
+          order: 1
+          source: mysql://passwd
+```
+
+2 - in a blueprint option by setting `display-output` to the boolean value `true`
+```yaml
+options:
+    "AdminUser":
+       display-output: true
+```
+
+3 - as a map _under the blueprint_
+
+```yaml
+
+blueprint:
+  display-outputs: # used to return outputs that the client (Rook, Pawn, Reach) will display to the end-user
+    "Site Address":
+      type: url
+      source: options://url
+      extra-sources:
+        ipv4: "resources://instance/vip?resource.service=lb&type=resource.load-balancer"
+      order: 1
+      group: application
+    "Admin Username":
+      type: string
+      source: options://username
+      order: 2
+      group: application
+    "Admin Password":
+      type: password
+      source: options://password
+      order: 3
+      group: application
+    "Private Key":
+      type: private-key
+      source: "resources://instance/private_key?resource.index=deployment-keys"
+      order: 4
+      group: application
+    "Database Username":
+      source: options://db_username
+      order: 5
+      group: database
+    "Database Password":
+      type: password
+      source: options://db_password
+      order: 6
+      group: database
+    "Database Host":
+      source: "resources://instance/interfaces/mysql/host?resource.service=db&resource.type=compute"
+      order: 7
+      group: database
+```
+
+### Syntax
+
+display-outputs.**source**: use this to specify where the data will come from. Use cases identified so far are under options and resources. I'm proposing using the same URL syntax we are using in the Chefmap with additional enhancements as per discussions on the networking pull request.
+
+The syntax would be:
+
+    {root}://{path}
+
+    root = "options" | "resources" | "services"
+    path = [/keys]/result (ends with value to return)
+
+Examples:
+
+    # Get the value of the 'url' option
+    source: options://url
+
+    # Get the private_key of the 'url' option
+    source: options://url/private_key
+
+    # Get the private_key of the deployment keys
+    source: "resources://deployment-keys/instance/private_key"
+
+    # Get the database password
+    source: "services://db/interfaces/mysql/datebase_password"
+
+
+- display-outputs.**extra-sources**: for some types, like URLs, we need to provide additional information like the IP address so that the UI can display things like scripts to set up /etc/hosts. This is a map of key/value where value follows the same syntax as source.
+
+- display-outputs.**type**: string, integer, url, boolean (same as options)
+- display-outputs.**label**: used by clients and overrides the key the display outputs is created under
+- display-outputs.**order**: for display ordering
+- display-outputs.**group**: for display option grouping
+- display-outputs.**is-secret**: boolean to mark this as a protected piece of data
+
+
+When the deployment runs, new map _on the deployemnt_ where the actual display-outputs will be stored is created. These will be used by the client (Rook, Pawn, Reach) to display to the end-user.
+
+
+```yaml
+# under deployment
+display-outputs:
+  Site Address:
+    type: url
+    uri: http://example.com/
+    extra-info:
+      ipv4: 4.4.4.204
+    order: 1
+    group: application
+  Admin Username:
+    type: string
+    value: john
+    order: 2
+    group: application
+  Admin Password:
+    type: password
+    value: w34ot8how87h34t
+    order: 3
+    group: application
+  Private Key:
+    type: private-key
+    value: |
+      -----BEGIN RSA PRIVATE KEY-----
+      MIIEpAIBAAKCAQEAu1R+vwvUR3o5rQa6ny79OlhLT2qWYY0xKVg5bxW0DGKhn/6e
+      gI8yWSf9kUmbEWdO1xuQiEiMnAA2wY0w+TXHCNkCX305shCGL/ejt4XrPLloK7c6
+      anCS2MTdcDUjppeHhhNi7TdotN9E5wxY8x1IBtioCldNVIkJVwZMhiMORteGpOZ2
+      DV+OZ2GquZKrrrRN9tJtIwMMbqjVno1k3Lz3iJfvRZn4D5xZFSd/lgTp+H0bpc4o
+      9kS9Z4k44l9chMvZItGjAgwQ07ORny5cPnKCAPewO+F20ng+WT19KerGWQq/58T3
+      -----END RSA PRIVATE KEY-----
+    order: 4
+    group: application
+```
+
+Additional Information:
+
+- We identify and separate sensitive data (passwords, private keys) from non-sensitive data so a client can choose to handle them differently.
+- There is an API to destroy sensitive data so future clients can be prevented from accessing the data.
+- Destruction of sensitive data does not block Checkmate from accessing the resources itself for future operations. Ther only way to completely remove sensitive data from checkmate is to delete the deployment.
+- Given we are looking to having blueprints become components that can be included in other blueprints, the keyword `outputs` will probably be used for generating the outputs in that case. So the key for this is called `display-outputs` and is optional.
 
 
 Deployments
@@ -398,6 +549,8 @@ Deployment States
 
 ### The philosophy behind Deployments and Operations:
 
+An operation is a process that runs against a deployment that takes it from one state to another. Deploy, Add Node, Delete are examples of operations. An operation is executed by some mechanism like a workflow or celery canvas.
+
 - __Deployment Status__ is the deployment's _desired state_.
 - An __Operation__ will be started if a deployment's _actual state_ does not match its _desired state_.
 - __Operation Status__ is the _current state_ of the operation being performed on the deployment.
@@ -438,6 +591,141 @@ The operation will be created by the Workflow or Canvas generation code. It will
 A __LIVE__ boolean will be updated by the Workflow or Canvas to indicate whether or not the _actual deployment_ is supposed to be __UP__ (true) or not (false).
 
 ![deployment-with-operations.png](https://github.rackspace.com/checkmate/checkmate/raw/master/docs/figures/deployment-with-operations.png)
+
+Deployment Resources
+====================
+
+### The Resource Status will be one of:
+
+- __PLANNED:__ not started (can go to __NEW__)
+- __NEW:__ starting to build (can go to __BUILD__, __ERROR__)
+- __BUILD:__ resource is being built (can go to __CONFIGURE__, __ERROR__)
+- __CONFIGURE:__ resource is being configured (can go to __ACTIVE__, __ERROR__)
+- __ACTIVE:__ resource is configured and ready for use (can go to __DELETING__, __ERROR__)
+- __DELETING:__ resource is being deleted (can go to __DELETED__, __ERROR__)
+- __DELETED:__ deployment has been deleted
+- __ERROR:__ there was an error working on this resource
+
+![deployment-with-operations.png](https://github.rackspace.com/checkmate/checkmate/raw/master/docs/figures/resource-status.png)
+
+### Executed Deployments will have many resources, referenced by id in the Deployment document. For example:
+
+```
+{
+    _id: "9e9af930188",
+    blueprint: { ... }
+    .
+    .
+    .
+    resources: {
+        "0": {
+            status: "DELETED",
+            index: "0",
+            service: "lb"
+            .
+            .
+            .
+        }
+        "1": {
+            status: "ACTIVE"
+            index: "1",
+            hosted_on: "2"
+            service: "master",
+            .
+            .
+            .
+        }
+        "2": { ... }
+    }
+}
+```
+
+### The data structure for Deployment Resources is:
+
+```
+"<id>": {
+    index: "<id>",
+    name: "<resource_name>",
+    provider: "<provider_name>",
+    relations: {
+        "<related_to>": {
+            name: "<name>",
+            state: "<state>",
+            requires-key: "<key_name>",
+            relation: "<relation_type>",
+            interface: "<interface_type>",
+            relation-key: "<key>",
+            target: "<id>"
+        },
+        "<related_to>": { ... }
+    }
+    hosted_on: "<id>",
+    hosts: [ "<id1>", "<id2>", ... <idn>" ],
+    type: "<resource_type>",
+    component: "<component_name>",
+    dns-name: "<url>"
+    service: "<service_name>",
+    status: "<resource_status>",
+    status-message: "<checkmate_message>"
+    ip: "<resource_IP_address>",
+    instance: {
+        flavor: <flavor_id>,
+        image: "<uuid>",
+        disk: <disk_id>,
+        protocol: "<protocol_name>",
+        port: <port_number>,
+        status: "<remote_status>",
+        username: "<username>",
+        password: "<password>",
+        name: "<instance_name>",
+        id: "<instance_id>",
+        region: "<region>",
+        databases: {
+            "<database_name>": "<database>"
+        }
+        status-message: "<instance_message>",
+        addresses: {
+            "<name>": [
+                {
+                    "version": <version_number>,
+                    "addr": "<IP_address>"
+                },
+                {
+                    "version": <version_number>,
+                    "addr": "<IP_address>"
+                }
+            ],
+            "<name>": [
+                {
+                    "version": <version_number>,
+                    "addr": "<IP_address>"
+                }
+            ]
+        },
+        public_ip: "<preferred_public_IP_address>",
+        private_ip: "<preferred_private_IP_address>",
+        progress: <percent_complete>,
+        interfaces: {
+            "<interface_name>": { "host": "<url>" },
+            "<interface_name>": { "host": "<url>" },
+        },
+        domain_id: "<domain_id>",
+        record_id: "<domain_record_id>"
+    },
+    desired-state: {
+        region: "<region>",
+        flavor: <id>,
+        image: "<uuid>",
+        disk: <disk_id>,
+        protocol: "<protocol_name>",
+        port: <port_number>,
+        status: "<remote_status>",
+        databases: {
+            "<database_name>": "<database>"
+        }
+    }
+}
+```
 
 Schema History
 ==============

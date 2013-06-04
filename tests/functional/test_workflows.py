@@ -1,12 +1,14 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import unittest2 as unittest
+import mox
 
 from SpiffWorkflow import Workflow as SpiffWorkflow
 from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge
 
-from checkmate.workflow import wait_for, Workflow
-
+import checkmate
+from checkmate.workflow import wait_for, Workflow, update_workflow_status
+from checkmate.deployment import Deployment
 
 class TestWorkflowTools(unittest.TestCase):
     def test_simple_wait_for(self):
@@ -134,6 +136,7 @@ class TestWorkflowTools(unittest.TestCase):
 
 class TestWorkflow(unittest.TestCase):
     """Test Checkmate Workflow class"""
+    mox = mox.Mox()
     def test_instantiation(self):
         workflow = Workflow()
         self.assertDictEqual(workflow._data, {})
@@ -154,6 +157,29 @@ class TestWorkflow(unittest.TestCase):
         # Deserialize from Checkmate Workflow (dict)
         new = SpiffWorkflow.deserialize(serializer, workflow)
         self.assertIsInstance(new, SpiffWorkflow)
+
+    def test_workflow_error(self):
+        wf_spec = WorkflowSpec(name="Test")
+        A = Simple(wf_spec, 'A')
+        wf_spec.start.connect(A)
+        workflow = SpiffWorkflow(wf_spec)
+
+        # Serialize into Checkmate Workflow (dict)
+        deployment = Deployment()
+        deployment['status'] = 'FAILED'
+        deployment['id'] = 'fjawekfjawekjfgasjdga'
+        workflow.attributes['deploymentId'] = deployment['id']
+
+        self.mox.StubOutWithMock(checkmate.workflow, 'get_status')
+        checkmate.workflow.get_status('fjawekfjawekjfgasjdga').\
+                            AndReturn('FAILED')
+
+        self.mox.ReplayAll()
+        update_workflow_status(workflow)
+        self.mox.UnsetStubs()
+        self.mox.VerifyAll()
+
+        assert workflow.attributes['status'] == 'FAILED'
 
 
 if __name__ == '__main__':

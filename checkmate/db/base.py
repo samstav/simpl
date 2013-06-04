@@ -99,12 +99,28 @@ class DbBase(object):  # pylint: disable=R0921
         '''
         raise NotImplementedError()
 
+    # TENANTS
+    def save_tenant(self, tenant):
+        raise NotImplementedError()
+
+    def list_tenants(self, *args):
+        raise NotImplementedError()
+
+    def get_tenant(self, tenant_id):
+        raise NotImplementedError()
+
+    def add_tenant_tags(self, tenant_id, *args):
+        raise NotImplementedError()
+
+    def remove_tenant_tags(self, tenant_id, *args):
+        raise NotImplementedError()
+
     # DEPLOYMENTS
     def get_deployment(self, api_id, with_secrets=None):
         raise NotImplementedError()
 
     def get_deployments(self, tenant_id=None, with_secrets=None,
-                        limit=None, offset=None):
+                        limit=None, offset=None, with_deleted=False):
         raise NotImplementedError()
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
@@ -142,4 +158,52 @@ class DbBase(object):  # pylint: disable=R0921
         raise NotImplementedError()
 
     def unlock_object(self, klass, api_id, key):
+        raise NotImplementedError()
+
+    #
+    # Data conversion helper
+    # TODO(zns): remove this when we're done
+    #
+    legacy_statuses = {  # TODO: remove these when old data is clean
+        "BUILD": 'UP',
+        "CONFIGURE": 'UP',
+        "ACTIVE": 'UP',
+        'ERROR': 'FAILED',
+        'DELETING': 'UP',
+        'LAUNCHED': 'UP',
+    }
+
+    def convert_data(self, klass, data):
+        if klass == 'deployments':
+            if 'errmessage' in data:
+                data['error-message'] = data.pop('errmessage')
+            if 'status' in data:
+                if data['status'] in self.legacy_statuses:
+                    data['status'] = self.legacy_statuses[data['status']]
+            if 'resources' in data and isinstance(data['resources'], dict):
+                self.convert_data('resources', data['resources'])  # legacy
+        elif klass == 'resources':
+            for _, resource in data.items():
+                if 'errmessage' in data:
+                    resource['error-message'] = resource.pop('errmessage')
+                if 'statusmsg' in resource:
+                    resource['status-message'] = resource.pop('statusmsg')
+                if 'instance' in resource and isinstance(resource['instance'],
+                                                         dict):
+                    instance = resource['instance']
+                    if 'statusmsg' in instance:
+                        instance['status-message'] = instance.pop('statusmsg')
+                    if 'status_msg' in instance:
+                        instance['status-message'] = instance.pop('status_msg')
+
+    def lock(self, key, timeout):
+        raise NotImplementedError()
+
+    def unlock(self, key):
+        raise NotImplementedError()
+
+    def acquire_lock(self, key, timeout):
+        raise NotImplementedError()
+
+    def release_lock(self, key):
         raise NotImplementedError()

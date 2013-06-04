@@ -16,6 +16,21 @@ class Provider(ProviderBase):
     name = 'dns'
     vendor = 'rackspace'
 
+    def verify_limits(self, context, resources):
+        # TODO: See if DNS record can be created.  3-step process.
+        # Check:
+        # 1. The user's absolute limits (/limits)
+        # 2. If the domain they need is there already, get the number
+        #    of records on that domain and make sure they don't exceed
+        #    the limit
+        # 3. If the domain they are going to create isn't there, then
+        #    check the number of domains they have against the limit
+        pass
+
+    def verify_access(self, context):
+        # TODO: Check RBAC access
+        pass
+
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         inputs = deployment.get('inputs', {})
@@ -72,7 +87,7 @@ class Provider(ProviderBase):
                                  "'%s'" % resource)
 
     @staticmethod
-    def _connect(context):
+    def connect(context):
         """Use context info to connect to API and return api object"""
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
@@ -117,13 +132,13 @@ from clouddns.errors import UnknownDomain, ResponseError, InvalidDomainName
 
 
 def _get_dns_object(context):
-    return Provider._connect(context)
+    return Provider.connect(context)
 
 
 def parse_domain(domain_str):
     """Return 'domain.com' for 'sub2.sub1.domain.com' """
-    extractor = tldextract.TLDExtract(cache_file=os.environ.get(
-                                            'CHECKMATE_TLD_CACHE_FILE', None))
+    extractor = tldextract.TLDExtract(
+        cache_file=os.environ.get('CHECKMATE_TLD_CACHE_FILE', None))
     domain_data = extractor(domain_str)
     return '%s.%s' % (domain_data.domain, domain_data.tld)
 
@@ -219,16 +234,18 @@ def create_record(context, domain, name, dnstype, data,
                 email = "admin@%s" % domain
             domain_object = api.create_domain(domain, 300, emailAddress=email)
         else:
-            msg = ('Cannot create %s record (%s->%s) because domain "%s" '
-                      'does not exist.' % (
-                      dnstype, name, data, domain))
+            msg = (
+                'Cannot create %s record (%s->%s) because domain "%s" '
+                'does not exist.' % (
+                dnstype, name, data, domain)
+            )
             LOG.error(msg)
             raise CheckmateException(msg)
 
     try:
         rec = domain_object.create_record(name, data, dnstype, ttl=rec_ttl)
         LOG.debug('Created DNS %s record %s -> %s. TTL: %s' % (
-              dnstype, name, data, rec_ttl))
+            dnstype, name, data, rec_ttl))
     except ResponseError as res_err:
         if "duplicate of" not in res_err.reason:
             create_record.retry(exc=res_err)

@@ -24,8 +24,13 @@ def get_blueprints(tenant_id=None):
     """
     Returns blueprints for given tenant ID
     """
-    return write_body(DB.get_blueprints(tenant_id=tenant_id), request,
-                      response)
+    return write_body(
+        DB.get_blueprints(
+            tenant_id=tenant_id
+        ),
+        request,
+        response
+    )
 
 
 @post('/blueprints')
@@ -50,24 +55,25 @@ def post_blueprint(tenant_id=None):
     return write_body(results, request, response)
 
 
-@put('/blueprints/<b_id>')
+@put('/blueprints/<api_id>')
 @with_tenant
-def put_blueprint(b_id, tenant_id=None):
+def put_blueprint(api_id, tenant_id=None):
     """
     TODO: docstring
     """
+    assert tenant_id
     entity = read_body(request)
     if 'blueprint' in entity:
         entity = entity['blueprint']
 
-    if any_id_problems(b_id):
-        abort(406, any_id_problems(b_id))
+    if any_id_problems(api_id):
+        abort(406, any_id_problems(api_id))
     if 'id' not in entity:
-        entity['id'] = str(b_id)
+        entity['id'] = str(api_id)
 
-    existing = DB.get_blueprint(b_id)
+    existing = DB.get_blueprint(api_id)
     body, secrets = extract_sensitive_data(entity)
-    results = DB.save_blueprint(b_id, body, secrets, tenant_id=tenant_id)
+    results = DB.save_blueprint(api_id, body, secrets, tenant_id=tenant_id)
     if existing:
         response.status = 200  # OK - updated
     else:
@@ -75,15 +81,19 @@ def put_blueprint(b_id, tenant_id=None):
     return write_body(results, request, response)
 
 
-@get('/blueprints/<b_id>')
+@get('/blueprints/<api_id>')
 @with_tenant
-def get_blueprint(b_id, tenant_id=None):
+def get_blueprint(api_id, tenant_id=None):
     """
     TODO: docstring
     """
-    entity = DB.get_blueprint(b_id)
+    entity = DB.get_blueprint(api_id)
     if not entity:
-        abort(404, 'No blueprint with id %s' % b_id)
+        abort(404, 'No blueprint with id %s' % api_id)
+    if tenant_id is not None and tenant_id != entity.get('tenantId'):
+        LOG.warning("Attempt to access blueprint %s from wrong tenant %s by "
+                    "%s", api_id, tenant_id, request.context.username)
+        abort(404)
     return write_body(entity, request, response)
 
 

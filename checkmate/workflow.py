@@ -12,17 +12,19 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
+from checkmate.db import get_driver
+from checkmate.deployment import get_status
 from checkmate.exceptions import CheckmateException
 from checkmate.utils import (
     get_time_string,
+    extract_sensitive_data,
 )
 
-
+DB = get_driver()
 LOG = logging.getLogger(__name__)
 
 
 def update_workflow_status(workflow):
-    """Update workflow object with progress"""
     total = len(workflow.get_tasks(state=Task.ANY_MASK))
     completed = len(workflow.get_tasks(state=Task.COMPLETED))
     if total is not None and total > 0:
@@ -35,10 +37,76 @@ def update_workflow_status(workflow):
 
     if workflow.is_completed():
         workflow.attributes['status'] = "COMPLETE"
-    elif completed == 0:
+    elif workflow.attributes['completed'] == 0:
         workflow.attributes['status'] = "NEW"
     else:
-        workflow.attributes['status'] = "IN PROGRESS"
+        if get_status(workflow.attributes['deploymentId']) == 'FAILED':
+            workflow.attributes['status'] = "FAILED"
+        else:
+            workflow.attributes['status'] = "IN PROGRESS"
+
+
+def update_workflow(d_wf, tenant_id, status=None, driver=DB):
+    '''
+    Updates the workflow status, and saves the workflow. Worflow status
+    can be overriden by providing a custom value for the 'status' parameter.
+
+    :param d_wf: De-serialized workflow
+    :param tenant_id: Tenant Id
+    :param status: A custom value that can be passed, which would be set
+        as the workflow status. If this value is not provided, the workflow
+        status would be set with regard to the current statuses of the tasks
+        associated with the workflow.
+    :param driver: DB driver
+    :return:
+    '''
+
+    update_workflow_status(d_wf)
+    if status:
+        d_wf.attributes['status'] = status
+
+    serializer = DictionarySerializer()
+    updated = d_wf.serialize(serializer)
+    w_id = d_wf.attributes["id"]
+    body, secrets = extract_sensitive_data(updated)
+    body['tenantId'] = tenant_id
+    body['id'] = w_id
+    driver.save_workflow(w_id, body, secrets=secrets)
+
+
+def get_failed_tasks(workflow):
+    '''
+    Traverses through the workflow-tasks, and collects errors information from
+    all the failed tasks
+    :param workflow: The workflow to get the tasks from
+    :return: List of error information
+    '''
+    results = []
+    tasks = workflow.get_tasks()
+    while tasks:
+        task = tasks.pop(0)
+        if is_failed_task(task):
+            task_state = task._get_internal_attribute("task_state")
+            results.append({
+                "error_message": task_state["info"],
+                "error_traceback": task_state["traceback"]})
+    return results
+
+
+def is_failed_task(task):
+    '''
+    Checks whether a task has failed by checking the task_state dict in
+    internal attribs. The format of task_state is
+    task_state: {
+        'state': 'FAILURE',
+        'traceback': 'Has the stacktrace of the exception',
+        'info': 'info about the exception',
+    }
+    :param task:
+    :return:
+    '''
+    task_state = task._get_internal_attribute("task_state")
+    return task_state and task_state.get("state") == "FAILURE"
 
 
 def get_SpiffWorkflow_status(workflow):
@@ -304,7 +372,7 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
         return task
 
 
-def init_operation(workflow, operation_type=None, tenant_id=None):
+def init_operation(workflow, tenant_id=None):
     """Create a new operation dictionary for a given workflow.
 
     Example:
@@ -327,23 +395,7 @@ def init_operation(workflow, operation_type=None, tenant_id=None):
                    workflow.attributes.get('deploymentId'))
     operation['link'] = "/%s/workflows/%s" % (tenant_id, workflow_id)
 
-    # Operation type
-    operation['type'] = operation_type
-
     return operation
-
-'''
-def update_operation(deployment, workflow_id, driver=DB):
-    """Get workflow from database and update the deployment"""
-    raw_workflow = driver.get_workflow(workflow_id)
-    if not raw_workflow:
-        return
-    serializer = DictionarySerializer()
-    workflow = SpiffWorkflow.deserialize(serializer, raw_workflow)
-    # before we started saving deploymentId in attributes, WorkflowId was
-    # equal to deploymentId
-    _update_operation(deployment['operation'], workflow)
-'''
 
 
 def _update_operation(operation, workflow):
