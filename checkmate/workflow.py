@@ -24,7 +24,7 @@ DB = get_driver()
 LOG = logging.getLogger(__name__)
 
 
-def update_workflow_status(workflow):
+def update_workflow_status(workflow, workflow_id=None):
     total = len(workflow.get_tasks(state=Task.ANY_MASK))
     completed = len(workflow.get_tasks(state=Task.COMPLETED))
     if total is not None and total > 0:
@@ -40,13 +40,14 @@ def update_workflow_status(workflow):
     elif workflow.attributes['completed'] == 0:
         workflow.attributes['status'] = "NEW"
     else:
-        if get_status(workflow.attributes['deploymentId']) == 'FAILED':
+        deployment_id = workflow.get_attribute('deploymentId', workflow_id)
+        if get_status(deployment_id) == 'FAILED':
             workflow.attributes['status'] = "FAILED"
         else:
             workflow.attributes['status'] = "IN PROGRESS"
 
 
-def update_workflow(d_wf, tenant_id, status=None, driver=DB):
+def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     '''
     Updates the workflow status, and saves the workflow. Worflow status
     can be overriden by providing a custom value for the 'status' parameter.
@@ -61,17 +62,16 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB):
     :return:
     '''
 
-    update_workflow_status(d_wf)
+    update_workflow_status(d_wf, workflow_id=workflow_id)
     if status:
         d_wf.attributes['status'] = status
 
     serializer = DictionarySerializer()
     updated = d_wf.serialize(serializer)
-    w_id = d_wf.attributes["id"]
     body, secrets = extract_sensitive_data(updated)
     body['tenantId'] = tenant_id
-    body['id'] = w_id
-    driver.save_workflow(w_id, body, secrets=secrets)
+    body['id'] = workflow_id
+    driver.save_workflow(workflow_id, body, secrets=secrets)
 
 
 def get_failed_tasks(workflow):
