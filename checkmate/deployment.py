@@ -1089,6 +1089,24 @@ class Deployment(ExtensibleDict):
             Resource.validate(resource)
         return resources
 
+    def on_deployment_postback(self, contents, target=None):
+        """Called to merge in all deployment and operation data in one
+
+        Validates and assigns contents data to target
+
+        :param contents: dict -- the new data to write
+        :param target: dict -- optional for writing to other than this
+                       deployment
+        """
+        if contents:
+            if not isinstance(contents, dict):
+                raise CheckmateException("Postback value was not a dictionary")
+
+            if target is None:
+                target = self
+                
+            #add validation
+            
     def on_resource_postback(self, contents, target=None):
         """Called to merge in contents when a postback with new resource data
         is received.
