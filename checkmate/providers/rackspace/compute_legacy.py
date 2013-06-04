@@ -12,12 +12,13 @@ from checkmate.deployments import resource_postback
 from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
-    CheckmateServerBuildFailed,
     CheckmateException,
+    CheckmateRetriableException,
 )
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
 from checkmate.utils import match_celery_logging, yaml_to_dict
 from checkmate.workflow import wait_for
+from openstack.compute.exceptions import OverLimit
 
 LOG = logging.getLogger(__name__)
 # This supports translating airport codes to city names. Checkmate expects to
@@ -517,11 +518,19 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
             'combination.'
         )
         raise
+    except OverLimit:
+        raise CheckmateRetriableException("You have reached the maximum "
+                                          "number of servers that can be "
+                                          "spinned up using this account. "
+                                          "Please delete some servers to "
+                                          "continue",
+                                          "")
     except Exception, exc:
         LOG.debug(
             'Error creating server %s (image: %s, flavor: %s) Error: %s' % (
             name, image, flavor, str(exc)))
         raise
+
 
     ip_address = str(server.addresses[ip_address_type][0])
     private_ip_address = str(server.addresses['private'][0])
@@ -536,7 +545,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     return results
 
 
-@task(default_retry_delay=30, max_retries=120)  # max 60 minute wait
+@task(default_retry_delay=30, max_retries=120)
 def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
                   username='root', timeout=10, password=None,
                   identity_file=None, port=22, api_object=None,
@@ -568,7 +577,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         delete_server(context, server_id, api_object)
-        raise CheckmateServerBuildFailed(msg)
+        raise CheckmateRetriableException(msg, "")
 
     ip = None
     if server.addresses:
@@ -608,16 +617,6 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         LOG.debug("Server %s progress is %s. Retrying after 30 seconds" % (
                   server_id, server.progress))
         return wait_on_build.retry()
-
-    if server.status == 'ERROR':
-        msg = "Server %s creation error: %" % (server_id,
-                                               server.status)
-        results = {'status': "ERROR"}
-        results['error-message'] = msg
-        instance_key = 'instance:%s' % context['resource']
-        results = {instance_key: results}
-        resource_postback.delay(context['deployment'], results)
-        raise CheckmateException(msg)
 
     if server.status != 'ACTIVE':
         LOG.warning("Server %s status is %s, which is not recognized. "

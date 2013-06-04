@@ -9,8 +9,9 @@ import os
 
 from celery.canvas import chain
 from celery.task import task
-from novaclient.exceptions import NotFound, NoUniqueMatch
+from novaclient.exceptions import NotFound, NoUniqueMatch, OverLimit
 # pylint: disable=C0103
+
 client = eventlet.import_patched('novaclient.v1_1.client')
 # from novaclient.v1_1 import client
 from SpiffWorkflow.operators import PathAttrib
@@ -24,8 +25,8 @@ from checkmate.deployments import (
 from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
-    CheckmateServerBuildFailed,
     CheckmateException,
+    CheckmateRetriableException,
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
@@ -328,7 +329,7 @@ class Provider(RackspaceComputeProviderBase):
             defines=dict(
                 resource=key,
                 provider=self.key,
-                task_tags=['create']
+                task_tags=['create', 'root']
             ),
             properties={'estimated_duration': 20}
         )
@@ -733,8 +734,16 @@ def create_server(context, name, region, api_object=None, flavor="2",
     # support old way of getting metadata from generate_template
     meta = tags or context.get("metadata", None)
     instance_key = 'instance:%s' % context['resource']
-    server = api_object.servers.create(name, image_object, flavor_object,
+    try:
+        server = api_object.servers.create(name, image_object, flavor_object,
                                        meta=meta, files=files)
+    except OverLimit:
+        raise CheckmateRetriableException("You have reached the maximum "
+                                              "number of servers that can be "
+                                              "spinned up using this account. "
+                                              "Please delete some servers to "
+                                              "continue",
+                                              "")
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
@@ -923,7 +932,8 @@ def wait_on_delete_server(context, api=None):
 
 # max 60 minute wait
 # pylint: disable=W0613
-@task(default_retry_delay=30, max_retries=120, acks_late=True)
+@task(default_retry_delay=30, max_retries=120,
+      acks_late=True)
 def wait_on_build(context, server_id, region, resource,
                   ip_address_type='public', verify_up=True, username='root',
                   timeout=10, password=None, identity_file=None, port=22,
@@ -993,8 +1003,8 @@ def wait_on_build(context, server_id, region, resource,
     instance_key = 'instance:%s' % context['resource']
 
     if server.status == 'ERROR':
-        results = {'status': 'ERROR'}
-        results['error-message'] = "Server %s build failed" % server_id
+        results = {'status': 'ERROR',
+                   'error-message': "Server %s build failed" % server_id}
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         Provider({}).delete_resource_tasks(context,
@@ -1003,7 +1013,8 @@ def wait_on_build(context, server_id, region, resource,
                                                context['deployment'],
                                                context['resource']),
                                            instance_key).apply_async()
-        raise CheckmateServerBuildFailed("Server %s build failed" % server_id)
+        raise CheckmateRetriableException("Server %s build failed" % server_id,
+                                          "")
 
     if server.status == 'BUILD':
         results['progress'] = server.progress

@@ -12,9 +12,12 @@ import logging
 import unittest2 as unittest
 
 from celery.task import task
+from cloudlb.errors import RateLimit
+from novaclient.exceptions import OverLimit
 
 from checkmate.db.common import ObjectLockedError
 from checkmate.db.mongodb import Driver
+from checkmate.exceptions import CheckmateRetriableException
 
 try:
     from mongobox import MongoBox
@@ -73,6 +76,7 @@ class TestSingleTask(unittest.TestCase):
       lock_db=None, lock_key="async_dep_writer:{args[0]}", lock_timeout=50)
 def do_nothing(key):
     pass
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
