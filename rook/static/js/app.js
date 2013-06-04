@@ -341,7 +341,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q) {
     if (typeof error.data == "object" && 'description' in error.data)
         info.message = error.data.description;
     $scope.$root.error = info;
-    $('#modalError').modal('show');
+    $scope.open_modal('error');
     mixpanel.track("Error", {'error': info.message});
   };
 
@@ -367,11 +367,13 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q) {
     backdropFade: true,
     dialogFade: true,
   };
-  $scope.open_modal = function(modal_window) {
-    $scope[modal_window] = true;
+  $scope.modal_window = {};
+  $scope.open_modal = function(window_name) {
+    console.log("opening modal...");
+    $scope.modal_window[window_name] = true;
   };
-  $scope.close_modal = function(modal_window) {
-    $scope[modal_window] = false;
+  $scope.close_modal = function(window_name) {
+    $scope.modal_window[window_name] = false;
   };
 
   $scope.hidden_alerts = {};
@@ -1079,7 +1081,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
             $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
                     message: "There was an error loading your deployment:"};
-            $('#modalError').modal('show');
+            $scope.open_modal('error');
           });
         }
       } else if ($location.hash().length > 1) {
@@ -1098,7 +1100,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         if ('description' in error)
             info.message = error.description;
         $scope.$root.error = info;
-      $('#modalError').modal('show');
+      $scope.open_modal('error');
     });
   };
 
@@ -1177,7 +1179,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
       $scope.loginPrompt().then(this, function() { console.log("Failed") }); //TODO: implement a callback
@@ -1221,7 +1223,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
       $scope.loginPrompt().then(this); //TODO: implement a callback
@@ -1843,7 +1845,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
                   message: "There was an error syncing your deployment"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
       $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
@@ -2322,7 +2324,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         console.log(deployment);
         $scope.$root.error = {data: error.data, status: error.status, title: "Error Creating Deployment",
                 message: "There was an error creating your deployment:"};
-        $('#modalError').modal('show');
+        $scope.open_modal('error');
         $scope.submitting = false;
         mixpanel.track("Deployment Launch Failed", {'status': error.status, 'data': error.data});
       });
@@ -2489,7 +2491,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
       $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
@@ -2513,7 +2515,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
                   message: "There was an error deleting your deployment"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
       $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
@@ -2533,7 +2535,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
                   message: "There was an error syncing your deployment"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
       $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback

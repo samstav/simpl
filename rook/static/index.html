@@ -264,9 +264,9 @@
     <a data-toggle="modal" href="#modalAbout">&copy; Rackspace Hosting 2012</a>
   </footer>
 
-  <div id="modalError" class="modal hide fade" >
+  <div id="modalError" modal="modal_window.error" close="close_modal('error')" options="modal_opts" >
     <div class="modal-header">
-      <button type="button" class="close" data-dismiss="modal">&times;</button>
+      <button type="button" class="close" ng-click="close_modal('error')">&times;</button>
       <h3>{{error.title}}</h3>
     </div>
     <div class="modal-body">
@@ -276,7 +276,7 @@
       </p>
     </div>
     <div class="modal-footer">
-      <a href="#" class="btn" data-dismiss="modal">Close</a>
+      <a href="#" class="btn" ng-click="close_modal('error')">Close</a>
     </div>
   </div>
 

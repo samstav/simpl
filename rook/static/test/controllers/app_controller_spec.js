@@ -496,17 +496,23 @@ describe('AppController', function(){
     });
   });
 
+  describe('modal_window', function() {
+    it('should default to empty object', function() {
+      expect(scope.modal_window).toEqual({});
+    });
+  });
+
   describe('#open_modal', function() {
     it('should set modal flag to true', function() {
       scope.open_modal('fakemodal');
-      expect(scope.fakemodal).toBe(true);
+      expect(scope.modal_window.fakemodal).toBe(true);
     });
   });
 
   describe('#close_modal', function() {
     it('should set modal flag to false', function() {
       scope.close_modal('fakemodal');
-      expect(scope.fakemodal).toBe(false);
+      expect(scope.modal_window.fakemodal).toBe(false);
     });
   });
 
