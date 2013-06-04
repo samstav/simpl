@@ -865,7 +865,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.load();
 }
 
-function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, workflow, items, scroll, deploymentDataParser) {
+function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser) {
   //Scope variables
   $scope.showStatus = true;
   $scope.showHeader = true;
@@ -880,6 +880,15 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     cancelled: 0,
     completed: 0,
     triggered: 0
+  };
+
+  $scope.hide_task_traceback = {
+    failure: true,
+    retry: true,
+  };
+
+  $scope.toggle_task_traceback = function(task_type) {
+    $scope.hide_task_traceback[task_type] = !$scope.hide_task_traceback[task_type];
   };
 
   // Called by load to refresh the status page
@@ -1070,7 +1079,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       return c.CodeMirror.getTextArea().id == 'spec_source';
       });
 
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id/specs/' + $scope.current_spec_index);
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
@@ -1114,7 +1123,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       return c.CodeMirror.getTextArea().id == 'task_source';
       });
 
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id/tasks/' + $scope.current_task_index);
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
@@ -1161,7 +1170,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.workflow_action = function(workflow_id, action) {
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       console.log("Executing '" + action + " on workflow " + workflow_id);
       $http({method: 'GET', url: $location.path() + '/+' + action}).
         success(function(data, status, headers, config) {
@@ -1179,7 +1188,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.task_action = function(task_id, action) {
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       console.log("Executing '" + action + " on task " + task_id);
       $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
         success(function(data, status, headers, config) {
@@ -1249,7 +1258,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   //Init
-  if (!$scope.auth.identity.loggedIn) {
+  if (!auth.identity.loggedIn) {
     $scope.loginPrompt($scope.load);
   } else if ($location.path().split('/').slice(-1)[0] == '+preview') {
     if (typeof workflow.preview == 'object') {
@@ -2594,9 +2603,6 @@ var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
   window.scrollTo(0, 0);
-
-  //angular.bootstrap(document, ['checkmate']);
-  $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
 }, false);
 
 $(window).load(function () {

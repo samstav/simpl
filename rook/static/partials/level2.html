@@ -52,11 +52,11 @@
     <div id="entry" class="row-fluid">
       <div class="span8">{{selected.created | formattedDate}}</div>
         <div class="span4 actions">
-          <a class="accordion-toggle cmcollapse" tooltip="Edit source" data-toggle="collapse" href="#source" ng-click="init_editor()"><i class="icon-edit"></i></a>
+          <a class="accordion-toggle" tooltip="Edit source" ng-click="init_editor(); src_collapse = !src_collapse"><i class="icon-edit"></i></a>
         </div>
       </div>
       <h2>{{selected.name}}</h2>
-      <div id="source" class="cmcollapse collapse out">
+      <div id="source" collapse="src_collapse" class="collapse out">
         <form id="code" method="POST" action="{{tenantId | prepend}}/workflows/{{id}}">
           <div id="entry" class="row-fluid">
             <div class="actions">

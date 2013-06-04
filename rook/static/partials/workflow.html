@@ -135,8 +135,11 @@
           <div id="error-alert" class="alert alert-block alert-error fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'FAILURE' &amp;&amp; current_task.state != 64">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
             <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
-            <p>This error was reported: {{current_task.internal_attributes.task_state.info}}. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback" href="#{{current_spec_index}}">traceback</a>.</p>
-            <div id="traceback" class="cmcollapse collapse">
+            <p>
+              This error was reported: {{current_task.internal_attributes.task_state.info}}.
+              See the code <a class="accordion-toggle" ng-click="toggle_task_traceback('failure')" href="#{{current_spec_index}}">traceback</a>.
+            </p>
+            <div collapse="hide_task_traceback.failure" class="collapse">
               <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
             </div>
             <p><button class="btn btn-primary" ng-click="execute_task()" title="Tries to move the task along or checks the latest status if it is pending.">Poke</button> <button class="btn btn-danger" tooltip="Retries the task. It Aborts an existing task if it is running." ng-click="resubmit_task()">Retry</button></p>
@@ -145,8 +148,11 @@
           <div id="error-alert" class="alert alert-block fade in" ng-cloak ng-show="current_task.internal_attributes.task_state.state == 'RETRY' &amp;&amp; current_task.state != 64">
             <button type="button" class="close" data-dismiss="alert">&times;</button>
             <h4 class="alert-heading">{{current_task.internal_attributes.task_state.info.replace('CheckmateException(u\'', '').replace('\',)', '').replace('CheckmateException("', '').replace('",)', '') || 'Something might be up! But we haven\'t given up yet...'}}</h4>
-            <p>This task is being retried. See the code <a class="accordion-toggle cmcollapse" data-toggle="collapse" data-target="#traceback2" href="#{{current_spec_index}}">traceback</a>.</p>
-            <div id="traceback2" class="cmcollapse collapse">
+            <p>
+              This task is being retried.
+              See the code <a class="accordion-toggle" ng-click="toggle_task_traceback('retry')" href="#{{current_spec_index}}">traceback</a>.
+            </p>
+            <div collapse="hide_task_traceback.retry" class="collapse">
               <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
             </div>
             <p>If you don't think this task is going to succeed you could <button class="btn btn-danger" tooltip="Clear task data, abort the Celery task, and retrigger it" ng-click="resubmit_task()"> Abort and Retry</button>, but please choose this carefully so we don't end up with duplicate resources!</p>
