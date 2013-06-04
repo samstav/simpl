@@ -25,7 +25,7 @@ LOG = logging.getLogger(__name__)
 
 from checkmate import test, utils
 from checkmate.deployment import Deployment
-from checkmate.deployments import DeploymentsManager
+from checkmate import deployments
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
@@ -98,14 +98,14 @@ class TestChefSoloProvider(test.ProviderTester):
                   targets:
                   - attributes://clients
             """)
-        DeploymentsManager.plan(deployment, RequestContext())
+        deployments.Manager.plan(deployment, RequestContext())
         provider = deployment.environment().get_provider('chef-solo')
 
         # Check requirement map
 
         resource = deployment['resources']['0']  # one of the mysql clients
-        result = provider.get_resource_prepared_maps(resource, deployment,
-                                            map_file=chef_map)
+        result = provider.get_resource_prepared_maps(
+            resource, deployment, map_file=chef_map)
         expected = [{'source': 'requirements://database:mysql/ip',
                      'targets': ['attributes://ip'],
                      'path': 'instance:2/interfaces/mysql',
@@ -116,21 +116,22 @@ class TestChefSoloProvider(test.ProviderTester):
         # Check client maps
 
         resource = deployment['resources']['2']  # mysql database w/ 2 clients
-        result = provider.get_resource_prepared_maps(resource, deployment,
-                                            map_file=chef_map)
+        result = provider.get_resource_prepared_maps(
+            resource, deployment, map_file=chef_map)
         expected = [
-                    {
-                     'source': 'clients://database:mysql/ip',
-                     'targets': ['attributes://clients'],
-                     'resource': '2',
-                     'path': 'instance:1',
-                    }, {
-                     'source': 'clients://database:mysql/ip',
-                     'targets': ['attributes://clients'],
-                     'resource': '2',
-                     'path': 'instance:0',
-                    },
-                   ]
+            {
+                'source': 'clients://database:mysql/ip',
+                'targets': ['attributes://clients'],
+                'resource': '2',
+                'path': 'instance:1',
+            },
+            {
+                'source': 'clients://database:mysql/ip',
+                'targets': ['attributes://clients'],
+                'resource': '2',
+                'path': 'instance:0',
+            },
+        ]
         self.assertListEqual(result, expected)
 
     def test_get_map_with_context_defaults(self):
@@ -177,10 +178,10 @@ class TestChefSoloProvider(test.ProviderTester):
         solo.ProviderBase.evaluate('generate_password()').AndReturn("randp2")
 
         resource = {
-                    'type': 'application',
-                    'service': 'foo',
-                    'provider': 'chef-solo',
-                   }
+            'type': 'application',
+            'service': 'foo',
+            'provider': 'chef-solo',
+        }
         self.mox.ReplayAll()
         context = provider.get_map_with_context(component=component,
                                                 deployment=deployment,
@@ -206,7 +207,7 @@ class TestCeleryTasks(unittest.TestCase):
         if os.path.exists(self.local_path):
             shutil.rmtree('/tmp/checkmate-chefmap')
         if self.original_local_path:
-          os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
+            os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
 
     def test_cook(self):
         """Test that cook task picks up run_list and attributes"""
@@ -217,7 +218,8 @@ class TestCeleryTasks(unittest.TestCase):
 
         #Stub out checks for paths
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path("env_test", None).AndReturn(root_path)
+        knife._get_root_environments_path(
+            "env_test", None).AndReturn(root_path)
         self.mox.StubOutWithMock(os.path, 'exists')
         os.path.exists(kitchen_path).AndReturn(True)
         os.path.exists(node_path).AndReturn(True)
@@ -235,12 +237,16 @@ class TestCeleryTasks(unittest.TestCase):
         #Stub out file write
         mock_file.__enter__().AndReturn(mock_file)
         self.mox.StubOutWithMock(json, 'dump')
-        json.dump(And(
-                      ContainsKeyValue('run_list',
-                                       ['role[role1]', 'recipe[recipe1]']),
-                      ContainsKeyValue('id', 1)
-                      ),
-                  mock_file).AndReturn(None)
+        json.dump(
+            And(
+                ContainsKeyValue(
+                    'run_list',
+                    ['role[role1]', 'recipe[recipe1]']
+                ),
+                ContainsKeyValue('id', 1)
+            ),
+            mock_file
+        ).AndReturn(None)
         mock_file.__exit__(None, None, None).AndReturn(None)
 
         #Stub out file opens
@@ -253,7 +259,8 @@ class TestCeleryTasks(unittest.TestCase):
                   '-c', os.path.join(kitchen_path, "solo.rb"),
                   '-p', '22']
         self.mox.StubOutWithMock(knife, '_run_kitchen_command')
-        knife._run_kitchen_command("env_test",kitchen_path, params).AndReturn("OK")
+        knife._run_kitchen_command(
+            "env_test", kitchen_path, params).AndReturn("OK")
 
         #TODO: better test for postback?
         #Stub out call to resource_postback
@@ -262,11 +269,11 @@ class TestCeleryTasks(unittest.TestCase):
         knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
-        resource={'index':1234,
-                  'hosted_on':'rack cloud'
-                  }
-        knife.cook("a.b.c.d", "env_test", resource, roles=['role1'], recipes=['recipe1'],
-                  attributes={'id': 1})
+        resource = {'index': 1234, 'hosted_on': 'rack cloud'}
+        knife.cook(
+            "a.b.c.d", "env_test", resource, roles=['role1'],
+            recipes=['recipe1'], attributes={'id': 1}
+        )
         self.mox.VerifyAll()
 
 
@@ -316,7 +323,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             """))
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        DeploymentsManager.plan(self.deployment, context)
+        deployments.Manager.plan(self.deployment, context)
 
     def test_workflow_task_generation(self):
         """Verify workflow task creation"""
@@ -345,89 +352,117 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
         # Create Chef Environment
 
-        expected.append({  # Use chef-solo tasks for now
-                           # Use only one kitchen. Call it "kitchen" like we
-                           # used to
+        expected.append({
+            # Use chef-solo tasks for now
+            # Use only one kitchen. Call it "kitchen" like we used to
             'call': 'checkmate.providers.opscode.knife.create_environment',
             'args': [self.deployment['id'], 'kitchen'],
-            'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
-                          ContainsKeyValue('secret_key', IgnoreArg()),
-                          ContainsKeyValue('public_key_ssh',
-                          IgnoreArg()), ContainsKeyValue('source_repo',
-                          IgnoreArg())),
+            'kwargs': And(
+                ContainsKeyValue('private_key', IgnoreArg()),
+                ContainsKeyValue('secret_key', IgnoreArg()),
+                ContainsKeyValue(
+                    'public_key_ssh',
+                    IgnoreArg()
+                ),
+                ContainsKeyValue('source_repo', IgnoreArg())
+            ),
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
-                'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'
-                        ],
-                'private_key_path': '/var/tmp/%s/private.pem'
-                    % self.deployment['id'],
-                'public_key_path': '/var/tmp/%s/checkmate.pub'
-                    % self.deployment['id'],
-                'public_key': test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'
-                        ],
-                },
-            })
-
+                'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'],
+                'private_key_path':
+                '/var/tmp/%s/private.pem' % self.deployment['id'],
+                'public_key_path':
+                '/var/tmp/%s/checkmate.pub' % self.deployment['id'],
+                'public_key': test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'],
+            },
+        })
 
         for key, resource in self.deployment['resources'].iteritems():
             if resource['type'] == 'compute':
                 expected.append({
-                        'call': 'checkmate.providers.test.create_resource',
-                        'args': [IsA(dict), resource],
-                        'kwargs': None,
-                        'result': {'instance:%s' % key: {
+                    'call': 'checkmate.providers.test.create_resource',
+                    'args': [IsA(dict), resource],
+                    'kwargs': None,
+                    'result': {
+                        'instance:%s' % key: {
                             'status': 'ACTIVE',
                             'ip': '4.4.4.1',
                             'private_ip': '10.1.2.1',
-                            'addresses': {'public': [{'version': 4,
-                                          'addr': '4.4.4.1'}, {'version': 6,
-                                          'addr': '2001:babe::ff04:36c1'}],
-                                          'private': [{'version': 4,
-                                          'addr': '10.1.2.1'}]},
-                            }},
-                        'post_back_result': True,
-                        })
+                            'addresses': {
+                                'public': [
+                                    {'version': 4, 'addr': '4.4.4.1'},
+                                    {
+                                        'version': 6,
+                                        'addr': '2001:babe::ff04:36c1'
+                                    }
+                                ],
+                                'private': [{
+                                    'version': 4,
+                                    'addr': '10.1.2.1'
+                                }]
+                            },
+                        }
+                    },
+                    'post_back_result': True,
+                })
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.register_node',
-                    'args': ['4.4.4.1', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                    'kwargs': And(In('password'),
-                                  ContainsKeyValue('omnibus_version',
-                                                   '10.24.0')
-                                 ),
+                    'args': [
+                        '4.4.4.1',
+                        self.deployment['id'],
+                        ContainsKeyValue('index', IgnoreArg())
+                    ],
+                    'kwargs': And(
+                        In('password'),
+                        ContainsKeyValue('omnibus_version', '10.24.0')
+                    ),
                     'result': None,
                     'resource': key,
-                    })
+                })
 
                 # build-essential (now just cook with bootstrap.json)
 
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.cook',
-                    'args': ['4.4.4.1', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                    'kwargs': And(In('password'),
-                                  Not(In('recipes')),
-                                  Not(In('roles')),
-                                  ContainsKeyValue('identity_file',
-                                        '/var/tmp/%s/private.pem'
-                                        % self.deployment['id'])
-                                 ),
+                    'args': [
+                        '4.4.4.1',
+                        self.deployment['id'],
+                        ContainsKeyValue('index', IgnoreArg())
+                    ],
+                    'kwargs': And(
+                        In('password'),
+                        Not(In('recipes')),
+                        Not(In('roles')),
+                        ContainsKeyValue(
+                            'identity_file',
+                            '/var/tmp/%s/private.pem' % self.deployment['id']
+                        )
+                    ),
                     'result': None,
                     'resource': key,
-                    })
+                })
             else:
 
                 # Cook with cookbook (special mysql handling calls server role)
 
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.cook',
-                    'args': ['4.4.4.1', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                    'kwargs': And(In('password'), ContainsKeyValue('recipes',
-                                  ['mysql::server']),
-                                  ContainsKeyValue('identity_file',
-                                  '/var/tmp/%s/private.pem'
-                                  % self.deployment['id'])),
+                    'args': [
+                        '4.4.4.1',
+                        self.deployment['id'],
+                        ContainsKeyValue('index', IgnoreArg())
+                    ],
+                    'kwargs': And(
+                        In('password'),
+                        ContainsKeyValue('recipes', ['mysql::server']),
+                        ContainsKeyValue(
+                            'identity_file',
+                            '/var/tmp/%s/private.pem' % self.deployment['id']
+                        )
+                    ),
                     'result': None,
                     'resource': key,
-                    })
+                })
 
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
 
@@ -503,7 +538,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
 
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        DeploymentsManager.plan(self.deployment, context)
+        deployments.Manager.plan(self.deployment, context)
 
         workflow = create_workflow_deploy(self.deployment, context)
 
@@ -511,12 +546,13 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
         self.assertNotIn('Collect Chef Data for 0', task_list,
                          msg="Should not have a Collect task when no mappings "
                              "exist in the map file")
-        expected = ['Root',
-                    'Start',
-                    'Create Chef Environment',
-                    'Configure bar: 1 (backend)',
-                    'Configure foo: 0 (frontend)',
-                   ]
+        expected = [
+            'Root',
+            'Start',
+            'Create Chef Environment',
+            'Configure bar: 1 (backend)',
+            'Configure foo: 0 (frontend)',
+        ]
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
@@ -633,7 +669,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        DeploymentsManager.plan(self.deployment, context)
+        deployments.Manager.plan(self.deployment, context)
         workflow = create_workflow_deploy(self.deployment, context)
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
@@ -665,7 +701,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        DeploymentsManager.plan(self.deployment, context)
+        deployments.Manager.plan(self.deployment, context)
         self.mox.VerifyAll()
 
         # Create new mox queue for running workflow
@@ -673,89 +709,113 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
         self.mox.ResetAll()
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
         expected_calls = [{
-                # Create Chef Environment
-                'call': 'checkmate.providers.opscode.knife.create_environment',
-                'args': [self.deployment['id'], 'kitchen'],
-                'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
-                        ContainsKeyValue('secret_key', IgnoreArg()),
-                        ContainsKeyValue('public_key_ssh', IgnoreArg())),
-                'result': {
-                        'environment': '/var/tmp/%s/' %
-                                self.deployment['id'],
-                        'kitchen': '/var/tmp/%s/kitchen',
-                        'private_key_path': '/var/tmp/%s/private.pem' %
-                                self.deployment['id'],
-                        'public_key_path': '/var/tmp/%s/checkmate.pub' %
-                                self.deployment['id'],
-                        'public_key':
-                                test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
-            }]
+            # Create Chef Environment
+            'call': 'checkmate.providers.opscode.knife.create_environment',
+            'args': [self.deployment['id'], 'kitchen'],
+            'kwargs': And(
+                ContainsKeyValue('private_key', IgnoreArg()),
+                ContainsKeyValue('secret_key', IgnoreArg()),
+                ContainsKeyValue('public_key_ssh', IgnoreArg())
+            ),
+            'result': {
+                'environment': '/var/tmp/%s/' % self.deployment['id'],
+                'kitchen': '/var/tmp/%s/kitchen',
+                'private_key_path':
+                '/var/tmp/%s/private.pem' % self.deployment['id'],
+                'public_key_path':
+                '/var/tmp/%s/checkmate.pub' % self.deployment['id'],
+                'public_key':
+                test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
+            }
+        }]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
                 attributes = {
-                                'username': 'u1',
-                                'password': 'myPassW0rd',
-                                'db_name': 'app_db',
-                             }
-                expected_calls.extend([{
+                    'username': 'u1',
+                    'password': 'myPassW0rd',
+                    'db_name': 'app_db',
+                }
+                expected_calls.extend([
+                    {
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
                         'args': [IsA(dict), IsA(dict)],
                         'kwargs': IgnoreArg(),
                         'result': {
-                                'instance:%s' % key: {
-                                    'id': '1',
-                                    'password': "shecret",
-                                    'ip': '4.4.4.4',
-                                    'instance': {
-                                        'interfaces': {
-                                            'linux': {
-                                              'ip': '4.4.4.4'
-                                            }
+                            'instance:%s' % key: {
+                                'id': '1',
+                                'password': "shecret",
+                                'ip': '4.4.4.4',
+                                'instance': {
+                                    'interfaces': {
+                                        'linux': {
+                                            'ip': '4.4.4.4'
                                         }
                                     }
-                                    }
-                                },
+                                }
+                            }
+                        },
                         'post_back_result': True,
                         'resource': key,
-                    }, {
+                    },
+                    {
                         # Register host - knife prepare
-                        'call': 'checkmate.providers.opscode.knife.'
-                                'register_node',
-                        'args': ["4.4.4.4", self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                        'kwargs': And(In('password'),
-                                      ContainsKeyValue('attributes',
-                                                        attributes),
-                                      ContainsKeyValue('omnibus_version',
-                                                       '10.24.0')),
+                        'call':
+                        'checkmate.providers.opscode.knife.register_node',
+                        'args': [
+                            "4.4.4.4",
+                            self.deployment['id'],
+                            ContainsKeyValue('index', IgnoreArg())
+                        ],
+                        'kwargs': And(
+                            In('password'),
+                            ContainsKeyValue('attributes', attributes),
+                            ContainsKeyValue('omnibus_version', '10.24.0')
+                        ),
                         'result': None,
                         'resource': key,
-                    }, {
+                    },
+                    {
                         # Prep host - bootstrap.json means no recipes passed in
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': ['4.4.4.4', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                        'kwargs': And(In('password'),
-                                      Not(In('recipes')),
-                                      ContainsKeyValue('identity_file',
-                                            '/var/tmp/%s/private.pem' %
-                                            self.deployment['id'])),
+                        'args': [
+                            '4.4.4.4',
+                            self.deployment['id'],
+                            ContainsKeyValue('index', IgnoreArg())
+                        ],
+                        'kwargs': And(
+                            In('password'),
+                            Not(In('recipes')),
+                            ContainsKeyValue(
+                                'identity_file',
+                                '/var/tmp/%s/private.pem' %
+                                self.deployment['id']
+                            )
+                        ),
                         'result': None
-                    }])
+                    }
+                ])
             elif resource.get('type') == 'database':
                 expected_calls.extend([{
-                        # Cook mysql
-                        'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': ['4.4.4.4', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                        'kwargs': And(In('password'),
-                                        ContainsKeyValue('recipes',
-                                                ['mysql::server']),
-                                        ContainsKeyValue('identity_file',
-                                                '/var/tmp/%s/private.pem' %
-                                                self.deployment['id'])),
-                        'result': None
-                    }])
-        workflow = self._get_stubbed_out_workflow(context=context,
-                expected_calls=expected_calls)
+                    # Cook mysql
+                    'call': 'checkmate.providers.opscode.knife.cook',
+                    'args': [
+                        '4.4.4.4',
+                        self.deployment['id'],
+                        ContainsKeyValue('index', IgnoreArg())
+                    ],
+                    'kwargs': And(
+                        In('password'),
+                        ContainsKeyValue('recipes', ['mysql::server']),
+                        ContainsKeyValue(
+                            'identity_file',
+                            '/var/tmp/%s/private.pem' % self.deployment['id']
+                        )
+                    ),
+                    'result': None
+                }])
+        workflow = self._get_stubbed_out_workflow(
+            context=context, expected_calls=expected_calls)
 
         # Hack to hijack postback in Transform which is called as a string in
         # exec(), so cannot be easily mocked.
@@ -917,7 +977,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        DeploymentsManager.plan(self.deployment, context)
+        deployments.Manager.plan(self.deployment, context)
         workflow = create_workflow_deploy(self.deployment, context)
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
@@ -925,26 +985,22 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.assertIn(host_done, ancestors)
         task_list = workflow.spec.task_specs.keys()
         expected = [
-                    'Root',
-                    'Start',
-                    'Create Chef Environment',
-                    'Create Resource 1',
-                    'After Environment is Ready and Server 1 (frontend) is Up',
-                    'Register Server 1 (frontend)',
-                    'Pre-Configure Server 1 (frontend)',
-
-                    'Collect Chef Data for 2',
-                    'Configure bar: 2 (backend)',
-
-                    'Collect Chef Data for 0',
-                    'Write Data Bag for 0',
-                    'Write Role foo-master for 0',
-                    'Configure foo: 0 (frontend)',
-
-                    'Reconfig Chef Data for 2',
-                    'Reconfigure bar: client ready',
-
-                    ]
+            'Root',
+            'Start',
+            'Create Chef Environment',
+            'Create Resource 1',
+            'After Environment is Ready and Server 1 (frontend) is Up',
+            'Register Server 1 (frontend)',
+            'Pre-Configure Server 1 (frontend)',
+            'Collect Chef Data for 2',
+            'Configure bar: 2 (backend)',
+            'Collect Chef Data for 0',
+            'Write Data Bag for 0',
+            'Write Role foo-master for 0',
+            'Configure foo: 0 (frontend)',
+            'Reconfig Chef Data for 2',
+            'Reconfigure bar: client ready',
+        ]
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
@@ -969,27 +1025,28 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                                 'outputs://instance:0/instance/ip'],
                     'path': 'instance:1',
                     'resource': '0',
-                    },
+                },
                 {
                     'source': 'requirements://host:linux/private_ip',
                     'targets': ['outputs://instance:0/instance/private_ip'],
                     'path': 'instance:1',
                     'resource': '0',
-                    },
+                },
                 {
                     'source': 'requirements://host:linux/public_ip',
                     'targets': ['outputs://instance:0/instance/public_ip'],
                     'path': 'instance:1',
                     'resource': '0',
-                    },
+                },
                 {
                     'source': 'requirements://database:mysql/database_name',
                     'targets': ['attributes://db/name',
                                 'encrypted-databags://app_bag/mysql/db_name'],
                     'path': 'instance:2/interfaces/mysql',
                     'resource': '0',
-                }]
-            }
+                }
+            ]
+        }
         self.assertDictEqual(transmerge.properties, expected)
 
         transmerge = workflow.spec.task_specs['Collect Chef Data for 2']
@@ -1013,11 +1070,13 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 }
             },
             'chef_output': None,
-            'chef_maps': [{'path': 'instance:0',
-                           'resource': '2',
-                           'source': 'clients://database:mysql/ip',
-                           'targets': ['attributes://connections']}]
-            }
+            'chef_maps': [{
+                'path': 'instance:0',
+                'resource': '2',
+                'source': 'clients://database:mysql/ip',
+                'targets': ['attributes://connections']
+            }]
+        }
         self.assertDictEqual(transmerge.properties, expected)
 
         # Make sure plan-time data is correct
@@ -1027,7 +1086,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
             'provider': 'chef-solo',
             'relation': 'host',
             'estimated_duration': 120
-            }
+        }
         self.assertDictEqual(register.properties, expected)
         self.assertDictEqual(register.kwargs['attributes'], {'connections': 10,
                                                              'widgets': 10})
@@ -1048,7 +1107,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        DeploymentsManager.plan(self.deployment, context)
+        deployments.Manager.plan(self.deployment, context)
         self.mox.VerifyAll()
 
         # Create new mox queue for running workflow
@@ -1056,148 +1115,203 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
 
         expected_calls = [{
-                # Create Chef Environment
-                'call': 'checkmate.providers.opscode.knife.create_environment',
-                'args': [self.deployment['id'], 'kitchen'],
-                'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
-                        ContainsKeyValue('secret_key', IgnoreArg()),
-                        ContainsKeyValue('public_key_ssh', IgnoreArg())),
-                'result': {
-                        'environment': '/var/tmp/%s/' %
-                                self.deployment['id'],
-                        'kitchen': '/var/tmp/%s/kitchen',
-                        'private_key_path': '/var/tmp/%s/private.pem' %
-                                self.deployment['id'],
-                        'public_key_path': '/var/tmp/%s/checkmate.pub' %
-                                self.deployment['id'],
-                        'public_key':
-                                test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
-            }]
+            # Create Chef Environment
+            'call': 'checkmate.providers.opscode.knife.create_environment',
+            'args': [self.deployment['id'], 'kitchen'],
+            'kwargs': And(
+                ContainsKeyValue('private_key', IgnoreArg()),
+                ContainsKeyValue('secret_key', IgnoreArg()),
+                ContainsKeyValue('public_key_ssh', IgnoreArg())
+            ),
+            'result': {
+                'environment': '/var/tmp/%s/' % self.deployment['id'],
+                'kitchen': '/var/tmp/%s/kitchen',
+                'private_key_path':
+                '/var/tmp/%s/private.pem' % self.deployment['id'],
+                'public_key_path':
+                '/var/tmp/%s/checkmate.pub' % self.deployment['id'],
+                'public_key':
+                test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
+            }
+        }]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
-                expected_calls.extend([{
+                expected_calls.extend([
+                    {
                         # Register foo - knife prepare
-                        'call': 'checkmate.providers.opscode.knife.'
-                                'register_node',
-                        'args': ["4.4.4.4", self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                        'kwargs': And(In('password'),
-                                      ContainsKeyValue('omnibus_version',
-                                                       '10.24.0'),
-                                      ContainsKeyValue('attributes',
-                                              {'connections': 10,
-                                               'widgets': 10})),
+                        'call':
+                        'checkmate.providers.opscode.knife.register_node',
+                        'args': [
+                            "4.4.4.4",
+                            self.deployment['id'],
+                            ContainsKeyValue('index', IgnoreArg())
+                        ],
+                        'kwargs': And(
+                            In('password'),
+                            ContainsKeyValue('omnibus_version', '10.24.0'),
+                            ContainsKeyValue(
+                                'attributes',
+                                {'connections': 10, 'widgets': 10}
+                            )
+                        ),
                         'result': None,
                         'resource': key,
-                    }, {
+                    },
+                    {
                         # Prep foo - bootstrap.json
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': ['4.4.4.4', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                        'kwargs': And(In('password'),
-                                      Not(ContainsKeyValue('recipes',
-                                                           ['foo'])),
-                                ContainsKeyValue('identity_file',
-                                        '/var/tmp/%s/private.pem' %
-                                        self.deployment['id'])),
+                        'args': [
+                            '4.4.4.4',
+                            self.deployment['id'],
+                            ContainsKeyValue('index', IgnoreArg())
+                        ],
+                        'kwargs': And(
+                            In('password'),
+                            Not(ContainsKeyValue('recipes', ['foo'])),
+                            ContainsKeyValue(
+                                'identity_file',
+                                '/var/tmp/%s/private.pem' %
+                                self.deployment['id']
+                            )
+                        ),
                         'result': None
-                    }, {
+                    },
+                    {
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
                         'args': [IsA(dict), IsA(dict)],
                         'kwargs': IgnoreArg(),
                         'result': {
-                                'instance:%s' % key: {
-                                    'id': '1',
-                                    'password': "shecret",
-                                    'ip': '4.4.4.4',
-                                    'instance': {
-                                        'interfaces': {
-                                            'linux': {
-                                              'password': "shecret",
-                                              'ip': '4.4.4.4',
-                                            }
+                            'instance:%s' % key: {
+                                'id': '1',
+                                'password': "shecret",
+                                'ip': '4.4.4.4',
+                                'instance': {
+                                    'interfaces': {
+                                        'linux': {
+                                            'password': "shecret",
+                                            'ip': '4.4.4.4',
                                         }
                                     }
-                                    }
-                                },
+                                }
+                            }
+                        },
                         'post_back_result': True,
                         'resource': key,
-                    }])
+                    }
+                ])
             elif resource.get('type') == 'application':
-                expected_calls.extend([{
+                expected_calls.extend([
+                    {
                         # Write foo databag item
-                        'call': 'checkmate.providers.opscode.'
-                                'knife.write_databag',
-                        'args': ['DEP-ID-1000', 'app_bag', 'mysql',
-                                 {'db_name': 'foo-db'}, IgnoreArg()],
-                        'kwargs': {'merge': True,
-                                   'secret_file': 'certificates/chef.pem'},
+                        'call':
+                        'checkmate.providers.opscode.knife.write_databag',
+                        'args': [
+                            'DEP-ID-1000', 'app_bag', 'mysql',
+                            {'db_name': 'foo-db'}, IgnoreArg()
+                        ],
+                        'kwargs': {
+                            'merge': True,
+                            'secret_file': 'certificates/chef.pem'
+                        },
                         'result': None
-                    }, {
+                    },
+                    {
                         # Write foo-master role
-                        'call': 'checkmate.providers.opscode.knife.'
-                                'manage_role',
+                        'call':
+                        'checkmate.providers.opscode.knife.manage_role',
                         'args': ['foo-master', 'DEP-ID-1000', IgnoreArg()],
                         'kwargs': {
-                                   'run_list': ['recipe[apt]',
-                                                'recipe[foo::server]'],
-                                   'override_attributes': {'how-many': 2},
-                                   'kitchen_name': 'kitchen',
-                                  },
+                            'run_list': ['recipe[apt]', 'recipe[foo::server]'],
+                            'override_attributes': {'how-many': 2},
+                            'kitchen_name': 'kitchen',
+                        },
                         'result': None
-                    }, {
+                    },
+                    {
                         # Cook foo - run using runlist
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': ['4.4.4.4', self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                        'kwargs': And(In('password'),
-                                      ContainsKeyValue('recipes',
-                                              ['something',
-                                              'something::role']),
-                                      ContainsKeyValue('roles',
-                                                       ['foo-master']),
-                                      ContainsKeyValue('attributes',
-                                              {
-                                              'master': {'ip': '4.4.4.4'},
-                                              'db': {'name': 'foo-db'},
-                                              }),
-                                      ContainsKeyValue('identity_file',
-                                              '/var/tmp/%s/private.pem' %
-                                              self.deployment['id']),
-                                      ),
+                        'args': [
+                            '4.4.4.4',
+                            self.deployment['id'],
+                            ContainsKeyValue('index', IgnoreArg())
+                        ],
+                        'kwargs': And(
+                            In('password'),
+                            ContainsKeyValue(
+                                'recipes',
+                                ['something', 'something::role']
+                            ),
+                            ContainsKeyValue('roles', ['foo-master']),
+                            ContainsKeyValue(
+                                'attributes',
+                                {
+                                    'master': {'ip': '4.4.4.4'},
+                                    'db': {'name': 'foo-db'},
+                                }
+                            ),
+                            ContainsKeyValue(
+                                'identity_file',
+                                '/var/tmp/%s/private.pem' %
+                                self.deployment['id']
+                            ),
+                        ),
                         'result': None
-                    }])
+                    }
+                ])
             elif resource.get('type') == 'database':
-                expected_calls.extend([{
+                expected_calls.extend([
+                    {
                         # Cook bar
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': [None, self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                        'kwargs': And(In('password'),
-                                      ContainsKeyValue('recipes', ['bar']),
-                                      ContainsKeyValue('identity_file',
-                                                '/var/tmp/%s/private.pem' %
-                                                self.deployment['id'])),
+                        'args': [
+                            None,
+                            self.deployment['id'],
+                            ContainsKeyValue('index', IgnoreArg())
+                        ],
+                        'kwargs': And(
+                            In('password'),
+                            ContainsKeyValue('recipes', ['bar']),
+                            ContainsKeyValue(
+                                'identity_file',
+                                '/var/tmp/%s/private.pem' %
+                                self.deployment['id']
+                            )
+                        ),
                         'result': None
-                    }, {
+                    },
+                    {
                         # Re-cook bar
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': [None, self.deployment['id'], ContainsKeyValue('index', IgnoreArg())],
-                        'kwargs': And(In('password'),
-                                      ContainsKeyValue('recipes', ['bar']),
-                                      ContainsKeyValue('identity_file',
-                                                '/var/tmp/%s/private.pem' %
-                                                self.deployment['id'])),
+                        'args': [
+                            None,
+                            self.deployment['id'],
+                            ContainsKeyValue('index', IgnoreArg())
+                        ],
+                        'kwargs': And(
+                            In('password'),
+                            ContainsKeyValue('recipes', ['bar']),
+                            ContainsKeyValue(
+                                'identity_file',
+                                '/var/tmp/%s/private.pem' %
+                                self.deployment['id']
+                            )
+                        ),
                         'result': None
-                    }])
-        workflow = self._get_stubbed_out_workflow(context=context,
-                expected_calls=expected_calls)
+                    }
+                ])
+        workflow = self._get_stubbed_out_workflow(
+            context=context, expected_calls=expected_calls)
 
         # Hack to hijack postback in Transform which is called as a string in
         # exec(), so cannot be easily mocked.
         # We make the call hit our deployment directly
         call_me = 'dep.on_resource_postback(output_template) #'
-        for task_name in ['Collect Chef Data for 0',
-                          'Collect Chef Data for 2',
-                          'Reconfig Chef Data for 2',
-                         ]:
+        for task_name in [
+            'Collect Chef Data for 0',
+            'Collect Chef Data for 2',
+            'Reconfig Chef Data for 2',
+        ]:
             transmerge = workflow.spec.task_specs[task_name]
             transmerge.set_property(deployment=self.deployment)
             stub = transmerge.transforms[0].replace('postback.', call_me)
@@ -1206,22 +1320,14 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())
-        expected = {
-                    'data_bags': {
-                        'app_bag': {
-                            'mysql': {
-                                'db_name': 'foo-db'
-                            }
-                        }
-                    }
-                   }
+        expected = {'data_bags': {'app_bag': {'mysql': {'db_name': 'foo-db'}}}}
         self.assertDictEqual(self.outcome, expected)
 
         found = False
         for task in workflow.get_tasks():
             if task.get_name() == "Reconfig Chef Data for 2":
-                connections = (task.attributes.get('chef_options', {}).\
-                               get('attributes:2', {}).get('connections'))
+                connections = (task.attributes.get('chef_options', {}).
+                    get('attributes:2', {}).get('connections'))
                 if connections == ['4.4.4.4']:
                     found = True
                 self.assertNotEqual(connections, 10, "Foo attribute written "
@@ -1230,8 +1336,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
 
         for task in workflow.get_tasks():
             if task.get_name() == "Collect Chef Data for 0":
-                connections = (task.attributes.get('chef_options', {}).\
-                               get('attributes:0', {}).get('connections'))
+                connections = (task.attributes.get('chef_options', {}).
+                    get('attributes:0', {}).get('connections'))
                 self.assertNotEqual(connections, ['4.4.4.4'],
                                     "Bar attribute written to Foo")
 
@@ -1239,7 +1345,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         connections = (register.kwargs.get('attributes', {}).
                        get('connections'))
         self.assertEqual(connections, 10,
-                            "Foo attribute not written")
+                         "Foo attribute not written")
 
         self.mox.VerifyAll()
 
@@ -1335,6 +1441,7 @@ class TestChefMap(unittest.TestCase):
         git.Repo.__call__ = lambda x: mock_repo
         mock_repo.tags = self.mox.CreateMockAnything()
         mock_repo.tags.__contains__('master').AndReturn(False)
+
         def update_map():
             with open(self.chef_map_path, 'a') as f:
                 f.write("new information")
@@ -1351,6 +1458,7 @@ class TestChefMap(unittest.TestCase):
     def test_get_map_file_no_cache(self):
         """Test remote map file retrieval (not cached)"""
         chefmap = solo.ChefMap()
+
         def fake_clone(url=None, path=None, branch=None):
             os.makedirs(os.path.join(self.cache_path, ".git"))
             with file(self.fetch_head_path, 'a'):
@@ -1395,60 +1503,62 @@ class TestChefMap(unittest.TestCase):
                 'scheme': 'requirements',
                 'netloc': 'database:mysql',
                 'path': 'username',
-                },
+            },
             {
                 'name': 'requirement from long form',
                 'scheme': 'requirements',
                 'netloc': 'my_name',
                 'path': 'root/child',
-                },
+            },
             {
                 'name': 'databag',
                 'scheme': 'databags',
                 'netloc': 'my_dbag',
                 'path': 'item/key',
-                },
+            },
             {
                 'name': 'encrypted databag',
                 'scheme': 'encrypted-databags',
                 'netloc': 'secrets',
                 'path': 'item/key/with/long/path',
-                },
+            },
             {
                 'name': 'attributes',
                 'scheme': 'attributes',
                 'netloc': '',
                 'path': 'item/key/with/long/path',
-                },
+            },
             {
                 'name': 'clients',
                 'scheme': 'clients',
                 'netloc': 'provides_key',
                 'path': 'item/key/with/long/path',
-                },
+            },
             {
                 'name': 'roles',
                 'scheme': 'roles',
                 'netloc': 'role-name',
                 'path': 'item/key/with/long/path',
-                },
+            },
             {
                 'name': 'output',
                 'scheme': 'outputs',
                 'netloc': '',
                 'path': 'item/key/with/long/path',
-            }, {
+            },
+            {
                 'name': 'path check for output',
                 'scheme': 'outputs',
                 'netloc': '',
                 'path': 'only/path',
-            }, {
+            },
+            {
                 'name': 'only path check for attributes',
                 'scheme': 'attributes',
                 'netloc': '',
                 'path': 'only/path',
             }
-            ]
+        ]
 
         for case in cases:
             uri = urlunparse((case['scheme'],
@@ -1501,7 +1611,7 @@ class TestChefMap(unittest.TestCase):
             """)
         self.assertTrue(chef_map.has_requirement_mapping('test', 'name'))
         self.assertTrue(chef_map.has_requirement_mapping('test',
-                                                          'database:mysql'))
+                                                         'database:mysql'))
         self.assertFalse(chef_map.has_requirement_mapping('test', 'other'))
 
     def test_has_requirement_mapping_negative(self):
@@ -1640,7 +1750,8 @@ class TestTransform(unittest.TestCase):
                           database_name: db1
             """)
 
-        self.mox.StubOutWithMock(checkmate.deployments.resource_postback, "delay")
+        self.mox.StubOutWithMock(
+            checkmate.deployments.resource_postback, "delay")
         fxn = solo.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
@@ -1648,7 +1759,8 @@ class TestTransform(unittest.TestCase):
         spec.get_property('chef_options', {}).AndReturn({})
         spec.get_property('chef_output').AndReturn(output or {})
         spec.get_property('deployment').AndReturn(1)
-        checkmate.deployments.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(None)
+        checkmate.deployments.resource_postback.delay(
+            IgnoreArg(), IgnoreArg()).AndReturn(None)
         results = {}
         task.attributes = results
         self.mox.ReplayAll()
@@ -1676,9 +1788,9 @@ class TestChefMapEvaluator(unittest.TestCase):
     def test_requirement_evaluation(self):
         chefmap = solo.ChefMap(parsed="")
         mapping = {
-                   'source': 'requirements://host/ip',
-                   'path': 'instance:1'
-                  }
+            'source': 'requirements://host/ip',
+            'path': 'instance:1'
+        }
         data = {'instance:1': {'ip': '4.4.4.4'}}
         result = chefmap.evaluate_mapping_source(mapping, data)
         self.assertEqual(result, '4.4.4.4')
@@ -1686,9 +1798,9 @@ class TestChefMapEvaluator(unittest.TestCase):
     def test_client_evaluation(self):
         chefmap = solo.ChefMap(parsed="")
         mapping = {
-                   'source': 'clients://host/ip',
-                   'path': 'instance:1'
-                  }
+            'source': 'clients://host/ip',
+            'path': 'instance:1'
+        }
         data = {'instance:1': {'ip': '4.4.4.4'}}
         result = chefmap.evaluate_mapping_source(mapping, data)
         self.assertEqual(result, '4.4.4.4')
@@ -1698,9 +1810,7 @@ class TestChefMapApplier(unittest.TestCase):
     """Test ChefMap Mapping writing to targets"""
     def test_output_writing(self):
         chefmap = solo.ChefMap(parsed="")
-        mapping = {
-                   'targets': ['outputs://ip'],
-                  }
+        mapping = {'targets': ['outputs://ip']}
         result = {}
         chefmap.apply_mapping(mapping, '4.4.4.4', result)
         self.assertEqual(result, {'outputs': {'ip': '4.4.4.4'}})
@@ -1763,8 +1873,8 @@ class TestTemplating(unittest.TestCase):
 
         response = provider.get_catalog(RequestContext())
 
-        self.assertListEqual(response.keys(), ['application', 'database'
-                             ])
+        self.assertListEqual(
+            response.keys(), ['application', 'database'])
         self.assertListEqual(response['application'].keys(), ['webapp'])
         self.assertListEqual(response['database'].keys(), ['mysql'])
         self.mox.VerifyAll()
@@ -1815,7 +1925,7 @@ class TestTemplating(unittest.TestCase):
             'fragment': 'master',
             'path': '/checkmate',
             'a': {'b': {'c': {'d': '/checkmate'}}}
-            }
+        }
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_parse_url_Input(self):
@@ -1859,10 +1969,15 @@ class TestTemplating(unittest.TestCase):
               targets:
               - attributes://here
         """
-        self.assertDictEqual(chef_map.get_attributes('foo', None),
-                {'here': '$6$ahem$cf866f39224e26521d6ac5575225c0ac4933ec3d47bc'
-                         'ee136c3ceef8341343b4530858b8bca85e33e1e4ccf297f8b096'
-                         'fcebe978f5e0d6e8188445dc89cc66cf'})
+        self.assertDictEqual(
+            chef_map.get_attributes('foo', None),
+            {
+                'here':
+                '$6$ahem$cf866f39224e26521d6ac5575225c0ac4933ec3d47bc'
+                'ee136c3ceef8341343b4530858b8bca85e33e1e4ccf297f8b096'
+                'fcebe978f5e0d6e8188445dc89cc66cf'
+            }
+        )
 
 
 TEMPLATE = \

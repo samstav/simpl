@@ -111,7 +111,7 @@ API_LIMITS_CACHE = {}
 
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 from checkmate import db
-from checkmate.deployments import DeploymentsManager
+from checkmate import deployments
 DRIVERS = {}
 DB = DRIVERS['default'] = db.get_driver()
 SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
@@ -121,7 +121,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
     )
 )
 MANAGERS = {}
-MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+MANAGERS['deployments'] = deployments.Manager(DRIVERS)
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
@@ -168,9 +168,10 @@ class Provider(RackspaceComputeProviderBase):
     # pylint: disable=R0913
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition):
-        templates = RackspaceComputeProviderBase.generate_template(self,
-                deployment, resource_type, service, context, index, key,
-                definition)
+        templates = RackspaceComputeProviderBase.generate_template(
+            self, deployment, resource_type, service, context, index,
+            key, definition
+        )
 
         # Get region
         region = deployment.get_setting('region', resource_type=resource_type,
@@ -638,6 +639,7 @@ def _get_limits(api_endpoint, auth_token):
     api.client.auth_token = auth_token
     api.client.management_url = api_endpoint
     api_limits = api.limits.get()
+
     def limits_dict(limits):
         d = {}
         for limit in limits:
@@ -792,8 +794,10 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
         ret = {
             k: {
                 'status': 'ERROR',
-                'status-message': ('Unexpected error %s compute instance'
-                               ' %s: %s' % (action, key, exc.message)),
+                'status-message': (
+                    'Unexpected error %s compute instance %s: %s' %
+                    (action, key, exc.message)
+                ),
                 'trace': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
@@ -842,12 +846,20 @@ def delete_server_task(context, api=None):
         return ret
     if server.status == "ACTIVE" or server.status == "ERROR":
         ret = {}
-        ret.update({inst_key: {"status": "DELETING",
-                               "status-message": "Waiting on resource deletion"}})
+        ret.update({
+            inst_key: {
+                "status": "DELETING",
+                "status-message": "Waiting on resource deletion"
+            }
+        })
         if 'hosts' in resource:
             for comp_key in resource.get('hosts', []):
-                ret.update({'instance:%s' % comp_key: {'status': 'DELETING',
-                            'status-message': 'Host %s is being deleted.' % key}})
+                ret.update({
+                    'instance:%s' % comp_key: {
+                        'status': 'DELETING',
+                        'status-message': 'Host %s is being deleted.' % key
+                    }
+                })
         server.delete()
         return ret
     else:

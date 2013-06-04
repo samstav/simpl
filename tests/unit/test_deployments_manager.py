@@ -13,7 +13,7 @@ import unittest2 as unittest
 
 import mox
 
-from checkmate.deployments import DeploymentsManager
+from checkmate.deployments import Manager
 
 
 class TestCount(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestCount(unittest.TestCase):
         self._deployments = json.load(open(os.path.join(
             os.path.dirname(__file__), '../data', 'deployments.json')))
         self.db = self._mox.CreateMockAnything()
-        self.controller = DeploymentsManager({'default': self.db})
+        self.controller = Manager({'default': self.db})
         unittest.TestCase.setUp(self)
 
     def tearDown(self):
