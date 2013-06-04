@@ -1,5 +1,4 @@
 import errno
-import git
 import hashlib
 import json
 import logging
@@ -248,8 +247,7 @@ def _cache_blueprint(source_repo):
     else:
         url = source_repo
         branch = "master"
-    if os.path.exists(repo_cache):
-        repo = git.Repo(repo_cache)
+    if os.path.exists(repo_cache):  # Cache exists
         # The mtime of .git/FETCH_HEAD changes upon every "git
         # fetch".  FETCH_HEAD is only created after the first
         # fetch, so use HEAD if it's not there
@@ -261,32 +259,40 @@ def _cache_blueprint(source_repo):
         LOG.debug("cache_expire_time: %s", cache_expire_time)
         LOG.debug("last_update: %s", last_update)
 
-        if last_update > cache_expire_time:
+        if last_update > cache_expire_time:  # Cache miss
             LOG.debug("Updating repo: %s", repo_cache)
-            if branch in repo.tags:
+            tags = utils.git_tags(repo_cache)
+            if branch in tags:
                 tag = branch
                 refspec = "refs/tags/" + tag + ":refs/tags/" + tag
-                repo.remotes.origin.fetch(refspec)
-                utils.git_checkout(repo_cache, tag)
+                try:
+                    utils.git_fetch(repo_cache, refspec)
+                    utils.git_checkout(repo_cache, tag)
+                except CalledProcessError as exc:
+                    raise CheckmateException("Unable to update git tags from "
+                                             "the git repository at %s.  "
+                                             "Using the cached repository",
+                                             url)
             else:
                 try:
-                    utils.git_pull(repo_cache, "origin", branch)
-                except git.GitCommandError as exc:
+                    utils.git_pull(repo_cache, branch)
+                except CalledProcessError as exc:
                     raise CheckmateException("Unable to pull from git "
                                              "repository at %s.  Using the "
                                              "cached repository", url)
-        else:
+        else:  # Cache hit
             LOG.debug("Using cached repo: %s" % repo_cache)
-    else:
+    else:  # Cache does not exist
         LOG.debug("Cloning repo to %s" % repo_cache)
         os.makedirs(repo_cache)
         try:
-            repo = git.Repo.clone_from(url, repo_cache, branch=branch)
-        except git.GitCommandError as exc:
+            utils.git_clone(repo_cache, url, branch=branch)
+        except CalledProcessError as exc:
             raise CheckmateException("Git repository could not be cloned "
                                      "from '%s'.  The error returned was "
                                      "'%s'", url, exc)
-        if branch in repo.tags:
+        tags = utils.git_tags(repo_cache)
+        if branch in tags:
             tag = branch
             utils.git_checkout(repo_cache, tag)
 
