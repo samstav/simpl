@@ -33,8 +33,8 @@ class TestAPICalls(unittest.TestCase):
         self.app = TestApp(self.filters)
 
         self.manager = self.mox.CreateMockAnything()
-        self.router = deployments.DeploymentsRouter(self.root_app,
-                                                    self.manager)
+        self.router = deployments.Router(
+            self.root_app, self.manager)
 
     def tearDown(self):
         self.mox.UnsetStubs()
@@ -101,7 +101,7 @@ class TestAPICalls(unittest.TestCase):
         driver = self.mox.CreateMockAnything()
         driver.get_deployment(id1, with_secrets=False).AndReturn(deployment)
 
-        manager = deployments.DeploymentsManager({'default': driver})
+        manager = deployments.Manager({'default': driver})
 
         self.mox.ReplayAll()
         dep = manager.get_a_deployment(id1, tenant_id="T1000",

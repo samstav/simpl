@@ -20,7 +20,7 @@ init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate.deployment import Deployment
-from checkmate.deployments import DeploymentsManager
+from checkmate import deployments
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                                  'data')
@@ -250,7 +250,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                      username="MOCK_USER", catalog=CATALOG,
                                      base_url='http://MOCK')
         if self.deployment.get('status') == 'NEW':
-            DeploymentsManager.plan(self.deployment, context)
+            deployments.Manager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
 
         workflow = create_workflow_deploy(self.deployment, context)

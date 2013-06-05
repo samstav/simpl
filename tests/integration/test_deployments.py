@@ -24,8 +24,8 @@ from checkmate.deployment import (
     generate_keys,
 )
 from checkmate.deployments import (
-    DeploymentsManager,
-    DeploymentsRouter,
+    Manager,
+    Router,
     delete_deployment_task,
     update_all_provider_resources,
     resource_postback,
@@ -127,8 +127,8 @@ class TestDeploymentParser(unittest.TestCase):
             },
         }
         original = copy.copy(deployment)
-        parsed = DeploymentsManager.plan(Deployment(deployment),
-                                         RequestContext())
+        parsed = Manager.plan(Deployment(deployment),
+                              RequestContext())
         del parsed['status']  # we expect this to get added
         del parsed['created']  # we expect this to get added
         self.assertDictEqual(original, parsed._data)
@@ -189,11 +189,13 @@ class TestDeploymentDeployer(unittest.TestCase):
     def test_deployer(self):
         """Test the deployer works on a minimal deployment"""
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
+        manager = Manager({'default': db})
         db.save_workflow(IgnoreArg(), IgnoreArg(), IgnoreArg(),
                          tenant_id=IgnoreArg()).AndReturn(True)
-        db.save_deployment(IgnoreArg(), IgnoreArg(), IgnoreArg(),
-                           tenant_id=IgnoreArg(), partial=False).AndReturn(True)
+        db.save_deployment(
+            IgnoreArg(), IgnoreArg(), IgnoreArg(),
+            tenant_id=IgnoreArg(), partial=False
+        ).AndReturn(True)
 
         deployment = {
             'id': 'test',
@@ -283,7 +285,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        DeploymentsManager.plan(deployment, RequestContext())
+        Manager.plan(deployment, RequestContext())
         resources = deployment['resources'].values()
         self.assertEqual(len([r for r in resources
                               if r.get('service') == 'front']), 1)
@@ -340,7 +342,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        parsed = DeploymentsManager.plan(deployment, RequestContext())
+        parsed = Manager.plan(deployment, RequestContext())
         resources = parsed['resources']
         self.assertIn("myResource", resources)
         expected = {'component': 'small_widget',
@@ -376,7 +378,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                   providers: {}
             """ % "\n                        ".join(private['PEM'].split(
             "\n"))))
-        parsed = DeploymentsManager.plan(deployment, RequestContext())
+        parsed = Manager.plan(deployment, RequestContext())
         resources = parsed['resources']
 
         # User
@@ -456,7 +458,7 @@ class TestDeploymentRelationParser(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        parsed = DeploymentsManager.plan(deployment, RequestContext())
+        parsed = Manager.plan(deployment, RequestContext())
         expected_connections = {
             'balanced-front': {'interface': 'foo'},
             'allyourbase': {'interface': 'bar'},
@@ -491,7 +493,7 @@ class TestComponentSearch(unittest.TestCase):
                             - widget: foo
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        DeploymentsManager.plan(deployment, RequestContext())
+        Manager.plan(deployment, RequestContext())
         self.assertEquals(deployment['resources'].values()[0]['component'],
                           'small_widget')
 
@@ -529,7 +531,7 @@ class TestComponentSearch(unittest.TestCase):
                             - widget: bar
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        DeploymentsManager.plan(deployment, RequestContext())
+        Manager.plan(deployment, RequestContext())
         components = [r['component'] for r in deployment['resources'].values()]
         self.assertIn('big_widget', components)
         self.assertIn('small_widget', components)
@@ -571,7 +573,7 @@ class TestComponentSearch(unittest.TestCase):
                         username: tester
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        DeploymentsManager.plan(deployment, RequestContext())
+        Manager.plan(deployment, RequestContext())
         components = [r['component'] for r in deployment['resources'].values()]
         self.assertIn('big_widget', components)
         self.assertIn('small_widget', components)
@@ -612,7 +614,7 @@ class TestComponentSearch(unittest.TestCase):
                             - web
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        DeploymentsManager.plan(deployment, RequestContext())
+        Manager.plan(deployment, RequestContext())
         self.assertEquals(deployment['resources'].values()[0]['component'],
                           'small_widget')
 
@@ -837,7 +839,7 @@ class TestDeploymentSettings(unittest.TestCase):
         ]
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        parsed = DeploymentsManager.plan(deployment, RequestContext())
+        parsed = Manager.plan(deployment, RequestContext())
         for test in cases[:-1]:  # TODO: last case broken without env providers
             value = parsed.get_setting(test['name'],
                                        service_name=test.get('service'),
@@ -896,7 +898,7 @@ class TestDeploymentSettings(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        parsed = DeploymentsManager.plan(deployment, RequestContext())
+        parsed = Manager.plan(deployment, RequestContext())
         resources = parsed['resources']
         self.assertIn("myResource", resources)
         self.assertIn("myUser", resources)
@@ -976,7 +978,7 @@ class TestDeploymentSettings(unittest.TestCase):
         ]
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        parsed = DeploymentsManager.plan(deployment, RequestContext())
+        parsed = Manager.plan(deployment, RequestContext())
         for test in cases[:-1]:  # TODO: last case broken without env providers
             value = parsed.get_setting(test['name'],
                                        service_name=test.get('service'),
@@ -986,8 +988,6 @@ class TestDeploymentSettings(unittest.TestCase):
             self.assertEquals(value, test['expected'], msg=test['case'])
             LOG.debug("Test '%s' success=%s", test['case'],
                       value == test['expected'])
-
-
 
     def test_get_input_provider_option(self):
         deployment = Deployment(yaml_to_dict("""
@@ -1092,7 +1092,7 @@ class TestDeploymentSettings(unittest.TestCase):
                             - widget: bar
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        planned = DeploymentsManager.plan(deployment, RequestContext())
+        planned = Manager.plan(deployment, RequestContext())
         # Use service and type
         value = planned.get_setting('username', service_name='single',
                                     resource_type='widget')
@@ -1124,7 +1124,7 @@ class TestDeploymentSettings(unittest.TestCase):
             """))
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
         self.assertRaises(CheckmateValidationException,
-                          DeploymentsManager.plan, deployment,
+                          Manager.plan, deployment,
                           RequestContext())
 
     def test_objectify(self):
@@ -1180,7 +1180,7 @@ class TestDeploymentScenarios(unittest.TestCase):
     def plan_deployment(content):
         """ Wrapper for deployment planning """
         deployment = Deployment(yaml_to_dict(content))
-        return DeploymentsManager.plan(deployment, RequestContext())
+        return Manager.plan(deployment, RequestContext())
 
 
 class TestGetDeployments(unittest.TestCase):
@@ -1200,7 +1200,7 @@ class TestPostDeployments(unittest.TestCase):
         self.app = TestApp(self.filters)
 
         self.manager = self._mox.CreateMockAnything()
-        self.router = DeploymentsRouter(self.root_app, self.manager)
+        self.router = Router(self.root_app, self.manager)
 
         self._deployment = {
             'id': '1234',
@@ -1276,7 +1276,7 @@ class TestCloneDeployments(unittest.TestCase):
         """ Test when deployment status is not 'DELETED', clone
         deployment operation would fail """
 
-        manager = DeploymentsManager({})
+        manager = Manager({})
         self._mox.StubOutWithMock(manager, "get_a_deployment")
         manager.get_a_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
@@ -1292,7 +1292,7 @@ class TestCloneDeployments(unittest.TestCase):
         """ clone deployment success """
         self._deployment['status'] = 'DELETED'
 
-        manager = DeploymentsManager({})
+        manager = Manager({})
         self._mox.StubOutWithMock(manager, "get_a_deployment")
         manager.get_a_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
@@ -1311,7 +1311,7 @@ class TestCloneDeployments(unittest.TestCase):
         """ clone deployment simulation """
         self._deployment['status'] = 'DELETED'
 
-        manager = DeploymentsManager({})
+        manager = Manager({})
         self._mox.StubOutWithMock(manager, "get_a_deployment")
         manager.get_a_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
@@ -1358,7 +1358,7 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_bad_status(self):
         """ Test when deployment status is invalid for delete """
         manager = self._mox.CreateMockAnything()
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(self._deployment)
         manager.save_deployment('1234', IgnoreArg(), tenant_id=None,
                                 partial=False).AndReturn(None)
@@ -1376,7 +1376,7 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_not_found(self):
         """ Test deployment not found """
         manager = self._mox.CreateMockAnything()
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(None)
         self._mox.ReplayAll()
         try:
@@ -1391,15 +1391,16 @@ class TestDeleteDeployments(unittest.TestCase):
         """ Test when there are no resource tasks for delete """
         self._deployment['status'] = 'UP'
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': db})
+        router = Router(bottle.default_app(), manager)
         self._mox.StubOutWithMock(manager, "get_a_deployment")
         manager.get_deployment('1234').AndReturn(self._deployment)
 
         self._mox.StubOutWithMock(checkmate.deployments.router, "Plan")
         checkmate.deployments.router.Plan = self._mox.CreateMockAnything()
         mock_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.router.Plan.__call__(IgnoreArg()).AndReturn(mock_plan)
+        checkmate.deployments.router.Plan.__call__(
+            IgnoreArg()).AndReturn(mock_plan)
         mock_plan.plan_delete(IgnoreArg()).AndReturn([])
         self._mox.StubOutWithMock(checkmate.deployments.tasks.
                                   delete_deployment_task, "delay")
@@ -1427,14 +1428,16 @@ class TestDeleteDeployments(unittest.TestCase):
         self._deployment['status'] = 'UP'
 
         mock_driver = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': mock_driver})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': mock_driver})
+        router = Router(bottle.default_app(), manager)
 
-        mock_driver.get_deployment('1234', with_secrets=False).AndReturn(self._deployment)
+        mock_driver.get_deployment(
+            '1234', with_secrets=False).AndReturn(self._deployment)
         self._mox.StubOutWithMock(checkmate.deployments, "Plan")
         checkmate.deployments.router.Plan = self._mox.CreateMockAnything()
         mock_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.router.Plan.__call__(IgnoreArg()).AndReturn(mock_plan)
+        checkmate.deployments.router.Plan.__call__(
+            IgnoreArg()).AndReturn(mock_plan)
         mock_delete_step1 = self._mox.CreateMockAnything()
         mock_delete_step2 = self._mox.CreateMockAnything()
         mock_steps = [mock_delete_step1, mock_delete_step2]
@@ -1458,8 +1461,9 @@ class TestDeleteDeployments(unittest.TestCase):
         manager.save_deployment(ContainsKeyValue('operation', delete_op),
                                 api_id='1234',
                                 tenant_id=None).AndReturn(None)
-        self._mox.StubOutWithMock(checkmate.deployments.tasks.delete_deployment_task,
-                                  "si")
+        self._mox.StubOutWithMock(
+            checkmate.deployments.tasks.delete_deployment_task, "si"
+        )
         checkmate.deployments.tasks.delete_deployment_task.si(IgnoreArg())\
             .AndReturn(mock_delete_dep)
         mock_chord.__call__(IgnoreArg(), interval=IgnoreArg(),
@@ -1525,8 +1529,8 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_happy_resources(self):
         """ When getting the resources should work """
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': db})
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
@@ -1536,8 +1540,8 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_happy_status(self):
         """ When getting the resource statuses should work """
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': db})
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
@@ -1553,8 +1557,8 @@ class TestGetResourceStuff(unittest.TestCase):
         """ Test when no resources in deployment """
         del self._deployment['resources']
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': db})
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
 
@@ -1567,8 +1571,8 @@ class TestGetResourceStuff(unittest.TestCase):
         """ Test when no resources in deployment """
         del self._deployment['resources']
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': db})
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
 
@@ -1580,8 +1584,8 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_dep_404(self):
         """ Test when deployment not found """
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': db})
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False).AndReturn(None)
 
         self._mox.ReplayAll()
@@ -1595,8 +1599,8 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_dep_404_status(self):
         """ Test when deployment not found """
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': db})
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False).AndReturn(None)
 
         self._mox.ReplayAll()
@@ -1610,8 +1614,8 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_status_trace(self):
         """ Make sure trace is included if query param present """
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': db})
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
 
@@ -1669,8 +1673,8 @@ class TestPostbackHelpers(unittest.TestCase):
     def test_provider_update(self):
         """ Test mass provider resource updates """
         db = self._mox.CreateMockAnything()
-        manager = DeploymentsManager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        manager = Manager({'default': db})
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234').AndReturn(self._deployment)
         self._mox.StubOutWithMock(
             checkmate.deployments.tasks.resource_postback, "delay")

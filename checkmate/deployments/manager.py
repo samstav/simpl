@@ -11,7 +11,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from .plan import Plan
 from checkmate import db, utils, operations, orchestrator
-from checkmate.base import Manager
+from checkmate.base import ManagerBase
 from checkmate.deployment import Deployment, generate_keys
 from checkmate.exceptions import (
     CheckmateBadState,
@@ -23,11 +23,13 @@ from checkmate.workflow import create_workflow_deploy, init_operation
 LOG = logging.getLogger(__name__)
 
 
-class DeploymentsManager(Manager):
+class Manager(ManagerBase):
     '''Contains Deployments Model and Logic for Accessing Deployments'''
 
     def count(self, tenant_id=None, blueprint_id=None):
         '''Return count of deployments filtered by passed in parameters'''
+        # TODO: This should be a filter at the database layer. Example:
+        # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
         deployments = self.driver.get_deployments(tenant_id=tenant_id)
         count = 0
         if blueprint_id:
@@ -242,8 +244,8 @@ class DeploymentsManager(Manager):
     def plan(deployment, context, check_limits=False, check_access=False):
         '''Process a new checkmate deployment and plan for execution.
 
-        This creates templates for resources and connections that will be used for
-        the actual creation of resources.
+        This creates templates for resources and connections that will be used
+        for the actual creation of resources.
 
         :param deployment: checkmate deployment instance (dict)
         :param context: RequestContext (auth data, etc) for making API calls

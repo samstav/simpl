@@ -4,7 +4,7 @@ Base Class
 from checkmate import utils
 
 
-class Manager(object):
+class ManagerBase(object):
     '''Handles interface between API and database'''
 
     def __init__(self, drivers):

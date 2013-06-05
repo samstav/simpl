@@ -26,4 +26,5 @@ def get_api_version():
     global __version_string__
     if not __version_string__:
         __version_string__ = checkmate.version()
+    LOG.debug('GET /version called and reported version %s', __version_string__)
     return utils.write_body({"version": __version_string__}, request, response)

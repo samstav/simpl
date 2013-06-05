@@ -10,7 +10,7 @@ from webtest import TestApp
 
 from checkmate import db
 from checkmate import blueprints, environments, workflows
-from checkmate.deployments import DeploymentsRouter, DeploymentsManager
+from checkmate import deployments
 from checkmate.middleware import (
     TenantMiddleware,
     ContextMiddleware,
@@ -31,8 +31,8 @@ class TestServer(unittest.TestCase):
         self.root_app = default_app.pop()
         self.root_app.catchall = False
 
-        manager = DeploymentsManager({'default': workflows.DB})
-        self.router = DeploymentsRouter(self.root_app, manager)
+        manager = deployments.Manager({'default': workflows.DB})
+        self.router = deployments.Router(self.root_app, manager)
 
         tenant = TenantMiddleware(self.root_app)
         context = ContextMiddleware(tenant)
