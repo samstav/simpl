@@ -15,12 +15,11 @@ import random
 import re
 import string
 import struct
-from subprocess import CalledProcessError, Popen, PIPE
+from subprocess import CalledProcessError, Popen, PIPE, check_output
 import sys
 import threading
 from time import gmtime, strftime
 import uuid
-from subprocess import check_output
 import shutil
 
 from bottle import abort, request, response
