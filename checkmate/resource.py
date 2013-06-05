@@ -4,6 +4,7 @@ a deployment's resources
 import logging
 
 from checkmate.common import schema
+from checkmate.common.fysom import Fysom, FysomError
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException
@@ -98,10 +99,15 @@ class Resource(dict):
     }
 
     def __init__(self, key, obj):
+        self.fsm = Fysom({
+            'initial': self.get('status', 'PLANNED'),
+            'events': schema.get_state_events(Resource.FYSOM_STATES),
+        })
+        if 'status' not in obj:
+            obj['status'] = self.fsm.current
+        Resource.validate(obj)
         if 'desired-state' in obj:
             if not isinstance(obj['desired-state'], Resource.DesiredState):
-                obj['desired-state'] = Resource.DesiredState(obj['desired-state'])
-        Resource.validate(obj)
                 obj['desired-state'] = Resource.DesiredState(
                     obj['desired-state'])
         self.key = key

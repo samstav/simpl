@@ -26,6 +26,7 @@ class TestResource(unittest.TestCase):
     )
 
     def setUp(self):
+        self.resource = Resource('0', {})
         LOG.warn = mock.Mock()
 
     def test_empty_dict_is_valid(self):
@@ -106,35 +107,32 @@ class TestResource(unittest.TestCase):
         })
 
     def test_set_invalid_root_resource_key(self):
-        resource = Resource('0', {})
         with self.assertRaises(CheckmateValidationException):
-            resource['blerg'] = 'blerf'
+            self.resource['blerg'] = 'blerf'
 
     def test_set_invalid_desired_state_key(self):
-        resource = Resource('0', {'desired-state': {}})
+        self.resource['desired-state'] = {}
         with self.assertRaises(CheckmateValidationException):
-            resource['desired-state']['service'] = 'self'
+            self.resource['desired-state']['service'] = 'self'
 
     def test_set_desired_state_with_valid_dict(self):
-        resource = Resource('0', {'desired-state': {}})
-        resource['desired-state'] = {'port': '80'}
-        self.assertEquals({'port': '80'}, resource['desired-state'])
+        self.resource['desired-state'] = {'port': '80'}
+        self.assertEqual({'port': '80'}, self.resource['desired-state'])
 
     def test_set_desired_state_with_invalid_dict(self):
-        resource = Resource('0', {'desired-state': {}})
+        self.resource['desired-state'] = {}
         with self.assertRaises(CheckmateValidationException):
-            resource['desired-state'] = {'service': 'self'}
+            self.resource['desired-state'] = {'service': 'self'}
 
     #
     # Test the dict'ness of Resource
     #
 
     def test_resource_len(self):
-        resource = Resource(
-            '0',
-            {'index': '0', 'desired-state': {'port': '80'}}
-        )
-        self.assertEquals(2, len(resource))
+        self.resource['index'] = '0'
+        self.resource['desired-state'] = {'port': '80'}
+        self.resource['status'] = 'PLANNED'
+        self.assertEquals(3, len(self.resource))
 
     def test_resource_get_item(self):
         resource = Resource(
@@ -154,13 +152,38 @@ class TestResource(unittest.TestCase):
         )
 
     def test_yaml_dumps(self):
-        resource = Resource(
-            '0',
-            {'index': '0', 'desired-state': {'port': '80'}}
+        self.resource['index'] = '0'
+        self.resource['status'] = 'NEW'
+        self.resource['desired-state'] = {'port': '80'}
+        self.assertEqual(3, len(self.resource))
+
+    def test_resource_get_item(self):
+        self.resource['index'] = '0'
+        self.resource['desired-state'] = {'port': '80'}
+        self.assertEqual({'port': '80'}, self.resource['desired-state'])
+
+    def test_json_dumps(self):
+        self.resource['index'] = '0'
+        self.resource['desired-state'] = {'port': '80'}
+        self.assertEqual(
+            {
+                'index': '0',
+                'status': 'PLANNED',
+                'desired-state': {'port': '80'}
+            },
+            json.loads(json.dumps(self.resource))
         )
-        self.assertDictEqual(
-            {'index': '0', 'desired-state': {'port': '80'}},
-            yaml.safe_load(utils.to_yaml(resource))
+
+    def test_yaml_dumps(self):
+        self.resource['index'] = '0'
+        self.resource['desired-state'] = {'port': '80'}
+        self.assertEqual(
+            {
+                'index': '0',
+                'status': 'PLANNED',
+                'desired-state': {'port': '80'}
+            },
+            yaml.safe_load(utils.to_yaml(self.resource))
         )
 
     #
@@ -168,11 +191,11 @@ class TestResource(unittest.TestCase):
     #
 
     def test_initial_state_is_PLANNED(self):
-        self.assertEquals('PLANNED', self.resource['status'])
+        self.assertEqual('PLANNED', self.resource['status'])
 
     def test_instantiation_with_specified_status_is_valid(self):
         preexisting_resource = Resource('0', {'status': 'ACTIVE'})
-        self.assertEquals('ACTIVE', preexisting_resource.fsm.current)
+        self.assertEqual('ACTIVE', preexisting_resource.fsm.current)
 
     def test_from_PLANNED_straight_to_ACTIVE(self):
         self.assertTrue(self.resource.fsm.can('active'))
