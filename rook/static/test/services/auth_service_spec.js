@@ -51,7 +51,7 @@ describe('auth Service', function(){
   });
 
   describe('#generate_auth_data', function() {
-    var token, tenant, apikey, username, password, target;
+    var token, tenant, apikey, username, password, scheme;
 
     beforeEach(function() {
       token = 'faketoken';
@@ -60,7 +60,7 @@ describe('auth Service', function(){
       fakepinrsa = 'fakepinrsa';
       username = 'fakeusername';
       password = 'fakepassword';
-      target = 'faketarget';
+      scheme = 'fakescheme';
     });
 
     it('should generate token and tenant auth body', function() {
@@ -73,19 +73,19 @@ describe('auth Service', function(){
       expect(this.auth.generate_auth_data(null, null, apikey, null, username, null, null)).toEqual(auth_body);
     });
 
-    it('should generate username and password auth body for specific target', function() {
-      target = "https://identity-internal.api.rackspacecloud.com/v2.0/tokens";
+    it('should generate username and password auth body for specific scheme', function() {
+      scheme = "GlobalAuth";
       auth_body = '{"auth":{"RAX-AUTH:domain":{"name":"Rackspace"},"passwordCredentials":{"username":"fakeusername","password":"fakepassword"}}}';
-      expect(this.auth.generate_auth_data(null, null, null, null, username, password, target)).toEqual(auth_body);
+      expect(this.auth.generate_auth_data(null, null, null, null, username, password, scheme)).toEqual(auth_body);
     });
 
-    it('should generate username and password auth body for generic targets', function() {
+    it('should generate username and password auth body for generic schemes', function() {
       auth_body = '{"auth":{"passwordCredentials":{"username":"fakeusername","password":"fakepassword"}}}';
-      expect(this.auth.generate_auth_data(null, null, null, null, username, password, target)).toEqual(auth_body);
+      expect(this.auth.generate_auth_data(null, null, null, null, username, password, scheme)).toEqual(auth_body);
     });
 
     it('should not generate auth body without token, username or password', function() {
-      expect(this.auth.generate_auth_data(null, null, null, null, null, null, target)).toBeFalsy();
+      expect(this.auth.generate_auth_data(null, null, null, null, null, null, scheme)).toBeFalsy();
     });
 
     it('should not generate impersonation call data if not GlobalAuth', function() {
