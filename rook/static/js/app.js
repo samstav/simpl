@@ -1644,7 +1644,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         index_to_replace,
         blueprints = [],
         deleted_blueprints = [],
-        cached_blueprints = JSON.parse(localStorage.blueprints || "[]");
+        cache_key = $scope.remote.owner + '_blueprints',
+        cached_blueprints = JSON.parse(localStorage.getItem(cache_key) || "[]");
 
     function updateListWithBlueprint(list, blueprint){
       object_to_replace = _.findWhere(list, { id: blueprint.id });
@@ -1657,7 +1658,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     }
 
     function updateBlueprintCache(items, should_delete){
-      blueprints = JSON.parse(localStorage.blueprints || "[]");
+      blueprints = JSON.parse(localStorage.getItem(cache_key) || "[]");
 
       if(should_delete){
         blueprints = _.reject(blueprints, function(blueprint){
@@ -1667,7 +1668,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         _.map(items, function(item){ updateListWithBlueprint(blueprints, item)})
       }
 
-      localStorage.blueprints = JSON.stringify(blueprints);
+      localStorage.setItem(cache_key, JSON.stringify(blueprints));
     }
 
     function verifyBlueprintRepo(blueprint){
