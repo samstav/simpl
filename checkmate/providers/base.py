@@ -503,10 +503,10 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         return resources
 
     @staticmethod
-    def get_checkmate_status(status):
+    def get_checkmate_status(status, schema):
         """Return checkmate status for resource based on schema"""
-        if self.__schema__ and status and status in self.__schema__:
-            return self.__shcema__[status]
+        if schema and status and status in schema:
+            return schema[status]
         else:
             LOG.debug("Resource status %s was not found in schema" % status)
             return "ERROR"
