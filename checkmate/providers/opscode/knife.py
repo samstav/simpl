@@ -234,11 +234,11 @@ def _get_blueprints_cache_path(source_repo):
 
 def _cache_blueprint(source_repo):
     """Cache a blueprint repo or update an existing cache, if necessary"""
-    LOG.debug("Running providers.opscode.knife._cache_blueprint()...")
+    LOG.debug("(cache) Running providers.opscode.knife._cache_blueprint()...")
     cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
     if not cache_expire_time:
         cache_expire_time = 3600
-        LOG.info("CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
+        LOG.info("(cache) CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not set. "
                  "Defaulting to %s", cache_expire_time)
     cache_expire_time = int(cache_expire_time)
     repo_cache = _get_blueprints_cache_path(source_repo)
@@ -256,11 +256,11 @@ def _cache_blueprint(source_repo):
         else:
             head_file = os.path.join(repo_cache, ".git", "HEAD")
         last_update = time.time() - os.path.getmtime(head_file)
-        LOG.debug("cache_expire_time: %s", cache_expire_time)
-        LOG.debug("last_update: %s", last_update)
+        LOG.debug("(cache) cache_expire_time: %s", cache_expire_time)
+        LOG.debug("(cache) last_update: %s", last_update)
 
         if last_update > cache_expire_time:  # Cache miss
-            LOG.debug("Updating repo: %s", repo_cache)
+            LOG.debug("(cache) Updating repo: %s", repo_cache)
             tags = utils.git_tags(repo_cache)
             if branch in tags:
                 tag = branch
@@ -279,9 +279,9 @@ def _cache_blueprint(source_repo):
                     LOG.info("Unable to pull from git repository at %s.  "
                              "Using the cached repository", url)
         else:  # Cache hit
-            LOG.debug("Using cached repo: %s" % repo_cache)
+            LOG.debug("(cache) Using cached repo: %s" % repo_cache)
     else:  # Cache does not exist
-        LOG.debug("Cloning repo to %s" % repo_cache)
+        LOG.debug("(cache) Cloning repo to %s" % repo_cache)
         os.makedirs(repo_cache)
         try:
             utils.git_clone(repo_cache, url, branch=branch)
