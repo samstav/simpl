@@ -100,17 +100,17 @@ filters.filter('capitalize',
 
 filters.filter('cm_validation_rules', function() {
   return function(constraints) {
-    var html = "<div class='validation_rules'>";
+    var html = '<div class=\"validation_rules\">';
     if (constraints) {
       for (var idx=0 ; idx<constraints.length ; idx++)
       {
         var icon = constraints[idx].valid ? 'icon-ok' : 'icon-remove';
-        html += '<i class="'+ icon +'"></i>';
-        html += '<span class="message">' + (constraints[idx].message || "") + '</span>';
+        html += '<i class=\"'+ icon +'\"></i>';
+        html += '<span class=\"message\">' + (constraints[idx].message || "") + '</span>';
         html += '<br>';
       }
     }
-    html += "</div>";
+    html += '</div>';
 
     return html;
   };
