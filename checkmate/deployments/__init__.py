@@ -1,7 +1,7 @@
 '''
 All the Deployments things
 '''
-from .manager import DeploymentsManager
+from .manager import Manager
 from .router import Router as DeploymentsRouter
 from .plan import Plan
 

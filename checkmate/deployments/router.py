@@ -82,7 +82,7 @@ def write_deploy_headers(deployment_id, tenant_id=None):
 
 
 class Router(object):
-    '''Route /admin/ calls'''
+    '''Route /deployments/ calls'''
 
     def __init__(self, app, manager):
         '''Takes a bottle app and routes traffic for it'''
@@ -181,7 +181,7 @@ class Router(object):
         deployment = _content_to_deployment(request, tenant_id=tenant_id)
         results = self.manager.plan(deployment, request.context)
         spec = self.manager.create_workflow_spec_deploy(results,
-                                                           request.context)
+                                                        request.context)
         serializer = DictionarySerializer()
         serialized_spec = spec.serialize(serializer)
         results['workflow'] = dict(wf_spec=serialized_spec)
@@ -425,8 +425,8 @@ class Router(object):
                         utils.get_time_string()
 
         if updates:
-            self.manager.save_deployment(updates, api_id=api_id, tenant_id=tenant_id,
-                                         partial=True)
+            self.manager.save_deployment(updates, api_id=api_id,
+                                         tenant_id=tenant_id, partial=True)
         return utils.write_body({'secrets': updates.get('display-outputs')},
                                 request, response)
 

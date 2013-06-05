@@ -8,7 +8,7 @@ from celery.task import task
 
 from checkmate import db, utils
 from checkmate.common import tasks as common_tasks
-from checkmate.deployments import DeploymentsManager
+from checkmate.deployments import Manager
 from checkmate.exceptions import CheckmateException
 from checkmate.db.common import ObjectLockedError
 from checkmate.deployment import Deployment
@@ -24,7 +24,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
     )
 )
 MANAGERS = {}
-MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+MANAGERS['deployments'] = Manager(DRIVERS)
 
 
 @task

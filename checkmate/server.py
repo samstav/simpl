@@ -18,7 +18,7 @@ from celery import Celery
 from checkmate import db
 from checkmate import celeryconfig
 from checkmate.api.admin import Router as AdminRouter
-from checkmate.deployments import DeploymentsRouter, DeploymentsManager
+from checkmate import deployments
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
@@ -166,7 +166,7 @@ def main_func():
         )
     )
 
-    MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+    MANAGERS['deployments'] = deployments.Manager(DRIVERS)
 
     # Load admin routes if requested
     with_admin = False
@@ -177,8 +177,9 @@ def main_func():
         resources.append('admin')
 
     #Load API Calls
-    ROUTERS['deployments'] = DeploymentsRouter(next_app,
-                                               MANAGERS['deployments'])
+    ROUTERS['deployments'] = deployments.DeploymentsRouter(
+        next_app, MANAGERS['deployments']
+    )
 
     next_app = middleware.AuthorizationMiddleware(next_app,
                                                   anonymous_paths=['version'],

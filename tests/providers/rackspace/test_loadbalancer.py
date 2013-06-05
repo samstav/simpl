@@ -17,7 +17,8 @@ LOG = logging.getLogger(__name__)
 from checkmate import test, utils
 from checkmate.exceptions import CheckmateException
 from checkmate.deployment import Deployment
-from checkmate.deployments import resource_postback, DeploymentsManager
+from checkmate import deployments
+from checkmate.deployments import resource_postback
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import loadbalancer
@@ -34,66 +35,69 @@ class TestLoadBalancer(test.ProviderTester):
 
     def verify_limits(self, max_lbs, max_nodes):
         """Test the verify_limits() method"""
-        resources = [{
-            "status": "BUILD",
-            "index": "0",
-            "service": "lb",
-            "region": "DFW",
-            "component": "http",
-            "relations": {
-              "lb-master-1": {
-                "name": "lb-master",
-                "state": "planned",
-                "requires-key": "application",
-                "relation": "reference",
-                "interface": "http",
-                "relation-key": "master",
-                "target": "1"
-              },
-              "lb-web-3": {
-                "name": "lb-web",
-                "state": "planned",
-                "requires-key": "application",
-                "relation": "reference",
-                "interface": "http",
-                "relation-key": "web",
-                "target": "3"
-              }
+        resources = [
+            {
+                "status": "BUILD",
+                "index": "0",
+                "service": "lb",
+                "region": "DFW",
+                "component": "http",
+                "relations": {
+                    "lb-master-1": {
+                        "name": "lb-master",
+                        "state": "planned",
+                        "requires-key": "application",
+                        "relation": "reference",
+                        "interface": "http",
+                        "relation-key": "master",
+                        "target": "1"
+                    },
+                    "lb-web-3": {
+                        "name": "lb-web",
+                        "state": "planned",
+                        "requires-key": "application",
+                        "relation": "reference",
+                        "interface": "http",
+                        "relation-key": "web",
+                        "target": "3"
+                    }
+                }
+            },
+            {
+                "status": "BUILD",
+                "index": "1",
+                "service": "lb2",
+                "region": "DFW",
+                "component": "http",
+                "relations": {
+                    "lb-master-1": {
+                        "name": "lb2-master",
+                        "state": "planned",
+                        "requires-key": "application",
+                        "relation": "reference",
+                        "interface": "https",
+                        "relation-key": "master",
+                        "target": "1"
+                    },
+                    "lb-web-3": {
+                        "name": "lb2-web",
+                        "state": "planned",
+                        "requires-key": "application",
+                        "relation": "reference",
+                        "interface": "https",
+                        "relation-key": "web",
+                        "target": "3"
+                    }
+                }
             }
-        }, {
-            "status": "BUILD",
-            "index": "1",
-            "service": "lb2",
-            "region": "DFW",
-            "component": "http",
-            "relations": {
-              "lb-master-1": {
-                "name": "lb2-master",
-                "state": "planned",
-                "requires-key": "application",
-                "relation": "reference",
-                "interface": "https",
-                "relation-key": "master",
-                "target": "1"
-              },
-              "lb-web-3": {
-                "name": "lb2-web",
-                "state": "planned",
-                "requires-key": "application",
-                "relation": "reference",
-                "interface": "https",
-                "relation-key": "web",
-                "target": "3"
-              }
-            }
-        }]
+        ]
         context = RequestContext()
         self.mox.StubOutWithMock(loadbalancer.Provider, 'find_a_region')
         self.mox.StubOutWithMock(loadbalancer.Provider, 'find_url')
         self.mox.StubOutWithMock(loadbalancer.Provider, '_get_abs_limits')
         limits = {
-          "NODE_LIMIT": max_nodes,
-          "LOADBALANCER_LIMIT": max_lbs
+            "NODE_LIMIT": max_nodes,
+            "LOADBALANCER_LIMIT": max_lbs
         }
         loadbalancer.Provider.find_a_region(mox.IgnoreArg()).AndReturn("DFW")
         loadbalancer.Provider.find_url(mox.IgnoreArg(),
@@ -258,11 +262,11 @@ class TestCeleryTasks(unittest.TestCase):
         """ Test wait on delete task """
         context = {}
         expect = {
-                  'instance:1': {
-                                  'status': 'DELETED',
-                                  'status-message': 'LB instance:1 was deleted'
-                                }
-                 }
+            'instance:1': {
+                'status': 'DELETED',
+                'status-message': 'LB instance:1 was deleted'
+            }
+        }
         api = self.mox.CreateMockAnything()
         api.loadbalancers = self.mox.CreateMockAnything()
         m_lb = self.mox.CreateMockAnything()
@@ -313,28 +317,24 @@ class TestCeleryTasks(unittest.TestCase):
         context = dict(deployment='DEP', resource='1')
 
         resource = {
-                    'name': 'fake_lb',
-                    'provider': 'load-balancers',
-                    'status': 'ERROR',
-                    'instance': {
-                                 'id': 'fake_lb_id'
-                            }
-                    }
+            'name': 'fake_lb',
+            'provider': 'load-balancers',
+            'status': 'ERROR',
+            'instance': {
+                'id': 'fake_lb_id'
+            }
+        }
 
         lb_api_mock = self.mox.CreateMockAnything()
         lb_api_mock.loadbalancers = self.mox.CreateMockAnything()
 
         lb_api_mock.loadbalancers.get(lb.id).AndReturn(lb)
 
-        expected = {
-                    'instance:1': {
-                                   "status": "ERROR"
-                                   }
-                    }
+        expected = {'instance:1': {"status": "ERROR"}}
 
         self.mox.ReplayAll()
-        results = loadbalancer.sync_resource_task(context, resource, resource_key,
-                                                  lb_api_mock)
+        results = loadbalancer.sync_resource_task(
+            context, resource, resource_key, lb_api_mock)
 
         self.assertDictEqual(results, expected)
 
@@ -396,7 +396,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
         self.context = RequestContext(auth_token='MOCK_TOKEN',
                                       username='MOCK_USER')
-        DeploymentsManager.plan(self.deployment, self.context)
+        deployments.Manager.plan(self.deployment, self.context)
 
     def test_workflow_task_generation_for_vip_load_balancer(self):
         vip_deployment = Deployment(utils.yaml_to_dict("""
@@ -465,7 +465,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: https
                             - compute: linux
             """))
-        DeploymentsManager.plan(vip_deployment, self.context)
+        deployments.Manager.plan(vip_deployment, self.context)
         workflow = create_workflow_deploy(vip_deployment, self.context)
 
         task_list = workflow.spec.task_specs.keys()
@@ -545,9 +545,10 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: http
                             - compute: linux
             """))
-        DeploymentsManager.plan(deployment_with_allow_unencrypted, self.context)
-        workflow = create_workflow_deploy(deployment_with_allow_unencrypted,
-                                          self.context)
+        deployments.Manager.plan(
+            deployment_with_allow_unencrypted, self.context)
+        workflow = create_workflow_deploy(
+            deployment_with_allow_unencrypted, self.context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = [
@@ -612,17 +613,20 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             'ip': '4.4.4.1',
                             'private_ip': '10.1.2.1',
                             'addresses': {
-                                'public': [{
-                                               'version': 4,
-                                               'addr': '4.4.4.1'
-                                           }, {
-                                               'version': 6,
-                                               'addr': '2001:babe::ff04:36c1'
-                                           }],
+                                'public': [
+                                    {
+                                        'version': 4,
+                                        'addr': '4.4.4.1'
+                                    },
+                                    {
+                                        'version': 6,
+                                        'addr': '2001:babe::ff04:36c1'
+                                    }
+                                ],
                                 'private': [{
-                                                'version': 4,
-                                                'addr': '10.1.2.1'
-                                            }]
+                                    'version': 4,
+                                    'addr': '10.1.2.1'
+                                }]
                             },
                         }
                     },
@@ -646,7 +650,11 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'dns': False,
                         'algorithm': 'ROUND_ROBIN',
                         'port': None,
-                        'tags': {'RAX-CHECKMATE': 'http://MOCK/TMOCK/deployments/DEP-ID-1000/resources/0'},
+                        'tags': {
+                            'RAX-CHECKMATE':
+                            'http://MOCK/TMOCK/deployments/'
+                            'DEP-ID-1000/resources/0'
+                        },
                         'parent_lb': None,
                     },
                     'post_back_result': True,

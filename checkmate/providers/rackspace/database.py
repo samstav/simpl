@@ -42,7 +42,7 @@ API_FLAVOR_CACHE = {}
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 import os
 from checkmate import db
-from checkmate.deployments import DeploymentsManager
+from checkmate import deployments
 DRIVERS = {}
 DB = DRIVERS['default'] = db.get_driver()
 SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
@@ -52,7 +52,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
     )
 )
 MANAGERS = {}
-MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+MANAGERS['deployments'] = deployments.Manager(DRIVERS)
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
@@ -955,10 +955,16 @@ def delete_instance(context, api=None):
         key = args[0].get('resource_key')
         if dep_id and key:
             k = "instance:%s" % key
-            ret = {k: {'status': 'ERROR',
-                       'error-message': ('Unexpected error while deleting '
-                                      'database instance %s' % key),
-                       'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            ret = {
+                k: {
+                    'status': 'ERROR',
+                    'error-message': (
+                        'Unexpected error while deleting '
+                        'database instance %s' % key
+                    ),
+                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                }
+            }
             resource_postback.delay(dep_id, ret)
         else:
             LOG.error("Missing deployment id and/or resource key in "
@@ -1039,10 +1045,16 @@ def wait_on_del_instance(context, api=None):
         key = args[0].get('resource_key')
         if dep_id and key:
             k = "instance:%s" % key
-            ret = {k: {'status': 'ERROR',
-                       'error-message': ('Unexpected error while deleting '
-                                      'database instance %s' % key),
-                       'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            ret = {
+                k: {
+                    'status': 'ERROR',
+                    'error-message': (
+                        'Unexpected error while deleting '
+                        'database instance %s' % key
+                    ),
+                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                }
+            }
             resource_postback.delay(dep_id, ret)
         else:
             LOG.error("Missing deployment id and/or resource key in "
@@ -1108,10 +1120,16 @@ def delete_database(context, api=None):
         key = args[0].get('resource_key')
         if dep_id and key:
             k = "instance:%s" % key
-            ret = {k: {'status': 'ERROR',
-                       'error-message': ('Unexpected error while deleting '
-                                      'database %s' % key),
-                       'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+            ret = {
+                k: {
+                    'status': 'ERROR',
+                    'error-message': (
+                        'Unexpected error while deleting '
+                        'database %s' % key
+                    ),
+                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                }
+            }
             resource_postback.delay(dep_id, ret)
         else:
             LOG.error("Missing deployment id and/or resource key in "
@@ -1146,9 +1164,14 @@ def delete_database(context, api=None):
             delete_database.retry(exc=respe)
     if not instance or (instance.status == 'DELETED'):
         # instance is gone, so is the db
-        return {inst_key: {'status': 'DELETED',
-                           'status-message': ('Host %s was deleted'
-                                         % resource.get('hosted_on'))}}
+        return {
+            inst_key: {
+                'status': 'DELETED',
+                'status-message': (
+                    'Host %s was deleted' % resource.get('hosted_on')
+                )
+            }
+        }
     elif instance.status == 'BUILD':  # can't delete when instance in BUILD
         delete_database.retry(exc=CheckmateException("Waiting on instance to "
                                                      "be out of BUILD status"))

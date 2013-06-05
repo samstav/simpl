@@ -30,7 +30,6 @@ from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
 
 
-
 LOG = logging.getLogger(__name__)
 
 # Any names should become airport codes
@@ -55,7 +54,7 @@ LB_API_CACHE = {}
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 import os
 from checkmate import db
-from checkmate.deployments import DeploymentsManager
+from checkmate import deployments
 DRIVERS = {}
 DB = DRIVERS['default'] = db.get_driver()
 SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
@@ -65,7 +64,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
     )
 )
 MANAGERS = {}
-MANAGERS['deployments'] = DeploymentsManager(DRIVERS)
+MANAGERS['deployments'] = deployments.Manager(DRIVERS)
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
@@ -105,10 +104,9 @@ class Provider(ProviderBase):
                                           service_name=service,
                                           provider_key=self.key,
                                           default="http").lower()
-        support_unencrypted = self._support_unencrypted(deployment,
-                                                        protocol,
-                                                        resource_type=resource_type,
-                                                        service=service)
+        support_unencrypted = self._support_unencrypted(
+            deployment, protocol, resource_type=resource_type, service=service
+        )
         if support_unencrypted:
             number_of_resources += 1
         if interface == 'vip':
@@ -116,21 +114,16 @@ class Provider(ProviderBase):
             number_of_resources = len(connections)
 
         for index_of_resource in range(index, index + number_of_resources):
-            generated_templates = ProviderBase.generate_template(self,
-                                                                 deployment,
-                                                                 resource_type,
-                                                                 service,
-                                                                 context,
-                                                                 index_of_resource,
-                                                                 self.key,
-                                                                 definition)
+            generated_templates = ProviderBase.generate_template(
+                self, deployment, resource_type, service, context,
+                index_of_resource, self.key, definition
+            )
             for template in generated_templates:
                 if interface == 'vip':
-                    params = self._get_connection_params(connections,
-                                                         deployment,
-                                                         index - index_of_resource,
-                                                         resource_type,
-                                                         service)
+                    params = self._get_connection_params(
+                        connections, deployment, index - index_of_resource,
+                        resource_type, service
+                    )
                     for key, value in params.iteritems():
                         template[key] = value
 
@@ -191,14 +184,14 @@ class Provider(ProviderBase):
             nodes = len(res.get("relations", {}))
             if max_nodes < nodes:
                 messages.append({
-                'type': "INSUFFICIENT-CAPACITY",
-                'message': "Cloud Load Balancer %s would have %s nodes. You "
-                           "may only associate up to %s nodes with a Cloud "
-                           "Load Balancer."
-                           % (res.get("index"), nodes, max_nodes),
-                'provider': self.name,
-                'severity': "CRITICAL"
-            })
+                    'type': "INSUFFICIENT-CAPACITY",
+                    'message': "Cloud Load Balancer %s would have %s nodes. "
+                               "You may only associate up to %s nodes with a "
+                               "Cloud Load Balancer."
+                               % (res.get("index"), nodes, max_nodes),
+                    'provider': self.name,
+                    'severity': "CRITICAL"
+                })
         return messages
 
     def verify_access(self, context):
@@ -213,7 +206,8 @@ class Provider(ProviderBase):
         else:
             return {
                 'type': "NO-ACCESS",
-                'message': "You do not have access to create Cloud Load Balancers",
+                'message': "You do not have access to create "
+                           "Cloud Load Balancers",
                 'provider': self.name,
                 'severity': "CRITICAL"
             }
@@ -259,33 +253,38 @@ class Provider(ProviderBase):
             parent_lb = PathAttrib("instance:%s/id" % parent_lb_resource_id)
             create_lb_task_tags.remove('vip')
 
-        create_lb = Celery(wfspec,
-                           'Create %s Loadbalancer (%s)' % (proto.upper(),
-                                                            key),
-                           'checkmate.providers.rackspace.loadbalancer.'
-                           'create_loadbalancer',
-                           call_args=[
-                               context.get_queued_task_dict(
-                                   deployment=deployment['id'],
-                                   resource=key),
-                               resource.get('dns-name'),
-                               'PUBLIC',
-                               proto.upper(),
-                               resource['region']],
-                           defines={'resource': key, 'provider': self.key},
-                           # FIXME: final task should be the one that finishes
-                           # when all extra_protocols are done, not this one
-                           properties={'estimated_duration': 30,
-                                       'task_tags': create_lb_task_tags
-                           },
-                           dns=dns,
-                           algorithm=algorithm,
-                           tags=self.generate_resource_tag(context.base_url,
-                                                           context.tenant,
-                                                           deployment['id'],
-                                                           key),
-                           port=port,
-                           parent_lb=parent_lb)
+        create_lb = Celery(
+            wfspec,
+            'Create %s Loadbalancer (%s)' % (proto.upper(), key),
+            'checkmate.providers.rackspace.loadbalancer.create_loadbalancer',
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment=deployment['id'],
+                    resource=key
+                ),
+                resource.get('dns-name'),
+                'PUBLIC',
+                proto.upper(),
+                resource['region']
+            ],
+            defines={'resource': key, 'provider': self.key},
+            # FIXME: final task should be the one that finishes
+            # when all extra_protocols are done, not this one
+            properties={
+                'estimated_duration': 30,
+                'task_tags': create_lb_task_tags
+            },
+            dns=dns,
+            algorithm=algorithm,
+            tags=self.generate_resource_tag(
+                context.base_url,
+                context.tenant,
+                deployment['id'],
+                key
+            ),
+            port=port,
+            parent_lb=parent_lb
+        )
         if vip_tasks:
             vip_tasks[0].connect(create_lb)
 
@@ -293,17 +292,26 @@ class Provider(ProviderBase):
                      (key, resource['service']))
         celery_call = ('checkmate.providers.rackspace.loadbalancer.'
                        'wait_on_build')
-        build_wait_task = Celery(wfspec, task_name, celery_call,
-                                 call_args=[context.get_queued_task_dict(
-                                     deployment=deployment['id'],
-                                     resource=key),
-                                            PathAttrib('instance:%s/id' % key),
-                                            resource['region']],
-                                 properties={'estimated_druation': 150},
-                                 merge_results=True,
-                                 defines=dict(resource=key,
-                                              provider=self.key,
-                                              task_tags=['complete']))
+        build_wait_task = Celery(
+            wfspec,
+            task_name,
+            celery_call,
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment=deployment['id'],
+                    resource=key
+                ),
+                PathAttrib('instance:%s/id' % key),
+                resource['region']
+            ],
+            properties={'estimated_druation': 150},
+            merge_results=True,
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['complete']
+            )
+        )
         create_lb.connect(build_wait_task)
 
         if dns:
@@ -340,17 +348,21 @@ class Provider(ProviderBase):
         task_name = ('Add monitor to Loadbalancer %s (%s) build' %
                      (key, resource['service']))
         celery_call = 'checkmate.providers.rackspace.loadbalancer.set_monitor'
-        set_monitor_task = Celery(wfspec, task_name, celery_call,
-                                  call_args=[context.get_queued_task_dict(
-                                      deployment=deployment['id'],
-                                      resource=key),
-                                             PathAttrib('instance:%s/id' %
-                                                        key),
-                                             proto.upper(),
-                                             resource['region']],
-                                  defines=dict(resource=key,
-                                               provider=self.key,
-                                               task_tags=['final']))
+        set_monitor_task = Celery(
+            wfspec,
+            task_name,
+            celery_call,
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment=deployment['id'],
+                    resource=key
+                ),
+                PathAttrib('instance:%s/id' % key),
+                proto.upper(),
+                resource['region']
+            ],
+            defines=dict(resource=key, provider=self.key, task_tags=['final'])
+        )
 
         build_wait_task.connect(set_monitor_task)
         final = set_monitor_task
@@ -830,7 +842,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         resource_key = context['resource']
         results = {
             "instance:%s" % resource_key: {
-                "status": "DELETING", # set it done in wait_on_delete
+                "status": "DELETING",  # set it done in wait_on_delete
                 "status-message": "Waiting on resource deletion"
             }
         }
@@ -838,10 +850,15 @@ def delete_lb_task(context, key, lbid, region, api=None):
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         k = "instance:%s" % args[1]
-        ret = {k: {'status': 'ERROR',
-                   'error-message': ('Unexpected error deleting loadbalancer'
-                                  ' %s' % key),
-                   'trace': 'Tassk %s: %s' % (task_id, einfo.traceback)}}
+        ret = {
+            k: {
+                'status': 'ERROR',
+                'error-message': (
+                    'Unexpected error deleting loadbalancer %s' % key
+                ),
+                'trace': 'Tassk %s: %s' % (task_id, einfo.traceback)
+            }
+        }
         resource_postback.delay(args[2], ret)
 
     delete_lb_task.on_failure = on_failure
@@ -881,10 +898,15 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
         k = "instance:%s" % args[1]
-        ret = {k: {'status': 'ERROR',
-                   'error-message': ('Unexpected error waiting on loadbalancer'
-                                  ' %s delete' % key),
-                   'trace': 'Task %s: %s' % (task_id, einfo.traceback)}}
+        ret = {
+            k: {
+                'status': 'ERROR',
+                'error-message': (
+                    'Unexpected error waiting on loadbalancer %s delete' % key
+                ),
+                'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+            }
+        }
         resource_postback.delay(args[2], ret)
 
     wait_on_lb_delete.on_failure = on_failure
