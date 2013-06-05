@@ -473,5 +473,3 @@ form#impersonate input {
 
 /* Validation Rules */
 .validation_rules i { margin-right: 5px; }
-.validation_rules .icon-remove { color: red; }
-.validation_rules .icon-ok { color: green; }
