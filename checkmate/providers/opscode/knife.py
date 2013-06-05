@@ -269,17 +269,15 @@ def _cache_blueprint(source_repo):
                     utils.git_fetch(repo_cache, refspec)
                     utils.git_checkout(repo_cache, tag)
                 except CalledProcessError as exc:
-                    raise CheckmateException("Unable to update git tags from "
-                                             "the git repository at %s.  "
-                                             "Using the cached repository",
-                                             url)
+                    LOG.info("Unable to update git tags from the git "
+                             "repository at %s.  Using the cached repository",
+                             url)
             else:
                 try:
                     utils.git_pull(repo_cache, branch)
                 except CalledProcessError as exc:
-                    raise CheckmateException("Unable to pull from git "
-                                             "repository at %s.  Using the "
-                                             "cached repository", url)
+                    LOG.info("Unable to pull from git repository at %s.  "
+                             "Using the cached repository", url)
         else:  # Cache hit
             LOG.debug("Using cached repo: %s" % repo_cache)
     else:  # Cache does not exist
