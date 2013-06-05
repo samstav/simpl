@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import errno
 import logging
 import os
 import unittest2 as unittest
@@ -19,13 +18,13 @@ LOG = logging.getLogger(__name__)
 try:
     import socket
     # Test for internet connection using rackspace.com
-    response=socket.getaddrinfo('www.rackspace.com', 80, 0, 0, socket.TCP_NODELAY)
-    SKIP=False
-    REASON=None
+    response = socket.getaddrinfo('www.rackspace.com', 80, 0, 0, socket.TCP_NODELAY)
+    SKIP = False
+    REASON = None
 except socket.gaierror as exc:
     LOG.warn("No network connection so skipping DNS tests: %s", exc)
-    SKIP=True
-    REASON="No network connection: %s" % exc
+    SKIP = True
+    REASON = "No network connection: %s" % exc
 
 
 class TestDnsProvider(unittest.TestCase):
@@ -53,11 +52,14 @@ class TestDnsProvider(unittest.TestCase):
             }
         }
         context = RequestContext()
+        context.catalog = {
+        }
         mock_api = self.mox.CreateMockAnything()
         self.mox.StubOutWithMock(dns.Provider, 'connect')
         dns.Provider.connect(IgnoreArg()).AndReturn(mock_api)
         self.mox.StubOutWithMock(dns.Provider, "_get_limits")
-        dns.Provider._get_limits(IgnoreArg(), mock_api).AndReturn(limits)
+        (dns.Provider._get_limits(IgnoreArg(), IgnoreArg())
+         .AndReturn(limits))
         mock_api.get_total_domain_count().AndReturn(existing_doms)
         dns.Provider.connect(IgnoreArg()).AndReturn(mock_api)
         mock_api.list_domains_info(filter_by_name=IgnoreArg()).AndReturn(None)

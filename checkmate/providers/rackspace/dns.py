@@ -23,7 +23,8 @@ class Provider(ProviderBase):
     vendor = 'rackspace'
 
     @MemorizeMethod(timeout=3600, sensitive_args=[1], store=DNS_API_CACHE)
-    def _get_limits(self, tenant, api):
+    def _get_limits(self, url, token):
+        api = self.connect(token=token, url=url)
         return api.get_limits()
 
     def _is_new_domain(self, domain, context):
@@ -71,7 +72,8 @@ class Provider(ProviderBase):
     def verify_limits(self, context, resources):
         messages = []
         api = self.connect(context)
-        limits = self._get_limits(context.tenant, api)
+        limits = self._get_limits(self._find_url(context.catalog),
+                                  context.auth_token)
         max_doms = limits.get('absolute', {}).get('domains', sys.maxint)
         max_recs = limits.get('absolute', {}).get('records per domain',
                                                   sys.maxint)
@@ -182,15 +184,28 @@ class Provider(ProviderBase):
         raise CheckmateException("Provider does not support the resource "
                                  "'%s'" % resource)
 
-    @staticmethod
-    def connect(context):
+    def _find_url(self, catalog):
+        for service in catalog:
+            if service['name'] == 'cloudDNS':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    return endpoint['publicURL']
+
+    def connect(self, context=None, token=None, url=None):
         """Use context info to connect to API and return api object"""
-        #FIXME: figure out better serialization/deserialization scheme
-        if isinstance(context, dict):
-            from checkmate.middleware import RequestContext
-            context = RequestContext(**context)
-        if not context.auth_token:
-            raise CheckmateNoTokenError()
+
+        if (not context) and not (token and url):
+            raise ValueError("Must pass either a context or a token and url")
+
+        if context:
+            #FIXME: figure out better serialization/deserialization scheme
+            if isinstance(context, dict):
+                from checkmate.middleware import RequestContext
+                context = RequestContext(**context)
+            if not context.auth_token:
+                raise CheckmateNoTokenError()
+            token = context.auth_token
+            url = self._find_url(context.catalog)
 
         class CloudDNS_Auth_Proxy():
             """We pass this class to clouddns for it to use instead of its own
@@ -203,15 +218,6 @@ class Provider(ProviderBase):
                 """Called by clouddns. Expects back a url and token"""
                 return (self.url, self.token)
 
-        def find_url(catalog):
-            for service in catalog:
-                if service['name'] == 'cloudDNS':
-                    endpoints = service['endpoints']
-                    for endpoint in endpoints:
-                        return endpoint['publicURL']
-
-        url = find_url(context.catalog)
-        token = context.auth_token
         proxy = CloudDNS_Auth_Proxy(url=url, token=token)
         api = clouddns.connection.Connection(auth=proxy)
         LOG.debug("Connected to cloud DNS using token of length %s "

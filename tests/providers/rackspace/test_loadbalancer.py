@@ -103,7 +103,10 @@ class TestLoadBalancer(test.ProviderTester):
         loadbalancer.Provider.find_url(mox.IgnoreArg(),
                                        mox.IgnoreArg()).AndReturn("fake url")
         (loadbalancer.Provider
-         ._get_abs_limits(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg())
+         ._get_abs_limits(mox.IgnoreArg(),
+                          mox.IgnoreArg(),
+                          mox.IgnoreArg(),
+                          mox.IgnoreArg())
          .AndReturn(limits))
         clb = self.mox.CreateMockAnything()
         clb_lbs = self.mox.CreateMockAnything()

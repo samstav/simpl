@@ -166,9 +166,9 @@ class Provider(ProviderBase):
         return dns.lower() in ['true', '1', 'yes']
 
     @MemorizeMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
-    def _get_abs_limits(self, api_endpoint, context, region):
-        api = cloudlb.CloudLoadBalancer(context.username, 'ignore', region)
-        api.client.auth_token = context.auth_token
+    def _get_abs_limits(self, username, auth_token, api_endpoint, region):
+        api = cloudlb.CloudLoadBalancer(username, 'ignore', region)
+        api.client.auth_token = auth_token
         api.client.region_account_url = api_endpoint
         return api.loadbalancers.get_absolute_limits()
 
@@ -176,7 +176,8 @@ class Provider(ProviderBase):
         messages = []
         region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
-        abs_limits = self._get_abs_limits(url, context, region)
+        abs_limits = self._get_abs_limits(context.username, context.auth_token,
+                                          url, region)
         max_nodes = abs_limits.get("NODE_LIMIT", sys.maxint)
         max_lbs = abs_limits.get("LOADBALANCER_LIMIT", sys.maxint)
         clb = self.connect(context, region=region)
