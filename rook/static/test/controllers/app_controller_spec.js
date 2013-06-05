@@ -541,4 +541,47 @@ describe('AppController', function(){
       expect(scope.display_alert('fakealert')).toBe(false);
     });
   });
+
+  describe('#add_popover_listeners', function() {
+    var entries_elements;
+    beforeEach(function() {
+      entries_elements = { on: sinon.spy() };
+      spyOn(angular, 'element').andReturn(entries_elements);
+      scope.add_popover_listeners();
+    });
+
+    it('should add callback to scroll events on .entries', function() {
+      expect(angular.element).toHaveBeenCalledWith('.entries');
+      expect(entries_elements.on).toHaveBeenCalledWith('scroll');
+    });
+
+    it('should add remove_popovers to scroll event', function() {
+      var anonymous = entries_elements.on.getCall(0).args[1];
+      scope.$apply = sinon.spy();
+      anonymous();
+      expect(scope.$apply).toHaveBeenCalledWith(scope.remove_popovers);
+    });
+
+    it('should be added to $viewContentLoaded watcher', function() {
+      expect(scope.$on).toHaveBeenCalledWith('$viewContentLoaded', scope.add_popover_listeners);
+    });
+  });
+
+  describe('#remove_popovers', function() {
+    var popover_element, inner_scope;
+    beforeEach(function() {
+      inner_scope = {tt_isOpen: "somevalue"};
+      popover_element = { remove: sinon.spy(), siblings: sinon.stub().returns([{}]), scope: sinon.stub().returns(inner_scope) }
+      spyOn(angular, 'element').andReturn(popover_element);
+      scope.remove_popovers();
+    });
+
+    it('should remove .popover from DOM', function() {
+      expect(popover_element.remove).toHaveBeenCalled();
+    });
+
+    it('should set tt_isOpen flags to false', function() {
+      expect(inner_scope.tt_isOpen).toBe(false);
+    });
+  });
 });
