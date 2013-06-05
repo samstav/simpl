@@ -19,12 +19,13 @@ describe('webengage', function(){
     });
 
     it('should call some copy/pasted code from the webengage website', function(){
+      sinon.stub(this.config, 'environment').returns('local');
       this.webengage.init();
       expect(window.webengageWidgetInit).toBeDefined();
     });
 
-    it('should use the localhost license code when in development', function(){
-      sinon.stub(this.config, 'environment').returns('development');
+    it('should use the localhost license code when in local', function(){
+      sinon.stub(this.config, 'environment').returns('local');
       window.webengage = { init: sinon.stub().returns({ onReady: sinon.stub() }) };
       this.webengage.init();
       window.webengageWidgetInit();
@@ -33,14 +34,40 @@ describe('webengage', function(){
       this.config.environment.restore();
     });
 
-    it('should use the production license code when in production', function(){
-      sinon.stub(this.config, 'environment').returns('production');
+    it('should use the .com production license code when in .com production', function(){
+      sinon.stub(this.config, 'environment').returns('production.com');
       window.webengage = { init: sinon.stub().returns({ onReady: sinon.stub() }) };
       this.webengage.init();
       window.webengageWidgetInit();
 
       expect(window.webengage.init.getCall(0).args[0]).toEqual({ licenseCode: '~2024bc52' });
       this.config.environment.restore();
+    });
+
+    it('should use the .net production license code when in .net production', function(){
+      sinon.stub(this.config, 'environment').returns('production.net');
+      window.webengage = { init: sinon.stub().returns({ onReady: sinon.stub() }) };
+      this.webengage.init();
+      window.webengageWidgetInit();
+
+      expect(window.webengage.init.getCall(0).args[0]).toEqual({ licenseCode: '~10a5cb78d' });
+      this.config.environment.restore();
+    });
+
+    it('should use the dev license code when in dev', function(){
+      sinon.stub(this.config, 'environment').returns('dev');
+      window.webengage = { init: sinon.stub().returns({ onReady: sinon.stub() }) };
+      this.webengage.init();
+      window.webengageWidgetInit();
+
+      expect(window.webengage.init.getCall(0).args[0]).toEqual({ licenseCode: '~c2ab32db' });
+      this.config.environment.restore();
+    });
+
+    it('should not initialize webengage if there is no license code for the environment', function(){
+      sinon.stub(this.config, 'environment').returns('prepreprodev');
+      this.webengage.init();
+      expect(window.webengageWidgetInit).toBeUndefined();
     });
   });
 });
