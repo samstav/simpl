@@ -71,3 +71,10 @@ class FysomStateTests(unittest.TestCase):
     def test_transition_by_name(self):
         self.fsm.go_to('yellow')
         self.assertTrue(self.fsm.isstate('yellow'))
+
+    def test_forced_state_change(self):
+        self.fsm.force_go_to('red')
+        self.assertTrue(self.fsm.isstate('red'))
+
+    def test_forced_state_change_with_invalid_dst(self):
+        self.assertRaises(FysomError, self.fsm.force_go_to, 'invalid-dst')
