@@ -268,6 +268,19 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
+  $scope.remove_popovers = function(){
+    $scope.removed_popovers = true;
+    angular.element('.entries').on('scroll', function(){
+      $scope.$apply(function() {
+        _.each(angular.element('.popover').siblings('i'), function(el){
+          angular.element(el).scope().tt_isOpen = false;
+        });
+        angular.element('.popover').remove();
+      });
+    });
+  }
+  $scope.$on('$viewContentLoaded', $scope.remove_popovers);
+
   $scope.check_permissions = function() {
     if ($scope.force_logout) {
       $scope.force_logout = false;
@@ -1863,17 +1876,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
-
-  $scope.load = function(){
-    angular.element('.entries').on('scroll', function(){
-      _.each(angular.element('.popover').siblings('i'), function(el){
-        angular.element(el).scope().tt_isOpen = false;
-      });
-      $scope.$apply();
-    })
-  }
-
-  $scope.load();
 
   $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
