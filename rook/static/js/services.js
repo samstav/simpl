@@ -850,7 +850,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     error_message: "",
     selected_endpoint: null,
 
-    generate_auth_data: function(token, tenant, apikey, pin_rsa, username, password, target) {
+    generate_auth_data: function(token, tenant, apikey, pin_rsa, username, password, scheme) {
       var data = {};
       if (token) {
         data = {
@@ -881,7 +881,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           }
         };
       } else if (password) {
-        if (target == "https://identity-internal.api.rackspacecloud.com/v2.0/tokens") {
+        if (scheme == "GlobalAuth") {
           data = {
               "auth": {
                 "RAX-AUTH:domain": {
@@ -930,11 +930,13 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       //Populate identity
       var identity = {};
       var endpoint = params.endpoint;
+      var endpoint_parts = URI(endpoint.uri);
       var headers = params.headers;
       identity.username = response.access.user.name || response.access.user.id;
       identity.user = response.access.user;
       identity.token = response.access.token;
       identity.expiration = response.access.token.expires;
+      identity.auth_host = endpoint_parts.protocol() + '://' + endpoint_parts.host();
       identity.auth_url = endpoint['uri'];
       identity.endpoint_type = endpoint['scheme'];
 
@@ -988,7 +990,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     authenticate: function(endpoint, username, apikey, password, token, pin_rsa, tenant, callback, error_callback) {
       var headers,
           target = endpoint['uri'],
-          data = this.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, target);
+          data = this.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, endpoint.scheme);
       if (!data) return false;
 
       if (target === undefined || target === null || target.length === 0) {
@@ -1083,7 +1085,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       var impersonation_url = "";
       switch(endpoint_type) {
         case 'GlobalAuth':
-          impersonation_url = "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens";
+          impersonation_url = auth.identity.auth_host + "/v2.0/RAX-AUTH/impersonation-tokens";
           break;
         case 'Keystone':
           impersonation_url = auth.identity.auth_url;
