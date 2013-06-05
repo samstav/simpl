@@ -25,7 +25,7 @@ from checkmate.deployment import (
 )
 from checkmate.deployments import (
     Manager,
-    DeploymentsRouter,
+    Router,
     delete_deployment_task,
     update_all_provider_resources,
     resource_postback,
@@ -1200,7 +1200,7 @@ class TestPostDeployments(unittest.TestCase):
         self.app = TestApp(self.filters)
 
         self.manager = self._mox.CreateMockAnything()
-        self.router = DeploymentsRouter(self.root_app, self.manager)
+        self.router = Router(self.root_app, self.manager)
 
         self._deployment = {
             'id': '1234',
@@ -1358,7 +1358,7 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_bad_status(self):
         """ Test when deployment status is invalid for delete """
         manager = self._mox.CreateMockAnything()
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(self._deployment)
         manager.save_deployment('1234', IgnoreArg(), tenant_id=None,
                                 partial=False).AndReturn(None)
@@ -1376,7 +1376,7 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_not_found(self):
         """ Test deployment not found """
         manager = self._mox.CreateMockAnything()
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(None)
         self._mox.ReplayAll()
         try:
@@ -1392,7 +1392,7 @@ class TestDeleteDeployments(unittest.TestCase):
         self._deployment['status'] = 'UP'
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         self._mox.StubOutWithMock(manager, "get_a_deployment")
         manager.get_deployment('1234').AndReturn(self._deployment)
 
@@ -1429,7 +1429,7 @@ class TestDeleteDeployments(unittest.TestCase):
 
         mock_driver = self._mox.CreateMockAnything()
         manager = Manager({'default': mock_driver})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
 
         mock_driver.get_deployment(
             '1234', with_secrets=False).AndReturn(self._deployment)
@@ -1530,7 +1530,7 @@ class TestGetResourceStuff(unittest.TestCase):
         """ When getting the resources should work """
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
@@ -1541,7 +1541,7 @@ class TestGetResourceStuff(unittest.TestCase):
         """ When getting the resource statuses should work """
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
@@ -1558,7 +1558,7 @@ class TestGetResourceStuff(unittest.TestCase):
         del self._deployment['resources']
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
 
@@ -1572,7 +1572,7 @@ class TestGetResourceStuff(unittest.TestCase):
         del self._deployment['resources']
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
 
@@ -1585,7 +1585,7 @@ class TestGetResourceStuff(unittest.TestCase):
         """ Test when deployment not found """
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False).AndReturn(None)
 
         self._mox.ReplayAll()
@@ -1600,7 +1600,7 @@ class TestGetResourceStuff(unittest.TestCase):
         """ Test when deployment not found """
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False).AndReturn(None)
 
         self._mox.ReplayAll()
@@ -1615,7 +1615,7 @@ class TestGetResourceStuff(unittest.TestCase):
         """ Make sure trace is included if query param present """
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
 
@@ -1674,7 +1674,7 @@ class TestPostbackHelpers(unittest.TestCase):
         """ Test mass provider resource updates """
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = DeploymentsRouter(bottle.default_app(), manager)
+        router = Router(bottle.default_app(), manager)
         db.get_deployment('1234').AndReturn(self._deployment)
         self._mox.StubOutWithMock(
             checkmate.deployments.tasks.resource_postback, "delay")

@@ -32,7 +32,7 @@ class TestServer(unittest.TestCase):
         self.root_app.catchall = False
 
         manager = deployments.Manager({'default': workflows.DB})
-        self.router = deployments.DeploymentsRouter(self.root_app, manager)
+        self.router = deployments.Router(self.root_app, manager)
 
         tenant = TenantMiddleware(self.root_app)
         context = ContextMiddleware(tenant)

@@ -177,7 +177,7 @@ def main_func():
         resources.append('admin')
 
     #Load API Calls
-    ROUTERS['deployments'] = deployments.DeploymentsRouter(
+    ROUTERS['deployments'] = deployments.Router(
         next_app, MANAGERS['deployments']
     )
 

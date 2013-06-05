@@ -33,7 +33,7 @@ class TestAPICalls(unittest.TestCase):
         self.app = TestApp(self.filters)
 
         self.manager = self.mox.CreateMockAnything()
-        self.router = deployments.DeploymentsRouter(self.root_app,
+        self.router = deployments.Router(self.root_app,
                                                     self.manager)
 
     def tearDown(self):
