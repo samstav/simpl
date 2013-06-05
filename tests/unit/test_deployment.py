@@ -445,6 +445,26 @@ class TestCeleryTasks(unittest.TestCase):
         update_deployment_status_new('1234', 'DOWN', driver=db)
         self.mox.VerifyAll()
 
+    def test_on_postback(self):
+        """ Test on_postback dict merge and validation """
+        deployment = Deployment({
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'status': "UP",
+        })
+        updates = {
+            'resources': {
+                "0": {
+                    'status': 'ACTIVE',
+                    'status-message': ''
+                }
+            }
+        }
+        deployment.on_postback(updates)
+        self.assertEqual("UP", deployment.get('status'))
+        self.assertDictEqual(updates.get('resources'), deployment.get('resources'))
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
