@@ -1539,3 +1539,47 @@ services.factory('deploymentDataParser', function(){
   }
   return { formatData: formatData };
 });
+
+services.factory('config', function($location){
+  function environment() {
+    var ENVIRONMENTS = { 'localhost': 'local',
+                          'api.dev.chkmate.rackspace.net': 'dev',
+                          'staging.chkmate.rackspace.net': 'staging',
+                          'api.qa.chkmate.rackspace.net': 'qa',
+                          'preprod.chkmate.rackspace.net': 'preprod',
+                          'checkmate.rackspace.net': 'production.net',
+                          'checkmate.rackspace.com': 'production.com' };
+    return ENVIRONMENTS[$location.host()];
+  }
+  return { environment: environment };
+});
+
+services.factory('webengage', function(config){
+  var LICENSE_CODES = { local: '~99198c48',
+                        'dev': '~c2ab32db',
+                        'production.net': '~10a5cb78d',
+                        'production.com': '~2024bc52' };
+  function init(){
+    var licenseCode = LICENSE_CODES[config.environment()];
+    if(licenseCode){
+      window.webengageWidgetInit = window.webengageWidgetInit || function(){
+        webengage.init({
+          licenseCode: licenseCode
+        }).onReady(function(){
+          webengage.render();
+        });
+      };
+      (function(d){
+        var _we = d.createElement("script");
+        _we.type = "text/javascript";
+        _we.async = true;
+        _we.src = (d.location.protocol == "https:" ? "//ssl.widgets.webengage.com" : "//cdn.widgets.webengage.com") + "/js/widget/webengage-min-v-3.0.js";
+        var _sNode = d.getElementById("webengage_script_tag");
+        _sNode.parentNode.insertBefore(_we, _sNode);
+      })(document);
+    }
+  }
+
+  return { init: init };
+});
+
