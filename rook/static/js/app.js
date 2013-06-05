@@ -1864,6 +1864,17 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 //Hard-coded for Managed Cloud Wordpress
 function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
 
+  $scope.load = function(){
+    angular.element('.entries').on('scroll', function(){
+      _.each(angular.element('.popover').siblings('i'), function(el){
+        angular.element(el).scope().tt_isOpen = false;
+      });
+      $scope.$apply();
+    })
+  }
+
+  $scope.load();
+
   $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
       if ($scope.auth.identity.loggedIn === true) {
