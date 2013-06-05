@@ -1,0 +1,60 @@
+<div id="modalAuth" modal="display_login_prompt" close="close_login_prompt()" options="login_prompt_opts">
+  <div class="modal-header">
+    <button type="button" class="close" ng-click="close_login_prompt()">&times;</button>
+    <h3>Welcome to Checkmate!</h3>
+    <br>
+    <div id="auth_error" class="alert alert-error" ng-show="auth_error_message()">
+      <strong>Authentication Failed!</strong> <span id="auth_error_text">{{auth_error_message()}}</span>
+    </div>
+    <!-- ANNOUNCEMENT -->
+    <div class="announcement" ng-cloak ng-show="display_announcement()">
+      <img src="/img/announcement-arrow.png" />
+      You can now impersonate tenants!
+    </div>
+  </div>
+  <div class="modal-body">
+    <form class="form-horizontal" style="margin-bottom: 0px" name="loginForm" ng-submit="logIn()">
+      <fieldset>
+        <ul class="nav nav-tabs">
+          <li ng-repeat="endpoint in auth.endpoints" ng-class="is_active(endpoint) + ' ' + realm_name(endpoint)">
+            <a href="#" ng-hide="is_hidden(endpoint)" ng-click="select_endpoint(endpoint)">
+              <i class="icon-fire" ng-show="display_announcement()"></i>{{endpoint['realm']}}
+            </a>
+          </li>
+        </ul>
+        <div class="control-group">
+          <label class="control-label" for="username">
+            Username
+            <span ng-show="is_sso(get_selected_endpoint())">(SSO)</span>
+          </label>
+          <div class="controls">
+            <input type="text" class="input-xlarge" id="username" ng-model="bound_creds.username" />
+          </div>
+        </div>
+        <div class="control-group">
+          <label class="control-label" for="password">Password</label>
+          <div class="controls">
+            <input type="password" class="input-xlarge" id="password" ng-model="bound_creds.password">
+          </div>
+        </div>
+        <p style="text-align: center">or</p>
+        <div class="control-group" ng-hide="uses_pin_rsa()">
+          <label class="control-label" for="apikey">API Key</label>
+          <div class="controls">
+            <input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey">
+          </div>
+        </div>
+        <div class="control-group" ng-show="uses_pin_rsa()">
+          <label class="control-label" for="pin_rsa">PIN+RSA Key</label>
+          <div class="controls">
+            <input type="password" class="input-xlarge" id="pin_rsa" ng-model="bound_creds.pin_rsa">
+          </div>
+        </div>
+        <hr/>
+      </fieldset>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Authenticate!</button>
+      </div>
+    </form>
+  </div>
+</div>

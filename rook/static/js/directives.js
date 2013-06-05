@@ -1,4 +1,4 @@
-var directives = angular.module('checkmate.directives', []);
+var directives = angular.module('checkmate.directives', ["template/popover/popover-html-unsafe-popup.html"]);
 
 //New HTML tag hard-coded for use in New Deployment Form to display options
 directives.directive('cmOption', function($compile) {
@@ -104,28 +104,6 @@ directives.directive('clippy', function factory() {
   return directiveDefinitionObject;
 });
 
-directives.directive('popover', function(){
-  return function(scope, element, attrs) {
-    var popover = element.popover({
-      content: function() {
-        if ('target' in attrs)
-          if ($(attrs['target']).length > 0)
-            return $(attrs['target']).html();
-      }
-    });
-
-    //Update when scope changes
-    if ('target' in attrs) {
-      scope.$parent.$watch(function() {
-        if ($(attrs['target']).length > 0 && popover.data('popover') !== undefined) {
-          popover.data('popover').setContent($(attrs['target']).html());
-          popover.data('popover').$tip.addClass(popover.data('popover').options.placement);
-        }
-      });
-    }
-  };
-});
-
 //Validates a control against the supplied option's constraints and sets the
 //constraint.valid and option.invalid values
 directives.directive('validateOption', function () {
@@ -174,3 +152,31 @@ directives.directive('validateOption', function () {
     }
   };
 });
+
+
+// Extend ui-bootstrap to use HTML popovers
+directives.directive( 'popoverHtmlUnsafePopup', function () {
+  return {
+    restrict: 'E',
+    replace: true,
+    scope: { content: '@', placement: '@', animation: '&', isOpen: '&' },
+    templateUrl: 'template/popover/popover-html-unsafe-popup.html'
+  };
+});
+
+directives.directive( 'popoverHtmlUnsafe', [ '$tooltip', function ( $tooltip ) {
+  return $tooltip( 'popoverHtmlUnsafe', 'popover', 'click' );
+}]);
+
+angular.module("template/popover/popover-html-unsafe-popup.html", []).run(["$templateCache", function($templateCache) {
+  $templateCache.put("template/popover/popover-html-unsafe-popup.html",
+    "<div class=\"popover {{placement}}\" ng-class=\"{ in: isOpen(), fade: animation() }\">\n" +
+    "  <div class=\"arrow\"></div>\n" +
+    "\n" +
+    "  <div class=\"popover-inner\">\n" +
+    "      <h3 class=\"popover-title\" ng-bind-html-unsafe=\"title\" ng-show=\"title\"></h3>\n" +
+    "      <div class=\"popover-content\" ng-bind-html-unsafe=\"content\"></div>\n" +
+    "  </div>\n" +
+    "</div>\n" +
+    "");
+}]);

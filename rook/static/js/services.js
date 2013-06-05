@@ -850,7 +850,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     error_message: "",
     selected_endpoint: null,
 
-    generate_auth_data: function(token, tenant, apikey, pin_rsa, username, password, target) {
+    generate_auth_data: function(token, tenant, apikey, pin_rsa, username, password, scheme) {
       var data = {};
       if (token) {
         data = {
@@ -881,7 +881,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           }
         };
       } else if (password) {
-        if (target == "https://identity-internal.api.rackspacecloud.com/v2.0/tokens") {
+        if (scheme == "GlobalAuth") {
           data = {
               "auth": {
                 "RAX-AUTH:domain": {
@@ -930,11 +930,13 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       //Populate identity
       var identity = {};
       var endpoint = params.endpoint;
+      var endpoint_parts = URI(endpoint.uri);
       var headers = params.headers;
       identity.username = response.access.user.name || response.access.user.id;
       identity.user = response.access.user;
       identity.token = response.access.token;
       identity.expiration = response.access.token.expires;
+      identity.auth_host = endpoint_parts.protocol() + '://' + endpoint_parts.host();
       identity.auth_url = endpoint['uri'];
       identity.endpoint_type = endpoint['scheme'];
 
@@ -988,7 +990,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     authenticate: function(endpoint, username, apikey, password, token, pin_rsa, tenant, callback, error_callback) {
       var headers,
           target = endpoint['uri'],
-          data = this.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, target);
+          data = this.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, endpoint.scheme);
       if (!data) return false;
 
       if (target === undefined || target === null || target.length === 0) {
@@ -1083,7 +1085,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       var impersonation_url = "";
       switch(endpoint_type) {
         case 'GlobalAuth':
-          impersonation_url = "https://identity-internal.api.rackspacecloud.com/v2.0/RAX-AUTH/impersonation-tokens";
+          impersonation_url = auth.identity.auth_host + "/v2.0/RAX-AUTH/impersonation-tokens";
           break;
         case 'Keystone':
           impersonation_url = auth.identity.auth_url;
@@ -1537,3 +1539,47 @@ services.factory('deploymentDataParser', function(){
   }
   return { formatData: formatData };
 });
+
+services.factory('config', function($location){
+  function environment() {
+    var ENVIRONMENTS = { 'localhost': 'local',
+                          'api.dev.chkmate.rackspace.net': 'dev',
+                          'staging.chkmate.rackspace.net': 'staging',
+                          'api.qa.chkmate.rackspace.net': 'qa',
+                          'preprod.chkmate.rackspace.net': 'preprod',
+                          'checkmate.rackspace.net': 'production.net',
+                          'checkmate.rackspace.com': 'production.com' };
+    return ENVIRONMENTS[$location.host()];
+  }
+  return { environment: environment };
+});
+
+services.factory('webengage', function(config){
+  var LICENSE_CODES = { local: '~99198c48',
+                        'dev': '~c2ab32db',
+                        'production.net': '~10a5cb78d',
+                        'production.com': '~2024bc52' };
+  function init(){
+    var licenseCode = LICENSE_CODES[config.environment()];
+    if(licenseCode){
+      window.webengageWidgetInit = window.webengageWidgetInit || function(){
+        webengage.init({
+          licenseCode: licenseCode
+        }).onReady(function(){
+          webengage.render();
+        });
+      };
+      (function(d){
+        var _we = d.createElement("script");
+        _we.type = "text/javascript";
+        _we.async = true;
+        _we.src = (d.location.protocol == "https:" ? "//ssl.widgets.webengage.com" : "//cdn.widgets.webengage.com") + "/js/widget/webengage-min-v-3.0.js";
+        var _sNode = d.getElementById("webengage_script_tag");
+        _sNode.parentNode.insertBefore(_we, _sNode);
+      })(document);
+    }
+  }
+
+  return { init: init };
+});
+

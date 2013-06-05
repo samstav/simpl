@@ -143,6 +143,65 @@ function StaticController($scope, $location) {
   console.log("Loading static file " + $location.path());
   $scope.showHeader = false;
   $scope.showStatus = false;
+
+  $scope.carousel_interval = -1; // Stopped
+  $scope.spot_write_url = "https://one.rackspace.com/display/Checkmate/Checkmate+Blueprints+Introduction";
+  $scope.item_base_url = "/deployments/new?blueprint=https:%2F%2Fgithub.rackspace.com%2FBlueprints%2F";
+  $scope.items1 = [
+    {spot: "ready", show_name: true,  name: "Wordpress", description: null,                   url: "/deployments/new/wordpress", image: "wordpress.png"},
+    {spot: "ready", show_name: true,  name: "Drupal",    description: "Managed Cloud Drupal", url: $scope.item_base_url + "drupal%23" + $scope.blueprint_ref, image: "druplicon.small_.png"},
+    {spot: "ready", show_name: false, name: "PHP",       description: null,                   url: $scope.item_base_url + "php_app-blueprint%23" + $scope.blueprint_ref, image: "php.png"},
+    {spot: "ready", show_name: true,  name: "Cassandra", description: null,                   url: $scope.item_base_url + "cassandra%23" + $scope.blueprint_ref, image: "cassandra.png"},
+  ];
+  $scope.items2 = [
+    {spot: "ready", show_name: true,  name: "MongoDB", description: null,       url: $scope.item_base_url + "mongodb-replicaset%23" + $scope.blueprint_ref, image: "mongodb.png"},
+    {spot: "ready", show_name: true,  name: "Awwbomb", description: "Aww Bomb", url: $scope.item_base_url + "awwbomb%23" + $scope.blueprint_ref, image: "awwbomb.png"},
+    {spot: "ready", show_name: true,  name: "MySQL",   description: null,       url: $scope.item_base_url + "mysql-server%23" + $scope.blueprint_ref, image: "mysql.png"},
+    {spot: "ready", show_name: false, name: "ZeroBin", description: null,       url: $scope.item_base_url + "zerobin%23" + $scope.blueprint_ref, image: "ZeroBin.png"},
+  ];
+  $scope.items3 = [
+    {spot: "ready", show_name: false, name: "Etherpad", description: "Etherpad Lite", url: $scope.item_base_url + "etherpad-lite%23" + $scope.blueprint_ref, image: "etherpad_lite.png"},
+    {spot: "write", show_name: true,  name: "DevStack", description: null,            url: null, image: "openstack.png"},
+    {spot: "write", show_name: false, name: "NodeJS",   description: "node.js",       url: null, image: "nodejs.png"},
+    {spot: "coming",show_name: false, name: "Rails",    description: null,            url: null, image: "rails.png"},
+  ];
+  $scope.items4 = [
+    {spot: "write", show_name: false, name: "Django",   description: null,                     url: null, image: "django_small.png"},
+    {spot: "write", show_name: true,  name: "Tomcat",   description: null,                     url: null, image: "tomcat_small.gif"},
+    {spot: "write", show_name: true,  name: "Magento",  description: "Managed Cloud Magento",  url: null, image: "magento1-6.png"},
+    {spot: "write", show_name: true,  name: "SugarCRM", description: "Managed Cloud SugarCRM", url: null, image: "sugarcrm-box-only.jpg"},
+  ];
+  $scope.items5 = [
+    {spot: "write", show_name: true,  name: "Joomla", description: null, url: null, image: "joomla_small.png"},
+    {spot: "write", show_name: true,  name: "Python", description: null, url: null, image: "python.png"},
+    {spot: "write", show_name: false, name: "Apache", description: null, url: null, image: "apache.png"},
+    {spot: "write", show_name: true,  name: "Hadoop", description: null, url: null, image: "hadoop.jpeg"},
+  ];
+
+  $scope.slides = [
+    $scope.items1,
+    $scope.items2,
+    $scope.items3,
+    $scope.items4,
+    $scope.items5,
+  ];
+
+  $scope.display_name = function(item) {
+    var name = null;
+    if (item.show_name)
+      name = item.name;
+    return name;
+  };
+
+  $scope.in_spot = function(item /*, spots, ... */) {
+    var in_spot = false;
+    for (var spot=0 ; spot<=arguments.length ; spot++) {
+      if (item.spot == arguments[spot])
+        in_spot = true;
+    }
+    return in_spot;
+  };
+
 }
 
 //Loads external page
@@ -203,10 +262,25 @@ function AutoLoginController($scope, $location, $cookies, auth) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth, $route) {
+function AppController($scope, $http, $location, $resource, auth, $route, $q, webengage) {
+  $scope.init_webengage = webengage.init;
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+
+  $scope.remove_popovers = function() {
+    _.each(angular.element('.popover').siblings('i'), function(el){
+      angular.element(el).scope().tt_isOpen = false;
+    });
+    angular.element('.popover').remove();
+  };
+
+  $scope.add_popover_listeners = function(){
+    angular.element('.entries').on('scroll', function(){
+      $scope.$apply($scope.remove_popovers);
+    });
+  }
+  $scope.$on('$viewContentLoaded', $scope.add_popover_listeners);
 
   $scope.check_permissions = function() {
     if ($scope.force_logout) {
@@ -282,7 +356,7 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
     if (typeof error.data == "object" && 'description' in error.data)
         info.message = error.data.description;
     $scope.$root.error = info;
-    $('#modalError').modal('show');
+    $scope.open_modal('error');
     mixpanel.track("Error", {'error': info.message});
   };
 
@@ -304,46 +378,64 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
     apikey: ''
   };
 
-  // Display log in prompt
-  $scope.loginPrompt = function(success_callback, failure_callback) {
-    var modal = $('#modalAuth');
-    modal.modal({
-      keyboard: false,
-      show: true
-    });
-
-    modal[0].success_callback = success_callback;
-    modal[0].failure_callback = failure_callback;
-    modal.on('shown', function () {
-      $('input:text:visible:first', this).focus();
-    });
-    modal.modal('show');
+  $scope.modal_opts = {
+    backdropFade: true,
+    dialogFade: true,
+  };
+  $scope.modal_window = {};
+  $scope.open_modal = function(window_name) {
+    console.log("opening modal...");
+    $scope.modal_window[window_name] = true;
+  };
+  $scope.close_modal = function(window_name) {
+    $scope.modal_window[window_name] = false;
   };
 
-  $scope.on_auth_success = function(json) {
+  $scope.hidden_alerts = {};
+  $scope.hide_alert = function(alert_id) {
+    $scope.hidden_alerts[alert_id] = true;
+  };
+  $scope.display_alert = function(alert_id) {
+    return !$scope.hidden_alerts[alert_id];
+  };
+
+  // Display log in prompt
+  $scope.deferred_login = null;
+  $scope.display_login_prompt = false;
+  $scope.login_prompt_opts = {
+    backdropFade: true,
+    dialogFade: true,
+  };
+  $scope.loginPrompt = function() {
+    $scope.deferred_login = $q.defer();
+    $scope.display_login_prompt = true;
+    // TODO: focus on username field
+    return $scope.deferred_login.promise;
+  };
+  $scope.close_login_prompt = function() {
+    $scope.display_login_prompt = false;
+    if ($scope.deferred_login !== null) {
+      $scope.deferred_login.reject({ logged_in: false, reason: 'dismissed' });
+    }
+  };
+
+  $scope.on_auth_success = function() {
     //reset controls
     $scope.bound_creds.username = '';
     $scope.bound_creds.password = '';
     $scope.bound_creds.apikey   = '';
     auth.error_message = null;
 
-    $('#modalAuth').modal('hide');
-    if ($('#modalAuth')[0] && typeof $('#modalAuth')[0].success_callback == 'function') {
-        $('#modalAuth')[0].success_callback();
-        delete $('#modalAuth')[0].success_callback;
-        delete $('#modalAuth')[0].failure_callback;
-      }
+    $scope.deferred_login.resolve({ logged_in: true });
+    $scope.deferred_login = null;
+    $scope.close_login_prompt();
+
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
     $route.reload(); // needed in case of token expiration
   };
 
   $scope.auth_error_message = function() { return auth.error_message; };
   $scope.on_auth_failed = function(response) {
-    if (typeof $('#modalAuth')[0].failure_callback == 'function') {
-        $('#modalAuth')[0].failure_callback();
-        delete $('#modalAuth')[0].success_callback;
-        delete $('#modalAuth')[0].failure_callback;
-      }
     mixpanel.track("Log In Failed", {'problem': response.statusText});
     auth.error_message = response.statusText + ". Check that you typed in the correct credentials.";
   };
@@ -368,6 +460,10 @@ function AppController($scope, $http, $location, $resource, auth, $route) {
 
   $scope.is_hidden = function(endpoint) {
     return (endpoint.scheme == 'GlobalAuthImpersonation');
+  };
+
+  $scope.is_sso = function(endpoint) {
+    return endpoint.uri == 'https://identity-internal.api.rackspacecloud.com/v2.0/tokens';
   };
 
   $scope.select_endpoint = function(endpoint) {
@@ -622,6 +718,11 @@ function NavBarController($scope, $location, $http) {
   $scope.feedback = "";
   $scope.email = "";
 
+  $scope.collapse_navbar = true;
+  $scope.toggle_navbar = function() {
+    $scope.collapse_navbar = !$scope.collapse_navbar;
+  };
+
   $scope.hasPendingRequests = function() {
     return $http.pendingRequests.length > 0;
   };
@@ -865,7 +966,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.load();
 }
 
-function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, workflow, items, scroll, deploymentDataParser) {
+function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser) {
   //Scope variables
   $scope.showStatus = true;
   $scope.showHeader = true;
@@ -880,6 +981,15 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     cancelled: 0,
     completed: 0,
     triggered: 0
+  };
+
+  $scope.hide_task_traceback = {
+    failure: true,
+    retry: true,
+  };
+
+  $scope.toggle_task_traceback = function(task_type) {
+    $scope.hide_task_traceback[task_type] = !$scope.hide_task_traceback[task_type];
   };
 
   // Called by load to refresh the status page
@@ -986,7 +1096,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
             $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
                     message: "There was an error loading your deployment:"};
-            $('#modalError').modal('show');
+            $scope.open_modal('error');
           });
         }
       } else if ($location.hash().length > 1) {
@@ -1005,7 +1115,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         if ('description' in error)
             info.message = error.description;
         $scope.$root.error = info;
-      $('#modalError').modal('show');
+      $scope.open_modal('error');
     });
   };
 
@@ -1070,7 +1180,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       return c.CodeMirror.getTextArea().id == 'spec_source';
       });
 
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id/specs/' + $scope.current_spec_index);
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
@@ -1084,10 +1194,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() { console.log("Failed") }); //TODO: implement a callback
     }
   };
 
@@ -1114,7 +1224,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       return c.CodeMirror.getTextArea().id == 'task_source';
       });
 
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id/tasks/' + $scope.current_task_index);
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
@@ -1128,10 +1238,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt(this); //TODO: implement a callback
+      $scope.loginPrompt().then(this); //TODO: implement a callback
     }
   };
 
@@ -1161,7 +1271,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.workflow_action = function(workflow_id, action) {
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       console.log("Executing '" + action + " on workflow " + workflow_id);
       $http({method: 'GET', url: $location.path() + '/+' + action}).
         success(function(data, status, headers, config) {
@@ -1179,7 +1289,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.task_action = function(task_id, action) {
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       console.log("Executing '" + action + " on task " + task_id);
       $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
         success(function(data, status, headers, config) {
@@ -1202,6 +1312,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.reset_task = function() {
+    $scope.close_modal('reset_warning');
     return $scope.task_action($scope.current_task.id, 'reset');
   };
 
@@ -1249,8 +1360,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   //Init
-  if (!$scope.auth.identity.loggedIn) {
-    $scope.loginPrompt($scope.load);
+  if (!auth.identity.loggedIn) {
+    $scope.loginPrompt().then($scope.load);
   } else if ($location.path().split('/').slice(-1)[0] == '+preview') {
     if (typeof workflow.preview == 'object') {
       $scope.parse(workflow.preview['workflow']);
@@ -1749,10 +1860,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
                   message: "There was an error syncing your deployment"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
 
@@ -2228,7 +2339,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         console.log(deployment);
         $scope.$root.error = {data: error.data, status: error.status, title: "Error Creating Deployment",
                 message: "There was an error creating your deployment:"};
-        $('#modalError').modal('show');
+        $scope.open_modal('error');
         $scope.submitting = false;
         mixpanel.track("Deployment Launch Failed", {'status': error.status, 'data': error.data});
       });
@@ -2395,14 +2506,15 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
                   message: "There was an error saving your JSON:"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
 
   $scope.delete_deployment = function(force) {
+    $scope.close_modal('delete_warning');
     if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'save': {method:'PUT'}});
       var thang = new klass();
@@ -2418,10 +2530,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
                   message: "There was an error deleting your deployment"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
 
@@ -2438,10 +2550,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         }, function(error) {
           $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
                   message: "There was an error syncing your deployment"};
-          $('#modalError').modal('show');
+          $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
 
@@ -2594,11 +2706,6 @@ var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
   window.scrollTo(0, 0);
-
-  //angular.bootstrap(document, ['checkmate']);
-  $(".cmpop").popover();  //anything with a 'cmpop' class will attempt to pop over using the data-content and title attributes
-  $(".cmtip").tooltip();  //anything with a 'cmtip' class will attempt to show a tooltip of the title attribute
-  $(".cmcollapse").collapse();  //anything with a 'cmcollapse' class will be collapsible
 }, false);
 
 $(window).load(function () {

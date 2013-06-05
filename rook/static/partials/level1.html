@@ -14,10 +14,10 @@
   <section class="top well" ng-cloak ng-show="showStatus">
     <h4>{{name}}</h4>
     <div>
-      <a class="label label-info cmtip" title="Total items" ng-click="showAll()">{{count}}</a> items:
-      <a class="label label-success cmtip" title="Completed" ng-click="showUnread()">{{count}}</a>
-      <a class="label label-warning cmtip" title="Waiting" ng-click="showStarred()">{{count}}</a>
-      <a class="label label-important cmtip" title="Errors" ng-click="showRead()">{{count}}</a>
+      <a class="label label-info" tooltip="Total items" ng-click="showAll()">{{count}}</a> items:
+      <a class="label label-success" tooltip="Completed" ng-click="showUnread()">{{count}}</a>
+      <a class="label label-warning" tooltip="Waiting" ng-click="showStarred()">{{count}}</a>
+      <a class="label label-important" tooltip="Errors" ng-click="showRead()">{{count}}</a>
     </div>
   </section>
   <article ng-repeat="item in items | filter: search | orderBy: '-created'" id="{{item.id}}" ng-class="{read: item.read, active: item.selected}" class="well summary" ng-click="selectItem($index)">

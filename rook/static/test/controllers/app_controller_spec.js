@@ -5,6 +5,8 @@ describe('AppController', function(){
       resource,
       auth,
       $route,
+      $q,
+      webengage,
       controller,
       api_stub;
 
@@ -15,8 +17,11 @@ describe('AppController', function(){
     resource = function(){ return api_stub; };
     auth = {};
     $route = {};
+    $q = { defer: sinon.stub().returns( { promise: "fakepromise", reject: sinon.spy() } ) };
     api_stub = { get: emptyFunction };
-    controller = new AppController(scope, http, location, resource, auth, $route);
+    webengage = { init: emptyFunction };
+    controller = new AppController(scope, http, location, resource, auth, $route, $q, webengage);
+    mixpanel = { track: sinon.spy() }; // TODO: We are dependent on this being a global var
   });
 
   it('should display the header', function(){
@@ -131,6 +136,22 @@ describe('AppController', function(){
     it('should display all other endpoints', function() {
       endpoint = { scheme: 'fakescheme' };
       expect(scope.is_hidden(endpoint)).toBe(false);
+    });
+  });
+
+  describe('#is_sso', function() {
+    var endpoint;
+    beforeEach(function() {
+      endpoint = { uri: "fakeuri" };
+    });
+
+    it('should return true if endpoint is an SSO endpoint', function() {
+      endpoint = { uri: "https://identity-internal.api.rackspacecloud.com/v2.0/tokens" };
+      expect(scope.is_sso(endpoint)).toBe(true);
+    });
+
+    it('should return false if endpoint is not an SSO endpoint', function() {
+      expect(scope.is_sso(endpoint)).toBe(false);
     });
   });
 
@@ -334,8 +355,11 @@ describe('AppController', function(){
   });
 
   describe('#on_auth_success', function() {
+    var deferred_login;
     beforeEach(function() {
-      mixpanel = { track: emptyFunction }; // TODO: We are dependent on this being a global var
+      deferred_login = { resolve: sinon.spy() };
+      scope.deferred_login = deferred_login;
+      spyOn(scope, 'close_login_prompt');
       auth.identity = { username: "fakeusername" };
       $route.reload = sinon.spy();
       scope.on_auth_success();
@@ -357,8 +381,79 @@ describe('AppController', function(){
       expect(auth.error_message).toBeFalsy();
     });
 
+    it('should resolve the deferred login promise', function() {
+      expect(deferred_login.resolve).toHaveBeenCalledWith({ logged_in: true });
+    });
+
+    it('should erase the deferred login promise', function() {
+      expect(scope.deferred_login).toBe(null);
+    });
+
+    it('should close the login prompt', function() {
+      expect(scope.close_login_prompt).toHaveBeenCalled();
+    });
+
     it('should reload current route', function() {
       expect($route.reload).toHaveBeenCalled();
+    });
+  });
+
+  describe('#on_auth_failed', function() {
+    beforeEach(function() {
+      var response = { statusText: "fakestatustext" };
+      scope.on_auth_failed(response);
+    });
+
+    it('should log response to mixpanel', function() {
+      expect(mixpanel.track).toHaveBeenCalledWith('Log In Failed', { problem: "fakestatustext" });
+    });
+
+    it('should add an error message to auth service', function() {
+      expect(auth.error_message).toEqual("fakestatustext. Check that you typed in the correct credentials.");
+    });
+  });
+
+  describe('login_prompt_opts', function() {
+    it('should set backdropFade to true', function() {
+      expect(scope.login_prompt_opts.backdropFade).toBe(true);
+    });
+
+    it('should set dialogFade to true', function() {
+      expect(scope.login_prompt_opts.dialogFade).toBe(true);
+    });
+  });
+
+  describe('display_login_prompt', function() {
+    it('should default to false', function() {
+      expect(scope.display_login_prompt).toBe(false);
+    });
+  });
+
+  describe('#loginPrompt', function() {
+    var deferred_login_promise;
+    beforeEach(function() {
+      deferred_login_promise = scope.loginPrompt();
+    });
+
+    it('should set display_login_prompt to true', function() {
+      expect(scope.display_login_prompt).toBe(true);
+    });
+
+    it('should return a deferred login promise', function() {
+      expect(deferred_login_promise).toEqual("fakepromise");
+    });
+  });
+
+  describe('#close_login_prompt', function() {
+    it('should set display_login_prompt to false', function() {
+      scope.close_login_prompt();
+      expect(scope.display_login_prompt).toBe(false);
+    });
+
+    it('should reject the login promise if it has not been cleared', function() {
+      scope.deferred_login = $q.defer();
+      scope.close_login_prompt();
+      expect(scope.deferred_login.reject).toHaveBeenCalledWith({ logged_in: false, reason: 'dismissed' });
     });
   });
 
@@ -390,6 +485,103 @@ describe('AppController', function(){
 
     it('should call auth#logOut', function() {
       expect(auth.logOut).toHaveBeenCalled();
+    });
+  });
+
+  describe('modal_opts', function() {
+    it('should set backdropFade to true', function() {
+      expect(scope.login_prompt_opts.backdropFade).toBe(true);
+    });
+
+    it('should set dialogFade to true', function() {
+      expect(scope.login_prompt_opts.dialogFade).toBe(true);
+    });
+  });
+
+  describe('modal_window', function() {
+    it('should default to empty object', function() {
+      expect(scope.modal_window).toEqual({});
+    });
+  });
+
+  describe('#open_modal', function() {
+    it('should set modal flag to true', function() {
+      scope.open_modal('fakemodal');
+      expect(scope.modal_window.fakemodal).toBe(true);
+    });
+  });
+
+  describe('#close_modal', function() {
+    it('should set modal flag to false', function() {
+      scope.close_modal('fakemodal');
+      expect(scope.modal_window.fakemodal).toBe(false);
+    });
+  });
+
+  describe('hidden_alerts', function() {
+    it('should default to empty object', function() {
+      expect(scope.hidden_alerts).toEqual({});
+    });
+  });
+
+  describe('#hide_alert', function() {
+    it('should set hidden alert flag to true', function() {
+      scope.hide_alert('fakealert');
+      expect(scope.hidden_alerts.fakealert).toBe(true);
+    });
+  });
+
+  describe('#display_alert', function() {
+    it('should display alerts that have not been hidden', function() {
+      expect(scope.display_alert('fakealert')).toBe(true);
+    });
+
+    it('should not display alerts that have explicitly been hidden', function() {
+      scope.hidden_alerts.fakealert = true;
+      expect(scope.display_alert('fakealert')).toBe(false);
+    });
+  });
+
+  describe('#add_popover_listeners', function() {
+    var entries_elements;
+    beforeEach(function() {
+      entries_elements = { on: sinon.spy() };
+      spyOn(angular, 'element').andReturn(entries_elements);
+      scope.add_popover_listeners();
+    });
+
+    it('should add callback to scroll events on .entries', function() {
+      expect(angular.element).toHaveBeenCalledWith('.entries');
+      expect(entries_elements.on).toHaveBeenCalledWith('scroll');
+    });
+
+    it('should add remove_popovers to scroll event', function() {
+      var anonymous = entries_elements.on.getCall(0).args[1];
+      scope.$apply = sinon.spy();
+      anonymous();
+      expect(scope.$apply).toHaveBeenCalledWith(scope.remove_popovers);
+    });
+
+    it('should be added to $viewContentLoaded watcher', function() {
+      expect(scope.$on).toHaveBeenCalledWith('$viewContentLoaded', scope.add_popover_listeners);
+    });
+  });
+
+  describe('#remove_popovers', function() {
+    var popover_element, inner_scope;
+    beforeEach(function() {
+      inner_scope = {tt_isOpen: "somevalue"};
+      popover_element = { remove: sinon.spy(), siblings: sinon.stub().returns([{}]), scope: sinon.stub().returns(inner_scope) }
+      spyOn(angular, 'element').andReturn(popover_element);
+      scope.remove_popovers();
+    });
+
+    it('should remove .popover from DOM', function() {
+      expect(popover_element.remove).toHaveBeenCalled();
+    });
+
+    it('should set tt_isOpen flags to false', function() {
+      expect(inner_scope.tt_isOpen).toBe(false);
     });
   });
 });

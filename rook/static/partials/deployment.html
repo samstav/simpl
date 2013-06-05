@@ -23,24 +23,31 @@ Priv Key: {{formatted_data.private_key}}
             Commands
           </li>
           <li><a href="#" ng-click="save()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
-          <li><a href="#" data-target="#deleteWarning" class="tip" title="Delete Resources and Deployment" data-toggle="modal"><i class="icon-remove"></i> Delete</a></li>
-          <li><a href="#" data-target="#forceDeleteWarning" class="tip" title="Delete Resources and Deployment even if status does not allow it" data-toggle="modal"><i class="icon-remove"></i> Force Delete</a></li>
-          <li><a href="#" ng-show="auth.identity.is_admin" ng-click="sync()" class="tip" title="Sync the deployment resources"><i class="icon-retweet"></i> Sync</a></li>
-            <!-- deleteWarning -->
-            <div id="deleteWarning" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+          <li>
+            <a href="#" ng-click="open_modal('delete_warning')" class="tip" title="Delete Resources and Deployment">
+              <i class="icon-remove"></i> Delete
+            </a>
+            <!-- delete_warning -->
+            <div modal="modal_window.delete_warning" close="close_modal('delete_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="warning_title" aria-hidden="true">
               <div class="modal-header">
-                <h3 id="myModalLabel" class="alert alert-danger">Warning! Data Destructive Task</h3>
+                <h3 id="warning_title" class="alert alert-danger">Warning! Data Destructive Task</h3>
               </div>
               <div class="modal-body">
                 <p>Deleting the deployment will also delete all resources and data in it.</p>
               </div>
               <div class="modal-footer">
-                <button class="btn btn-primary" data-dismiss="modal" href="#" ng-click="delete_deployment()">Go ahead and Delete</button>
-                <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+                <button class="btn btn-primary" ng-click="delete_deployment()">Go ahead and Delete</button>
+                <button class="btn" ng-click="close_modal('delete_warning')">Cancel</button>
               </div>
             </div>
+          </li>
+
+          <li>
+            <a href="#" ng-click="open_modal('force_delete_warning')" class="tip" title="Delete Resources and Deployment even if status does not allow it">
+              <i class="icon-remove"></i> Force Delete
+            </a>
             <!-- forceDeleteWarning -->
-            <div id="forceDeleteWarning" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="forceDeleteWarningLabel" aria-hidden="true">
+            <div modal="modal_window.force_delete_warning" close="close_modal('force_delete_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="forceDeleteWarningLabel" aria-hidden="true">
               <div class="modal-header">
                 <h3 id="forceDeleteWarningLabel" class="alert alert-danger">Warning! Data Destructive Task</h3>
               </div>
@@ -49,10 +56,12 @@ Priv Key: {{formatted_data.private_key}}
                 <p>A forced delete may also result in a deployment that is broken and in an indeterminate state.</p>
               </div>
               <div class="modal-footer">
-                <button class="btn btn-primary" data-dismiss="modal" href="#" ng-click="delete_deployment('1')">Go ahead and Force Delete</button>
-                <button class="btn" data-dismiss="modal" aria-hidden="true">Cancel</button>
+                <button class="btn btn-primary" href="#" ng-click="delete_deployment('1')">Go ahead and Force Delete</button>
+                <button class="btn" ng-click="close_modal('force_delete_warning')">Cancel</button>
               </div>
             </div>
+          </li>
+          <li><a href="#" ng-show="auth.identity.is_admin" ng-click="sync()" class="tip" title="Sync the deployment resources"><i class="icon-retweet"></i> Sync</a></li>
         </ul>
       </div>
 
@@ -93,7 +102,7 @@ Priv Key: {{formatted_data.private_key}}
                   </div>
                   &nbsp;
                   <a style="margin-bottom: 15px;" class="btn" ng-cloak ng-show="data.id == 'simulate'" href="./status?complete">Complete the Simulation Now</a>
-                  <div class="alert controls">You can access an <a href=".">advanced</a> view of
+                  <div class="alert controls">You can access an <a ng-href="/{{auth.context.tenantId}}/workflows/{{data.id}}">advanced</a> view of
                   the workflow to manage any errors or hack at the workflow.</div>
               </div>
             </div>
@@ -214,9 +223,12 @@ Priv Key: {{formatted_data.private_key}}
 
         <textarea id="source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="data_json"></textarea>
 
-        <div class="alert">
-          <button type="button" class="close" data-dismiss="alert">&times;</button> <strong>Warning!</strong> If your updates include any 'secret' values (like password or private keys) and you have not opened this screen with a ?with_secrets query parameter, then any existing secrets will be overwritten and lost
-        </div>
+        <alert close="$parent.hide_alert('deployment_overwrite_secrets')" ng-show="$parent.display_alert('deployment_overwrite_secrets')">
+          <strong>Warning!</strong>
+          If your updates include any 'secret' values (like password or private keys)
+          and you have not opened this screen with a <code>?with_secrets</code> query
+          parameter, then any existing secrets will be overwritten and lost.
+        </alert>
 
       </div>
     </div>
