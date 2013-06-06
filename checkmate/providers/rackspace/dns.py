@@ -60,14 +60,14 @@ class Provider(ProviderBase):
                                      exc_info=True)
                 if num_recs + num_new_recs > max_records:
                     return {
-                      'type': "INSUFFICIENT-CAPACITY",
-                      'message': "Domain %s would have %s records after "
-                                 "this operation. You may only have "
-                                 "up to %s records for a domain."
-                                 % (dom_name, num_recs + num_new_recs,
-                                    max_records),
-                      'provider': self.name,
-                      'severity': "CRITICAL"
+                        'type': "INSUFFICIENT-CAPACITY",
+                        'message': "Domain %s would have %s records after "
+                                   "this operation. You may only have "
+                                   "up to %s records for a domain."
+                                   % (dom_name, num_recs + num_new_recs,
+                                   max_records),
+                        'provider': self.name,
+                        'severity': "CRITICAL",
                     }
 
     def verify_limits(self, context, resources):
@@ -107,7 +107,7 @@ class Provider(ProviderBase):
                 if dom not in handled:
                     handled[dom] = True
                     yield (dom, len([d for d in resources
-                                if parse_domain(d.get('dns-name')) == dom]))
+                           if parse_domain(d.get('dns-name')) == dom]))
 
         for dom_name, num_recs in _count_filter_records(resources):
             pile.spawn(self._check_record_limits, context, dom_name, max_recs,
@@ -225,7 +225,7 @@ class Provider(ProviderBase):
         proxy = CloudDNS_Auth_Proxy(url=url, token=token)
         api = clouddns.connection.Connection(auth=proxy)
         LOG.debug("Connected to cloud DNS using token of length %s "
-                  "and url of %s" % (len(token), url))
+                  "and url of %s", len(token), url)
         return api
 
 
@@ -254,15 +254,15 @@ def parse_domain(domain_str):
 
 
 @task(default_retry_delay=10, max_retries=10)
-def get_domains(deployment, limit=None, offset=None):
+def get_domains(context, limit=None, offset=None):
     match_celery_logging(LOG)
-    api = _get_dns_object(deployment)
+    api = _get_dns_object(context)
     try:
         domains = api.list_domains_info(limit=limit, offset=offset)
         LOG.debug('Successfully retrieved domains.')
         return domains
-    except Exception, exc:
-        LOG.debug('Error retrieving domains. Error: %s. Retrying.' % exc)
+    except Exception as exc:
+        LOG.debug('Error retrieving domains. Error: %s. Retrying.', exc)
         get_domains.retry(exc=exc)
 
 
