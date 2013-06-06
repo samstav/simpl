@@ -22,7 +22,7 @@
   </head>
 
   <body>
-    <svg id="cloud" width="1000" height="800">
+    <svg id="cloud" width="1400" height="900">
     </svg>
 
 
@@ -110,16 +110,20 @@ var jsonf = function(json) {
         .attr("class", "link")
         ;
 
-    var nodes = svg.selectAll("circle.node")
+    var nodes = svg.selectAll("g.node")
         .data(force.nodes())
-        .enter().append("circle")
+        .enter()
+        .append("svg:g")
         .attr("class", "node")
-        .attr("r", 8)
-        .style("fill", function(d) { return color(d.group); })
         .call(force.drag)
         ;
 
-    nodes.append("svg:text")
+    nodes.append('circle')
+        .attr("r", 8)
+        .attr("class", "node")
+        .style("fill", function(d) { return color(d.group); })
+
+    nodes.append("text")
         .attr("class", "nodetext")
         .attr("dx", 12)
         .attr("dy", ".35em")
@@ -131,8 +135,7 @@ var jsonf = function(json) {
             .attr("x2", function(d) { return d.target.x; })
             .attr("y2", function(d) { return d.target.y; });
 
-        nodes.attr("cx", function(d) { return d.x; })
-            .attr("cy", function(d) { return d.y; });
+        nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
     });
 
 };
