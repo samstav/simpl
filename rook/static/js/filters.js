@@ -108,9 +108,9 @@ filters.filter('cm_validation_rules', function() {
         var msg_class  = constraints[idx].valid ? 'text-success' : 'text-error';
         var message    = constraints[idx].message || "";
         html += ''
-              + '<span class=\"' + msg_class + '\">'
+              + '<div class=\"' + msg_class + '\">'
               + '<i class=\"' + icon_class + '\"></i>' + message
-              + '</span>'
+              + '</div>'
               ;
       }
     }
