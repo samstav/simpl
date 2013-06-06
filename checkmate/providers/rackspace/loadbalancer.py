@@ -19,10 +19,8 @@ from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateBadState
 )
-from eventlet.patcher import import_patched
-cloudlb = import_patched("cloudlb")
+import cloudlb
 from checkmate.providers.base import ProviderBase, user_has_access
-from eventlet.greenpool import GreenPile
 from checkmate.providers.rackspace import dns
 import sys
 from checkmate.middleware import RequestContext
@@ -110,7 +108,7 @@ class Provider(ProviderBase):
         if support_unencrypted:
             number_of_resources += 1
         if interface == 'vip':
-            connections = definition.get('connections', None)
+            connections = definition.get('connections', [])
             number_of_resources = len(connections)
 
         for index_of_resource in range(index, index + number_of_resources):
@@ -133,6 +131,13 @@ class Provider(ProviderBase):
         if support_unencrypted:
             templates[len(templates) - 1]['protocol'] = PROTOCOL_PAIRS[
                 protocol]
+        if self._handle_dns(deployment, service, resource_type=resource_type):
+            templates[0]['instance']['dns-A-name'] = deployment.get_setting(
+                                         "domain",
+                                          resource_type=resource_type,
+                                          service_name=service,
+                                          provider_key=self.key,
+                                          default=templates[0].get('dns-name'))
         return templates
 
     def _support_unencrypted(self, deployment, protocol, resource_type=None,
@@ -153,18 +158,26 @@ class Provider(ProviderBase):
 
         return reduce(lambda x, y: x | y, values)
 
+    def _handle_dns(self, deployment, service, resource_type="load-balancer"):
+        dns = str(deployment.get_setting("create_dns",
+                                         resource_type=resource_type,
+                                         service_name=service,
+                                         default="false"))
+        return dns.lower() in ['true', '1', 'yes']
+
     @MemorizeMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
-    def _get_abs_limits(self, api_endpoint, auth_token):
-        api = cloudlb.CloudLoadBalancer('ignore', 'ignore', None, 'localhost')
+    def _get_abs_limits(self, username, auth_token, api_endpoint, region):
+        api = cloudlb.CloudLoadBalancer(username, 'ignore', region)
         api.client.auth_token = auth_token
-        api.client.management_url = api_endpoint
+        api.client.region_account_url = api_endpoint
         return api.loadbalancers.get_absolute_limits()
 
     def verify_limits(self, context, resources):
         messages = []
         region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
-        abs_limits = self._get_abs_limits(url, context.auth_token)
+        abs_limits = self._get_abs_limits(context.username, context.auth_token,
+                                          url, region)
         max_nodes = abs_limits.get("NODE_LIMIT", sys.maxint)
         max_lbs = abs_limits.get("LOADBALANCER_LIMIT", sys.maxint)
         clb = self.connect(context, region=region)
@@ -181,6 +194,12 @@ class Provider(ProviderBase):
                 'severity': "CRITICAL"
             })
         for res in resources:
+            if 'dns-A-name' in res.get('instance', {}):
+                messages.append(dns.Provider({}).verify_limits(context,
+                                [{"type": "dns-record",
+                                  "interface": "A",
+                                  'dns-name': res.get('instance')
+                                                 .get('dns-A-name')}]))
             nodes = len(res.get("relations", {}))
             if max_nodes < nodes:
                 messages.append({
@@ -235,13 +254,7 @@ class Provider(ProviderBase):
                                            service_name=service_name,
                                            provider_key=self.key,
                                            default="ROUND_ROBIN")
-
-        dns = str(deployment.get_setting("create_dns",
-                                         resource_type=resource_type,
-                                         service_name=service_name,
-                                         default="false"))
-
-        dns = (dns.lower() == 'true' or dns == '1' or dns.lower() == 'yes')
+        dns = self._handle_dns(deployment, service_name, resource_type=resource_type)
         create_lb_task_tags = ['create', 'root', 'vip']
 
         #Find existing task which has created the vip

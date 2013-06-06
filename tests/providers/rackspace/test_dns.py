@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import errno
 import logging
 import os
 import unittest2 as unittest
@@ -10,6 +9,8 @@ import tldextract
 # Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate.utils import init_console_logging
 from checkmate.providers.rackspace import dns
+from checkmate.middleware import RequestContext
+from mox import IgnoreArg
 
 init_console_logging()
 LOG = logging.getLogger(__name__)
@@ -17,13 +18,86 @@ LOG = logging.getLogger(__name__)
 try:
     import socket
     # Test for internet connection using rackspace.com
-    response=socket.getaddrinfo('www.rackspace.com', 80, 0, 0, socket.TCP_NODELAY)
-    SKIP=False
-    REASON=None
+    response = socket.getaddrinfo('www.rackspace.com', 80, 0, 0, socket.TCP_NODELAY)
+    SKIP = False
+    REASON = None
 except socket.gaierror as exc:
     LOG.warn("No network connection so skipping DNS tests: %s", exc)
-    SKIP=True
-    REASON="No network connection: %s" % exc
+    SKIP = True
+    REASON = "No network connection: %s" % exc
+
+
+class TestDnsProvider(unittest.TestCase):
+
+    def __init__(self, methodName='runTest'):
+        unittest.TestCase.__init__(self, methodName=methodName)
+        self.mox = mox.Mox()
+
+    def verify_limits(self, existing_doms, max_doms, max_records):
+        """ Test the verify_limits() method """
+
+        resources = [{
+            "type": "dns-record",
+            "interface": "A",
+            "dns-name": "foo.example.com"
+        }, {
+            "type": "dns-record",
+            "interface": "A",
+            "dns-name": "bar.example.com"
+        }]
+        limits = {
+            "absolute": {
+                "domains": max_doms,
+                "records per domain": max_records
+            }
+        }
+        context = RequestContext()
+        context.catalog = {
+        }
+        mock_api = self.mox.CreateMockAnything()
+        self.mox.StubOutWithMock(dns.Provider, 'connect')
+        dns.Provider.connect(IgnoreArg()).AndReturn(mock_api)
+        self.mox.StubOutWithMock(dns.Provider, "_get_limits")
+        (dns.Provider._get_limits(IgnoreArg(), IgnoreArg())
+         .AndReturn(limits))
+        mock_api.get_total_domain_count().AndReturn(existing_doms)
+        dns.Provider.connect(IgnoreArg()).AndReturn(mock_api)
+        mock_api.list_domains_info(filter_by_name=IgnoreArg()).AndReturn(None)
+        dns.Provider.connect(IgnoreArg()).AndReturn(mock_api)
+        mock_api.list_domains_info(filter_by_name=IgnoreArg()).AndReturn(None)
+        self.mox.ReplayAll()
+        result = dns.Provider({}).verify_limits(context, resources)
+        self.mox.VerifyAll()
+        return result
+
+    def test_verify_limits_negative(self):
+        """Test that verify_limits() returns warnings if limits are not okay"""
+        result = self.verify_limits(1, 1, 0)
+        LOG.debug(result)
+        self.assertEqual(2, len(result))
+        self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
+
+    def test_verify_access_positive(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'identity:user-admin'
+        provider = dns.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'dnsaas:admin'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+        context.roles = 'dnsaas:creator'
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'ACCESS-OK')
+
+    def test_verify_access_negative(self):
+        """Test that verify_access() returns ACCESS-OK if user has access"""
+        context = RequestContext()
+        context.roles = 'dnsaas:observer'
+        provider = dns.Provider({})
+        result = provider.verify_access(context)
+        self.assertEqual(result['type'], 'NO-ACCESS')
 
 
 @unittest.skipIf(SKIP, REASON)
