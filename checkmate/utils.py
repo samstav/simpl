@@ -15,12 +15,11 @@ import random
 import re
 import string
 import struct
-from subprocess import CalledProcessError, Popen, PIPE
+from subprocess import CalledProcessError, Popen, PIPE, check_output
 import sys
 import threading
 from time import gmtime, strftime
 import uuid
-import subprocess
 import shutil
 
 from bottle import abort, request, response
@@ -770,18 +769,29 @@ def is_simulation(api_id):
     return str(api_id).startswith('simulate')
 
 
+def git_clone(repo_dir, url, branch="master"):
+    """Do a git checkout of `head' in `repo_dir'."""
+    return check_output(['git', 'clone', url, repo_dir, '--branch', branch])
+
+
+def git_tags(repo_dir):
+    """Return a list of git tags for the git repo in `repo_dir'."""
+    return check_output(['git', 'tag', '-l'], cwd=repo_dir).split("\n")
+
+
 def git_checkout(repo_dir, head):
-    """Do a git checkout of `head' in `repo_dir'.
+    """Do a git checkout of `head' in `repo_dir'."""
+    return check_output(['git', 'checkout', head], cwd=repo_dir)
 
-    The checkout method in GitPython has a bug.  This is just a
-    temporary fix.
 
-    GitPython bug report:
-    https://github.com/gitpython-developers/GitPython/issues/106
-    """
-    cmd = ['git', 'checkout', head]
-    proc = subprocess.Popen(cmd, cwd=repo_dir)
-    proc.wait()
+def git_fetch(repo_dir, refspec, remote="origin"):
+    """Do a git fetch of `refspec' in `repo_dir'."""
+    return check_output(['git', 'fetch', remote, refspec], cwd=repo_dir)
+
+
+def git_pull(repo_dir, head, remote="origin"):
+    """Do a git pull of `head' from `remote'."""
+    return check_output(['git', 'pull', remote, head], cwd=repo_dir)
 
 
 def copy_contents(source, dest, with_overwrite=False, create_path=True):

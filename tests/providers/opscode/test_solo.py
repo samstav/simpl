@@ -1393,21 +1393,14 @@ class TestChefMap(unittest.TestCase):
         chefmap = solo.ChefMap()
         os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "3600"
 
-        # Make the remotes property throw an AssertionError (it
-        # shouldn't be called)
-        git.Repo = self.mox.CreateMockAnything()
-        git.Repo.__call__ = lambda x: mock_repo
-        mock_repo = self.mox.CreateMockAnything()
-        repo_remotes = self.mox.CreateMockAnything()
-        repo_remotes_origin = self.mox.CreateMockAnything()
-        mock_repo.remotes = repo_remotes
-        repo_remotes.origin = repo_remotes_origin
-        repo_remotes_origin.pull().AndReturn(True)
-        self.mox.ReplayAll()
-
         chefmap.url = self.url
         map_file = chefmap.get_map_file()
 
+        def update_map(repo_dir=None, head=None):
+            with open(self.chef_map_path, 'a') as f:
+                f.write("new information")
+        utils.git_pull = self.mox.CreateMockAnything()
+        utils.git_pull(IgnoreArg(), IgnoreArg()).WithSideEffects(update_map)
         self.assertEqual(map_file, TEMPLATE)
 
         # Catch the exception that mox will throw when it doesn't get
@@ -1432,20 +1425,15 @@ class TestChefMap(unittest.TestCase):
         # cause a cache miss
         os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "0"
 
-        git.Repo = self.mox.CreateMockAnything()
-        mock_repo = self.mox.CreateMockAnything()
-        repo_remotes = self.mox.CreateMockAnything()
-        repo_remotes_origin = self.mox.CreateMockAnything()
-        mock_repo.remotes = repo_remotes
-        repo_remotes.origin = repo_remotes_origin
-        git.Repo.__call__ = lambda x: mock_repo
-        mock_repo.tags = self.mox.CreateMockAnything()
-        mock_repo.tags.__contains__('master').AndReturn(False)
-
-        def update_map():
+        def update_map(repo_dir=None, head=None):
             with open(self.chef_map_path, 'a') as f:
                 f.write("new information")
-        repo_remotes_origin.pull().WithSideEffects(update_map)
+        utils.git_tags = self.mox.CreateMockAnything()
+        utils.git_tags(IgnoreArg()).AndReturn(["master"])
+        utils.git_fetch = self.mox.CreateMockAnything()
+        utils.git_fetch(IgnoreArg(), IgnoreArg())
+        utils.git_checkout = self.mox.CreateMockAnything()
+        utils.git_checkout(IgnoreArg(), IgnoreArg()).WithSideEffects(update_map)
         self.mox.ReplayAll()
 
         chefmap.url = self.url
@@ -1466,12 +1454,13 @@ class TestChefMap(unittest.TestCase):
             with open(self.chef_map_path, 'w') as f:
                 f.write(TEMPLATE)
 
-        git.Repo = self.mox.CreateMockAnything()
-        mock_repo = self.mox.CreateMockAnything()
-        git.Repo.clone_from(IgnoreArg(), IgnoreArg(), branch=IgnoreArg())\
-            .WithSideEffects(fake_clone).AndReturn(mock_repo)
-        mock_repo.tags = self.mox.CreateMockAnything()
-        mock_repo.tags.__contains__('master').AndReturn(False)
+        utils.git_clone = self.mox.CreateMockAnything()
+        utils.git_clone(IgnoreArg(), IgnoreArg(), branch=IgnoreArg())\
+            .WithSideEffects(fake_clone)
+        utils.git_tags = self.mox.CreateMockAnything()
+        utils.git_tags(IgnoreArg()).AndReturn(["master"])
+        utils.git_checkout = self.mox.CreateMockAnything()
+        utils.git_checkout(IgnoreArg(), IgnoreArg())
         self.mox.ReplayAll()
 
         chefmap.url = self.url
