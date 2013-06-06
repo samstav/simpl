@@ -161,9 +161,9 @@ function StaticController($scope, $location) {
   ];
   $scope.items3 = [
     {spot: "ready", show_name: false, name: "Etherpad", description: "Etherpad Lite", url: $scope.item_base_url + "etherpad-lite%23" + $scope.blueprint_ref, image: "etherpad_lite.png"},
+    {spot: "ready", show_name: false, name: "Rails",    description: null,            url: null, image: "rails.png"},
     {spot: "write", show_name: true,  name: "DevStack", description: null,            url: null, image: "openstack.png"},
     {spot: "write", show_name: false, name: "NodeJS",   description: "node.js",       url: null, image: "nodejs.png"},
-    {spot: "coming",show_name: false, name: "Rails",    description: null,            url: null, image: "rails.png"},
   ];
   $scope.items4 = [
     {spot: "write", show_name: false, name: "Django",   description: null,                     url: null, image: "django_small.png"},
