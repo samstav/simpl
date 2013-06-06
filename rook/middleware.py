@@ -309,7 +309,7 @@ def authproxy(path=None):
                         LOG.debug("Admin authenticated: %s", )
                         response.add_header('X-AuthZ-Admin', 'True')
     except StandardError as exc:
-        LOG.exception(exc)
+        LOG.debug("Ignored error checking roles: %s", exc)
 
     return write_body(content, request, response)
 
