@@ -1063,16 +1063,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     re_authenticate: function(token, tenant) {
       var url = is_chrome_extension ? auth.context.auth_url : "/authproxy/v2.0/tokens";
       var data = this.generate_auth_data(token, tenant);
-      return $http.post(url, data)
-        .then(
-          // Success
-          function(response) {
-            return response.data;
-          },
-          // Error
-          function(response) {
-            console.log("Error re-authenticating:\n" + response);
-          });
+      return $http.post(url, data);
     },
 
     generate_impersonation_data: function(username, endpoint_type) {
@@ -1136,35 +1127,26 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       this.get_tenant_id(username, response.data.access.token.id).then(
         // Success
         function(tenant_id) {
-          auth.context.username = username;
-          auth.context.token = response.data.access.token;
-          auth.context.auth_url = auth.identity.auth_url.replace('-internal', '');
-          auth.context.tenantId = tenant_id;
-          var catalog = response.data.access.serviceCatalog;
-          if (catalog === undefined) {
-            auth.re_authenticate(auth.context.token.id, auth.context.tenantId).then(
-              // Success
-              function(data) {
-                auth.context.catalog = data.access.serviceCatalog;
-                auth.context.regions = auth.get_regions(data);
-                auth.store_context(auth.context);
-                auth.context.impersonated = true;
-                auth.save();
-                auth.check_state();
-                deferred.resolve('Impersonation Successful!');
-              },
-              // Error
-              function(catalog_response) {
-                auth.impersonate_error(catalog_response, deferred);
-              }
-            );
-          } else {
-            auth.store_context(auth.context);
-            auth.context.impersonated = true;
-            auth.save();
-            auth.check_state();
-            deferred.resolve('Impersonation Successful!');
-          }
+          auth.re_authenticate(response.data.access.token.id, tenant_id).then(
+            // Success
+            function(re_auth_response) {
+              auth.context.username = username;
+              auth.context.token = response.data.access.token;
+              auth.context.auth_url = auth.identity.auth_url.replace('-internal', '');
+              auth.context.tenantId = tenant_id;
+              auth.context.catalog = re_auth_response.data.access.serviceCatalog;
+              auth.context.regions = auth.get_regions(re_auth_response.data);
+              auth.store_context(auth.context);
+              auth.context.impersonated = true;
+              auth.save();
+              auth.check_state();
+              deferred.resolve('Impersonation Successful!');
+            },
+            // Error
+            function(catalog_response) {
+              auth.impersonate_error(catalog_response, deferred);
+            }
+          );
         },
         // Error
         function(tenant_response) {
