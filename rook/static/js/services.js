@@ -582,20 +582,20 @@ services.value('options', {
 /* Github APIs for blueprint parsing*/
 services.factory('github', ['$http', function($http) {
   var me = {
-    
+
     // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
     get_api_details: function(uri) {
       var api = {};
       var host_parts = uri.host().split(':');
       var domain = host_parts[0];
       var port = host_parts.length > 1 ? ':'+ host_parts[1] : '';
-      
+
       if(/github\.com$/i.test(domain)) {
         // The repo is on the Github website
         api.server = uri.protocol() + '://' + 'api.github.com' + port;
         api.url = (checkmate_server_base || '') + '/githubproxy/';
         return api;
-      } 
+      }
 
       // The repo is on Github Enterprise
       api.server = uri.protocol() + '://' + uri.host();
@@ -876,7 +876,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
             },
             "RAX-AUTH:rsaCredentials": {
               "username": username,
-              "tokenKey": pin_rsa,
+              "tokenKey": pin_rsa
             }
           }
         };
@@ -1032,6 +1032,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           error_callback(response);
         });
     },
+
     logOut: function(broadcast) {
       if (broadcast === undefined) broadcast = true;
       auth.clear();
@@ -1043,14 +1044,14 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     },
 
     get_tenant_id: function(username, token) {
-      var url = is_chrome_extension ? auth.auth_url : "/authproxy/v2.0/tenants";
+      var url = is_chrome_extension ? auth.context.auth_url : "/authproxy/v2.0/tenants";
       var config = { headers: { 'X-Auth-Token': token } };
       return $http.get(url, config)
         .then(
           // Success
           function(response) {
             var numbers = /^\d+$/;
-            var tenant = _.find(response.data.tenants, function(tenant) { return tenant.id.match(numbers) });
+            var tenant = _.find(response.data.tenants, function(tenant) { return tenant.id.match(numbers); });
             return tenant.id;
           },
           // Error
@@ -1105,7 +1106,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         case 'Keystone':
           impersonation_url = auth.identity.auth_url;
           break;
-      };
+      }
       return impersonation_url;
     },
 
@@ -1137,7 +1138,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         function(tenant_id) {
           auth.context.username = username;
           auth.context.token = response.data.access.token;
-          auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
+          auth.context.auth_url = auth.identity.auth_url.replace('-internal', '');
           auth.context.tenantId = tenant_id;
           var catalog = response.data.access.serviceCatalog;
           if (catalog === undefined) {
@@ -1180,11 +1181,11 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 
     impersonate: function(username) {
       var deferred = $q.defer();
-      var url = is_chrome_extension ? auth.auth_url : "/authproxy";
+      var url = is_chrome_extension ? auth.identity.auth_url : "/authproxy";
       var data = auth.generate_impersonation_data(username, auth.identity.endpoint_type);
       var headers = {
           'X-Auth-Token': auth.identity.token.id,
-          'X-Auth-Source': auth.get_impersonation_url(auth.identity.endpoint_type),
+          'X-Auth-Source': auth.get_impersonation_url(auth.identity.endpoint_type)
       };
       var config = {headers: headers};
       $http.post(url, data, config).then(
@@ -1194,7 +1195,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         },
         // Error
         function(response) {
-          auth.impersonate_error(response, deferred)
+          auth.impersonate_error(response, deferred);
         });
 
       return deferred.promise;
@@ -1216,6 +1217,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       } else
         auth.clear();
     },
+
     clear: function() {
       auth.identity = {};
       auth.context = {};
@@ -1249,6 +1251,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         }
       }
     },
+
     parseWWWAuthenticateHeaders: function(headers) {
       headers = headers.split(',');
       var parsed = _.map(headers, function(entry) {
