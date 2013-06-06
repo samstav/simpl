@@ -40,7 +40,8 @@ class TestKnife(unittest.TestCase):
 
         if not os.path.exists(kitchen_path):
             os.makedirs(kitchen_path)
-            knife._create_kitchen(self.deploymentId, 'kitchen', environment_path)
+            knife._create_kitchen(
+                self.deploymentId, 'kitchen', environment_path)
             LOG.info("Created kitchen '%s'" % kitchen_path)
 
         databag_path = os.path.join(kitchen_path, "data_bags")
@@ -260,14 +261,14 @@ class TestKnife(unittest.TestCase):
 
         self.mox.StubOutWithMock(os.path, 'exists')
         os.path.exists(os.path.join(kitchen_path, 'Berksfile')).AndReturn(True)
-        #os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(False)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
 
         self.mox.StubOutWithMock(knife, 'check_output')
-        knife.check_output(['berks', 'install', '--path',
-                            os.path.join(kitchen_path, 'cookbooks')
-                           ]).AndReturn('OK')
+        knife.check_output([
+            'berks', 'install', '--path',
+            os.path.join(kitchen_path, 'cookbooks')
+        ]).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',

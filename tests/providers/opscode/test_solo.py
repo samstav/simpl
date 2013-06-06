@@ -638,7 +638,8 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                   #TODO: find out if users would like writing to attributes
                   #      to happen by default (not needing this next line)
                   - attributes://db_name
-                  - outputs://instance:{{resource.index}}/instance/interfaces/mysql/database_name
+                  - outputs://instance:{{resource.index}}/instance/\
+interfaces/mysql/database_name
                 - value: {{ setting('username') or 'root' }}
                   targets:
                   - attributes://username
@@ -648,7 +649,8 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                 # We can route data from requires to provides
                 - source: requirements://host:linux/ip
                   targets:
-                  - outputs://instance:{{resource.index}}/instance/interfaces/mysql/host
+                  - outputs://instance:{{resource.index}}/instance/\
+interfaces/mysql/host
                 output:
                   instance:{{resource.index}}:
                     name: {{ setting('database_name') }}
@@ -961,7 +963,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 maps:
                 - value: foo-db
                   targets:
-                  - outputs://instance:{{resource.index}}/instance/interfaces/mysql/database_name
+                  - outputs://instance:{{resource.index}}/instance/\
+interfaces/mysql/database_name
                 - source: clients://database:mysql/ip
                   targets:
                   - attributes://connections
@@ -1326,8 +1329,10 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
         found = False
         for task in workflow.get_tasks():
             if task.get_name() == "Reconfig Chef Data for 2":
-                connections = (task.attributes.get('chef_options', {}).
-                    get('attributes:2', {}).get('connections'))
+                connections = (
+                    task.attributes.get('chef_options', {}).get(
+                        'attributes:2', {}).get('connections')
+                )
                 if connections == ['4.4.4.4']:
                     found = True
                 self.assertNotEqual(connections, 10, "Foo attribute written "
@@ -1336,8 +1341,10 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
 
         for task in workflow.get_tasks():
             if task.get_name() == "Collect Chef Data for 0":
-                connections = (task.attributes.get('chef_options', {}).
-                    get('attributes:0', {}).get('connections'))
+                connections = (
+                    task.attributes.get('chef_options', {}).get(
+                        'attributes:0', {}).get('connections')
+                )
                 self.assertNotEqual(connections, ['4.4.4.4'],
                                     "Bar attribute written to Foo")
 
@@ -1433,7 +1440,8 @@ class TestChefMap(unittest.TestCase):
         utils.git_fetch = self.mox.CreateMockAnything()
         utils.git_fetch(IgnoreArg(), IgnoreArg())
         utils.git_checkout = self.mox.CreateMockAnything()
-        utils.git_checkout(IgnoreArg(), IgnoreArg()).WithSideEffects(update_map)
+        utils.git_checkout(
+            IgnoreArg(), IgnoreArg()).WithSideEffects(update_map)
         self.mox.ReplayAll()
 
         chefmap.url = self.url
@@ -1929,10 +1937,12 @@ class TestTemplating(unittest.TestCase):
             \n--- # component bar
             id: bar
             maps:
-            - value: {{ parse_url({'url': 'http://github.com', 'certificate': 'TEST_CERT'}).certificate }}
+            - value: {{ parse_url({'url': 'http://github.com', 'certificate': \
+'TEST_CERT'}).certificate }}
               targets:
               - attributes://cert_target/certificate
-            - value: {{ parse_url({'url': 'http://github.com', 'certificate': 'TEST_CERT'}).protocol }}
+            - value: {{ parse_url({'url': 'http://github.com', 'certificate': \
+'TEST_CERT'}).protocol }}
               targets:
               - attributes://protocol_target/scheme
         """

@@ -17,20 +17,29 @@ from checkmate.utils import init_console_logging
 init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate.deployments import Deployment, plan, get_deployments_count, \
-        get_deployments_by_bp_count, _deploy, generate_keys
+from checkmate.deployments import (
+    Deployment,
+    plan,
+    get_deployments_count,
+    get_deployments_by_bp_count,
+    _deploy,
+    generate_keys
+)
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.middleware import RequestContext, TokenAuthMiddleware
 from checkmate.providers.opscode import local
 from checkmate.test import StubbedWorkflowBase, ENV_VARS, TestProvider
 from checkmate.utils import yaml_to_dict, dict_to_yaml
-from checkmate.workflows import create_workflow_deploy, \
-        create_workflow_spec_deploy
+from checkmate.workflows import (
+    create_workflow_deploy,
+    create_workflow_spec_deploy
+)
 
 DEPLOYMENT = None
 
 ARGS = None
+
 
 def main():
     epilog = ["Environment Settings:"]
@@ -85,9 +94,10 @@ class AnalyzeOptionsLogic(StubbedWorkflowBase):
             if ARGS.tenant:
                 self.context.tenant = ARGS.tenant
             middleware = TokenAuthMiddleware(None, ARGS.endpoint)
-            content = middleware._auth_keystone(self.context, token=ARGS.token,
-                                      username=ARGS.username,
-                                      apikey=ARGS.apikey)
+            content = middleware._auth_keystone(
+                self.context, token=ARGS.token,
+                username=ARGS.username, apikey=ARGS.apikey
+            )
             self.context.set_context(content)
         # Load deployment
         self.deployment = Deployment(yaml_to_dict(DEPLOYMENT))
@@ -128,17 +138,19 @@ class AnalyzeOptionsLogic(StubbedWorkflowBase):
     @staticmethod
     def print_options(collect):
         """Prints out options for a task spec"""
-        print ("\n*** RUN-TIME OPTIONS ***\n"
-               "These values will be evaluated while the workflow runs for "
-               "resource %s from provider %s" % (
-                collect.get_property('resource'),
-                collect.get_property('provider')))
+        print (
+            "\n*** RUN-TIME OPTIONS ***\n"
+            "These values will be evaluated while the workflow runs for "
+            "resource %s from provider %s" % (
+            collect.get_property('resource'), collect.get_property('provider'))
+        )
         columns = ["Component", "Name to find", "Where to put in data bag?"]
         table = PrettyTable(columns)
         for column in columns:
             table.align[column] = "l"
-        for component, values in collect.properties['options']\
-                           ['run_time_options'].iteritems():
+        for component, values in (
+            collect.properties['options']['run_time_options'].iteritems()
+        ):
             for name, target in values:
                 table.add_row([component, name, target])
         print table
@@ -150,8 +162,9 @@ class AnalyzeOptionsLogic(StubbedWorkflowBase):
         table = PrettyTable(columns)
         for column in columns:
             table.align[column] = "l"
-        for component, values in collect.properties['options']\
-                           ['planning_time_options'].iteritems():
+        for component, values in (
+            collect.properties['options']['planning_time_options'].iteritems()
+        ):
             for name, target in values.iteritems():
                 table.add_row([component, name, target])
         print table
@@ -163,8 +176,9 @@ class AnalyzeOptionsLogic(StubbedWorkflowBase):
         table = PrettyTable(columns)
         for column in columns:
             table.align[column] = "l"
-        for component, values in collect.properties['options']\
-                           ['planning_time_options'].iteritems():
+        for component, values in (
+            collect.properties['options']['planning_time_options'].iteritems()
+        ):
             if values:
                 for value in values:
                     table.add_row([component, value])
@@ -172,7 +186,6 @@ class AnalyzeOptionsLogic(StubbedWorkflowBase):
 
         if '--verbose' in sys.argv or '--debug' in sys.argv:
             print dict_to_yaml(collect.properties['options'])
-
 
     def skip_test_options_processing(self):
         try:

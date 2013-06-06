@@ -24,10 +24,10 @@ import checkmate.providers.rackspace.identity  # for celery
 
 
 def register():
-    from checkmate.providers.rackspace.compute_legacy import Provider as \
-            legacy
-    from checkmate.providers.rackspace.compute import Provider as \
-            nova
+    from checkmate.providers.rackspace.compute_legacy import (
+        Provider as legacy)
+    from checkmate.providers.rackspace.compute import (
+        Provider as nova)
     from checkmate.providers.rackspace.loadbalancer import Provider as \
         loadbalancer
     from checkmate.providers.rackspace.database import Provider as database

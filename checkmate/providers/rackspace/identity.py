@@ -30,24 +30,31 @@ def get_token(context):
     LOG.debug('Auth %s' % (context['username']))
     if 'apikey' in context:
         LOG.debug("Using cloudlb to handle APIKEY aurthentication")
-        clb = cloudlb.CloudLoadBalancer(context['username'],
-            context['apikey'], context['region'])
+        clb = cloudlb.CloudLoadBalancer(
+            context['username'], context['apikey'], context['region']
+        )
         clb.client.authenticate()
         LOG.debug('Auth token for user %s is %s' % (
             context['username'], clb.client.auth_token))
         return clb.client.auth_token
     elif 'password' in context:
-        keystone = client.Client(username=context['username'],
-                                 password=context['password'],
-                                 tenant_name=context.get('tenant'),
-                                 auth_url=context.get('auth_url',
-                                        "https://identity.api.rackspacecloud."
-                                        "com/v2.0"))
+        keystone = client.Client(
+            username=context['username'],
+            password=context['password'],
+            tenant_name=context.get('tenant'),
+            auth_url=context.get(
+                'auth_url',
+                "https://identity.api.rackspacecloud.com/v2.0"
+            )
+        )
 
     if 'tenant' in context:
         keystone.tenant_id = context['tenant']
     else:
         keystone.tenant_id = _get_ddi(context, keystone.tenants.list())
-    LOG.debug('Auth token for user %s is %s (tenant %s)' % (
-            context['username'], keystone.auth_token, keystone.tenant_id))
+    LOG.debug(
+        'Auth token for user %s is %s (tenant %s)' % (
+            context['username'], keystone.auth_token, keystone.tenant_id
+        )
+    )
     return keystone.auth_token

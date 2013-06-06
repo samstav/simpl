@@ -140,13 +140,15 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.StubOutWithMock(resource_postback, 'delay')
 
         expected = {
-                    "instance:0": {
-                    'status': 'ERROR',
-                    'status-message': ("Unexpected error deleting compute "
-                                   "instance 0: some message"),
-                    'trace': 'Task 1234: some traceback'
-                    }
-                }
+            "instance:0": {
+                'status': 'ERROR',
+                'status-message': (
+                    "Unexpected error deleting compute "
+                    "instance 0: some message"
+                ),
+                'trace': 'Task 1234: some traceback'
+            }
+        }
 
         resource_postback.delay("4321", expected).AndReturn(True)
         self.mox.ReplayAll()
@@ -280,8 +282,8 @@ class TestNovaCompute(test.ProviderTester):
                                 expected).AndReturn(True)
 
         self.mox.ReplayAll()
-        results = compute.wait_on_build(context, server.id, 'North',
-            [], api_object=openstack_api_mock)
+        results = compute.wait_on_build(
+            context, server.id, 'North', [], api_object=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -362,8 +364,8 @@ class TestNovaCompute(test.ProviderTester):
                                 expected).AndReturn(True)
 
         self.mox.ReplayAll()
-        results = compute.wait_on_build(context, server.id, 'North',
-            [], api_object=openstack_api_mock)
+        results = compute.wait_on_build(
+            context, server.id, 'North', [], api_object=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -456,7 +458,7 @@ class TestNovaCompute(test.ProviderTester):
         with file(path, 'r') as _file:
             catalog = json.load(_file)['access']['serviceCatalog']
         self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
-        
+
     def test_compute_sync_resource_task(self):
         """Tests compute sync_resource_task via mox"""
         #Mock server
@@ -467,31 +469,25 @@ class TestNovaCompute(test.ProviderTester):
         resource_key = "0"
 
         context = {
-                'deployment': 'DEP',
-                'resource': '0',
-                'tenant': 'TMOCK',
-                'base_url': 'http://MOCK'
-            }
+            'deployment': 'DEP',
+            'resource': '0',
+            'tenant': 'TMOCK',
+            'base_url': 'http://MOCK'
+        }
 
         resource = {
-                    'name': 'svr11.checkmate.local',
-                    'provider': 'compute',
-                    'status': 'ERROR',
-                    'instance': {
-                                 'id': 'fake_server_id'
-                            }
-                    }
+            'name': 'svr11.checkmate.local',
+            'provider': 'compute',
+            'status': 'ERROR',
+            'instance': {'id': 'fake_server_id'}
+        }
 
         openstack_api_mock = self.mox.CreateMockAnything()
         openstack_api_mock.servers = self.mox.CreateMockAnything()
 
         openstack_api_mock.servers.get(server.id).AndReturn(server)
 
-        expected = {
-                    'instance:0': {
-                                   "status": "ERROR"
-                                   }
-                    }
+        expected = {'instance:0': {"status": "ERROR"}}
 
         self.mox.ReplayAll()
         results = compute.sync_resource_task(context, resource, resource_key,
@@ -646,15 +642,15 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             .AndReturn('512')
 
         expected = [{
-                        'instance': {},
-                        'dns-name': 'master.domain',
-                        'type': 'compute',
-                        'provider': provider.key,
-                        'flavor': '2',
-                        'service': 'master',
-                        'image': compute.UBUNTU_12_04_IMAGE_ID,
-                        'region': 'ORD'
-                    }]
+            'instance': {},
+            'dns-name': 'master.domain',
+            'type': 'compute',
+            'provider': provider.key,
+            'flavor': '2',
+            'service': 'master',
+            'image': compute.UBUNTU_12_04_IMAGE_ID,
+            'region': 'ORD'
+        }]
 
         provider.get_catalog(context).AndReturn(catalog)
 
@@ -695,10 +691,10 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         #Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
 
-        self.deployment.get_setting('region', resource_type='compute',
-                                    service_name='master',
-                                    provider_key=provider.key).AndReturn(
-            'dallas')
+        self.deployment.get_setting(
+            'region', resource_type='compute',
+            service_name='master', provider_key=provider.key
+        ).AndReturn('dallas')
         self.deployment.get_setting('os', resource_type='compute',
                                     service_name='master',
                                     provider_key=provider.key,
