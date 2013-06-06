@@ -139,7 +139,7 @@
         </ul>
 
         <div ng-cloak ng-show="current_task_index">
-          <alert type="'error'" close="$parent.hide_alert('task_error')" ng-show="current_task.internal_attributes.task_state.state == 'FAILURE' && current_task.state != 64 && $parent.display_alert('task_error')">
+          <alert type="'error'" close="$parent.hide_alert('task_error')" ng-show="$parent.current_task.internal_attributes.task_state.state == 'FAILURE' && $parent.current_task.state != 64 && $parent.display_alert('task_error')">
             <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
             <p>
               This error was reported: {{current_task.internal_attributes.task_state.info}}.
@@ -154,7 +154,7 @@
             </p>
           </alert>
 
-          <alert close="$parent.hide_alert('task_retry')" ng-show="current_task.internal_attributes.task_state.state == 'RETRY' && current_task.state != 64 && $parent.display_alert('task_retry')">
+          <alert close="$parent.hide_alert('task_retry')" ng-show="$parent.current_task.internal_attributes.task_state.state == 'RETRY' && $parent.current_task.state != 64 && $parent.display_alert('task_retry')">
             <h4 class="alert-heading">{{current_task.internal_attributes.task_state.info.replace('CheckmateException(u\'', '').replace('\',)', '').replace('CheckmateException("', '').replace('",)', '') || 'Something might be up! But we haven\'t given up yet...'}}</h4>
             <p>
               This task is being retried.
@@ -167,7 +167,7 @@
           </alert>
 
           <!-- Next Gen Server -->
-          <alert type="'success'" close="$parent.hide_alert('server_success')" ng-show="was_server_created() && $parent.display_alert('server_success')">
+          <alert type="'success'" close="$parent.hide_alert('server_success')" ng-show="$parent.was_server_created() && $parent.display_alert('server_success')">
             Server <a ng-cloak ng-show="resource(current_task).id.indexOf('-')" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{resource(current_task).region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> <a ng-hide="resource(current_task).id.indexOf('-')" target="_blank" href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServers/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created<span ng-switch on="resource(current_task).ip || true"><span ng-switch-when="true">.</span><span ng-switch-default> with IP address {{resource(current_task).ip}}. Connect to it over <a href="ssh://root@{{resource(current_task).ip}}">ssh</a></span></span> View it in <a target="_blank" ng-href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.context.tenantId}}/next_gen_servers/{{resource(current_task).region}}/{{resource(current_task).id}}"
             >Cloud Control</a>.
           </alert>
