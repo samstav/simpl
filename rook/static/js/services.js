@@ -1059,6 +1059,21 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           });
     },
 
+    re_authenticate: function(token, tenant) {
+      var url = is_chrome_extension ? auth.context.auth_url : "/authproxy/v2.0/tokens";
+      var data = this.generate_auth_data(token, tenant);
+      return $http.post(url, data)
+        .then(
+          // Success
+          function(response) {
+            return response.data;
+          },
+          // Error
+          function(response) {
+            console.log("Error re-authenticating:\n" + response);
+          });
+    },
+
     generate_impersonation_data: function(username, endpoint_type) {
       var data = {};
       if (endpoint_type == 'GlobalAuth') {
@@ -1124,10 +1139,31 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           auth.context.token = response.data.access.token;
           auth.context.auth_url = "https://identity.api.rackspacecloud.com/v2.0/tokens";
           auth.context.tenantId = tenant_id;
-          auth.store_context(auth.context);
-          auth.save();
-          auth.check_state();
-          deferred.resolve('Impersonation Successful!');
+          var catalog = response.data.access.serviceCatalog;
+          if (catalog === undefined) {
+            auth.re_authenticate(auth.context.token.id, auth.context.tenantId).then(
+              // Success
+              function(data) {
+                auth.context.catalog = data.access.serviceCatalog;
+                auth.context.regions = auth.get_regions(data);
+                auth.store_context(auth.context);
+                auth.context.impersonated = true;
+                auth.save();
+                auth.check_state();
+                deferred.resolve('Impersonation Successful!');
+              },
+              // Error
+              function(catalog_response) {
+                auth.impersonate_error(catalog_response, deferred);
+              }
+            );
+          } else {
+            auth.store_context(auth.context);
+            auth.context.impersonated = true;
+            auth.save();
+            auth.check_state();
+            deferred.resolve('Impersonation Successful!');
+          }
         },
         // Error
         function(tenant_response) {
