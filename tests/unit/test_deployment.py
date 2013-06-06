@@ -55,6 +55,7 @@ class TestDeployments(unittest.TestCase):
                 'providers': {},
             },
             'display-outputs': {},
+            'meta-data': {},
         }
         valid = Deployment(deployment)
         self.assertDictEqual(valid._data, deployment)
