@@ -34,7 +34,8 @@ class Provider(ProviderBase):
             return not dom
         return False
 
-    def _my_list_domains_info(self, api, dom_name):
+    @staticmethod
+    def _my_list_domains_info(api, dom_name):
         try:
             return api.list_domains_info(filter_by_name=dom_name)
         except ResponseError as respe:
@@ -167,7 +168,8 @@ class Provider(ProviderBase):
 
         return results
 
-    def proxy(self, path, request, tenant_id=None):
+    @staticmethod
+    def proxy(path, request, tenant_id=None):
         """Proxy request through to provider"""
         if not path:
             raise CheckmateException("Provider expects "
@@ -179,19 +181,21 @@ class Provider(ProviderBase):
         resource = parts[2]
         if resource == "domains":
             api = _get_dns_object(request.context)
-            return self._my_list_domains_info(api, None) or []
+            return Provider._my_list_domains_info(api, None) or []
 
         raise CheckmateException("Provider does not support the resource "
                                  "'%s'" % resource)
 
-    def _find_url(self, catalog):
+    @staticmethod
+    def _find_url(catalog):
         for service in catalog:
             if service['name'] == 'cloudDNS':
                 endpoints = service['endpoints']
                 for endpoint in endpoints:
                     return endpoint['publicURL']
 
-    def connect(self, context=None, token=None, url=None):
+    @staticmethod
+    def connect(context=None, token=None, url=None):
         """Use context info to connect to API and return api object"""
 
         if (not context) and not (token and url):
@@ -205,7 +209,7 @@ class Provider(ProviderBase):
             if not context.auth_token:
                 raise CheckmateNoTokenError()
             token = context.auth_token
-            url = self._find_url(context.catalog)
+            url = Provider._find_url(context.catalog)
 
         class CloudDNS_Auth_Proxy():
             """We pass this class to clouddns for it to use instead of its own
