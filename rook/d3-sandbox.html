@@ -5,7 +5,6 @@
     <meta charset="utf-8" />
     <script src="static/libs/d3.v2.min.js" charset="utf-8"></script>
     <script src="static/libs/underscore-min.js"></script>
-    <!-- <script src="file:///Users/Thoughtworker/development/rackspace/checkmate/task_specs.js" charset="utf-8"></script> -->
     <script src="flare.json" charset="utf-8"></script>
     <style>
       circle.node {
@@ -25,16 +24,9 @@
   </head>
 
   <body>
-    <svg id="cloud" width="1400" height="900">
-    </svg>
-
 
    <script>
 
-
-nodes = [];
-links = [];
-specs = data.wf_spec.task_specs
 
 function distanceToStartSpec(memo, all_specs, spec) {
   if(memo[spec.id]) {
@@ -53,148 +45,135 @@ function distanceToStartSpec(memo, all_specs, spec) {
   return memo[spec.id];
 }
 
-function distanceToStart(node) {
-  if(node.position){
-    return node.position
-  }
+var buildNodes = function(specs, positions_memo) {
+  var nodes = [];
 
-  if(node.name === 'Start') {
-    node.position = 0;
-    return node.position;
-  }
+  _.each(specs, function(spec, spec_name){
+    var name,
+        group,
+        x,
+        y,
+        fixed = true;
+    if(spec_name === 'Start') {
+      x = 20;
+      y = 200;
+      name = spec_name;
+      group = 0;
+      nodes.push({x: x, y: y, group: group, fixed: fixed, name: name})
+    }
 
-  max_node = _.max(node.inputs, function(input){
-    input.position = 1 + distanceToStart(input);
-    return input.position;
-  })
-  return max_node.position;
+    if(spec.properties){
+      if(spec.properties.resource){
+        group = (parseInt(spec.properties.resource) || -1) + 2;
+        position = distanceToStartSpec(positions_memo, specs, spec);
+        x = 75 + (80 * position);
+        y = 50 + (50 * group);
+        name = spec_name;
+        var node = { name: name,
+                     group: group,
+                     y: y,
+                     x: x,
+                     fixed: fixed }
+        nodes.push(node)
+      } else if (!(spec_name === 'Root') && !(spec_name === 'Start')){
+        group = (parseInt(specs[spec.inputs[0]].properties.resource) || -1) + 2;
+        position = distanceToStartSpec(positions_memo, specs, spec);
+        x = 75 + (80 * position);
+        y = 50 + (50 * group);
+        name = spec_name;
+        var node = { name: name,
+                     group: group,
+                     y: y,
+                     x: x,
+                     fixed: fixed }
+        nodes.push(node)
+      }
+    }
+  });
+
+  return nodes;
 }
 
-positions_memo = {}
-_.each(specs, function(spec, spec_name){
-  var name,
-      group,
-      x,
-      y,
-      fixed = true;
-  if(spec_name === 'Start') {
-    x = 20;
-    y = 200;
-    name = spec_name;
-    group = 0;
-    nodes.push({x: x, y: y, group: group, fixed: fixed, name: name})
-  }
+var buildLinks = function(specs) {
+  var links = [];
 
-  if(spec.properties){
-    if(spec.properties.resource){
-      group = (parseInt(spec.properties.resource) || -1) + 2;
-      position = distanceToStartSpec(positions_memo, specs, spec);
-      x = 75 + (80 * position);
-      y = 50 + (50 * group);
-      name = spec_name;
-      var node = { name: name,
-                   group: group,
-                   y: y,
-                   x: x,
-                   fixed: fixed }
-      nodes.push(node)
-    } else if (!(spec_name === 'Root') && !(spec_name === 'Start')){
-      group = (parseInt(specs[spec.inputs[0]].properties.resource) || -1) + 2;
-      position = distanceToStartSpec(positions_memo, specs, spec);
-      x = 75 + (80 * position);
-      y = 50 + (50 * group);
-      name = spec_name;
-      var node = { name: name,
-                   group: group,
-                   y: y,
-                   x: x,
-                   fixed: fixed }
-      nodes.push(node)
+  _.each(specs, function(spec, spec_name){
+    if(spec.outputs){
+      _.each(spec.outputs, function(output){
+        source = _.findWhere(nodes, { name: spec_name })
+        target = _.findWhere(nodes, { name: output })
+        if(source && target) {
+          l = {source: source, target: target, value: 1}
+          links.push(l)
+        }
+      })
     }
-  }
-});
+  });
 
-_.each(specs, function(spec, spec_name){
-  if(spec.outputs){
-    _.each(spec.outputs, function(output){
-      source = _.findWhere(nodes, { name: spec_name })
-      target = _.findWhere(nodes, { name: output })
-      if(source && target) {
-        l = {source: source, target: target, value: 1}
-        links.push(l)
-      }
-    })
-  }
-});
+  return links;
+}
 
-root2 = { nodes: nodes, links: links }
+var buildNetwork = function(json, width, height) {
+  var color = d3.scale.category10();
 
+  var force = d3.layout.force()
+              .size([width, height]);
 
+  var svg = d3.select("body")
+              .append("svg")
+              .attr("width", width)
+              .attr("height", height);
 
+  force
+      .nodes(json.nodes)
+      .links(json.links)
+      .start()
+      ;
 
+  var links = svg.append("g").selectAll("line.link")
+      .data(force.links())
+      .enter().append("line")
+      .attr("class", "link")
+      ;
 
+  var nodes = svg.selectAll("g.node")
+      .data(force.nodes())
+      .enter()
+      .append("svg:g")
+      .attr("class", "node")
+      .call(force.drag)
+      ;
 
+  nodes.append('circle')
+      .attr("r", 8)
+      .attr("class", "node")
+      .style("fill", function(d) { return color(d.group); })
 
+  nodes.append("text")
+      .attr("class", "nodetext")
+      .attr("dx", 12)
+      .attr("dy", 20)
+      .text(function(d) { return 'cats'; });
 
+  force.on("tick", function() {
+      links.attr("x1", function(d) { return d.source.x; })
+          .attr("y1", function(d) { return d.source.y; })
+          .attr("x2", function(d) { return d.target.x; })
+          .attr("y2", function(d) { return d.target.y; });
 
-
-
-
-var width = 640;
-var height = 480;
-
-var color = d3.scale.category10();
-
-var force = d3.layout.force()
-    //.charge(-180)
-    //.linkDistance(50)
-    .size([width, height]);
-
-var svg = d3.select("#cloud");
-
-var jsonf = function(json) {
-    force
-        .nodes(json.nodes)
-        .links(json.links)
-        .start()
-        ;
-
-    var links = svg.append("g").selectAll("line.link")
-        .data(force.links())
-        .enter().append("line")
-        .attr("class", "link")
-        ;
-
-    var nodes = svg.selectAll("g.node")
-        .data(force.nodes())
-        .enter()
-        .append("svg:g")
-        .attr("class", "node")
-        .call(force.drag)
-        ;
-
-    nodes.append('circle')
-        .attr("r", 8)
-        .attr("class", "node")
-        .style("fill", function(d) { return color(d.group); })
-
-    nodes.append("text")
-        .attr("class", "nodetext")
-        .attr("dx", 12)
-        .attr("dy", 20)
-        .text(function(d) { return 'cats'; });
-
-    force.on("tick", function() {
-        links.attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
-
-        nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-    });
-
+      nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+  });
 };
-jsonf(root2);
+
+specs = data.wf_spec.task_specs
+var WIDTH = 1400;
+var HEIGHT = 900;
+var positions_memo = {}
+var nodes = buildNodes(specs, positions_memo);
+var links = buildLinks(specs);
+var network = { nodes: nodes, links: links };
+buildNetwork(network, WIDTH, HEIGHT);
+
 
    </script>
 
