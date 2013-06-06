@@ -2524,7 +2524,11 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   };
 
   $scope.delete_deployment = function(force) {
-    $scope.close_modal('delete_warning');
+    if (force == '1') {
+      $scope.close_modal('force_delete_warning');
+    } else {
+      $scope.close_modal('delete_warning');
+    }
     if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'save': {method:'PUT'}});
       var thang = new klass();
