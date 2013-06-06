@@ -32,37 +32,36 @@ giant = function(){
   gantt(tasks);
 }
 
-  batman = function(){
-    var w = 960,
-    h = 500;
+batman = function(){
+  var w = 960,
+  h = 500;
 
-    d3.select(".entries").select("svg").remove();
-    var vis = d3.select(".entries").append("svg:svg")
-        .attr("width", w)
-        .attr("height", h);
-    var nodes = _.map(data, function(t, k) {return t;});
-    var circle = vis.selectAll("circle").data(nodes);;
+  d3.select(".entries").select("svg").remove();
+  var vis = d3.select(".entries").append("svg:svg")
+      .attr("width", w)
+      .attr("height", h);
+  var nodes = _.map(data, function(t, k) {return t;});
+  var circle = vis.selectAll("circle").data(nodes);;
 
-    var enter = circle.enter().append("circle");
-    enter.attr("cy", function(d) {
-      console.log(d)
-      try {
-        var resource_number = parseInt(d.properties.resource);
-      } catch(err) {
-        var resource_number = 0;
-      }
-      return 100 + 45* resource_number;
-    });
+  var nter = circle.enter().append("circle");
+  enter.attr("cy", function(d) {
+    console.log(d)
+    try {
+      var resource_number = parseInt(d.properties.resource);
+    } catch(err) {
+      var resource_number = 0;
+    }
+    return 100 + 45* resource_number;
+  });
 
-    enter.attr("cx", 160);
+  enter.attr("cx", 160);
 
-    enter.attr("r", function(d) {
-      try {
-        var resource_number = parseInt(d.properties.resource);
-      } catch(err) {
-        var resource_number = 0;
-      }
-      return Math.sqrt(100 + 15*resource_number);
-    });
-  }
-  batman();
+  enter.attr("r", function(d) {
+    try {
+      var resource_number = parseInt(d.properties.resource);
+    } catch(err) {
+      var resource_number = 0;
+    }
+    return Math.sqrt(100 + 15*resource_number);
+  });
+}
