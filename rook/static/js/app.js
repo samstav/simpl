@@ -985,7 +985,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.hide_task_traceback = {
     failure: true,
-    retry: true,
+    retry: true
   };
 
   $scope.toggle_task_traceback = function(task_type) {
@@ -1000,7 +1000,15 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.load = function() {
-    this.klass = $resource((checkmate_server_base || '') + '/:tenantId/workflows/:id.json');
+    var workflow_path = '/:tenantId/workflows/:id.json';
+    try {
+      var operation_path = $scope.data.operation.link + '.json';
+      if (operation_path.indexOf('canvases') == -1)
+          workflow_path = operation_path;
+    } catch (err) {
+      // Not all deployments have active operations
+    }
+    this.klass = $resource((checkmate_server_base || '') + workflow_path);
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
       $scope.data = object;
@@ -1012,7 +1020,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       if (path_parts.slice(-1)[0] == 'status' || path_parts.slice(2,3) == 'deployments') {
         if ($scope.taskStates.completed < $scope.count) {
           var original_url = $location.url();
-          setTimeout(function() {$scope.reload(original_url);}, 2000);
+          if ($scope.auto_refresh !== false)
+            setTimeout(function() {$scope.reload(original_url);}, 2000);
         } else {
           var d = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json?with_secrets');
           d.get($routeParams, function(object, getResponseHeaders){
@@ -1112,10 +1121,11 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                     status: response.status,
                     title: "Error Loading Workflow",
                     message: "There was an error loading your data:"};
-        if ('description' in error)
+        if (error !== undefined && 'description' in error)
             info.message = error.description;
         $scope.$root.error = info;
-      $scope.open_modal('error');
+      if ($location.path().indexOf('deployments') == -1)
+        $scope.open_modal('error');  //don't show error when in deployment screen
     });
   };
 
@@ -1197,7 +1207,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() { console.log("Failed") }); //TODO: implement a callback
+      $scope.loginPrompt().then(this, function() { console.log("Failed"); }); //TODO: implement a callback
     }
   };
 
@@ -2444,7 +2454,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.data_json = JSON.stringify(data, null, 2);
       $scope.formatted_data = deploymentDataParser.formatData(data);
       $scope.abs_url = $location.absUrl();
-      $scope.clippy_element = "#deployment_summary_clipping"
+      $scope.clippy_element = "#deployment_summary_clipping";
 
       if ($scope.data.operation !== undefined && $scope.data.operation.status != 'COMPLETE') {
         $scope.delayed_refresh();
