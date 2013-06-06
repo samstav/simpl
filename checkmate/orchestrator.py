@@ -52,7 +52,7 @@ def pause_workflow(w_id, driver):
     except ObjectLockedError:
         pause_workflow.retry()
 
-    deployment_id = workflow["attributes"]["deploymentId"] or w_id
+    deployment_id = workflow["attributes"].get("deploymentId") or w_id
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
 
