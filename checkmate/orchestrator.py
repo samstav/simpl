@@ -112,14 +112,14 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     except ObjectLockedError:
         run_workflow.retry()
 
-    deployment_id = workflow["attributes"]["deploymentId"]
-    deployment = driver.get_deployment(deployment_id)
+    dep_id = workflow["attributes"]["deploymentId"] or w_id
+    deployment = driver.get_deployment(dep_id)
 
     action = deployment["operation"].get("action")
 
     if action and action == "PAUSE":
         kwargs = {"action-response": "ACK"}
-        update_operation.delay(deployment_id, driver=driver, **kwargs)
+        update_operation.delay(dep_id, driver=driver, **kwargs)
         driver.unlock_workflow(w_id, key)
         pause_workflow.delay(w_id, driver)
         return False
@@ -135,7 +135,6 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         if d_wf.get_attribute('status') != "COMPLETE":
             cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                         driver=driver, workflow_id=w_id)
-            dep_id = d_wf.get_attribute('deploymentId') or w_id
             update_deployment_status.delay(dep_id, 'UP', driver=driver)
             LOG.debug("Workflow '%s' is already complete. Marked it so.", w_id)
         else:
@@ -162,10 +161,10 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     finally:
         # Save any changes, even if we errored out
         after = d_wf.get_dump()
+        failed_tasks = cm_workflow.get_failed_tasks(d_wf)
 
-        if before != after:
+        if before != after or failed_tasks:
             # We made some progress, so save and prioritize next run
-            #TODO: make DRY
             cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                         driver=driver, workflow_id=w_id)
             wait = 1
@@ -174,8 +173,6 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             completed = d_wf.get_attribute('completed')
             total = d_wf.get_attribute('total')
             workflow_status = operation_status = d_wf.get_attribute('status')
-            dep_id = d_wf.get_attribute('deploymentId') or w_id
-            failed_tasks = cm_workflow.get_failed_tasks(d_wf)
             if failed_tasks:
                 operation_status = "ERROR"
 
