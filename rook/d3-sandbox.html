@@ -17,9 +17,6 @@
           stroke: #999;
           stroke-opacity: 0.6;
       }
-
-      text.nodetext {
-      }
     </style>
   </head>
 
@@ -27,6 +24,18 @@
 
    <script>
 
+var getIcon = function(node) {
+  var icon = "";
+  var base_dir = "static/img/icons/";
+
+  if (node.group == "5") icon = "ws.png";
+  else if (node.group == "2") icon = "db.png";
+  else if (node.group == "0") icon = "lb.png";
+
+  if (icon != "") icon = base_dir + icon;
+
+  return icon;
+}
 
 function distanceToStartSpec(memo, all_specs, spec) {
   if(memo[spec.id]) {
@@ -41,12 +50,17 @@ function distanceToStartSpec(memo, all_specs, spec) {
   max_spec = _.max(spec.inputs, function(input){
     return distanceToStartSpec(memo, all_specs, specs[input]);
   });
-  memo[spec.id] = memo[specs[max_spec].id] + 1;
+
+  var scale = 20;
+  var default_duration = 50;
+  var max_duration = specs[max_spec].properties.estimated_duration || default_duration;
+  memo[spec.id] = memo[specs[max_spec].id] + Math.log(max_duration)*scale;
   return memo[spec.id];
 }
 
 var buildNodes = function(specs, positions_memo) {
   var nodes = [];
+  var spacing = { x: 50, y: 50 };
 
   _.each(specs, function(spec, spec_name){
     var name,
@@ -77,7 +91,7 @@ var buildNodes = function(specs, positions_memo) {
       if(spec.properties.resource){
         group = (parseInt(spec.properties.resource) || -1) + 2;
         position = distanceToStartSpec(positions_memo, specs, spec);
-        x = 75 + (80 * position);
+        x = spacing.x + position;
         y = getY(nodes, x, group, 0);
         name = spec_name;
         var node = { name: name,
@@ -89,7 +103,7 @@ var buildNodes = function(specs, positions_memo) {
       } else if (!(spec_name === 'Root') && !(spec_name === 'Start')){
         group = (parseInt(specs[spec.inputs[0]].properties.resource) || -1) + 2;
         position = distanceToStartSpec(positions_memo, specs, spec);
-        x = 75 + (80 * position);
+        x = spacing.x + position;
         y = getY(nodes, x, group, 0);
         name = spec_name;
         var node = { name: name,
@@ -155,16 +169,24 @@ var buildNetwork = function(json, width, height) {
       .call(force.drag)
       ;
 
+  nodes.append("svg:title")
+      .text(function(d) { return d.name; });
+
+  nodes.append("svg:desc")
+      .text(function(d) { return JSON.stringify(d); });
+
   nodes.append('circle')
       .attr("r", 8)
       .attr("class", "node")
       .style("fill", function(d) { return color(d.group); })
 
-  nodes.append("text")
-      .attr("class", "nodetext")
-      .attr("dx", 12)
-      .attr("dy", 20)
-      .text(function(d) { return d.name; 'cats'; });
+  nodes.append("svg:image")
+      .attr("class", "circle")
+      .attr("xlink:href", getIcon)
+      .attr("x", "-8px")
+      .attr("y", "-8px")
+      .attr("width", "16px")
+      .attr("height", "16px");
 
   force.on("tick", function() {
       links.attr("x1", function(d) { return d.source.x; })
