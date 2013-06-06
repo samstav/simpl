@@ -215,13 +215,16 @@ class TestResource(unittest.TestCase):
     def test_valid_new_to_deleted_with_no_errors(self):
         self.resource['status'] = 'PLANNED'
         self.assertTrue(self.resource.fsm.can('new'))
+        self.assertTrue(self.resource.fsm.can('active'))
         self.assertTrue(self.resource.fsm.can('deleting'))
         self.resource['status'] = 'NEW'
         self.assertTrue(self.resource.fsm.can('build'))
+        self.assertTrue(self.resource.fsm.can('active'))
         self.assertTrue(self.resource.fsm.can('deleting'))
         self.assertTrue(self.resource.fsm.can('error'))
         self.resource['status'] = 'BUILD'
         self.assertTrue(self.resource.fsm.can('configure'))
+        self.assertTrue(self.resource.fsm.can('active'))
         self.assertTrue(self.resource.fsm.can('deleting'))
         self.assertTrue(self.resource.fsm.can('error'))
         self.resource['status'] = 'CONFIGURE'
@@ -314,6 +317,7 @@ class TestResource(unittest.TestCase):
         self.resource['status'] = 'NEW'
         self.resource['status'] = 'ERROR'
         self.assertFalse(self.resource.fsm.can('planned'))
+        self.assertFalse(self.resource.fsm.can('deleted'))
         self.assertFalse(self.resource.fsm.can('error'))
 
     def test_invalid_transition_results_in_warning(self):
