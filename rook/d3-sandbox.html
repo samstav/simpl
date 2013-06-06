@@ -81,13 +81,13 @@ _.each(specs, function(spec, spec_name){
     x = 20;
     y = 200;
     name = spec_name;
-    group = -2;
+    group = 0;
     nodes.push({x: x, y: y, group: group, fixed: fixed, name: name})
   }
 
   if(spec.properties){
     if(spec.properties.resource){
-      group = parseInt(spec.properties.resource) || -1;
+      group = (parseInt(spec.properties.resource) || -1) + 2;
       position = distanceToStartSpec(positions_memo, specs, spec);
       x = 75 + (80 * position);
       y = 50 + (50 * group);
@@ -99,7 +99,7 @@ _.each(specs, function(spec, spec_name){
                    fixed: fixed }
       nodes.push(node)
     } else if (!(spec_name === 'Root') && !(spec_name === 'Start')){
-      group = parseInt(specs[spec.inputs[0]].properties.resource) || -1;
+      group = (parseInt(specs[spec.inputs[0]].properties.resource) || -1) + 2;
       position = distanceToStartSpec(positions_memo, specs, spec);
       x = 75 + (80 * position);
       y = 50 + (50 * group);
