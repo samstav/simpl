@@ -67,6 +67,15 @@ class Fysom(object):
                              (self.current, dst))
         getattr(self, commands[0])()
 
+    def force_go_to(self, dst):
+        '''Intended Use: for backwards compatibility, when an attempted state
+        change results in an exception, catch the exception, log it and do
+        the state change anyway. Then use log to clean up legacy data.
+        '''
+        if len([v for k, v in self._map.iteritems() if dst in v]) == 0:
+            raise FysomError("State %s is not a valid state", dst)
+        self.current = dst
+
     def _apply(self, cfg):
         init = cfg['initial'] if 'initial' in cfg else None
         if self._is_base_string(init):

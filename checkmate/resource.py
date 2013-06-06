@@ -4,6 +4,7 @@ a deployment's resources
 import logging
 
 from checkmate.common import schema
+from checkmate.common.fysom import Fysom, FysomError
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException
@@ -41,11 +42,82 @@ class Resource(dict):
         'id', 'flavor', 'image', 'disk', 'region', 'protocol', 'port'
     ]
 
+    FYSOM_STATES = {
+        'PLANNED': {
+            'description': 'Not Started',
+            'events': [
+                {'name': 'new', 'dst': 'NEW'},
+                {'name': 'active', 'dst': 'ACTIVE'},
+                {'name': 'deleting', 'dst': 'DELETING'},
+            ],
+        },
+        'NEW': {
+            'description': 'Starting to build',
+            'events': [
+                {'name': 'build', 'dst': 'BUILD'},
+                {'name': 'active', 'dst': 'ACTIVE'},
+                {'name': 'deleting', 'dst': 'DELETING'},
+                {'name': 'error', 'dst': 'ERROR'},
+            ],
+        },
+        'BUILD': {
+            'description': 'Resource is being built',
+            'events': [
+                {'name': 'configure', 'dst': 'CONFIGURE'},
+                {'name': 'active', 'dst': 'ACTIVE'},
+                {'name': 'deleting', 'dst': 'DELETING'},
+                {'name': 'error', 'dst': 'ERROR'},
+            ],
+        },
+        'CONFIGURE': {
+            'description': 'Resource is being configured',
+            'events': [
+                {'name': 'active', 'dst': 'ACTIVE'},
+                {'name': 'deleting', 'dst': 'DELETING'},
+                {'name': 'error', 'dst': 'ERROR'},
+            ],
+        },
+        'ACTIVE': {
+            'description': 'Resource is configured and ready for use',
+            'events': [
+                {'name': 'deleting', 'dst': 'DELETING'},
+                {'name': 'error', 'dst': 'ERROR'},
+            ],
+        },
+        'DELETING': {
+            'description': 'Resource is being deleted',
+            'events': [
+                {'name': 'deleted', 'dst': 'DELETED'},
+                {'name': 'error', 'dst': 'ERROR'},
+            ],
+        },
+        'DELETED': {
+            'description': 'Resource has been deleted'
+        },
+        'ERROR': {
+            'description': 'There was an error working on this resource',
+            'events': [
+                {'name': 'new', 'dst': 'NEW'},
+                {'name': 'build', 'dst': 'BUILD'},
+                {'name': 'configure', 'dst': 'CONFIGURE'},
+                {'name': 'active', 'dst': 'ACTIVE'},
+                {'name': 'deleting', 'dst': 'DELETING'},
+            ],
+        },
+    }
+
     def __init__(self, key, obj):
+        self.fsm = Fysom({
+            'initial': self.get('status', 'PLANNED'),
+            'events': schema.get_state_events(Resource.FYSOM_STATES),
+        })
+        if 'status' not in obj:
+            obj['status'] = self.fsm.current
+        Resource.validate(obj)
         if 'desired-state' in obj:
             if not isinstance(obj['desired-state'], Resource.DesiredState):
-                obj['desired-state'] = Resource.DesiredState(obj['desired-state'])
-        Resource.validate(obj)
+                obj['desired-state'] = Resource.DesiredState(
+                    obj['desired-state'])
         self.key = key
         super(Resource, self).__init__(**obj)
 
@@ -54,6 +126,23 @@ class Resource(dict):
         if key == 'desired-state':
             if not isinstance(value, Resource.DesiredState):
                 value = Resource.DesiredState(value)
+        elif key == 'status':
+            if value != self.fsm.current:
+                LOG.info("Resource %s going from %s to %s",
+                         self.get('id'), self.get('status'), value)
+                try:
+                    self.fsm.go_to(value)
+                except FysomError:
+                    # This should raise a CheckmateBadState error with message:
+                    #
+                    # "Cannot transition from %s to %s" %
+                    # (self.fsm.current, value))
+                    #
+                    # Temporarily softening to a warning in the log and
+                    # setting state anyway.
+                    LOG.warn("State change from %s to %s is invalid",
+                             self.fsm.current, value)
+                    self.fsm.force_go_to(value)
         super(Resource, self).__setitem__(key, value)
 
     @classmethod
