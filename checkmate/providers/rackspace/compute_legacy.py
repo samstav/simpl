@@ -100,9 +100,10 @@ class Provider(RackspaceComputeProviderBase):
 
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition):
-        templates = RackspaceComputeProviderBase.generate_template(self,
-                deployment, resource_type, service, context, index, key,
-                definition)
+        templates = RackspaceComputeProviderBase.generate_template(
+            self, deployment, resource_type, service,
+            context, index, key, definition
+        )
         print templates
 
         catalog = self.get_catalog(context)
@@ -180,8 +181,9 @@ class Provider(RackspaceComputeProviderBase):
                 flavor = key
                 break
         if not flavor:
-            raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" % (
-                    memory, self.key))
+            raise CheckmateNoMapping(
+                "No flavor mapping for '%s' in '%s'" % (memory, self.key)
+            )
         for template in templates:
             template['flavor'] = flavor
             template['image'] = image

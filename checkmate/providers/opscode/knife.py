@@ -450,18 +450,26 @@ def write_databag(environment, bagname, itemname, contents, resource,
                 k = "instance:%s" % resource.get('index')
                 host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
-                ret.update({k: {'status': 'ERROR',
-                                'error-message': ('Error writing software '
-                                               'configuration to host '
-                                               '%s: %s' % (host, exc.message)),
-                                'trace': 'Task %s: %s' % (task_id,
-                                                          einfo.traceback)}})
+                ret.update({
+                    k: {
+                        'status': 'ERROR',
+                        'error-message': (
+                            'Error writing software configuration '
+                            'to host %s: %s' % (host, exc.message)
+                        ),
+                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    }
+                })
                 if host_k:
-                    ret.update({host_k: {'status': 'ERROR',
-                                         'error-message': ('Error installing '
-                                                        'software resource %s'
-                                                        % resource.get('index')
-                                                        )}})
+                    ret.update({
+                        host_k: {
+                            'status': 'ERROR',
+                            'error-message': (
+                                'Error installing software resource %s' %
+                                resource.get('index')
+                            )
+                        }
+                    })
                 resource_postback.delay(dep_id, ret)
         else:
             LOG.warn("Error callback for cook task %s did not get appropriate "
@@ -592,17 +600,26 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
                 k = "instance:%s" % resource.get('index')
                 host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
-                ret.update({k: {'status': 'ERROR',
-                                'error-message': ('Error installing to host %s:'
-                                               '%s' % (host, exc.message)),
-                                'trace': 'Task %s: %s' % (task_id,
-                                                          einfo.traceback)}})
+                ret.update({
+                    k: {
+                        'status': 'ERROR',
+                        'error-message': (
+                            'Error installing to host %s:%s' %
+                            (host, exc.message)
+                        ),
+                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    }
+                })
                 if host_k:
-                    ret.update({host_k: {'status': 'ERROR',
-                                         'error-message': ('Error installing '
-                                                        'software resource %s'
-                                                        % resource.get('index')
-                                                        )}})
+                    ret.update({
+                        host_k: {
+                            'status': 'ERROR',
+                            'error-message': (
+                                'Error installing software resource %s' %
+                                resource.get('index')
+                            )
+                        }
+                    })
                 resource_postback.delay(dep_id, ret)
         else:
             LOG.warn("Error callback for cook task %s did not get appropriate "
@@ -895,17 +912,26 @@ def register_node(host, environment, resource, path=None, password=None,
                 k = "instance:%s" % resource.get('index')
                 host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
-                ret.update({k: {'status': 'ERROR',
-                                'error-message': ('Error registering host %s: %s'
-                                               % (host, exc.message)),
-                                'trace': 'Task %s: %s' % (task_id,
-                                                          einfo.traceback)}})
+                ret.update({
+                    k: {
+                        'status': 'ERROR',
+                        'error-message': (
+                            'Error registering host %s: %s' %
+                            (host, exc.message)
+                        ),
+                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    }
+                })
                 if host_k:
-                    ret.update({host_k: {'status': 'ERROR',
-                                         'error-message': ('Error installing '
-                                                        'software resource %s'
-                                                        % resource.get('index')
-                                                        )}})
+                    ret.update({
+                        host_k: {
+                            'status': 'ERROR',
+                            'error-message': (
+                                'Error installing software resource %s' %
+                                resource.get('index')
+                            )
+                        }
+                    })
                 resource_postback.delay(dep_id, ret)
         else:
             LOG.warn("Error callback for cook task %s did not get appropriate"

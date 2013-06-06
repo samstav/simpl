@@ -30,55 +30,82 @@ class Provider(ProviderBase):
         return [dict(application='http'), dict(database='mysql')]
 
     def prep_environment(self, wfspec, deployment, context):
-        create_environment = Celery(wfspec, 'Create Chef Environment',
-                'checkmate.providers.opscode.server.manage_env',
-                call_args=[Attrib('context'), deployment['id'],
-                        'Checkmate Environment'],
-                properties={'estimated_duration': 10})
+        create_environment = Celery(
+            wfspec,
+            'Create Chef Environment',
+            'checkmate.providers.opscode.server.manage_env',
+            call_args=[
+                Attrib('context'),
+                deployment['id'],
+                'Checkmate Environment'
+            ],
+            properties={'estimated_duration': 10}
+        )
         self.prep_task = create_environment
         return {'root': self.prep_task, 'final': self.prep_task}
 
-    def add_resource_tasks(self, resource, key, wfspec, deployment, context,
-                wait_on=None):
-        register_node_task = Celery(wfspec, 'Register Server:%s (%s)' % (key, resource['service']),
-                        'checkmate.providers.opscode.server.register_node',
-                        call_args=[Attrib('context'),
-                               resource.get('dns-name'), ['wordpress-web']],
-                        environment=deployment['id'],
-                        defines=dict(resource=key, provider=self.key),
-                        description="Register the "
-                                "node in the Chef Server. Nothing is done "
-                                "the node itself",
-                        properties={'estimated_duration': 20})
+    def add_resource_tasks(
+        self, resource, key, wfspec,
+        deployment, context, wait_on=None
+    ):
+        register_node_task = Celery(
+            wfspec,
+            'Register Server:%s (%s)' % (key, resource['service']),
+            'checkmate.providers.opscode.server.register_node',
+            call_args=[
+                Attrib('context'),
+                resource.get('dns-name'),
+                ['wordpress-web']
+            ],
+            environment=deployment['id'],
+            defines=dict(resource=key, provider=self.key),
+            description="Register the node in the Chef Server. "
+                        "Nothing is done the node itself",
+            properties={'estimated_duration': 20}
+        )
         self.prep_task.connect(register_node_task)
 
-        ssh_apt_get_task = Celery(wfspec, 'Apt-get Fix:%s (%s)' % (key, resource['service']),
-                           'checkmate.ssh.execute',
-                            call_args=[Attrib('ip'),
-                                    "sudo apt-get update",
-                                    'root'],
-                            password=Attrib('password'),
-                            identity_file=Attrib('private_key_path'),
-                            properties={'estimated_duration': 100})
+        ssh_apt_get_task = Celery(
+            wfspec,
+            'Apt-get Fix:%s (%s)' % (key, resource['service']),
+            'checkmate.ssh.execute',
+            call_args=[
+                Attrib('ip'),
+                "sudo apt-get update",
+                'root'
+            ],
+            password=Attrib('password'),
+            identity_file=Attrib('private_key_path'),
+            properties={'estimated_duration': 100}
+        )
         # TODO: stop assuming only one wait_on=create_server_task
         wait_on[0].connect(ssh_apt_get_task)
 
-        bootstrap_task = Celery(wfspec, 'Bootstrap Server:%s (%s)' % (key, resource['service']),
-                           'checkmate.providers.opscode.server.bootstrap',
-                            call_args=[Attrib('context'),
-                                    resource.get('dns-name'), Attrib('ip')],
-                            password=Attrib('password'),
-                            identity_file=Attrib('private_key_path'),
-                            run_roles=['build', 'wordpress-web'],
-                            environment=deployment['id'],
-                            properties={'estimated_duration': 90})
-        wait_for(wfspec, bootstrap_task,
-                [ssh_apt_get_task, register_node_task],
-                name="Wait for Server Build:%s (%s)" % (key, resource['service']))
+        bootstrap_task = Celery(
+            wfspec,
+            'Bootstrap Server:%s (%s)' % (key, resource['service']),
+            'checkmate.providers.opscode.server.bootstrap',
+            call_args=[
+                Attrib('context'),
+                resource.get('dns-name'),
+                Attrib('ip')
+            ],
+            password=Attrib('password'),
+            identity_file=Attrib('private_key_path'),
+            run_roles=['build', 'wordpress-web'],
+            environment=deployment['id'],
+            properties={'estimated_duration': 90}
+        )
+        wait_for(
+            wfspec, bootstrap_task, [ssh_apt_get_task, register_node_task],
+            name="Wait for Server Build:%s (%s)" % (key, resource['service'])
+        )
         return {'root': register_node_task, 'final': bootstrap_task}
 
-    def add_connection_tasks(self, resource, key, relation, relation_key,
-            wfspec, deployment):
+    def add_connection_tasks(
+        self, resource, key, relation,
+        relation_key, wfspec, deployment
+    ):
         target = deployment['resources'][relation['target']]
         interface = relation['interface']
 
@@ -86,58 +113,69 @@ class Provider(ProviderBase):
             #Take output from Create DB task and write it into
             # the 'override' dict to be available to future tasks
 
-            db_final = self.find_resource_task(wfspec, relation['target'],
-                    target['provider'], 'final')
+            db_final = self.find_resource_task(
+                wfspec, relation['target'], target['provider'], 'final'
+            )
 
-            compile_override = Transform(wfspec, "Prepare Overrides",
-                    transforms=[
+            compile_override = Transform(
+                wfspec,
+                "Prepare Overrides",
+                transforms=[
                     "my_task.attributes['overrides']={'wordpress': {'db': "
                     "{'host': my_task.attributes['hostname'], "
                     "'database': my_task.attributes['context']['db_name'], "
                     "'user': my_task.attributes['context']['db_username'], "
                     "'password': my_task.attributes['context']"
-                    "['db_password']}}}"],
-                    description="Get all the variables "
-                            "we need (like database name and password) and "
-                            "compile them into JSON that we can set on the "
-                            "role or environment",
-                    defines=dict(relation=relation_key,
-                                provider=self.key,
-                                task_tags=None))
+                    "['db_password']}}}"
+                ],
+                description="Get all the variables we need (like database "
+                            "name and password) and compile them into JSON "
+                            "that we can set on the role or environment",
+                defines=dict(
+                    relation=relation_key, provider=self.key, task_tags=None
+                )
+            )
             db_final.connect(compile_override)
 
-            set_overrides = Celery(wfspec,
+            set_overrides = Celery(
+                wfspec,
                 "Write Database Settings",
                 'checkmate.providers.opscode.server.manage_env',
                 call_args=[Attrib('context'), deployment['id']],
-                    desc='Checkmate Environment',
-                    override_attributes=Attrib('overrides'),
-                description="Take the JSON prepared earlier and write "
-                        "it into the environment overrides. It will "
-                        "be used by the Chef recipe to connect to "
-                        "the database",
-                defines=dict(relation=relation_key,
-                            resource=key,
-                            provider=self.key,
-                            task_tags=None),
-                properties={'estimated_duration': 15})
+                desc='Checkmate Environment',
+                override_attributes=Attrib('overrides'),
+                description="Take the JSON prepared earlier and write it into"
+                            "the environment overrides. It will be used by "
+                            "the Chef recipe to connect to the database",
+                defines=dict(
+                    relation=relation_key, resource=key,
+                    provider=self.key, task_tags=None
+                ),
+                properties={'estimated_duration': 15}
+            )
 
             wait_on = [compile_override, self.prep_task]
-            wait_for(wfspec, set_overrides, wait_on,
-                    name="Wait on Environment and Settings:%s" % key)
+            wait_for(
+                wfspec, set_overrides, wait_on,
+                name="Wait on Environment and Settings:%s" % key
+            )
 
-            config_final = self.find_resource_task(wfspec, key, self.key,
-                    'final')
+            config_final = self.find_resource_task(
+                wfspec, key, self.key, 'final'
+            )
             # Assuming input is join
             assert isinstance(config_final.inputs[0], Merge)
             set_overrides.connect(config_final.inputs[0])
 
         else:
-            LOG.warning("Provider '%s' does not recognized connection "
-                    "interface '%s'" % (self.key, interface),
-                    defines=dict(relation=relation_key,
-                                provider=self.key,
-                                task_tags=None))
+            LOG.warning(
+                "Provider '%s' does not recognized connection interface '%s'" %
+                (self.key, interface), defines=dict(
+                    relation=relation_key,
+                    provider=self.key,
+                    task_tags=None
+                )
+            )
 
 
 #
@@ -164,7 +202,8 @@ def register_node(deployment, name, runlist=None, attributes=None,
     match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
-                base_path=os.environ.get('CHECKMATE_CHEF_PATH'))
+            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
+        )
         n = chef.Node(name, api=api)
         if runlist is not None:
             n.run_list = runlist
@@ -186,10 +225,11 @@ def register_node(deployment, name, runlist=None, attributes=None,
 
 
 @task
-def bootstrap(deployment, name, ip, username='root', password=None,
-                         port=22, identity_file=None, run_roles=None,
-                         run_recipes=None, distro='chef-full',
-                         environment=None):
+def bootstrap(
+    deployment, name, ip, username='root', password=None, port=22,
+    identity_file=None, run_roles=None, run_recipes=None,
+    distro='chef-full', environment=None
+):
     match_celery_logging(LOG)
     LOG.debug('Bootstraping %s (%s:%d)' % (name, ip, port))
     run_roles_recipes = create_role_recipe_string(roles=run_roles,
@@ -227,7 +267,8 @@ def manage_databag(deployment, bagname, itemname, contents):
     match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
-                base_path=os.environ.get('CHECKMATE_CHEF_PATH'))
+            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
+        )
         bag = chef.DataBag(bagname, api=api)
         bag.save()
         item = chef.DataBagItem(bag, itemname)
@@ -253,7 +294,8 @@ def manage_role(deployment, name, desc=None, run_list=None,
     match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
-                base_path=os.environ.get('CHECKMATE_CHEF_PATH'))
+            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
+        )
         r = chef.Role(name, api=api)
         if desc is not None:
             r.description = desc
@@ -266,10 +308,14 @@ def manage_role(deployment, name, desc=None, run_list=None,
         if env_run_lists is not None:
             r.env_run_lists = env_run_lists
         r.save()
-        LOG.debug("Role %s updated. runlist set to %s. Default attributes set "
-                "to %s. Override attributes set to %s. Environment run lists "
-                "set to %s." % (name, run_list, default_attributes,
-                override_attributes, env_run_lists))
+        LOG.debug(
+            "Role %s updated. runlist set to %s. Default attributes set "
+            "to %s. Override attributes set to %s. Environment run lists "
+            "set to %s." % (
+                name, run_list, default_attributes,
+                override_attributes, env_run_lists
+            )
+        )
     except chef.ChefError, exc:
         LOG.debug(
             'Role management failed. Chef Error: %s. Retrying.' % exc)
@@ -285,7 +331,8 @@ def manage_env(deployment, name, desc=None, versions=None,
     match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
-                base_path=os.environ.get('CHECKMATE_CHEF_PATH'))
+            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
+        )
         e = chef.Environment(name, api=api)
         if desc is not None:
             e.description = desc
@@ -296,16 +343,21 @@ def manage_env(deployment, name, desc=None, versions=None,
         if override_attributes is not None:
             e.override_attributes = override_attributes
         e.save()
-        LOG.debug("Environment %s updated. Description set to %s "
+        LOG.debug(
+            "Environment %s updated. Description set to %s "
             "Versions set to %s. Default attributes set to %s. Override "
-            "attributes set to %s." % (name, desc, versions,
-                  default_attributes, override_attributes))
+            "attributes set to %s." % (
+                name, desc, versions,
+                default_attributes, override_attributes
+            )
+        )
         return True
     except chef.ChefError, exc:
         LOG.debug(
             'Environment management failed. Chef Error: %s. Retrying.' % exc)
         manage_env.retry(exc=exc)
     except Exception, exc:
-        LOG.debug('Environment management failed. Error: %s. Retrying.'
-            % exc)
+        LOG.debug(
+            'Environment management failed. Error: %s. Retrying.' % exc
+        )
         manage_env.retry(exc=exc)

@@ -27,8 +27,9 @@ def connect(context):
     if not context.auth_token:
         raise CheckmateNoTokenError()
     try:
-        api = cloudfiles.get_connection(context.username,
-                                         context.apikey, timeout=15)
+        api = cloudfiles.get_connection(
+            context.username, context.apikey, timeout=15
+        )
     except cloudfiles.errors.AuthenticationFailed, e:
         LOG.error('Cloud Files authentication failed.')
         raise e
@@ -82,6 +83,7 @@ def delete_container(deployment, name, api=None):
         LOG.error('Cannot delete container %s because it is not empty.' % name)
         raise e
     except cloudfiles.errors.NoSuchContainer as e:
-        LOG.error('Canot delete container %s because it does not exist.' %
-                name)
+        LOG.error(
+            'Canot delete container %s because it does not exist.' % name
+        )
         raise e
