@@ -1105,7 +1105,18 @@ class Deployment(ExtensibleDict):
             if target is None:
                 target = self
                 
-            #add validation
+            merge = {}
+            keys = ['resources', 'operation', 'status']
+            for key in keys:
+                if key in contents:
+                    merge[key] = contents[key]
+                    LOG.debug("Adding %s data to merge contents")
+                else:
+                    LOG.warning("Key %s not merged in on_postback")
+            
+            if merge:
+                LOG.debug("Merging postback data for deployment")
+                merge_dictionary(target, merge)
             
     def on_resource_postback(self, contents, target=None):
         """Called to merge in contents when a postback with new resource data

@@ -493,23 +493,6 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         if matches:
             return matches[0].values()[0]
         return default
-
-    @staticmethod
-    def format_postback(instance_kwargs=None, **resource_kwargs):
-        """Return formatted resources for deployment postback"""
-        resources = {'resources': resource_kwargs}
-        if instance_kwargs:
-            resources['resources']['instance'] = instance_kwargs
-        return resources
-
-    @staticmethod
-    def get_checkmate_status(status, schema):
-        """Return checkmate status for resource based on schema"""
-        if schema and status and status in schema:
-            return schema[status]
-        else:
-            LOG.debug("Resource status %s was not found in schema" % status)
-            return "ERROR"
         
     # pylint: disable=W0613
     def delete_resource_tasks(self, context, deployment_id, resource, key):

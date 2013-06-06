@@ -72,15 +72,16 @@ class Provider(ProviderBase):
     '''Rackspace load balancer provider'''
     name = 'load-balancer'
     vendor = 'rackspace'
-    __schema__ = {
-                  'ACTIVE': 'ACTIVE',
-                  'BUILD': 'BUILD',
-                  'DELETED': 'DELETED',
-                  'ERROR': 'ERROR',
-                  'PENDING_UPDATE': 'CONFIGURE',
-                  'PENDING_DELETE': 'DELETING',
-                  'SUSPENDED': 'ERROR'
-                 }
+
+    __status_mapping__ = {
+        'ACTIVE': 'ACTIVE',
+        'BUILD': 'BUILD',
+        'DELETED': 'DELETED',
+        'ERROR': 'ERROR',
+        'PENDING_UPDATE': 'CONFIGURE',
+        'PENDING_DELETE': 'DELETING',
+        'SUSPENDED': 'ERROR'
+    }
 
     def _get_connection_params(self, connections, deployment, index,
                                resource_type, service):
@@ -887,38 +888,36 @@ def delete_lb_task(context, key, lbid, region, api=None):
         return results
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        k = "instance:%s" % args[1]
-        ret = {
-            k: {
+        results = {
+            "instance:%s" % args[1]: {
                 'status': 'ERROR',
-                'error-message': (
-                    'Unexpected error deleting loadbalancer %s' % key
-                ),
+                'status-message': ('Unexpected error deleting loadbalancer'
+                    ' %s' % key),
                 'trace': 'Tassk %s: %s' % (task_id, einfo.traceback)
             }
         }
-        resource_postback.delay(args[2], ret)
+        resource_postback.delay(args[2], results)
 
     delete_lb_task.on_failure = on_failure
 
     if not lbid:
         LOG.error("Must provide a load balancer id")
         return
-    instance_key = "instance:%s" % key
     if api is None:
         api = Provider.connect(context, region)
+
+    instance_key = "instance:%s" % key
     try:
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
         LOG.debug('Load balancer %s was already deleted.', lbid)
-        ret = {
-               "status": "DELETED",
-               instance_key: {
-                              "status": "DELETED",
-                              "status-message": ""
-                             }
-              }
-        return ret
+        results = {
+            instance_key: {
+                "status": "DELETED",
+                "status-message": ""
+            }
+        }
+        return results
     LOG.debug("Found load balancer %s [%s] to delete" % (dlb, dlb.status))
     if dlb.status != "DELETED":
         dlb.delete()
@@ -943,17 +942,15 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
-        k = "instance:%s" % args[1]
-        ret = {
-            k: {
+        results = {
+            "instance:%s" % args[1]: {
                 'status': 'ERROR',
-                'error-message': (
-                    'Unexpected error waiting on loadbalancer %s delete' % key
-                ),
+                'status-message': ('Unexpected error waiting on loadbalancer'
+                    ' %s delete' % key),
                 'trace': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
-        resource_postback.delay(args[2], ret)
+        resource_postback.delay(args[2], results)
 
     wait_on_lb_delete.on_failure = on_failure
 
@@ -967,23 +964,21 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
         pass
     if (not dlb) or "DELETED" == dlb.status:
         return {
+            inst_key: {
                 'status': 'DELETED',
-                inst_key: {
-                           'status': 'DELETED',
-                           'status-message': 'LB %s was deleted' % inst_key
-                          }
-               }
+                'status-message': ''
+            }
+        }
     else:
         msg = ("Waiting on state DELETED. Load balancer is in state %s"
                % dlb.status)
-        ret = {
-               'status': 'DELETING',
-               inst_key: {
-                          'status': 'DELETING',
-                          'status-message': msg
-                         }
-              }
-        resource_postback.delay(dep_id, ret)
+        results = {
+            inst_key: {
+                'status': 'DELETING',
+                "status-message": msg
+            }
+        }
+        resource_postback.delay(dep_id, results)
         wait_on_lb_delete.retry(exc=CheckmateException(msg))
 
 

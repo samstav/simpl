@@ -151,6 +151,30 @@ class Resource(dict):
         _validate(obj, Resource.SCHEMA, Resource.SCHEMA_DEPRECATED)
         if 'desired-state' in obj:
             Resource.DesiredState.validate(obj['desired-state'])
+            
+    @staticmethod
+    def format_postback(key, resource_kwargs, instance_kwargs=None,
+        desired_kwargs=None):
+        """Return formatted resource for deployment postback"""
+        resources = {
+            'resources': {
+                str(key): resource_kwargs
+            }
+        }
+        if instance_kwargs:
+            resources['resources'][key]['instance'] = instance_kwargs
+
+        Resource.validate(resources)
+        return resources
+
+    @staticmethod
+    def get_checkmate_status(status, status_schema):
+        """Return checkmate status for resource based on schema"""
+        if status_schema and status and status in status_schema:
+            return schema[status]
+        else:
+            LOG.debug("Resource status %s was not found in schema" % status)
+            return "ERROR"
 
     class DesiredState(dict):
         '''The Desired State section of a Resource'''
