@@ -62,12 +62,23 @@ var buildNodes = function(specs, positions_memo) {
       nodes.push({x: x, y: y, group: group, fixed: fixed, name: name})
     }
 
+    function getY(nodes, x, group, level){
+      level = level || 0;
+      var y = (level * 30) + 50 + (50 * group);
+      var existing_node = _.findWhere(nodes, { x: x, y: y, group: group })
+      if(!existing_node) {
+        return y;
+      }
+
+      return getY(nodes, x, group, level+1)
+    }
+
     if(spec.properties){
       if(spec.properties.resource){
         group = (parseInt(spec.properties.resource) || -1) + 2;
         position = distanceToStartSpec(positions_memo, specs, spec);
         x = 75 + (80 * position);
-        y = 50 + (50 * group);
+        y = getY(nodes, x, group, 0);
         name = spec_name;
         var node = { name: name,
                      group: group,
@@ -79,7 +90,7 @@ var buildNodes = function(specs, positions_memo) {
         group = (parseInt(specs[spec.inputs[0]].properties.resource) || -1) + 2;
         position = distanceToStartSpec(positions_memo, specs, spec);
         x = 75 + (80 * position);
-        y = 50 + (50 * group);
+        y = getY(nodes, x, group, 0);
         name = spec_name;
         var node = { name: name,
                      group: group,
@@ -153,7 +164,7 @@ var buildNetwork = function(json, width, height) {
       .attr("class", "nodetext")
       .attr("dx", 12)
       .attr("dy", 20)
-      .text(function(d) { return 'cats'; });
+      .text(function(d) { return d.name; 'cats'; });
 
   force.on("tick", function() {
       links.attr("x1", function(d) { return d.source.x; })
