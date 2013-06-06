@@ -219,7 +219,7 @@ Priv Key: {{formatted_data.private_key}}
 
         <hr>
 
-        <p class="lead">Raw Source</p>
+        <p class="lead">Raw Source</p><button class="btn btn-mini tip" title="Auto refresh" ng-class="{active: auto_refresh}" ng-click="toggle_auto_refresh()"><i class="icon-refresh"></i> auto refresh <span ng-switch on="auto_refresh"><span ng-switch-when="true">enabled</span><span ng-switch-when="false">disabled</span></span></button>
 
         <textarea id="source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="data_json"></textarea>
 
