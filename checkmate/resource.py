@@ -47,14 +47,15 @@ class Resource(dict):
             'description': 'Not Started',
             'events': [
                 {'name': 'new', 'dst': 'NEW'},
-                {'name': 'deleting', 'dst': 'DELETING'},
                 {'name': 'active', 'dst': 'ACTIVE'},
+                {'name': 'deleting', 'dst': 'DELETING'},
             ],
         },
         'NEW': {
             'description': 'Starting to build',
             'events': [
                 {'name': 'build', 'dst': 'BUILD'},
+                {'name': 'active', 'dst': 'ACTIVE'},
                 {'name': 'deleting', 'dst': 'DELETING'},
                 {'name': 'error', 'dst': 'ERROR'},
             ],
@@ -63,6 +64,7 @@ class Resource(dict):
             'description': 'Resource is being built',
             'events': [
                 {'name': 'configure', 'dst': 'CONFIGURE'},
+                {'name': 'active', 'dst': 'ACTIVE'},
                 {'name': 'deleting', 'dst': 'DELETING'},
                 {'name': 'error', 'dst': 'ERROR'},
             ],
@@ -94,7 +96,13 @@ class Resource(dict):
         },
         'ERROR': {
             'description': 'There was an error working on this resource',
-            'events': [{'name': 'deleted', 'dst': 'DELETED'}, ],
+            'events': [
+                {'name': 'new', 'dst': 'NEW'},
+                {'name': 'build', 'dst': 'BUILD'},
+                {'name': 'configure', 'dst': 'CONFIGURE'},
+                {'name': 'active', 'dst': 'ACTIVE'},
+                {'name': 'deleting', 'dst': 'DELETING'},
+            ],
         },
     }
 
@@ -120,9 +128,9 @@ class Resource(dict):
                 value = Resource.DesiredState(value)
         elif key == 'status':
             if value != self.fsm.current:
+                LOG.info("Resource %s going from %s to %s",
+                         self.get('id'), self.get('status'), value)
                 try:
-                    LOG.info("Resource %s going from %s to %s",
-                             self.get('id'), self.get('status'), value)
                     self.fsm.go_to(value)
                 except FysomError:
                     # This should raise a CheckmateBadState error with message:

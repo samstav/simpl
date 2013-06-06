@@ -200,6 +200,18 @@ class TestResource(unittest.TestCase):
     def test_from_PLANNED_straight_to_ACTIVE(self):
         self.assertTrue(self.resource.fsm.can('active'))
 
+    def test_from_PLANNED_straight_to_DELETING(self):
+        self.assertTrue(self.resource.fsm.can('deleting'))
+
+    def test_from_NEW_straight_to_ACTIVE(self):
+        self.resource['status'] = 'NEW'
+        self.assertTrue(self.resource.fsm.can('active'))
+
+    def test_from_BUILD_straight_to_ACTIVE(self):
+        self.resource['status'] = 'NEW'
+        self.resource['status'] = 'BUILD'
+        self.assertTrue(self.resource.fsm.can('active'))
+
     def test_valid_new_to_deleted_with_no_errors(self):
         self.resource['status'] = 'PLANNED'
         self.assertTrue(self.resource.fsm.can('new'))
@@ -237,7 +249,6 @@ class TestResource(unittest.TestCase):
         self.assertFalse(self.resource.fsm.can('planned'))
         self.assertFalse(self.resource.fsm.can('new'))
         self.assertFalse(self.resource.fsm.can('configure'))
-        self.assertFalse(self.resource.fsm.can('active'))
         self.assertFalse(self.resource.fsm.can('deleted'))
 
     def test_invalid_transitions_from_BUILD(self):
@@ -246,7 +257,6 @@ class TestResource(unittest.TestCase):
         self.assertFalse(self.resource.fsm.can('planned'))
         self.assertFalse(self.resource.fsm.can('new'))
         self.assertFalse(self.resource.fsm.can('build'))
-        self.assertFalse(self.resource.fsm.can('active'))
         self.assertFalse(self.resource.fsm.can('deleted'))
 
     def test_invalid_transitions_from_CONFIGURE(self):
@@ -304,11 +314,6 @@ class TestResource(unittest.TestCase):
         self.resource['status'] = 'NEW'
         self.resource['status'] = 'ERROR'
         self.assertFalse(self.resource.fsm.can('planned'))
-        self.assertFalse(self.resource.fsm.can('new'))
-        self.assertFalse(self.resource.fsm.can('build'))
-        self.assertFalse(self.resource.fsm.can('configure'))
-        self.assertFalse(self.resource.fsm.can('active'))
-        self.assertFalse(self.resource.fsm.can('deleting'))
         self.assertFalse(self.resource.fsm.can('error'))
 
     def test_invalid_transition_results_in_warning(self):
