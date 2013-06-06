@@ -31,35 +31,10 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
 
 class TestProviderBase(unittest.TestCase):
 
-    def test_format_postback(self):
-        """ Test formatting postback data structure for resources """
-        key = "0"
-        resource_kwargs = {
-            'status': 'ERROR',
-            'status-message': 'Unexpected error deleting loadbalancer 0'
-        }
-        instance_kwargs = resource_kwargs.copy()
-        instance_kwargs['trace'] = 'stack trace'
-        expected = {
-            'resources': {
-                '0': {
-                    'status': 'ERROR',
-                    'instance': {
-                        'status': 'ERROR',
-                        'status-message': 'Unexpected error deleting loadbalancer 0',
-                        'trace': 'stack trace'
-                    },
-                    'status-message': 'Unexpected error deleting loadbalancer 0'
-                }
-            }
-        }
-        results = ProviderBase.format_postback(key, resource_kwargs, instance_kwargs)
-        self.assertDictEqual(expected, results)
-
-    def test_get_checkmate_status(self):
+    def test_validate_provider_status(self):
         """ Test checkmate status schema entry returned """
         class Testing(ProviderBase):
-            __schema__ = {
+            __status_schema__ = {
                 'ACTIVE': 'ACTIVE',
                 'BUILD': 'BUILD',
                 'DELETED': 'DELETED',
@@ -68,7 +43,8 @@ class TestProviderBase(unittest.TestCase):
                 'PENDING_DELETE': 'DELETING',
                 'SUSPENDED': 'ERROR'
                 }
-        results = Testing.get_checkmate_status('SUSPENDED', Testing.__schema__)
+        results = Testing.validate_provider_status('SUSPENDED',
+            Testing.__status_schema__)
         self.assertEqual('ERROR', results)
 
 if __name__ == '__main__':

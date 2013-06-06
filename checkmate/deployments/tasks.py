@@ -138,9 +138,10 @@ def update_all_provider_resources(provider, deployment_id, status,
             return ret
 
 
-def postback(deployment_id, contents, driver=None):
+@task(default_retry_delay=0.5, max_retries=6)
+def postback(deployment_id, contents):
     """ Exposes DeploymentsManager.postback as a task"""
-    DeploymentsManager.postback(deployment_id, contents, driver)
+    MANAGERS['deployments'].postback(deployment_id, contents)
 
 
 @task(default_retry_delay=0.5, max_retries=6)

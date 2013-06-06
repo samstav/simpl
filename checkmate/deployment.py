@@ -34,6 +34,7 @@ from checkmate.utils import (
     is_ssh_key,
     match_celery_logging,
     merge_dictionary,
+    filter_dictionary,
     read_path,
     write_path,
 )
@@ -1098,25 +1099,18 @@ class Deployment(ExtensibleDict):
         :param target: dict -- optional for writing to other than this
                        deployment
         """
-        if contents:
-            if not isinstance(contents, dict):
-                raise CheckmateException("Postback value was not a dictionary")
-
-            if target is None:
-                target = self
-                
-            merge = {}
-            keys = ['resources', 'operation', 'status']
-            for key in keys:
-                if key in contents:
-                    merge[key] = contents[key]
-                    LOG.debug("Adding %s data to merge contents")
-                else:
-                    LOG.warning("Key %s not merged in on_postback")
+        target = target or self
             
-            if merge:
-                LOG.debug("Merging postback data for deployment")
-                merge_dictionary(target, merge)
+        if not isinstance(contents, dict):
+            raise CheckmateException("Postback value was not a dictionary")
+
+        keys = ['resources', 'operation', 'status']
+        updated = filter_dictionary(keys, contents)
+        if updated != contents:
+            LOG.warning("Only %r keys allowed in postback" % keys)
+        
+        LOG.debug("Merging postback data for deployment")
+        merge_dictionary(target, updated)
             
     def on_resource_postback(self, contents, target=None):
         """Called to merge in contents when a postback with new resource data

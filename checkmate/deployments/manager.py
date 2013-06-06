@@ -7,7 +7,6 @@ Handles deployment logic
 import copy
 import logging
 import uuid
-import os
 
 import eventlet
 from SpiffWorkflow.storage import DictionarySerializer
@@ -34,14 +33,7 @@ from checkmate.workflow import create_workflow_deploy, init_operation
 from checkmate.db.common import ObjectLockedError
 
 LOG = logging.getLogger(__name__)
-DRIVERS = {}
-DB = DRIVERS['default'] = db.get_driver()
-SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
-    connection_string=os.environ.get(
-        'CHECKMATE_SIMULATOR_CONNECTION_STRING',
-        os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
-    )
-)
+
 
 class Manager(ManagerBase):
     '''Contains Deployments Model and Logic for Accessing Deployments'''
@@ -372,9 +364,8 @@ class Manager(ManagerBase):
                                              tasks=task_count,
                                              complete=0)
         return operation
-    
-    @staticmethod    
-    def postback(deployment_id, contents, driver=DB):
+       
+    def postback(deployment_id, contents):
         #FIXME: we need to receive a context and check access?
         """This is a generic postback intended to replace all postback calls.
         Accepts back results from a remote call and updates the deployment with
@@ -403,31 +394,23 @@ class Manager(ManagerBase):
                 }
             }
         """
-
         utils.match_celery_logging(LOG)
-        if utils.is_simulation(deployment_id):
-            driver = SIMULATOR_DB
 
-        deployment = driver.get_deployment(deployment_id, with_secrets=True)
+        deployment = self.driver.get_deployment(deployment_id, with_secrets=True)
         deployment = Deployment(deployment)
-    
-        if not isinstance(contents, dict):
-            raise CheckmateException("Contents passed to deployment_postback "
-                                     "is invalid")
-    
-        keys = ['status','resources','operation']
-        if (key in contents for key in keys):
-            deployment.on_postback(contents, target=deployment)
-            try:
-                body, secrets = utils.extract_sensitive_data(deployment)
-                driver.save_deployment(deployment_id, body, secrets,
-                    partial=True)
 
-                LOG.debug("Updated deployment %s with post-back",
-                    deployment_id, extra=dict(data=contents))
-            except ObjectLockedError:
-                LOG.warn("Object lock collision in postback on "
-                         "Deployment %s", deployment_id)
-                postback.retry()
-        else:
-            raise CheckmateException("Contents passed to postback is invalid")
+        if not isinstance(contents, dict):
+            raise CheckmateException("postback contents is not dictionary")
+
+        deployment.on_postback(contents, target=deployment)
+        try:
+            body, secrets = utils.extract_sensitive_data(deployment)
+            self.driver.save_deployment(deployment_id, body, secrets,
+                partial=True)
+
+            LOG.debug("Updated deployment %s with post-back",
+                deployment_id, extra=dict(data=contents))
+        except ObjectLockedError:
+            LOG.warn("Object lock collision in postback on "
+                     "Deployment %s", deployment_id)
+            postback.retry()

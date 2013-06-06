@@ -519,6 +519,16 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             LOG.debug("%s.%s.get_resource_status called, but was not "
                       "implemented", self.vendor, self.name)
 
+    @staticmethod
+    def validate_provider_status(status, status_schema):
+        """Return checkmate status for resource based on schema"""
+        if status_schema and status and status in status_schema:
+            return status_schema[status]
+        else:
+            LOG.debug("Resource status %s was not found in schema" % status)
+            #TODO: add other updates like status-message etc.
+            return "UNDEFINED"
+            
     def _verify_existing_resource(self, resource, key):
         '''Private method for Resource verification'''
         msg = None

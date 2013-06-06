@@ -489,6 +489,11 @@ def flatten(list_of_dict):
     return result
 
 
+def filter_dictionary(keys, original):
+    """Returns a copy of original dict with only specified keys list
+    (if exist)"""
+    return { key: original[key] for key in keys if key in original }
+
 def merge_dictionary(dst, src, extend_lists=False):
     """Recursive merge two dicts (vs .update which overwrites the hashes at the
         root level)
