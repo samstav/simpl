@@ -73,13 +73,14 @@ def pause_workflow(w_id, driver):
                        "action": None})
         update_operation.delay(deployment_id, driver=driver, **kwargs)
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
-                                    status="PAUSED", driver=driver)
+                                    status="PAUSED", driver=driver,
+                                    workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
         return True
     else:
         update_operation.delay(deployment_id, driver=driver, **kwargs)
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
-                                    driver=driver)
+                                    driver=driver, workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
 
     pause_workflow.retry()
@@ -133,7 +134,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     if d_wf.is_completed():
         if d_wf.get_attribute('status') != "COMPLETE":
             cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
-                                        driver=driver)
+                                        driver=driver, workflow_id=w_id)
             dep_id = d_wf.get_attribute('deploymentId') or w_id
             update_deployment_status.delay(dep_id, 'UP', driver=driver)
             LOG.debug("Workflow '%s' is already complete. Marked it so.", w_id)
@@ -166,7 +167,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             # We made some progress, so save and prioritize next run
             #TODO: make DRY
             cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
-                                        driver=driver)
+                                        driver=driver, workflow_id=w_id)
             wait = 1
 
             # Report progress
@@ -280,7 +281,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
             LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
                      "progressed", task_id, workflow_id, task.get_state_name())
             return False
-        cm_workflow.update_workflow_status(d_wf)
+        cm_workflow.update_workflow_status(d_wf, workflow_id=workflow_id)
         updated = d_wf.serialize(serializer)
         if original != updated:
             LOG.debug("Task '%s' in Workflow '%s' completion result: %s" % (

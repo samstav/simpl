@@ -75,7 +75,7 @@ class TestWorkflow(unittest.TestCase):
         d_wf.attributes["id"] = w_id
 
         self.mox.StubOutWithMock(workflow, 'update_workflow_status')
-        workflow.update_workflow_status(d_wf)
+        workflow.update_workflow_status(d_wf, workflow_id=w_id)
         mock_driver = self.mox.CreateMockAnything()
         wf_serialize = d_wf.serialize(serializer)
         wf_serialize["tenantId"] = tenant_id
@@ -85,7 +85,7 @@ class TestWorkflow(unittest.TestCase):
         self.mox.ReplayAll()
 
         update_workflow(d_wf, tenant_id=tenant_id, status=None,
-                        driver=mock_driver)
+                        driver=mock_driver, workflow_id=w_id)
 
     def test_update_status_with_an_overriding_status_value(self):
         w_id = "1"
@@ -97,7 +97,7 @@ class TestWorkflow(unittest.TestCase):
         d_wf.attributes["status"] = "COMPLETE"
 
         self.mox.StubOutWithMock(workflow, 'update_workflow_status')
-        workflow.update_workflow_status(d_wf)
+        workflow.update_workflow_status(d_wf, workflow_id=w_id)
         mock_driver = self.mox.CreateMockAnything()
         wf_serialize = d_wf.serialize(serializer)
         wf_serialize["tenantId"] = tenant_id
@@ -108,7 +108,7 @@ class TestWorkflow(unittest.TestCase):
         self.mox.ReplayAll()
 
         update_workflow(d_wf, tenant_id=tenant_id, status="PAUSED",
-                        driver=mock_driver)
+                        driver=mock_driver, workflow_id=w_id)
 
     def tearDown(self):
         self.mox.VerifyAll()
