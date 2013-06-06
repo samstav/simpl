@@ -1238,10 +1238,15 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       if (data !== undefined && data !== null)
         data = JSON.parse(data);
       if (data !== undefined && data !== null && data != {} && 'auth' in data && 'identity' in data.auth && 'context' in data.auth) {
-        auth.identity = data.auth.identity;
-        auth.context = data.auth.context;
-        auth.endpoints = data.auth.endpoints;
-        auth.check_state();
+        // Check if stored data is in older format
+        if (data.auth.identity.auth_host === undefined) {
+          auth.clear();
+        } else {
+          auth.identity = data.auth.identity;
+          auth.context = data.auth.context;
+          auth.endpoints = data.auth.endpoints;
+          auth.check_state();
+        }
       }
     },
     parseWWWAuthenticateHeaders: function(headers) {
