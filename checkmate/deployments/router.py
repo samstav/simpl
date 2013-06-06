@@ -131,7 +131,7 @@ class Router(object):
     @with_tenant
     def post_deployment(self, tenant_id=None):
         '''
-        Creates deployment and wokflow based on sent information
+        Creates deployment and workflow based on sent information
         and triggers workflow execution
         '''
         deployment = _content_to_deployment(request, tenant_id=tenant_id)
