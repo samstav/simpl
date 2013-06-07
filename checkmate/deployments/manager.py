@@ -363,7 +363,7 @@ class Manager(ManagerBase):
                                              complete=0)
         return operation
        
-    def postback(deployment_id, contents):
+    def postback(self, deployment_id, contents):
         #FIXME: we need to receive a context and check access?
         """This is a generic postback intended to replace all postback calls.
         Accepts back results from a remote call and updates the deployment with
