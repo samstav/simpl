@@ -195,7 +195,10 @@ var buildNetwork = function(json, width, height) {
           .attr("y2", function(d) { return d.target.y; });
 
       nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+      nodes.selectAll("title").text(function(d) { return d.name; });
   });
+
+  return force;
 };
 
 specs = data.wf_spec.task_specs
@@ -205,7 +208,7 @@ var positions_memo = {}
 var nodes = buildNodes(specs, positions_memo);
 var links = buildLinks(specs);
 var network = { nodes: nodes, links: links };
-buildNetwork(network, WIDTH, HEIGHT);
+var force = buildNetwork(network, WIDTH, HEIGHT);
 
 
    </script>
