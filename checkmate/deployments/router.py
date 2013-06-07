@@ -92,6 +92,8 @@ class Router(object):
         app.route('/deployments', 'GET', self.get_deployments)
         app.route('/deployments', 'POST', self.post_deployment)
         app.route('/deployments/simulate', 'POST', self.simulate)
+        app.route('/deployments/count', 'GET', self.get_count)
+        app.route('/deployments', 'GET', self.get_deployments)
         app.route('/deployments/<api_id>', 'GET', self.get_deployment)
         app.route('/deployments/<api_id>/secrets', 'GET',
                   self.get_deployment_secrets)
@@ -157,6 +159,12 @@ class Router(object):
         ''' Run a simulation '''
         request.context.simulation = True
         return self.post_deployment(tenant_id=tenant_id)
+
+    @with_tenant
+    def get_count(self, tenant_id=None):
+        ''' Get existing deployment count '''
+        result = self.manager.count(tenant_id=tenant_id)
+        return utils.write_body({'count': result}, request, response)
 
     @with_tenant
     def parse_deployment(self, tenant_id=None):

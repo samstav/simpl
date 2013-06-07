@@ -17,7 +17,7 @@ from mox import IgnoreArg, ContainsKeyValue
 from webtest import TestApp
 
 import checkmate
-from checkmate import keys, test
+from checkmate import deployments, keys, test
 from checkmate.common import tasks as common_tasks
 from checkmate.deployment import (
     Deployment,
@@ -1183,8 +1183,40 @@ class TestDeploymentScenarios(unittest.TestCase):
         return Manager.plan(deployment, RequestContext())
 
 
-class TestGetDeployments(unittest.TestCase):
+class TestDeploymentsAPI(unittest.TestCase):
     """Test GET /deployments endpoint"""
+
+    def setUp(self):
+        self._mox = mox.Mox()
+
+        self.root_app = bottle.Bottle()
+        self.root_app.catchall = False
+        self.filters = test.MockWsgiFilters(self.root_app)
+        self.filters.context.is_admin = True
+        self.app = TestApp(self.filters)
+
+        self.manager = self._mox.CreateMockAnything()
+        self.router = deployments.Router(self.root_app, self.manager)
+
+        unittest.TestCase.setUp(self)
+
+    def tearDown(self):
+        self._mox.UnsetStubs()
+        unittest.TestCase.tearDown(self)
+
+    def _assert_good_count(self, ret, expected_count):
+        self.assertIsNotNone(ret, "No count returned")
+        self.assertIn("count", ret, "Return does not contain count")
+        self.assertEqual(expected_count, ret.get("count", -1),
+                         "Wrong count returned")
+
+    def test_get_count_all(self):
+        self.manager.count(tenant_id="123").AndReturn(3)
+        self._mox.ReplayAll()
+        res = self.app.get('/123/deployments/count')
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+        self._assert_good_count(json.loads(res.body), 3)
 
 
 class TestPostDeployments(unittest.TestCase):
