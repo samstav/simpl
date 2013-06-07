@@ -10,7 +10,7 @@ cookbook 'openssl'
 cookbook 'build-essential'
 cookbook 'rabbitmq'
 cookbook 'mongodb',
-  :git => 'https://github.com/edelight/chef-mongodb'
+  :git => 'https://github.com/gondoi/chef-mongodb'
 
 cookbook 'checkmate',
   :git => 'https://github.rackspace.com/Cookbooks/checkmate'
