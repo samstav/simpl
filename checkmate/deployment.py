@@ -1100,18 +1100,18 @@ class Deployment(ExtensibleDict):
                        deployment
         """
         target = target or self
-            
+
         if not isinstance(contents, dict):
             raise CheckmateException("Postback value was not a dictionary")
 
         keys = ['resources', 'operation', 'status']
         updated = filter_dictionary(keys, contents)
         if updated != contents:
-            LOG.warning("Only %r keys allowed in postback" % keys)
-        
+            LOG.warning("Only keys allowed in postback: %r", keys)
+
         LOG.debug("Merging postback data for deployment")
         merge_dictionary(target, updated)
-            
+
     def on_resource_postback(self, contents, target=None):
         """Called to merge in contents when a postback with new resource data
         is received.

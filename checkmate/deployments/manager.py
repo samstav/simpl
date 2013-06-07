@@ -24,13 +24,11 @@ from checkmate.deployment import (
     generate_keys,
 )
 from checkmate.exceptions import (
-    CheckmateException,
     CheckmateBadState,
     CheckmateDoesNotExist,
     CheckmateValidationException,
 )
 from checkmate.workflow import create_workflow_deploy, init_operation
-from checkmate.db.common import ObjectLockedError
 
 LOG = logging.getLogger(__name__)
 
@@ -396,21 +394,20 @@ class Manager(ManagerBase):
         """
         utils.match_celery_logging(LOG)
 
-        deployment = self.driver.get_deployment(deployment_id, with_secrets=True)
+        deployment = self.driver.get_deployment(deployment_id,
+            with_secrets=True)
         deployment = Deployment(deployment)
 
         if not isinstance(contents, dict):
-            raise CheckmateException("postback contents is not dictionary")
+            raise CheckmateValidationException("postback contents is not"
+            " dictionary")
 
         deployment.on_postback(contents, target=deployment)
-        try:
-            body, secrets = utils.extract_sensitive_data(deployment)
-            self.driver.save_deployment(deployment_id, body, secrets,
-                partial=True)
 
-            LOG.debug("Updated deployment %s with post-back",
-                deployment_id, extra=dict(data=contents))
-        except ObjectLockedError:
-            LOG.warn("Object lock collision in postback on "
-                     "Deployment %s", deployment_id)
-            postback.retry()
+        body, secrets = utils.extract_sensitive_data(deployment)
+        self.driver.save_deployment(deployment_id, body, secrets,
+            partial=True)
+
+        LOG.debug("Updated deployment %s with post-back", deployment_id,
+            extra=dict(data=contents))
+        
