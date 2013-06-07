@@ -25,16 +25,15 @@ from checkmate.utils import merge_dictionary
 
 LOG = logging.getLogger(__name__)
 
-#Collection Names
-WORKFLOW_COLLECTION = "workflows"
-BLUEPRINT_COLLECTION = "blueprints"
-DEPLOYMENT_COLLECTION = "deployments"
-RESOURCE_COLLECTION = "resources"
-ENVIRONMENT_COLLECTION = "environments"
-
 
 class Driver(DbBase):
     """MongoDB Database Driver"""
+    _workflow_collection_name = "workflows"
+    _blueprint_collection_name = "blueprints"
+    _deployment_collection_name = "deployments"
+    _resource_collection_name = "resources"
+    _environment_collection_name = "environments"
+
     #db fields we do not want returned to the client
     _object_projection = {'_lock': 0, '_lock_timestamp': 0, '_id': 0}
 
@@ -67,17 +66,17 @@ class Driver(DbBase):
 
     def tune(self):
         '''Documenting & Automating Index Creation'''
-        self.database()[DEPLOYMENT_COLLECTION].create_index(
+        self.database()[self._deployment_collection_name].create_index(
             [("created", pymongo.DESCENDING)],
             background=True,
             name="deployments_created",
         )
-        self.database()[DEPLOYMENT_COLLECTION].create_index(
+        self.database()[self._deployment_collection_name].create_index(
             [("tenantId", pymongo.DESCENDING)],
             background=True,
             name="deployments_tenantId",
         )
-        self.database()[WORKFLOW_COLLECTION].create_index(
+        self.database()[self._workflow_collection_name].create_index(
             [("tenantId", pymongo.DESCENDING)],
             background=True,
             name="workflows_created",
@@ -195,18 +194,19 @@ class Driver(DbBase):
 
     # ENVIRONMENTS
     def get_environment(self, oid, with_secrets=None):
-        return self._get_object(ENVIRONMENT_COLLECTION, oid, with_secrets=with_secrets)
+        return self._get_object(self._environment_collection_name, oid,
+                                with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
         return self._get_objects(
-            ENVIRONMENT_COLLECTION,
+            self._environment_collection_name,
             tenant_id,
             with_secrets=with_secrets
         )
 
     def save_environment(self, api_id, body, secrets=None, tenant_id=None):
-        return self._save_object(ENVIRONMENT_COLLECTION, api_id, body, secrets,
-                                 tenant_id)
+        return self._save_object(self._environment_collection_name, api_id,
+                                 body, secrets, tenant_id)
 
     # DEPLOYMENTS
     def _dereferenced_resources(self, deployment, with_secrets=False):
@@ -228,7 +228,7 @@ class Driver(DbBase):
         return flat
 
     def get_deployment(self, api_id, with_secrets=None):
-        deployment = self._get_object(DEPLOYMENT_COLLECTION, api_id,
+        deployment = self._get_object(self._deployment_collection_name, api_id,
                                       with_secrets=with_secrets)
         if (deployment and 'resources' in deployment and
                 not self._has_legacy_resources(deployment)):
@@ -240,8 +240,8 @@ class Driver(DbBase):
 
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=0,
                         offset=0, with_count=True, with_deleted=False):
-        deployments = self._get_objects(DEPLOYMENT_COLLECTION, tenant_id,
-                                        with_secrets=with_secrets,
+        deployments = self._get_objects(self._deployment_collection_name,
+                                        tenant_id, with_secrets=with_secrets,
                                         offset=offset,
                                         limit=limit, with_count=with_count,
                                         with_deleted=with_deleted)
@@ -266,7 +266,8 @@ class Driver(DbBase):
         :param partial: True if its a partial update
         :return: saved deployment as a hash
         '''
-        existing_deployment = self._get_object(DEPLOYMENT_COLLECTION, api_id)
+        existing_deployment = self._get_object(
+            self._deployment_collection_name, api_id)
         is_legacy_resources_format = (
             self._has_legacy_resources(existing_deployment))
         resources = body.get("resources", None)
@@ -291,9 +292,9 @@ class Driver(DbBase):
         #Deployment is saved when its a full update or a partial update
         #involving deployment data or deployment secrets
         else:
-            deployment = self._save_object(DEPLOYMENT_COLLECTION, api_id, body,
-                                           deployment_secrets, tenant_id,
-                                           merge_existing=partial)
+            deployment = self._save_object(self._deployment_collection_name,
+                                           api_id, body, deployment_secrets,
+                                           tenant_id, merge_existing=partial)
 
         if not partial and existing_deployment:
              # Deleting old/orphaned documents
@@ -371,12 +372,12 @@ class Driver(DbBase):
     def _get_resources(self, resource_ids, with_ids=True, with_secrets=False):
         resources = []
         if resource_ids:
-            resources_cursor = self.database()[RESOURCE_COLLECTION].find(
-                {'id': {'$in': resource_ids}}, {"tenantId": 0, "_id": 0})
+            resources_cursor = self.database()[self._resource_collection_name]\
+                .find({'id': {'$in': resource_ids}}, {"tenantId": 0, "_id": 0})
             for resource in resources_cursor:
                 if with_secrets:
-                    self.merge_secrets(RESOURCE_COLLECTION, resource["id"],
-                                       resource)
+                    self.merge_secrets(self._resource_collection_name,
+                                       resource["id"], resource)
                 if not with_ids:
                     resource.pop("id")
                 resources.append(resource)
@@ -384,43 +385,44 @@ class Driver(DbBase):
 
     def _save_resource(self, resource_id, body, tenant_id=None, partial=True,
                        secrets=None):
-        resource = self._save_object(RESOURCE_COLLECTION, resource_id, body,
-                                     tenant_id=tenant_id,
+        resource = self._save_object(self._resource_collection_name,
+                                     resource_id, body, tenant_id=tenant_id,
                                      merge_existing=partial,
                                      secrets=secrets)
         return resource
 
     #BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
-        return self._get_object(BLUEPRINT_COLLECTION, api_id,
+        return self._get_object(self._blueprint_collection_name, api_id,
                                 with_secrets=with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None):
-        return self._get_objects(BLUEPRINT_COLLECTION, tenant_id,
+        return self._get_objects(self._blueprint_collection_name, tenant_id,
                                  with_secrets=with_secrets)
 
     def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
-        return self._save_object(BLUEPRINT_COLLECTION, api_id, body, secrets,
-                                 tenant_id)
+        return self._save_object(self._blueprint_collection_name, api_id, body,
+                                 secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, api_id, with_secrets=None):
-        return self._get_object(WORKFLOW_COLLECTION, api_id,
+        return self._get_object(self._workflow_collection_name, api_id,
                                 with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       limit=0, offset=0):
-        return self._get_objects(WORKFLOW_COLLECTION, tenant_id,
+        return self._get_objects(self._workflow_collection_name, tenant_id,
                                  with_secrets=with_secrets,
                                  offset=offset, limit=limit)
 
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
-        current = self._get_object(WORKFLOW_COLLECTION, api_id, projection={})
+        current = self._get_object(self._workflow_collection_name, api_id,
+                                   projection={})
         if current and '_lock' in current:
             body['_lock'] = current['_lock']
             body['_lock_timestamp'] = current.get('_lock_timestamp')
-        return self._save_object(WORKFLOW_COLLECTION, api_id, body, secrets,
-                                 tenant_id)
+        return self._save_object(self._workflow_collection_name, api_id, body,
+                                 secrets, tenant_id)
 
     def lock_workflow(self, api_id, with_secrets=None, key=None):
         """
@@ -431,7 +433,7 @@ class Driver(DbBase):
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
         """
-        return self.lock_object(WORKFLOW_COLLECTION, api_id,
+        return self.lock_object(self._workflow_collection_name, api_id,
                                 with_secrets=with_secrets, key=key)
 
     def unlock_workflow(self, api_id, key):
@@ -439,7 +441,8 @@ class Driver(DbBase):
         :param api_id: the object's API ID.
         :param key: the key used to lock the object (see lock_object()).
         """
-        return self.unlock_object(WORKFLOW_COLLECTION, api_id, key=key)
+        return self.unlock_object(self._workflow_collection_name, api_id,
+                                  key=key)
 
     def lock_object(self, klass, api_id, with_secrets=None, key=None):
         """
@@ -619,11 +622,11 @@ class Driver(DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
                      limit=0, with_count=True, with_deleted=False):
-        if klass == DEPLOYMENT_COLLECTION:
+        if klass == self._deployment_collection_name:
             projection = self._deployment_projection
             sort_key = 'created'
             sort_direction = pymongo.DESCENDING
-        elif klass == WORKFLOW_COLLECTION:
+        elif klass == self._workflow_collection_name:
             projection = self._workflow_projection
             sort_key = 'id'
             sort_direction = pymongo.ASCENDING
@@ -666,7 +669,7 @@ class Driver(DbBase):
         filters = {}
         if tenant_id:
             filters['tenantId'] = tenant_id
-        if klass == DEPLOYMENT_COLLECTION and not with_deleted:
+        if klass == self._deployment_collection_name and not with_deleted:
             filters['status'] = {'$ne': 'DELETED'}
         return filters
 
