@@ -58,59 +58,60 @@ function distanceToStartSpec(memo, all_specs, spec) {
   return memo[spec.id];
 }
 
+var getY = function(nodes, node, level) {
+  level = level || 0;
+  var y = (level * 30) + 50 + (50 * node.group);
+  var existing_node = _.findWhere(nodes, { x: node.x, y: y, group: node.group });
+  if(!existing_node) {
+    return y;
+  }
+
+  return getY(nodes, node, level+1)
+}
+
+var getGroup = function(spec, specs) {
+  var group;
+  var no_group = -1;
+  var shift_size = 2;
+
+  if (spec.properties.resource)
+    group = parseInt(spec.properties.resource) || no_group;
+  else
+    group = parseInt(specs[spec.inputs[0]].properties.resource) || no_group;
+
+  group += shift_size;
+  return group;
+}
+
 var buildNodes = function(specs, positions_memo) {
   var nodes = [];
   var spacing = { x: 50, y: 50 };
+  var start_group = 0;
+  var start_position = { x: 20, y: 200 };
+  var fixed_status = true;
+  var skip_nodes = ['Root', 'Start'];
+  var start_spec = 'Start';
 
   _.each(specs, function(spec, spec_name){
-    var name,
-        group,
-        x,
-        y,
-        fixed = true;
-    if(spec_name === 'Start') {
-      x = 20;
-      y = 200;
-      name = spec_name;
-      group = 0;
-      nodes.push({x: x, y: y, group: group, fixed: fixed, name: name})
+    var node = {};
+    if(spec_name === start_spec) {
+      node.fixed = fixed_status;
+      node.name = spec_name;
+      node.group = start_group;
+      node.x = start_position.x;
+      node.y = start_position.y;
+      nodes.push(node);
     }
 
-    function getY(nodes, x, group, level){
-      level = level || 0;
-      var y = (level * 30) + 50 + (50 * group);
-      var existing_node = _.findWhere(nodes, { x: x, y: y, group: group })
-      if(!existing_node) {
-        return y;
-      }
+    if(spec.properties) {
+      if ( skip_nodes.indexOf(spec_name) === -1 ) {
+        var position = distanceToStartSpec(positions_memo, specs, spec);
+        node.fixed = fixed_status;
+        node.name = spec_name;
+        node.group = getGroup(spec, specs);
+        node.x = spacing.x + position;
+        node.y = getY(nodes, node, 0);
 
-      return getY(nodes, x, group, level+1)
-    }
-
-    if(spec.properties){
-      if(spec.properties.resource){
-        group = (parseInt(spec.properties.resource) || -1) + 2;
-        position = distanceToStartSpec(positions_memo, specs, spec);
-        x = spacing.x + position;
-        y = getY(nodes, x, group, 0);
-        name = spec_name;
-        var node = { name: name,
-                     group: group,
-                     y: y,
-                     x: x,
-                     fixed: fixed }
-        nodes.push(node)
-      } else if (!(spec_name === 'Root') && !(spec_name === 'Start')){
-        group = (parseInt(specs[spec.inputs[0]].properties.resource) || -1) + 2;
-        position = distanceToStartSpec(positions_memo, specs, spec);
-        x = spacing.x + position;
-        y = getY(nodes, x, group, 0);
-        name = spec_name;
-        var node = { name: name,
-                     group: group,
-                     y: y,
-                     x: x,
-                     fixed: fixed }
         nodes.push(node)
       }
     }
@@ -122,16 +123,16 @@ var buildNodes = function(specs, positions_memo) {
 var buildLinks = function(specs) {
   var links = [];
 
-  _.each(specs, function(spec, spec_name){
-    if(spec.outputs){
-      _.each(spec.outputs, function(output){
-        source = _.findWhere(nodes, { name: spec_name })
-        target = _.findWhere(nodes, { name: output })
+  _.each(specs, function(spec, spec_name) {
+    if(spec.outputs) {
+      _.each(spec.outputs, function(output) {
+        source = _.findWhere(nodes, { name: spec_name });
+        target = _.findWhere(nodes, { name: output });
         if(source && target) {
-          l = {source: source, target: target, value: 1}
-          links.push(l)
+          var link = {source: source, target: target, value: 1}
+          links.push(link);
         }
-      })
+      });
     }
   });
 
