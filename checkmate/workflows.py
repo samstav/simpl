@@ -5,7 +5,6 @@ This module uses SpiffWorkflow to create, manage, and run workflows for
 Checkmate
 """
 # pylint: disable=E0611
-from SpiffWorkflow.specs import Celery
 from bottle import get, post, route, request, response, abort
 import logging
 import os
@@ -209,13 +208,11 @@ def execute_workflow(id, tenant_id=None, driver=DB):
 @route('/workflows/<id>/+pause', method=['GET', 'POST'])
 @with_tenant
 def pause_workflow(id, tenant_id=None, driver=DB):
-    """Process a checkmate deployment workflow
-
-    Pauses the workflow.
+    '''Pauses the workflow.
     Updates the operation status to pauses when done
 
     :param id: checkmate workflow id
-    """
+    '''
     if is_simulation(id):
         driver = SIMULATOR_DB
     workflow = driver.get_workflow(id)
