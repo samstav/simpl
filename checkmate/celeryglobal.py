@@ -35,7 +35,7 @@ class AlwaysRetryTask(Task):  # pylint: disable=R0904
         except RetryTaskError:
             raise   # task is already being retried.
         except Exception, exc:
-            self.retry(exc=exc)
+            return self.retry(exc=exc)
 
 
 class SingleTask(Task):  # pylint: disable=R0904
@@ -48,12 +48,12 @@ class SingleTask(Task):  # pylint: disable=R0904
                                    self.lock_timeout)):
                 return self.run(*args, **kwargs)
         except ObjectLockedError as exc:
-            LOG.warn("Object lock collision in Single Task on "
-                     "Deployment %s", args[0])
+            LOG.warn("Object lock collision in Single Task '%s': %s",
+                     self.name, exc)
             self.retry()
         except InvalidKeyError:
             raise
         except RetryTaskError:
             raise
         except Exception as exc:
-            self.retry(exc=exc)
+            return self.retry(exc=exc)
