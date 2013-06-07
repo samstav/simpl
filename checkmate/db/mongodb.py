@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Driver(DbBase):
-    """MongoDB Database Driver"""
+    '''MongoDB Database Driver'''
     _workflow_collection_name = "workflows"
     _blueprint_collection_name = "blueprints"
     _deployment_collection_name = "deployments"
@@ -58,15 +58,14 @@ class Driver(DbBase):
         DbBase.__init__(self, connection_string, driver=driver, *args,
                         **kwargs)
 
-        self.db_name = pymongo.uri_parser.parse_uri(self.connection_string
-        ).get('database',
-              'checkmate')
+        self.db_name = pymongo.uri_parser.parse_uri(
+            self.connection_string).get('database', 'checkmate')
         self._database = None
         self._connection = None
         self._client = None
         try:
             self.tune()
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=W0703
             LOG.warn("Error tuning mongodb database: %s", exc)
 
     def tune(self):
@@ -87,7 +86,7 @@ class Driver(DbBase):
             background=True,
             name="workflows_tenantId",
         )
-        self.database()[WORKFLOW_COLLECTION].create_index(
+        self.database()[self._workflow_collection_name].create_index(
             [('id', pymongo.ASCENDING)],
             background=True,
             name='workflows_id',
@@ -108,6 +107,7 @@ class Driver(DbBase):
         self._client = None
 
     def _get_client(self):
+        '''Get pymongo client (connect is not already connected)'''
         if self._client is None:
             try:
                 self._client = (pymongo.MongoClient(
@@ -117,7 +117,7 @@ class Driver(DbBase):
         return self._client
 
     def database(self):
-        """ Connects to and returns mongodb database object """
+        ''' Connects to and returns mongodb database object '''
         if self._database is None:
             self._database = self._get_client()[self.db_name]
             LOG.info("Connected to mongodb on %s (database=%s)",
@@ -169,7 +169,7 @@ class Driver(DbBase):
                 upsert=True,
                 new=True
             )
-            LOG.debug("Saved tenant: %s" % resp)
+            LOG.debug("Saved tenant: %s", resp)
         else:
             raise CheckmateException("Must provide a tenant id")
 
@@ -259,6 +259,7 @@ class Driver(DbBase):
         return deployments
 
     def _remove_all(self, collection_name, ids):
+        '''Remove all objects with the ids in the ids list supplied'''
         if ids:
             self.database()[collection_name].remove({"_id": {'$in': ids}})
 
@@ -354,7 +355,8 @@ class Driver(DbBase):
                                     secrets=resource_secret)
         return resource_ids
 
-    def _has_legacy_resources(self, deployment):
+    @staticmethod
+    def _has_legacy_resources(deployment):
         '''
         Checks whether a deployment has resources with definition inside the
         deployment and not just references for resources
@@ -436,27 +438,27 @@ class Driver(DbBase):
                                  secrets, tenant_id)
 
     def lock_workflow(self, api_id, with_secrets=None, key=None):
-        """
+        '''
         :param api_id: the object's API id.
         :param with_secrets: true if secrets should be merged into the results.
         :param key: if the object has already been locked, the key used must be
             passed in
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
-        """
+        '''
         return self.lock_object(self._workflow_collection_name, api_id,
                                 with_secrets=with_secrets, key=key)
 
     def unlock_workflow(self, api_id, key):
-        """
+        '''
         :param api_id: the object's API ID.
         :param key: the key used to lock the object (see lock_object()).
-        """
+        '''
         return self.unlock_object(self._workflow_collection_name, api_id,
                                   key=key)
 
     def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        """
+        '''
         :param klass: the class of the object to unlock.
         :param api_id: the object's API ID.
         :param with_secrets: true if secrets should be merged into the results.
@@ -464,7 +466,7 @@ class Driver(DbBase):
             passed in
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
-        """
+        '''
 
         if with_secrets:
             locked_object, key = self._lock_find_object(klass, api_id, key=key)
@@ -472,7 +474,7 @@ class Driver(DbBase):
         return self._lock_find_object(klass, api_id, key=key)
 
     def unlock_object(self, klass, api_id, key):
-        """
+        '''
         Unlocks a locked object if the key is correct.
 
         :param klass: the class of the object to unlock.
@@ -480,7 +482,7 @@ class Driver(DbBase):
         :param key: the key used to lock the object (see lock_object()).
         :raises ValueError: If the unlocked object does not exist or the lock
             was incorrect.
-        """
+        '''
         unlocked_object = self.database()[klass].find_and_modify(
             query={
                 '_id': api_id,
@@ -501,7 +503,7 @@ class Driver(DbBase):
                                   "not exist." % api_id)
 
     def _lock_find_object(self, klass, api_id, key=None):
-        """
+        '''
         Finds, attempts to lock, and returns an object by id.
 
         :param klass: the class of the object unlock.
@@ -511,7 +513,7 @@ class Driver(DbBase):
         :raises ValueError: if the api_id is of a non-existent object
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
-        """
+        '''
         assert klass, "klass must not be None."
         assert api_id, "api_id must not be None"
 
@@ -575,10 +577,10 @@ class Driver(DbBase):
                                     klass, api_id, lock_time_delta)
                         locked_object = self.database()[klass] \
                             .find_and_modify(
-                            query={'_id': api_id},
-                            update=lock_update,
-                            fields=self._object_projection
-                        )
+                                query={'_id': api_id},
+                                update=lock_update,
+                                fields=self._object_projection
+                            )
                         return (locked_object, key)
                     else:
                         # Lock is not stale
@@ -676,21 +678,22 @@ class Driver(DbBase):
             self._object_projection
         ).count()
 
-    def _build_filters(self, klass, tenant_id, with_deleted):
+    @staticmethod
+    def _build_filters(klass, tenant_id, with_deleted):
         filters = {}
         if tenant_id:
             filters['tenantId'] = tenant_id
-        if klass == self._deployment_collection_name and not with_deleted:
+        if klass == Driver._deployment_collection_name and not with_deleted:
             filters['status'] = {'$ne': 'DELETED'}
         return filters
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
                      merge_existing=False):
-        """Clients that wish to save the body but do/did not have access to
+        '''Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None
         dict needs to be passed in: ex. {}.
-        """
+        '''
         if isinstance(body, ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
