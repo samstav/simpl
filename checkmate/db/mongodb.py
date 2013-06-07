@@ -3,6 +3,7 @@ Driver for MongoDB
 
 TODO:
 - Fix mapping between API ID and mongoDB _id field
+- Check indeces; if we fix mapping do we still need an index on workflow.id?
 
 '''
 import copy
@@ -63,9 +64,14 @@ class Driver(DbBase):
         self._database = None
         self._connection = None
         self._client = None
+        try:
+            self.tune()
+        except Exception as exc:
+            LOG.warn("Error tuning mongodb database: %s", exc)
 
     def tune(self):
         '''Documenting & Automating Index Creation'''
+        LOG.debug("Tuning database")
         self.database()[self._deployment_collection_name].create_index(
             [("created", pymongo.DESCENDING)],
             background=True,
@@ -79,7 +85,12 @@ class Driver(DbBase):
         self.database()[self._workflow_collection_name].create_index(
             [("tenantId", pymongo.DESCENDING)],
             background=True,
-            name="workflows_created",
+            name="workflows_tenantId",
+        )
+        self.database()[WORKFLOW_COLLECTION].create_index(
+            [('id', pymongo.ASCENDING)],
+            background=True,
+            name='workflows_id',
         )
 
     def __getstate__(self):
