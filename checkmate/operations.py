@@ -57,9 +57,4 @@ def update_operation(deployment_id, driver=DB, **kwargs):
                     delta['display-outputs'] = deployment.calculate_outputs()
         except KeyError:
             LOG.warn("Cannot update deployment outputs: %s", deployment_id)
-        try:
-            driver.save_deployment(deployment_id, delta, partial=True)
-        except db.ObjectLockedError:
-            LOG.warn("Object lock collision in update_operation on "
-                     "Deployment %s", deployment_id)
-            raise
+        driver.save_deployment(deployment_id, delta, partial=True)
