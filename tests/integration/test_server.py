@@ -8,7 +8,6 @@ import uuid
 from bottle import default_app
 from webtest import TestApp
 
-from checkmate import db
 from checkmate import blueprints, environments, workflows
 from checkmate import deployments
 from checkmate.middleware import (

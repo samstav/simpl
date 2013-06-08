@@ -89,18 +89,20 @@ class Router(object):
         self.app = app
         self.manager = manager
 
+        # Deployment list
         app.route('/deployments', 'GET', self.get_deployments)
         app.route('/deployments', 'POST', self.post_deployment)
         app.route('/deployments/simulate', 'POST', self.simulate)
         app.route('/deployments/count', 'GET', self.get_count)
-        app.route('/deployments', 'GET', self.get_deployments)
-        app.route('/deployments/<api_id>', 'GET', self.get_deployment)
-        app.route('/deployments/<api_id>/secrets', 'GET',
-                  self.get_deployment_secrets)
         app.route('/deployments/+parse', 'POST', self.parse_deployment)
         app.route('/deployments/+preview', 'POST', self.preview_deployment)
+
+        # Deployment Resource
+        app.route('/deployments/<api_id>', 'GET', self.get_deployment)
         app.route('/deployments/<api_id>', 'PUT', self.update_deployment)
         app.route('/deployments/<api_id>', 'DELETE', self.delete_deployment)
+
+        # Actions
         app.route('/deployments/<api_id>/+clone', 'POST',
                   self.clone_deployment)
         app.route('/deployments/<api_id>/+plan', ['POST', 'GET'],
@@ -109,8 +111,14 @@ class Router(object):
                   self.sync_deployment)
         app.route('/deployments/<api_id>/+deploy', ['POST', 'GET'],
                   self.deploy_deployment)
+
+        # Secrets
+        app.route('/deployments/<api_id>/secrets', 'GET',
+                  self.get_deployment_secrets)
         app.route('/deployments/<api_id>/secrets', 'POST',
                   self.update_deployment_secrets)
+
+        # Resources
         app.route('/deployments/<api_id>/resources', 'GET',
                   self.get_deployment_resources)
         app.route('/deployments/<api_id>/resources/status', 'GET',
