@@ -1025,6 +1025,13 @@ class MockWsgiFilters(object):
         self.context = MockContext()
 
     def __call__(self, environ, start_response):
+        '''Add context, strip out tenant if not already mocked'''
         bottle.request.context = self.context
         bottle.request.accept = 'application/json'
+        path = environ['PATH_INFO']
+        if path and not self.context.tenant:
+            parts = path.strip('/').split('/')
+            if parts[0] != 'admin':
+                self.context.tenant = parts[0]
+                environ['PATH_INFO'] = '/%s' % '/'.join(parts[1:])
         return self.app(environ, start_response)

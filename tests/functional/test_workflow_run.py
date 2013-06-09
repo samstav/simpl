@@ -3,7 +3,6 @@ import copy
 import json
 import logging
 import os
-import unittest2 as unittest
 import yaml
 
 # Init logging before we load the database, 3rd party, and 'noisy' modules
