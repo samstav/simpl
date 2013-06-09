@@ -1210,7 +1210,7 @@ class TestDeploymentsAPI(unittest.TestCase):
         self.assertEqual(expected_count, ret.get("count", -1),
                          "Wrong count returned")
 
-    def test_get_count_all(self):
+    def test_get_count(self):
         self.manager.count(tenant_id="123").AndReturn(3)
         self._mox.ReplayAll()
         res = self.app.get('/123/deployments/count')
