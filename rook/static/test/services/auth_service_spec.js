@@ -328,6 +328,23 @@ describe('auth Service', function(){
     });
   });
 
+  describe('#re_authenticate', function() {
+    var $httpBackend;
+    beforeEach(inject(function($injector) {
+      $httpBackend = $injector.get('$httpBackend');
+      $httpBackend.when('POST', "/authproxy/v2.0/tokens").respond(200, "fakeauth");
+      spyOn(this.auth, 'generate_auth_data').andReturn("fakedata");
+    }));
+
+    it('should send a token/tenant auth call', function() {
+      var promise = this.auth.re_authenticate("faketoken", "faketenant");
+      var auth_response = "";
+      promise.then(function(response) { auth_response = response; });
+      $httpBackend.flush();
+      expect(auth_response.data).toEqual("fakeauth");
+    });
+  });
+
   describe('#impersonate', function() {
     var $httpBackend, $q, deferred;
 
@@ -374,42 +391,79 @@ describe('auth Service', function(){
         spyOn(this.auth, 'store_context');
         spyOn(this.auth, 'save');
         spyOn(this.auth, 'check_state');
+        spyOn(this.auth, 're_authenticate').andReturn({ then: emptyFunction });
         spyOn(deferred, 'resolve');
         get_tenant_id_deferred.resolve("666666");
+      });
+
+      it('should re-authenticate the user', function() {
         this.auth.impersonate_success(username, response, deferred);
         $rootScope.$apply();
+        expect(this.auth.re_authenticate).toHaveBeenCalledWith("faketoken", "666666");
       });
 
-      it('should set context username', function() {
-        expect(this.auth.context.username).toEqual("fakeusername");
+      describe('and user was re-authenticated', function() {
+        beforeEach(function() {
+          var re_authenticate_data = { data: { access: { serviceCatalog: "fakecatalog" } }};
+          var re_authenticate_deferred = $q.defer();
+          this.auth.re_authenticate.andReturn(re_authenticate_deferred.promise);
+          re_authenticate_deferred.resolve(re_authenticate_data);
+          this.auth.impersonate_success(username, response, deferred);
+          this.auth.identity.auth_url = "https://some-internal.rackspace.com/path"
+          spyOn(this.auth, 'get_regions').andReturn("fakeregions");
+          $rootScope.$apply();
+        });
+
+        it('should set context username', function() {
+          expect(this.auth.context.username).toEqual("fakeusername");
+        });
+
+        it('should set context token', function() {
+          expect(this.auth.context.token).toEqual( { id: "faketoken" } );
+        });
+
+        it('should set context auth_url', function() {
+          expect(this.auth.context.auth_url).toEqual("https://some.rackspace.com/path");
+        });
+
+        it('should set tenantId', function() {
+          expect(this.auth.context.tenantId).toEqual("666666");
+        });
+
+        it('should set catalog', function() {
+          expect(this.auth.context.catalog).toEqual("fakecatalog");
+        });
+
+        it('should store context for future use', function() {
+          expect(this.auth.store_context).toHaveBeenCalled();
+        });
+
+        it('should save auth for future use', function() {
+          expect(this.auth.save).toHaveBeenCalled();
+        });
+
+        it('should check authentication state', function() {
+          expect(this.auth.check_state).toHaveBeenCalled();
+        });
+
+        it('should resolve the deferred promise', function() {
+          expect(deferred.resolve).toHaveBeenCalled();
+        });
       });
 
-      it('should set context token', function() {
-        expect(this.auth.context.token).toEqual( { id: "faketoken" } );
-      });
+      describe('and the user could not be re-authenticated', function() {
+        beforeEach(function() {
+          var re_authenticate_deferred = $q.defer();
+          this.auth.re_authenticate.andReturn(re_authenticate_deferred.promise);
+          re_authenticate_deferred.reject("fakereject");
+          spyOn(this.auth, 'impersonate_error');
+          this.auth.impersonate_success(username, response, deferred);
+          $rootScope.$apply();
+        });
 
-      it('should set context auth_url', function() {
-        expect(this.auth.context.auth_url).toEqual("https://identity.api.rackspacecloud.com/v2.0/tokens");
-      });
-
-      it('should set tenantId', function() {
-        expect(this.auth.context.tenantId).toEqual("666666");
-      });
-
-      it('should store context for future use', function() {
-        expect(this.auth.store_context).toHaveBeenCalled();
-      });
-
-      it('should save auth for future use', function() {
-        expect(this.auth.save).toHaveBeenCalled();
-      });
-
-      it('should check authentication state', function() {
-        expect(this.auth.check_state).toHaveBeenCalled();
-      });
-
-      it('should resolve the deferred promise', function() {
-        expect(deferred.resolve).toHaveBeenCalled();
+        it('should call impersonate_error', function() {
+          expect(this.auth.impersonate_error).toHaveBeenCalledWith("fakereject", deferred);
+        });
       });
     });
 
