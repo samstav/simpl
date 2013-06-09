@@ -17,7 +17,7 @@ from mox import IgnoreArg, ContainsKeyValue
 from webtest import TestApp
 
 import checkmate
-from checkmate import deployments, keys, test
+from checkmate import keys, test
 from checkmate.common import tasks as common_tasks
 from checkmate.deployment import (
     Deployment,
@@ -1183,108 +1183,6 @@ class TestDeploymentScenarios(unittest.TestCase):
         return Manager.plan(deployment, RequestContext())
 
 
-class TestDeploymentsAPI(unittest.TestCase):
-    """Test GET /deployments endpoint"""
-
-    def setUp(self):
-        self._mox = mox.Mox()
-
-        self.root_app = bottle.Bottle()
-        self.root_app.catchall = False
-        self.filters = test.MockWsgiFilters(self.root_app)
-        self.filters.context.is_admin = True
-        self.app = TestApp(self.filters)
-
-        self.manager = self._mox.CreateMockAnything()
-        self.router = deployments.Router(self.root_app, self.manager)
-
-        unittest.TestCase.setUp(self)
-
-    def tearDown(self):
-        self._mox.UnsetStubs()
-        unittest.TestCase.tearDown(self)
-
-    def _assert_good_count(self, ret, expected_count):
-        self.assertIsNotNone(ret, "No count returned")
-        self.assertIn("count", ret, "Return does not contain count")
-        self.assertEqual(expected_count, ret.get("count", -1),
-                         "Wrong count returned")
-
-    def test_get_count(self):
-        self.manager.count(tenant_id="123").AndReturn(3)
-        self._mox.ReplayAll()
-        res = self.app.get('/123/deployments/count')
-        self.assertEqual(res.status, '200 OK')
-        self.assertEqual(res.content_type, 'application/json')
-        self._assert_good_count(json.loads(res.body), 3)
-
-
-class TestPostDeployments(unittest.TestCase):
-    """ Test POST /deployments endpoint """
-
-    def setUp(self):
-        self._mox = mox.Mox()
-
-        self.root_app = bottle.Bottle()
-        self.root_app.catchall = False
-        self.filters = test.MockWsgiFilters(self.root_app)
-        self.filters.context.tenant = "T1000"
-        self.app = TestApp(self.filters)
-
-        self.manager = self._mox.CreateMockAnything()
-        self.router = Router(self.root_app, self.manager)
-
-        self._deployment = {
-            'id': '1234',
-            'tenantId': 'T1000',
-            'environment': {},
-            'blueprint': {
-                'name': 'Test',
-                'services': {}
-            }
-        }
-
-        unittest.TestCase.setUp(self)
-
-    def tearDown(self):
-        self._mox.UnsetStubs()
-        unittest.TestCase.tearDown(self)
-
-    def test_post_asynchronous(self):
-        """ Test that POST /deployments?asynchronous=1 returns a 202 """
-        self.manager.save_deployment(IgnoreArg(), api_id='1234',
-                                     tenant_id="T1000").AndReturn(None)
-        self._mox.StubOutWithMock(checkmate.deployments.router, "tasks")
-        tasks = checkmate.deployments.router.tasks
-        tasks.process_post_deployment = self._mox.CreateMockAnything()
-        tasks.process_post_deployment.delay(IgnoreArg(),
-                                            IgnoreArg()).AndReturn(None)
-
-        self._mox.ReplayAll()
-        res = self.app.post('/deployments?asynchronous=1',
-                            json.dumps(self._deployment),
-                            content_type='application/json')
-        self.assertEqual(res.status, '202 Accepted')
-        self.assertEqual(res.content_type, 'application/json')
-
-    def test_post_synchronous(self):
-        """ Test that POST /deployments returns a 202 """
-        self.manager.select_driver('1234').AndReturn(self.manager)
-        self.manager.save_deployment(self._deployment, IgnoreArg(),
-                                     tenant_id="T1000").AndReturn(None)
-        self._mox.StubOutWithMock(checkmate.deployments.router, "tasks")
-        tasks = checkmate.deployments.router.tasks
-        tasks.process_post_deployment(IgnoreArg(), IgnoreArg(),
-                                      driver=IgnoreArg()).AndReturn(None)
-
-        self._mox.ReplayAll()
-        res = self.app.post('/deployments',
-                            json.dumps(self._deployment),
-                            content_type='application/json')
-        self.assertEqual(res.status, '202 Accepted')
-        self.assertEqual(res.content_type, 'application/json')
-
-
 class TestCloneDeployments(unittest.TestCase):
     """ Test clone_deployment """
 
@@ -1706,7 +1604,7 @@ class TestPostbackHelpers(unittest.TestCase):
         """ Test mass provider resource updates """
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
-        router = Router(bottle.default_app(), manager)
+        Router(bottle.default_app(), manager)
         db.get_deployment('1234').AndReturn(self._deployment)
         self._mox.StubOutWithMock(
             checkmate.deployments.tasks.resource_postback, "delay")
