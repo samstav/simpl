@@ -68,6 +68,7 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         self.driver.database()['tenants'].remove({'tenant_id': '111111'})
         self.driver.database()['deployments'].remove({'tenantId': 'T3'})
         self.driver.database()['deployments'].remove({'tenantId': 'TOTHER'})
+        self.driver.database()['blueprints'].remove({})
 
 
 @unittest.skipIf(SKIP, REASON)

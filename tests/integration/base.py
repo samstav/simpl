@@ -44,9 +44,12 @@ class DBDriverTests(object):
             self.driver = db.get_driver(
                 connection_string=self.connection_string, reset=True)
 
-    def test_instantiation(self):
+    def test_driver_instantiation(self):
         self.assertEqual(self.driver.connection_string, self.connection_string)
 
+    #
+    # Tenants
+    #
     def test_add_tags(self):
         new_tags = ['foo', 'bar', 'baz']
         self.driver.add_tenant_tags('1234', *new_tags)
@@ -198,61 +201,9 @@ class DBDriverTests(object):
         results = self.driver.get_deployment(_id, with_secrets=True)
         self.assertDictEqual(original, results)
 
-    def test_workflows(self):
-        _id = uuid.uuid4().hex[0:8]
-        entity = {
-            u'id': _id,
-            u'name': u'My Workflow',
-            u'credentials': [u'My Secrets']
-        }
-        body, secrets = utils.extract_sensitive_data(entity)
-        results = self.driver.save_workflow(entity['id'], body, secrets,
-                                            tenant_id='T1000')
-        self.assertDictEqual(results, body)
-
-        results = self.driver.get_workflow(entity['id'], with_secrets=True)
-        entity['tenantId'] = u'T1000'  # gets added
-        self.assertDictEqual(results, entity)
-        self.assertIn('credentials', results)
-
-        body[u'name'] = u'My Updated Workflow'
-        entity[u'name'] = u'My Updated Workflow'
-        results = self.driver.save_workflow(entity[u'id'], body)
-
-        results = self.driver.get_workflow(entity[u'id'], with_secrets=True)
-        self.assertIn(u'credentials', results)
-        self.assertDictEqual(results, entity)
-
-        results = self.driver.get_workflow(entity[u'id'], with_secrets=False)
-        self.assertNotIn(u'credentials', results)
-        body[u'tenantId'] = u'T1000'  # gets added
-        self.assertDictEqual(results, body)
-
-    def test_workflow_locking(self):
-        _id = uuid.uuid4().hex[0:8]
-        entity = {
-            'id': _id,
-            'name': 'My Workflow'
-        }
-        results = self.driver.save_workflow(entity['id'], entity, None,
-                                            tenant_id='T1000')
-
-        _, key = self.driver.lock_workflow(entity['id'])
-        with self.assertRaises(db.ObjectLockedError):
-            self.driver.lock_workflow(entity['id'])
-
-        entity['name'] = 'My Updated Workflow'
-        results = self.driver.save_workflow(entity['id'], entity)
-        self.assertEqual(entity, results)
-
-        #  Check still locked
-        with self.assertRaises(db.ObjectLockedError):
-            self.driver.lock_workflow(entity['id'])
-
-        self.driver.unlock_workflow(entity['id'], key=key)
-        self.driver.lock_workflow(entity['id'])  # should succeed
-
-
+    #
+    # Deployments
+    #
     def test_save_get_deployment_with_defaults(self):
         '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
@@ -875,6 +826,156 @@ class DBDriverTests(object):
         }
         self.assertDictEqual(expected, results['results']['1'])
 
+    #
+    #  Blueprints
+    #
+    #
+    def test_get_blueprints_returns_all_blueprints(self):
+        ''' DOCS '''
+        self.driver.save_blueprint(
+            '1234',
+            body={'id': '1234'}
+        )
+        self.driver.save_blueprint(
+            '4321',
+            body={'id': '4321'}
+        )
+        self.driver.save_blueprint(
+            '9999',
+            body={'id': '9999'}
+        )
+
+        self.assertEquals(
+            {
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234'},
+                    '4321': {'id': '4321'},
+                    '9999': {'id': '9999'},
+                },
+                'collection-count': 3
+            },
+            self.driver.get_blueprints()
+        )
+
+    def test_get_blueprints_with_offset(self):
+        ''' DOCS '''
+        self.driver.save_blueprint(
+            '1234',
+            body={'id': '1234'}
+        )
+        self.driver.save_blueprint(
+            '4321',
+            body={'id': '4321'}
+        )
+        self.driver.save_blueprint(
+            '9999',
+            body={'id': '9999'}
+        )
+
+        self.assertEquals(
+            {
+                '_links': {},
+                'results': {
+                    '4321': {'id': '4321'},
+                    '9999': {'id': '9999'},
+                },
+                'collection-count': 3
+            },
+            self.driver.get_blueprints(offset=1)
+        )
+
+    def test_get_blueprints_with_limit(self):
+        ''' DOCS '''
+        self.driver.save_blueprint(
+            '1234',
+            body={'id': '1234'}
+        )
+        self.driver.save_blueprint(
+            '4321',
+            body={'id': '4321'}
+        )
+        self.driver.save_blueprint(
+            '9999',
+            body={'id': '9999'}
+        )
+
+        self.assertEquals(
+            {
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234'},
+                },
+                'collection-count': 3
+            },
+            self.driver.get_blueprints(limit=1)
+        )
+
+    def test_get_blueprints_with_offset_and_limit(self):
+        ''' DOCS '''
+        self.driver.save_blueprint(
+            '1234',
+            body={'id': '1234'}
+        )
+        self.driver.save_blueprint(
+            '4321',
+            body={'id': '4321'}
+        )
+        self.driver.save_blueprint(
+            '9999',
+            body={'id': '9999'}
+        )
+
+        self.assertEquals(
+            {
+                '_links': {},
+                'results': {
+                    '4321': {'id': '4321'},
+                },
+                'collection-count': 3
+            },
+            self.driver.get_blueprints(offset=1, limit=1)
+        )
+
+    def test_offset_passed_to_get_blueprints_as_none(self):
+        ''' DOCS '''
+        self.driver.save_blueprint(
+            '1234',
+            body={'id': '1234'}
+        )
+
+        self.assertEquals(
+            {
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234'}
+                },
+                'collection-count': 1
+            },
+            self.driver.get_blueprints(offset=None)
+        )
+
+    def test_limit_passed_to_get_blueprints_as_none(self):
+        ''' DOCS '''
+        self.driver.save_blueprint(
+            '1234',
+            body={'id': '1234'}
+        )
+
+        self.assertEquals(
+            {
+                '_links': {},
+                'results': {
+                    '1234': {'id': '1234'}
+                },
+                'collection-count': 1
+            },
+            self.driver.get_blueprints(limit=None)
+        )
+
+    #
+    # Workflows
+    #
     def test_trim_get_workflows(self):
         '''Make sure we don't return too much data in list workflows'''
         self.driver.save_workflow(
@@ -903,6 +1004,60 @@ class DBDriverTests(object):
             u'tenantId': u"T3",
         }
         self.assertDictEqual(expected, results['results']['1'])
+
+    def test_workflows(self):
+        _id = uuid.uuid4().hex[0:8]
+        entity = {
+            u'id': _id,
+            u'name': u'My Workflow',
+            u'credentials': [u'My Secrets']
+        }
+        body, secrets = utils.extract_sensitive_data(entity)
+        results = self.driver.save_workflow(entity['id'], body, secrets,
+                                            tenant_id='T1000')
+        self.assertDictEqual(results, body)
+
+        results = self.driver.get_workflow(entity['id'], with_secrets=True)
+        entity['tenantId'] = u'T1000'  # gets added
+        self.assertDictEqual(results, entity)
+        self.assertIn('credentials', results)
+
+        body[u'name'] = u'My Updated Workflow'
+        entity[u'name'] = u'My Updated Workflow'
+        results = self.driver.save_workflow(entity[u'id'], body)
+
+        results = self.driver.get_workflow(entity[u'id'], with_secrets=True)
+        self.assertIn(u'credentials', results)
+        self.assertDictEqual(results, entity)
+
+        results = self.driver.get_workflow(entity[u'id'], with_secrets=False)
+        self.assertNotIn(u'credentials', results)
+        body[u'tenantId'] = u'T1000'  # gets added
+        self.assertDictEqual(results, body)
+
+    def test_workflow_locking(self):
+        _id = uuid.uuid4().hex[0:8]
+        entity = {
+            'id': _id,
+            'name': 'My Workflow'
+        }
+        results = self.driver.save_workflow(entity['id'], entity, None,
+                                            tenant_id='T1000')
+
+        _, key = self.driver.lock_workflow(entity['id'])
+        with self.assertRaises(db.ObjectLockedError):
+            self.driver.lock_workflow(entity['id'])
+
+        entity['name'] = 'My Updated Workflow'
+        results = self.driver.save_workflow(entity['id'], entity)
+        self.assertEqual(entity, results)
+
+        #  Check still locked
+        with self.assertRaises(db.ObjectLockedError):
+            self.driver.lock_workflow(entity['id'])
+
+        self.driver.unlock_workflow(entity['id'], key=key)
+        self.driver.lock_workflow(entity['id'])  # should succeed
 
 
 if __name__ == '__main__':
