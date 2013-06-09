@@ -16,9 +16,10 @@ from bottle import app, run, request, response, HeaderDict, default_app, load
 from celery import Celery
 
 from checkmate import db
+from checkmate import blueprints
 from checkmate import celeryconfig
-from checkmate.api.admin import Router as AdminRouter
 from checkmate import deployments
+from checkmate.api.admin import Router as AdminRouter
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
@@ -167,6 +168,7 @@ def main_func():
     )
 
     MANAGERS['deployments'] = deployments.Manager(DRIVERS)
+    MANAGERS['blueprints'] = blueprints.Manager(DRIVERS)
 
     # Load admin routes if requested
     with_admin = False
@@ -179,6 +181,9 @@ def main_func():
     #Load API Calls
     ROUTERS['deployments'] = deployments.Router(
         next_app, MANAGERS['deployments']
+    )
+    ROUTERS['blueprints'] = blueprints.Router(
+        next_app, MANAGERS['blueprints']
     )
 
     next_app = middleware.AuthorizationMiddleware(next_app,
