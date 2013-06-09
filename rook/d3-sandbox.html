@@ -58,15 +58,21 @@ function distanceToStartSpec(memo, all_specs, spec) {
   return memo[spec.id];
 }
 
-var getY = function(nodes, node, level) {
-  level = level || 0;
-  var y = (level * 30) + 50 + (50 * node.group);
-  var existing_node = _.findWhere(nodes, { x: node.x, y: y, group: node.group });
-  if(!existing_node) {
-    return y;
-  }
+var resource_position = function(group) {
+  var spacing = 50;
+  return group * spacing;
+}
 
-  return getY(nodes, node, level+1)
+var avoid_collision = function(nodes, current_position, axis, level) {
+  level = level || 0;
+  var spacing = 25;
+  var new_position = _.clone(current_position);
+  var existing_node = _.findWhere(nodes, new_position);
+  if (!existing_node) {
+    return new_position;
+  }
+  new_position[axis] += spacing;
+  return avoid_collision(nodes, new_position, axis, level+1);
 }
 
 var getGroup = function(spec, specs) {
@@ -83,10 +89,11 @@ var getGroup = function(spec, specs) {
   return group;
 }
 
-var buildNodes = function(specs, positions_memo) {
+var buildNodes = function(specs) {
   var nodes = [];
   var spacing = { x: 50, y: 50 };
   var start_group = 0;
+  var positions_memo = {};
   var start_position = { x: 20, y: 200 };
   var fixed_status = true;
   var skip_nodes = ['Root', 'Start'];
@@ -105,12 +112,16 @@ var buildNodes = function(specs, positions_memo) {
 
     if(spec.properties) {
       if ( skip_nodes.indexOf(spec_name) === -1 ) {
-        var position = distanceToStartSpec(positions_memo, specs, spec);
+        var group = getGroup(spec, specs);
+        var distance = distanceToStartSpec(positions_memo, specs, spec);
+        var row = resource_position(group);
+        var current_position = { x: distance, y: row };
+        var position = avoid_collision(nodes, current_position, 'y');
         node.fixed = fixed_status;
         node.name = spec_name;
-        node.group = getGroup(spec, specs);
-        node.x = spacing.x + position;
-        node.y = getY(nodes, node, 0);
+        node.group = group;
+        node.x = position.x;
+        node.y = position.y;
 
         nodes.push(node)
       }
@@ -179,7 +190,7 @@ var buildNetwork = function(json, width, height) {
   nodes.append('circle')
       .attr("r", 8)
       .attr("class", "node")
-      .style("fill", function(d) { return color(d.group); })
+      .style("fill", function(d) { return color(d.group); });
 
   nodes.append("svg:image")
       .attr("class", "circle")
@@ -205,8 +216,7 @@ var buildNetwork = function(json, width, height) {
 specs = data.wf_spec.task_specs
 var WIDTH = 1400;
 var HEIGHT = 900;
-var positions_memo = {}
-var nodes = buildNodes(specs, positions_memo);
+var nodes = buildNodes(specs);
 var links = buildLinks(specs);
 var network = { nodes: nodes, links: links };
 var force = buildNetwork(network, WIDTH, HEIGHT);
