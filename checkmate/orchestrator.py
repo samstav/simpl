@@ -82,8 +82,7 @@ def pause_workflow(w_id, driver):
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                     driver=driver, workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
-
-    pause_workflow.retry()
+        return pause_workflow.retry()
 
 
 @task(default_retry_delay=10, max_retries=300)

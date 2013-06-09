@@ -468,7 +468,6 @@ class Driver(DbBase):
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
         '''
-
         if with_secrets:
             locked_object, key = self._lock_find_object(klass, api_id, key=key)
             return self.merge_secrets(klass, api_id, locked_object), key
@@ -481,8 +480,8 @@ class Driver(DbBase):
         :param klass: the class of the object to unlock.
         :param api_id: the object's API ID.
         :param key: the key used to lock the object (see lock_object()).
-        :raises ValueError: If the unlocked object does not exist or the lock
-            was incorrect.
+        :raises InvalidKeyError: If the unlocked object does not exist or the
+            lock key did not match.
         '''
         unlocked_object = self.database()[klass].find_and_modify(
             query={
