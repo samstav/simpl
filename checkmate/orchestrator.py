@@ -131,9 +131,10 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
               extra=dict(data=d_wf.get_dump()))
 
     # Prepare to run it
+    tenant_id = workflow.get("tenantId")
     if d_wf.is_completed():
         if d_wf.get_attribute('status') != "COMPLETE":
-            cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
+            cm_workflow.update_workflow(d_wf, tenant_id,
                                         driver=driver, workflow_id=w_id)
             update_deployment_status.delay(dep_id, 'UP', driver=driver)
             LOG.debug("Workflow '%s' is already complete. Marked it so.", w_id)
@@ -160,8 +161,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         return False
     finally:
         # Save any changes, even if we errored out
+        failed_tasks = cm_workflow.get_failed_tasks(d_wf, tenant_id)
         after = d_wf.get_dump()
-        failed_tasks = cm_workflow.get_failed_tasks(d_wf)
 
         if before != after or failed_tasks:
             # We made some progress, so save and prioritize next run

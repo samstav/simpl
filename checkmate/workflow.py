@@ -7,14 +7,18 @@ import time
 import uuid
 
 from SpiffWorkflow import Workflow as SpiffWorkflow, Task
-from SpiffWorkflow.specs import WorkflowSpec, Simple, Join, Merge
+from SpiffWorkflow.specs import WorkflowSpec, Simple, Join, Merge, Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
 from checkmate.deployment import get_status
-from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateRetriableException,
+    CheckmateResumableException,
+)
 from checkmate.utils import (
     get_time_string,
     extract_sensitive_data,
@@ -47,6 +51,29 @@ def update_workflow_status(workflow, workflow_id=None):
             workflow.attributes['status'] = "IN PROGRESS"
 
 
+def reset_task_tree(task):
+    '''
+    For a given task, would traverse through the parents of the task, changing
+    the state of each of the task(s) to FUTURE, until the 'root' task is found.
+    For this 'root' task, the state is changed to WAITING.
+
+    :param task: Task which would have to be reset.
+    :return:
+    '''
+    while True:
+        if isinstance(task.task_spec, Celery):
+            task.task_spec._clear_celery_task_data(task)
+        task._state = Task.FUTURE
+
+        tags = task.get_property('task_tags', [])
+        parent_task = task.parent
+
+        if 'root' in tags or not parent_task:
+            task._state = Task.WAITING
+            break
+        task = parent_task
+
+
 def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     '''
     Updates the workflow status, and saves the workflow. Worflow status
@@ -74,22 +101,45 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     driver.save_workflow(workflow_id, body, secrets=secrets)
 
 
-def get_failed_tasks(workflow):
+def get_failed_tasks(wf_dict, tenant_id):
     '''
     Traverses through the workflow-tasks, and collects errors information from
     all the failed tasks
-    :param workflow: The workflow to get the tasks from
+    :param wf_dict: The workflow to get the tasks from
     :return: List of error information
     '''
     results = []
-    tasks = workflow.get_tasks()
+    tasks = wf_dict.get_tasks()
     while tasks:
         task = tasks.pop(0)
         if is_failed_task(task):
             task_state = task._get_internal_attribute("task_state")
-            results.append({
-                "error_message": task_state["info"],
-                "error_traceback": task_state["traceback"]})
+            info = task_state["info"]
+            try:
+                exception = eval(info)
+                if isinstance(exception, CheckmateRetriableException):
+                    results.append({
+                        "error-message": exception.message,
+                        "error-help": exception.error_help,
+                        "retriable": True,
+                        "retry-link":
+                        "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
+                        tenant_id, wf_dict.attributes["id"], task.id)
+                    })
+                elif isinstance(exception, CheckmateResumableException):
+                    results.append({
+                        "error-message": exception.message,
+                        "error-help": exception.error_help,
+                        "resumable": True,
+                        "resume-link": "/%s/workflows/%s/tasks/%s/+poke" % (
+                            tenant_id,
+                            wf_dict.attributes["id"],
+                            task.id)
+                    })
+                elif isinstance(exception, Exception):
+                    results.append({"error-message": str(exception)})
+            except Exception:
+                results.append({"error-message": info})
     return results
 
 

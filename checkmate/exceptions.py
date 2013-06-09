@@ -90,6 +90,28 @@ class CheckmateServerBuildFailed(CheckmateException):
     pass
 
 
+class CheckmateRetriableException(CheckmateException):
+    '''
+    Retriable Exception
+    '''
+
+    def __init__(self, message, error_help):
+        self.error_help = error_help
+        self.message = message
+        super(CheckmateException, self).__init__(message, error_help)
+
+
+class CheckmateResumableException(CheckmateException):
+    '''
+    Retriable Exception
+    '''
+
+    def __init__(self, message, error_help):
+        self.error_help = error_help
+        self.message = message
+        super(CheckmateException, self).__init__(message, error_help)
+
+
 class CheckmateValidationException(CheckmateException):
     """Validation Error"""
     pass

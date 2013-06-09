@@ -3,11 +3,14 @@ Rackspace Cloud Load Balancer provider and celery tasks
 '''
 import copy
 import logging
+import sys
 
 from celery.canvas import chain, group
-from cloudlb.errors import CloudlbException, NotFound
+from cloudlb.errors import CloudlbException, NotFound, RateLimit
 from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
+
+import cloudlb
 
 from checkmate.common.caching import Memorize, MemorizeMethod
 from checkmate.deployments import (
@@ -17,12 +20,11 @@ from checkmate.deployments import (
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
-    CheckmateBadState
+    CheckmateBadState,
+    CheckmateRetriableException,
 )
-import cloudlb
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
-import sys
 from checkmate.middleware import RequestContext
 from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
@@ -736,21 +738,25 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
     meta = tags or context.get("metadata", None)
-    if meta:
-        # attach checkmate metadata to the lb if available
-        new_meta = []
-        # Assumes that meta data is in format
-        #   "meta" : {"key" : "value" , "key2" : "value2"}
-        for key in meta:
-            new_meta.append({"key": key, "value": meta[key]})
-        loadbalancer = api.loadbalancers.create(
-            name=name, port=port, protocol=protocol.upper(),
-            nodes=[fakenode], virtualIps=[vip],
-            algorithm=algorithm, metadata=new_meta)
-    else:
-        loadbalancer = api.loadbalancers.create(
-            name=name, port=port, protocol=protocol.upper(),
-            nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
+
+    try:
+        if meta:
+            # attach checkmate metadata to the lb if available
+            new_meta = []
+            # Assumes that meta data is in format
+            #   "meta" : {"key" : "value" , "key2" : "value2"}
+            for key in meta:
+                new_meta.append({"key": key, "value": meta[key]})
+            loadbalancer = api.loadbalancers.create(
+                name=name, port=port, protocol=protocol.upper(),
+                nodes=[fakenode], virtualIps=[vip],
+                algorithm=algorithm, metadata=new_meta)
+        else:
+            loadbalancer = api.loadbalancers.create(
+                name=name, port=port, protocol=protocol.upper(),
+                nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
+    except RateLimit as rate_limit_exc:
+        raise CheckmateRetriableException(rate_limit_exc.reason, "")
 
     # Put the instance_id in the db as soon as it's available
     instance_id = {
@@ -1172,7 +1178,7 @@ def wait_on_build(context, lbid, region, api=None):
                                                context['deployment'],
                                                context['resource']),
                                            instance_key).apply_async()
-        raise CheckmateException(msg)
+        raise CheckmateRetriableException(msg, "")
     elif loadbalancer.status == "ACTIVE":
         results['status'] = "ACTIVE"
         results['status-message'] = ""

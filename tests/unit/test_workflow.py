@@ -8,12 +8,14 @@ For tests, we don't care about:
     W0212 - Access to protected member of a client class
     W0232 - Class has no __init__ method
 '''
-from SpiffWorkflow.Workflow import Workflow
-from SpiffWorkflow.specs import WorkflowSpec, Simple
-from SpiffWorkflow.storage import DictionarySerializer
-from checkmate import workflow
 import mox
 import unittest2 as unittest
+
+from SpiffWorkflow.specs import WorkflowSpec, Simple
+from SpiffWorkflow.storage import DictionarySerializer
+from SpiffWorkflow.Workflow import Workflow
+
+from checkmate import workflow
 from checkmate.workflow import (
     get_failed_tasks,
     is_failed_task,
@@ -24,32 +26,132 @@ from checkmate.workflow import (
 class TestWorkflow(unittest.TestCase):
     def setUp(self):
         self.mox = mox.Mox()
+        self.mocked_workflow = self.mox.CreateMockAnything()
+        self.task_with_error = self.mox.CreateMockAnything()
+        self.task_without_error = self.mox.CreateMockAnything()
+        self.tenant_id = "tenant_id"
+        self.task_with_error.id = "task_id"
 
     def tearDown(self):
+        self.mox.VerifyAll()
         self.mox.UnsetStubs()
 
-    def test_get_failed_tasks(self):
-        workflow = self.mox.CreateMockAnything()
-        task_with_error = self.mox.CreateMockAnything()
-        task_without_error = self.mox.CreateMockAnything()
-        task_with_error._get_internal_attribute('task_state').AndReturn({
-            "info": "Error Information",
-            "state": "FAILURE",
-            "traceback": "Traceback"})
-        task_with_error._get_internal_attribute('task_state').AndReturn({
-            "info": "Error Information",
-            "state": "FAILURE",
-            "traceback": "Traceback"})
-        task_without_error._get_internal_attribute('task_state').AndReturn({})
-        workflow.get_tasks().AndReturn([task_with_error, task_without_error])
+    def test_get_failed_tasks_evaluates_only_failed_tasks(self):
+        task_state = {"info": "Error Information", "state": "FAILURE",
+                      "traceback": "Traceback"}
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.task_without_error._get_internal_attribute(
+            'task_state').AndReturn({})
+        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error,
+                                                    self.task_without_error])
         self.mox.ReplayAll()
 
-        failed_tasks = get_failed_tasks(workflow)
+        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
+
+        self.assertEqual(1, len(failed_tasks))
+        self.assertDictEqual({"error-message": "Error Information"},
+                             failed_tasks[0])
+
+    def test_get_failed_tasks_with_retriable_exception(self):
+        task_state = {
+            "info": "CheckmateRetriableException('exception_message', "
+                    "'error-help')",
+            "state": "FAILURE",
+            "traceback": "Traceback"
+        }
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
+        self.mocked_workflow.attributes = {"id": "wf_id"}
+        self.mox.ReplayAll()
+
+        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
-        self.assertDictEqual({"error_message": "Error Information",
-                              "error_traceback": "Traceback"},
+        expected_error = {
+            "error-message": "exception_message",
+            "error-help": "error-help",
+            "retriable": True,
+            "retry-link": "/tenant_id/workflows/wf_id/tasks/task_id/"
+                          "+reset-task-tree"
+        }
+        self.assertDictEqual(expected_error,
+                             failed_tasks[0])
+
+    def test_get_failed_tasks_with_resumable_exception(self):
+        task_state = {
+            "info": "CheckmateResumableException('exception_message', "
+                    "'error-help')",
+            "state": "FAILURE",
+            "traceback": "Traceback"
+        }
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
+        self.mocked_workflow.attributes = {"id": "wf_id"}
+        self.mox.ReplayAll()
+
+        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
+
+        self.mox.VerifyAll()
+        self.assertEqual(1, len(failed_tasks))
+        expected_error = {
+            "error-message": "exception_message",
+            "error-help": "error-help",
+            "resumable": True,
+            "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+poke"
+        }
+        self.assertDictEqual(expected_error,
+                             failed_tasks[0])
+
+    def test_get_failed_tasks_with_generic_exception(self):
+        task_state = {
+            "info": "Exception('This is an exception')",
+            "state": "FAILURE",
+            "traceback": "Traceback"
+        }
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
+        self.mox.ReplayAll()
+
+        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
+
+        self.mox.VerifyAll()
+        self.assertEqual(1, len(failed_tasks))
+        expected_error = {"error-message": "This is an exception"}
+        self.assertDictEqual(expected_error,
+                             failed_tasks[0])
+
+    def test_get_failed_tasks_with_no_exception(self):
+        task_state = {
+            "info": "This is a exception message",
+            "state": "FAILURE",
+            "traceback": "Traceback"
+        }
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
+        self.mox.ReplayAll()
+
+        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
+
+        self.mox.VerifyAll()
+        self.assertEqual(1, len(failed_tasks))
+        expected_error = {"error-message": "This is a exception message"}
+        self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
     def test_is_failed_task(self):
@@ -98,6 +200,7 @@ class TestWorkflow(unittest.TestCase):
 
         self.mox.StubOutWithMock(workflow, 'update_workflow_status')
         workflow.update_workflow_status(d_wf, workflow_id=w_id)
+
         mock_driver = self.mox.CreateMockAnything()
         wf_serialize = d_wf.serialize(serializer)
         wf_serialize["tenantId"] = tenant_id

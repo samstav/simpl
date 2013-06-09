@@ -10,7 +10,7 @@ import logging
 import os
 import uuid
 
-from SpiffWorkflow import Workflow as SpiffWorkflow, Task, Workflow
+from SpiffWorkflow import Workflow as SpiffWorkflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common.tasks import update_operation
@@ -208,13 +208,11 @@ def execute_workflow(id, tenant_id=None, driver=DB):
 @route('/workflows/<id>/+pause', method=['GET', 'POST'])
 @with_tenant
 def pause_workflow(id, tenant_id=None, driver=DB):
-    """Process a checkmate deployment workflow
-
-    Pauses the workflow.
+    '''Pauses the workflow.
     Updates the operation status to pauses when done
 
     :param id: checkmate workflow id
-    """
+    '''
     if is_simulation(id):
         driver = SIMULATOR_DB
     workflow = driver.get_workflow(id)
@@ -376,7 +374,7 @@ def post_workflow_task(id, task_id, tenant_id=None, driver=DB):
         task._state = entity['state']
 
     # Save workflow (with secrets)
-    wf_import.update_workflow_status(wf, workflow_id=workflow.id)
+    wf_import.update_workflow_status(wf, workflow_id=id)
     serializer = DictionarySerializer()
     body, secrets = extract_sensitive_data(wf.serialize(serializer))
     body['tenantId'] = workflow.get('tenantId', tenant_id)
@@ -450,6 +448,52 @@ def reset_workflow_task(id, task_id, tenant_id=None, driver=DB):
     body, secrets = extract_sensitive_data(data)
     body['workflow_id'] = id  # so we know which workflow it came from
     return write_body(body, request, response)
+
+
+@route('/workflows/<id>/tasks/<task_id:int>/+reset-task-tree', method=['GET',
+                                                                       'POST'])
+@with_tenant
+def reset_task_tree(id, task_id, tenant_id=None, driver=DB):
+    '''Resets all the tasks starting from the passed in task_id and going up
+    the chain till the root task is reset
+
+    :param id: checkmate workflow id
+    :param task_id: checkmate workflow task id
+    '''
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+
+    workflow = driver.get_workflow(id, with_secrets=True)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    serializer = DictionarySerializer()
+    wf = SpiffWorkflow.deserialize(serializer, workflow)
+
+    task = wf.get_task(task_id)
+    if not task:
+        abort(404, 'No task with id %s' % task_id)
+
+    if task.task_spec.__class__.__name__ != 'Celery':
+        abort(406, "You can only reset Celery tasks. This is a '%s' task" %
+              task.task_spec.__class__.__name__)
+
+    if task.state != Task.WAITING:
+        abort(406, "You can only reset WAITING tasks. This task is in '%s'" %
+              task.get_state_name())
+
+    wf_import.reset_task_tree(task)
+
+    wf_import.update_workflow_status(wf)
+    serializer = DictionarySerializer()
+    entity = wf.serialize(serializer)
+    body, secrets = extract_sensitive_data(entity)
+    body['tenantId'] = workflow.get('tenantId', tenant_id)
+    body['id'] = id
+    updated = safe_workflow_save(id, body, secrets=secrets,
+                                 tenant_id=tenant_id, driver=driver)
+
+    return write_body(updated, request, response)
 
 
 @route('/workflows/<workflow_id>/tasks/<task_id:int>/+resubmit',
