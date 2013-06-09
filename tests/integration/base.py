@@ -181,7 +181,8 @@ class DBDriverTests(object):
         self.assertDictEqual(secret, secrets)
         results = self.driver.save_deployment(_id, body, secrets=secrets)
         self.assertDictEqual(results, body)
-        # retrieve the object with secrets to make sure we get them correctly
+        # retrieve the deployment with secrets to make sure we get them
+        # correctly
         results = self.driver.get_deployment(_id, with_secrets=True)
         self.assertDictEqual(original, results)
         # use the "safe" version and add a new secret
@@ -227,8 +228,8 @@ class DBDriverTests(object):
         body[u'tenantId'] = u'T1000'  # gets added
         self.assertDictEqual(results, body)
 
-    def test_save_get_object_with_defaults(self):
-        '''We are really testing object, but using deployment so that the
+    def test_save_get_deployment_with_defaults(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -241,8 +242,8 @@ class DBDriverTests(object):
             self.driver.get_deployment('1234')
         )
 
-    def test_save_get_object_with_secrets(self):
-        '''We are really testing object, but using deployment so that the
+    def test_save_get_deployment_with_secrets(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -260,8 +261,8 @@ class DBDriverTests(object):
             self.driver.get_deployment('1234', with_secrets=False)
         )
 
-    def test_save_object_with_merge(self):
-        '''We are really testing object, but using deployment so that the
+    def test_save_deployment_with_merge(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -274,7 +275,7 @@ class DBDriverTests(object):
             '1234',
             tenant_id='T3',
             body={'new': 'blerg'},
-            partial=True  # merge_existing in _save_object
+            partial=True  # merge_existing in _save_deployment
         )
 
         self.assertEquals(
@@ -282,8 +283,8 @@ class DBDriverTests(object):
             self.driver.get_deployment('1234')
         )
 
-    def test_save_object_with_overwrite(self):
-        '''We are really testing object, but using deployment so that the
+    def test_save_deployment_with_overwrite(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -296,7 +297,7 @@ class DBDriverTests(object):
             '1234',
             tenant_id='T3',
             body={'id': '1234', 'new': 'blerg'},
-            partial=False  # merge_existing in _save_object
+            partial=False  # merge_existing in _save_deployment
         )
 
         self.assertEquals(
@@ -304,8 +305,8 @@ class DBDriverTests(object):
             self.driver.get_deployment('1234')
         )
 
-    def test_get_objects_found_nothing(self):
-        '''We are really testing object, but using deployment so that the
+    def test_get_deployments_found_nothing(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.assertEquals(
@@ -313,8 +314,8 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3')
         )
 
-    def test_get_objects_with_defaults(self):
-        '''We are really testing object, but using deployment so that the
+    def test_get_deployments_with_defaults(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -345,8 +346,8 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3')
         )
 
-    def test_get_objects_with_no_tenant_id_returns_all_objects(self):
-        '''We are really testing object, but using deployment so that the
+    def test_get_deployments_with_no_tenant_id_returns_all_deployments(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -371,15 +372,19 @@ class DBDriverTests(object):
                 'results': {
                     '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'},
                     '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
-                    '9999': {'id': '9999', 'tenantId': 'TOTHER', 'status': 'NEW'}
+                    '9999': {
+                        'id': '9999',
+                        'tenantId': 'TOTHER',
+                        'status': 'NEW',
+                    }
                 },
                 'collection-count': 3
             },
             self.driver.get_deployments(tenant_id=None)
         )
 
-    def test_get_objects_with_secrets(self):
-        '''We are really testing object, but using deployment so that the
+    def test_get_deployments_with_secrets(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -425,8 +430,8 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3', with_secrets=False)
         )
 
-    def test_get_objects_with_offset(self):
-        '''We are really testing object, but using deployment so that the
+    def test_get_deployments_with_offset(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -451,66 +456,81 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3', offset=1)
         )
 
-    def test_get_objects_with_limit(self):
-        '''We are really testing object, but using deployment so that the
+    def test_get_deployments_with_limit(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234', 'status': 'NEW'}
+            body={'id': '1234', 'status': 'NEW', 'created': '2011-01-01'}
         )
         self.driver.save_deployment(
             '4321',
             tenant_id='T3',
-            body={'id': '4321', 'status': 'NEW'}
+            body={'id': '4321', 'status': 'NEW', 'created': '2012-01-01'}
         )
 
         self.assertEquals(
             {
                 '_links': {},
                 'results': {
-                    '1234': {'id': '1234', 'tenantId': 'T3', 'status': 'NEW'}
+                    '4321': {
+                        'id': '4321',
+                        'tenantId': 'T3',
+                        'status': 'NEW',
+                        'created': '2012-01-01',
+                    }
                 },
                 'collection-count': 2
             },
             self.driver.get_deployments(tenant_id='T3', limit=1)
         )
 
-    def test_get_objects_with_offset_and_limit(self):
-        '''We are really testing object, but using deployment so that the
+    def test_get_deployments_with_offset_and_limit(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234', 'status': 'NEW'}
+            body={'id': '1234', 'status': 'NEW', 'created': '2011-01-01'}
         )
         self.driver.save_deployment(
             '4321',
             tenant_id='T3',
-            body={'id': '4321', 'status': 'NEW'}
+            body={'id': '4321', 'status': 'NEW', 'created': '2012-01-01'}
         )
         self.driver.save_deployment(
             '5678',
             tenant_id='T3',
-            body={'id': '5678', 'status': 'NEW'}
+            body={'id': '5678', 'status': 'NEW', 'created': '2013-01-01'}
         )
 
         self.assertEquals(
             {
                 '_links': {},
                 'results': {
-                    '4321': {'id': '4321', 'tenantId': 'T3', 'status': 'NEW'},
-                    '5678': {'id': '5678', 'tenantId': 'T3', 'status': 'NEW'}
+                    '4321': {
+                        'id': '4321',
+                        'tenantId': 'T3',
+                        'status': 'NEW',
+                        'created': '2012-01-01',
+                    },
+                    '1234': {
+                        'id': '1234',
+                        'tenantId': 'T3',
+                        'status': 'NEW',
+                        'created': '2011-01-01',
+                    }
                 },
                 'collection-count': 3
             },
             self.driver.get_deployments(tenant_id='T3', offset=1, limit=2)
         )
 
-    def test_get_objects_omitting_count(self):
-        '''We are really testing object, but using deployment so that the
+    def test_get_deployments_omitting_count(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -529,8 +549,8 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3', with_count=False)
         )
 
-    def test_offset_passed_to_get_objects_as_none(self):
-        '''We are really testing object, but using deployment so that the
+    def test_offset_passed_to_get_deployments_as_none(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -550,8 +570,8 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3', offset=None)
         )
 
-    def test_limit_passed_to_get_objects_as_none(self):
-        '''We are really testing object, but using deployment so that the
+    def test_limit_passed_to_get_deployments_as_none(self):
+        '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation
         '''
         self.driver.save_deployment(
@@ -661,57 +681,64 @@ class DBDriverTests(object):
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
-            body={'id': '1234', 'status': 'PLANNED'}
-        )
-        self.driver.save_deployment(
-            '4321',
-            tenant_id='T3',
-            body={'id': '4321', 'status': 'FAILED'}
-        )
-        self.driver.save_deployment(
-            '5678',
-            tenant_id='T3',
-            body={'id': '5678', 'status': 'NEW'}
-        )
-        self.driver.save_deployment(
-            '8765',
-            tenant_id='T3',
-            body={'id': '8765', 'status': 'ALERT'}
+            body={'id': '1234', 'status': 'PLANNED', 'created': '2010-01-01'}
         )
         self.driver.save_deployment(
             '9999',
             tenant_id='T3',
-            body={'id': '9999', 'status': 'UP', 'r0': {'status': 'DELETED'}}
+            body={
+                'id': '9999',
+                'status': 'UP',
+                'r0': {'status': 'DELETED'},
+                'created': '2011-01-01',
+            }
+        )
+        self.driver.save_deployment(
+            '4321',
+            tenant_id='T3',
+            body={'id': '4321', 'status': 'FAILED', 'created': '2012-01-01'}
+        )
+        self.driver.save_deployment(
+            '5678',
+            tenant_id='T3',
+            body={'id': '5678', 'status': 'NEW', 'created': '2013-01-01'}
+        )
+        self.driver.save_deployment(
+            '8765',
+            tenant_id='T3',
+            body={'id': '8765', 'status': 'ALERT', 'created': '2014-01-01'}
         )
         self.driver.save_deployment(
             '0000',
             tenant_id='T3',
-            body={'id': '0000', 'status': 'DELETED'}
+            body={'id': '0000', 'status': 'DELETED', 'created': '2015-01-01'}
         )
 
         self.assertEquals(
             {
                 '_links': {},
                 'results': {
-                    '5678': {
-                        'id': '5678',
+                    '4321': {
+                        'status': 'FAILED',
+                        'created': '2012-01-01',
+                        'id': '4321',
                         'tenantId': 'T3',
-                        'status': 'NEW'
-                    },
-                    '8765': {
-                        'id': '8765',
-                        'tenantId': 'T3',
-                        'status':
-                        'ALERT'
                     },
                     '9999': {
-                        'id': '9999',
-                        'tenantId': 'T3',
                         'status': 'UP',
-                        'r0': {'status': 'DELETED'}
+                        'tenantId': 'T3',
+                        'r0': {'status': 'DELETED'},
+                        'id': '9999',
+                        'created': '2011-01-01',
+                    },
+                    '1234': {
+                        'status': 'PLANNED',
+                        'created': '2010-01-01',
+                        'id': '1234',
+                        'tenantId': 'T3',
                     }
                 },
-                'collection-count': 5
+                'collection-count': 5,
             },
             self.driver.get_deployments(
                 tenant_id='T3',
