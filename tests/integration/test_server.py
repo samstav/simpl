@@ -24,7 +24,6 @@ class TestServer(unittest.TestCase):
     def setUp(self):
         os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
         default_app.push()
-        reload(blueprints)
         reload(environments)
         reload(workflows)
         self.root_app = default_app.pop()
@@ -47,9 +46,6 @@ class TestServer(unittest.TestCase):
     def test_multitenant_workflow(self):
         self.rest_tenant_exercise('workflow')
 
-    def test_multitenant_blueprint(self):
-        self.rest_tenant_exercise('blueprint')
-
     def test_crosstenant_deployment(self):
         self.rest_cross_tenant_exercise('deployment')
 
@@ -58,9 +54,6 @@ class TestServer(unittest.TestCase):
 
     def test_crosstenant_workflow(self):
         self.rest_cross_tenant_exercise('workflow')
-
-    def test_crosstenant_blueprint(self):
-        self.rest_cross_tenant_exercise('blueprint')
 
     #
     # Functions called multiple times from above
