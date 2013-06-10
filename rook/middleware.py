@@ -14,10 +14,6 @@ from socket import gaierror
 import urllib2
 from urlparse import urlparse
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-from checkmate.middleware import TokenAuthMiddleware, RequestContext
-init_console_logging()
 # pylint: disable=E0611
 from bottle import (
     abort,
@@ -28,6 +24,7 @@ from bottle import (
     response,
     static_file,
 )
+from checkmate.middleware import TokenAuthMiddleware, RequestContext
 from Crypto.Hash import MD5
 import webob
 import webob.dec
