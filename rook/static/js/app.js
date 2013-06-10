@@ -378,9 +378,11 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     apikey: ''
   };
 
+  // Using fades will cause two modals displayed in a row (e.g. warning + error)
+  // to leave backdrop behind as of version ui-bootstrap-0.3.0
   $scope.modal_opts = {
-    backdropFade: true,
-    dialogFade: true,
+    backdropFade: false,
+    dialogFade: false
   };
   $scope.modal_window = {};
   $scope.open_modal = function(window_name) {
