@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 ''' Module to initialize and run Checkmate server'''
+import argparse
 import os
 import json
 import logging
@@ -18,8 +19,12 @@ from celery import Celery
 from checkmate import db
 from checkmate import blueprints
 from checkmate import celeryconfig
+from checkmate.common import config
 from checkmate import deployments
+from checkmate import middleware
+from checkmate import utils
 from checkmate.api.admin import Router as AdminRouter
+from checkmate.common.gzip_middleware import Gzipper
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
@@ -29,15 +34,12 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
 )
-from checkmate import middleware
-from checkmate import utils
-from checkmate.common.gzip_middleware import Gzipper
 
 LOG = logging.getLogger(__name__)
 DRIVERS = {}
 MANAGERS = {}
 ROUTERS = {}
-
+CONFIG = config.current()
 
 # Check our configuration
 from celery import current_app
@@ -118,14 +120,117 @@ def error_formatter(error):
     return utils.write_body(dict(error=output), request, response)
 
 
+def comma_separated_strs(value):
+    '''Handles comma-separated arguments passed in command-line'''
+    return map(str, value.split(","))
+
+
+def argument_parser():
+    '''Parses start-up arguments and returns namespace with config variables'''
+
+    parser = argparse.ArgumentParser()
+
+    #
+    # Positional arguments
+    #
+    if len(sys.argv) > 1 and sys.argv[1] == 'START':
+        sys.argv.pop(1)
+    parser.add_argument("address",
+                        help="address and optional port to start server on "
+                        "[address[:port]]",
+                        nargs='?',
+                        default="127.0.0.1:8080"
+                        )
+
+    #
+    # Verbosity, debugging, and monitoring
+    #
+    parser.add_argument("--logconfig",
+                        help="Optional logging configuration file")
+    parser.add_argument("-d", "--debug",
+                        action="store_true",
+                        help="turn on additional debugging inspection and "
+                        "output including full HTTP requests and responses. "
+                        "Log output includes source file path and line "
+                        "numbers."
+                        )
+    parser.add_argument("-v", "--verbose",
+                        action="store_true",
+                        help="turn up logging to DEBUG (default is INFO)"
+                        )
+    parser.add_argument("-q", "--quiet",
+                        action="store_true",
+                        help="turn down logging to WARN (default is INFO)"
+                        )
+    parser.add_argument("--newrelic",
+                        action="store_true",
+                        default=False,
+                        help="enable newrelic monitoring (place newrelic.ini "
+                        "in your directory"
+                        )
+    parser.add_argument("-t", "--trace-calls",
+                        action="store_true",
+                        default=False,
+                        help="display call hierarchy and errors to stdout"
+                        )
+
+    #
+    # Optional Capabilities
+    #
+    parser.add_argument("-u", "--with-ui",
+                        action="store_true",
+                        default=False,
+                        help="enable support for browsers and HTML templates"
+                        )
+    parser.add_argument("-s", "--with-simulator",
+                        action="store_true",
+                        default=False,
+                        help="enable support for the deployment simulator"
+                        )
+    parser.add_argument("-a", "--with-admin",
+                        action="store_true",
+                        default=False,
+                        help="enable /admin calls (authorized to admin users "
+                        "only)"
+                        )
+    parser.add_argument("-e", "--eventlet",
+                        action="store_true",
+                        default=False,
+                        help="use the eventlet server (recommended in "
+                        "production)"
+                        )
+
+    #
+    # Queue
+    #
+    parser.add_argument("--eager",
+                        action="store_true",
+                        default=False,
+                        help="all celery (queue) tasks will be executed "
+                        "in-process. Use this for debugging only. There is no "
+                        "need to start a queue instance when running eager."
+                        )
+    parser.add_argument("--worker",
+                        action="store_true",
+                        default=False,
+                        help="start the celery worker in-process as well"
+                        )
+
+    args = parser.parse_args()
+    return args
+
+
 def main_func():
     '''Start the server based on passed in arguments. Called by __main__'''
 
+    CONFIG.update(vars(argument_parser()))
+
     # Init logging before we load the database, 3rd party, and 'noisy' modules
-    utils.init_logging(default_config="/etc/default/checkmate-svr-log.conf")
+    utils.init_logging(CONFIG,
+                       default_config="/etc/default/checkmate-svr-log.conf")
     global LOG  # pylint: disable=W0603
     LOG = logging.getLogger(__name__)  # reload
-    if utils.get_debug_level() == logging.DEBUG:
+    if utils.get_debug_level(CONFIG) == logging.DEBUG:
         bottle.debug(True)
 
     resources = ['version']
@@ -138,12 +243,6 @@ def main_func():
     # Load routes from other modules
     LOG.info("Loading API")
     load("checkmate.api")
-
-    # Load simulator if requested
-    with_simulator = False
-    if '--with-simulator' in sys.argv:
-        # deprecated load("checkmate.simulator")
-        with_simulator = True
 
     # Build WSGI Chain:
     LOG.info("Loading Application")
@@ -167,24 +266,24 @@ def main_func():
         )
     )
 
+
+    # Load Deployment Handlers
     MANAGERS['deployments'] = deployments.Manager(DRIVERS)
-    MANAGERS['blueprints'] = blueprints.Manager(DRIVERS)
-
-    # Load admin routes if requested
-    with_admin = False
-    if '--with-admin' in sys.argv:
-        LOG.info("Loading Admin Endpoints")
-        ROUTERS['admin'] = AdminRouter(next_app, MANAGERS['deployments'])
-        with_admin = True
-        resources.append('admin')
-
-    #Load API Calls
     ROUTERS['deployments'] = deployments.Router(
         next_app, MANAGERS['deployments']
     )
+
+    # Load Blueprint Handlers - choose between database or github cache
+    MANAGERS['blueprints'] = blueprints.Manager(DRIVERS)
     ROUTERS['blueprints'] = blueprints.Router(
         next_app, MANAGERS['blueprints']
     )
+
+    # Load admin routes if requested
+    if CONFIG.with_admin is True:
+        LOG.info("Loading Admin Endpoints")
+        ROUTERS['admin'] = AdminRouter(next_app, MANAGERS['deployments'])
+        resources.append('admin')
 
     next_app = middleware.AuthorizationMiddleware(next_app,
                                                   anonymous_paths=['version'],
@@ -205,13 +304,13 @@ def main_func():
     next_app = middleware.ExtensionsMiddleware(next_app)
 
     # Load Rook if requested (after Context as Rook depends on it)
-    if '--with-ui' in sys.argv:
+    if CONFIG.with_ui is True:
         try:
             from rook.middleware import BrowserMiddleware
             next_app = BrowserMiddleware(next_app,
                                          proxy_endpoints=endpoints,
-                                         with_simulator=with_simulator,
-                                         with_admin=with_admin)
+                                         with_simulator=CONFIG.with_simulator,
+                                         with_admin=CONFIG.with_admin)
         except ImportError as exc:
             LOG.exception(exc)
             msg = ("Unable to load the UI (rook.middleware). Make sure rook "
@@ -223,7 +322,7 @@ def main_func():
     next_app = middleware.ContextMiddleware(next_app)
 
     # Load NewRelic inspection if requested
-    if '--newrelic' in sys.argv:
+    if CONFIG.newrelic is True:
         try:
             import newrelic.agent
         except ImportError as exc:
@@ -239,7 +338,7 @@ def main_func():
         next_app = newrelic.agent.wsgi_application()(next_app)
 
     # Load request/response dumping if debugging enabled
-    if '--debug' in sys.argv:
+    if CONFIG.debug is True:
         next_app = middleware.DebugMiddleware(next_app)
         LOG.debug("Routes: %s", ['%s %s' % (r.method, r.rule) for r in
                                  app().routes])
@@ -247,7 +346,7 @@ def main_func():
     next_app = Gzipper(next_app, compresslevel=8)
 
     worker = None
-    if '--worker' in sys.argv:
+    if CONFIG.worker is True:
         celery = Celery(log=LOG, set_as_current=True)
         celery.config_from_object(celeryconfig)
         worker = celery.WorkController(pool_cls="solo")
@@ -259,8 +358,8 @@ def main_func():
     # Pick up IP/port from last param (default is 127.0.0.1:8080)
     ip_address = '127.0.0.1'
     port = 8080
-    if len(sys.argv) > 0:
-        supplied = sys.argv[-1]
+    if CONFIG.address:
+        supplied = CONFIG.address
         if len([c for c in supplied if c in '%s:.' % string.digits]) == \
                 len(supplied):
             if ':' in supplied:
@@ -271,7 +370,7 @@ def main_func():
     # Select server (wsgiref by default. eventlet if requested)
     reloader = True
     server = 'wsgiref'
-    if '--eventlet' in sys.argv:
+    if CONFIG.eventlet is True:
         server = 'eventlet'
         reloader = False  # assume eventlet is prod, so don't reload
 

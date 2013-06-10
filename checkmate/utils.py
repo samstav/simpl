@@ -4,7 +4,6 @@
 - handling templating (Jinja2)
 """
 # pylint: disable=E0611
-import argparse
 import base64
 from collections import MutableMapping, deque
 import inspect
@@ -32,6 +31,7 @@ from yaml.parser import ParserError
 
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
+
 LOG = logging.getLogger(__name__)
 DEFAULT_SENSITIVE_KEYS = [
     'credentials',
@@ -43,7 +43,7 @@ DEFAULT_SENSITIVE_KEYS = [
 ]
 
 
-def get_debug_level():
+def get_debug_level(config):
     """Get debug settings from arguments.
 
     --debug: turn on additional debug code/inspection (implies logging.DEBUG)
@@ -51,11 +51,11 @@ def get_debug_level():
     --quiet: turn down logging output (logging.WARNING)
     default is logging.INFO
     """
-    if '--debug' in sys.argv:
+    if config.debug is True:
         return logging.DEBUG
-    elif '--verbose' in sys.argv:
+    elif config.verbose is True:
         return logging.DEBUG
-    elif '--quiet' in sys.argv:
+    elif config.quiet is True:
         return logging.WARNING
     else:
         return logging.INFO
@@ -72,20 +72,22 @@ class DebugFormatter(logging.Formatter):
         return logging.Formatter.format(self, record)
 
 
-def get_debug_formatter():
-    """Get debug formatter based on arguments.
+def get_debug_formatter(config):
+    """Get debug formatter based on configuration.
+
+    :param config: configurtration namespace (ex. argparser)
 
     --debug: log line numbers and file data also
     --verbose: standard debug
     --quiet: turn down logging output (logging.WARNING)
     default is logging.INFO
     """
-    if '--debug' in sys.argv:
+    if config.debug is True:
         return DebugFormatter('%(pathname)s:%(lineno)d: %(levelname)-8s '
                               '%(message)s')
-    elif '--verbose' in sys.argv:
+    elif config.verbose is True:
         return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
-    elif '--quiet' in sys.argv:
+    elif config.quiet is True:
         return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
     else:
         return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
@@ -99,31 +101,32 @@ def find_console_handler(logger):
             return handler
 
 
-def init_logging(default_config=None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--logconfig')
-    args = parser.parse_known_args()[0]
-    if args.logconfig:
-        logging.config.fileConfig(args.logconfig,
+def init_logging(config, default_config=None):
+    '''Configure logging
+
+    :param config: object with configuration namespace (argparse parser)
+    '''
+    if config.logconfig:
+        logging.config.fileConfig(config.logconfig,
                                   disable_existing_loggers=False)
     elif default_config and os.path.isfile(default_config):
         logging.config.fileConfig(default_config,
                                   disable_existing_loggers=False)
     else:
-        init_console_logging()
+        init_console_logging(config)
 
 
-def init_console_logging():
+def init_console_logging(config):
     """Log to console"""
     # define a Handler which writes messages to the sys.stderr
     console = find_console_handler(logging.getLogger())
     if not console:
-        logging_level = get_debug_level()
+        logging_level = get_debug_level(config)
         console = logging.StreamHandler()
         console.setLevel(logging_level)
 
         # set a format which is simpler for console use
-        formatter = get_debug_formatter()
+        formatter = get_debug_formatter(config)
         # tell the handler to use this format
         console.setFormatter(formatter)
         # add the handler to the root logger
