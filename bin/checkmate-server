@@ -18,6 +18,12 @@ def start_server():
             '--with-simulator',
             '--verbose',
             '--with-ui',
+            '--webhook',
+            '--github-api', 'https://github.rackspace.com/api/v3',
+            '--organization', 'Blueprints',
+            '--ref', 'stable',
+            '--preview-ref', 'master',
+            '--preview-tenants=557366,825640,10031306',
         ])
         print "Starting with development defaults"
     try:

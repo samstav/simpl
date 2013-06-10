@@ -26,6 +26,14 @@ class Config(object):
     eager = False
     worker = False
 
+    webhook = False
+    github_api = None
+    organization = None
+    ref = 'stable'
+    cache_dir = None
+    preview_ref = 'master'
+    preview_tenants = None
+
     def __init__(self, values=None):
         if values:
             self.update(values)
