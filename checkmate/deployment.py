@@ -1005,7 +1005,9 @@ class Deployment(ExtensibleDict):
                         parsed = Deployment.parse_source_URI(source)
                         value = self.evaluator(parsed, services=services)
                         if value is not None:
-                            entry[key] = value
+                            if 'extra-info' not in entry:
+                                entry['extra-info'] = {}
+                            entry['extra-info'][key] = value
                     except (KeyError, AttributeError) as exc:
                         LOG.debug("Error in extra-sources: %s in %s", exc, key)
 
