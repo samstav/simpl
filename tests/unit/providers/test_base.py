@@ -43,8 +43,7 @@ class TestProviderBase(unittest.TestCase):
                 'PENDING_DELETE': 'DELETING',
                 'SUSPENDED': 'ERROR'
                 }
-        results = Testing.validate_provider_status('SUSPENDED',
-            Testing.__status_schema__)
+        results = Testing.validate_provider_status('SUSPENDED')
         self.assertEqual('ERROR', results)
 
 if __name__ == '__main__':
