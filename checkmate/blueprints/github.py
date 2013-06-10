@@ -13,6 +13,8 @@ import json
 import logging
 import os
 import socket
+import threading
+import time
 from urlparse import urlparse, unquote
 import yaml
 
@@ -25,6 +27,7 @@ from checkmate import utils
 from checkmate.base import ManagerBase
 
 LOG = logging.getLogger(__name__)
+DEFAULT_CACHE_TIMEOUT = 10 * 60
 
 
 def _handle_ghe(ghe, msg="Unexpected Github error"):
@@ -63,6 +66,10 @@ class GitHubManager(ManagerBase):
         assert self._repo_org, ("Must specify a Github organization owning "
                                 "blueprint repositories")
         assert self._ref, "Must specify a branch or tag"
+        self.background = None
+        self.last_refresh = time.time() - DEFAULT_CACHE_TIMEOUT
+        self.start_refresh_lock = threading.Lock()
+        self.refresh_lock = threading.Lock()
         self.load_cache()
 
     def get_tenant_tag(self, tenant_id, tenant_auth_group):
@@ -99,10 +106,16 @@ class GitHubManager(ManagerBase):
         :param offset: pagination start
         :param limit: pagination length
         '''
-
         tag = self.get_tenant_tag(tenant_id, None)
         if not self._blueprints:
-            self.refresh_all()
+            # Wait for refresh to complete (block)
+            if self.background is None:
+                self.start_background_refresh()
+            try:
+                LOG.warning("Call to GET /blueprints blocking on refresh")
+                self.refresh_lock.acquire()
+            finally:
+                self.refresh_lock.release()
 
         if not tag:
             return
@@ -154,6 +167,9 @@ class GitHubManager(ManagerBase):
             }
         if results is None:
             results = {}
+        if (self.background is None and
+                time.time() - self.last_refresh > DEFAULT_CACHE_TIMEOUT):
+            self.start_background_refresh()
         return {
             'collection-count': len(results),
             '_links': {},
@@ -191,6 +207,33 @@ class GitHubManager(ManagerBase):
             except IOError:
                 LOG.warn("Could not load cache file", exc_info=True)
 
+    def background_refresh(self):
+        '''Called by background thread to start a refresh'''
+        with self.refresh_lock:
+            try:
+                self.refresh_all()
+                LOG.debug("Background refresh complete")
+            finally:
+                self.background = None
+
+    def start_background_refresh(self):
+        '''Initiate a background refresh of all blueprints'''
+        if self.background is None and self.start_refresh_lock.acquire(False):
+            try:
+                self.background = threading.Thread(
+                    target=self.background_refresh)
+                self.background.setDaemon(False)
+                LOG.debug("Refreshing blueprint cache")
+                self.background.start()
+            except StandardError:
+                self.background = None
+                LOG.error("Error initiating refresh", exc_info=True)
+                raise
+            finally:
+                self.start_refresh_lock.release()
+        else:
+            LOG.debug("Already refreshing")
+
     def refresh_all(self):
         '''
         Get all deployment blueprints from the repositories owned by
@@ -200,19 +243,22 @@ class GitHubManager(ManagerBase):
         if not org:
             LOG.error("No user or group matching %s", self._repo_org)
             return
-        self._blueprints.clear()
-        pool = GreenPile()
         refs = [self._ref, self._preview_ref]
         repos = org.get_repos()
 
+        pool = GreenPile()
         for ref in refs:
             for repo in repos:
                 pool.spawn(self._get_blueprint, repo, ref)
 
+        fresh = {}
+        for ref in refs:
             for repo, result in zip(repos, pool):
-                self._store(result, ref)
+                self._store(result, ref, fresh)
 
+        self._blueprints = fresh
         self._update_cache()
+        self.last_refresh = time.time()
 
     def _get_repo_owner(self):
         ''' Return the user or organization owning the repo '''
@@ -251,7 +297,8 @@ class GitHubManager(ManagerBase):
             rid = "%s:%s" % (str(repo.id), self._ref)
             if rid in self._blueprints:
                 del self._blueprints[rid]
-            self._store(self._get_blueprint(repo, self._ref), self._ref)
+            self._store(self._get_blueprint(repo, self._ref), self._ref,
+                        self._blueprints)
 
             if not self._preview_ref:
                 return
@@ -260,7 +307,7 @@ class GitHubManager(ManagerBase):
             if rid in self._blueprints:
                 del self._blueprints[rid]
             self._store(self._get_blueprint(repo, self._preview_ref),
-                        self._preview_ref)
+                        self._preview_ref, self._blueprints)
 
     def _get_repo(self, repo_name):
         '''Return the specified github repo
@@ -384,9 +431,10 @@ class GitHubManager(ManagerBase):
         except GithubException:
             return None
 
-    def _store(self, blueprint, tag):
+    @staticmethod
+    def _store(blueprint, tag, target):
         '''
-        Store the blueprint in the local memory and disk cache
+        Store the blueprint in the target memory
 
         :param blueprint: the deployment blueprint to store
         '''
@@ -397,7 +445,7 @@ class GitHubManager(ManagerBase):
             else:
                 bp_id = "%s:%s" % (blueprint.get("repo_id"), tag)
                 del blueprint['repo_id']
-                self._blueprints.update({bp_id: blueprint})
+                target.update({bp_id: blueprint})
 
 
 class WebhookRouter(object):
