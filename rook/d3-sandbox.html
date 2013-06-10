@@ -155,17 +155,56 @@ var buildLinks = function(specs) {
 
   return links;
 }
+var centered;
 
 var buildNetwork = function(json, width, height) {
+  function click(d) {
+    var x, y, k;
+
+    if (d && centered !== d) {
+      x = d.x;
+      y = d.y;
+      k = 4;
+      centered = d;
+    } else {
+      x = width / 2;
+      y = height / 2;
+      k = 1;
+      centered = null;
+    }
+
+    node_container.selectAll("g.node")
+    .classed("active", centered && function(d) { return d === centered; });
+
+    console.log(width)
+    console.log(height)
+    console.log(x)
+    console.log(y)
+    node_container.transition()
+    .duration(1000)
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+    .style("stroke-width", 1.5 / k + "px");
+  }
+
   var color = d3.scale.category10();
 
   var force = d3.layout.force()
               .size([width, height]);
 
-  var svg = d3.select("body")
+  svg = d3.select("body")
               .append("svg")
               .attr("width", width)
-              .attr("height", height);
+              .attr("height", height)
+              //.append('svg:g')
+              //.call(d3.behavior.zoom().on("zoom", redraw))
+
+
+  function redraw() {
+    console.log("here", d3.event.translate, d3.event.scale);
+    svg.attr("transform",
+             "translate(" + d3.event.translate + ")"
+             + " scale(" + d3.event.scale + ")");
+  }
 
   force
       .nodes(json.nodes)
@@ -173,18 +212,23 @@ var buildNetwork = function(json, width, height) {
       .start()
       ;
 
-  var links = svg.append("g").selectAll("line.link")
-      .data(force.links())
-      .enter().append("line")
-      .attr("class", "link")
-      ;
+  node_container = svg.append('g')
+      .attr('id', 'nodes')
 
-  var nodes = svg.selectAll("g.node")
+  var nodes = //node_container
+      svg.select('#nodes').selectAll("g.node")
       .data(force.nodes())
       .enter()
       .append("svg:g")
       .attr("class", "node")
-      .call(force.drag)
+      //.call(force.drag)
+      .on('click', click)
+      ;
+
+  var links = svg.select('#nodes').selectAll("line.link")
+      .data(force.links())
+      .enter().append("line")
+      .attr("class", "link")
       ;
 
   nodes.append("svg:title")
