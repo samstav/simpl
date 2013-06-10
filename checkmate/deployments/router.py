@@ -26,6 +26,7 @@ from checkmate.exceptions import (
 )
 from checkmate.deployments import tasks
 from checkmate.utils import with_tenant, formatted_response
+from checkmate.workflow import create_workflow_spec_deploy
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -196,8 +197,7 @@ class Router(object):
         '''Parse and preview a deployment and its workflow'''
         deployment = _content_to_deployment(request, tenant_id=tenant_id)
         results = self.manager.plan(deployment, request.context)
-        spec = self.manager.create_workflow_spec_deploy(results,
-                                                        request.context)
+        spec = create_workflow_spec_deploy(results, request.context)
         serializer = DictionarySerializer()
         serialized_spec = spec.serialize(serializer)
         results['workflow'] = dict(wf_spec=serialized_spec)

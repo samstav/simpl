@@ -228,6 +228,31 @@ class DBDriverTests(object):
         body[u'tenantId'] = u'T1000'  # gets added
         self.assertDictEqual(results, body)
 
+    def test_workflow_locking(self):
+        _id = uuid.uuid4().hex[0:8]
+        entity = {
+            'id': _id,
+            'name': 'My Workflow'
+        }
+        results = self.driver.save_workflow(entity['id'], entity, None,
+                                            tenant_id='T1000')
+
+        _, key = self.driver.lock_workflow(entity['id'])
+        with self.assertRaises(db.ObjectLockedError):
+            self.driver.lock_workflow(entity['id'])
+
+        entity['name'] = 'My Updated Workflow'
+        results = self.driver.save_workflow(entity['id'], entity)
+        self.assertEqual(entity, results)
+
+        #  Check still locked
+        with self.assertRaises(db.ObjectLockedError):
+            self.driver.lock_workflow(entity['id'])
+
+        self.driver.unlock_workflow(entity['id'], key=key)
+        self.driver.lock_workflow(entity['id'])  # should succeed
+
+
     def test_save_get_deployment_with_defaults(self):
         '''We are really testing deployment, but using deployment so that the
         test works regardless of driver implementation

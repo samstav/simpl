@@ -10,10 +10,12 @@ For tests, we don't care about:
 import json
 import os
 import unittest2 as unittest
+import uuid
 
 import mox
 
-from checkmate.deployments import Manager
+from checkmate.deployment import Deployment
+from checkmate import deployments
 
 
 class TestCount(unittest.TestCase):
@@ -24,7 +26,7 @@ class TestCount(unittest.TestCase):
         self._deployments = json.load(open(os.path.join(
             os.path.dirname(__file__), '../data', 'deployments.json')))
         self.db = self._mox.CreateMockAnything()
-        self.controller = Manager({'default': self.db})
+        self.controller = deployments.Manager({'default': self.db})
         unittest.TestCase.setUp(self)
 
     def tearDown(self):
@@ -66,6 +68,88 @@ class TestCount(unittest.TestCase):
         result = self.controller.count(blueprint_id="blp123avc",
                                        tenant_id="12345")
         self.assertEquals(result, 1)
+
+
+class TestSecrets(unittest.TestCase):
+
+    def setUp(self):
+        self.mox = mox.Mox()
+        self.manager = self.mox.CreateMockAnything()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_get_deployment_secrets_hidden(self):
+        '''Check that GET deployment responds without secrets'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = {
+            'id': id1,
+            'tenantId': 'T1000',
+            'created-by': 'john',
+            'blueprint': {
+                'display-outputs': {
+                    "Password": {
+                        'is-secret': True,
+                        'source': 'options://password',
+                    },
+                    "Server Count": {
+                        'source': 'options://servers',
+                    },
+                },
+            },
+            'inputs': {
+                'password': "Keep Private",
+                'servers': 10,
+            }
+        }
+        deployment = Deployment(data)
+        deployment['display-outputs'] = deployment.calculate_outputs()
+        driver = self.mox.CreateMockAnything()
+        driver.get_deployment(id1, with_secrets=False).AndReturn(deployment)
+
+        manager = deployments.Manager({'default': driver})
+
+        self.mox.ReplayAll()
+        dep = manager.get_a_deployment(id1, tenant_id="T1000",
+                                       with_secrets=False)
+        self.mox.VerifyAll()
+
+        self.assertEqual(dep['id'], id1)
+        self.assertIn('display-outputs', dep)
+        self.assertNotIn('value', dep['display-outputs']['Password'])
+        self.assertIn('value', dep['display-outputs']['Server Count'])
+
+        self.assertIn('secrets', dep)
+        self.assertEquals(dep['secrets'], 'AVAILABLE')
+
+    def test_get_deployment_secrets_blank(self):
+        '''Check that GET deployment responds without secrets'''
+        id1 = uuid.uuid4().hex[0:7]
+        data = {
+            'id': id1,
+            'tenantId': 'T1000',
+            'created-by': 'john',
+            'blueprint': {},
+            'inputs': {
+                'password': "Keep Private",
+                'servers': 10,
+            }
+        }
+        deployment = Deployment(data)
+        driver = self.mox.CreateMockAnything()
+        driver.get_deployment(id1, with_secrets=False).AndReturn(deployment)
+
+        manager = deployments.Manager({'default': driver})
+
+        self.mox.ReplayAll()
+        dep = manager.get_a_deployment(id1, tenant_id="T1000",
+                                       with_secrets=False)
+        self.mox.VerifyAll()
+
+        self.assertEqual(dep['id'], id1)
+
+        self.assertIn('secrets', dep)
+        self.assertEquals(dep['secrets'], 'NO SECRETS')
 
 
 if __name__ == '__main__':
