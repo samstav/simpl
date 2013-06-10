@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import argparse
-import json
 import logging
 import os
 from string import Template
@@ -8,33 +7,18 @@ import sys
 import unittest2 as unittest
 
 from prettytable import PrettyTable
-from SpiffWorkflow import Workflow
 from SpiffWorkflow.specs import Transform, TransMerge
 
 import checkmate.common.tracer  # @UnusedImport # module runs on import
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
 LOG = logging.getLogger(__name__)
 
-from checkmate.deployments import (
-    Deployment,
-    plan,
-    get_deployments_count,
-    get_deployments_by_bp_count,
-    _deploy,
-    generate_keys
-)
-from checkmate.exceptions import CheckmateException
+from checkmate.deployment import Deployment
+from checkmate.deployments import plan
 from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.middleware import RequestContext, TokenAuthMiddleware
-from checkmate.providers.opscode import local
-from checkmate.test import StubbedWorkflowBase, ENV_VARS, TestProvider
+from checkmate.test import StubbedWorkflowBase, TestProvider
 from checkmate.utils import yaml_to_dict, dict_to_yaml
-from checkmate.workflows import (
-    create_workflow_deploy,
-    create_workflow_spec_deploy
-)
+
 
 DEPLOYMENT = None
 

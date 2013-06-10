@@ -7,17 +7,12 @@ import shutil
 import unittest2 as unittest
 import uuid
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
-LOG = logging.getLogger(__name__)
-
 import mox
 
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.opscode import knife
 
-
+LOG = logging.getLogger(__name__)
 TEST_PATH = '/tmp/checkmate/test'
 
 

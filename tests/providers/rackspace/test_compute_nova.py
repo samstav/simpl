@@ -4,25 +4,22 @@ import logging
 import os
 import unittest2 as unittest
 
-from checkmate.utils import init_console_logging
+import mox
 from mox import IgnoreArg
+
+from checkmate import ssh
+from checkmate import test
+from checkmate.exceptions import CheckmateException
+from checkmate.deployments import resource_postback
+from checkmate.middleware import RequestContext
+from checkmate.providers.rackspace import compute
 from checkmate.providers.rackspace.compute import (
     delete_server_task,
     wait_on_delete_server,
     _on_failure
 )
 
-init_console_logging()
 LOG = logging.getLogger(__name__)
-
-import mox
-
-from checkmate import test
-from checkmate.exceptions import CheckmateException
-from checkmate.deployments import resource_postback
-from checkmate.middleware import RequestContext
-from checkmate.providers.rackspace import compute
-from checkmate import ssh
 
 
 class TestNovaCompute(test.ProviderTester):

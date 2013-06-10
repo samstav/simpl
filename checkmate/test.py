@@ -14,9 +14,6 @@ from mox import (IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains,
                  Not)
 from SpiffWorkflow.specs import Celery, Transform
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate.deployment import Deployment

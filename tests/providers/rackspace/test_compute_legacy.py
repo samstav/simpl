@@ -2,11 +2,6 @@
 import logging
 import unittest2 as unittest
 
-from checkmate.utils import init_console_logging
-
-init_console_logging()
-LOG = logging.getLogger(__name__)
-
 import mox
 
 from checkmate.exceptions import CheckmateException
@@ -14,6 +9,8 @@ from checkmate.deployments import resource_postback
 from checkmate.middleware import RequestContext
 from checkmate.providers.rackspace import compute_legacy
 from checkmate import test
+
+LOG = logging.getLogger(__name__)
 
 
 class TestLegacyCompute(test.ProviderTester):
