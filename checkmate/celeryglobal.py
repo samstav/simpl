@@ -15,12 +15,8 @@ import logging
 
 from celery import Task
 from celery.exceptions import RetryTaskError
-from cloudlb.errors import RateLimit
-from novaclient.exceptions import OverLimit
-
 
 from checkmate.db.common import InvalidKeyError, ObjectLockedError
-from checkmate.exceptions import CheckmateRetriableException
 
 LOG = logging.getLogger(__name__)
 
