@@ -12,6 +12,10 @@
           stroke-width: 3px;
       }
 
+      circle.node.inactive {
+        opacity: 0.5;
+      }
+
       line.link {
           stroke-width: 2px;
           stroke: #999;
@@ -107,6 +111,7 @@ var buildNodes = function(specs) {
       node.group = start_group;
       node.x = start_position.x;
       node.y = start_position.y;
+      node.status = false;
       nodes.push(node);
     }
 
@@ -122,6 +127,7 @@ var buildNodes = function(specs) {
         node.group = group;
         node.x = position.x;
         node.y = position.y;
+        node.status = true;
 
         nodes.push(node)
       }
@@ -208,6 +214,7 @@ var buildNetwork = function(json, width, height) {
 
       nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
       nodes.selectAll("title").text(function(d) { return d.name; });
+      nodes.selectAll("circle").classed('inactive', function(d) { return d.status });
   });
 
   return force;
