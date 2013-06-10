@@ -263,7 +263,6 @@ class TokenAuthMiddleware(object):
                                                  'HTTP_X_AUTH_TOKEN'])
                 environ['HTTP_X_AUTHORIZED'] = "Confirmed"
             except HTTPUnauthorized as exc:
-                LOG.exception(exc)
                 return exc(environ, start_response)
             context.auth_source = self.endpoint['uri']
             context.set_context(content)
@@ -281,7 +280,7 @@ class TokenAuthMiddleware(object):
                                   password=password)
 
     @MemorizeMethod(sensitive_kwargs=['token', 'apikey', 'password'],
-                    timeout=600)
+                    timeout=600, cache_exceptions=True)
     def auth_keystone(self, tenant, auth_url, auth_header, token=None,
                       username=None, apikey=None, password=None):
         """Authenticates to keystone"""

@@ -19,7 +19,7 @@ class Memorize:
 
     def __init__(self, max_entries=1000, timeout=DEFAULT_TIMEOUT,
                  sensitive_args=None, sensitive_kwargs=None, salt='a_salt',
-                 store=None):
+                 store=None, cache_exceptions=False):
         self.max_entries = max_entries
         self.salt = salt
         self.max_age = timeout
@@ -32,6 +32,7 @@ class Memorize:
         self.reaper = None
         self.last_reaping = time.time()
         self.memorized_function = None
+        self.cache_exceptions = cache_exceptions
 
     def __call__(self, func):
         self.memorized_function = func.__name__
@@ -40,8 +41,17 @@ class Memorize:
             '''The function to return in place of the cached function'''
             key, result = self.try_cache(*args, **kwargs)
             if key:
-                return result
-            result = func(*args, **kwargs)
+                if self.cache_exceptions and isinstance(result, Exception):
+                    LOG.debug("Raising cached exception")
+                    raise result
+                else:
+                    return result
+            try:
+                result = func(*args, **kwargs)
+            except Exception as exc:
+                if self.cache_exceptions:
+                    self.cache(exc, self.get_hash(*args, **kwargs))
+                raise exc
             self.cache(result, self.get_hash(*args, **kwargs))
             return result
 
@@ -131,8 +141,17 @@ class MemorizeMethod(Memorize):
             '''The function to return in place of the cached function'''
             key, result = self.try_cache(*args, **kwargs)
             if key:
-                return result
-            result = func(itself, *args, **kwargs)
-            self.cache(result, key)
+                if self.cache_exceptions and isinstance(result, Exception):
+                    LOG.debug("Raising cached exception")
+                    raise result
+                else:
+                    return result
+            try:
+                result = func(itself, *args, **kwargs)
+            except Exception as exc:
+                if self.cache_exceptions:
+                    self.cache(exc, self.get_hash(*args, **kwargs))
+                raise exc
+            self.cache(result, self.get_hash(*args, **kwargs))
             return result
         return wrapped_f
