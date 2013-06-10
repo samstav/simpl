@@ -3,6 +3,7 @@ Blueprints Manager
 
 Handles blueprint logic
 '''
+
 import logging
 
 from checkmate.base import ManagerBase

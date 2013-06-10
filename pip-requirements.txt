@@ -76,6 +76,7 @@ pycrypto==2.6
 pymongo==2.5
 python-keystoneclient==0.2.0
 PyChef==0.2.1
+PyGithub==1.14.0
 PyYAML==3.10
 SQLAlchemy==0.7.8
 sqlalchemy-migrate==0.7.2

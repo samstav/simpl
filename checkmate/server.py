@@ -15,6 +15,7 @@ import checkmate.common.tracer  # module runs on import
 import bottle
 from bottle import app, run, request, response, HeaderDict, default_app, load
 from celery import Celery
+import eventlet
 
 from checkmate import db
 from checkmate import blueprints
@@ -216,6 +217,36 @@ def argument_parser():
                         help="start the celery worker in-process as well"
                         )
 
+    #
+    # Blueprint handling (CrossCheck functionality)
+    #
+    parser.add_argument("--webhook",
+                        action="store_true",
+                        default=False,
+                        help="Enable blueprints GitHub webhook responder"
+                        )
+    parser.add_argument("-g", "--github-api",
+                        help="Root github API uri for the repository "
+                        "containing blueprints. ex: "
+                        "https://api.github.com/v3")
+    parser.add_argument("-o", "--organization",
+                        help="The github organization owning the blueprint "
+                        "repositories",
+                        default="Blueprints")
+    parser.add_argument("-r", "--ref",
+                        help="Branch/tag/reference denoting the version of "
+                        "blueprints to use.",
+                        default="master")
+    parser.add_argument("--cache-dir",
+                        help="cache directory")
+    parser.add_argument("--preview-ref",
+                        help="version of deployment templates for preview",
+                        default=None)
+    parser.add_argument("--preview-tenants",
+                        help="preview tenant IDs",
+                        type=comma_separated_strs,
+                        default=None)
+
     args = parser.parse_args()
     return args
 
@@ -223,7 +254,12 @@ def argument_parser():
 def main_func():
     '''Start the server based on passed in arguments. Called by __main__'''
 
+    resources = ['version']
+    anonymous_paths = ['version']
+
     CONFIG.update(vars(argument_parser()))
+    if CONFIG.eventlet is True:
+        eventlet.monkey_patch()
 
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(CONFIG,
@@ -232,8 +268,6 @@ def main_func():
     LOG = logging.getLogger(__name__)  # reload
     if utils.get_debug_level(CONFIG) == logging.DEBUG:
         bottle.debug(True)
-
-    resources = ['version']
 
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
@@ -246,8 +280,8 @@ def main_func():
 
     # Build WSGI Chain:
     LOG.info("Loading Application")
-    next_app = default_app()  # This is the main checkmate app
-    next_app.error_handler = {
+    next_app = root_app = default_app()  # This is the main checkmate app
+    root_app.error_handler = {
         500: error_formatter,
         400: error_formatter,
         401: error_formatter,
@@ -256,7 +290,7 @@ def main_func():
         406: error_formatter,
         415: error_formatter,
     }
-    next_app.catchall = True
+    root_app.catchall = True
 
     DRIVERS['default'] = db.get_driver()
     DRIVERS['simulation'] = db.get_driver(
@@ -266,28 +300,45 @@ def main_func():
         )
     )
 
+    if CONFIG.webhook is True:
+        if 'github' not in MANAGERS:
+            MANAGERS['github'] = blueprints.GitHubManager(DRIVERS, CONFIG)
+        ROUTERS['webhook'] = blueprints.WebhookRouter(
+            root_app, MANAGERS['github']
+        )
+        anonymous_paths.append('webhook')
+        resources.append('webhook')
 
     # Load Deployment Handlers
     MANAGERS['deployments'] = deployments.Manager(DRIVERS)
     ROUTERS['deployments'] = deployments.Router(
-        next_app, MANAGERS['deployments']
+        root_app, MANAGERS['deployments']
     )
+    resources.append('deployments')
 
     # Load Blueprint Handlers - choose between database or github cache
-    MANAGERS['blueprints'] = blueprints.Manager(DRIVERS)
+    if CONFIG.github_api:
+        if 'github' not in MANAGERS:
+            MANAGERS['github'] = blueprints.GitHubManager(DRIVERS, CONFIG)
+        MANAGERS['blueprints'] = MANAGERS['github']
+    else:
+        MANAGERS['blueprints'] = blueprints.Manager(DRIVERS)
     ROUTERS['blueprints'] = blueprints.Router(
-        next_app, MANAGERS['blueprints']
+        root_app, MANAGERS['blueprints']
     )
+    resources.append('blueprints')
 
     # Load admin routes if requested
     if CONFIG.with_admin is True:
         LOG.info("Loading Admin Endpoints")
-        ROUTERS['admin'] = AdminRouter(next_app, MANAGERS['deployments'])
+        ROUTERS['admin'] = AdminRouter(root_app, MANAGERS['deployments'])
         resources.append('admin')
 
-    next_app = middleware.AuthorizationMiddleware(next_app,
-                                                  anonymous_paths=['version'],
-                                                  admin_paths=['admin'])
+    next_app = middleware.AuthorizationMiddleware(
+        next_app,
+        anonymous_paths=anonymous_paths,
+        admin_paths=['admin'],
+    )
     endpoints = os.environ.get('CHECKMATE_AUTH_ENDPOINTS')
     if endpoints:
         endpoints = json.loads(endpoints)
@@ -296,7 +347,7 @@ def main_func():
     next_app = middleware.AuthTokenRouterMiddleware(
         next_app,
         endpoints,
-        anonymous_paths=['version']
+        anonymous_paths=anonymous_paths
     )
 
     next_app = middleware.TenantMiddleware(next_app, resources=resources)

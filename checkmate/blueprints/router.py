@@ -1,3 +1,6 @@
+'''
+Blueprints Router
+'''
 import os
 import logging
 
@@ -15,24 +18,27 @@ SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
 
 
 class Router(object):
-    '''Route /deployments/ calls'''
+    '''Route /blueprints/ calls'''
 
     def __init__(self, app, manager):
-        '''Takes a bottle app and routes traffic for it'''
+        '''Takes a bottle app and routes traffic for it
+
+        :param manager: could be default manager or CacheManager
+        '''
         self.app = app
         self.manager = manager
 
-        # Deployment list
+        # Blueprint list
         app.route('/blueprints', 'GET', self.get_blueprints)
 
     @utils.with_tenant
     @utils.formatted_response('deployments', with_pagination=True)
     def get_blueprints(self, tenant_id=None, offset=None, limit=None):
         ''' Get existing deployments '''
-        detail = request.query.get('detail')
+        details = request.query.get('details')
         return self.manager.get_blueprints(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
-            detail=detail == '1'
+            details=details == '1'
         )

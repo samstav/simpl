@@ -319,10 +319,9 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET [/:tid]/environments/:id/providers/:pid/catalog
     GET [/:tid]/environments/:id/providers/:pid/catalog/:cid
 
-    GET/POST [/:tid]/blueprints
-    PUT/GET/POST [/:tid]/blueprints/:id
+    GET  [/:tid]/blueprints/[?offset=OFFSET&limit=LIMIT&details=1]
 
-    GET  [/:tid]/deployments/[?offset=OFFSET&limit=LIMIT?show_deleted=1]
+    GET  [/:tid]/deployments/[?offset=OFFSET&limit=LIMIT&show_deleted=1]
     POST [/:tid]/deployments
     POST [/:tid]/deployments/+parse[?check_limits=1&check_access=1]
     POST [/:tid]/deployments/+preview
@@ -414,23 +413,40 @@ To start the checkmate REST API server:
     $ bin/checkmate-server START [options] [address[:port]]
 
 Options:
-
-        --with-ui:         enable support for browsers and HTML templates (requires [rook](https://github.rackspace.com/checkmate/rook))
-        --with-simulator:  enable support for the workflow simulator
-        --with-admin:      enable /admin calls (authorized to admin users only)
-        --worker:          start the celery worker in-process as well
-        --newrelic:        enable newrelic monitoring (place newrelic.ini in
-                           your directory)
-        --eventlet:        use the eventlet server (recommended in production)
-        --quiet:           turn down logging to WARN (default is INFO)
-        --verbose:         turn up logging to DEBUG (default is INFO)
-        --debug:           turn on additional debugging inspection and output
-                           including full HTTP requests and responses. Log
-                           output includes source file path and line numbers.
-        --trace-calls, -t: display call hierarchy and errors to stdout
-        --eager:           all celery (queue) tasks will be executed in-process
-                           Use this for debugging only. There is no need to
-                           start a queue instance when running eager.
+    -h, --help            show this help message and exit
+    --logconfig LOGCONFIG
+                          Optional logging configuration file
+    -d, --debug           turn on additional debugging inspection and output
+                          including full HTTP requests and responses. Log output
+                          includes source file path and line numbers.
+    -v, --verbose         turn up logging to DEBUG (default is INFO)
+    -q, --quiet           turn down logging to WARN (default is INFO)
+    --newrelic            enable newrelic monitoring (place newrelic.ini in your
+                          directory
+    -t, --trace-calls     display call hierarchy and errors to stdout
+    -u, --with-ui         enable support for browsers and HTML templates
+    -s, --with-simulator  enable support for the deployment simulator
+    -a, --with-admin      enable /admin calls (authorized to admin users only)
+    -e, --eventlet        use the eventlet server (recommended in production)
+    --eager               all celery (queue) tasks will be executed in-process.
+                          Use this for debugging only. There is no need to start
+                          a queue instance when running eager.
+    --worker              start the celery worker in-process as well
+    --webhook             Enable blueprints GitHub webhook responder
+    -g GITHUB_API, --github-api GITHUB_API
+                          Root github API uri for the repository containing
+                          blueprints. ex: https://api.github.com/v3
+    -o ORGANIZATION, --organization ORGANIZATION
+                          The github organization owning the blueprint
+                          repositories
+    -r REF, --ref REF     Branch/tag/reference denoting the version of
+                          blueprints to use.
+    --cache-dir CACHE_DIR
+                          cache directory
+    --preview-ref PREVIEW_REF
+                          version of deployment templates for preview
+    --preview-tenants PREVIEW_TENANTS
+                          preview tenant IDs
 
 Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.
 
