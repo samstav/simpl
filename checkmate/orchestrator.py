@@ -102,6 +102,30 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     :returns: True if workflow is complete
     """
 
+    def _on_failure_handler(exc, task_id, args, kwargs, einfo):
+        w_id = args[0]
+        workflow = driver.get_workflow(w_id)
+        dep_id = workflow["attributes"]["deploymentId"] or w_id
+        kwargs = {"status": "ERROR"}
+
+        if isinstance(exc, MaxRetriesExceededError):
+            kwargs.update({"errors": [{
+                "error-message": "The maximum amount of permissible retries "
+                                 "for workflow %s has elapsed. Please "
+                                 "re-execute the workflow" % w_id,
+                "error-help": "",
+                "retriable": True,
+                "retry-link": "%s/workflows/%s/+execute" % (tenant_id, w_id)
+            }]})
+            LOG.warn("Workflow %s has reached the maximum number of "
+                     "permissible retries!", w_id)
+            LOG.error("Workflow %s has reached the maximum number of "
+                      "permissible retries!", w_id)
+        else:
+            kwargs.update({"errors": [{'error-message': exc.message}]})
+
+        update_operation.delay(dep_id, driver=driver, **kwargs)
+
     match_celery_logging(LOG)
     assert driver, "No driver supplied to orchestrator"
 
@@ -110,6 +134,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         workflow, key = driver.lock_workflow(w_id, with_secrets=True)
     except ObjectLockedError:
         run_workflow.retry()
+
+    run_workflow.on_failure = _on_failure_handler
 
     dep_id = workflow["attributes"]["deploymentId"] or w_id
     deployment = driver.get_deployment(dep_id)
@@ -149,15 +175,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     # Run!
     try:
         d_wf.complete_all()
-    except MaxRetriesExceededError as max_retries:
-        LOG.exception(max_retries)
-        update_deployment_status.delay(dep_id, 'FAILED', driver=driver)
-        driver.unlock_workflow(w_id, key)
-        return False
     except Exception as exc:
         LOG.exception(exc)
-        driver.unlock_workflow(w_id, key)
-        return False
     finally:
         # Save any changes, even if we errored out
         failed_tasks = cm_workflow.get_failed_tasks(d_wf, tenant_id)
