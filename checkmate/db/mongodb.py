@@ -249,8 +249,8 @@ class Driver(DbBase):
 
         return deployment
 
-    def get_deployments(self, tenant_id=None, with_secrets=None, limit=0,
-                        offset=0, with_count=True, with_deleted=False):
+    def get_deployments(self, tenant_id=None, with_secrets=None, limit=None,
+                        offset=None, with_count=True, with_deleted=False):
         deployments = self._get_objects(self._deployment_collection_name,
                                         tenant_id, with_secrets=with_secrets,
                                         offset=offset,
@@ -409,9 +409,11 @@ class Driver(DbBase):
         return self._get_object(self._blueprint_collection_name, api_id,
                                 with_secrets=with_secrets)
 
-    def get_blueprints(self, tenant_id=None, with_secrets=None):
+    def get_blueprints(self, tenant_id=None, with_secrets=None, limit=None,
+                       offset=None, with_count=True):
         return self._get_objects(self._blueprint_collection_name, tenant_id,
-                                 with_secrets=with_secrets)
+                                 with_secrets=with_secrets, limit=limit,
+                                 offset=offset, with_count=with_count)
 
     def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
         return self._save_object(self._blueprint_collection_name, api_id, body,
@@ -719,10 +721,10 @@ class Driver(DbBase):
                     if cur_secrets:
                         collate(cur_secrets, secrets, extend_lists=False)
                         secrets = cur_secrets
-            if tenant_id:
+            if tenant_id is not None:
                 body['tenantId'] = tenant_id
-            assert tenant_id or 'tenantId' in body, ("tenantId must be "
-                                                     "specified")
+            assert klass == 'blueprints' or tenant_id or 'tenantId' in body, (
+                "tenantId must be specified")
             body['_id'] = api_id
             self.database()[klass].update({'_id': api_id}, body,
                                           not merge_existing,  # Upsert new

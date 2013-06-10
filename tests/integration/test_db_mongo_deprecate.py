@@ -18,15 +18,12 @@ except ImportError as exc:
 
 from bottle import HTTPError
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
 from checkmate import db
-from checkmate.utils import init_console_logging
 from checkmate.db import db_lock
 from checkmate.db.common import ObjectLockedError, InvalidKeyError
 from checkmate.utils import extract_sensitive_data
 from checkmate.workflows import safe_workflow_save
 
-init_console_logging()
 LOG = logging.getLogger(__name__)
 
 

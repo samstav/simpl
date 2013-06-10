@@ -1,100 +1,15 @@
 #!/usr/bin/env python
-from bottle import get, post, put, request, response, abort
+'''
+Blueprint dict-like class
+'''
 import copy
 import logging
-import uuid
 
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
-from checkmate.db import get_driver, any_id_problems
 from checkmate.exceptions import CheckmateValidationException
-from checkmate.utils import read_body, write_body, extract_sensitive_data, \
-    with_tenant
 
 LOG = logging.getLogger(__name__)
-DB = get_driver()
-
-
-#
-# Blueprints
-#
-@get('/blueprints')
-@with_tenant
-def get_blueprints(tenant_id=None):
-    """
-    Returns blueprints for given tenant ID
-    """
-    return write_body(
-        DB.get_blueprints(
-            tenant_id=tenant_id
-        ),
-        request,
-        response
-    )
-
-
-@post('/blueprints')
-@with_tenant
-def post_blueprint(tenant_id=None):
-    """
-    TODO: docstring
-    """
-    entity = read_body(request)
-    if 'blueprint' in entity:
-        entity = entity['blueprint']
-
-    if 'id' not in entity:
-        entity['id'] = uuid.uuid4().hex
-    if any_id_problems(entity['id']):
-        abort(406, any_id_problems(entity['id']))
-
-    body, secrets = extract_sensitive_data(entity)
-    results = DB.save_blueprint(entity['id'], body, secrets,
-                                tenant_id=tenant_id)
-
-    return write_body(results, request, response)
-
-
-@put('/blueprints/<api_id>')
-@with_tenant
-def put_blueprint(api_id, tenant_id=None):
-    """
-    TODO: docstring
-    """
-    assert tenant_id
-    entity = read_body(request)
-    if 'blueprint' in entity:
-        entity = entity['blueprint']
-
-    if any_id_problems(api_id):
-        abort(406, any_id_problems(api_id))
-    if 'id' not in entity:
-        entity['id'] = str(api_id)
-
-    existing = DB.get_blueprint(api_id)
-    body, secrets = extract_sensitive_data(entity)
-    results = DB.save_blueprint(api_id, body, secrets, tenant_id=tenant_id)
-    if existing:
-        response.status = 200  # OK - updated
-    else:
-        response.status = 201  # Created
-    return write_body(results, request, response)
-
-
-@get('/blueprints/<api_id>')
-@with_tenant
-def get_blueprint(api_id, tenant_id=None):
-    """
-    TODO: docstring
-    """
-    entity = DB.get_blueprint(api_id)
-    if not entity:
-        abort(404, 'No blueprint with id %s' % api_id)
-    if tenant_id is not None and tenant_id != entity.get('tenantId'):
-        LOG.warning("Attempt to access blueprint %s from wrong tenant %s by "
-                    "%s", api_id, tenant_id, request.context.username)
-        abort(404)
-    return write_body(entity, request, response)
 
 
 class Blueprint(ExtensibleDict):
@@ -153,19 +68,19 @@ class Blueprint(ExtensibleDict):
             if option_type is None:
                 option['type'] = 'string'
                 LOG.warn("Converted option with missing 'type' to 'string' in "
-                         "blueprint '%s'" % data.get('id'))
+                         "blueprint '%s'", data.get('id'))
             elif option_type in ['select', 'combo']:
                 option['type'] = 'string'
                 LOG.warn("Converted 'type' from '%s' to 'string' in "
-                         "blueprint '%s'" % (option_type, data.get('id')))
+                         "blueprint '%s'", option_type, data.get('id'))
             elif option_type == 'int':
                 option['type'] = 'integer'
                 LOG.warn("Converted 'type' from 'int' to 'integer' "
-                         " in blueprint '%s'" % data.get('id'))
+                         " in blueprint '%s'", data.get('id'))
             elif option_type == 'region':
                 option['type'] = 'string'
                 LOG.warn("Converted 'type' from 'region' to 'string' "
-                         " in blueprint '%s'" % data.get('id'))
+                         " in blueprint '%s'", data.get('id'))
 
             # move 'regex' to constraint
 
@@ -177,7 +92,7 @@ class Blueprint(ExtensibleDict):
                     option['constraints'].append(constraint)
                 del option['regex']
                 LOG.warn("Converted 'regex' attribute in an option in "
-                         "blueprint '%s'" % data.get('id'))
+                         "blueprint '%s'", data.get('id'))
 
             # move 'protocols' to constraint
 
@@ -189,7 +104,7 @@ class Blueprint(ExtensibleDict):
                     option['constraints'].append(constraint)
                 del option['protocols']
                 LOG.warn("Converted 'protocols' attribute in an option in "
-                         "blueprint '%s'" % data.get('id'))
+                         "blueprint '%s'", data.get('id'))
 
             # move 'choice' to display-hints
 
@@ -200,7 +115,7 @@ class Blueprint(ExtensibleDict):
                     option['display-hints']['choice'] = option['choice']
                 del option['choice']
                 LOG.warn("Converted 'choice' attribute in an option in "
-                         "blueprint '%s'" % data.get('id'))
+                         "blueprint '%s'", data.get('id'))
 
             # move 'sample' to display-hints
 
@@ -211,7 +126,7 @@ class Blueprint(ExtensibleDict):
                     option['display-hints']['sample'] = option['sample']
                 del option['sample']
                 LOG.warn("Converted 'sample' attribute in an option in "
-                         "blueprint '%s'" % data.get('id'))
+                         "blueprint '%s'", data.get('id'))
 
         # tag version and log conversion
 
@@ -221,8 +136,8 @@ class Blueprint(ExtensibleDict):
             if 'meta-data' not in data:
                 data['meta-data'] = {}
             data['meta-data']['schema-version'] = 'v0.7'
-            LOG.info("Converted blueprint '%s' from %s to %s" % (
-                     data.get('id'), version, 'v0.7'))
+            LOG.info("Converted blueprint '%s' from %s to %s",
+                     data.get('id'), version, 'v0.7')
 
         return data
 

@@ -20,21 +20,17 @@ except ImportError:
     import PAM  # pylint: disable=W0611,F0401,W0402
 from urlparse import urlparse
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
 from bottle import get, request, response, abort  # pylint: disable=E0611
 import webob
 import webob.dec
-from webob.exc import HTTPNotFound, HTTPUnauthorized, HTTPFound
-
-LOG = logging.getLogger(__name__)
-
+from webob.exc import HTTPNotFound, HTTPUnauthorized
 
 from checkmate.common.caching import MemorizeMethod
 from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import CheckmateException
 from checkmate.utils import to_json, to_yaml, import_class
+
+LOG = logging.getLogger(__name__)
 
 
 def generate_response(self, environ, start_response):

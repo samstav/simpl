@@ -131,7 +131,8 @@ class DbBase(object):  # pylint: disable=R0921
     def get_blueprint(self, api_id, with_secrets=None):
         raise NotImplementedError()
 
-    def get_blueprints(self, tenant_id=None, with_secrets=None):
+    def get_blueprints(self, tenant_id=None, with_secrets=None,
+                       limit=None, offset=None):
         raise NotImplementedError()
 
     def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):

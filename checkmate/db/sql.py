@@ -356,17 +356,15 @@ class Driver(DbBase):
         '''Retrieve a blueprint by blueprint id'''
         return self._get_object(Blueprint, id, with_secrets=with_secrets)
 
-    def get_blueprints(self, tenant_id=None, with_secrets=None):
-        '''Retrieve all blueprints for a given tenant id'''
-        return self._get_objects(
-            Blueprint,
-            tenant_id,
-            with_secrets=with_secrets
-        )
+    def get_blueprints(self, tenant_id=None, with_secrets=None, limit=None,
+                       offset=None, with_count=True):
+        return self._get_objects(Blueprint, tenant_id,
+                                 with_secrets=with_secrets, limit=limit,
+                                 offset=offset, with_count=with_count)
 
-    def save_blueprint(self, id, body, secrets=None, tenant_id=None):
+    def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
         '''Save a blueprint to the database'''
-        return self._save_object(Blueprint, id, body, secrets, tenant_id)
+        return self._save_object(Blueprint, api_id, body, secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, id, with_secrets=None):
@@ -444,7 +442,8 @@ class Driver(DbBase):
                         response['results'][entry.id] = entry.body
                 else:
                     response['results'][entry.id] = entry.body
-                response['results'][entry.id]['tenantId'] = entry.tenant_id
+                if entry.tenant_id is not None:
+                    response['results'][entry.id]['tenantId'] = entry.tenant_id
         if with_count:
             response['collection-count'] = self._get_count(
                 klass, tenant_id, with_deleted)
@@ -461,7 +460,7 @@ class Driver(DbBase):
         return self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted).count()
 
-    def _save_object(self, klass, id, body, secrets=None,
+    def _save_object(self, klass, api_id, body, secrets=None,
                      tenant_id=None, merge_existing=False):
         """Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
@@ -479,23 +478,23 @@ class Driver(DbBase):
         while tries < DEFAULT_RETRIES:
             #try to get the lock
             updated = self.session.query(klass).filter_by(
-                id=id,
+                id=api_id,
                 locked=0
             ).update({'locked': lock_timestamp})
             self.session.commit()
 
             if updated > 0:
                 #get the object that we just locked
-                results = self.session.query(klass).filter_by(id=id,
+                results = self.session.query(klass).filter_by(id=api_id,
                                                               locked=
                                                               lock_timestamp)
                 assert results.count() > 0, ("There was a fatal error. The "
                                              "object %s with id %s could not "
-                                             "be locked!" % (klass, id))
+                                             "be locked!" % (klass, api_id))
                 break
             else:
-                existing_object = self.session.query(klass).filter_by(id=id)\
-                    .first()
+                existing_object = self.session.query(klass)\
+                    .filter_by(id=api_id).first()
                 if not existing_object:
                     #this is a new object
                     break
@@ -506,15 +505,14 @@ class Driver(DbBase):
                     #the lock is stale, remove it
                     stale_lock_object = \
                         self.session.query(klass).filter_by(
-                            id=id,
+                            id=api_id,
                             locked=existing_object.locked
                         ).update({'locked': lock_timestamp})
                     self.session.commit()
 
-                    results = self.session.query(klass).filter_by(id=id)
+                    results = self.session.query(klass).filter_by(id=api_id)
 
                     if stale_lock_object:
-                        print "stale break"
                         #updated the stale lock
                         break
 
@@ -541,12 +539,13 @@ class Driver(DbBase):
             elif "tenantId" in body:
                 e.tenant_id = body.get("tenantId")
 
-            assert tenant_id or e.tenant_id, "tenantId must be specified"
+            assert klass is Blueprint or tenant_id or e.tenant_id,\
+                "tenantId must be specified"
 
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s", klass.__name__,
-                                id)
+                                api_id)
                     e.secrets = None
                 else:
                     if not e.secrets:
@@ -556,10 +555,10 @@ class Driver(DbBase):
                     e.secrets = new_secrets
 
         else:
-            assert tenant_id or 'tenantId' in body, \
+            assert klass is Blueprint or tenant_id or 'tenantId' in body, \
                 "tenantId must be specified"
             #new item
-            e = klass(id=id, body=body, tenant_id=tenant_id,
+            e = klass(id=api_id, body=body, tenant_id=tenant_id,
                       secrets=secrets, locked=0)
 
         # As of v0.13, status is saved in Deployment object

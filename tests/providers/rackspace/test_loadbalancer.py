@@ -6,23 +6,21 @@ import cloudlb
 import mox
 from mox import IsA, IgnoreArg
 
-from checkmate.utils import init_console_logging
-from checkmate.providers.rackspace.loadbalancer import (
-    delete_lb_task,
-    wait_on_lb_delete,
-)
-init_console_logging()
-LOG = logging.getLogger(__name__)
-
+from checkmate import deployments
 from checkmate import test, utils
 from checkmate.exceptions import CheckmateException
 from checkmate.deployment import Deployment
-from checkmate import deployments
 from checkmate.deployments import resource_postback
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import loadbalancer
+from checkmate.providers.rackspace.loadbalancer import (
+    delete_lb_task,
+    wait_on_lb_delete,
+)
 from checkmate.workflow import create_workflow_deploy
+
+LOG = logging.getLogger(__name__)
 
 
 class TestLoadBalancer(test.ProviderTester):

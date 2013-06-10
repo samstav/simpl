@@ -5,9 +5,6 @@ import logging
 import os
 import yaml
 
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-from checkmate.utils import init_console_logging
-init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from string import Template

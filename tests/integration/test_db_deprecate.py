@@ -5,14 +5,14 @@ import unittest2 as unittest
 import time
 from bottle import HTTPError
 
-from checkmate.utils import init_console_logging
-from checkmate.db.common import DatabaseTimeoutException, \
-    DEFAULT_STALE_LOCK_TIMEOUT
+from checkmate.db.common import (
+    DatabaseTimeoutException,
+    DEFAULT_STALE_LOCK_TIMEOUT,
+)
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
 from checkmate.db.sql import Deployment, Workflow
-init_console_logging()
 LOG = logging.getLogger(__name__)
 
 from checkmate import db
