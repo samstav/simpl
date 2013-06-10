@@ -86,7 +86,7 @@ Priv Key: {{formatted_data.private_key}}
               </div>
             </div>
 
-            <div ng-cloak ng-show="$parent.data.operation.status == 'IN PROGRESS' || $parent.data.operation.status == 'PAUSED'" ng-controller="WorkflowController">
+            <div ng-cloak ng-show="shouldDisplayWorkflowStatus()" ng-controller="WorkflowController">
               <div class="control-group" ng-cloak ng-show="timeRemaining">
                 <label class="control-label">Progress:</label>
                 <div class="controls progress">
