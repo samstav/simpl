@@ -309,7 +309,8 @@ def _validate_range_values(request, label, kwargs):
             raise ValueError
 
 
-def _write_pagination_headers(data, offset, limit, response, uripath, tenant_id):
+def _write_pagination_headers(data, offset, limit, response,
+                              uripath, tenant_id):
     """Add pagination headers to the response body"""
     count = len(data.get('results'))
     if 'collection-count' in data:
@@ -331,7 +332,8 @@ def _write_pagination_headers(data, offset, limit, response, uripath, tenant_id)
 
         # Add Next page link to http header
         if (offset + limit) < total - 1:
-            nextfmt = '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
+            nextfmt = \
+                '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
             response.add_header(
                 "Link", nextfmt % (tenant_id, uripath, limit, offset+limit)
             )
@@ -692,12 +694,16 @@ def is_evaluable(value):
     except AttributeError:
         return False
 
+
 def _generate_password():
     # Defaults to 8 chars, alphanumeric
-    password = '%s%s' % (random.choice(string.ascii_letters),
-                         ''.join(random.choice(string.ascii_letters + string.digits)
-                         for x in range(7)))
+    password = '%s%s' % (
+        random.choice(string.ascii_letters),
+        ''.join(random.choice(string.ascii_letters + string.digits)
+        for x in range(7))
+    )
     return password
+
 
 def evaluate(function_string):
     """Evaluate an option value.
