@@ -63,9 +63,9 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
-MANAGERS = {}
-MANAGERS['deployments'] = deployments.Manager(DRIVERS)
+MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
+create_failed_resource = MANAGERS['deployments'].create_failed_resource
 
 
 class Provider(ProviderBase):
@@ -706,6 +706,8 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
 
     if api is None:
         api = Provider.connect(context, region)
+
+    create_failed_resource(context["deployment"], context["resource"])
 
     #FIXME: should pull default from lb api but thats not exposed via the
     #       client yet

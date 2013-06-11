@@ -3,11 +3,14 @@ Provider for Rackspace Cloud Servers 1.0 API
 """
 import copy
 import logging
+import os
 
 import openstack.compute
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
+from checkmate import db
+from checkmate import deployments
 from checkmate.deployments import resource_postback
 from checkmate.exceptions import (
     CheckmateNoTokenError,
@@ -94,6 +97,18 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
             source_field_name: flavor
             choice: []
 """)
+
+DRIVERS = {}
+DB = DRIVERS['default'] = db.get_driver()
+SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
+    connection_string=os.environ.get(
+        'CHECKMATE_SIMULATOR_CONNECTION_STRING',
+        os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
+    )
+)
+
+MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
+create_failed_resource = MANAGERS['deployments'].create_failed_resource
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -486,6 +501,8 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider.connect(context)
+
+    create_failed_resource(context["deployment"], context["resource"])
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (
               image, flavor, name, files))

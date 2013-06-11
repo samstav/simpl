@@ -3,10 +3,12 @@ Deployments Manager
 
 Handles deployment logic
 '''
+
 import logging
+import eventlet
 import uuid
 
-import eventlet
+from copy import deepcopy
 from SpiffWorkflow.storage import DictionarySerializer
 
 from .plan import Plan
@@ -304,6 +306,28 @@ class Manager(ManagerBase):
                              tenant_id=deployment['tenantId'])
 
         return operation
+
+    def create_failed_resource(self, deployment_id, resource_id):
+        deployment = self.get_deployment(deployment_id)
+        tenant_id = deployment["tenantId"]
+        resource = deployment['resources'].get(resource_id, None)
+        if resource.get('status') == "ERROR":
+            failed_resource = deepcopy(resource)
+            if 'relations' in failed_resource:
+                failed_resource.pop('relations')
+            failed_resource['index'] = (
+                str(len([res for res in deployment.get("resources").keys()
+                         if res.isdigit()])))
+
+            deployment_body = {
+                "id": deployment_id,
+                "tenantId": tenant_id,
+                "resources": {
+                    failed_resource['index']: failed_resource,
+                }
+            }
+            self.save_deployment(deployment_body, api_id=deployment_id,
+                                 partial=True)
 
     def create_delete_operation(self, deployment, tenant_id=None):
         '''Create Delete Operation (Canvas)'''

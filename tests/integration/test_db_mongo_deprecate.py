@@ -19,6 +19,7 @@ except ImportError as exc:
 from bottle import HTTPError
 
 from checkmate import db
+from checkmate import utils
 from checkmate.db import db_lock
 from checkmate.db.common import ObjectLockedError, InvalidKeyError
 from checkmate.utils import extract_sensitive_data
@@ -485,7 +486,8 @@ class TestDatabase(unittest.TestCase):
         resource_list = []
         for key, value in deployment['resources'].items():
             resource_list.append({key: value})
-        self.assertListEqual(resource_list, self._get_resources(dep_id))
+        self.assertDictEqual(utils.flatten(resource_list),
+                             utils.flatten(self._get_resources(dep_id)))
 
     @unittest.skipIf(SKIP, REASON)
     def test_save_new_deployment_with_secrets(self):
@@ -589,14 +591,19 @@ class TestDatabase(unittest.TestCase):
                                     tenant_id=self.tenantId,
                                     secrets={"clean": "encrypted"})
         new_resource_1 = {'foo': 'new_bar'}
-        deployment = self.driver.save_deployment(dep_id,
-                                                 {'resources': {
-                                                     '1': new_resource_1}},
+        new_resource_2 = {'foo2': 'new_bar2'}
+        resource_update = {
+            'resources': {
+                '1': new_resource_1,
+                '2': new_resource_2,
+            },
+        }
+        deployment = self.driver.save_deployment(dep_id, resource_update,
                                                  partial=True,
                                                  tenant_id=self.tenantId,
                                                  secrets=
                                                  {"clean": "encrypted1"})
-        self.assertEqual(len(deployment['resources']), 2)
+        self.assertEqual(len(deployment['resources']), 3)
         db_secrets = self.driver.database()["deployments_secrets"]. \
             find_one({"_id": dep_id},
                      {"_id": 0})
@@ -608,8 +615,10 @@ class TestDatabase(unittest.TestCase):
         db_deployment = self.driver.database().deployments.find_one(
             {'_id': dep_id})
         self.assertListEqual(db_deployment['resources'], resource_ids)
-        self.assertListEqual(self._get_resources(dep_id),
-                             [{'1': new_resource_1}, {'0': resource_0}])
+        self.assertDictEqual(utils.flatten(self._get_resources(dep_id)),
+                             utils.flatten([{'2': new_resource_2},
+                              {'1': new_resource_1},
+                              {'0': resource_0}]))
 
     @unittest.skipIf(SKIP, REASON)
     def test_partial_deployment_update_with_secrets(self):
@@ -661,8 +670,9 @@ class TestDatabase(unittest.TestCase):
         db_deployment = self.driver.database().deployments.find_one(
             {'_id': dep_id})
         self.assertListEqual(db_deployment['resources'], resource_ids)
-        self.assertListEqual(self._get_resources(dep_id),
-                             [{'1': new_resource_1}, {'0': resource_0}])
+        self.assertDictEqual(utils.flatten(self._get_resources(dep_id)),
+                             utils.flatten([{'1': new_resource_1},
+                                            {'0': resource_0}]))
 
     @unittest.skipIf(SKIP, REASON)
     def test_partial_deployment_update_with_secrets_for_old_format(self):

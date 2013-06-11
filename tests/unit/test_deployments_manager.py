@@ -11,11 +11,75 @@ import json
 import os
 import unittest2 as unittest
 import uuid
+from copy import deepcopy
 
 import mox
 
 from checkmate.deployment import Deployment
 from checkmate import deployments
+
+
+class TestManager(unittest.TestCase):
+
+    def setUp(self):
+        self._mox = mox.Mox()
+        self.db = self._mox.CreateMockAnything()
+        self.controller = deployments.Manager({'default': self.db})
+        unittest.TestCase.setUp(self)
+
+    def tearDown(self):
+        self._mox.VerifyAll()
+        self._mox.UnsetStubs()
+        unittest.TestCase.tearDown(self)
+
+    def test_create_failed_resources_with_existing_errored_resource(self):
+        deployment_id = 1234
+        deployment = {
+            "id": deployment_id,
+            "tenantId": 1000,
+            "resources": {
+                "0": {
+                    "status": "ERROR",
+                    "relations": {
+                        "host": {
+                            "name": "something",
+                        },
+                    }
+                },
+            }
+        }
+        expected_deployment = deepcopy(deployment)
+        expected_deployment.pop("resources")
+        expected_deployment.update({"resources": {
+            "1": {
+                "index": "1",
+                "status": "ERROR"
+            }
+        }})
+
+        self.db.get_deployment(deployment_id, with_secrets=False).AndReturn(
+            deployment)
+        self.db.save_deployment(deployment_id, expected_deployment, None,
+                                tenant_id=1000, partial=True)
+        self._mox.ReplayAll()
+        self.controller.create_failed_resource(deployment_id, "0")
+
+    def test_create_failed_resources_without_any_errored_resource(self):
+        deployment_id = 1234
+        deployment = {
+            "id": deployment_id,
+            "tenantId": 1000,
+            "resources": {
+                "0": {
+                    "status": "PLANNED",
+                },
+            }
+        }
+        self.db.get_deployment(deployment_id, with_secrets=False).AndReturn(
+            deployment)
+        self._mox.ReplayAll()
+        self.controller.create_failed_resource(deployment_id, "0")
+        self._mox.VerifyAll()
 
 
 class TestCount(unittest.TestCase):

@@ -63,6 +63,8 @@ class TestNovaCompute(test.ProviderTester):
             'tenant': 'TMOCK',
             'base_url': 'http://MOCK'
         }
+        self.mox.StubOutWithMock(compute, 'create_failed_resource')
+        compute.create_failed_resource("DEP", "1")
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')

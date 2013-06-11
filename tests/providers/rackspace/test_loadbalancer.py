@@ -191,6 +191,8 @@ class TestCeleryTasks(unittest.TestCase):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(loadbalancer, 'create_failed_resource')
+        loadbalancer.create_failed_resource("DEP", "1")
 
         #Stub out set_monitor call
         self.mox.StubOutWithMock(loadbalancer, 'set_monitor')

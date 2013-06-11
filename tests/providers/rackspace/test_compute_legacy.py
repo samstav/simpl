@@ -80,6 +80,9 @@ class TestLegacyCompute(test.ProviderTester):
             'tenant': 'TMOCK',
             'base_url': 'http://MOCK'
         }
+        self.mox.StubOutWithMock(compute_legacy, 'create_failed_resource')
+        compute_legacy.create_failed_resource("DEP", "1")
+
         resource_postback.delay(context['deployment'],
                                 expected).AndReturn(True)
 

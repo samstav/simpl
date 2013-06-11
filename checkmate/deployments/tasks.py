@@ -23,8 +23,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
-MANAGERS = {}
-MANAGERS['deployments'] = Manager(DRIVERS)
+MANAGERS = {'deployments': Manager(DRIVERS)}
 
 
 @task

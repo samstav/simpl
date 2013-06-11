@@ -101,6 +101,8 @@ class TestDatabase(ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(database, 'create_failed_resource')
+        database.create_failed_resource("DEP", "1")
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -180,6 +182,8 @@ class TestDatabase(ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(database, 'create_failed_resource')
+        database.create_failed_resource("DEP", "1")
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()

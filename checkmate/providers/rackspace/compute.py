@@ -121,9 +121,9 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
-MANAGERS = {}
-MANAGERS['deployments'] = deployments.Manager(DRIVERS)
+MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
+create_failed_resource = MANAGERS['deployments'].create_failed_resource
 
 
 class RackspaceComputeProviderBase(ProviderBase):
@@ -716,6 +716,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
+    create_failed_resource(context["deployment"], context["resource"])
     create_server.on_failure = on_failure
 
     if api_object is None:
