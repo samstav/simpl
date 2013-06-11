@@ -10,6 +10,7 @@ For tests, we don't care about:
 
 import copy
 import re
+import string
 import time
 import unittest2 as unittest
 import uuid
@@ -492,6 +493,12 @@ class TestUtils(unittest.TestCase):
             ],
             response.headerlist
         )
+
+    def test_generate_password(self):
+        password = utils.evaluate('generate_password()')
+        self.assertEqual(8, len(password))
+        self.assertTrue(password[0] in string.ascii_letters)
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

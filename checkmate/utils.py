@@ -692,6 +692,12 @@ def is_evaluable(value):
     except AttributeError:
         return False
 
+def _generate_password():
+    # Defaults to 8 chars, alphanumeric
+    password = '%s%s' % (random.choice(string.ascii_letters),
+                         ''.join(random.choice(string.ascii_letters + string.digits)
+                         for x in range(7)))
+    return password
 
 def evaluate(function_string):
     """Evaluate an option value.
@@ -703,12 +709,7 @@ def evaluate(function_string):
     if function_string.startswith('generate_uuid('):
         return uuid.uuid4().hex
     if function_string.startswith('generate_password('):
-        # Defaults to 8 chars, alphanumeric
-        start_with = string.ascii_uppercase + string.ascii_lowercase
-        password = '%s%s' % (random.choice(start_with),
-                             ''.join(random.choice(start_with + string.digits)
-                             for x in range(7)))
-        return password
+        return _generate_password()
     raise NameError("Unsupported function: %s" % function_string)
 
 
