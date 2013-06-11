@@ -489,12 +489,12 @@ describe('AppController', function(){
   });
 
   describe('modal_opts', function() {
-    it('should set backdropFade to true', function() {
-      expect(scope.login_prompt_opts.backdropFade).toBe(true);
+    it('should set backdropFade to false', function() {
+      expect(scope.modal_opts.backdropFade).toBe(false);
     });
 
-    it('should set dialogFade to true', function() {
-      expect(scope.login_prompt_opts.dialogFade).toBe(true);
+    it('should set dialogFade to false', function() {
+      expect(scope.modal_opts.dialogFade).toBe(false);
     });
   });
 
