@@ -22,6 +22,7 @@ from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
     CheckmateBadState,
+    CheckmateRetriableException,
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
@@ -675,7 +676,7 @@ def wait_on_build(context, instance_id, region, api=None):
                                                context['resource']
                                            ),
                                            instance_key).apply_async()
-        raise CheckmateException(msg)
+        raise CheckmateRetriableException(msg, "")
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
         results['id'] = instance_id
