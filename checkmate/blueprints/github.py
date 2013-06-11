@@ -32,7 +32,7 @@ DEFAULT_CACHE_TIMEOUT = 10 * 60
 
 def _handle_ghe(ghe, msg="Unexpected Github error"):
     ''' Ignore a 404 response from github but log other errors '''
-    if 404 != ghe.status:
+    if ghe.status != 404:
         LOG.warn(msg or "", exc_info=True)
 
 
