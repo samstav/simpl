@@ -106,6 +106,11 @@ class BrowserMiddleware(object):
         except HTTPError:
             pass
 
+        # Let methods we don't handle go through
+        if (environ.get('REQUEST_METHOD', 'GET').upper() in
+                ['POST', 'PUT', 'DELETE']):
+            return self.nextapp(environ, handler)
+
         # .yaml, .json, and .xml not handled by rook
         #
         # Note: curl calls to .yaml resources will come with text/html or */*.
@@ -136,31 +141,6 @@ class BrowserMiddleware(object):
 
 
 # Add static routes
-@ROOK_STATIC.get('/favicon.ico')
-def favicon():
-    """Without this, browsers keep getting a 404 and users perceive
-    slow response """
-    return static_file('favicon.ico',
-                       root=os.path.join(os.path.dirname(__file__),
-                       'static'))
-
-
-@ROOK_STATIC.get('/apple-touch-icon.png')
-def apple_touch():
-    """For iOS devices"""
-    return static_file('apple-touch-icon.png',
-                       root=os.path.join(os.path.dirname(__file__),
-                       'static'))
-
-
-@ROOK_STATIC.get('/images/<path:path>')  # for RackspaceCalculator
-def images(path):
-    """Expose image files"""
-    root = os.path.join(os.path.dirname(__file__), 'static',
-                        'RackspaceCalculator', 'images')
-    return static_file(path, root=root)
-
-
 @ROOK_STATIC.get('/marketing/<path:path>')
 @support_only(['text/html', 'text/css', 'text/javascript'])
 def marketing(path):
@@ -195,8 +175,17 @@ def static(path=None):
     # Ensure correct mimetype (bottle does not handle css)
     mimetype = 'auto'
     # bottle does not write this for css
-    if path and path.endswith('.css'):
-        mimetype = 'text/css'
+    if path:
+        if path.endswith('.css'):
+            mimetype = 'text/css'
+        elif path.endswith('.png'):
+            mimetype = 'image/png'
+        elif path.endswith('.gif'):
+            mimetype = 'image/gif'
+        elif path.endswith('.jpeg') or path.endswith('.jpeg'):
+            mimetype = 'image/jpeg'
+        elif path.endswith('.ico'):
+            mimetype = 'image/x-icon'
     # Check if path exists and return it, otherwise serve index.html
     if path and os.path.exists(os.path.join(root, path)):
         return static_file(path, root=root, mimetype=mimetype)
@@ -750,5 +739,5 @@ class BasicAuthMultiCloudMiddleware(object):
 
 def write_raw(data, request, response):
     """Write output in raw format"""
-    response.set_header('content-type', 'application/vnd.github.v3.raw')
+    response.set_header('Content-type', 'application/vnd.github.v3.raw')
     return data

@@ -378,9 +378,11 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     apikey: ''
   };
 
+  // Using fades will cause two modals displayed in a row (e.g. warning + error)
+  // to leave backdrop behind as of version ui-bootstrap-0.3.0
   $scope.modal_opts = {
-    backdropFade: true,
-    dialogFade: true,
+    backdropFade: false,
+    dialogFade: false
   };
   $scope.modal_window = {};
   $scope.open_modal = function(window_name) {
@@ -968,6 +970,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
 function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser) {
   //Scope variables
+
   $scope.showStatus = true;
   $scope.showHeader = true;
   $scope.showSearch = true;
@@ -987,6 +990,16 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     failure: true,
     retry: true
   };
+
+  $scope.shouldDisplayWorkflowStatus = function() {
+    var operation = $scope.$parent.data.operation;
+    if(operation){
+      var is_workflow_operation = operation.link.split('/').indexOf('workflows') !== -1;
+      return (operation.status == 'IN PROGRESS' || operation.status == 'PAUSED') && is_workflow_operation;
+    } else {
+      return false;
+    }
+  }
 
   $scope.toggle_task_traceback = function(task_type) {
     $scope.hide_task_traceback[task_type] = !$scope.hide_task_traceback[task_type];
