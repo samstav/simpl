@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <script src="static/libs/d3.v2.min.js" charset="utf-8"></script>
     <script src="static/libs/underscore-min.js"></script>
+    <script src="fisheye.js"></script>
     <script src="flare.json" charset="utf-8"></script>
     <style>
       circle.node {
@@ -56,14 +57,14 @@ function distanceToStartSpec(memo, all_specs, spec) {
   });
 
   var scale = 20;
-  var default_duration = 50;
+  var default_duration = 10;
   var max_duration = specs[max_spec].properties.estimated_duration || default_duration;
   memo[spec.id] = memo[specs[max_spec].id] + Math.log(max_duration)*scale;
   return memo[spec.id];
 }
 
 var resource_position = function(group) {
-  var spacing = 50;
+  var spacing = 30;
   return group * spacing;
 }
 
@@ -95,10 +96,9 @@ var getGroup = function(spec, specs) {
 
 var buildNodes = function(specs) {
   var nodes = [];
-  var spacing = { x: 50, y: 50 };
   var start_group = 0;
   var positions_memo = {};
-  var start_position = { x: 20, y: 200 };
+  var start_position = { x: 20, y: 120 };
   var fixed_status = true;
   var skip_nodes = ['Root', 'Start'];
   var start_spec = 'Start';
@@ -176,10 +176,6 @@ var buildNetwork = function(json, width, height) {
     node_container.selectAll("g.node")
     .classed("active", centered && function(d) { return d === centered; });
 
-    console.log(width)
-    console.log(height)
-    console.log(x)
-    console.log(y)
     node_container.transition()
     .duration(1000)
     .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
@@ -222,7 +218,7 @@ var buildNetwork = function(json, width, height) {
       .append("svg:g")
       .attr("class", "node")
       //.call(force.drag)
-      .on('click', click)
+      //.on('click', click)
       ;
 
   var links = svg.select('#nodes').selectAll("line.link")
@@ -239,27 +235,85 @@ var buildNetwork = function(json, width, height) {
 
   nodes.append('circle')
       .attr("r", 8)
+      .attr("x", function(d){ return d.x })
+      .attr("y", function(d){ return d.y })
       .attr("class", "node")
       .style("fill", function(d) { return color(d.group); });
 
   nodes.append("svg:image")
       .attr("class", "circle")
       .attr("xlink:href", getIcon)
-      .attr("x", "-8px")
-      .attr("y", "-8px")
+      .attr("x", "0")
+      .attr("y", "0")
       .attr("width", "16px")
       .attr("height", "16px");
 
-  force.on("tick", function() {
-      links.attr("x1", function(d) { return d.source.x; })
-          .attr("y1", function(d) { return d.source.y; })
-          .attr("x2", function(d) { return d.target.x; })
-          .attr("y2", function(d) { return d.target.y; });
+  nodes.selectAll("title").text(function(d) { return d.name; });
+  nodes.selectAll("circle").classed('inactive', function(d) { return d.status });
 
-      nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-      nodes.selectAll("title").text(function(d) { return d.name; });
-      nodes.selectAll("circle").classed('inactive', function(d) { return d.status });
+  links.attr("x1", function(d) { return d.source.x; })
+      .attr("y1", function(d) { return d.source.y; })
+      .attr("x2", function(d) { return d.target.x; })
+      .attr("y2", function(d) { return d.target.y; });
+
+
+  //force.on("tick", function() {
+  //    links.attr("x1", function(d) { return d.source.x; })
+  //        .attr("y1", function(d) { return d.source.y; })
+  //        .attr("x2", function(d) { return d.target.x; })
+  //        .attr("y2", function(d) { return d.target.y; });
+
+  //    nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+  //    nodes.selectAll("title").text(function(d) { return d.name; });
+  //    nodes.selectAll("circle").classed('inactive', function(d) { return d.status });
+  //});
+
+  var fisheye = d3.fisheye.circular()
+    .radius(250)
+    .distortion(5);
+
+  svg.on("mousemove", function() {
+    fisheye.focus(d3.mouse(this));
+    nodes.selectAll('circle').each(function(d) { d.fisheye = fisheye(d); })
+      .attr("cx", function(d) { return d.fisheye.x; })
+      .attr("cy", function(d) { return d.fisheye.y; })
+      .attr("r", function(d) { return d.fisheye.z * 9.5; });
+
+    nodes.selectAll('image').each(function(d) { d.fisheye = fisheye(d); })
+      .attr("x", function(d) { return d.fisheye.x; })
+      .attr("y", function(d) { return d.fisheye.y; })
+      .attr("r", function(d) { return d.fisheye.z * 4.5; });
+
+    nodes.each(function(d) { d.fisheye = fisheye(d); })
+      .attr("cx", function(d) { return d.fisheye.x; })
+      .attr("cy", function(d) { return d.fisheye.y; })
+      .attr("r", function(d) { return d.fisheye.z * 4.5; });
+
+    links.attr("x1", function(d) { return d.source.fisheye.x; })
+      .attr("y1", function(d) { return d.source.fisheye.y; })
+      .attr("x2", function(d) { return d.target.fisheye.x; })
+      .attr("y2", function(d) { return d.target.fisheye.y; });
   });
+  fisheye.focus([-4000,-4000])
+  nodes.selectAll('circle').each(function(d) { d.fisheye = fisheye(d); })
+    .attr("cx", function(d) { return d.fisheye.x; })
+    .attr("cy", function(d) { return d.fisheye.y; })
+    .attr("r", function(d) { return d.fisheye.z * 9.5; });
+
+  nodes.selectAll('image').each(function(d) { d.fisheye = fisheye(d); })
+    .attr("x", function(d) { return d.fisheye.x; })
+    .attr("y", function(d) { return d.fisheye.y; })
+    .attr("r", function(d) { return d.fisheye.z * 4.5; });
+
+  nodes.each(function(d) { d.fisheye = fisheye(d); })
+    .attr("cx", function(d) { return d.fisheye.x; })
+    .attr("cy", function(d) { return d.fisheye.y; })
+    .attr("r", function(d) { return d.fisheye.z * 4.5; });
+
+  links.attr("x1", function(d) { return d.source.fisheye.x; })
+    .attr("y1", function(d) { return d.source.fisheye.y; })
+    .attr("x2", function(d) { return d.target.fisheye.x; })
+    .attr("y2", function(d) { return d.target.fisheye.y; });
 
   return force;
 };
