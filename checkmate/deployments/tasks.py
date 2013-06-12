@@ -4,8 +4,10 @@ Deployments Asynchronous tasks
 import logging
 import os
 
+
 from celery.task import task
 
+from checkmate import celeryglobal as celery
 from checkmate import db, utils
 from checkmate.common import tasks as common_tasks
 from checkmate.deployments import Manager
@@ -23,7 +25,16 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
+LOCK_DB = db.get_driver(connection_string=os.environ.get(
+    'CHECKMATE_LOCK_CONNECTION_STRING',
+    os.environ.get('CHECKMATE_CONNECTION_STRING')))
+
 MANAGERS = {'deployments': Manager(DRIVERS)}
+
+
+@task(base=celery.SingleTask, lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}")
+def create_failed_resource_task(deployment_id, resource_id):
+    MANAGERS['deployments'].create_failed_resource(deployment_id, resource_id)
 
 
 @task

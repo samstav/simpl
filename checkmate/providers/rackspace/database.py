@@ -17,6 +17,7 @@ from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
+from checkmate.deployments.tasks import create_failed_resource_task
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
@@ -54,7 +55,6 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
 )
 MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
-create_failed_resource = MANAGERS['deployments'].create_failed_resource
 
 
 class Provider(ProviderBase):
@@ -742,7 +742,8 @@ def create_database(context, name, region, character_set=None, collate=None,
     if not api:
         api = Provider.connect(context, region)
 
-    create_failed_resource(context["deployment"], context["resource"])
+    create_failed_resource_task.delay(context["deployment"],
+                                      context["resource"])
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
         # Create instance & database

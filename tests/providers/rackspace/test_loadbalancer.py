@@ -11,6 +11,7 @@ from checkmate import test, utils
 from checkmate.exceptions import CheckmateException
 from checkmate.deployment import Deployment
 from checkmate.deployments import resource_postback
+from checkmate.deployments.tasks import create_failed_resource_task
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import loadbalancer
@@ -191,8 +192,9 @@ class TestCeleryTasks(unittest.TestCase):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
-        self.mox.StubOutWithMock(loadbalancer, 'create_failed_resource')
-        loadbalancer.create_failed_resource("DEP", "1")
+        self.mox.StubOutWithMock(create_failed_resource_task, 'delay')
+        create_failed_resource_task.delay(context['deployment'],
+                                          context['resource'])
 
         #Stub out set_monitor call
         self.mox.StubOutWithMock(loadbalancer, 'set_monitor')

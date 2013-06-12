@@ -6,6 +6,7 @@ import mox
 
 from checkmate.exceptions import CheckmateException
 from checkmate.deployments import resource_postback
+from checkmate.deployments.tasks import create_failed_resource_task
 from checkmate.middleware import RequestContext
 from checkmate.providers.rackspace import compute_legacy
 from checkmate import test
@@ -44,6 +45,7 @@ class TestLegacyCompute(test.ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(create_failed_resource_task, 'delay')
 
         #Create appropriate api mocks
         openstack_api_mock = self.mox.CreateMockAnything()
@@ -80,8 +82,8 @@ class TestLegacyCompute(test.ProviderTester):
             'tenant': 'TMOCK',
             'base_url': 'http://MOCK'
         }
-        self.mox.StubOutWithMock(compute_legacy, 'create_failed_resource')
-        compute_legacy.create_failed_resource("DEP", "1")
+        create_failed_resource_task.delay(context['deployment'],
+                                          context['resource'])
 
         resource_postback.delay(context['deployment'],
                                 expected).AndReturn(True)

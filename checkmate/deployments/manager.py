@@ -4,11 +4,11 @@ Deployments Manager
 Handles deployment logic
 '''
 
+import copy
 import logging
-import eventlet
 import uuid
 
-from copy import deepcopy
+import eventlet
 from SpiffWorkflow.storage import DictionarySerializer
 
 from .plan import Plan
@@ -308,11 +308,18 @@ class Manager(ManagerBase):
         return operation
 
     def create_failed_resource(self, deployment_id, resource_id):
+        '''
+        Creates a copy of a failed resource and appends it at the end of the
+        resources collection
+        :param deployment_id:
+        :param resource_id:
+        :return:
+        '''
         deployment = self.get_deployment(deployment_id)
         tenant_id = deployment["tenantId"]
         resource = deployment['resources'].get(resource_id, None)
         if resource.get('status') == "ERROR":
-            failed_resource = deepcopy(resource)
+            failed_resource = copy.deepcopy(resource)
             if 'relations' in failed_resource:
                 failed_resource.pop('relations')
             failed_resource['index'] = (
