@@ -977,9 +977,9 @@ class Deployment(ExtensibleDict):
     def calculate_outputs(self):
         '''Parse display-outputs definitions and generate display-outputs'''
         definitions = self.find_display_output_definitions()
-        if not definitions:
-            return
         results = {}
+        if not definitions:
+            return results
         services = self.calculate_services()
         for name, definition in definitions.items():
             entry = {}
