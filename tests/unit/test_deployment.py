@@ -379,6 +379,17 @@ class TestCalculateOutputs(unittest.TestCase):
                     -----BEGIN PUBLIC KEY---- ...
     """))
 
+    def test_calculate_outputs_none(self):
+        '''Tests empty dict is returned if no display-outputs'''
+        deployment = Deployment({
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'status': "PLANNED",
+        })
+        results = deployment.calculate_outputs()
+        self.assertEqual(results, {})
+
     def test_option(self):
         results = self.deployment.calculate_outputs()
         self.assertIn('simple', results)
