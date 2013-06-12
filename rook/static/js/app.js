@@ -1658,27 +1658,22 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.color = function(node) {
     var color;
-    switch(node.spec.state) {
-      case 'future':
-      case 'likely':
-      case 'maybe':
-        color = 'gray';
-        break;
-      case 'waiting':
-        color = '';
-        break;
-      case 'completed':
-      case 'ready':
+    var state = $scope.spec_status(node.name);
+    switch($scope.state_name({state: state})) {
+      case "Ready":
+      case "Completed":
         color = 'green';
         break;
-      case 'cancelled':
-        color = '';
+      case "Waiting":
+        color = 'orange';
         break;
-      case 'triggered':
-        color = '';
-        break;
-      case 'error':
+      case "Error":
         color = 'red';
+        break;
+      case "Future":
+      case "Likely":
+      case "Maybe":
+        color = 'gray';
         break;
       default:
         color = 'black';
