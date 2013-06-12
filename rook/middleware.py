@@ -115,16 +115,26 @@ class BrowserMiddleware(object):
         #
         # Note: curl calls to .yaml resources will come with text/html or */*.
         # We need to pass those along
-        if (environ['PATH_INFO'].endswith('.yaml') or
-                environ['PATH_INFO'].endswith('.json')or
-                environ['PATH_INFO'].endswith('.xml')):
-            return self.nextapp(environ, handler)
+        path = environ['PATH_INFO']
+        if path:
+            extension = path.split('.')[-1]
+            if (extension in ['yaml', 'json']):
+                LOG.debug("Rook bypassing %s %s with extension %s",
+                          environ['REQUEST_METHOD'], path, extension)
+                return self.nextapp(environ, handler)
 
-        # Anything else that is text/html (or .html) we handle
-        # even images, js, etc... they come in as */*;text/html requests
-        if ('text/html' in webob.Request(environ).accept or
-                environ['PATH_INFO'].startswith('/static/') or
-                environ['PATH_INFO'].endswith('.html')):
+            supported = ['html', 'gif', 'ico', 'jpeg', 'jpg', 'css', 'js']
+            if (extension in supported or
+                    environ['PATH_INFO'].startswith('/static/')):
+                LOG.debug("Rook handling %s %s with extension %s",
+                          environ['REQUEST_METHOD'], path, extension)
+                return ROOK_STATIC(environ, handler)
+
+        accept = environ['HTTP_ACCEPT']
+        if ('application/json' not in accept and
+                'application/x-yaml' not in accept):
+            LOG.debug("Rook handling %s %s with accept header %s",
+                      environ['REQUEST_METHOD'], path, accept)
             return ROOK_STATIC(environ, handler)
 
         return self.nextapp(environ, handler)
@@ -132,7 +142,7 @@ class BrowserMiddleware(object):
     def start_response_callback(self, start_response):
         """Intercepts upstream start_response and adds our headers"""
         def callback(status, headers, exc_info=None):
-            # Add our headers to response
+            '''Add our headers to response'''
             if self.with_simulator:
                 headers.append(("X-Simulator-Enabled", "True"))
             # Call upstream start_response
@@ -165,10 +175,6 @@ def autologin():
 
 @ROOK_STATIC.get('/')
 @ROOK_STATIC.get('/<path:path>')
-#TODO: remove application/json and fix angular to call partials with
-#  text/html
-@support_only(['text/html', 'text/css', 'text/javascript', 'image/*',
-               'application/json'])  # Angular calls template in json
 def static(path=None):
     """Expose UI"""
     root = os.path.join(os.path.dirname(__file__), 'static')
