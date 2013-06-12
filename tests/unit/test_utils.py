@@ -497,7 +497,6 @@ class TestUtils(unittest.TestCase):
     def test_generate_password(self):
         password = utils.evaluate('generate_password()')
         self.assertEqual(8, len(password))
-        self.assertTrue(password[0] in string.ascii_letters)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 '''Analyzes a Checkmate deployment and persists the analysis results'''
 import copy
 import logging
+import string
 
 from checkmate import keys
 from checkmate.classes import ExtensibleDict
@@ -335,7 +336,7 @@ class Plan(ExtensibleDict):
                                 "resources/%s/password" % key)
                         if not instance['password']:
                             instance['password'] = utils.generate_password(
-                                first_chars = string.letters,
+                                starts_with = string.letters,
                                 valid_chars = ''.join([
                                     string.letters,
                                     string.digits
