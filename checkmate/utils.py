@@ -23,6 +23,7 @@ import shutil
 
 from bottle import abort, request, response
 from functools import wraps
+from Crypto.Random import random
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 from yaml.composer import ComposerError
@@ -695,14 +696,60 @@ def is_evaluable(value):
         return False
 
 
-def _generate_password():
-    # Defaults to 8 chars, alphanumeric
-    password = '%s%s' % (
-        random.choice(string.ascii_letters),
-        ''.join(random.choice(string.ascii_letters + string.digits)
-        for x in range(7))
-    )
-    return password
+def generate_password(
+    min_length=None, max_length=None, required_chars=None,
+    starts_with=None, valid_chars=None
+):
+    '''Generates a password based on constraints provided
+
+    :param min_length: minimum password length
+    :param max_length: maximum password length
+    :param required_chars: a set of character sets, one for each required char
+    :param starts_with: a set of characters required as the first character
+    :param valid_chars: the set of valid characters for non-required chars
+    '''
+    # Choose a valid password length based on min_length and max_length
+    if max_length and min_length and max_length != min_length:
+        password_length = random.randint(min_length, max_length)
+    else:
+        password_length = max_length or min_length or 8
+
+    # If not specified, default valid_chars to letters, numbers, punctuation
+    valid_chars = valid_chars or ''.join([
+        string.ascii_letters,
+        string.digits,
+        string.punctuation
+    ])
+
+    first_char = ''
+    if starts_with:
+        first_char = random.choice(starts_with)
+        password_length -= 1
+
+    password = ''
+    if required_chars:
+        for required_set in required_chars:
+            if password_length > 0:
+                password = ''.join([password, random.choice(required_set)])
+                password_length -= 1
+            else:
+                raise ValueError(
+                    'Password length is less than the '
+                    'number of required characters.'
+                )
+
+    if password_length > 0:
+        password = ''.join([
+            password,
+            ''.join(
+                [random.choice(valid_chars) for x in range(password_length)]
+            )
+        ])
+
+    # Shuffle all except first_char
+    password = ''.join(random.sample(password, len(password)))
+
+    return ''.join([first_char, password])
 
 
 def evaluate(function_string):
@@ -715,7 +762,7 @@ def evaluate(function_string):
     if function_string.startswith('generate_uuid('):
         return uuid.uuid4().hex
     if function_string.startswith('generate_password('):
-        return _generate_password()
+        return generate_password()
     raise NameError("Unsupported function: %s" % function_string)
 
 

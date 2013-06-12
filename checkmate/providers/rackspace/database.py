@@ -27,7 +27,7 @@ from checkmate.exceptions import (
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
-from checkmate.utils import match_celery_logging
+from checkmate.utils import match_celery_logging, generate_password
 from checkmate.workflow import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -220,7 +220,14 @@ class Provider(ProviderBase):
                                               provider_key=self.key,
                                               service_name=service_name)
             if not password:
-                password = self.evaluate("generate_password()")
+                password = generate_password(
+                    starts_with=string.ascii_letters,
+                    valid_chars=''.join(
+                        [string.ascii_letters, string.digits, '@?#_']
+                    ),
+                    min_length=12
+                )
+
             elif password.startswith('=generate'):
                 password = self.evaluate(password[1:])
 

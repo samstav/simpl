@@ -334,8 +334,13 @@ class Plan(ExtensibleDict):
                             deployment._get_setting_by_resource_path(
                                 "resources/%s/password" % key)
                         if not instance['password']:
-                            instance['password'] = utils.evaluate(
-                                "generate_password()")
+                            instance['password'] = utils.generate_password(
+                                first_chars = string.letters,
+                                valid_chars = ''.join([
+                                    string.letters,
+                                    string.digits
+                                ])
+                            )
                     else:
                         instance['password'] = resource['password']
                 elif resource['type'] == 'key-pair':
