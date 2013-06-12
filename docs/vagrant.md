@@ -12,8 +12,9 @@ and [VirtualBox](https://www.virtualbox.org/), then execute these commands:
 
     $ gem install berkshelf
     $ vagrant plugin install vagrant-berkshelf
+    $ vagrant plugin install vagrant-omnibus
     $ git clone git://github.rackspace.com/checkmate/checkmate.git
-    $ vagrant up # skip this step if upgrading from librarian-chef
+    $ vagrant up
 
 ## Upgrade from librarian-chef
 
@@ -25,7 +26,7 @@ directory, and need to update the VirtualBox image. To update the image, follow 
     $ vagrant box remove precise virtualbox
     $ vagrant up
 
-You may also need to remove the directories `vagrant/cookbooks` and `vagrant/tmp`.
+You may also need to remove the directory `vagrant`.
 
 ## Working with Vagrant
 
