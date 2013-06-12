@@ -208,9 +208,16 @@ Note: this is the schema that is being supported in v0.7 of the engine. The sche
 **....always-accept-certificates**: if a blueprint always accepts and handles the certificates (especially if the url is entered in free-form supporting any protocol)
 **....default-protocol**: The default protocol to display to the user. If not supplied, clients should default to an unencrypted protocol since it is the simpler option for the user and does not present certificate options which could deter a user from launching the blueprint.
 
-**default**: The default value to use. YAML will assume numbers are ints, so enclose strings in "quotation marks" as a best practice. Special values for this are `=generate_password()` which will generate a random password on the server. We are considering adding parameters to `generate_password()` so the blueprint author can make the password generated match their (or their application's) requirements. This would be used by the blueprint author in tandem with constraints (below) for validation on the client side.
-**type**: the data type of this option. Valid types are: string, integer, boolean, password, url, region, and text (multi-line string). See later for a description of the `url` type which has some special attributes.
-**choice**: a list of items to select from (used to display a drop-down). The entries are either plain strings or a mapping with `value` and `name` entries where `value` is what is passed to Checkmate and `name` is what is displayed to the user. Note: does not apply validation. If you want validation, use an `in` constraint. This is used for display only.
+**default**: The default value to use. YAML will assume numbers are ints, so enclose strings in "quotation marks" as a best practice. Special values for this are `=generate_password()` which will generate a random password on the server. Several parameters can be passed to `generate_password()`:  
+
+  - `min_length=<integer>`: a number representing the minimum number of characters in the password. If `max_length` is not specified the password will be `min_length` characters.  
+  - `max_length=<integer>`: a number representing the maximum number of characters in the password. If `min_length` is not also specified the password will be `max_length` characters. if both `min_length` and `max_length` are specified the password length will be chosen at random from the specified range.  
+  - `required_chars=["<string1>", "<string2>", ..."<stringN>"]`: the generated password will contain one character from each string in the set. A string can be duplicated to require more than one character from the same set.  
+  - `starts_with="<string>"`: for use when the first password character should be restricted to a set of characters.  
+  - `valid_chars`: the set of characters that should be used for all but `starts_with` and `required_chars` chars. `valid_chars` can contain duplicates of the characters specified in both `starts_with` and `required_chars`.  
+
+**type**: the data type of this option. Valid types are: string, integer, boolean, password, url, region, and text (multi-line string). See later for a description of the `url` type which has some special attributes.  
+**choice**: a list of items to select from (used to display a drop-down). The entries are either plain strings or a mapping with `value` and `name` entries where `value` is what is passed to Checkmate and `name` is what is displayed to the user. Note: does not apply validation. If you want validation, use an `in` constraint. This is used for display only.  
 Example:
 
 ```
