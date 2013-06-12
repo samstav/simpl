@@ -1642,7 +1642,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.buildNodes = function(specs) {
     var nodes = [];
-    var spacing = { x: 50, y: 50 };
     var start_group = 0;
     var positions_memo = {};
     var start_position = { x: 20, y: 200 };
@@ -1743,6 +1742,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var force = d3.layout.force()
                 .size([width, height]);
 
+    d3.select(".entries").select("svg").remove();
     var svg = d3.select(parent_element)
                 .append("svg")
                 .attr("width", width)
@@ -1754,13 +1754,17 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .start()
         ;
 
-    var links = svg.append("g").selectAll("line.link")
+    var links = svg.append("g")
+        .attr('id', 'links')
+        .selectAll("line.link")
         .data(force.links())
         .enter().append("line")
         .attr("class", "link")
         ;
 
-    var nodes = svg.selectAll("g.node")
+    var nodes = svg.append('g')
+        .attr('id', 'nodes')
+        .selectAll("g.node")
         .data(force.nodes())
         .enter()
         .append("svg:g")
@@ -1810,6 +1814,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var network = { nodes: nodes, links: links };
     var force = $scope.buildNetwork(network, WIDTH, HEIGHT, parent_element);
   };
+
+  $scope.$watch('data', function(newVal, oldVal, scope) {
+    $scope.start_tree_preview('#workflow_tree');
+  }, true);
 
   // Old code we might reuse
   $scope.showConnections = function(task_div) {
