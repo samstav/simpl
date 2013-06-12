@@ -65,9 +65,130 @@
   <div class="nothingSelected" ng-cloak ng-hide="data">
     <p>Nothing selected.</p>
   </div>
+
   <div id="workflow_tree" ng-show="data">
   </div>
+
+  <div class="well entry" ng-cloak ng-show="data">
+    <h2>{{current_spec.name}}</h2>
+
+    <div id="spec" class="row-fluid">
+      <div class="span3">
+        <ul class="nav nav-list">
+          <li class="nav-header">Task Spec</li>
+
+          <li><a href="#" ng-click="save_spec()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
+
+          <li class="nav-header">Preceding Tasks</li>
+
+          <li ng-repeat="input in current_spec.inputs">
+            <span><span ng-class="state_class({state: spec_status(input)})">&nbsp;</span>
+                <a href="#{{input}}" ng-click="selectSpec(input)">{{input}}</a></span></li>
+
+          <li class="nav-header">Following Tasks</li>
+          <li ng-repeat="output in current_spec.outputs">
+            <span><span ng-class="state_class({state: spec_status(output)})">&nbsp;</span>
+                <a href="#{{output}}" ng-click="selectSpec(output)">{{output}}</a></span></li>
+        </ul>
+      </div>
+
+      <div class="span9">
+        <textarea id="spec_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="current_spec_json">
+        </textarea>
+        <alert type="alert.type" close="$parent.hide_alert('overwrite_secrets')" ng-show="$parent.display_alert('overwrite_secrets')">
+          <strong>Warning!</strong> If your updates include any 'secret' values
+          (like password or private keys) and you have not opened this screen
+          with a <code>?with_secrets</code> query parameter, then any existing
+          secrets will be overwritten and lost.
+        </alert>
+        <br>
+      </div>
+    </div>
+
+
+    <div id="task" class="row-fluid">
+      <div class="span3">
+        <ul class="nav nav-list" ng-cloak ng-show="current_task_index">
+          <li class="nav-header">Task</li>
+          <li><a ng-href="#{{current_task.task_spec}}" ng-click="save_task()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
+          <li>
+            <a href="#resetWarning" tooltip="Clear the task data and reset it" ng-click="open_modal('reset_warning')">
+              <i class="icon-repeat"></i> Reset
+            </a>
+            <!-- resetWarning -->
+            <div modal="reset_warning" close="close_modal('reset_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="reset_warning_title" aria-hidden="true">
+              <div class="modal-header">
+                <h3 id="reset_warning_title" class="alert alert-danger">Warning! Data Destructive Task</h3>
+              </div>
+              <div class="modal-body">
+                <p>Resetting a task will delete all the task history and data in it that references any resources created.</p>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-primary" ng-href="#{{current_task.task_spec}}" ng-click="reset_task()">Go ahead and Reset</button>
+                <button class="btn" ng-click="close_modal('reset_warning')">Cancel</button>
+              </div>
+            </div>
+          </li>
+          <li><a ng-href="#{{current_task.task_spec}}" ng-click="execute_task()" class="tip" title="Tries to move the task along or checks the latest status if it is pending."><i class="icon-play"></i> Poke</a></li>
+          <li><a ng-href="#{{current_task.task_spec}}" ng-click="resubmit_task()" class="tip" title="Retries the task. It Aborts an existing task if it is running."><i class="icon-retweet"></i> Retry</a></li>
+        </ul>
+      </div>
+
+      <div class="span9">
+        <ul class="nav nav-tabs">
+          <li ng-repeat="task in current_spec_tasks" ng-include="'task.html'" ng-class="{active: task.id==current_task_index}"></li>
+        </ul>
+
+        <div ng-cloak ng-show="current_task_index">
+          <alert type="'error'" close="$parent.hide_alert('task_error')" ng-show="$parent.current_task.internal_attributes.task_state.state == 'FAILURE' && $parent.current_task.state != 64 && $parent.display_alert('task_error')">
+            <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
+            <p>
+              This error was reported: {{current_task.internal_attributes.task_state.info}}.
+              See the code <a class="accordion-toggle" ng-click="toggle_task_traceback('failure')" href="#{{current_spec_index}}">traceback</a>.
+            </p>
+            <div collapse="hide_task_traceback.failure" class="collapse">
+              <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
+            </div>
+            <p>
+              <button class="btn btn-primary" ng-click="execute_task()" tooltip="Tries to move the task along or checks the latest status if it is pending.">Poke</button>
+              <button class="btn btn-danger" tooltip="Retries the task. It Aborts an existing task if it is running." ng-click="resubmit_task()">Retry</button>
+            </p>
+          </alert>
+
+          <alert close="$parent.hide_alert('task_retry')" ng-show="$parent.current_task.internal_attributes.task_state.state == 'RETRY' && $parent.current_task.state != 64 && $parent.display_alert('task_retry')">
+            <h4 class="alert-heading">{{current_task.internal_attributes.task_state.info.replace('CheckmateException(u\'', '').replace('\',)', '').replace('CheckmateException("', '').replace('",)', '') || 'Something might be up! But we haven\'t given up yet...'}}</h4>
+            <p>
+              This task is being retried.
+              See the code <a class="accordion-toggle" ng-click="toggle_task_traceback('retry')" href="#{{current_spec_index}}">traceback</a>.
+            </p>
+            <div collapse="hide_task_traceback.retry" class="collapse">
+              <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
+            </div>
+            <p>If you don't think this task is going to succeed you could <button class="btn btn-danger" tooltip="Clear task data, abort the Celery task, and retrigger it" ng-click="resubmit_task()"> Abort and Retry</button>, but please choose this carefully so we don't end up with duplicate resources!</p>
+          </alert>
+
+          <!-- Next Gen Server -->
+          <alert type="'success'" close="$parent.hide_alert('server_success')" ng-show="$parent.was_server_created() && $parent.display_alert('server_success')">
+            Server <a ng-cloak ng-show="resource(current_task).id.indexOf('-')" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{resource(current_task).region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> <a ng-hide="resource(current_task).id.indexOf('-')" target="_blank" href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServers/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created<span ng-switch on="resource(current_task).ip || true"><span ng-switch-when="true">.</span><span ng-switch-default> with IP address {{resource(current_task).ip}}. Connect to it over <a href="ssh://root@{{resource(current_task).ip}}">ssh</a></span></span> View it in <a target="_blank" ng-href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.context.tenantId}}/next_gen_servers/{{resource(current_task).region}}/{{resource(current_task).id}}"
+            >Cloud Control</a>.
+          </alert>
+
+          <!-- Load Balancer -->
+          <alert type="'success'" close="$parent.hide_alert('lb_success')" ng-show="was_loadbalancer_created() && $parent.display_alert('lb_success')">
+            Load balancer <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.context.username}}/load_balancers#rax%3Aload-balancer%2CcloudLoadBalancers%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created and assigned the public virtual IP (VIP) <a target="_blank" href="http://{{resource(current_task).public_ip}}/">{{resource(current_task).public_ip}}</a>. Open it in <a target="_blank" href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.context.tenantId}}/load_balancers/{{current_task.attributes.region}}/{{resource(current_task).id}}">Cloud Control</a>.
+          </alert>
+
+          <alert type="'success'" close="$parent.hide_alert('database_success')" ng-show="was_database_created() && $parent.display_alert('database_success')">
+            Database instance <a target="_blank" href="https://mycloud.rackspace.com/a/{{auth.context.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{current_task.attributes.region}}/{{resource(current_task).id}}">{{resource(current_task).id}}</a> was created on host {{resource(current_task).interfaces.mysql.host}}. Open it in <a target="_blank" href="{{CloudControlURL(resource(current_task).region)}}/customer/{{auth.context.tenantId}}/dbaas/instances/{{current_task.attributes.region}}/{{resource(current_task).id}}">Cloud Control</a>.
+          </alert>
+
+          <textarea id="task_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="current_task_json"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+
 
 <script type="text/ng-template" id="task.html">
 <a href="#" ng-click="selectTask(task.id)"> Task {{task.id}}

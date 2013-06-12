@@ -1429,55 +1429,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     });
   };
 
-  $scope.batman = function(){
-    var w = 960,
-    h = 500;
-
-    d3.select(".entries").select("svg").remove();
-    var vis = d3.select(".entries").append("svg:svg")
-        .attr("width", w)
-        .attr("height", h);
-    var nodes = _.map($scope.data.wf_spec.task_specs, function(t, k) {return t;});
-    var circle = vis.selectAll("circle").data(nodes);;
-
-    var enter = circle.enter().append("circle");
-
-    enter.attr("cy", function(d) { return 100 + 45* parseInt(d.properties.resource) || 0;});
-
-    enter.attr("cx", 160);
-
-    enter.attr("r", function(d) {
-      return Math.sqrt(100 + 15*parseInt(d.properties.resource) || 0);
-    });
-  }
-
-  $scope.giant = function(){
-    var w = 960,
-    h = 500;
-
-    d3.select(".entries").select("svg").remove();
-    var vis = d3.select(".entries").append("svg:svg")
-        .attr("width", w)
-        .attr("height", h);
-    var tasks = [
-
-      {
-          "startDate": new Date("Sun Dec 09 01:36:45 EST 2012"),
-              "endDate": new Date("Sun Dec 09 02:36:45 EST 2012"),
-                  "taskName": "E Job",
-                      "status": "FAILED"
-    },
-
-    {
-          "startDate": new Date("Sun Dec 09 04:56:32 EST 2012"),
-              "endDate": new Date("Sun Dec 09 06:35:47 EST 2012"),
-                  "taskName": "A Job",
-                      "status": "RUNNING"
-    }];
-    var gantt = d3.gantt().taskStatus(taskStatus);
-    gantt(tasks);
-  }
-
   $scope.play = function() {
     var w = 960,
     h = 500;
@@ -1577,11 +1528,11 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.getIcon = function(node) {
     var icon = "";
-    var base_dir = "static/img/icons/";
+    var base_dir = "/img/icons/";
 
-    if (node.group == "5") icon = "ws.png";
-    else if (node.group == "2") icon = "db.png";
-    else if (node.group == "0") icon = "lb.png";
+    if (node.group == "5") icon = "server.svg";
+    else if (node.group == "2") icon = "database.svg";
+    else if (node.group == "0") icon = "loadbalancer.svg";
 
     if (icon != "") icon = base_dir + icon;
 
@@ -1603,14 +1554,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     });
 
     var scale = 20;
-    var default_duration = 50;
+    var default_duration = 40;
     var max_duration = specs[max_spec].properties.estimated_duration || default_duration;
     memo[spec.id] = memo[specs[max_spec].id] + Math.log(max_duration)*scale;
     return memo[spec.id];
   }
 
   $scope.resource_position = function(group) {
-    var spacing = 50;
+    var spacing = 30;
     return group * spacing;
   }
 
@@ -1644,7 +1595,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var nodes = [];
     var start_group = 0;
     var positions_memo = {};
-    var start_position = { x: 20, y: 200 };
+    var start_position = { x: 20, y: 120 };
     var fixed_status = true;
     var skip_nodes = ['Root', 'Start'];
     var start_spec = 'Start';
@@ -1769,7 +1720,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .enter()
         .append("svg:g")
         .attr("class", "node")
-        .call(force.drag)
+        .on('click', function(d){ $scope.selectSpec(d.name) })
         ;
 
     nodes.append("svg:title")
@@ -1806,13 +1757,15 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.start_tree_preview = function(parent_element) {
-    specs = $scope.data.wf_spec.task_specs
-    var WIDTH = 1400;
-    var HEIGHT = 900;
-    var nodes = $scope.buildNodes(specs);
-    var links = $scope.buildLinks(specs, nodes);
-    var network = { nodes: nodes, links: links };
-    var force = $scope.buildNetwork(network, WIDTH, HEIGHT, parent_element);
+    if($scope.data){
+      specs = $scope.data.wf_spec.task_specs
+      var WIDTH = 1080;
+      var HEIGHT = 360;
+      var nodes = $scope.buildNodes(specs);
+      var links = $scope.buildLinks(specs, nodes);
+      var network = { nodes: nodes, links: links };
+      var force = $scope.buildNetwork(network, WIDTH, HEIGHT, parent_element);
+    }
   };
 
   $scope.$watch('data', function(newVal, oldVal, scope) {
