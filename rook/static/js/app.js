@@ -973,7 +973,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.load();
 }
 
-function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser) {
+function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout) {
   //Scope variables
 
   $scope.showStatus = true;
@@ -1525,6 +1525,19 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   /*======================================*/
+  $scope.auto_refresh_promise = null;
+  $scope.auto_refresh = function(timeout) {
+    timeout = timeout || 2000;
+    $scope.load();
+    $scope.auto_refresh_promise = $timeout($scope.auto_refresh, timeout);
+  }
+
+  $scope.cancel_auto_refresh = function() {
+    if ($scope.auto_refresh_promise)
+      $timeout.cancel($scope.auto_refresh_promise);
+  }
+
+  $scope.$on('$routeChangeStart', $scope.cancel_auto_refresh);
 
   $scope.getIcon = function(node) {
     var icon = "";
@@ -1561,7 +1574,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.resource_position = function(group) {
-    var spacing = 30;
+    var spacing = 10;
     return group * spacing;
   }
 
@@ -1683,8 +1696,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.buildNetwork = function(json, width, height, parent_element) {
-    //var color = d3.scale.category10();
-
     var force = d3.layout.force()
                 .size([width, height]);
 
@@ -1755,7 +1766,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     if($scope.data){
       specs = $scope.data.wf_spec.task_specs
       var WIDTH = 1080;
-      var HEIGHT = 360;
+      var HEIGHT = 300;
       var nodes = $scope.buildNodes(specs);
       var links = $scope.buildLinks(specs, nodes);
       var network = { nodes: nodes, links: links };
