@@ -13,7 +13,7 @@ from SpiffWorkflow.specs import Celery
 import cloudlb
 
 from checkmate.common.caching import Memorize, MemorizeMethod
-from checkmate.deployments import (
+from checkmate.deployments.tasks import (
     resource_postback,
     alt_resource_postback,
 )
@@ -60,7 +60,8 @@ __schema__ = {
               'PENDING_UPDATE': 'CONFIGURE',
               'PENDING_DELETE': 'DELETING',
               'SUSPENDED': 'ERROR'
-}
+             }
+              
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 import os
 from checkmate import db
@@ -696,6 +697,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         resource_key = context['resource']
         vip = "4.4.4.20%s" % resource_key
         results = {
+            'status': 'BUILD', #moving chekcmate status out of instance
             'instance:%s' % resource_key: {
                 'status': "BUILD",
                 'id': "LB0%s" % resource_key,
@@ -771,6 +773,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     except RateLimit as rate_limit_exc:
         raise CheckmateRetriableException(rate_limit_exc.reason, "")
 
+    #TODO: Not sure if this is needed
     # Put the instance_id in the db as soon as it's available
     instance_id = {
         instance_key: {
@@ -784,9 +787,10 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         if ip_data.ipVersion == 'IPV4' and ip_data.type == "PUBLIC":
             vip = ip_data.address
 
-    LOG.debug('Load balancer %s created. VIP = %s', loadbalancer.id, vip)
+    LOG.debug('Load balancer %s building. VIP = %s', loadbalancer.id, vip)
 
     results = {
+        'status': "BUILD",
         instance_key: {
             'id': loadbalancer.id,
             'public_ip': vip,
@@ -852,6 +856,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
         #   resource['instance']['protocol'] != lb.protocol:
         #    instance['protocol'] = lb.protocol
         return {
+            "status": ProviderBase.get_checkmate_status(__schema__, lb.status)
             key: {
                 "status": lb.status
                 #'instance': instance
@@ -859,6 +864,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
         }
     except NotFound:
         return {
+            "status": "DELETED",
             key: {
                 "status": "DELETED"
             }
@@ -873,6 +879,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     if context.get('simulation') is True:
         resource_key = context['resource']
         results = {
+            "status": "DELETING",
             "instance:%s" % resource_key: {
                 "status": "DELETING",  # set it done in wait_on_delete
                 "status-message": "Waiting on resource deletion"
@@ -905,12 +912,20 @@ def delete_lb_task(context, key, lbid, region, api=None):
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
         LOG.debug('Load balancer %s was already deleted.', lbid)
-        return {instance_key: {"status": "DELETED"}}
+        ret = {
+               "status": "DELETED",
+               instance_key: {
+                              "status": "DELETED",
+                              "status-message": ""
+                             }
+              }
+        return ret
     LOG.debug("Found load balancer %s [%s] to delete" % (dlb, dlb.status))
     if dlb.status != "DELETED":
         dlb.delete()
-    LOG.debug('Load balancer %s deleted.', lbid)
+    LOG.debug('Deleting Load balancer %s.', lbid)
     return {
+        "status": "DELETING",
         instance_key: {
             "status": "DELETING",
             "status-message": "Waiting on resource deletion"
@@ -952,13 +967,24 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
     except cloudlb.errors.NotFound:
         pass
     if (not dlb) or "DELETED" == dlb.status:
-        return {inst_key: {'status': 'DELETED',
-                           'status-message': 'LB %s was deleted' % inst_key}}
+        return {
+                'status': 'DELETED',
+                inst_key: {
+                           'status': 'DELETED',
+                           'status-message': 'LB %s was deleted' % inst_key
+                          }
+               }
     else:
         msg = ("Waiting on state DELETED. Load balancer is in state %s"
                % dlb.status)
-        resource_postback.delay(dep_id, {inst_key: {'status': 'DELETING',
-                                                    "status-message": msg}})
+        ret = {
+               'status': 'DELETING',
+               inst_key: {
+                          'status': 'DELETING',
+                          'status-message': msg
+                         }
+              }
+        resource_postback.delay(dep_id, ret)
         wait_on_lb_delete.retry(exc=CheckmateException(msg))
 
 
@@ -1164,8 +1190,10 @@ def wait_on_build(context, lbid, region, api=None):
     if context.get('simulation') is True:
         instance_key = 'instance:%s' % context['resource']
         results = {
-            instance_key: {
-                'status': "ACTIVE",
+                   'status': 'ACTIVE',
+                   instance_key: {
+                                  'status': 'ACTIVE',
+                                  'status-message': ''
             }
         }
         resource_postback.delay(context['deployment'], results)
@@ -1176,15 +1204,18 @@ def wait_on_build(context, lbid, region, api=None):
 
     loadbalancer = api.loadbalancers.get(lbid)
 
-    results = {}
-
+    instance_key = 'instance:%s' % context['resource']
     if loadbalancer.status == "ERROR":
-        results['status'] = "ERROR"
         msg = ("Loadbalancer %s build failed" % (lbid))
-        results['error-message'] = msg
-        instance_key = 'instance:%s' % context['resource']
-        results = {instance_key: results}
+        results = {
+                   'status': 'ERROR',
+                   instance_key: {
+                                  'status': 'ERROR',
+                                  'status-message': ''
+            }
+        }
         resource_postback.delay(context['deployment'], results)
+        
         # Delete the loadbalancer if it failed building
         Provider({}).delete_resource_tasks(context,
                                            context['deployment'],
@@ -1194,11 +1225,14 @@ def wait_on_build(context, lbid, region, api=None):
                                            instance_key).apply_async()
         raise CheckmateRetriableException(msg, "")
     elif loadbalancer.status == "ACTIVE":
-        results['status'] = "ACTIVE"
-        results['status-message'] = ""
-        results['id'] = lbid
-        instance_key = 'instance:%s' % context['resource']
-        results = {instance_key: results}
+        results = {
+                   'status': 'ACTIVE',
+                   instance_key: {
+                                  'id': lbid,
+                                  'status': 'ACTIVE',
+                                  'status-message': ''
+                                 }
+                  }
         resource_postback.delay(context['deployment'], results)
         return results
     else:
