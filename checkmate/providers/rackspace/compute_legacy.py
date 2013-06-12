@@ -535,7 +535,6 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
             name, image, flavor, str(exc)))
         raise
 
-
     ip_address = str(server.addresses[ip_address_type][0])
     private_ip_address = str(server.addresses['private'][0])
 

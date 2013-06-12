@@ -12,9 +12,17 @@ import eventlet
 from SpiffWorkflow.storage import DictionarySerializer
 
 from .plan import Plan
-from checkmate import db, utils, operations, orchestrator
+from checkmate import (
+    db,
+    utils,
+    operations,
+    orchestrator,
+)
 from checkmate.base import ManagerBase
-from checkmate.deployment import Deployment, generate_keys
+from checkmate.deployment import (
+    Deployment,
+    generate_keys,
+)
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,

@@ -738,14 +738,13 @@ def create_server(context, name, region, api_object=None, flavor="2",
     instance_key = 'instance:%s' % context['resource']
     try:
         server = api_object.servers.create(name, image_object, flavor_object,
-                                       meta=meta, files=files)
+                                           meta=meta, files=files)
     except OverLimit:
         raise CheckmateRetriableException("You have reached the maximum "
-                                              "number of servers that can be "
-                                              "spinned up using this account. "
-                                              "Please delete some servers to "
-                                              "continue",
-                                              "")
+                                          "number of servers that can be "
+                                          "spinned up using this account. "
+                                          "Please delete some servers to "
+                                          "continue", "")
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})

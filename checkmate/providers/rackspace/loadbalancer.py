@@ -24,11 +24,11 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateRetriableException,
 )
+from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
-from checkmate.middleware import RequestContext
-from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
+from checkmate.workflow import wait_for
 
 
 LOG = logging.getLogger(__name__)
@@ -134,12 +134,12 @@ class Provider(ProviderBase):
             templates[len(templates) - 1]['protocol'] = PROTOCOL_PAIRS[
                 protocol]
         if self._handle_dns(deployment, service, resource_type=resource_type):
-            templates[0]['instance']['dns-A-name'] = deployment.get_setting(
-                                         "domain",
-                                          resource_type=resource_type,
-                                          service_name=service,
-                                          provider_key=self.key,
-                                          default=templates[0].get('dns-name'))
+            templates[0]['instance']['dns-A-name'] = \
+                deployment.get_setting("domain",
+                                       resource_type=resource_type,
+                                       service_name=service,
+                                       provider_key=self.key,
+                                       default=templates[0].get('dns-name'))
         return templates
 
     def _support_unencrypted(self, deployment, protocol, resource_type=None,
@@ -256,7 +256,8 @@ class Provider(ProviderBase):
                                            service_name=service_name,
                                            provider_key=self.key,
                                            default="ROUND_ROBIN")
-        dns = self._handle_dns(deployment, service_name, resource_type=resource_type)
+        dns = self._handle_dns(deployment, service_name,
+                               resource_type=resource_type)
         create_lb_task_tags = ['create', 'root', 'vip']
 
         #Find existing task which has created the vip
@@ -1142,8 +1143,9 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, lbid, region, api=None):
-    """ Checks to see if a lb's status is ACTIVE, so we can change
-        resource status in deployment """
+    '''Checks to see if a lb's status is ACTIVE, so we can change resource
+    status in deployment
+    '''
 
     match_celery_logging(LOG)
     assert lbid, "ID must be provided"
