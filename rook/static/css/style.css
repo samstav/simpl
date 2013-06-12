@@ -473,3 +473,19 @@ form#impersonate input {
 
 /* Validation Rules */
 .validation_rules i { margin-right: 5px; }
+
+/* D3 Workflow */
+circle.node {
+  stroke: #fff;
+  stroke-width: 3px;
+}
+
+circle.node.inactive {
+  opacity: 0.5;
+}
+
+line.link {
+  stroke-width: 2px;
+  stroke: #999;
+  stroke-opacity: 0.6;
+}

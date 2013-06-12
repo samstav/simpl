@@ -80,6 +80,11 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
     controller: WorkflowController,
     reloadOnSearch: false
   }).
+  when('/:tenantId/workflows-new/:id', {
+    templateUrl: '/partials/workflow-new.html',
+    controller: WorkflowController,
+    reloadOnSearch: false
+  }).
   when('/:tenantId/workflows', {
     templateUrl: '/partials/workflows.html',
     controller: WorkflowListController
@@ -1566,6 +1571,244 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
     }
     force.start();
+  };
+
+  /*======================================*/
+
+  $scope.getIcon = function(node) {
+    var icon = "";
+    var base_dir = "static/img/icons/";
+
+    if (node.group == "5") icon = "ws.png";
+    else if (node.group == "2") icon = "db.png";
+    else if (node.group == "0") icon = "lb.png";
+
+    if (icon != "") icon = base_dir + icon;
+
+    return icon;
+  }
+
+  $scope.distanceToStartSpec = function(memo, all_specs, spec) {
+    if(memo[spec.id]) {
+      return memo[spec.id];
+    }
+
+    if(spec.id === 1){
+      memo[spec.id] = 0;
+      return memo[spec.id];
+    }
+
+    max_spec = _.max(spec.inputs, function(input){
+      return $scope.distanceToStartSpec(memo, all_specs, specs[input]);
+    });
+
+    var scale = 20;
+    var default_duration = 50;
+    var max_duration = specs[max_spec].properties.estimated_duration || default_duration;
+    memo[spec.id] = memo[specs[max_spec].id] + Math.log(max_duration)*scale;
+    return memo[spec.id];
+  }
+
+  $scope.resource_position = function(group) {
+    var spacing = 50;
+    return group * spacing;
+  }
+
+  $scope.avoid_collision = function(nodes, current_position, axis, level) {
+    level = level || 0;
+    var spacing = 25;
+    var new_position = _.clone(current_position);
+    var existing_node = _.findWhere(nodes, new_position);
+    if (!existing_node) {
+      return new_position;
+    }
+    new_position[axis] += spacing;
+    return $scope.avoid_collision(nodes, new_position, axis, level+1);
+  }
+
+  $scope.getGroup = function(spec, specs) {
+    var group;
+    var no_group = -1;
+    var shift_size = 2;
+
+    if (spec.properties.resource)
+      group = parseInt(spec.properties.resource) || no_group;
+    else
+      group = parseInt(specs[spec.inputs[0]].properties.resource) || no_group;
+
+    group += shift_size;
+    return group;
+  }
+
+  $scope.buildNodes = function(specs) {
+    var nodes = [];
+    var spacing = { x: 50, y: 50 };
+    var start_group = 0;
+    var positions_memo = {};
+    var start_position = { x: 20, y: 200 };
+    var fixed_status = true;
+    var skip_nodes = ['Root', 'Start'];
+    var start_spec = 'Start';
+
+    _.each(specs, function(spec, spec_name){
+      var node = {};
+      if(spec_name === start_spec) {
+        node.fixed = fixed_status;
+        node.name = spec_name;
+        node.group = start_group;
+        node.x = start_position.x;
+        node.y = start_position.y;
+        node.status = false;
+        node.spec = spec;
+
+        nodes.push(node);
+      }
+
+      if(spec.properties) {
+        if ( skip_nodes.indexOf(spec_name) === -1 ) {
+          var group = $scope.getGroup(spec, specs);
+          var distance = $scope.distanceToStartSpec(positions_memo, specs, spec);
+          var row = $scope.resource_position(group);
+          var current_position = { x: distance, y: row };
+          var position = $scope.avoid_collision(nodes, current_position, 'y');
+          node.fixed = fixed_status;
+          node.name = spec_name;
+          node.group = group;
+          node.x = position.x;
+          node.y = position.y;
+          node.status = true;
+          node.spec = spec;
+
+          nodes.push(node)
+        }
+      }
+    });
+
+    return nodes;
+  }
+
+  $scope.buildLinks = function(specs, nodes) {
+    var links = [];
+
+    _.each(specs, function(spec, spec_name) {
+      if(spec.outputs) {
+        _.each(spec.outputs, function(output) {
+          source = _.findWhere(nodes, { name: spec_name });
+          target = _.findWhere(nodes, { name: output });
+          if(source && target) {
+            var link = {source: source, target: target, value: 1}
+            links.push(link);
+          }
+        });
+      }
+    });
+
+    return links;
+  }
+
+  $scope.color = function(node) {
+    var color;
+    switch(node.spec.state) {
+      case 'future':
+      case 'likely':
+      case 'maybe':
+        color = 'gray';
+        break;
+      case 'waiting':
+        color = '';
+        break;
+      case 'completed':
+      case 'ready':
+        color = 'green';
+        break;
+      case 'cancelled':
+        color = '';
+        break;
+      case 'triggered':
+        color = '';
+        break;
+      case 'error':
+        color = 'red';
+        break;
+      default:
+        color = 'black';
+        break;
+    }
+    return color;
+  }
+
+  $scope.buildNetwork = function(json, width, height, parent_element) {
+    //var color = d3.scale.category10();
+
+    var force = d3.layout.force()
+                .size([width, height]);
+
+    var svg = d3.select(parent_element)
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+    force
+        .nodes(json.nodes)
+        .links(json.links)
+        .start()
+        ;
+
+    var links = svg.append("g").selectAll("line.link")
+        .data(force.links())
+        .enter().append("line")
+        .attr("class", "link")
+        ;
+
+    var nodes = svg.selectAll("g.node")
+        .data(force.nodes())
+        .enter()
+        .append("svg:g")
+        .attr("class", "node")
+        .call(force.drag)
+        ;
+
+    nodes.append("svg:title")
+        .text(function(d) { return d.name; });
+
+    nodes.append("svg:desc")
+        .text(function(d) { return JSON.stringify(d); });
+
+    nodes.append('circle')
+        .attr("r", 8)
+        .attr("class", "node")
+        .style("fill", function(d) { return $scope.color(d); });
+
+    nodes.append("svg:image")
+        .attr("class", "circle")
+        .attr("xlink:href", $scope.getIcon)
+        .attr("x", "-8px")
+        .attr("y", "-8px")
+        .attr("width", "16px")
+        .attr("height", "16px");
+
+    force.on("tick", function() {
+        links.attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
+
+        nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+        nodes.selectAll("title").text(function(d) { return d.name; });
+        nodes.selectAll("circle").classed('inactive', function(d) { return d.status });
+    });
+
+    return force;
+  };
+
+  $scope.start_tree_preview = function(parent_element) {
+    specs = $scope.data.wf_spec.task_specs
+    var WIDTH = 1400;
+    var HEIGHT = 900;
+    var nodes = $scope.buildNodes(specs);
+    var links = $scope.buildLinks(specs, nodes);
+    var network = { nodes: nodes, links: links };
+    var force = $scope.buildNetwork(network, WIDTH, HEIGHT, parent_element);
   };
 
   // Old code we might reuse
