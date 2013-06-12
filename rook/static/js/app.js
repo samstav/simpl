@@ -1293,19 +1293,28 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return status;
   };
 
+  $scope.is_paused = function() {
+    return $scope.data && $scope.data.attributes.status == 'PAUSED';
+  }
+
+  $scope.workflow_action_success = function(response) {
+    var action = response.config.url.replace($location.path() + '/+', '');
+    $scope.notify("Command '" + action + "' workflow executed");
+    mixpanel.track("Workflow Action", {'action': action});
+    $scope.load();
+  }
+
+  $scope.workflow_action_error = function(response) {
+    var action = response.config.url.replace($location.path() + '/+', '');
+    mixpanel.track("Workflow Action Failed", {'action': action});
+  }
+
   $scope.workflow_action = function(workflow_id, action) {
     if (auth.identity.loggedIn) {
       console.log("Executing '" + action + " on workflow " + workflow_id);
-      $http({method: 'GET', url: $location.path() + '/+' + action}).
-        success(function(data, status, headers, config) {
-          $scope.notify("Command '" + action + "' workflow executed");
-          // this callback will be called asynchronously
-          // when the response is available
-          $scope.load();
-          mixpanel.track("Workflow Action", {'action': action});
-        }).error(function(data) {
-          mixpanel.track("Workflow Action Failed", {'action': action});
-        });
+      var action_url = $location.path() + '/+' + action;
+      $http.get(action_url)
+        .then($scope.workflow_action_success, $scope.workflow_action_error);
     } else {
       $scope.loginPrompt(); //TODO: implement a callback
     }
