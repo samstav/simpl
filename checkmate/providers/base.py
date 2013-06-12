@@ -493,7 +493,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         if matches:
             return matches[0].values()[0]
         return default
-        
+
     # pylint: disable=W0613
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         """Return a celery task/canvas for deleting the resource"""
@@ -520,15 +520,18 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                       "implemented", self.vendor, self.name)
 
     @classmethod
-    def validate_provider_status(cls, status):
-        """Return checkmate status for resource based on schema"""
-        if cls.__status_schema__ and status and status in cls.__status_schema__:
+    def translate_status(cls, status):
+        '''Return checkmate status for resource based on schema'''
+        if (
+            hasattr(cls, '__status_schema__') and
+            status in cls.__status_schema__
+        ):
             return cls.__status_schema__[status]
         else:
             LOG.debug("Resource status %s was not found in schema" % status)
-            #TODO: add other updates like status-message etc.
+            #TODO(Nate): add other updates like status-message etc.
             return "UNDEFINED"
-            
+
     def _verify_existing_resource(self, resource, key):
         '''Private method for Resource verification'''
         msg = None

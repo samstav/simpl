@@ -881,7 +881,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         results = {
             "status": "DELETING",
             "instance:%s" % resource_key: {
-                "status": "DELETING",  # set it done in wait_on_delete
+                "status": "DELETING", # set it done in wait_on_delete
                 "status-message": "Waiting on resource deletion"
             }
         }
@@ -893,7 +893,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
                 'status': 'ERROR',
                 'status-message': ('Unexpected error deleting loadbalancer'
                     ' %s' % key),
-                'trace': 'Tassk %s: %s' % (task_id, einfo.traceback)
+                'trace': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
         resource_postback.delay(args[2], results)

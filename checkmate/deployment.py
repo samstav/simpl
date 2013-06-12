@@ -34,7 +34,6 @@ from checkmate.utils import (
     is_ssh_key,
     match_celery_logging,
     merge_dictionary,
-    filter_dictionary,
     read_path,
     write_path,
 )
@@ -1105,9 +1104,10 @@ class Deployment(ExtensibleDict):
             raise CheckmateException("Postback value was not a dictionary")
 
         keys = ['resources', 'operation', 'status']
-        updated = filter_dictionary(keys, contents)
+        updated = { key: contents[key] for key in keys if key in contents }
         if updated != contents:
-            LOG.warning("Only keys allowed in postback: %r", keys)
+            raise NotImplementedError("Valid posback keys include resources, "
+                                      "operation and status only")
 
         LOG.debug("Merging postback data for deployment")
         merge_dictionary(target, updated)

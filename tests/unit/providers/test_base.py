@@ -3,7 +3,7 @@ import unittest2 as unittest
 
 from checkmate.providers.base import (
     ProviderBasePlanningMixIn,
-    ProviderBase
+    ProviderBase,
 )
 
 class TestProviderBasePlanningMixIn(unittest.TestCase):
@@ -31,8 +31,8 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
 
 class TestProviderBase(unittest.TestCase):
 
-    def test_validate_provider_status(self):
-        """ Test checkmate status schema entry returned """
+    def test_translate_status_success(self):
+        ''' Test checkmate status schema entry returned '''
         class Testing(ProviderBase):
             __status_schema__ = {
                 'ACTIVE': 'ACTIVE',
@@ -43,8 +43,23 @@ class TestProviderBase(unittest.TestCase):
                 'PENDING_DELETE': 'DELETING',
                 'SUSPENDED': 'ERROR'
                 }
-        results = Testing.validate_provider_status('SUSPENDED')
+        results = Testing.translate_status('SUSPENDED')
         self.assertEqual('ERROR', results)
+
+    def test_translate_status_fail(self):
+        ''' Test checkmate status schema UNDEFINED returned '''
+        class Testing(ProviderBase):
+            __status_schema__ = {
+                'ACTIVE': 'ACTIVE',
+                'BUILD': 'BUILD',
+                'DELETED': 'DELETED',
+                'ERROR': 'ERROR',
+                'PENDING_UPDATE': 'CONFIGURE',
+                'PENDING_DELETE': 'DELETING',
+                'SUSPENDED': 'ERROR'
+                }
+        results = Testing.translate_status('MISSING')
+        self.assertEqual('UNDEFINED', results)
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
