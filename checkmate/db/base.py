@@ -185,6 +185,8 @@ class DbBase(object):  # pylint: disable=R0921
                     data['status'] = self.legacy_statuses[data['status']]
             if 'resources' in data and isinstance(data['resources'], dict):
                 self.convert_data('resources', data['resources'])  # legacy
+            if 'display-outputs' in data and data['display-outputs'] is None:
+                data['display-outputs'] = {}
         elif klass == 'resources':
             for _, resource in data.items():
                 if 'errmessage' in data:
@@ -198,6 +200,7 @@ class DbBase(object):  # pylint: disable=R0921
                         instance['status-message'] = instance.pop('statusmsg')
                     if 'status_msg' in instance:
                         instance['status-message'] = instance.pop('status_msg')
+
 
     def lock(self, key, timeout):
         raise NotImplementedError()
