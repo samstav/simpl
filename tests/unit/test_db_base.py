@@ -39,7 +39,7 @@ class TestDbBase(unittest.TestCase):
             'error-message': '',
         }
         dbb.convert_data('deployments', data)
-        self.assertDictEqual(data, expected)
+        self.assertEqual(data, expected)
 
     def test_convert_data_messages(self):
         dbb = db.DbBase("connection-string://")
@@ -60,8 +60,18 @@ class TestDbBase(unittest.TestCase):
             }
         }
         dbb.convert_data('resources', data)
-        self.assertDictEqual(data, expected)
+        self.assertEqual(data, expected)
 
+    def test_convert_data_display_messages(self):
+        dbb = db.DbBase("connection-string://")
+        data = {
+            'display-outputs': None
+        }
+        expected = {
+            'display-outputs': {}
+        }
+        dbb.convert_data('deployments', data)
+        self.assertEqual(data, expected)
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
