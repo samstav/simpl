@@ -52,8 +52,9 @@ class GitHubManager(ManagerBase):
         '''
         ManagerBase.__init__(self, drivers)
         self._github_api_base = config.github_api
-        self._github = Github(base_url=self._github_api_base)
-        self._api_host = urlparse(self._github_api_base).netloc
+        if self._github_api_base:
+            self._github = Github(base_url=self._github_api_base)
+            self._api_host = urlparse(self._github_api_base).netloc
         self._repo_org = config.organization
         self._ref = config.ref
         self._cache_root = config.cache_dir or os.path.dirname(__file__)
@@ -61,8 +62,8 @@ class GitHubManager(ManagerBase):
         self._blueprints = {}
         self._preview_ref = config.preview_ref
         self._preview_tenants = config.preview_tenants
-        self._group_refs = config.group_refs
-        self._groups = set(config.group_refs.keys())
+        self._group_refs = config.group_refs or {}
+        self._groups = set(self._group_refs.keys())
         assert self._github_api_base, ("Must specify a source blueprint "
                                        "repository")
         assert self._repo_org, ("Must specify a Github organization owning "
