@@ -1753,6 +1753,27 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .start()
         ;
 
+    var zoomBehavior = d3.behavior.zoom()
+      .on("zoom", redraw);
+
+
+    function redraw() {
+      console.log("here", d3.event.translate, d3.event.scale);
+      svg.select('#nodes').attr("transform",
+               "translate(" + d3.event.translate + ")"
+               + " scale(" + d3.event.scale + ")");
+      svg.select('#links').attr("transform",
+               "translate(" + d3.event.translate + ")"
+               + " scale(" + d3.event.scale + ")");
+    }
+
+    function zoom() {
+      svg.translate(d3.event.translate).scale(d3.event.scale);
+      states.selectAll("path").attr("d", path);
+    }
+
+    svg.call(zoomBehavior);
+
     var links = svg.append("g")
         .attr('id', 'links')
         .selectAll("line.link")
