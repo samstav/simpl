@@ -165,7 +165,7 @@ class RackspaceComputeProviderBase(ProviderBase):
 class Provider(RackspaceComputeProviderBase):
     '''The Base Provider Class for Rackspace NOVA'''
     name = 'nova'
-    
+
     __status_mapping__ = {
         'ACTIVE': 'ACTIVE',
         'BUILD': 'BUILD',
@@ -672,6 +672,7 @@ REGION_MAP = {'dallas': 'DFW',
               'chicago': 'ORD',
               'london': 'LON'}
 
+
 def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
     """ Handle task failure """
     dep_id = args[0].get('deployment_id')
@@ -692,10 +693,11 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
         resource_postback.delay(dep_id, ret)
     else:
         LOG.error("Missing deployment id and/or resource key in "
-                  "%s error callback." % method)
+                  "%s error callback.", method)
 #
 # Celery Tasks
 #
+
 
 # pylint: disable=R0913
 @task
@@ -784,6 +786,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
                                           "spinned up using this account. "
                                           "Please delete some servers to "
                                           "continue", "")
+
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
@@ -876,7 +879,7 @@ def delete_server_task(context, api=None):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETED',
                             'status-message': ''}})
         return ret
-    if server.status == "ACTIVE" or server.status == "ERROR":
+    if server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
         ret = {}
         ret.update({
             inst_key: {
@@ -944,7 +947,7 @@ def wait_on_delete_server(context, api=None):
                 ret.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'status-message': '' % key
+                        'status-message': ''
                     }
                 })
         return ret

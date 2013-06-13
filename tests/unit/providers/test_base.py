@@ -34,7 +34,7 @@ class TestProviderBase(unittest.TestCase):
     def test_translate_status_success(self):
         ''' Test checkmate status schema entry returned '''
         class Testing(ProviderBase):
-            __status_schema__ = {
+            __status_mapping__ = {
                 'ACTIVE': 'ACTIVE',
                 'BUILD': 'BUILD',
                 'DELETED': 'DELETED',
@@ -49,7 +49,7 @@ class TestProviderBase(unittest.TestCase):
     def test_translate_status_fail(self):
         ''' Test checkmate status schema UNDEFINED returned '''
         class Testing(ProviderBase):
-            __status_schema__ = {
+            __status_mapping__ = {
                 'ACTIVE': 'ACTIVE',
                 'BUILD': 'BUILD',
                 'DELETED': 'DELETED',

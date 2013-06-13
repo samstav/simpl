@@ -51,7 +51,7 @@ PROTOCOL_PAIRS = {
 API_ALGORTIHM_CACHE = {}
 API_PROTOCOL_CACHE = {}
 LB_API_CACHE = {}
-              
+
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 import os
 from checkmate import db
@@ -877,7 +877,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         resource_key = context['resource']
         results = {
             "instance:%s" % resource_key: {
-                "status": "DELETING", # set it done in wait_on_delete
+                "status": "DELETING",
                 "status-message": "Waiting on resource deletion"
             }
         }
@@ -1202,7 +1202,7 @@ def wait_on_build(context, lbid, region, api=None):
             }
         }
         resource_postback.delay(context['deployment'], results)
-        
+
         # Delete the loadbalancer if it failed building
         Provider({}).delete_resource_tasks(context,
                                            context['deployment'],

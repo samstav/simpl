@@ -1073,7 +1073,8 @@ class Deployment(ExtensibleDict):
         #TODO: Provider key can be used from withing the provider class. But
         #if we do that then the planning mixin will start reading data
         #from the child class
-        LOG.debug("Getting resource templates for %s: %s" % (provider_key, component))
+        LOG.debug("Getting resource templates for %s: %s", provider_key,
+                  component)
         resources = provider.generate_template(
             self,
             component.get('is'),
@@ -1104,7 +1105,7 @@ class Deployment(ExtensibleDict):
             raise CheckmateException("Postback value was not a dictionary")
 
         keys = ['resources', 'operation', 'status']
-        updated = { key: contents[key] for key in keys if key in contents }
+        updated = {key: contents[key] for key in keys if key in contents}
         if updated != contents:
             raise NotImplementedError("Valid postback keys include resources, "
                                       "operation and status only")
