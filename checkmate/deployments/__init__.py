@@ -48,17 +48,15 @@ def alt_resource_postback(contents, deployment_id, driver=None):
 
 @task(default_retry_delay=0.25, max_retries=4)
 def update_all_provider_resources(provider, deployment_id, status,
-                                  message=None, error_trace=None, driver=None):
+                                  message=None, trace=None, driver=None):
     '''DEPRECATED: for compatibility with pre v0.14'''
     if driver:
         return _update_all_provider_resources(provider, deployment_id, status,
-                                              message=message,
-                                              error_trace=error_trace,
+                                              message=message, trace=trace,
                                               driver=driver)
     else:
         return _update_all_provider_resources(provider, deployment_id, status,
-                                              message=message,
-                                              error_trace=error_trace)
+                                              message=message, trace=trace)
 
 
 @task(default_retry_delay=0.5, max_retries=6)

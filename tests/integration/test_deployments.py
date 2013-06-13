@@ -1549,7 +1549,7 @@ class TestGetResourceStuff(unittest.TestCase):
             self.assertIn(key, ret)
         self.assertEquals('A certain error happened',
                           ret.get('2', {}).get('message'))
-        self.assertIn('error-trace', ret.get('3', {}))
+        self.assertIn('error-traceback', ret.get('3', {}))
 
 
 class TestPostbackHelpers(unittest.TestCase):
@@ -1605,7 +1605,7 @@ class TestPostbackHelpers(unittest.TestCase):
         self._mox.ReplayAll()
         ret = update_all_provider_resources('foo', '1234', 'NEW',
                                             message='I test u',
-                                            error_trace='A trace',
+                                            trace='A trace',
                                             driver=db)
         self.assertIn('instance:1', ret)
         self.assertIn('instance:9', ret)
@@ -1616,9 +1616,9 @@ class TestPostbackHelpers(unittest.TestCase):
         self.assertEquals('I test u', ret.get('instance:9',
                                               {}).get('status-message'))
         self.assertEquals('A trace', ret.get('instance:1',
-                                             {}).get('trace'))
+                                             {}).get('error-traceback'))
         self.assertEquals('A trace', ret.get('instance:9',
-                                             {}).get('trace'))
+                                             {}).get('error-traceback'))
 
 
 class TestDeploymentDisplayOutputs(unittest.TestCase):
