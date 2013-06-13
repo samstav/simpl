@@ -1539,6 +1539,15 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.$on('$routeChangeStart', $scope.cancel_auto_refresh);
 
+  $scope.start_task_name = 'Start';
+  $scope.default_task_duration = 40;
+  $scope.spacing = 20;
+  $scope.log_scale = 15;
+  $scope.canvas = {
+    width: 1080,
+    height: 300
+  };
+
   $scope.getIcon = function(node) {
     var icon = "";
     var base_dir = "/img/icons/";
@@ -1566,21 +1575,18 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       return $scope.distanceToStartSpec(memo, all_specs, specs[input]);
     });
 
-    var scale = 20;
-    var default_duration = 40;
-    var max_duration = specs[max_spec].properties.estimated_duration || default_duration;
-    memo[spec.id] = memo[specs[max_spec].id] + Math.log(max_duration)*scale;
+    var max_duration = specs[max_spec].properties.estimated_duration || $scope.default_task_duration;
+    memo[spec.id] = memo[specs[max_spec].id] + Math.log(max_duration) * $scope.log_scale;
     return memo[spec.id];
   }
 
   $scope.resource_position = function(group) {
-    var spacing = 10;
-    return group * spacing;
+    return group * $scope.spacing;
   }
 
   $scope.avoid_collision = function(nodes, current_position, axis, level) {
     level = level || 0;
-    var spacing = 25;
+    var spacing = $scope.spacing / 2;
     var new_position = _.clone(current_position);
     var existing_node = _.findWhere(nodes, new_position);
     if (!existing_node) {
@@ -1604,11 +1610,49 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return group;
   }
 
+  $scope.get_limits = function(nodes) {
+    var limits = {
+      min: { x:  Infinity, y:  Infinity },
+      max: { x: -Infinity, y: -Infinity }
+    };
+
+    _.each(nodes, function(node) {
+      if (node.x < limits.min.x) limits.min.x = node.x;
+      if (node.y < limits.min.y) limits.min.y = node.y;
+
+      if (node.x > limits.max.x) limits.max.x = node.x;
+      if (node.y > limits.max.y) limits.max.y = node.y;
+    });
+
+    limits.size = {
+      x: limits.max.x - limits.min.x,
+      y: limits.max.y - limits.min.y
+    }
+
+    return limits;
+  }
+
+  $scope.interpolate_nodes = function(nodes) {
+    var interpolated_nodes = _.clone(nodes);
+    var limits = $scope.get_limits(nodes);
+
+    _.each(interpolated_nodes, function(node) {
+      var new_x = ($scope.canvas.width - ($scope.spacing * 2))  * (node.x - limits.min.x) / limits.size.x;
+      var new_y = ($scope.canvas.height - ($scope.spacing * 2)) * (node.y - limits.min.y) / limits.size.y;
+      node.x = new_x + $scope.spacing;
+      node.y = new_y + $scope.spacing;
+      if (node.name == $scope.start_task_name)
+        node.y = $scope.canvas.height / 2;
+    });
+
+    return nodes;
+  }
+
   $scope.buildNodes = function(specs) {
     var nodes = [];
     var start_group = 0;
     var positions_memo = {};
-    var start_position = { x: 20, y: 120 };
+    var start_position = { x: $scope.spacing, y: $scope.spacing };
     var fixed_status = true;
     var skip_nodes = ['Root', 'Start'];
     var start_spec = 'Start';
@@ -1647,7 +1691,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       }
     });
 
-    return nodes;
+    return $scope.interpolate_nodes(nodes);
   }
 
   $scope.buildLinks = function(specs, nodes) {
