@@ -267,11 +267,11 @@ class TestCeleryTasks(unittest.TestCase):
         """ Test wait on delete task """
         context = {}
         expect = {
-            'instance:1': {
-                'status': 'DELETED',
-                'status-message': 'LB instance:1 was deleted'
-            }
-        }
+                  'instance:1': {
+                                  'status': 'DELETED',
+                                  'status-message': ''
+                                }
+                 }
         api = self.mox.CreateMockAnything()
         api.loadbalancers = self.mox.CreateMockAnything()
         m_lb = self.mox.CreateMockAnything()

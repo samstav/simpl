@@ -4,8 +4,9 @@ import logging
 import os
 import unittest2 as unittest
 
-import mox
 from mox import IgnoreArg
+
+import mox
 
 from checkmate import ssh
 from checkmate import test
@@ -17,7 +18,7 @@ from checkmate.providers.rackspace import compute
 from checkmate.providers.rackspace.compute import (
     delete_server_task,
     wait_on_delete_server,
-    _on_failure
+    _on_failure,
 )
 
 LOG = logging.getLogger(__name__)
@@ -145,8 +146,9 @@ class TestNovaCompute(test.ProviderTester):
                 'status': 'ERROR',
                 'status-message': (
                     "Unexpected error deleting compute "
-                    "instance 0: some message"
+                    "instance 0"
                 ),
+                'error-message': exc.message,
                 'trace': 'Task 1234: some traceback'
             }
         }
@@ -275,7 +277,8 @@ class TestNovaCompute(test.ProviderTester):
                 'region': 'North',
                 'public_ip': '4.4.4.4',
                 'private_ip': '10.10.10.10',
-                'id': 'fake_server_id'
+                'id': 'fake_server_id',
+                'status-message': ''
             }
         }
 
@@ -357,7 +360,8 @@ class TestNovaCompute(test.ProviderTester):
                 'region': 'North',
                 'public_ip': '4.4.4.4',
                 'private_ip': '10.10.10.10',
-                'id': 'fake_server_id'
+                'id': 'fake_server_id',
+                'status-message': ''
             }
         }
 
@@ -427,11 +431,12 @@ class TestNovaCompute(test.ProviderTester):
         }
         expect = {
             "instance:1": {
-                'status': 'DELETED'
+                'status': 'DELETED',
+                'status-message': ''
             },
             'instance:0': {
                 'status': 'DELETED',
-                'status-message': 'Host 1 was deleted'
+                'status-message': ''
             }
         }
         api = self.mox.CreateMockAnything()

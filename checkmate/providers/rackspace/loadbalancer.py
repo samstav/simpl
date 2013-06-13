@@ -73,6 +73,16 @@ class Provider(ProviderBase):
     name = 'load-balancer'
     vendor = 'rackspace'
 
+    __status_mapping__ = {
+        'ACTIVE': 'ACTIVE',
+        'BUILD': 'BUILD',
+        'DELETED': 'DELETED',
+        'ERROR': 'ERROR',
+        'PENDING_UPDATE': 'CONFIGURE',
+        'PENDING_DELETE': 'DELETING',
+        'SUSPENDED': 'ERROR'
+    }
+
     def _get_connection_params(self, connections, deployment, index,
                                resource_type, service):
         relation = connections[connections.keys()[index]]['relation-key']
@@ -775,7 +785,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         if ip_data.ipVersion == 'IPV4' and ip_data.type == "PUBLIC":
             vip = ip_data.address
 
-    LOG.debug('Load balancer %s created. VIP = %s', loadbalancer.id, vip)
+    LOG.debug('Load balancer %s building. VIP = %s', loadbalancer.id, vip)
 
     results = {
         instance_key: {
@@ -834,7 +844,8 @@ def sync_resource_task(context, resource, resource_key, api=None):
         api = Provider.connect(context, resource.get("region"))
     try:
         lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
-        #need to go thru actual vs expected scenarios
+        # TODO(Nate): Update sync to use postback instead of resource postback
+        #and also add in checkmate translated status to resource root
         #instance = {'port': resource['instance']['port'],
         #            'protocol': resource['instance']['protocol']}
         #if hasattr(lb, 'port') and resource['instance']['port'] != lb.port:
@@ -865,42 +876,47 @@ def delete_lb_task(context, key, lbid, region, api=None):
         resource_key = context['resource']
         results = {
             "instance:%s" % resource_key: {
-                "status": "DELETING",  # set it done in wait_on_delete
+                "status": "DELETING",
                 "status-message": "Waiting on resource deletion"
             }
         }
         return results
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        k = "instance:%s" % args[1]
-        ret = {
-            k: {
+        results = {
+            "instance:%s" % args[1]: {
                 'status': 'ERROR',
-                'error-message': (
-                    'Unexpected error deleting loadbalancer %s' % key
-                ),
-                'trace': 'Tassk %s: %s' % (task_id, einfo.traceback)
+                'status-message': ('Unexpected error deleting loadbalancer'
+                    ' %s' % key),
+                'trace': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
-        resource_postback.delay(args[2], ret)
+        resource_postback.delay(args[2], results)
 
     delete_lb_task.on_failure = on_failure
 
     if not lbid:
         LOG.error("Must provide a load balancer id")
         return
-    instance_key = "instance:%s" % key
     if api is None:
         api = Provider.connect(context, region)
+
+    instance_key = "instance:%s" % key
     try:
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
         LOG.debug('Load balancer %s was already deleted.', lbid)
-        return {instance_key: {"status": "DELETED"}}
+        results = {
+            instance_key: {
+                "status": "DELETED",
+                "status-message": ""
+            }
+        }
+        return results
     LOG.debug("Found load balancer %s [%s] to delete" % (dlb, dlb.status))
     if dlb.status != "DELETED":
         dlb.delete()
-    LOG.debug('Load balancer %s deleted.', lbid)
+    LOG.debug('Deleting Load balancer %s.', lbid)
     return {
         instance_key: {
             "status": "DELETING",
@@ -920,17 +936,15 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
-        k = "instance:%s" % args[1]
-        ret = {
-            k: {
+        results = {
+            "instance:%s" % args[1]: {
                 'status': 'ERROR',
-                'error-message': (
-                    'Unexpected error waiting on loadbalancer %s delete' % key
-                ),
+                'status-message': ('Unexpected error waiting on loadbalancer'
+                    ' %s delete' % key),
                 'trace': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
-        resource_postback.delay(args[2], ret)
+        resource_postback.delay(args[2], results)
 
     wait_on_lb_delete.on_failure = on_failure
 
@@ -943,13 +957,22 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
     except cloudlb.errors.NotFound:
         pass
     if (not dlb) or "DELETED" == dlb.status:
-        return {inst_key: {'status': 'DELETED',
-                           'status-message': 'LB %s was deleted' % inst_key}}
+        return {
+            inst_key: {
+                'status': 'DELETED',
+                'status-message': ''
+            }
+        }
     else:
         msg = ("Waiting on state DELETED. Load balancer is in state %s"
                % dlb.status)
-        resource_postback.delay(dep_id, {inst_key: {'status': 'DELETING',
-                                                    "status-message": msg}})
+        results = {
+            inst_key: {
+                'status': 'DELETING',
+                "status-message": msg
+            }
+        }
+        resource_postback.delay(dep_id, results)
         wait_on_lb_delete.retry(exc=CheckmateException(msg))
 
 
@@ -1156,7 +1179,8 @@ def wait_on_build(context, lbid, region, api=None):
         instance_key = 'instance:%s' % context['resource']
         results = {
             instance_key: {
-                'status': "ACTIVE",
+                'status': 'ACTIVE',
+                'status-message': ''
             }
         }
         resource_postback.delay(context['deployment'], results)
@@ -1167,15 +1191,17 @@ def wait_on_build(context, lbid, region, api=None):
 
     loadbalancer = api.loadbalancers.get(lbid)
 
-    results = {}
-
+    instance_key = 'instance:%s' % context['resource']
     if loadbalancer.status == "ERROR":
-        results['status'] = "ERROR"
         msg = ("Loadbalancer %s build failed" % (lbid))
-        results['error-message'] = msg
-        instance_key = 'instance:%s' % context['resource']
-        results = {instance_key: results}
+        results = {
+            instance_key: {
+                'status': 'ERROR',
+                'status-message': msg
+            }
+        }
         resource_postback.delay(context['deployment'], results)
+
         # Delete the loadbalancer if it failed building
         Provider({}).delete_resource_tasks(context,
                                            context['deployment'],
@@ -1185,11 +1211,13 @@ def wait_on_build(context, lbid, region, api=None):
                                            instance_key).apply_async()
         raise CheckmateRetriableException(msg, "")
     elif loadbalancer.status == "ACTIVE":
-        results['status'] = "ACTIVE"
-        results['status-message'] = ""
-        results['id'] = lbid
-        instance_key = 'instance:%s' % context['resource']
-        results = {instance_key: results}
+        results = {
+            instance_key: {
+                'id': lbid,
+                'status': 'ACTIVE',
+                'status-message': ''
+            }
+        }
         resource_postback.delay(context['deployment'], results)
         return results
     else:

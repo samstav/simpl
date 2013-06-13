@@ -362,3 +362,50 @@ class Manager(ManagerBase):
                                              tasks=task_count,
                                              complete=0)
         return operation
+
+    def postback(self, deployment_id, contents):
+        #FIXME: we need to receive a context and check access?
+        """This is a generic postback intended to replace all postback calls.
+        Accepts back results from a remote call and updates the deployment with
+        the result data.
+
+        Use deployments.tasks.postback for calling as a task
+
+        The data updated must be a dict containing any/all of the following:
+        - a deployment status: must be checkmate valid
+        - a operation: dict containing operation data
+            "operation": {
+                "status": "COMPLETE",
+                "tasks": 64,
+                "complete": 64,
+                "type": "BUILD"
+            }
+        - a resources dict containing resources data
+            "resources": {
+                "1": {
+                    "status": "ACTIVE",
+                    "status-message": ""
+                    "instance": {
+                        "status": "ACTIVE"
+                        "status-message": ""
+                    }
+                }
+            }
+        """
+
+        deployment = self.driver.get_deployment(deployment_id,
+                                                with_secrets=True)
+        deployment = Deployment(deployment)
+
+        if not isinstance(contents, dict):
+            raise CheckmateValidationException("Postback contents is not"
+                                               " type dictionary")
+
+        deployment.on_postback(contents, target=deployment)
+
+        body, secrets = utils.extract_sensitive_data(deployment)
+        self.driver.save_deployment(deployment_id, body, secrets,
+                                    partial=True)
+
+        LOG.debug("Updated deployment %s with postback", deployment_id,
+                  extra=dict(data=contents))

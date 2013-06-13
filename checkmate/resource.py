@@ -152,6 +152,7 @@ class Resource(dict):
         if 'desired-state' in obj:
             Resource.DesiredState.validate(obj['desired-state'])
 
+
     class DesiredState(dict):
         '''The Desired State section of a Resource'''
         __schema__ = [

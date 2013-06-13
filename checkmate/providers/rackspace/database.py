@@ -61,6 +61,15 @@ class Provider(ProviderBase):
     name = 'database'
     vendor = 'rackspace'
 
+    __status_mapping__ = {
+        'ACTIVE': 'ACTIVE',
+        'BLOCKED': 'ERROR',
+        'BUILD': 'BUILD',
+        'REBOOT': 'CONFIGURE',
+        'RESIZE': 'CONFIGURE',
+        'SHUTDOWN': 'CONFIGURE'
+    }
+
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition):
         templates = ProviderBase.generate_template(self, deployment,
@@ -664,7 +673,7 @@ def wait_on_build(context, instance_id, region, api=None):
     if instance.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Instance %s build failed" % instance_id)
-        results['error-message'] = msg
+        results['status-message'] = msg
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
@@ -919,6 +928,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
             }
         }
     if api is None:
+        # TODO(NATE): Fix after region added to context
         instance = resource.get("instance")
         if 'region' in instance:
             region = instance['region']
@@ -961,10 +971,11 @@ def delete_instance(context, api=None):
             ret = {
                 k: {
                     'status': 'ERROR',
-                    'error-message': (
+                    'status-message': (
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
+                    'error-message': exc.message,
                     'trace': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
@@ -995,7 +1006,7 @@ def delete_instance(context, api=None):
             results.update({
                 'instance:%s' % hosted: {
                     'status': 'DELETED',
-                    'status-message': 'Host %s was deleted'
+                    'status-message': ''
                 }
             })
         # Send data back to deployment
@@ -1015,7 +1026,7 @@ def delete_instance(context, api=None):
                 res.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'status-message': 'Host %s was deleted'
+                        'status-message': ''
                     }
                 })
             return res
@@ -1051,10 +1062,11 @@ def wait_on_del_instance(context, api=None):
             ret = {
                 k: {
                     'status': 'ERROR',
-                    'error-message': (
+                    'status-message': (
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
+                    'error-message': exc.message,
                     'trace': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
@@ -1089,7 +1101,7 @@ def wait_on_del_instance(context, api=None):
                 res.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'status-message': 'Host %s was deleted'
+                        'status-message': ''
                     }
                 })
             return res
@@ -1102,7 +1114,7 @@ def wait_on_del_instance(context, api=None):
             res.update({
                 'instance:%s' % hosted: {
                     'status': 'DELETED',
-                    'status-message': 'Host %s was deleted'
+                    'status-message': ''
                 }
             })
         return res
@@ -1126,10 +1138,11 @@ def delete_database(context, api=None):
             ret = {
                 k: {
                     'status': 'ERROR',
-                    'error-message': (
+                    'status-message': (
                         'Unexpected error while deleting '
                         'database %s' % key
                     ),
+                    'error-message': exc.message,
                     'trace': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
