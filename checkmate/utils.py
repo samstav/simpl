@@ -30,6 +30,7 @@ from yaml.composer import ComposerError
 from yaml.scanner import ScannerError
 from yaml.parser import ParserError
 
+from checkmate.codegen import kwargs_from_string
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
 
@@ -748,9 +749,6 @@ def generate_password(min_length=None, max_length=None, required_chars=None,
 
     return ''.join([first_char, password])
 
-def parse_params(function_string):
-    return eval("dict(%s)" % ''.join(function_string))
-
 def evaluate(function_string):
     """Evaluate an option value.
 
@@ -758,11 +756,11 @@ def evaluate(function_string):
     - generate_password()
     - generate_uuid()
     """
-    if function_string.startswith('generate_uuid('):
+    func_name, kwargs = kwargs_from_string(function_string)
+    if func_name is 'generate_uuid':
         return uuid.uuid4().hex
-    if function_string.startswith('generate_password('):
-        params_string = function_string[len('generate_password('):len(function_string)-1]
-        return generate_password(**parse_params(params_string))
+    if func_name is 'generate_password':
+        return generate_password(**kwargs)
     raise NameError("Unsupported function: %s" % function_string)
 
 
