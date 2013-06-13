@@ -1562,8 +1562,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.$on('$routeChangeStart', $scope.cancel_auto_refresh);
 
   $scope.start_task_name = 'Start';
-  $scope.default_task_duration = 40;
-  $scope.spacing = 20;
+  $scope.padding = 20;
+  $scope.spacing = 40;
+  $scope.default_task_duration = $scope.spacing;
   $scope.log_scale = 15;
   $scope.canvas = {
     width: 1080,
@@ -1659,10 +1660,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var limits = $scope.get_limits(nodes);
 
     _.each(interpolated_nodes, function(node) {
-      var new_x = ($scope.canvas.width - ($scope.spacing * 2))  * (node.x - limits.min.x) / limits.size.x;
-      var new_y = ($scope.canvas.height - ($scope.spacing * 2)) * (node.y - limits.min.y) / limits.size.y;
-      node.x = new_x + $scope.spacing;
-      node.y = new_y + $scope.spacing;
+      var new_x = ($scope.canvas.width - ($scope.padding * 2))  * (node.x - limits.min.x) / limits.size.x;
+      var new_y = ($scope.canvas.height - ($scope.padding * 2)) * (node.y - limits.min.y) / limits.size.y;
+      node.x = new_x + $scope.padding;
+      node.y = new_y + $scope.padding;
       if (node.name == $scope.start_task_name)
         node.y = $scope.canvas.height / 2;
     });
@@ -1674,7 +1675,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var nodes = [];
     var start_group = 0;
     var positions_memo = {};
-    var start_position = { x: $scope.spacing, y: $scope.spacing };
+    var start_position = { x: 0, y: 0 };
     var fixed_status = true;
     var skip_nodes = ['Root', 'Start'];
     var start_spec = 'Start';
