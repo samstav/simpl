@@ -5,6 +5,7 @@ import os
 import unittest2 as unittest
 
 from mox import IgnoreArg
+
 import mox
 
 from checkmate import ssh
