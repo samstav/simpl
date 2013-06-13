@@ -22,7 +22,7 @@ from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
-from checkmate.deployments.tasks import create_failed_resource_task
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
@@ -716,8 +716,8 @@ def create_server(context, name, region, api_object=None, flavor="2",
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
-    create_failed_resource_task.delay(context["deployment"],
-                                      context["resource"])
+    reset_failed_resource_task.delay(context["deployment"],
+                                     context["resource"])
     create_server.on_failure = on_failure
 
     if api_object is None:

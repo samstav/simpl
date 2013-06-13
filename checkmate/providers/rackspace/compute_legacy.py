@@ -9,7 +9,7 @@ from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.deployments import resource_postback
-from checkmate.deployments.tasks import create_failed_resource_task
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
@@ -488,7 +488,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     if api_object is None:
         api_object = Provider.connect(context)
 
-    create_failed_resource_task.delay(context["deployment"],
+    reset_failed_resource_task.delay(context["deployment"],
                                       context["resource"])
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (

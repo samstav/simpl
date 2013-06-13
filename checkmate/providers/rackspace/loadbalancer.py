@@ -17,7 +17,7 @@ from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
-from checkmate.deployments.tasks import create_failed_resource_task
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
@@ -708,7 +708,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     if api is None:
         api = Provider.connect(context, region)
 
-    create_failed_resource_task.delay(context["deployment"],
+    reset_failed_resource_task.delay(context["deployment"],
                                       context["resource"])
 
     #FIXME: should pull default from lb api but thats not exposed via the

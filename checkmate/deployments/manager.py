@@ -315,7 +315,7 @@ class Manager(ManagerBase):
 
         return operation
 
-    def create_failed_resource(self, deployment_id, resource_id):
+    def reset_failed_resource(self, deployment_id, resource_id):
         '''
         Creates a copy of a failed resource and appends it at the end of the
         resources collection
@@ -323,11 +323,16 @@ class Manager(ManagerBase):
         :param resource_id:
         :return:
         '''
+        #TODO: Need to move the logic to find whether a resource should be
+        # reset or not to the providers
         deployment = self.get_deployment(deployment_id)
         tenant_id = deployment["tenantId"]
         resource = deployment['resources'].get(resource_id, None)
-        if resource.get('status') == "ERROR":
+        if (resource.get('instance') and resource['instance'].get('id')
+                and resource.get('status') == "ERROR"):
             failed_resource = copy.deepcopy(resource)
+            resource['status'] = 'PLANNED'
+            resource['instance'] = None
             if 'relations' in failed_resource:
                 failed_resource.pop('relations')
             failed_resource['index'] = (
@@ -339,6 +344,7 @@ class Manager(ManagerBase):
                 "tenantId": tenant_id,
                 "resources": {
                     failed_resource['index']: failed_resource,
+                    resource_id: resource
                 }
             }
             self.save_deployment(deployment_body, api_id=deployment_id,

@@ -10,7 +10,7 @@ from mox import IgnoreArg
 from checkmate import ssh
 from checkmate import test
 from checkmate.deployments import resource_postback
-from checkmate.deployments.tasks import create_failed_resource_task
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import CheckmateException
 from checkmate.middleware import RequestContext
 from checkmate.providers.rackspace import compute
@@ -64,8 +64,8 @@ class TestNovaCompute(test.ProviderTester):
             'tenant': 'TMOCK',
             'base_url': 'http://MOCK'
         }
-        self.mox.StubOutWithMock(create_failed_resource_task, 'delay')
-        create_failed_resource_task.delay(context['deployment'],
+        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
+        reset_failed_resource_task.delay(context['deployment'],
                                           context['resource'])
 
         #Stub out postback call

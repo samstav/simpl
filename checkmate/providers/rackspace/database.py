@@ -17,7 +17,7 @@ from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
-from checkmate.deployments.tasks import create_failed_resource_task
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
@@ -742,7 +742,7 @@ def create_database(context, name, region, character_set=None, collate=None,
     if not api:
         api = Provider.connect(context, region)
 
-    create_failed_resource_task.delay(context["deployment"],
+    reset_failed_resource_task.delay(context["deployment"],
                                       context["resource"])
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:

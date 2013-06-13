@@ -32,7 +32,7 @@ class TestManager(unittest.TestCase):
         self._mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
 
-    def test_create_failed_resources_with_existing_errored_resource(self):
+    def test_reset_failed_resources(self):
         deployment_id = 1234
         deployment = {
             "id": deployment_id,
@@ -40,6 +40,9 @@ class TestManager(unittest.TestCase):
             "resources": {
                 "0": {
                     "status": "ERROR",
+                    "instance": {
+                        "id": "instance_id",
+                    },
                     "relations": {
                         "host": {
                             "name": "something",
@@ -51,9 +54,21 @@ class TestManager(unittest.TestCase):
         expected_deployment = deepcopy(deployment)
         expected_deployment.pop("resources")
         expected_deployment.update({"resources": {
+            "0": {
+                "status": "PLANNED",
+                "instance": None,
+                "relations": {
+                    "host": {
+                        "name": "something",
+                    },
+                },
+            },
             "1": {
                 "index": "1",
-                "status": "ERROR"
+                "status": "ERROR",
+                "instance": {
+                    "id": "instance_id",
+                }
             }
         }})
 
@@ -62,9 +77,43 @@ class TestManager(unittest.TestCase):
         self.db.save_deployment(deployment_id, expected_deployment, None,
                                 tenant_id=1000, partial=True)
         self._mox.ReplayAll()
-        self.controller.create_failed_resource(deployment_id, "0")
+        self.controller.reset_failed_resource(deployment_id, "0")
 
-    def test_create_failed_resources_without_any_errored_resource(self):
+    def test_reset_failed_resources_without_instance_key(self):
+        deployment_id = 1234
+        deployment = {
+            "id": deployment_id,
+            "tenantId": 1000,
+            "resources": {
+                "0": {
+                    "status": "ERROR",
+                },
+            }
+        }
+        self.db.get_deployment(deployment_id, with_secrets=False).AndReturn(
+            deployment)
+        self._mox.ReplayAll()
+        self.controller.reset_failed_resource(deployment_id, "0")
+
+    def test_reset_failed_resources_without_instance_id_key(self):
+        deployment_id = 1234
+        deployment = {
+            "id": deployment_id,
+            "tenantId": 1000,
+            "resources": {
+                "0": {
+                    "status": "ERROR",
+                    "instance": {
+                    },
+                },
+            }
+        }
+        self.db.get_deployment(deployment_id, with_secrets=False).AndReturn(
+            deployment)
+        self._mox.ReplayAll()
+        self.controller.reset_failed_resource(deployment_id, "0")
+
+    def test_reset_failed_resources_without_error_status(self):
         deployment_id = 1234
         deployment = {
             "id": deployment_id,
@@ -72,14 +121,16 @@ class TestManager(unittest.TestCase):
             "resources": {
                 "0": {
                     "status": "PLANNED",
+                    "instance": {
+                        "id": "instance_id",
+                    },
                 },
             }
         }
         self.db.get_deployment(deployment_id, with_secrets=False).AndReturn(
             deployment)
         self._mox.ReplayAll()
-        self.controller.create_failed_resource(deployment_id, "0")
-        self._mox.VerifyAll()
+        self.controller.reset_failed_resource(deployment_id, "0")
 
 
 class TestCount(unittest.TestCase):

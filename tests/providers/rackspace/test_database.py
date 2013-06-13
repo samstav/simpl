@@ -8,7 +8,7 @@ from checkmate import test
 from checkmate.exceptions import CheckmateException
 from checkmate.deployment import Deployment
 from checkmate.deployments import resource_postback
-from checkmate.deployments.tasks import create_failed_resource_task
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import database
 from checkmate.test import StubbedWorkflowBase, ProviderTester
@@ -102,8 +102,8 @@ class TestDatabase(ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
-        self.mox.StubOutWithMock(create_failed_resource_task, 'delay')
-        create_failed_resource_task.delay(context['deployment'],
+        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
+        reset_failed_resource_task.delay(context['deployment'],
                                           context['resource'])
 
         #Create clouddb mock
@@ -184,7 +184,7 @@ class TestDatabase(ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
-        self.mox.StubOutWithMock(create_failed_resource_task, 'delay')
+        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -209,7 +209,7 @@ class TestDatabase(ProviderTester):
         }
         resource_postback.delay(context['deployment'], expected).AndReturn(
             True)
-        create_failed_resource_task.delay(context['deployment'],
+        reset_failed_resource_task.delay(context['deployment'],
                                           context['resource'])
 
         self.mox.ReplayAll()

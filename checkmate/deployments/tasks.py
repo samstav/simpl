@@ -32,10 +32,10 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
 MANAGERS = {'deployments': Manager(DRIVERS)}
 
 
-@task(base=celery.SingleTask, lock_db=LOCK_DB,
-      lock_key="async_dep_writer:{args[0]}")
-def create_failed_resource_task(deployment_id, resource_id):
-    MANAGERS['deployments'].create_failed_resource(deployment_id, resource_id)
+@task(base=celery.SingleTask, default_retry_delay=2, max_retries=10,
+      lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
+def reset_failed_resource_task(deployment_id, resource_id):
+    MANAGERS['deployments'].reset_failed_resource(deployment_id, resource_id)
 
 
 @task
