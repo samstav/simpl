@@ -399,7 +399,7 @@ class Manager(ManagerBase):
 
         if not isinstance(contents, dict):
             raise CheckmateValidationException("Postback contents is not"
-                                               " tuype dictionary")
+                                               " type dictionary")
 
         deployment.on_postback(contents, target=deployment)
 
@@ -407,5 +407,5 @@ class Manager(ManagerBase):
         self.driver.save_deployment(deployment_id, body, secrets,
                                     partial=True)
 
-        LOG.debug("Updated deployment %s with post-back", deployment_id,
+        LOG.debug("Updated deployment %s with postback", deployment_id,
                   extra=dict(data=contents))

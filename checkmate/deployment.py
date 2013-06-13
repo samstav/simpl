@@ -1089,7 +1089,7 @@ class Deployment(ExtensibleDict):
             Resource.validate(resource)
         return resources
 
-    def on_deployment_postback(self, contents, target=None):
+    def on_postback(self, contents, target=None):
         """Called to merge in all deployment and operation data in one
 
         Validates and assigns contents data to target
@@ -1106,7 +1106,7 @@ class Deployment(ExtensibleDict):
         keys = ['resources', 'operation', 'status']
         updated = { key: contents[key] for key in keys if key in contents }
         if updated != contents:
-            raise NotImplementedError("Valid posback keys include resources, "
+            raise NotImplementedError("Valid postback keys include resources, "
                                       "operation and status only")
 
         LOG.debug("Merging postback data for deployment")
