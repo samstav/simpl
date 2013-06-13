@@ -13,7 +13,7 @@ from SpiffWorkflow.specs import Celery
 import cloudlb
 
 from checkmate.common.caching import Memorize, MemorizeMethod
-from checkmate.deployments.tasks import (
+from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
@@ -772,7 +772,6 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     except RateLimit as rate_limit_exc:
         raise CheckmateRetriableException(rate_limit_exc.reason, "")
 
-    #TODO: Not sure if this is needed
     # Put the instance_id in the db as soon as it's available
     instance_id = {
         instance_key: {
