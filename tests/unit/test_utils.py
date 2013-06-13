@@ -498,6 +498,30 @@ class TestUtils(unittest.TestCase):
         password = utils.evaluate('generate_password()')
         self.assertEqual(8, len(password))
 
+    def test_generate_12_character_password(self):
+        password = utils.evaluate('generate_password(min_length=12)')
+        self.assertEqual(12, len(password))
+
+    def test_parse_params_for_empty_string(self):
+        kwargs = utils.parse_params("")
+        self.assertEqual({}, kwargs)
+
+    def test_parse_params_for_all_valid_generate_password_params(self):
+        kwargs = utils.parse_params(
+            "min_length=8, max_length=12, "
+            "required_chars=['123', 'abc', 'ABC'], starts_with='xyz!', "
+            "valid_chars='123abcABCxyz!'")
+        self.assertEqual(
+            {
+                'min_length': 8,
+                'max_length': 12,
+                'required_chars': ['123', 'abc', 'ABC'],
+                'starts_with': 'xyz!',
+                'valid_chars': '123abcABCxyz!'
+            },
+            kwargs
+        )
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

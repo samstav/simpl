@@ -748,6 +748,8 @@ def generate_password(min_length=None, max_length=None, required_chars=None,
 
     return ''.join([first_char, password])
 
+def parse_params(function_string):
+    return eval("dict(%s)" % ''.join(function_string))
 
 def evaluate(function_string):
     """Evaluate an option value.
@@ -759,7 +761,8 @@ def evaluate(function_string):
     if function_string.startswith('generate_uuid('):
         return uuid.uuid4().hex
     if function_string.startswith('generate_password('):
-        return generate_password()
+        params_string = function_string[len('generate_password('):len(function_string)-1]
+        return generate_password(**parse_params(params_string))
     raise NameError("Unsupported function: %s" % function_string)
 
 
