@@ -1,0 +1,333 @@
+<!doctype html>
+<html>
+  <head>
+    <title>D3 sandbox</title>
+    <meta charset="utf-8" />
+    <script src="static/libs/d3.v2.min.js" charset="utf-8"></script>
+    <script src="static/libs/underscore-min.js"></script>
+    <script src="fisheye.js"></script>
+    <script src="flare.json" charset="utf-8"></script>
+    <style>
+      circle.node {
+          stroke: #fff;
+          stroke-width: 3px;
+      }
+
+      circle.node.inactive {
+        opacity: 0.5;
+      }
+
+      line.link {
+          stroke-width: 2px;
+          stroke: #999;
+          stroke-opacity: 0.6;
+      }
+    </style>
+  </head>
+
+  <body>
+
+   <script>
+
+var getIcon = function(node) {
+  var icon = "";
+  var base_dir = "static/img/icons/";
+
+  if (node.group == "5") icon = "ws.png";
+  else if (node.group == "2") icon = "db.png";
+  else if (node.group == "0") icon = "lb.png";
+
+  if (icon != "") icon = base_dir + icon;
+
+  return icon;
+}
+
+function distanceToStartSpec(memo, all_specs, spec) {
+  if(memo[spec.id]) {
+    return memo[spec.id];
+  }
+
+  if(spec.id === 1){
+    memo[spec.id] = 0;
+    return memo[spec.id];
+  }
+
+  max_spec = _.max(spec.inputs, function(input){
+    return distanceToStartSpec(memo, all_specs, specs[input]);
+  });
+
+  var scale = 20;
+  var default_duration = 10;
+  var max_duration = specs[max_spec].properties.estimated_duration || default_duration;
+  memo[spec.id] = memo[specs[max_spec].id] + Math.log(max_duration)*scale;
+  return memo[spec.id];
+}
+
+var resource_position = function(group) {
+  var spacing = 30;
+  return group * spacing;
+}
+
+var avoid_collision = function(nodes, current_position, axis, level) {
+  level = level || 0;
+  var spacing = 25;
+  var new_position = _.clone(current_position);
+  var existing_node = _.findWhere(nodes, new_position);
+  if (!existing_node) {
+    return new_position;
+  }
+  new_position[axis] += spacing;
+  return avoid_collision(nodes, new_position, axis, level+1);
+}
+
+var getGroup = function(spec, specs) {
+  var group;
+  var no_group = -1;
+  var shift_size = 2;
+
+  if (spec.properties.resource)
+    group = parseInt(spec.properties.resource) || no_group;
+  else
+    group = parseInt(specs[spec.inputs[0]].properties.resource) || no_group;
+
+  group += shift_size;
+  return group;
+}
+
+var buildNodes = function(specs) {
+  var nodes = [];
+  var start_group = 0;
+  var positions_memo = {};
+  var start_position = { x: 20, y: 120 };
+  var fixed_status = true;
+  var skip_nodes = ['Root', 'Start'];
+  var start_spec = 'Start';
+
+  _.each(specs, function(spec, spec_name){
+    var node = {};
+    if(spec_name === start_spec) {
+      node.fixed = fixed_status;
+      node.name = spec_name;
+      node.group = start_group;
+      node.x = start_position.x;
+      node.y = start_position.y;
+      node.status = false;
+      nodes.push(node);
+    }
+
+    if(spec.properties) {
+      if ( skip_nodes.indexOf(spec_name) === -1 ) {
+        var group = getGroup(spec, specs);
+        var distance = distanceToStartSpec(positions_memo, specs, spec);
+        var row = resource_position(group);
+        var current_position = { x: distance, y: row };
+        var position = avoid_collision(nodes, current_position, 'y');
+        node.fixed = fixed_status;
+        node.name = spec_name;
+        node.group = group;
+        node.x = position.x;
+        node.y = position.y;
+        node.status = true;
+
+        nodes.push(node)
+      }
+    }
+  });
+
+  return nodes;
+}
+
+var buildLinks = function(specs) {
+  var links = [];
+
+  _.each(specs, function(spec, spec_name) {
+    if(spec.outputs) {
+      _.each(spec.outputs, function(output) {
+        source = _.findWhere(nodes, { name: spec_name });
+        target = _.findWhere(nodes, { name: output });
+        if(source && target) {
+          var link = {source: source, target: target, value: 1}
+          links.push(link);
+        }
+      });
+    }
+  });
+
+  return links;
+}
+var centered;
+
+var buildNetwork = function(json, width, height) {
+  function click(d) {
+    var x, y, k;
+
+    if (d && centered !== d) {
+      x = d.x;
+      y = d.y;
+      k = 4;
+      centered = d;
+    } else {
+      x = width / 2;
+      y = height / 2;
+      k = 1;
+      centered = null;
+    }
+
+    node_container.selectAll("g.node")
+    .classed("active", centered && function(d) { return d === centered; });
+
+    node_container.transition()
+    .duration(1000)
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+    .style("stroke-width", 1.5 / k + "px");
+  }
+
+  var color = d3.scale.category10();
+
+  var force = d3.layout.force()
+              .size([width, height]);
+
+  svg = d3.select("body")
+              .append("svg")
+              .attr("width", width)
+              .attr("height", height)
+              //.append('svg:g')
+              //.call(d3.behavior.zoom().on("zoom", redraw))
+
+
+  function redraw() {
+    console.log("here", d3.event.translate, d3.event.scale);
+    svg.attr("transform",
+             "translate(" + d3.event.translate + ")"
+             + " scale(" + d3.event.scale + ")");
+  }
+
+  force
+      .nodes(json.nodes)
+      .links(json.links)
+      .start()
+      ;
+
+  node_container = svg.append('g')
+      .attr('id', 'nodes')
+
+  var nodes = //node_container
+      svg.select('#nodes').selectAll("g.node")
+      .data(force.nodes())
+      .enter()
+      .append("svg:g")
+      .attr("class", "node")
+      //.call(force.drag)
+      //.on('click', click)
+      ;
+
+  var links = svg.select('#nodes').selectAll("line.link")
+      .data(force.links())
+      .enter().append("line")
+      .attr("class", "link")
+      ;
+
+  nodes.append("svg:title")
+      .text(function(d) { return d.name; });
+
+  nodes.append("svg:desc")
+      .text(function(d) { return JSON.stringify(d); });
+
+  nodes.append('circle')
+      .attr("r", 8)
+      .attr("x", function(d){ return d.x })
+      .attr("y", function(d){ return d.y })
+      .attr("class", "node")
+      .style("fill", function(d) { return color(d.group); });
+
+  nodes.append("svg:image")
+      .attr("class", "circle")
+      .attr("xlink:href", getIcon)
+      .attr("x", "0")
+      .attr("y", "0")
+      .attr("width", "16px")
+      .attr("height", "16px");
+
+  nodes.selectAll("title").text(function(d) { return d.name; });
+  nodes.selectAll("circle").classed('inactive', function(d) { return d.status });
+
+  links.attr("x1", function(d) { return d.source.x; })
+      .attr("y1", function(d) { return d.source.y; })
+      .attr("x2", function(d) { return d.target.x; })
+      .attr("y2", function(d) { return d.target.y; });
+
+
+  //force.on("tick", function() {
+  //    links.attr("x1", function(d) { return d.source.x; })
+  //        .attr("y1", function(d) { return d.source.y; })
+  //        .attr("x2", function(d) { return d.target.x; })
+  //        .attr("y2", function(d) { return d.target.y; });
+
+  //    nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+  //    nodes.selectAll("title").text(function(d) { return d.name; });
+  //    nodes.selectAll("circle").classed('inactive', function(d) { return d.status });
+  //});
+
+  var fisheye = d3.fisheye.circular()
+    .radius(250)
+    .distortion(5);
+
+  svg.on("mousemove", function() {
+    fisheye.focus(d3.mouse(this));
+    nodes.selectAll('circle').each(function(d) { d.fisheye = fisheye(d); })
+      .attr("cx", function(d) { return d.fisheye.x; })
+      .attr("cy", function(d) { return d.fisheye.y; })
+      .attr("r", function(d) { return d.fisheye.z * 9.5; });
+
+    nodes.selectAll('image').each(function(d) { d.fisheye = fisheye(d); })
+      .attr("x", function(d) { return d.fisheye.x; })
+      .attr("y", function(d) { return d.fisheye.y; })
+      .attr("r", function(d) { return d.fisheye.z * 4.5; });
+
+    nodes.each(function(d) { d.fisheye = fisheye(d); })
+      .attr("cx", function(d) { return d.fisheye.x; })
+      .attr("cy", function(d) { return d.fisheye.y; })
+      .attr("r", function(d) { return d.fisheye.z * 4.5; });
+
+    links.attr("x1", function(d) { return d.source.fisheye.x; })
+      .attr("y1", function(d) { return d.source.fisheye.y; })
+      .attr("x2", function(d) { return d.target.fisheye.x; })
+      .attr("y2", function(d) { return d.target.fisheye.y; });
+  });
+  fisheye.focus([-4000,-4000])
+  nodes.selectAll('circle').each(function(d) { d.fisheye = fisheye(d); })
+    .attr("cx", function(d) { return d.fisheye.x; })
+    .attr("cy", function(d) { return d.fisheye.y; })
+    .attr("r", function(d) { return d.fisheye.z * 9.5; });
+
+  nodes.selectAll('image').each(function(d) { d.fisheye = fisheye(d); })
+    .attr("x", function(d) { return d.fisheye.x; })
+    .attr("y", function(d) { return d.fisheye.y; })
+    .attr("r", function(d) { return d.fisheye.z * 4.5; });
+
+  nodes.each(function(d) { d.fisheye = fisheye(d); })
+    .attr("cx", function(d) { return d.fisheye.x; })
+    .attr("cy", function(d) { return d.fisheye.y; })
+    .attr("r", function(d) { return d.fisheye.z * 4.5; });
+
+  links.attr("x1", function(d) { return d.source.fisheye.x; })
+    .attr("y1", function(d) { return d.source.fisheye.y; })
+    .attr("x2", function(d) { return d.target.fisheye.x; })
+    .attr("y2", function(d) { return d.target.fisheye.y; });
+
+  return force;
+};
+
+specs = data.wf_spec.task_specs
+var WIDTH = 1400;
+var HEIGHT = 900;
+var nodes = buildNodes(specs);
+var links = buildLinks(specs);
+var network = { nodes: nodes, links: links };
+var force = buildNetwork(network, WIDTH, HEIGHT);
+
+
+   </script>
+
+  </body>
+</html>
