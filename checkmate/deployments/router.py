@@ -152,15 +152,14 @@ class Router(object):
         if request.query.get('asynchronous') == '1':
             self.manager.save_deployment(deployment, api_id=api_id,
                                          tenant_id=tenant_id)
-            write_deploy_headers(api_id, tenant_id=tenant_id)
             request_context = copy.deepcopy(request.context)
             tasks.process_post_deployment.delay(deployment, request_context)
         else:
-            write_deploy_headers(api_id, tenant_id=tenant_id)
             tasks.process_post_deployment(deployment, request.context,
                                           driver=self.manager
                                           .select_driver(api_id))
         response.status = 202
+        write_deploy_headers(api_id, tenant_id=tenant_id)
         return utils.write_body(deployment, request, response)
 
     @with_tenant
