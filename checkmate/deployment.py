@@ -1232,23 +1232,18 @@ def update_deployment_status(deployment_id, new_status, error_message=None,
             update_deployment_status.retry()
 
 
-def update_deployment_status_new(deployment_id, new_status, driver=DB):
+def update_deployment_status_new(deployment_id, new_status, driver=None):
     '''Update the status of the specified deployment'''
-    # TODO: rename without _new
-
     if is_simulation(deployment_id):
         driver = SIMULATOR_DB
+    if not driver:
+        driver = DB
 
     delta = {}
     if new_status:
         delta['status'] = new_status
     if delta:
-        try:
-            driver.save_deployment(deployment_id, delta, partial=True)
-        except ObjectLockedError:
-            LOG.warn("Object lock collision in update_deployment_status on "
-                     "Deployment %s", deployment_id)
-            raise
+        driver.save_deployment(deployment_id, delta, partial=True)
 
 
 def get_status(deployment_id):
