@@ -683,8 +683,7 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
             k: {
                 'status': 'ERROR',
                 'status-message': (
-                    'Unexpected error %s compute instance %s: %s' %
-                    (action, key)
+                    'Unexpected error %s compute instance %s' % (action, key)
                 ),
                 'error-message': exc.message,
                 'trace': 'Task %s: %s' % (task_id, einfo.traceback)
