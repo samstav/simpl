@@ -346,6 +346,17 @@
 
       </carousel>
     </div>
+    <accordion id="heat" class="span9 offset1">
+      <accordion-group class="alert" heading="What about HEAT? We've been getting questions about HEAT and Checkmate - how are they related?">
+        <div class="well" style="color: #000000;"><h4>What is Heat?</h4><p>Heat is the OpenStack project to orchestrate cloud application deployments. Heat was originally started by Red Hat to clone Amazon’s CloudFormation service. Heat was promoted to an integrated OpenStack project for the Havana release due out in October 2013.  At the OpenStack Design Summit in April, Rackspace proposed the Checkmate API and blueprint syntax as the default DSL for Heat to replace the AWS CloudFormation syntax.</p>
+        <p>In June, Rackspace began investing in Heat with a full-time team in Austin led by Keith Bray. Their mission is to mature Heat into a production-ready service and implement some of the design tenets of Checkmate. It is our belief that the open community will evolve Heat over the next several OpenStack releases into a solid orchestration deployment system.</p>
+        <p>Meanwhile, Rackspace is continuing to invest in Checkmate and will release it in June to provide cloud deployments based upon Racker best practices. Checkmate will continue to evolve and add features based on Racker and customer demand.</p><p>Our intent is that Checkmate and Heat will converge in the future and we are putting resources behind making that happen.</p>
+
+        <br>
+        <h4>Should I write blueprints for Checkmate or wait for Heat?</h4>
+        <p>You should contribute to Checkmate by writing blueprints! The Checkmate API and DSL have been proposed as the default syntax in Heat. While the syntax might not be 100% compatible, the differences will most likely be minimal. You shouldn’t wait for what is coming eventually – our customers need to leverage your expertise today!</p></div>
+      </accordion-group>
+    </accordion>
 
     <div class="row pricing" ng-controller="ActivityFeedController" style="padding-top: 0px;">
       <div class="span8 offset2" ng-cloak ng-show="!items &amp;&amp; !loading">
