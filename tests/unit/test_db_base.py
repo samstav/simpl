@@ -73,6 +73,49 @@ class TestDbBase(unittest.TestCase):
         dbb.convert_data('deployments', data)
         self.assertEqual(data, expected)
 
+    def test_convert_data_error(self):
+        dbb = db.DbBase("connection-string://")
+        data = {
+            "1": {
+                'errmessage': 'my error message',
+                'instance': {
+                    'trace': ''
+                }
+            }
+        }
+        expected = {
+            "1": {
+                'instance': {
+                    'error-message': 'my error message',
+                    'error-traceback': ''
+                }
+            }
+        }
+        dbb.convert_data('resources', data)
+        self.assertEqual(data, expected)
+
+    def test_convert_data_del_errmessage(self):
+        dbb = db.DbBase("connection-string://")
+        data = {
+            "1": {
+                'errmessage': '',
+                'instance': {
+                    'errmessage': '',
+                    'error-message': 'my error message'
+                }
+            }
+        }
+        expected = {
+            "1": {
+                'instance': {
+                    'error-message': 'my error message'
+                }
+            }
+        }
+        dbb.convert_data('resources', data)
+        self.assertEqual(data, expected)
+
+
 if __name__ == '__main__':
     # Any change here should be made in all test files
     import sys

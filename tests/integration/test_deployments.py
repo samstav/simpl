@@ -1438,7 +1438,7 @@ class TestGetResourceStuff(unittest.TestCase):
                       'error-message': 'A certain error happened'},
                 '3': {'status': 'ERROR',
                       'error-message': 'whoops',
-                      'trace': 'stacktrace'},
+                      'error-traceback': 'stacktrace'},
                 '9': {'status-message': 'I have an unknown status'}
             }
         }
@@ -1473,7 +1473,7 @@ class TestGetResourceStuff(unittest.TestCase):
             self.assertIn(key, ret)
         self.assertEquals('A certain error happened',
                           ret.get('2', {}).get('message'))
-        self.assertNotIn('trace', ret.get('3', {'trace': 'FAIL'}))
+        self.assertNotIn('error-traceback', ret.get('3', {'error-traceback': 'FAIL'}))
 
     def test_no_resources(self):
         """ Test when no resources in deployment """
@@ -1549,7 +1549,7 @@ class TestGetResourceStuff(unittest.TestCase):
             self.assertIn(key, ret)
         self.assertEquals('A certain error happened',
                           ret.get('2', {}).get('message'))
-        self.assertIn('trace', ret.get('3', {}))
+        self.assertIn('error-traceback', ret.get('3', {}))
 
 
 class TestPostbackHelpers(unittest.TestCase):
@@ -1579,7 +1579,7 @@ class TestPostbackHelpers(unittest.TestCase):
                 '3': {'index': '3',
                       'status': 'ERROR',
                       'error-message': 'whoops',
-                      'trace': 'stacktrace',
+                      'error-trace': 'stacktrace',
                       'provider': 'bam'},
                 '9': {'index': '9',
                       'status-message': 'I have an unknown status',
@@ -1616,9 +1616,9 @@ class TestPostbackHelpers(unittest.TestCase):
         self.assertEquals('I test u', ret.get('instance:9',
                                               {}).get('status-message'))
         self.assertEquals('A trace', ret.get('instance:1',
-                                             {}).get('trace'))
+                                             {}).get('error-traceback'))
         self.assertEquals('A trace', ret.get('instance:9',
-                                             {}).get('trace'))
+                                             {}).get('error-traceback'))
 
 
 class TestDeploymentDisplayOutputs(unittest.TestCase):

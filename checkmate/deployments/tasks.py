@@ -25,6 +25,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
+
 LOCK_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_LOCK_CONNECTION_STRING',
     os.environ.get('CHECKMATE_CONNECTION_STRING')))
@@ -33,7 +34,7 @@ MANAGERS = {'deployments': Manager(DRIVERS)}
 
 
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=10,
-      lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
+    lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
 def reset_failed_resource_task(deployment_id, resource_id):
     MANAGERS['deployments'].reset_failed_resource(deployment_id, resource_id)
 
@@ -95,6 +96,7 @@ def delete_deployment_task(dep_id, driver=DB):
                     'instance:%s' % resource['index']: updates,
                 }
                 resource_postback.delay(dep_id, contents, driver=driver)
+
     common_tasks.update_operation.delay(dep_id, status="COMPLETE",
                                         deployment_status="DELETED",
                                         complete=len(deployment.get(
@@ -127,7 +129,7 @@ def update_all_provider_resources(provider, deployment_id, status,
         if message:
             rupdate['status-message'] = message
         if trace:
-            rupdate['trace'] = trace
+            rupdate['error-traceback'] = trace
         ret = {}
         for resource in [res for res in dep.get('resources', {}).values()
                          if res.get('provider') == provider]:

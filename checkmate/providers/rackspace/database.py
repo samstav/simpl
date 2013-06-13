@@ -746,7 +746,8 @@ def create_database(context, name, region, character_set=None, collate=None,
         api = Provider.connect(context, region)
 
     reset_failed_resource_task.delay(context["deployment"],
-                                      context["resource"])
+                                     context["resource"])
+                                     
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
         # Create instance & database
@@ -970,7 +971,7 @@ def delete_instance(context, api=None):
                         'database instance %s' % key
                     ),
                     'error-message': exc.message,
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1061,7 +1062,7 @@ def wait_on_del_instance(context, api=None):
                         'database instance %s' % key
                     ),
                     'error-message': exc.message,
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1137,7 +1138,7 @@ def delete_database(context, api=None):
                         'database %s' % key
                     ),
                     'error-message': exc.message,
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
