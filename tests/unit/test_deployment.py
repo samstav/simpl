@@ -417,7 +417,8 @@ class TestCalculateOutputs(unittest.TestCase):
 
     def test_extra_sources(self):
         results = self.deployment.calculate_outputs()
-        print results
+        self.assertEqual(results['Site Address']['extra-info'],
+                         {'ipv4': 'a.b.c.d'})
 
     def test_get_resource_value(self):
         results = self.deployment.calculate_outputs()
