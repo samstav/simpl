@@ -5,7 +5,6 @@
 # (Note the relative directory, must run pip from the correct relative directory.)
 # -e ./
 #
-# Items from internal Enterprise github.rackspace.com
 
 coverage
 flake8
@@ -17,17 +16,11 @@ nose
 nosexcover
 webtest
 unittest2
+mongobox
 
 # pymox
-#Upstream: http://pymox.googlecode.com/svn/trunk/
--e git+https://github.rackspace.com/checkmate/mox.git@master#egg=mox
+#  Upstream: http://pymox.googlecode.com/svn/trunk/
+#  Notes:    mox hasn't had a commit in 1.5 years. We lock it down to revision
+#            r75 just to be safe.
+-e svn+http://pymox.googlecode.com/svn/trunk@r75#egg=mox
 
-# mongobox
-#Upstream: https://github.com/theorm/mongobox.git
-# Fork until https://github.com/theorm/mongobox/pull/2 accepted
--e git+https://github.rackspace.com/checkmate/mongobox.git@master#egg=mongobox
-
-
-#
-# All other needed requirements should work as specified through the setup.py file.
-# Really, this file is only needed for the github.rackspace.com repositories.

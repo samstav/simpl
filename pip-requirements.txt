@@ -5,60 +5,81 @@
 # (Note the relative directory, must run pip from the correct relative directory.)
 #-e ./
 #
-# Items from internal Enterprise github.rackspace.com
 
-# SpiffWorkflow
-#Upstream: https://github.com/knipknap/SpiffWorkflow
--e git+https://github.rackspace.com/checkmate/SpiffWorkflow.git@master#egg=SpiffWorkflow-0.3.2-rackspace
+##### Packages that we have not forked but are locked to a specific commit
 
-# python-clouddns
-#Upstream: https://github.com/rackspace/python-clouddns
-#Note: version would end up being 0.0.0, which appears to be ignored by pip/setup.py, so we exclude it here.
--e git+https://github.rackspace.com/checkmate/python-clouddns.git@master#egg=python-clouddns
-
-# python-cloudlb
-#Upstream: https://github.com/rackspace/python-cloudlb
--e git+https://github.rackspace.com/checkmate/python-cloudlb.git@master#egg=python-cloudlb
-
-# python-cloudfiles
-#Upstream: https://github.com/rackspace/python-cloudfiles
--e git+https://github.rackspace.com/checkmate/python-cloudfiles.git@master#egg=python-cloudfiles
-
-# openstack.compute
-#Upstream: https://github.com/jacobian/openstack.compute
--e git+https://github.rackspace.com/checkmate/openstack.compute.git@master#egg=openstack.compute-2.0a1
+# GitPython
+#Upstream: https://github.com/gitpython-developers/GitPython
+-e git://github.com/gitpython-developers/GitPython.git@0b820e617ab21b372394bf12129c30174f57c5d7#egg=GitPython
 
 # python-clouddb
-#Upstream: https://github.com/slizadel/python-clouddb
-#Note: python-clouddb would end up being ".01", but that is not valid (with a leading ".") so we exclude it here.
--e git+https://github.rackspace.com/checkmate/python-clouddb.git@master#egg=python-clouddb
+#   Upstream: https://github.com/slizadel/python-clouddb
+#   Note:     This project is stale but maintained by a Racker. We had an
+#             internal fork but we've pushed everything back upstream.
+#             python-clouddb would end up being ".01", but that is not valid
+#             (with a leading ".") so we exclude it here.
+-e git://github.com/slizadel/python-clouddb.git@7bee2642abb5d86c3ff943259b703f21fefbcb3a#egg=python-clouddb
+
+
+#### Packages that we've forked and cannot converge with upstream
+
+# SpiffWorkflow
+#   Upstream: https://github.com/knipknap/SpiffWorkflow
+#   Notes:    Some of our changes have been pushed upstream but not in a
+#             while. There have been other changes to upstream that aren't
+#             compatible with our changes.
+-e git://github.com/checkmate/SpiffWorkflow.git#egg=SpiffWorkflow
 
 # python-novaclient
-#Upstream: https://github.com/openstack/python-novaclient
--e git+https://github.rackspace.com/checkmate/python-novaclient.git@master#egg=python-novaclient-2012.2
+#  Upstream: https://github.com/openstack/python-novaclient
+#  Notes:    python-novaclient is actively developed (3-11 commits/week). Our
+#            changes are minimal but are based on a version of
+#            python-novaclient that hasn't been patched in a year. We have
+#            added the following code: https://rax.io/python-novaclient-diff
+-e git://github.com/checkmate/python-novaclient.git@master#egg=python-novaclient-2012.2
+
+
+##### Rackspace client packages that have been abandoned because of pyrax. We
+#     have forked and modified these in some way.
+
+# python-clouddns
+#   Upstream: https://github.com/rackerlabs/python-clouddns.
+#   Notes:    Upstream is unmaintained. There are six open pull requests
+#             currently, including two that originated from us.
+#             Version would end up being 0.0.0, which appears to be ignored by
+#             pip/setup.py, so we exclude it here.
+-e git://github.com/checkmate/python-clouddns.git#egg=python-clouddns
+
+# python-cloudlb
+#   Upstream: https://github.com/rackerlabs/python-cloudlb
+#   Notes:    If https://github.com/rackerlabs/python-cloudlb/pull/36 is
+#             accepted we will be in sync with upstream.
+-e git://github.com/calebgroom/python-cloudlb.git@41d93de78c31fb1434ef623031df3cdc2a4ee691#egg=python-cloudlb
+
+# python-cloudfiles
+#   Upstream: https://github.com/rackerlabs/python-cloudfiles
+#   Notes:    python-cloudfiles is deprecated. The upstream README says that
+#             it is going to be unavailable after 8/1/2013. Our only difference
+#             has been the ability to write metadata to a container. Caleb's
+#             fork has this feature merged in with upstream.
+-e git://github.com/calebgroom/python-cloudfiles.git@d2ce52ed803a871d5cbe1d5faff208b4f467e5e0#egg=python-cloudfiles
+
+# openstack.compute
+#   Upstream: https://github.com/jacobian/openstack.compute
+#   Notes:    This project is stale. The last commit is over two years old.
+#             We're only using this code base in
+#             providers/rackspace/compute_legacy.py. Our additions were small
+#             (2 commits) and can be reviewed at
+#             https://rax.io/openstack-compute-diff
+-e git://github.com/calebgroom/openstack.compute.git@c870e94cf53f0d5b76889d0c8ece22e9da356e65#egg=openstack.compute-2.0a1
+
+
+#### Checkmate applications
 
 # rook
 #Upstream: https://github.rackspace.com/checkmate/rook
 -e git+https://github.rackspace.com/checkmate/rook.git@master#egg=rook
 
-# GitPython
-#Upstream: https://github.rackspace.com/checkmate/GitPython
--e git+https://github.rackspace.com/checkmate/GitPython.git@0.3#egg=GitPython
-
-# rackspace-monitoring
-#Upstream: https://github.com/racker/rackspace-monitoring
--e git+https://github.com/racker/rackspace-monitoring.git@master#egg=rackspace-monitoring
-
-
-# from our fork - GitPython==0.3.2.RC1
-# from our fork - openstack.compute==2.0a1
-# from our fork - python-clouddb
-# from our fork - python-novaclient==2012.2
-# from our fork - python-cloudlb
-# from our fork - python-clouddns
-# from our fork - python-cloudfiles
-# from fork - rackspace-monitoring
-# from our fork - SpiffWorkflow==0.3.2-rackspace
 
 amqp==1.0.11
 anyjson==0.3.3
@@ -83,6 +104,4 @@ sqlalchemy-migrate==0.7.2
 tldextract==1.1.2
 WebOb==1.2.2
 
-
 # All other needed requirements should work as specified through the setup.py file.
-# Really, this file is only needed for the github.rackspace.com repositories.
