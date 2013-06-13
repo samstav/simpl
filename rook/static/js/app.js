@@ -1538,9 +1538,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.auto_refresh_promise = null;
 
   $scope.increase_timeout = function() {
-    $scope.auto_refresh_timeout.current *= 2;
-    if ($scope.auto_refresh_timeout.current >= $scope.auto_refresh_timeout.max)
-      $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.max;
+    //$scope.auto_refresh_timeout.current *= 2;
+    //if ($scope.auto_refresh_timeout.current >= $scope.auto_refresh_timeout.max)
+    //  $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.max;
   }
 
   $scope.auto_refresh_success = function(response) {
