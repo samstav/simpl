@@ -136,7 +136,10 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
 
     dep_id = workflow["attributes"]["deploymentId"] or w_id
     deployment = driver.get_deployment(dep_id)
+    operation_type = deployment["operation"].get("type")
 
+    assert operation_type == "BUILD", \
+        "Orchestrator is getting called for %s operation type" % operation_type
     action = deployment["operation"].get("action")
 
     if action and action == "PAUSE":
