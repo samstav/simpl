@@ -457,7 +457,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
                             'Error writing software configuration '
                             'to host %s: %s' % (host, exc.message)
                         ),
-                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                        'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                     }
                 })
                 if host_k:
@@ -607,7 +607,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
                             'Error installing to host %s:%s' %
                             (host, exc.message)
                         ),
-                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                        'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                     }
                 })
                 if host_k:
@@ -919,7 +919,7 @@ def register_node(host, environment, resource, path=None, password=None,
                             'Error registering host %s: %s' %
                             (host, exc.message)
                         ),
-                        'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                        'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                     }
                 })
                 if host_k:

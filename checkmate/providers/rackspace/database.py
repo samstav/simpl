@@ -17,13 +17,11 @@ from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
-from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
     CheckmateNoMapping,
     CheckmateBadState,
-    CheckmateRetriableException,
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
@@ -53,7 +51,8 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
-MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
+MANAGERS = {}
+MANAGERS['deployments'] = deployments.Manager(DRIVERS)
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
@@ -679,7 +678,7 @@ def wait_on_build(context, instance_id, region, api=None):
                                                context['resource']
                                            ),
                                            instance_key).apply_async()
-        raise CheckmateRetriableException(msg, "")
+        raise CheckmateException(msg)
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
         results['id'] = instance_id
@@ -745,8 +744,6 @@ def create_database(context, name, region, character_set=None, collate=None,
     if not api:
         api = Provider.connect(context, region)
 
-    reset_failed_resource_task.delay(context["deployment"],
-                                      context["resource"])
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
         # Create instance & database
@@ -970,7 +967,7 @@ def delete_instance(context, api=None):
                         'database instance %s' % key
                     ),
                     'error-message': exc.message,
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1061,7 +1058,7 @@ def wait_on_del_instance(context, api=None):
                         'database instance %s' % key
                     ),
                     'error-message': exc.message,
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1137,7 +1134,7 @@ def delete_database(context, api=None):
                         'database %s' % key
                     ),
                     'error-message': exc.message,
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)

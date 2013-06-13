@@ -149,7 +149,7 @@ class TestNovaCompute(test.ProviderTester):
                     "instance 0"
                 ),
                 'error-message': exc.message,
-                'trace': 'Task 1234: some traceback'
+                'error-traceback': 'Task 1234: some traceback'
             }
         }
 
