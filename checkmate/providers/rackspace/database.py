@@ -221,7 +221,6 @@ class Provider(ProviderBase):
                                               service_name=service_name)
             if not password:
                 password = generate_password(
-                    starts_with=string.ascii_letters,
                     valid_chars=''.join(
                         [string.ascii_letters, string.digits, '@?#_']
                     ),
@@ -470,18 +469,6 @@ class Provider(ProviderBase):
         if type_filter is None:
             self._dict['catalog'] = results
         return results
-
-    @staticmethod
-    def evaluate(function_string):
-        """Overrides base for generate_password"""
-        if function_string.startswith('generate_password('):
-            start_with = string.ascii_uppercase + string.ascii_lowercase
-            password = '%s%s' % (random.choice(start_with),
-                                 ''.join(random.choice(start_with +
-                                                       string.digits + '@?#_')
-                                 for x in range(11)))
-            return password
-        return ProviderBase.evaluate(function_string)
 
     @staticmethod
     def find_url(catalog, region):
