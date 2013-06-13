@@ -12,10 +12,7 @@ from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate.common.tasks import (
-    update_operation,
-    update_deployment_status,
-)
+from checkmate.common.tasks import update_operation
 from checkmate.db.common import ObjectLockedError
 from checkmate.middleware import RequestContext
 from checkmate.utils import extract_sensitive_data, match_celery_logging
@@ -139,7 +136,10 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
 
     dep_id = workflow["attributes"]["deploymentId"] or w_id
     deployment = driver.get_deployment(dep_id)
+    operation_type = deployment["operation"].get("type")
 
+    assert operation_type == "BUILD", \
+        "Orchestrator is getting called for %s operation type" % operation_type
     action = deployment["operation"].get("action")
 
     if action and action == "PAUSE":
@@ -161,7 +161,11 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         if d_wf.get_attribute('status') != "COMPLETE":
             cm_workflow.update_workflow(d_wf, tenant_id,
                                         driver=driver, workflow_id=w_id)
-            update_deployment_status.delay(dep_id, 'UP', driver=driver)
+            update_operation.delay(dep_id, driver=driver,
+                                   deployment_status="UP",
+                                   status=d_wf.get_attribute('status'),
+                                   tasks=d_wf.get_attribute('total'),
+                                   complete=d_wf.get_attribute('completed'))
             LOG.debug("Workflow '%s' is already complete. Marked it so.", w_id)
         else:
             LOG.debug("Workflow '%s' is already complete. Nothing to do.",
@@ -181,6 +185,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         # Save any changes, even if we errored out
         failed_tasks = cm_workflow.get_failed_tasks(d_wf, tenant_id)
         after = d_wf.get_dump()
+        deployment_status = None
 
         if before != after or failed_tasks:
             # We made some progress, so save and prioritize next run
@@ -192,15 +197,19 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             completed = d_wf.get_attribute('completed')
             total = d_wf.get_attribute('total')
             workflow_status = operation_status = d_wf.get_attribute('status')
+
             if failed_tasks:
                 operation_status = "ERROR"
 
+            if total == completed:
+                deployment_status = "UP"
+
             update_operation.delay(dep_id, driver=driver,
+                                   deployment_status=deployment_status,
                                    status=operation_status, tasks=total,
                                    complete=completed,
                                    errors=failed_tasks)
-            if total == completed:
-                update_deployment_status.delay(dep_id, 'UP', driver=driver)
+
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
                                                              total,
                                                              workflow_status))

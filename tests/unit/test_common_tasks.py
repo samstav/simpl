@@ -62,7 +62,8 @@ class TestCommonTasks(unittest.TestCase):
 
     def test_update_operation(self):
         self.mox.StubOutWithMock(tasks.operations, "update_operation")
-        tasks.operations.update_operation("DEP1", driver=self, x=1) \
+        tasks.operations.update_operation("DEP1", driver=self,
+                                          deployment_status=None, x=1) \
             .AndReturn(True)
 
         self.mox.ReplayAll()
@@ -71,15 +72,17 @@ class TestCommonTasks(unittest.TestCase):
         tasks.update_operation('DEP1', driver=self, x=1)
         self.mox.VerifyAll()
 
-    def test_update_deployment_status(self):
-        self.mox.StubOutWithMock(tasks.deployment,
-                                 "update_deployment_status_new")
-        tasks.deployment.update_deployment_status_new("DEP1", "Z", driver=self)\
+    def test_update_operation_with_deployment_status(self):
+        self.mox.StubOutWithMock(tasks.operations, "update_operation")
+        tasks.operations.update_operation("DEP1", driver=self,
+                                          deployment_status="UP", x=1) \
             .AndReturn(True)
 
         self.mox.ReplayAll()
-        tasks.update_deployment_status.lock_db = self.driver
-        tasks.update_deployment_status('DEP1', "Z", driver=self)
+
+        tasks.update_operation.lock_db = self.driver
+        tasks.update_operation('DEP1', driver=self, deployment_status="UP",
+                               x=1)
         self.mox.VerifyAll()
 
 

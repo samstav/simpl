@@ -36,7 +36,8 @@ def add_operation(deployment, type_name, **kwargs):
     return operation
 
 
-def update_operation(deployment_id, driver=DB, **kwargs):
+def update_operation(deployment_id, driver=None, deployment_status=None,
+                     **kwargs):
     '''Update the the operation in the deployment
 
     :param deployment_id: the string ID of the deployment
@@ -48,7 +49,11 @@ def update_operation(deployment_id, driver=DB, **kwargs):
     if kwargs:
         if utils.is_simulation(deployment_id):
             driver = SIMULATOR_DB
+        if not driver:
+            driver = DB
         delta = {'operation': dict(kwargs)}
+        if deployment_status:
+            delta.update({'status': deployment_status})
         deployment = driver.get_deployment(deployment_id, with_secrets=True)
         try:
             if 'status' in kwargs:

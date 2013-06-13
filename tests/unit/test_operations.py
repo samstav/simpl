@@ -32,6 +32,17 @@ class TestOperations(unittest.TestCase):
         operations.update_operation('1234', status='NEW', driver=db)
         self.mox.VerifyAll()
 
+    def test_update_operation_with_deployment_status(self):
+        db = self.mox.CreateMockAnything()
+        db.get_deployment('1234', with_secrets=True).AndReturn({})
+        db.save_deployment('1234', {'operation': {'status': 'NEW'},
+                                    'status': "PLANNED"},
+                           partial=True).AndReturn(None)
+        self.mox.ReplayAll()
+        operations.update_operation('1234', status='NEW',
+                                    deployment_status="PLANNED", driver=db)
+        self.mox.VerifyAll()
+
     def test_add_operation(self):
         deployment = {}
         operations.add_operation(deployment, 'TEST', status='NEW')
