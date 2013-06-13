@@ -22,6 +22,7 @@ from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
@@ -121,8 +122,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
-MANAGERS = {}
-MANAGERS['deployments'] = deployments.Manager(DRIVERS)
+MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
@@ -165,6 +165,25 @@ class RackspaceComputeProviderBase(ProviderBase):
 class Provider(RackspaceComputeProviderBase):
     '''The Base Provider Class for Rackspace NOVA'''
     name = 'nova'
+
+    __status_mapping__ = {
+        'ACTIVE': 'ACTIVE',
+        'BUILD': 'BUILD',
+        'DELETED': 'DELETED',
+        'ERROR': 'ERROR',
+        'HARD_REBOOT': 'CONFIGURE',
+        'MIGRATING': 'CONFIGURE',
+        'PASSWORD': 'CONFIGURE',
+        'REBOOT': 'CONFIGURE',
+        'REBUILD': 'BUILD',
+        'RESCUE': 'CONFIGURE',
+        'RESIZE': 'CONFIGURE',
+        'REVERT_RESIZE': 'CONFIGURE',
+        'SHUTOFF': 'CONFIGURE',
+        'SUSPENDED': 'ERROR',
+        'UNKNOWN': 'ERROR',
+        'VERIFY_RESIZE': 'CONFIGURE'
+    }
 
     # pylint: disable=R0913
     def generate_template(self, deployment, resource_type, service, context,
@@ -654,9 +673,30 @@ REGION_MAP = {'dallas': 'DFW',
               'london': 'LON'}
 
 
+def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
+    """ Handle task failure """
+    dep_id = args[0].get('deployment_id')
+    key = args[0].get('resource_key')
+    if dep_id and key:
+        k = "instance:%s" % key
+        ret = {
+            k: {
+                'status': 'ERROR',
+                'status-message': (
+                    'Unexpected error %s compute instance %s' % (action, key)
+                ),
+                'error-message': exc.message,
+                'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
+            }
+        }
+        resource_postback.delay(dep_id, ret)
+    else:
+        LOG.error("Missing deployment id and/or resource key in "
+                  "%s error callback.", method)
 #
 # Celery Tasks
 #
+
 
 # pylint: disable=R0913
 @task
@@ -716,6 +756,8 @@ def create_server(context, name, region, api_object=None, flavor="2",
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
+    reset_failed_resource_task.delay(context["deployment"],
+                                     context["resource"])
     create_server.on_failure = on_failure
 
     if api_object is None:
@@ -736,14 +778,14 @@ def create_server(context, name, region, api_object=None, flavor="2",
     instance_key = 'instance:%s' % context['resource']
     try:
         server = api_object.servers.create(name, image_object, flavor_object,
-                                       meta=meta, files=files)
+                                           meta=meta, files=files)
     except OverLimit:
         raise CheckmateRetriableException("You have reached the maximum "
-                                              "number of servers that can be "
-                                              "spinned up using this account. "
-                                              "Please delete some servers to "
-                                              "continue",
-                                              "")
+                                          "number of servers that can be "
+                                          "spinned up using this account. "
+                                          "Please delete some servers to "
+                                          "continue", "")
+
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
@@ -794,28 +836,6 @@ def sync_resource_task(context, resource, resource_key, api=None):
         }
 
 
-def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
-    """ Handle task failure """
-    dep_id = args[0].get('deployment_id')
-    key = args[0].get('resource_key')
-    if dep_id and key:
-        k = "instance:%s" % key
-        ret = {
-            k: {
-                'status': 'ERROR',
-                'status-message': (
-                    'Unexpected error %s compute instance %s: %s' %
-                    (action, key, exc.message)
-                ),
-                'trace': 'Task %s: %s' % (task_id, einfo.traceback)
-            }
-        }
-        resource_postback.delay(dep_id, ret)
-    else:
-        LOG.error("Missing deployment id and/or resource key in "
-                  "%s error callback." % method)
-
-
 @task(default_retry_delay=30, max_retries=120)
 def delete_server_task(context, api=None):
     '''Celery Task to delete a Nova compute instance'''
@@ -847,13 +867,18 @@ def delete_server_task(context, api=None):
     except (NotFound, NoUniqueMatch):
         LOG.warn("Server %s already deleted", inst_id)
     if (not server) or (server.status == 'DELETED'):
-        ret = {inst_key: {"status": "DELETED"}}
+        ret = {
+            inst_key: {
+                "status": "DELETED",
+                'status-message': ''
+            }
+        }
         if 'hosts' in resource:
             for comp_key in resource.get('hosts', []):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETED',
-                            'status-message': 'Host %s was deleted.' % key}})
+                            'status-message': ''}})
         return ret
-    if server.status == "ACTIVE" or server.status == "ERROR":
+    if server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
         ret = {}
         ret.update({
             inst_key: {
@@ -872,7 +897,6 @@ def delete_server_task(context, api=None):
         server.delete()
         return ret
     else:
-        raise Exception("Failed")
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
                % server.status)
         resource_postback.delay(context.get("deployment_id"),
@@ -911,13 +935,18 @@ def wait_on_delete_server(context, api=None):
     except (NotFound, NoUniqueMatch):
         pass
     if (not server) or (server.status == "DELETED"):
-        ret = {inst_key: {'status': 'DELETED'}}
+        ret = {
+            inst_key: {
+                'status': 'DELETED',
+                'status-message': ''
+            }
+        }
         if 'hosts' in resource:
             for hosted in resource.get('hosts', []):
                 ret.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'status-message': 'Host %s was deleted' % key
+                        'status-message': ''
                     }
                 })
         return ret
@@ -1004,7 +1033,7 @@ def wait_on_build(context, server_id, region, resource,
 
     if server.status == 'ERROR':
         results = {'status': 'ERROR',
-                   'error-message': "Server %s build failed" % server_id}
+                   'status-message': "Server %s build failed" % server_id}
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         Provider({}).delete_resource_tasks(context,
@@ -1135,7 +1164,7 @@ def wait_on_build(context, server_id, region, resource,
     #    results['status'] = "CONFIGURE"
     # else:
     results['status'] = "ACTIVE"
-
+    results['status-message'] = ''
     instance_key = 'instance:%s' % context['resource']
     results = {instance_key: results}
     resource_postback.delay(context['deployment'], results)

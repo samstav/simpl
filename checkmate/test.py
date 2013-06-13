@@ -1002,6 +1002,12 @@ class ProviderTester(unittest.TestCase):
         self.assertIn(key, base.PROVIDER_CLASSES)
         self.assertIs(base.PROVIDER_CLASSES[key], self.klass)
 
+    def test_translate_status(self):
+        '''Tests that provider status is translated'''
+        expected = 'UNDEFINED'
+        results = self.klass.translate_status('DOESNOTEXIST')
+        self.assertEqual(expected, results)
+
     def tearDown(self):
         self.mox.UnsetStubs()
 

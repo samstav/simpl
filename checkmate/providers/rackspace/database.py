@@ -17,15 +17,17 @@ from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
     CheckmateNoMapping,
     CheckmateBadState,
+    CheckmateRetriableException,
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
-from checkmate.utils import match_celery_logging
+from checkmate.utils import match_celery_logging, generate_password
 from checkmate.workflow import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -51,14 +53,22 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
-MANAGERS = {}
-MANAGERS['deployments'] = deployments.Manager(DRIVERS)
+MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
 class Provider(ProviderBase):
     name = 'database'
     vendor = 'rackspace'
+
+    __status_mapping__ = {
+        'ACTIVE': 'ACTIVE',
+        'BLOCKED': 'ERROR',
+        'BUILD': 'BUILD',
+        'REBOOT': 'CONFIGURE',
+        'RESIZE': 'CONFIGURE',
+        'SHUTDOWN': 'CONFIGURE'
+    }
 
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition):
@@ -210,7 +220,13 @@ class Provider(ProviderBase):
                                               provider_key=self.key,
                                               service_name=service_name)
             if not password:
-                password = self.evaluate("generate_password()")
+                password = generate_password(
+                    valid_chars=''.join(
+                        [string.ascii_letters, string.digits, '@?#_']
+                    ),
+                    min_length=12
+                )
+
             elif password.startswith('=generate'):
                 password = self.evaluate(password[1:])
 
@@ -455,18 +471,6 @@ class Provider(ProviderBase):
         return results
 
     @staticmethod
-    def evaluate(function_string):
-        """Overrides base for generate_password"""
-        if function_string.startswith('generate_password('):
-            start_with = string.ascii_uppercase + string.ascii_lowercase
-            password = '%s%s' % (random.choice(start_with),
-                                 ''.join(random.choice(start_with +
-                                                       string.digits + '@?#_')
-                                 for x in range(11)))
-            return password
-        return ProviderBase.evaluate(function_string)
-
-    @staticmethod
     def find_url(catalog, region):
         for service in catalog:
             if service['type'] == 'rax:database':
@@ -663,7 +667,7 @@ def wait_on_build(context, instance_id, region, api=None):
     if instance.status == "ERROR":
         results['status'] = "ERROR"
         msg = ("Instance %s build failed" % instance_id)
-        results['error-message'] = msg
+        results['status-message'] = msg
         instance_key = "instance:%s" % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
@@ -675,7 +679,7 @@ def wait_on_build(context, instance_id, region, api=None):
                                                context['resource']
                                            ),
                                            instance_key).apply_async()
-        raise CheckmateException(msg)
+        raise CheckmateRetriableException(msg, "")
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
         results['id'] = instance_id
@@ -741,6 +745,9 @@ def create_database(context, name, region, character_set=None, collate=None,
     if not api:
         api = Provider.connect(context, region)
 
+    reset_failed_resource_task.delay(context["deployment"],
+                                     context["resource"])
+                                     
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
         # Create instance & database
@@ -916,6 +923,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
             }
         }
     if api is None:
+        # TODO(NATE): Fix after region added to context
         instance = resource.get("instance")
         if 'region' in instance:
             region = instance['region']
@@ -958,11 +966,12 @@ def delete_instance(context, api=None):
             ret = {
                 k: {
                     'status': 'ERROR',
-                    'error-message': (
+                    'status-message': (
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-message': exc.message,
+                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -992,7 +1001,7 @@ def delete_instance(context, api=None):
             results.update({
                 'instance:%s' % hosted: {
                     'status': 'DELETED',
-                    'status-message': 'Host %s was deleted'
+                    'status-message': ''
                 }
             })
         # Send data back to deployment
@@ -1012,7 +1021,7 @@ def delete_instance(context, api=None):
                 res.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'status-message': 'Host %s was deleted'
+                        'status-message': ''
                     }
                 })
             return res
@@ -1048,11 +1057,12 @@ def wait_on_del_instance(context, api=None):
             ret = {
                 k: {
                     'status': 'ERROR',
-                    'error-message': (
+                    'status-message': (
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-message': exc.message,
+                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1086,7 +1096,7 @@ def wait_on_del_instance(context, api=None):
                 res.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
-                        'status-message': 'Host %s was deleted'
+                        'status-message': ''
                     }
                 })
             return res
@@ -1099,7 +1109,7 @@ def wait_on_del_instance(context, api=None):
             res.update({
                 'instance:%s' % hosted: {
                     'status': 'DELETED',
-                    'status-message': 'Host %s was deleted'
+                    'status-message': ''
                 }
             })
         return res
@@ -1123,11 +1133,12 @@ def delete_database(context, api=None):
             ret = {
                 k: {
                     'status': 'ERROR',
-                    'error-message': (
+                    'status-message': (
                         'Unexpected error while deleting '
                         'database %s' % key
                     ),
-                    'trace': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-message': exc.message,
+                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)

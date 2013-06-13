@@ -80,14 +80,16 @@
 #Upstream: https://github.rackspace.com/checkmate/rook
 -e git+https://github.rackspace.com/checkmate/rook.git@master#egg=rook
 
-amqp==1.0.8
+
+amqp==1.0.11
+upstream/master
 anyjson==0.3.3
-billiard==2.7.3.21
+billiard==2.7.3.28
 bottle==0.10.11
-celery==3.0.15
+celery==3.0.19
 eventlet==0.9.17
 Jinja2==2.6
-kombu==2.5.6
+kombu==2.5.10
 morpheus==0.0.4
 pam==0.1.4
 paramiko==1.7.7.2
@@ -102,6 +104,5 @@ SQLAlchemy==0.7.8
 sqlalchemy-migrate==0.7.2
 tldextract==1.1.2
 WebOb==1.2.2
-
 
 # All other needed requirements should work as specified through the setup.py file.

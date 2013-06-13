@@ -1,7 +1,10 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import unittest2 as unittest
 
-from checkmate.providers.base import ProviderBasePlanningMixIn
+from checkmate.providers.base import (
+    ProviderBasePlanningMixIn,
+    ProviderBase,
+)
 
 class TestProviderBasePlanningMixIn(unittest.TestCase):
     # Tests for generate_resource_tag
@@ -25,6 +28,38 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
             result
         )
 
+
+class TestProviderBase(unittest.TestCase):
+
+    def test_translate_status_success(self):
+        ''' Test checkmate status schema entry returned '''
+        class Testing(ProviderBase):
+            __status_mapping__ = {
+                'ACTIVE': 'ACTIVE',
+                'BUILD': 'BUILD',
+                'DELETED': 'DELETED',
+                'ERROR': 'ERROR',
+                'PENDING_UPDATE': 'CONFIGURE',
+                'PENDING_DELETE': 'DELETING',
+                'SUSPENDED': 'ERROR'
+                }
+        results = Testing.translate_status('SUSPENDED')
+        self.assertEqual('ERROR', results)
+
+    def test_translate_status_fail(self):
+        ''' Test checkmate status schema UNDEFINED returned '''
+        class Testing(ProviderBase):
+            __status_mapping__ = {
+                'ACTIVE': 'ACTIVE',
+                'BUILD': 'BUILD',
+                'DELETED': 'DELETED',
+                'ERROR': 'ERROR',
+                'PENDING_UPDATE': 'CONFIGURE',
+                'PENDING_DELETE': 'DELETING',
+                'SUSPENDED': 'ERROR'
+                }
+        results = Testing.translate_status('MISSING')
+        self.assertEqual('UNDEFINED', results)
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

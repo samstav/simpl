@@ -11,6 +11,7 @@ from checkmate import test, utils
 from checkmate.exceptions import CheckmateException
 from checkmate.deployment import Deployment
 from checkmate.deployments import resource_postback
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import loadbalancer
@@ -191,6 +192,9 @@ class TestCeleryTasks(unittest.TestCase):
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
+        reset_failed_resource_task.delay(context['deployment'],
+                                          context['resource'])
 
         #Stub out set_monitor call
         self.mox.StubOutWithMock(loadbalancer, 'set_monitor')
@@ -263,11 +267,11 @@ class TestCeleryTasks(unittest.TestCase):
         """ Test wait on delete task """
         context = {}
         expect = {
-            'instance:1': {
-                'status': 'DELETED',
-                'status-message': 'LB instance:1 was deleted'
-            }
-        }
+                  'instance:1': {
+                                  'status': 'DELETED',
+                                  'status-message': ''
+                                }
+                 }
         api = self.mox.CreateMockAnything()
         api.loadbalancers = self.mox.CreateMockAnything()
         m_lb = self.mox.CreateMockAnything()

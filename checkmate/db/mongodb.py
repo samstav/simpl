@@ -340,6 +340,7 @@ class Driver(DbBase):
                                                incoming_resources,
                                                secrets)
             for resource in resources:
+                resource_ids.append(resource["id"])
                 self._save_resource(resource['id'], resource['body'],
                                     tenant_id=tenant_id, partial=partial,
                                     secrets=resource["secret"])
@@ -353,7 +354,7 @@ class Driver(DbBase):
                                     {key: resource, "id": resource_id},
                                     tenant_id=tenant_id, partial=partial,
                                     secrets=resource_secret)
-        return resource_ids
+        return list(set(resource_ids))
 
     @staticmethod
     def _has_legacy_resources(deployment):
@@ -369,6 +370,7 @@ class Driver(DbBase):
         return False
 
     def _relate_resources(self, existing, incoming, secrets=None):
+        incoming_copy = copy.deepcopy(incoming)
         resources = []
         resource_secret = None
 
@@ -380,6 +382,16 @@ class Driver(DbBase):
                     resources.append({'id': existing_resource["id"],
                                       'body': {key: incoming_resource},
                                       'secret': resource_secret})
+                    incoming_copy.pop(key)
+
+        for key, left_over_resource in incoming_copy.iteritems():
+            resource_id = uuid.uuid4().hex
+            if secrets and key in secrets:
+                resource_secret = {key: secrets[key]}
+            resources.append({'id': resource_id,
+                              'body': {key: left_over_resource,
+                                       "id": resource_id},
+                              'secret': resource_secret})
         return resources
 
     def _get_resources(self, resource_ids, with_ids=True, with_secrets=False):

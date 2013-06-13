@@ -52,8 +52,9 @@ class GitHubManager(ManagerBase):
         '''
         ManagerBase.__init__(self, drivers)
         self._github_api_base = config.github_api
-        self._github = Github(base_url=self._github_api_base)
-        self._api_host = urlparse(self._github_api_base).netloc
+        if self._github_api_base:
+            self._github = Github(base_url=self._github_api_base)
+            self._api_host = urlparse(self._github_api_base).netloc
         self._repo_org = config.organization
         self._ref = config.ref
         self._cache_root = config.cache_dir or os.path.dirname(__file__)
@@ -61,6 +62,8 @@ class GitHubManager(ManagerBase):
         self._blueprints = {}
         self._preview_ref = config.preview_ref
         self._preview_tenants = config.preview_tenants
+        self._group_refs = config.group_refs or {}
+        self._groups = set(self._group_refs.keys())
         assert self._github_api_base, ("Must specify a source blueprint "
                                        "repository")
         assert self._repo_org, ("Must specify a Github organization owning "
@@ -72,22 +75,30 @@ class GitHubManager(ManagerBase):
         self.refresh_lock = threading.Lock()
         self.load_cache()
 
-    def get_tenant_tag(self, tenant_id, tenant_auth_group):
+    def get_tenant_tag(self, tenant_id, tenant_auth_groups):
+        '''Find the tag to return for this tenant
+
+        If the tenant is explicitely called out in preview-refs, then use the
+        preview ref.
+        If the tenant is in a group that has a tag, then return that ref (first
+        match wins).
+        Otherwise, default to ref.
+        Finally, if none specified, use 'master'
+        '''
         assert tenant_id, "must provide a tenant-id"
-        # Note: tenant_auth_group is not used for now
 
-        # If preview-ref was not provided, then return default tag
-        if not self._preview_ref:
-            return self._ref
+        if self._preview_tenants and tenant_id in self._preview_tenants:
+            return self._preview_ref or self._ref or 'master'
 
-        # If there are no preview tenants, then return default tag
-        if not self._preview_tenants:
-            return self._ref
+        if tenant_auth_groups and self._groups:
+            try:
+                group = (x for x in tenant_auth_groups
+                         if x in self._groups).next()
+                return self._group_refs[group]
+            except StopIteration:
+                pass  # No match
 
-        if tenant_id in self._preview_tenants:
-            return self._preview_ref
-        else:
-            return self._ref
+        return self._ref or 'master'
 
     @property
     def api_host(self):
@@ -106,7 +117,7 @@ class GitHubManager(ManagerBase):
         :param offset: pagination start
         :param limit: pagination length
         '''
-        tag = self.get_tenant_tag(tenant_id, None)
+        tag = self.get_tenant_tag(tenant_id, request.context.roles)
         if not self._blueprints:
             # Wait for refresh to complete (block)
             if self.background is None:
@@ -124,17 +135,10 @@ class GitHubManager(ManagerBase):
         if limit is None:
             limit = 100
 
-        # _blueprints is a dictionary of all the blueprints, so if
-        # 1. tenant is NOT in preview tenants list, then don't show
-        #    preview blueprints
-        # 2. tenant is in preview tenants list, then show both default
-        #    and preview blueprint
-        if tag == self._ref:
-            # remove all keys that don't end with default-tag
-            blueprint_ids = [key for key in self._blueprints.keys()
-                             if key.endswith(":%s" % self._ref)]
+        blueprint_ids = [key for key in self._blueprints.keys()
+                         if key.endswith(":%s" % tag)]
 
-        else:
+        if self._preview_tenants and tenant_id in self._preview_tenants:
             # override default blueprint with preview blueprint
             preview_blueprint_id_prefixes = [
                 key.split(":")[0] for key in self._blueprints.keys()
@@ -148,28 +152,28 @@ class GitHubManager(ManagerBase):
                             key != "%s:%s" % (key2, self._preview_ref)):
                         blueprint_ids.remove(key)
 
-        if not blueprint_ids:
-            return
+        results = {}
+        if blueprint_ids:
+            if details:
+                results = {
+                    k: v for k, v in self._blueprints.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
 
-        if details:
-            results = {
-                k: v for k, v in self._blueprints.iteritems()
-                if k in blueprint_ids[offset:offset + limit]
-            }
+            else:
+                results = {
+                    k: {
+                        "name": v.get("blueprint", {}).get("name"),
+                        "description": v.get("blueprint", {})
+                                        .get("description")
+                    } for k, v in self._blueprints.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
 
-        else:
-            results = {
-                k: {
-                    "name": v.get("blueprint", {}).get("name"),
-                    "description": v.get("blueprint", {}).get("description")
-                } for k, v in self._blueprints.iteritems()
-                if k in blueprint_ids[offset:offset + limit]
-            }
-        if results is None:
-            results = {}
         if (self.background is None and
                 time.time() - self.last_refresh > DEFAULT_CACHE_TIMEOUT):
             self.start_background_refresh()
+
         return {
             'collection-count': len(results),
             '_links': {},
@@ -243,7 +247,8 @@ class GitHubManager(ManagerBase):
         if not org:
             LOG.error("No user or group matching %s", self._repo_org)
             return
-        refs = [self._ref, self._preview_ref]
+        refs = [self._ref, self._preview_ref] + self._group_refs.values()
+        refs = list(set([ref for ref in refs if ref]))
         repos = org.get_repos()
 
         pool = GreenPile()

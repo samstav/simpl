@@ -1073,7 +1073,8 @@ class Deployment(ExtensibleDict):
         #TODO: Provider key can be used from withing the provider class. But
         #if we do that then the planning mixin will start reading data
         #from the child class
-        LOG.debug("Getting resource templates for %s: %s" % (provider_key, component))
+        LOG.debug("Getting resource templates for %s: %s", provider_key,
+                  component)
         resources = provider.generate_template(
             self,
             component.get('is'),
@@ -1088,6 +1089,29 @@ class Deployment(ExtensibleDict):
             resource['status'] = "NEW"
             Resource.validate(resource)
         return resources
+
+    def on_postback(self, contents, target=None):
+        """Called to merge in all deployment and operation data in one
+
+        Validates and assigns contents data to target
+
+        :param contents: dict -- the new data to write
+        :param target: dict -- optional for writing to other than this
+                       deployment
+        """
+        target = target or self
+
+        if not isinstance(contents, dict):
+            raise CheckmateException("Postback value was not a dictionary")
+
+        keys = ['resources', 'operation', 'status']
+        updated = {key: contents[key] for key in keys if key in contents}
+        if updated != contents:
+            raise NotImplementedError("Valid postback keys include resources, "
+                                      "operation and status only")
+
+        LOG.debug("Merging postback data for deployment")
+        merge_dictionary(target, updated)
 
     def on_resource_postback(self, contents, target=None):
         """Called to merge in contents when a postback with new resource data

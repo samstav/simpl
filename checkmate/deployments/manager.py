@@ -3,6 +3,8 @@ Deployments Manager
 
 Handles deployment logic
 '''
+
+import copy
 import logging
 import uuid
 
@@ -10,9 +12,17 @@ import eventlet
 from SpiffWorkflow.storage import DictionarySerializer
 
 from .plan import Plan
-from checkmate import db, utils, operations, orchestrator
+from checkmate import (
+    db,
+    utils,
+    operations,
+    orchestrator,
+)
 from checkmate.base import ManagerBase
-from checkmate.deployment import Deployment, generate_keys
+from checkmate.deployment import (
+    Deployment,
+    generate_keys,
+)
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,
@@ -305,6 +315,41 @@ class Manager(ManagerBase):
 
         return operation
 
+    def reset_failed_resource(self, deployment_id, resource_id):
+        '''
+        Creates a copy of a failed resource and appends it at the end of the
+        resources collection
+        :param deployment_id:
+        :param resource_id:
+        :return:
+        '''
+        #TODO: Need to move the logic to find whether a resource should be
+        # reset or not to the providers
+        deployment = self.get_deployment(deployment_id)
+        tenant_id = deployment["tenantId"]
+        resource = deployment['resources'].get(resource_id, None)
+        if (resource.get('instance') and resource['instance'].get('id')
+                and resource.get('status') == "ERROR"):
+            failed_resource = copy.deepcopy(resource)
+            resource['status'] = 'PLANNED'
+            resource['instance'] = None
+            if 'relations' in failed_resource:
+                failed_resource.pop('relations')
+            failed_resource['index'] = (
+                str(len([res for res in deployment.get("resources").keys()
+                         if res.isdigit()])))
+
+            deployment_body = {
+                "id": deployment_id,
+                "tenantId": tenant_id,
+                "resources": {
+                    failed_resource['index']: failed_resource,
+                    resource_id: resource
+                }
+            }
+            self.save_deployment(deployment_body, api_id=deployment_id,
+                                 partial=True)
+
     def create_delete_operation(self, deployment, tenant_id=None):
         '''Create Delete Operation (Canvas)'''
         if tenant_id:
@@ -317,3 +362,50 @@ class Manager(ManagerBase):
                                              tasks=task_count,
                                              complete=0)
         return operation
+
+    def postback(self, deployment_id, contents):
+        #FIXME: we need to receive a context and check access?
+        """This is a generic postback intended to replace all postback calls.
+        Accepts back results from a remote call and updates the deployment with
+        the result data.
+
+        Use deployments.tasks.postback for calling as a task
+
+        The data updated must be a dict containing any/all of the following:
+        - a deployment status: must be checkmate valid
+        - a operation: dict containing operation data
+            "operation": {
+                "status": "COMPLETE",
+                "tasks": 64,
+                "complete": 64,
+                "type": "BUILD"
+            }
+        - a resources dict containing resources data
+            "resources": {
+                "1": {
+                    "status": "ACTIVE",
+                    "status-message": ""
+                    "instance": {
+                        "status": "ACTIVE"
+                        "status-message": ""
+                    }
+                }
+            }
+        """
+
+        deployment = self.driver.get_deployment(deployment_id,
+                                                with_secrets=True)
+        deployment = Deployment(deployment)
+
+        if not isinstance(contents, dict):
+            raise CheckmateValidationException("Postback contents is not"
+                                               " type dictionary")
+
+        deployment.on_postback(contents, target=deployment)
+
+        body, secrets = utils.extract_sensitive_data(deployment)
+        self.driver.save_deployment(deployment_id, body, secrets,
+                                    partial=True)
+
+        LOG.debug("Updated deployment %s with postback", deployment_id,
+                  extra=dict(data=contents))

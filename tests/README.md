@@ -35,6 +35,19 @@ All developer tests should pass without a network connection. Integration tests 
 
 ___Tests should never be placed in the root 'tests' folder. They should always be put in one of the subdirectories: unit, functional or integration.___
 
+### Disabled Pylint Warnings
+
+There are several pylint warnings that don't make sense in unit tests:
+
+    - C0103: Invalid name (method names too long)
+    - C0111: Missing docstring
+    - R0903: Too few public methods
+    - R0904: Too many public methods
+    - W0212: Access to protected member of a client class
+    - W0232: Class has no __init__ method
+
+Because of this the line `# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232` should be at the top of each unit test file.
+
 
 #### ___but most of all, ADD TESTS! Test Coverage == Goodness!___
 
