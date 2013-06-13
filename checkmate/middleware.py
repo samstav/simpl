@@ -368,8 +368,6 @@ class TokenAuthMiddleware(object):
             port = url.port or 80
         host = url.hostname
 
-        http = http_class(host, port)
-
         path = os.path.join(url.path, token)
         if tenant_id:
             path = "%s?belongsTo=%s" % (path, tenant_id)
@@ -378,8 +376,9 @@ class TokenAuthMiddleware(object):
             'X-Auth-Token': self.service_token,
             'Accept': 'application/json',
         }
+        LOG.debug('Validating token with %s', self.endpoint['uri'])
+        http = http_class(host, port)
         try:
-            LOG.debug('Validating token with %s', self.endpoint['uri'])
             http.request('GET', path, headers=headers)
             resp = http.getresponse()
             body = resp.read()
