@@ -96,8 +96,7 @@ def delete_deployment_task(dep_id, driver=DB):
                     'instance:%s' % resource['index']: updates,
                 }
                 resource_postback.delay(dep_id, contents, driver=driver)
-    common_tasks.update_deployment_status.delay(dep_id, "DELETED",
-                                                driver=driver)
+
     common_tasks.update_operation.delay(dep_id, status="COMPLETE",
                                         deployment_status="DELETED",
                                         complete=len(deployment.get(
