@@ -973,7 +973,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.load();
 }
 
-function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout) {
+function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q) {
   //Scope variables
 
   $scope.showStatus = true;
@@ -1026,6 +1026,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     } catch (err) {
       // Not all deployments have active operations
     }
+    var deferred = $q.defer();
     this.klass = $resource((checkmate_server_base || '') + workflow_path);
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
@@ -1132,6 +1133,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       } else
         $scope.selectSpec($scope.current_spec_index || Object.keys(object.wf_spec.task_specs)[0]);
       //$scope.play();
+      deferred.resolve(object);
     }, function(response) {
         console.log("Error loading workflow.", response);
         var error = response.data.error;
@@ -1144,7 +1146,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         $scope.$root.error = info;
       if ($location.path().indexOf('deployments') == -1)
         $scope.open_modal('error');  //don't show error when in deployment screen
+      deferred.reject(response);
     });
+
+    return deferred.promise;
   };
 
   //Parse loaded workflow
@@ -1525,11 +1530,28 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   /*======================================*/
+  $scope._refresh_response = null;
+  $scope.auto_refresh_timeout = { current: 2000, min: 2000, max: 60000 };
   $scope.auto_refresh_promise = null;
-  $scope.auto_refresh = function(timeout) {
-    timeout = timeout || 2000;
-    $scope.load();
-    $scope.auto_refresh_promise = $timeout($scope.auto_refresh, timeout);
+
+  $scope.increase_timeout = function() {
+    $scope.auto_refresh_timeout.current *= 2;
+    if ($scope.auto_refresh_timeout.current >= $scope.auto_refresh_timeout.max)
+      $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.max;
+  }
+
+  $scope.auto_refresh_success = function(response) {
+    if (_.isEqual($scope._refresh_response, response)) {
+      $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.min;
+    } else {
+      $scope.increase_timeout();
+    }
+    $scope.auto_refresh_promise = $timeout($scope.auto_refresh, $scope.auto_refresh_timeout.current);
+    console.log($scope.auto_refresh_timeout.current);
+  }
+
+  $scope.auto_refresh = function() {
+    $scope.load().then($scope.auto_refresh_success, $scope.increase_timeout);
   }
 
   $scope.cancel_auto_refresh = function() {
