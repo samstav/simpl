@@ -70,6 +70,7 @@ Thumbs.db
 #####################
 coverage.xml
 tests/coverage.xml
+test-results.xml
 
 # Patches #
 ###########
