@@ -489,7 +489,7 @@ class Router(object):
                         "provider": val.get("provider", "core")
                     }
                 })
-                if ('error-traceback' in request.query_string and
+                if ('trace' in request.query_string and
                         ('error-traceback' in val or
                          'error-traceback' in val.get('instance', {}))):
                     resp.get(key, {})['error-traceback'] = (val.get('error-traceback') or

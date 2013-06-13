@@ -17,17 +17,18 @@ from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoTokenError,
     CheckmateBadState,
     CheckmateRetriableException,
 )
+from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
-from checkmate.middleware import RequestContext
-from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
+from checkmate.workflow import wait_for
 
 
 LOG = logging.getLogger(__name__)
@@ -63,8 +64,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
-MANAGERS = {}
-MANAGERS['deployments'] = deployments.Manager(DRIVERS)
+MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
@@ -144,12 +144,12 @@ class Provider(ProviderBase):
             templates[len(templates) - 1]['protocol'] = PROTOCOL_PAIRS[
                 protocol]
         if self._handle_dns(deployment, service, resource_type=resource_type):
-            templates[0]['instance']['dns-A-name'] = deployment.get_setting(
-                                         "domain",
-                                          resource_type=resource_type,
-                                          service_name=service,
-                                          provider_key=self.key,
-                                          default=templates[0].get('dns-name'))
+            templates[0]['instance']['dns-A-name'] = \
+                deployment.get_setting("domain",
+                                       resource_type=resource_type,
+                                       service_name=service,
+                                       provider_key=self.key,
+                                       default=templates[0].get('dns-name'))
         return templates
 
     def _support_unencrypted(self, deployment, protocol, resource_type=None,
@@ -718,6 +718,9 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     if api is None:
         api = Provider.connect(context, region)
 
+    reset_failed_resource_task.delay(context["deployment"],
+                                     context["resource"])
+
     #FIXME: should pull default from lb api but thats not exposed via the
     #       client yet
     if not port:
@@ -1163,8 +1166,8 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, lbid, region, api=None):
-    ''' Checks to see if a lb's status is ACTIVE, so we can change
-    resource status in deployment
+    ''' Checks to see if a lb's status is ACTIVE, so we can change resource
+    status in deployment
     '''
 
     match_celery_logging(LOG)

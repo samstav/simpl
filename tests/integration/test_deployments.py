@@ -1406,13 +1406,9 @@ class TestDeleteDeployments(unittest.TestCase):
         mock_driver = self._mox.CreateMockAnything()
         mock_driver.get_deployment('1234').AndReturn(self._deployment)
 
-        self._mox.StubOutWithMock(common_tasks.update_deployment_status,
-                                  "delay")
-        common_tasks.update_deployment_status.delay('1234', "DELETED",
-                                                    driver=mock_driver
-                                                    ).AndReturn(True)
         self._mox.StubOutWithMock(common_tasks.update_operation, "delay")
         common_tasks.update_operation.delay('1234', status="COMPLETE",
+                                            deployment_status="DELETED",
                                             complete=0, driver=mock_driver
                                             ).AndReturn(True)
         self._mox.ReplayAll()
