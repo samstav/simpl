@@ -216,6 +216,27 @@ Note: this is the schema that is being supported in v0.7 of the engine. The sche
   - `starts_with="<string>"`: for use when the first password character should be restricted to a set of characters. Defaults to all alphanumeric characters. Pass `starts_with=None` to override this behavior.  
   - `valid_chars`: the set of characters that should be used for all but `starts_with` and `required_chars` chars. `valid_chars` can contain duplicates of the characters specified in both `starts_with` and `required_chars`. Defaults to all alphanumeric characters.  
 
+Here is an example of teh password section of a blueprint:
+
+```yaml
+
+    password:
+      label: Admin Password
+      type: password
+      description: Password to use to administer your deployment.
+      default: '=generate_password(min_length=8, required_chars=["0123456789", "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"])'
+      constraints:
+      - regex: '^(?=.*).{6,15}$'
+        message: must be between 6 and 15 characters long
+      - regex: '^(?=.*\d)'
+        message: must contain a digit
+      - regex: '^(?=.*[a-z])'
+        message: must contain a lower case letter
+      - regex: '^(?=.*[A-Z])'
+        message: must contain an upper case letter
+
+```
+
 **type**: the data type of this option. Valid types are: string, integer, boolean, password, url, region, and text (multi-line string). See later for a description of the `url` type which has some special attributes.  
 **choice**: a list of items to select from (used to display a drop-down). The entries are either plain strings or a mapping with `value` and `name` entries where `value` is what is passed to Checkmate and `name` is what is displayed to the user. Note: does not apply validation. If you want validation, use an `in` constraint. This is used for display only.  
 Example:

@@ -1,7 +1,12 @@
+'''Generate valid Python code from a string'''
 from ast import literal_eval, NodeVisitor, parse
 
 
 def kwargs_from_string(parse_string):
+    '''Parse the function name and kwargs from a string
+
+    :param parse_string: the string purported to have valid Python code
+    '''
     if not parse_string:
         return None, {}
     generator = CodeGenerator()
@@ -9,7 +14,9 @@ def kwargs_from_string(parse_string):
     return (generator.kwargs[0],
             literal_eval('{%s}' % ''.join(generator.kwargs[1:])))
 
+
 class CodeGenerator(NodeVisitor):
+    '''ast Code Visitor that builds code from a parsed string'''
     def __init__(self):
         self.kwargs = []
 
@@ -18,6 +25,7 @@ class CodeGenerator(NodeVisitor):
 
     def visit_Call(self, node):
         need_comma = []
+
         def append_comma():
             if need_comma:
                 self.kwargs.append(', ')
