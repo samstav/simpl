@@ -169,6 +169,23 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
     def tearDown(self):
         self.mox.UnsetStubs()
 
+    def test_no_api(self):
+        conf = self.config
+        conf.github_api = None
+        with self.assertRaises(AssertionError):
+            GitHubManager({}, conf)
+
+    def test_no_org(self):
+        conf = self.config
+        conf.organization = None
+        with self.assertRaises(AssertionError):
+            GitHubManager({}, conf)
+
+    def test_no_group_refs(self):
+        conf = self.config
+        conf.group_refs = None
+        self.assertIsInstance(GitHubManager({}, conf), GitHubManager)
+
     def test_failsafe_returns_master(self):
         '''Retrun master by default'''
         self._manager._ref = None
