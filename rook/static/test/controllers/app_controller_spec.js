@@ -271,7 +271,7 @@ describe('AppController', function(){
 
     describe('when token is expired', function() {
       beforeEach(function() {
-        auth.context.token.expires = "1970-01-01 0:00:00";
+        auth.context.token.expires = "Thu Jan 01 1970 00:00:00";
       });
 
       it('should reimpersonate the current tenant if impersonating', function() {
