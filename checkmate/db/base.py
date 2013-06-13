@@ -189,8 +189,6 @@ class DbBase(object):  # pylint: disable=R0921
                 data['display-outputs'] = {}
         elif klass == 'resources':
             for _, resource in data.items():
-                if 'errmessage' in data:
-                    resource['error-message'] = resource.pop('errmessage')
                 if 'statusmsg' in resource:
                     resource['status-message'] = resource.pop('statusmsg')
                 if 'instance' in resource and isinstance(resource['instance'],
@@ -200,6 +198,14 @@ class DbBase(object):  # pylint: disable=R0921
                         instance['status-message'] = instance.pop('statusmsg')
                     if 'status_msg' in instance:
                         instance['status-message'] = instance.pop('status_msg')
+                    if 'errmessage' in instance:
+                        instance['error-message'] = instance.pop('errmessage')
+                    if 'trace' in instance:
+                        instance['error-traceback'] = instance.pop('trace')
+                    if 'errmessage' in resource:
+                        instance['error-message'] = resource.pop('errmessage')
+                    if 'trace' in resource:
+                        instance['error-traceback'] = resource.pop('trace')
 
 
     def lock(self, key, timeout):
