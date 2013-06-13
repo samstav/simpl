@@ -1,5 +1,13 @@
-'''Generate valid Python code from a string'''
+'''Generate valid Python code from a string
+Inspired by the PyPI codegen package:
+https://github.com/andreif/codegen/blob/master/codegen.py
+'''
 from ast import literal_eval, NodeVisitor, parse
+
+
+def _params_as_dict(expression):
+    '''Add all but function name and enclosing parentheses to a new dict'''
+    return literal_eval('{%s}' % ''.join(expression[2:-1]))
 
 
 def kwargs_from_string(parse_string):
@@ -11,12 +19,14 @@ def kwargs_from_string(parse_string):
         return None, {}
     generator = CodeGenerator()
     generator.visit(parse(parse_string))
-    return (generator.kwargs[0],
-            literal_eval('{%s}' % ''.join(generator.kwargs[1:])))
+    return (generator.kwargs[0], _params_as_dict(generator.kwargs))
 
 
 class CodeGenerator(NodeVisitor):
-    '''ast Code Visitor that builds code from a parsed string'''
+    '''Builds an Abstract Syntax Tree from a parsed string
+
+    Initiated by passing a string into the inherited `visit` method
+    '''
     def __init__(self):
         self.kwargs = []
 
@@ -31,8 +41,8 @@ class CodeGenerator(NodeVisitor):
                 self.kwargs.append(', ')
             else:
                 need_comma.append(True)
-
         self.visit(node.func)
+        self.kwargs.append('(')
         for arg in node.args:
             append_comma()
             self.visit(arg)
@@ -42,6 +52,7 @@ class CodeGenerator(NodeVisitor):
             self.kwargs.append(keyword.arg)
             self.kwargs.append("': ")
             self.visit(keyword.value)
+        self.kwargs.append(')')
 
     def visit_Str(self, node):
         self.kwargs.append(repr(node.s))
