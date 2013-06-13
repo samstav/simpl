@@ -697,7 +697,6 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         resource_key = context['resource']
         vip = "4.4.4.20%s" % resource_key
         results = {
-            'status': 'BUILD', #moving chekcmate status out of instance
             'instance:%s' % resource_key: {
                 'status': "BUILD",
                 'id': "LB0%s" % resource_key,
@@ -790,7 +789,6 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     LOG.debug('Load balancer %s building. VIP = %s', loadbalancer.id, vip)
 
     results = {
-        'status': "BUILD",
         instance_key: {
             'id': loadbalancer.id,
             'public_ip': vip,
@@ -847,7 +845,8 @@ def sync_resource_task(context, resource, resource_key, api=None):
         api = Provider.connect(context, resource.get("region"))
     try:
         lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
-        #need to go thru actual vs expected scenarios
+        # TODO(Nate): Update sync to use postback instead of resource postback
+        #and also add in checkmate translated status to resource root
         #instance = {'port': resource['instance']['port'],
         #            'protocol': resource['instance']['protocol']}
         #if hasattr(lb, 'port') and resource['instance']['port'] != lb.port:
@@ -856,7 +855,6 @@ def sync_resource_task(context, resource, resource_key, api=None):
         #   resource['instance']['protocol'] != lb.protocol:
         #    instance['protocol'] = lb.protocol
         return {
-            "status": ProviderBase.get_checkmate_status(__schema__, lb.status)
             key: {
                 "status": lb.status
                 #'instance': instance
@@ -864,7 +862,6 @@ def sync_resource_task(context, resource, resource_key, api=None):
         }
     except NotFound:
         return {
-            "status": "DELETED",
             key: {
                 "status": "DELETED"
             }
@@ -879,7 +876,6 @@ def delete_lb_task(context, key, lbid, region, api=None):
     if context.get('simulation') is True:
         resource_key = context['resource']
         results = {
-            "status": "DELETING",
             "instance:%s" % resource_key: {
                 "status": "DELETING", # set it done in wait_on_delete
                 "status-message": "Waiting on resource deletion"
@@ -923,7 +919,6 @@ def delete_lb_task(context, key, lbid, region, api=None):
         dlb.delete()
     LOG.debug('Deleting Load balancer %s.', lbid)
     return {
-        "status": "DELETING",
         instance_key: {
             "status": "DELETING",
             "status-message": "Waiting on resource deletion"
@@ -1184,10 +1179,9 @@ def wait_on_build(context, lbid, region, api=None):
     if context.get('simulation') is True:
         instance_key = 'instance:%s' % context['resource']
         results = {
-                   'status': 'ACTIVE',
-                   instance_key: {
-                                  'status': 'ACTIVE',
-                                  'status-message': ''
+            instance_key: {
+                'status': 'ACTIVE',
+                'status-message': ''
             }
         }
         resource_postback.delay(context['deployment'], results)
@@ -1202,10 +1196,9 @@ def wait_on_build(context, lbid, region, api=None):
     if loadbalancer.status == "ERROR":
         msg = ("Loadbalancer %s build failed" % (lbid))
         results = {
-                   'status': 'ERROR',
-                   instance_key: {
-                                  'status': 'ERROR',
-                                  'status-message': msg
+            instance_key: {
+                'status': 'ERROR',
+                'status-message': msg
             }
         }
         resource_postback.delay(context['deployment'], results)
@@ -1220,13 +1213,12 @@ def wait_on_build(context, lbid, region, api=None):
         raise CheckmateRetriableException(msg, "")
     elif loadbalancer.status == "ACTIVE":
         results = {
-                   'status': 'ACTIVE',
-                   instance_key: {
-                                  'id': lbid,
-                                  'status': 'ACTIVE',
-                                  'status-message': ''
-                                 }
-                  }
+            instance_key: {
+                'id': lbid,
+                'status': 'ACTIVE',
+                'status-message': ''
+            }
+        }
         resource_postback.delay(context['deployment'], results)
         return results
     else:
