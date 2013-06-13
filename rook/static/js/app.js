@@ -1030,6 +1030,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     this.klass = $resource((checkmate_server_base || '') + workflow_path);
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
+      var deployments = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json');
+      $scope.deployment = deployments.get($routeParams, function () { $scope.start_tree_preview('#workflow_tree') });
+
       $scope.data = object;
       items.tasks = workflow.flattenTasks({}, object.task_tree);
       items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
@@ -1572,14 +1575,16 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.getIcon = function(node) {
-    var icon = "";
+    var icon = '';
     var base_dir = "/img/icons/";
+    var resource_id = node.spec.properties.resource || '';
+    var resource = '';
 
-    if (node.group == "5") icon = "server.svg";
-    else if (node.group == "2") icon = "database.svg";
-    else if (node.group == "0") icon = "loadbalancer.svg";
+    if ($scope.deployment.resources && $scope.deployment.resources[resource_id])
+      resource = $scope.deployment.resources[resource_id].type;
 
-    if (icon != "") icon = base_dir + icon;
+    icon = resource;
+    if (icon != '') icon = base_dir + icon + '.svg';
 
     return icon;
   }
@@ -1826,13 +1831,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .attr("class", "node")
         .style("fill", function(d) { return $scope.color(d); });
 
+    // TODO: fix image sizes
     nodes.append("svg:image")
         .attr("class", "circle")
         .attr("xlink:href", $scope.getIcon)
-        .attr("x", "-8px")
-        .attr("y", "-8px")
-        .attr("width", "16px")
-        .attr("height", "16px");
+        .attr("x", "-160px")
+        .attr("y", "-160px")
+        .attr("width", "320px")
+        .attr("height", "320px");
 
     force.on("tick", function() {
         links.attr("x1", function(d) { return d.source.x; })
@@ -1858,10 +1864,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       var force = $scope.buildNetwork(network, WIDTH, HEIGHT, parent_element);
     }
   };
-
-  $scope.$watch('data', function(newVal, oldVal, scope) {
-    $scope.start_tree_preview('#workflow_tree');
-  }, true);
 
   // Old code we might reuse
   $scope.showConnections = function(task_div) {
