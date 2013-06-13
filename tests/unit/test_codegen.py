@@ -1,7 +1,7 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import unittest
 
-from checkmate.codegen import kwargs_from_string
+from checkmate.common.codegen import kwargs_from_string
 
 class TestCodegen(unittest.TestCase):
     def test_build_kwargs_from_empty_string(self):
