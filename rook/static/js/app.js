@@ -1990,7 +1990,8 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         index_to_replace,
         blueprints = [],
         deleted_blueprints = [],
-        cached_blueprints = JSON.parse(localStorage.blueprints || "[]");
+        cache_key = $scope.remote.owner + '_blueprints',
+        cached_blueprints = JSON.parse(localStorage.getItem(cache_key) || "[]");
 
     function updateListWithBlueprint(list, blueprint){
       object_to_replace = _.findWhere(list, { id: blueprint.id });
@@ -2002,16 +2003,18 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       list[index_to_replace] = blueprint;
     }
 
-    function updateBlueprintCache(item, should_delete){
-      blueprints = JSON.parse(localStorage.blueprints || "[]");
+    function updateBlueprintCache(items, should_delete){
+      blueprints = JSON.parse(localStorage.getItem(cache_key) || "[]");
 
       if(should_delete){
-        blueprints = _.reject(blueprints, function(blueprint){ return blueprint.id === item.id })
+        blueprints = _.reject(blueprints, function(blueprint){
+          return _.findWhere(items, { id: blueprint.id });
+        })
       } else {
-        updateListWithBlueprint(blueprints, item);
+        _.map(items, function(item){ updateListWithBlueprint(blueprints, item)})
       }
 
-      localStorage.blueprints = JSON.stringify(blueprints);
+      localStorage.setItem(cache_key, JSON.stringify(blueprints));
     }
 
     function verifyBlueprintRepo(blueprint){
@@ -2019,7 +2022,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         if(content_data.type === 'file'){
           blueprint.is_blueprint_repo = true;
 
-          updateBlueprintCache(blueprint);
+          updateBlueprintCache([blueprint]);
 
           blueprint.is_fresh = true;
 
@@ -2056,6 +2059,10 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
         blueprints.push(blueprint);
       }
     });
+
+   _.each(deleted_blueprints, function(blueprint){
+     updateBlueprintCache([blueprint], true);
+   });
 
     $scope.items = blueprints.length > 0 ? blueprints : sorted_items;
 
