@@ -1,15 +1,7 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''
-For tests, we don't care about:
-    C0103 - Invalid name (method names too long)
-    C0111 - Missing docstring
-    R0903 - Too few public methods
-    R0904 - Too many public methods
-    W0212 - Access to protected member of a client class
-    W0232 - Class has no __init__ method '''
-
 import copy
 import re
+import string
 import time
 import unittest2 as unittest
 import uuid
@@ -492,6 +484,15 @@ class TestUtils(unittest.TestCase):
             ],
             response.headerlist
         )
+
+    def test_generate_password(self):
+        password = utils.evaluate('generate_password()')
+        self.assertEqual(8, len(password))
+
+    def test_generate_12_character_password(self):
+        password = utils.evaluate('generate_password(min_length=12)')
+        self.assertEqual(12, len(password))
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

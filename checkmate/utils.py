@@ -23,12 +23,14 @@ import shutil
 
 from bottle import abort, request, response
 from functools import wraps
+from Crypto.Random import random
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 from yaml.composer import ComposerError
 from yaml.scanner import ScannerError
 from yaml.parser import ParserError
 
+from checkmate.common.codegen import kwargs_from_string
 from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
 
 
@@ -309,7 +311,8 @@ def _validate_range_values(request, label, kwargs):
             raise ValueError
 
 
-def _write_pagination_headers(data, offset, limit, response, uripath, tenant_id):
+def _write_pagination_headers(data, offset, limit, response,
+                              uripath, tenant_id):
     """Add pagination headers to the response body"""
     count = len(data.get('results'))
     if 'collection-count' in data:
@@ -331,7 +334,8 @@ def _write_pagination_headers(data, offset, limit, response, uripath, tenant_id)
 
         # Add Next page link to http header
         if (offset + limit) < total - 1:
-            nextfmt = '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
+            nextfmt = \
+                '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
             response.add_header(
                 "Link", nextfmt % (tenant_id, uripath, limit, offset+limit)
             )
@@ -693,6 +697,59 @@ def is_evaluable(value):
         return False
 
 
+def generate_password(min_length=None, max_length=None, required_chars=None,
+                      starts_with=string.ascii_letters, valid_chars=None):
+    '''Generates a password based on constraints provided
+
+    :param min_length: minimum password length
+    :param max_length: maximum password length
+    :param required_chars: a set of character sets, one for each required char
+    :param starts_with: a set of characters required as the first character
+    :param valid_chars: the set of valid characters for non-required chars
+    '''
+    # Choose a valid password length based on min_length and max_length
+    if max_length and min_length and max_length != min_length:
+        password_length = random.randint(min_length, max_length)
+    else:
+        password_length = max_length or min_length or 8
+
+    # If not specified, default valid_chars to letters and numbers
+    valid_chars = valid_chars or ''.join([
+        string.ascii_letters,
+        string.digits
+    ])
+
+    first_char = ''
+    if starts_with:
+        first_char = random.choice(starts_with)
+        password_length -= 1
+
+    password = ''
+    if required_chars:
+        for required_set in required_chars:
+            if password_length > 0:
+                password = ''.join([password, random.choice(required_set)])
+                password_length -= 1
+            else:
+                raise ValueError(
+                    'Password length is less than the '
+                    'number of required characters.'
+                )
+
+    if password_length > 0:
+        password = ''.join([
+            password,
+            ''.join(
+                [random.choice(valid_chars) for x in range(password_length)]
+            )
+        ])
+
+    # Shuffle all except first_char
+    password = ''.join(random.sample(password, len(password)))
+
+    return '%s%s' % (first_char, password)
+
+
 def evaluate(function_string):
     """Evaluate an option value.
 
@@ -700,15 +757,11 @@ def evaluate(function_string):
     - generate_password()
     - generate_uuid()
     """
-    if function_string.startswith('generate_uuid('):
+    func_name, kwargs = kwargs_from_string(function_string)
+    if func_name == 'generate_uuid':
         return uuid.uuid4().hex
-    if function_string.startswith('generate_password('):
-        # Defaults to 8 chars, alphanumeric
-        start_with = string.ascii_uppercase + string.ascii_lowercase
-        password = '%s%s' % (random.choice(start_with),
-                             ''.join(random.choice(start_with + string.digits)
-                             for x in range(7)))
-        return password
+    if func_name == 'generate_password':
+        return generate_password(**kwargs)
     raise NameError("Unsupported function: %s" % function_string)
 
 

@@ -143,7 +143,7 @@ class TestProviderBase(unittest.TestCase):
 
     def test_evaluate(self):
         provider = ProviderBase({})
-        self.assertIsInstance(uuid.UUID(provider.evaluate("generate_uuid())")),
+        self.assertIsInstance(uuid.UUID(provider.evaluate("generate_uuid()")),
                               uuid.UUID)
         self.assertEqual(len(provider.evaluate("generate_password()")), 8)
         self.assertRaises(NameError, provider.evaluate, "unknown()")

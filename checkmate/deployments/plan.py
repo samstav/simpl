@@ -1,6 +1,7 @@
 '''Analyzes a Checkmate deployment and persists the analysis results'''
 import copy
 import logging
+import string
 
 from checkmate import keys
 from checkmate.classes import ExtensibleDict
@@ -162,8 +163,8 @@ class Plan(ExtensibleDict):
         assert isinstance(context, RequestContext)
         del_tasks = []
         dep_id = self.deployment.get("id")
-        for res_key, resource in self.deployment.get("resources",
-                {}).iteritems():
+        for res_key, resource in (
+                self.deployment.get("resources", {}).iteritems()):
             prov_key = resource.get('provider')
             if not prov_key:
                 LOG.warn("Deployment %s resource %s does not specify a "
@@ -242,9 +243,9 @@ class Plan(ExtensibleDict):
                     # Add it to resources
                     self.add_resource(resource, definition, service_name)
 
-                    # Add host and other requirements that exist in this service
-                    extra_components = service_analysis.get('extra-components',
-                        {})
+                    # Add host and other requirements that exist in the service
+                    extra_components = service_analysis.get(
+                        'extra-components', {})
                     for key, extra_def in extra_components.iteritems():
                         LOG.debug(
                             "    Processing extra component '%s' for '%s'" %
@@ -334,8 +335,13 @@ class Plan(ExtensibleDict):
                             deployment._get_setting_by_resource_path(
                                 "resources/%s/password" % key)
                         if not instance['password']:
-                            instance['password'] = utils.evaluate(
-                                "generate_password()")
+                            instance['password'] = utils.generate_password(
+                                starts_with=string.letters,
+                                valid_chars=''.join([
+                                    string.letters,
+                                    string.digits
+                                ])
+                            )
                     else:
                         instance['password'] = resource['password']
                 elif resource['type'] == 'key-pair':
@@ -412,8 +418,8 @@ class Plan(ExtensibleDict):
             if connection.get('outbound-from') and connection.get(
                     'outbound-from') != resource['index']:
                 continue
-            if (connection.get('relation', 'reference') == 'host'
-                and connection['direction'] == 'inbound'):
+            if (connection.get('relation', 'reference') == 'host' and
+                    connection['direction'] == 'inbound'):
                 continue  # we don't write host relation on host
 
             target_service = self['services'][connection['service']]
@@ -422,8 +428,11 @@ class Plan(ExtensibleDict):
                 target_def = target_service['extra-components'][extra_key]
             else:
                 target_def = target_service['component']
-            if target_def["connections"].get(resource["service"]) and target_def["connections"][resource["service"]].get("outbound-from"):
-                instances = target_def["connections"][resource["service"]]["outbound-from"]
+            if (target_def["connections"].get(resource["service"]) and
+                    target_def["connections"][resource["service"]].get(
+                    "outbound-from")):
+                instances = target_def["connections"][
+                    resource["service"]]["outbound-from"]
             else:
                 instances = target_def.get('instances', [])
             for target_index in instances:
@@ -432,8 +441,8 @@ class Plan(ExtensibleDict):
                 self.connect_instances(resource, target, connection, key)
 
                 #TODO: this is just copied in for legacy compatibility
-            if (connection['direction'] == 'outbound'
-                and 'extra-key' not in connection):
+            if (connection['direction'] == 'outbound' and
+                    'extra-key' not in connection):
                 rel_key = key  # connection['name']
                 if rel_key not in self.connections:
                     con_def = {'interface': connection['interface']}
@@ -486,12 +495,11 @@ class Plan(ExtensibleDict):
         relations = resource['relations']
         if relation_type == 'host':
             if resource.get('hosted_on') not in [None, target['index']]:
-                raise CheckmateException("Resource '%s' is already set to be "
-                                         "hosted on '%s'. Cannot change host "
-                                         "to '%s'" % (resource['index'],
-                                                      resource['hosted_on'],
-                                                      target['index']
-                                         ))
+                raise CheckmateException(
+                    "Resource '%s' is already set to be hosted on '%s'. "
+                    "Cannot change host to '%s'" %
+                    (resource['index'], resource['hosted_on'], target['index'])
+                )
 
             resource['hosted_on'] = target['index']
             if 'hosts' in target:
@@ -761,8 +769,8 @@ class Plan(ExtensibleDict):
         for service_name, service in services.iteritems():
             if 'extra-components' not in service:
                 continue
-            for component_key, component in service['extra-components'] \
-                .iteritems():
+            for component_key, component in (
+                    service['extra-components'].iteritems()):
                 requirements = component['requires']
                 for key, requirement in requirements.iteritems():
                     # Skip if already matched

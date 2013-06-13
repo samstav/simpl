@@ -27,7 +27,7 @@ from checkmate.exceptions import (
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
-from checkmate.utils import match_celery_logging
+from checkmate.utils import match_celery_logging, generate_password
 from checkmate.workflow import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -220,7 +220,13 @@ class Provider(ProviderBase):
                                               provider_key=self.key,
                                               service_name=service_name)
             if not password:
-                password = self.evaluate("generate_password()")
+                password = generate_password(
+                    valid_chars=''.join(
+                        [string.ascii_letters, string.digits, '@?#_']
+                    ),
+                    min_length=12
+                )
+
             elif password.startswith('=generate'):
                 password = self.evaluate(password[1:])
 
@@ -463,18 +469,6 @@ class Provider(ProviderBase):
         if type_filter is None:
             self._dict['catalog'] = results
         return results
-
-    @staticmethod
-    def evaluate(function_string):
-        """Overrides base for generate_password"""
-        if function_string.startswith('generate_password('):
-            start_with = string.ascii_uppercase + string.ascii_lowercase
-            password = '%s%s' % (random.choice(start_with),
-                                 ''.join(random.choice(start_with +
-                                                       string.digits + '@?#_')
-                                 for x in range(11)))
-            return password
-        return ProviderBase.evaluate(function_string)
 
     @staticmethod
     def find_url(catalog, region):
