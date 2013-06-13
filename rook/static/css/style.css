@@ -480,10 +480,6 @@ circle.node {
   stroke-width: 3px;
 }
 
-circle.node.inactive {
-  opacity: 0.5;
-}
-
 line.link {
   stroke-width: 2px;
   stroke: #999;

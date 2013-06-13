@@ -1665,7 +1665,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         node.group = start_group;
         node.x = start_position.x;
         node.y = start_position.y;
-        node.status = false;
         node.spec = spec;
 
         nodes.push(node);
@@ -1683,7 +1682,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           node.group = group;
           node.x = position.x;
           node.y = position.y;
-          node.status = true;
           node.spec = spec;
 
           nodes.push(node)
@@ -1800,7 +1798,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
         nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
         nodes.selectAll("title").text(function(d) { return d.name; });
-        nodes.selectAll("circle").classed('inactive', function(d) { return d.status });
     });
 
     return force;
