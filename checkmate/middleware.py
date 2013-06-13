@@ -242,6 +242,22 @@ class TokenAuthMiddleware(object):
             extras = ' '.join(['%s="%s"' % (k, v) for (k, v) in params])
             self.auth_header = str('Keystone uri="%s" %s' % (
                                    endpoint['uri'], extras))
+        self.service_token = None
+        self.service_username = None
+        if 'kwargs' in endpoint:
+            self.service_username = endpoint['kwargs'].get('username')
+            self.service_password = endpoint['kwargs'].get('password')
+        # FIXME: temporary logic. Make this get a new token when needed
+        if self.service_username:
+            try:
+                result = self._auth_keystone(RequestContext(),
+                                             username=self.service_username,
+                                             password=self.service_password)
+                self.service_token = result['access']['token']['id']
+            except Exception:
+                LOG.error("Unable to authenticate as a service. Endpoint '%s' "
+                          "will be auth using client token",
+                          endpoint.get('kwargs', {}).get('realm'))
 
     def __call__(self, environ, start_response):
         """Authenticate calls with X-Auth-Token to the source auth service"""
@@ -255,12 +271,16 @@ class TokenAuthMiddleware(object):
 
         if 'HTTP_X_AUTH_TOKEN' in environ:
             context = request.context
+            token = environ['HTTP_X_AUTH_TOKEN']
             try:
-                content = self.auth_keystone(context.tenant,
-                                             self.endpoint['uri'],
-                                             self.auth_header,
-                                             token=environ[
-                                                 'HTTP_X_AUTH_TOKEN'])
+                if self.service_token:
+                    content = self._validate_keystone(token,
+                                                      tenant_id=context.tenant)
+                else:
+                    content = self.auth_keystone(context.tenant,
+                                                 self.endpoint['uri'],
+                                                 self.auth_header,
+                                                 token)
                 environ['HTTP_X_AUTHORIZED'] = "Confirmed"
             except HTTPUnauthorized as exc:
                 return exc(environ, start_response)
@@ -309,7 +329,6 @@ class TokenAuthMiddleware(object):
             'Content-type': 'application/json',
             'Accept': 'application/json',
         }
-        # TODO: implement some caching to not overload auth
         try:
             LOG.debug('Authenticating to %s', auth_url)
             http.request('POST', url.path, body=json.dumps(body),
@@ -336,6 +355,53 @@ class TokenAuthMiddleware(object):
             msg = 'Keystone did not return json-encoded body'
             LOG.debug(msg)
             raise HTTPUnauthorized(msg)
+
+    @MemorizeMethod(sensitive_args=[0], timeout=600)
+    def _validate_keystone(self, token, tenant_id=None):
+        '''Validates a Keystone Auth Token using a service token'''
+        url = urlparse(self.endpoint['uri'])
+        if url.scheme == 'https':
+            http_class = httplib.HTTPSConnection
+            port = url.port or 443
+        else:
+            http_class = httplib.HTTPConnection
+            port = url.port or 80
+        host = url.hostname
+
+        path = os.path.join(url.path, token)
+        if tenant_id:
+            path = "%s?belongsTo=%s" % (path, tenant_id)
+            LOG.debug("Validating on tenant '%s'", tenant_id)
+        headers = {
+            'X-Auth-Token': self.service_token,
+            'Accept': 'application/json',
+        }
+        LOG.debug('Validating token with %s', self.endpoint['uri'])
+        http = http_class(host, port)
+        try:
+            http.request('GET', path, headers=headers)
+            resp = http.getresponse()
+            body = resp.read()
+        except StandardError as exc:
+            LOG.error('HTTP connection exception: %s', exc)
+            raise HTTPUnauthorized('Unable to communicate with %s' %
+                                   self.endpoint['uri'])
+        finally:
+            http.close()
+
+        if resp.status != 200:
+            LOG.debug('Invalid token for tenant: %s', resp.reason)
+            raise HTTPUnauthorized("Token invalid or not valid for this "
+                                   "tenant (%s)" % resp.reason,
+                                   [('WWW-Authenticate', self.auth_header)])
+
+        try:
+            content = json.loads(body)
+        except ValueError:
+            msg = 'Keystone did not return json-encoded body'
+            LOG.debug(msg)
+            raise HTTPUnauthorized(msg)
+        return content
 
     def start_response_callback(self, start_response):
         """Intercepts upstream start_response and adds our headers"""
