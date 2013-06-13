@@ -696,10 +696,8 @@ def is_evaluable(value):
         return False
 
 
-def generate_password(
-    min_length=None, max_length=None, required_chars=None,
-    starts_with=string.ascii_letters, valid_chars=None
-):
+def generate_password(min_length=None, max_length=None, required_chars=None,
+                      starts_with=string.ascii_letters, valid_chars=None):
     '''Generates a password based on constraints provided
 
     :param min_length: minimum password length

@@ -164,8 +164,7 @@ class Plan(ExtensibleDict):
         del_tasks = []
         dep_id = self.deployment.get("id")
         for res_key, resource in (
-            self.deployment.get("resources", {}).iteritems()
-        ):
+                self.deployment.get("resources", {}).iteritems()):
             prov_key = resource.get('provider')
             if not prov_key:
                 LOG.warn("Deployment %s resource %s does not specify a "
@@ -419,10 +418,8 @@ class Plan(ExtensibleDict):
             if connection.get('outbound-from') and connection.get(
                     'outbound-from') != resource['index']:
                 continue
-            if (
-                connection.get('relation', 'reference') == 'host' and
-                connection['direction'] == 'inbound'
-            ):
+            if (connection.get('relation', 'reference') == 'host' and
+                    connection['direction'] == 'inbound'):
                 continue  # we don't write host relation on host
 
             target_service = self['services'][connection['service']]
@@ -431,11 +428,9 @@ class Plan(ExtensibleDict):
                 target_def = target_service['extra-components'][extra_key]
             else:
                 target_def = target_service['component']
-            if (
-                target_def["connections"].get(resource["service"]) and
-                target_def["connections"][resource["service"]].get(
-                    "outbound-from")
-            ):
+            if (target_def["connections"].get(resource["service"]) and
+                    target_def["connections"][resource["service"]].get(
+                    "outbound-from")):
                 instances = target_def["connections"][
                     resource["service"]]["outbound-from"]
             else:
@@ -446,10 +441,8 @@ class Plan(ExtensibleDict):
                 self.connect_instances(resource, target, connection, key)
 
                 #TODO: this is just copied in for legacy compatibility
-            if (
-                connection['direction'] == 'outbound' and
-                'extra-key' not in connection
-            ):
+            if (connection['direction'] == 'outbound' and
+                    'extra-key' not in connection):
                 rel_key = key  # connection['name']
                 if rel_key not in self.connections:
                     con_def = {'interface': connection['interface']}
@@ -777,8 +770,7 @@ class Plan(ExtensibleDict):
             if 'extra-components' not in service:
                 continue
             for component_key, component in (
-                service['extra-components'].iteritems()
-            ):
+                    service['extra-components'].iteritems()):
                 requirements = component['requires']
                 for key, requirement in requirements.iteritems():
                     # Skip if already matched
