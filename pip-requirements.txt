@@ -82,7 +82,6 @@
 
 
 amqp==1.0.11
-upstream/master
 anyjson==0.3.3
 billiard==2.7.3.28
 bottle==0.10.11
