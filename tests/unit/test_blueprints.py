@@ -2,7 +2,10 @@
 import copy
 import unittest2 as unittest
 
-from checkmate.blueprints import Blueprint
+import mox
+
+from checkmate.common import config
+from checkmate.blueprints import Blueprint, GitHubManager
 from checkmate.exceptions import CheckmateValidationException
 
 
@@ -153,6 +156,76 @@ class TestBlueprints(unittest.TestCase):
         self.assertRaisesRegexp(CheckmateValidationException, "This server "
                                 "does not support version 'unrecognized' "
                                 "blueprints", Blueprint, blueprint)
+
+
+class TestGitHubManagerTenantTag(unittest.TestCase):
+    def setUp(self):
+        self.mox = mox.Mox()
+        self.config = self.mox.CreateMock(config.current())
+        self.config.github_api = 'http://localhost'
+        self.config.organization = 'blueprints'
+        self._manager = GitHubManager({}, self.config)
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_failsafe_returns_master(self):
+        '''Retrun master by default'''
+        self._manager._ref = None
+        self.assertEqual(self._manager.get_tenant_tag('A', []), 'master')
+
+    def test_default_returns_ref(self):
+        '''Retrun master by default'''
+        self._manager._ref = 'blah'
+        self.assertEqual(self._manager.get_tenant_tag('A', []), 'blah')
+
+    def test_preview_falls_back_to_ref(self):
+        '''Retrun master by default'''
+        self._manager._ref = 'safe'
+        self._manager._preview_ref = None
+        self._manager._preview_tenants = ['X']
+        self.assertEqual(self._manager.get_tenant_tag('X', []), 'safe')
+
+    def test_preview_returns_preview_ref(self):
+        '''Retrun master by default'''
+        self._manager._preview_ref = 'coming-soon'
+        self._manager._preview_tenants = ['X']
+        self.assertEqual(self._manager.get_tenant_tag('X', []), 'coming-soon')
+
+    def test_preview_negative(self):
+        '''Retrun master by default'''
+        self._manager._ref = 'plain'
+        self._manager._preview_ref = 'preview'
+        self._manager._preview_tenants = ['X']
+        self.assertEqual(self._manager.get_tenant_tag('Y', []), 'plain')
+
+    def test_groups_no_match(self):
+        '''Retrun master by default'''
+        self._manager._ref = 'ref'
+        self._manager._preview_ref = 'preview'
+        self._manager._preview_tenants = ['X']
+        self._manager._group_refs = {'Whacks': 'ouch'}
+        self._manager._groups = set(self._manager._group_refs.keys())
+        self.assertEqual(self._manager.get_tenant_tag('Y', ['Hacks']), 'ref')
+
+    def test_groups_single_match(self):
+        '''Retrun master by default'''
+        self._manager._ref = 'ref'
+        self._manager._preview_ref = 'preview'
+        self._manager._preview_tenants = ['X']
+        self._manager._group_refs = {'Hacks': 'new'}
+        self._manager._groups = set(self._manager._group_refs.keys())
+        self.assertEqual(self._manager.get_tenant_tag('Y', ['Hacks']), 'new')
+
+    def test_groups_multiple_match(self):
+        '''Retrun master by default'''
+        self._manager._ref = 'ref'
+        self._manager._preview_ref = 'preview'
+        self._manager._preview_tenants = ['X']
+        self._manager._group_refs = {'Hacks': 'new', 'Whacks': 'ouch'}
+        self._manager._groups = set(self._manager._group_refs.keys())
+        self.assertIn(self._manager.get_tenant_tag('Y', ['Hacks', 'Whacks']),
+                      ['new', 'ouch'])
 
 
 if __name__ == '__main__':

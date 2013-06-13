@@ -447,6 +447,11 @@ Options:
                           version of deployment templates for preview
     --preview-tenants PREVIEW_TENANTS
                           preview tenant IDs
+    --group-refs GROUP_REFS
+                          Auth Groups and refs to associate with them as a
+                          comma-delimited list. Ex. --group-refs
+                          tester=master,prod=stable
+
 
 Once up, you can issue curl commands (or point your browser at it if you started the server --with-ui) to use checkmate.
 

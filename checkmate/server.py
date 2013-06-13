@@ -42,18 +42,21 @@ MANAGERS = {}
 ROUTERS = {}
 CONFIG = config.current()
 
+
 # Check our configuration
-from celery import current_app
-try:
-    if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
-                                                      'MongoBackend']:
-        LOG.warning("Celery backend does not seem to be configured for a "
-                    "database: %s", current_app.backend.__class__.__name__)
-    if not current_app.conf.get("CELERY_RESULT_DBURI"):
-        LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
-                    "checkmate environment loaded?")
-except StandardError:
-    pass
+def check_celery_config():
+    '''Make sure a backend is configured'''
+    from celery import current_app
+    try:
+        if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
+                                                          'MongoBackend']:
+            LOG.warning("Celery backend does not seem to be configured for a "
+                        "database: %s", current_app.backend.__class__.__name__)
+        if not current_app.conf.get("CELERY_RESULT_DBURI"):
+            LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
+                        "checkmate environment loaded?")
+    except StandardError:
+        pass
 
 
 DEFAULT_AUTH_ENDPOINTS = [{
@@ -124,6 +127,16 @@ def error_formatter(error):
 def comma_separated_strs(value):
     '''Handles comma-separated arguments passed in command-line'''
     return map(str, value.split(","))
+
+
+def comma_separated_key_value_pairs(value):
+    '''Handles comma-separated key/values passed in command-line'''
+    pairs = value.split(",")
+    results = {}
+    for pair in pairs:
+        key, pair_value = pair.split('=')
+        results[key] = pair_value
+    return results
 
 
 def argument_parser():
@@ -246,6 +259,12 @@ def argument_parser():
                         help="preview tenant IDs",
                         type=comma_separated_strs,
                         default=None)
+    parser.add_argument("--group-refs",
+                        help="Auth Groups and refs to associate with them as "
+                        "a comma-delimited list. Ex. "
+                        "--group-refs tester=master,prod=stable",
+                        type=comma_separated_key_value_pairs,
+                        default=None)
 
     args = parser.parse_args()
     return args
@@ -257,10 +276,6 @@ def main_func():
     resources = ['version']
     anonymous_paths = ['version']
 
-    CONFIG.update(vars(argument_parser()))
-    if CONFIG.eventlet is True:
-        eventlet.monkey_patch()
-
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(CONFIG,
                        default_config="/etc/default/checkmate-svr-log.conf")
@@ -268,6 +283,12 @@ def main_func():
     LOG = logging.getLogger(__name__)  # reload
     if utils.get_debug_level(CONFIG) == logging.DEBUG:
         bottle.debug(True)
+
+    CONFIG.update(vars(argument_parser()))
+    if CONFIG.eventlet is True:
+        eventlet.monkey_patch()
+
+    check_celery_config()
 
     # Register built-in providers
     from checkmate.providers import rackspace, opscode
@@ -429,9 +450,14 @@ def main_func():
     try:
         run(app=next_app, host=ip_address, port=port, reloader=reloader,
             server=server)
+    except Exception as exc:
+        print "Caught:", exc
     finally:
-        if worker:
-            worker.stop()
+        try:
+            if worker:
+                worker.stop()
+        except:
+            pass
 
 
 #
