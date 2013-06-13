@@ -15,8 +15,7 @@ from checkmate.utils import generate_password
 
 DEFAULT_VALID_CHARS = ''.join([
     string.ascii_letters,
-    string.digits,
-    string.punctuation
+    string.digits
 ])
 
 
@@ -59,7 +58,8 @@ class TestGeneratePassword(unittest.TestCase):
         self.assertTrue(len(password) >= 8 and len(password) <= 14)
 
     def test_generate_password_with_valid_chars(self):
-        password = generate_password(valid_chars='abc123')
+        password = generate_password(
+            starts_with=None, valid_chars='abc123')
         self.assertAllCharsAreValid(password, as_set('abc123'))
 
     def test_generate_password_with_starts_with(self):
@@ -79,6 +79,7 @@ class TestGeneratePassword(unittest.TestCase):
     def test_required_chars_uses_total_password_length(self):
         password = generate_password(
             min_length=3,
+            starts_with=None,
             required_chars=['!@#', '$%^', '&*(']
         )
         self.assertAtLeastOne(password, as_set('!@#'))
@@ -89,6 +90,7 @@ class TestGeneratePassword(unittest.TestCase):
         with self.assertRaises(ValueError) as expected:
             password = generate_password(
                 min_length=2,
+                starts_with=None,
                 required_chars=['!@#', '$%^', '&*(']
             )
         self.assertEqual(

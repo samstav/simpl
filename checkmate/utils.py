@@ -698,7 +698,7 @@ def is_evaluable(value):
 
 def generate_password(
     min_length=None, max_length=None, required_chars=None,
-    starts_with=None, valid_chars=None
+    starts_with=string.ascii_letters, valid_chars=None
 ):
     '''Generates a password based on constraints provided
 
@@ -714,11 +714,10 @@ def generate_password(
     else:
         password_length = max_length or min_length or 8
 
-    # If not specified, default valid_chars to letters, numbers, punctuation
+    # If not specified, default valid_chars to letters and numbers
     valid_chars = valid_chars or ''.join([
         string.ascii_letters,
-        string.digits,
-        string.punctuation
+        string.digits
     ])
 
     first_char = ''
