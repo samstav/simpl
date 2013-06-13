@@ -22,6 +22,7 @@ from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
 )
+from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
@@ -121,8 +122,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
-MANAGERS = {}
-MANAGERS['deployments'] = deployments.Manager(DRIVERS)
+MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
@@ -716,6 +716,8 @@ def create_server(context, name, region, api_object=None, flavor="2",
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
+    reset_failed_resource_task.delay(context["deployment"],
+                                     context["resource"])
     create_server.on_failure = on_failure
 
     if api_object is None:
@@ -736,14 +738,13 @@ def create_server(context, name, region, api_object=None, flavor="2",
     instance_key = 'instance:%s' % context['resource']
     try:
         server = api_object.servers.create(name, image_object, flavor_object,
-                                       meta=meta, files=files)
+                                           meta=meta, files=files)
     except OverLimit:
         raise CheckmateRetriableException("You have reached the maximum "
-                                              "number of servers that can be "
-                                              "spinned up using this account. "
-                                              "Please delete some servers to "
-                                              "continue",
-                                              "")
+                                          "number of servers that can be "
+                                          "spinned up using this account. "
+                                          "Please delete some servers to "
+                                          "continue", "")
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})

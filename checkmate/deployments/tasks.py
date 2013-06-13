@@ -6,12 +6,14 @@ import os
 
 from celery.task import task
 
-from checkmate import db, utils
+from checkmate import celeryglobal as celery
+from checkmate import db
+from checkmate import utils
 from checkmate.common import tasks as common_tasks
 from checkmate.deployments import Manager
-from checkmate.exceptions import CheckmateException
 from checkmate.db.common import ObjectLockedError
 from checkmate.deployment import Deployment
+from checkmate.exceptions import CheckmateException
 
 
 LOG = logging.getLogger(__name__)
@@ -23,8 +25,17 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
         os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
     )
 )
-MANAGERS = {}
-MANAGERS['deployments'] = Manager(DRIVERS)
+LOCK_DB = db.get_driver(connection_string=os.environ.get(
+    'CHECKMATE_LOCK_CONNECTION_STRING',
+    os.environ.get('CHECKMATE_CONNECTION_STRING')))
+
+MANAGERS = {'deployments': Manager(DRIVERS)}
+
+
+@task(base=celery.SingleTask, default_retry_delay=2, max_retries=10,
+      lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
+def reset_failed_resource_task(deployment_id, resource_id):
+    MANAGERS['deployments'].reset_failed_resource(deployment_id, resource_id)
 
 
 @task
