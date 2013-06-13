@@ -33,6 +33,7 @@ class Config(object):
     cache_dir = None
     preview_ref = 'master'
     preview_tenants = None
+    group_refs = {}
 
     def __init__(self, values=None):
         if values:
