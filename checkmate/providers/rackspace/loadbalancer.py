@@ -1163,8 +1163,9 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, lbid, region, api=None):
-    """ Checks to see if a lb's status is ACTIVE, so we can change
-        resource status in deployment """
+    ''' Checks to see if a lb's status is ACTIVE, so we can change
+    resource status in deployment
+    '''
 
     match_celery_logging(LOG)
     assert lbid, "ID must be provided"
