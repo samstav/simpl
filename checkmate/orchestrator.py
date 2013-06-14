@@ -183,14 +183,17 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         LOG.exception(exc)
     finally:
         # Save any changes, even if we errored out
+        deployment_status = None
         failed_tasks = cm_workflow.get_failed_tasks(d_wf, tenant_id)
         after = d_wf.get_dump()
-        deployment_status = None
 
         if before != after or failed_tasks:
-            # We made some progress, so save and prioritize next run
+            #save if there are failed tasks or the workflow has progressed
             cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                         driver=driver, workflow_id=w_id)
+
+        if before != after:
+            # We made some progress, so prioritize next run
             wait = 1
 
             # Report progress
