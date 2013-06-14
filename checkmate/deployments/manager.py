@@ -365,7 +365,7 @@ class Manager(ManagerBase):
 
     def postback(self, deployment_id, contents):
         #FIXME: we need to receive a context and check access?
-        """This is a generic postback intended to replace all postback calls.
+        '''This is a generic postback intended to replace all postback calls.
         Accepts back results from a remote call and updates the deployment with
         the result data.
 
@@ -391,15 +391,15 @@ class Manager(ManagerBase):
                     }
                 }
             }
-        """
+        '''
 
         deployment = self.driver.get_deployment(deployment_id,
                                                 with_secrets=True)
         deployment = Deployment(deployment)
 
         if not isinstance(contents, dict):
-            raise CheckmateValidationException("Postback contents is not"
-                                               " type dictionary")
+            raise CheckmateValidationException("Postback contents is not "
+                                               "type dictionary")
 
         deployment.on_postback(contents, target=deployment)
 

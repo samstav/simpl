@@ -1091,14 +1091,14 @@ class Deployment(ExtensibleDict):
         return resources
 
     def on_postback(self, contents, target=None):
-        """Called to merge in all deployment and operation data in one
+        '''Called to merge in all deployment and operation data in one
 
         Validates and assigns contents data to target
 
         :param contents: dict -- the new data to write
         :param target: dict -- optional for writing to other than this
                        deployment
-        """
+        '''
         target = target or self
 
         if not isinstance(contents, dict):

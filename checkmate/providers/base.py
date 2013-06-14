@@ -522,10 +522,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
     @classmethod
     def translate_status(cls, status):
         '''Return checkmate status for resource based on schema'''
-        if (
-            hasattr(cls, '__status_mapping__') and
-            status in cls.__status_mapping__
-        ):
+        if (hasattr(cls, '__status_mapping__') and
+              status in cls.__status_mapping__):
             return cls.__status_mapping__[status]
         else:
             LOG.debug("Resource status %s was not found in status mapping" %

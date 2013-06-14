@@ -142,7 +142,7 @@ def update_all_provider_resources(provider, deployment_id, status,
 
 @task(default_retry_delay=0.5, max_retries=6)
 def postback(deployment_id, contents):
-    """ Exposes DeploymentsManager.postback as a task"""
+    '''Exposes DeploymentsManager.postback as a task'''
     utils.match_celery_logging(LOG)
     MANAGERS['deployments'].postback(deployment_id, contents)
 
