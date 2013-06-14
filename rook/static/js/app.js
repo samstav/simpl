@@ -1248,9 +1248,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       if (['children', "$$hashKey"].indexOf(attr) == -1 && obj.hasOwnProperty(attr))
         copy[attr] = obj[attr];
     }
-    try {
-        $scope.$apply($scope.current_task_json = JSON.stringify(copy, null, 2));
-    } catch(err) {}
+    $scope.current_task_json = JSON.stringify(copy, null, 2)
     // Refresh CodeMirror since it might have been hidden
     _.each($('.CodeMirror'), function(inst) { inst.CodeMirror.refresh(); });
   };
@@ -1769,11 +1767,12 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var force = d3.layout.force()
                 .size([width, height]);
 
-    d3.select(".entries").select("svg").remove();
+    d3.select(parent_element).select("svg").remove();
     var svg = d3.select(parent_element)
                 .append("svg")
-                .attr("width", width)
-                .attr("height", height);
+                .attr("width", '100%')
+                .attr("height", '20%')
+                .attr('viewBox', [0, 0, width, height].join(' '));
 
     force
         .nodes(json.nodes)
@@ -1817,7 +1816,11 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .enter()
         .append("svg:g")
         .attr("class", "node")
-        .on('click', function(d){ $scope.selectSpec(d.name) })
+        .on('click', function(d){
+          $scope.$apply(function() {
+            $scope.selectSpec(d.name);
+          });
+        })
         ;
 
     nodes.append("svg:title")
