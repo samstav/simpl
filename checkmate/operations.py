@@ -5,8 +5,8 @@ import logging
 import os
 
 from checkmate import db
-from checkmate import utils
 from checkmate.deployment import Deployment
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -51,13 +51,22 @@ def update_operation(deployment_id, driver=None, deployment_status=None,
             driver = SIMULATOR_DB
         if not driver:
             driver = DB
+        deployment = driver.get_deployment(deployment_id, with_secrets=True)
+        operation_status = deployment['operation']['status']
+
+        #Do not update anything if the operation is already complete. The
+        #operation gets marked as complete for both build and delete operation.
+        if operation_status == "COMPLETE":
+            LOG.warn("Ignoring the update operation call as the operation is "
+                     "already COMPLETE")
+            return
+
         delta = {'operation': dict(kwargs)}
         if deployment_status:
             delta.update({'status': deployment_status})
-        deployment = driver.get_deployment(deployment_id, with_secrets=True)
         try:
             if 'status' in kwargs:
-                if kwargs['status'] != deployment['operation']['status']:
+                if kwargs['status'] != operation_status:
                     deployment = Deployment(deployment)
                     delta['display-outputs'] = deployment.calculate_outputs()
         except KeyError:
