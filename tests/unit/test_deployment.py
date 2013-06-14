@@ -113,6 +113,86 @@ class TestDeploymentStateTransitions(unittest.TestCase):
 
 
 class TestDeployments(unittest.TestCase):
+    def setUp(self):
+        deployment_dict = {
+            'id': 'test',
+            'name': 'test',
+            'resources': {
+                '0': {'provider': 'test'}
+            },
+            'status': 'NEW',
+            'operation': {
+                'status': 'NEW',
+            },
+        }
+        self.deployment = Deployment(deployment_dict)
+        self.mock = mox.Mox()
+        self.deployment.environment = self.mock.CreateMockAnything()
+        self.context = self.mock.CreateMockAnything()
+        environment = self.mock.CreateMockAnything()
+        self.provider = self.mock.CreateMockAnything()
+        self.deployment.environment().AndReturn(environment)
+        environment.get_provider('test').AndReturn(self.provider)
+
+    def test_get_statuses_for_deleted_resources(self):
+        resource_status = {'instance:0': {'status': 'DELETED'}}
+        self.provider.get_resource_status(self.context, 'test',
+                                          {'provider': 'test'}, '0').\
+            AndReturn(resource_status)
+        self.mock.ReplayAll()
+
+        expected = {
+            'resources': resource_status,
+            'deployment_status': 'DELETED',
+            'operation_status': 'COMPLETE',
+        }
+        self.assertDictEqual(self.deployment.get_statuses(self.context),
+                             expected)
+
+    def test_get_statuses_for_active_resources(self):
+        resource_status = {'instance:0': {'status': 'ACTIVE'}}
+        self.provider.get_resource_status(self.context, 'test',
+                                          {'provider': 'test'}, '0').\
+            AndReturn(resource_status)
+        self.mock.ReplayAll()
+
+        expected = {
+            'resources': resource_status,
+            'deployment_status': 'UP',
+            'operation_status': 'COMPLETE',
+        }
+        self.assertDictEqual(self.deployment.get_statuses(self.context),
+                             expected)
+
+    def test_get_statuses_for_new_resources(self):
+        resource_status = {'instance:0': {'status': 'NEW'}}
+        self.provider.get_resource_status(self.context, 'test',
+                                          {'provider': 'test'}, '0').\
+            AndReturn(resource_status)
+        self.mock.ReplayAll()
+
+        expected = {
+            'resources': resource_status,
+            'deployment_status': 'PLANNED',
+            'operation_status': 'NEW',
+        }
+        self.assertDictEqual(self.deployment.get_statuses(self.context),
+                             expected)
+
+    def test_get_statuses_for_no_resources(self):
+        self.provider.get_resource_status(self.context, 'test',
+                                          {'provider': 'test'}, '0').\
+            AndReturn({})
+        self.mock.ReplayAll()
+
+        expected = {
+            'resources': {},
+            'deployment_status': 'NEW',
+            'operation_status': 'NEW',
+        }
+        self.assertDictEqual(self.deployment.get_statuses(self.context),
+                             expected)
+
     def test_schema(self):
         """Test the schema validates a deployment with all possible fields"""
         deployment = {

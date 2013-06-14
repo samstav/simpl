@@ -334,17 +334,14 @@ class Router(object):
         if not entity:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
         deployment = Deployment(entity)
-        env = deployment.environment()
-        resources = {}
-        for key, resource in entity.get('resources', {}).items():
-            if key.isdigit() and 'provider' in resource:
-                provider = env.get_provider(resource['provider'])
-                result = provider.get_resource_status(request.context,
-                                                      api_id, resource, key)
-                if result:
-                    resources.update(result)
-                    tasks.resource_postback.delay(api_id, result)
-        return utils.write_body(resources, request, response)
+        statuses = deployment.get_statuses(request.context)
+        for key, value in statuses.get('resources').iteritems():
+            tasks.resource_postback.delay(api_id, {key: value})
+        common_tasks.update_operation(api_id,
+                                      deployment_status=statuses[
+                                          'deployment_status'],
+                                      status=statuses['operation_status'])
+        return utils.write_body(statuses.get('resources'), request, response)
 
     @with_tenant
     def deploy_deployment(self, api_id, tenant_id=None):
