@@ -36,7 +36,7 @@ LOG = logging.getLogger(__name__)
 class Manager(ManagerBase):
     '''Contains Deployments Model and Logic for Accessing Deployments'''
 
-    def count(self, tenant_id=None, blueprint_id=None):
+    def count(self, tenant_id=None, blueprint_id=None, status=None):
         '''Return count of deployments filtered by passed in parameters'''
         # TODO: This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)

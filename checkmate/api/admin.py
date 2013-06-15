@@ -164,7 +164,8 @@ class Router(object):
         :param:tenant_id: the (optional) tenant
         '''
         tenant_id = request.query.get('tenant_id')
-        count = self.manager.count(tenant_id=tenant_id)
+        status = request.query.get('status')
+        count = self.manager.count(tenant_id=tenant_id, status=status)
         return utils.write_body({"count": count}, request, response)
 
     @utils.only_admins
