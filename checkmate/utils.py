@@ -642,6 +642,17 @@ def only_admins(fxn):
     return wrapped
 
 
+def only_admins_or_creator(fxn):
+    '''Decorator to limit access to admins or creators of a deployment'''
+    def wrapped(*args, **kwargs):
+        if not (request.context.is_admin or
+                ('created-by' in entity and
+                 entity['created-by'] is not None and
+                 bottle.request.context.username == entity.get('created-by'))):
+            bottle.abort(401, "You must be the creator of a deployment or an "
+                              "admin to retrieve its secrets")
+
+
 def get_time_string(time=None):
     """Central function that returns time (UTC in ISO format) as a string
 
