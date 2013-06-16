@@ -40,7 +40,8 @@ class Manager(ManagerBase):
         '''Return count of deployments filtered by passed in parameters'''
         # TODO: This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
-        deployments = self.driver.get_deployments(tenant_id=tenant_id)
+        deployments = self.driver.get_deployments(tenant_id=tenant_id,
+                                                  status=status)
         count = 0
         if blueprint_id:
             if not deployments:
@@ -56,17 +57,18 @@ class Manager(ManagerBase):
                 else:
                     LOG.debug("No blueprint defined in deployment %s", dep_id)
         else:
-            count = len(deployments)
+            count = deployments['collection-count']
         return count
 
     def get_deployments(self, tenant_id=None, offset=None, limit=None,
-                        with_deleted=False):
+                        with_deleted=False, status=None):
         ''' Get existing deployments '''
         return self.driver.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
-            with_deleted=with_deleted
+            with_deleted=with_deleted,
+            status=status
         )
 
     def save_deployment(self, deployment, api_id=None, tenant_id=None,

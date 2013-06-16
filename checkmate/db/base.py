@@ -120,7 +120,8 @@ class DbBase(object):  # pylint: disable=R0921
         raise NotImplementedError()
 
     def get_deployments(self, tenant_id=None, with_secrets=None,
-                        limit=None, offset=None, with_deleted=False):
+                        limit=None, offset=None, with_deleted=False,
+                        status=None):
         raise NotImplementedError()
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
