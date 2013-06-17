@@ -7,6 +7,7 @@
 #
 
 coverage
+fakeredis
 flake8
 hacking  # plugins for enforcement of HACKING.rst
 mock
