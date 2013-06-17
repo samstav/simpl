@@ -12,6 +12,7 @@ from urlparse import urlunparse
 import hashlib
 import git
 import shutil
+import yaml
 
 import mox
 from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
@@ -1973,6 +1974,22 @@ class TestTemplating(unittest.TestCase):
                 'fcebe978f5e0d6e8188445dc89cc66cf'
             }
         )
+
+    def test_yaml_escaping(self):
+        """Test parsing with YAML-breaking values"""
+        chef_map = solo.ChefMap('')
+        template = "id: {{ setting('password') }}"
+        deployment = Deployment({
+            'inputs': {
+                'password': "@W#$%$^D%F^UGY",
+            },
+            'blueprint': {},
+        })
+
+        result = chef_map.parse(template, deployment=deployment)
+        self.assertEqual(result, 'id: @W#$%$^D%F^UGY')
+        data = yaml.safe_load(result)
+        self.assertEqual(result, {'id': '@W#$%$^D%F^UGY'})
 
 
 TEMPLATE = \
