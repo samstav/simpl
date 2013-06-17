@@ -2179,6 +2179,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
   $scope.updateOptions = function() {
     $scope.options = [];
     $scope.option_groups = {};
+    $scope.options_to_display = [];
+    $scope.option_headers= {};
     $scope.region_option = null;
     $scope.inputs = {};
 
@@ -2187,6 +2189,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       $scope.options = $scope.options.concat(opts.options);
       $scope.option_groups = opts.groups;
       $scope.region_option = opts.region_option;
+      $scope.options_to_display = opts.options_to_display;
+      $scope.option_headers = opts.option_headers;
     }
 
     if ($scope.environment) {
