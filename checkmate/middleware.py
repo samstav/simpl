@@ -587,7 +587,7 @@ class RequestContext(object):
                  is_admin=False, read_only=False, show_deleted=False,
                  authenticated=False, catalog=None, user_tenants=None,
                  roles=None, domain=None, auth_source=None, simulation=False,
-                 base_url=None, **kwargs):
+                 base_url=None, region=None, **kwargs):
         self.authenticated = authenticated
         self.auth_source = auth_source
         self.auth_token = auth_token
@@ -602,6 +602,7 @@ class RequestContext(object):
         self.domain = domain  # which cloud?
         self.simulation = simulation
         self.base_url = base_url
+        self.region = region
         self.kwargs = kwargs  # store extra args and retrieve them when needed
 
     def get_queued_task_dict(self, **kwargs):

@@ -400,7 +400,9 @@ class Provider(ProviderBase):
 
         # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
-        region = Provider.find_a_region(context.catalog)
+        region = getattr(context, 'region', None)
+        if not region:
+            region = Provider.find_a_region(context.catalog)
         api_endpoint = Provider.find_url(context.catalog, region)
         if type_filter is None or type_filter == 'database':
             results['database'] = dict(mysql_database={
@@ -502,7 +504,9 @@ class Provider(ProviderBase):
             region = REGION_MAP[region]
 
         if not region:
-            region = Provider.find_a_region(context.catalog) or 'DFW'
+            region = getattr(context, 'region', None)
+            if not region:
+                region = Provider.find_a_region(context.catalog) or 'DFW'
 
         #TODO: instead of hacking auth using a token, submit patch upstream
         url = Provider.find_url(context.catalog, region)
@@ -931,6 +935,8 @@ def sync_resource_task(context, resource, resource_key, api=None):
             region = instance['host_region']
         elif 'region' in resource:
             region = resource['region']
+        elif hasattr(context, region):
+            region = context.region
         else:
             region = Provider.find_a_region(context)
         api = Provider.connect(context, region)
