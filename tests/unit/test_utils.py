@@ -493,6 +493,19 @@ class TestUtils(unittest.TestCase):
         password = utils.evaluate('generate_password(min_length=12)')
         self.assertEqual(12, len(password))
 
+    def test_render_yaml_string_simple(self):
+        self.assertEqual(utils.render_yaml_string('simple'), "simple")
+
+    def test_render_yaml_string_null(self):
+        self.assertEqual(utils.render_yaml_string(None), 'null')
+
+    def test_render_yaml_string_blank(self):
+        self.assertEqual(utils.render_yaml_string(''), "''")
+
+    def test_render_yaml_string_at(self):
+        self.assertEqual(utils.render_yaml_string("@starts_with_at"),
+                         "'@starts_with_at'")
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
