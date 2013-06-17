@@ -1767,22 +1767,67 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return color;
   }
 
-  $scope.buildNetwork = function(json, width, height, parent_element) {
-    var force = d3.layout.force()
-                .size([width, height]);
+  $scope.update_nodes = function(nodes, svg) {
+    var data = svg.select('#nodes').selectAll('g.node').data(nodes);
 
+    // Enter
+    var enter_nodes = data.enter()
+      .append('svg:g')
+      .attr('class', 'node')
+      .on('click', function(d){
+        $scope.$apply(function() {
+          $scope.selectSpec(d.name);
+        });
+      });
+    enter_nodes.append('svg:title').text(function(d) { return d.name; });
+    enter_nodes.append('svg:desc') .text(function(d) { return JSON.stringify(d); });
+    enter_nodes.append('circle')
+      .attr('class', 'node')
+      .attr('r', 8)
+      .style('fill', function(d) { return $scope.color(d); });
+    enter_nodes.append('svg:image')
+      .attr('xlink:href', $scope.getIcon)
+      .attr('x', '-16px')
+      .attr('y', '-16px')
+      .attr('width', '32px')
+      .attr('height', '32px');
+    enter_nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+
+    // Update
+    data.select('image').attr('xlink:href', $scope.getIcon);
+
+    // Exit
+    data.exit().remove();
+
+    return data;
+  }
+
+  $scope.update_links = function(links, svg) {
+    var data = svg.select('#links').selectAll('line.link').data(links);
+
+    // Enter
+    var enter_links = data.enter()
+      .append('line')
+      .attr('class', 'link')
+      .attr('x1', function(d) { return d.source.x; })
+      .attr('y1', function(d) { return d.source.y; })
+      .attr('x2', function(d) { return d.target.x; })
+      .attr('y2', function(d) { return d.target.y; })
+      ;
+
+    // Exit
+    data.exit().remove();
+
+    return data;
+  }
+
+  $scope.buildNetwork = function(json, width, height, parent_element) {
     d3.select(parent_element).select("svg").remove();
     var svg = d3.select(parent_element)
                 .append("svg")
                 .attr("width", '100%')
                 .attr("height", '20%')
                 .attr('viewBox', [0, 0, width, height].join(' '));
-
-    force
-        .nodes(json.nodes)
-        .links(json.links)
-        .start()
-        ;
 
     var zoomBehavior = d3.behavior.zoom()
       .on("zoom", redraw);
@@ -1805,58 +1850,11 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
     svg.call(zoomBehavior);
 
-    var links = svg.append("g")
-        .attr('id', 'links')
-        .selectAll("line.link")
-        .data(force.links())
-        .enter().append("line")
-        .attr("class", "link")
-        ;
+    svg.append('g').attr('id', 'links');
+    $scope.update_links(json.links, svg);
 
-    var nodes = svg.append('g')
-        .attr('id', 'nodes')
-        .selectAll("g.node")
-        .data(force.nodes())
-        .enter()
-        .append("svg:g")
-        .attr("class", "node")
-        .on('click', function(d){
-          $scope.$apply(function() {
-            $scope.selectSpec(d.name);
-          });
-        })
-        ;
-
-    nodes.append("svg:title")
-        .text(function(d) { return d.name; });
-
-    nodes.append("svg:desc")
-        .text(function(d) { return JSON.stringify(d); });
-
-    nodes.append('circle')
-        .attr("r", 8)
-        .attr("class", "node")
-        .style("fill", function(d) { return $scope.color(d); });
-
-    // TODO: fix image sizes
-    nodes.append("svg:image")
-        .attr("xlink:href", $scope.getIcon)
-        .attr("x", "-16px")
-        .attr("y", "-16px")
-        .attr("width", "32px")
-        .attr("height", "32px");
-
-    force.on("tick", function() {
-        links.attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
-
-        nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-        nodes.selectAll("title").text(function(d) { return d.name; });
-    });
-
-    return force;
+    svg.append('g').attr('id', 'nodes');
+    $scope.update_nodes(json.nodes, svg);
   };
 
   $scope.start_tree_preview = function(parent_element) {
@@ -1867,7 +1865,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       var nodes = $scope.buildNodes(specs);
       var links = $scope.buildLinks(specs, nodes);
       var network = { nodes: nodes, links: links };
-      var force = $scope.buildNetwork(network, WIDTH, HEIGHT, parent_element);
+      $scope.buildNetwork(network, WIDTH, HEIGHT, parent_element);
     }
   };
 
