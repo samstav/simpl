@@ -1351,19 +1351,25 @@ class ChefMap():
         defaults = kwargs.get('defaults', {})
         if deployment:
             if resource:
-                fxn = lambda setting_name: evaluate(deployment.get_setting(
-                    setting_name,
-                    resource_type=resource['type'],
-                    provider_key=resource['provider'],
-                    service_name=resource['service'],
-                    default=defaults.get(setting_name, ''))
+                fxn = lambda setting_name: evaluate(utils.render_yaml_string(
+                    deployment.get_setting(
+                        setting_name,
+                        resource_type=resource['type'],
+                        provider_key=resource['provider'],
+                        service_name=resource['service'],
+                        default=defaults.get(setting_name, '')
+                    ))
                 )
             else:
-                fxn = lambda setting_name: evaluate(deployment.get_setting(
-                    setting_name, default=defaults.get(setting_name, '')))
+                fxn = lambda setting_name: evaluate(utils.render_yaml_string(
+                    deployment.get_setting(
+                        setting_name, default=defaults.get(setting_name, '')
+                    ))
+                )
         else:
             # noop
-            fxn = lambda setting_name: evaluate(defaults.get(setting_name, ''))
+            fxn = lambda setting_name: evaluate(utils.render_yaml_string(
+                defaults.get(setting_name, '')))
         env.globals['setting'] = fxn
         env.globals['hash'] = hash_SHA512
 

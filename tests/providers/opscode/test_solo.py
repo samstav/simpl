@@ -1975,8 +1975,24 @@ class TestTemplating(unittest.TestCase):
             }
         )
 
-    def test_yaml_escaping(self):
-        """Test parsing with YAML-breaking values"""
+    def test_yaml_escaping_simple(self):
+        """Test parsing with simple strings that don't break YAML"""
+        chef_map = solo.ChefMap('')
+        template = "id: {{ setting('password') }}"
+        deployment = Deployment({
+            'inputs': {
+                'password': "Password1",
+            },
+            'blueprint': {},
+        })
+
+        result = chef_map.parse(template, deployment=deployment)
+        self.assertEqual(result, "id: Password1")
+        data = yaml.safe_load(result)
+        self.assertEqual(data, {'id': 'Password1'})
+
+    def test_yaml_escaping_at(self):
+        """Test parsing with YAML-breaking values: @"""
         chef_map = solo.ChefMap('')
         template = "id: {{ setting('password') }}"
         deployment = Deployment({
@@ -1987,9 +2003,9 @@ class TestTemplating(unittest.TestCase):
         })
 
         result = chef_map.parse(template, deployment=deployment)
-        self.assertEqual(result, 'id: @W#$%$^D%F^UGY')
+        self.assertEqual(result, "id: '@W#$%$^D%F^UGY'")
         data = yaml.safe_load(result)
-        self.assertEqual(result, {'id': '@W#$%$^D%F^UGY'})
+        self.assertEqual(data, {'id': '@W#$%$^D%F^UGY'})
 
 
 TEMPLATE = \
