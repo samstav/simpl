@@ -1783,7 +1783,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     enter_nodes.append('svg:desc') .text(function(d) { return JSON.stringify(d); });
     enter_nodes.append('circle')
       .attr('class', 'node')
-      .attr('r', 8)
+      .attr('r', 5)
       .style('fill', function(d) { return $scope.color(d); });
     enter_nodes.append('svg:image')
       .attr('xlink:href', $scope.getIcon)
@@ -1821,51 +1821,25 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return data;
   }
 
-  $scope.buildNetwork = function(json, width, height, parent_element) {
-    d3.select(parent_element).select("svg").remove();
-    var svg = d3.select(parent_element)
-                .append("svg")
-                .attr("width", '100%')
-                .attr("height", '20%')
-                .attr('viewBox', [0, 0, width, height].join(' '));
+  $scope.buildNetwork = function(json, parent_element) {
+    var svg = d3.select(parent_element);
 
-    var zoomBehavior = d3.behavior.zoom()
-      .on("zoom", redraw);
-
-
-    function redraw() {
-      console.log("here", d3.event.translate, d3.event.scale);
-      svg.select('#nodes').attr("transform",
-               "translate(" + d3.event.translate + ")"
-               + " scale(" + d3.event.scale + ")");
-      svg.select('#links').attr("transform",
-               "translate(" + d3.event.translate + ")"
-               + " scale(" + d3.event.scale + ")");
-    }
-
-    function zoom() {
-      svg.translate(d3.event.translate).scale(d3.event.scale);
-      states.selectAll("path").attr("d", path);
-    }
-
-    svg.call(zoomBehavior);
-
-    svg.append('g').attr('id', 'links');
+    if (svg.select('g#links')[0][0] === null)
+      svg.append('g').attr('id', 'links');
     $scope.update_links(json.links, svg);
 
-    svg.append('g').attr('id', 'nodes');
+    if (svg.select('g#nodes')[0][0] === null)
+      svg.append('g').attr('id', 'nodes');
     $scope.update_nodes(json.nodes, svg);
   };
 
   $scope.start_tree_preview = function(parent_element) {
     if($scope.data){
       specs = $scope.data.wf_spec.task_specs
-      var WIDTH = 1080;
-      var HEIGHT = 300;
       var nodes = $scope.buildNodes(specs);
       var links = $scope.buildLinks(specs, nodes);
       var network = { nodes: nodes, links: links };
-      $scope.buildNetwork(network, WIDTH, HEIGHT, parent_element);
+      $scope.buildNetwork(network, parent_element);
     }
   };
 
