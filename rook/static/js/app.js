@@ -1559,8 +1559,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.$on('$routeChangeStart', $scope.cancel_auto_refresh);
 
   $scope.start_task_name = 'Start';
-  $scope.padding = 20;
-  $scope.spacing = 40;
+  $scope.padding = 8;
+  $scope.spacing = 10;
   $scope.default_task_duration = $scope.spacing;
   $scope.log_scale = 15;
   $scope.canvas = {
