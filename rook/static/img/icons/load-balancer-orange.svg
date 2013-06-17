@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 16.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+ <g>
+  <title>Load Balancer</title>
+  <g>
+   <path stroke="white" fill="orange" stroke-miterlimit="10" stroke-linejoin="round" stroke-linecap="round" clip-rule="evenodd" fill-rule="evenodd" d="m85.980042,27l-72.024994,0l-13.925018,19.035004l99.88501,0l-13.934998,-19.035004zm13.95697,19.034973c0,-0.042999 -0.010986,0.063995 -0.020996,0l-99.88501,0c-0.020996,0.063995 -0.031006,0.105988 -0.031006,0.148987l0,24.888031l99.938019,0l0,-25.037018l-0.001007,0z" />
+   <path fill="white" clip-rule="evenodd" fill-rule="evenodd" d="m46.967041,59.057983c0,-2.209991 1.794983,-4.003998 4.003998,-4.003998c2.208984,0 3.993988,1.794006 3.993988,4.003998c0,2.218994 -1.785004,4.003998 -3.993988,4.003998c-2.209015,0 -4.003998,-1.783997 -4.003998,-4.003998z" />
+   <path fill="white" clip-rule="evenodd" fill-rule="evenodd" d="m64.960022,59.057983c0,-2.209991 1.785004,-4.003998 3.994019,-4.003998c2.208984,0 4.003998,1.794006 4.003998,4.003998c0,2.218994 -1.795013,4.003998 -4.003998,4.003998c-2.209015,0 -3.994019,-1.783997 -3.994019,-4.003998z" />
+   <path fill="white" clip-rule="evenodd" fill-rule="evenodd" d="m28.985016,59.057983c0,-2.209991 1.783997,-4.003998 3.993988,-4.003998s4.003998,1.794006 4.003998,4.003998c0,2.218994 -1.794983,4.003998 -4.003998,4.003998s-3.993988,-1.783997 -3.993988,-4.003998z" />
+  </g>
+ </g>
+</svg>

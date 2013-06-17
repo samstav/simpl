@@ -1574,15 +1574,19 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.getIcon = function(node) {
     var icon = '';
+    var color = '';
     var base_dir = "/img/icons/";
     var resource_id = node.spec.properties.resource || '';
     var resource = '';
 
-    if ($scope.deployment.resources && $scope.deployment.resources[resource_id])
+    if ($scope.deployment.resources && $scope.deployment.resources[resource_id]) {
       resource = $scope.deployment.resources[resource_id].type;
+      color = $scope.color(node);
+    }
 
     icon = resource;
-    if (icon != '') icon = base_dir + icon + '.svg';
+    if (['database', 'load-balancer', 'compute'].indexOf(icon) === -1) icon = '';
+    if (icon != '') icon = base_dir + icon + '-' + color + '.svg';
 
     return icon;
   }
@@ -1836,12 +1840,11 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
     // TODO: fix image sizes
     nodes.append("svg:image")
-        .attr("class", "circle")
         .attr("xlink:href", $scope.getIcon)
-        .attr("x", "-160px")
-        .attr("y", "-160px")
-        .attr("width", "320px")
-        .attr("height", "320px");
+        .attr("x", "-16px")
+        .attr("y", "-16px")
+        .attr("width", "32px")
+        .attr("height", "32px");
 
     force.on("tick", function() {
         links.attr("x1", function(d) { return d.source.x; })
