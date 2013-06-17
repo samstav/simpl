@@ -1531,20 +1531,40 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   /*======================================*/
-  $scope._refresh_response = null;
+  $scope._task_states = null;
   $scope.auto_refresh_timeout = { current: 2000, min: 2000, max: 60000 };
   $scope.auto_refresh_promise = null;
 
+  // TODO: find a better way to decide if workflow is completed
+  $scope.is_completed = function() {
+    return ($scope.count === ($scope.taskStates['completed'] + $scope.taskStates['ready']))
+  }
+
+  $scope.reset_timeout = function() {
+    $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.min;
+  }
+
   $scope.increase_timeout = function() {
-    //$scope.auto_refresh_timeout.current *= 2;
-    //if ($scope.auto_refresh_timeout.current >= $scope.auto_refresh_timeout.max)
-    //  $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.max;
+    // Slowly increase timeout, but not too slowly
+    $scope.auto_refresh_timeout.current += $scope.auto_refresh_timeout.current / 2;
+    if ($scope.auto_refresh_timeout.current >= $scope.auto_refresh_timeout.max)
+      $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.max;
   }
 
   $scope.auto_refresh_success = function(response) {
-    // if ($scope.timeRemaining > 0)
-      $scope.auto_refresh_promise = $timeout($scope.auto_refresh, $scope.auto_refresh_timeout.current);
-    console.log($scope.auto_refresh_timeout.current);
+    if (_.isEqual($scope._task_states, $scope.taskStates)) {
+      $scope.increase_timeout();
+    } else {
+      $scope.reset_timeout();
+    }
+
+    if ($scope.is_completed()) {
+      $scope.reset_timeout();
+      return;
+    }
+
+    $scope.auto_refresh_promise = $timeout($scope.auto_refresh, $scope.auto_refresh_timeout.current);
+    $scope._task_states = _.clone($scope.taskStates);
   }
 
   $scope.auto_refresh = function() {
