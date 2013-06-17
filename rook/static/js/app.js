@@ -1542,12 +1542,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.auto_refresh_success = function(response) {
-    if (_.isEqual($scope._refresh_response, response)) {
-      $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.min;
-    } else {
-      $scope.increase_timeout();
-    }
-    $scope.auto_refresh_promise = $timeout($scope.auto_refresh, $scope.auto_refresh_timeout.current);
+    // if ($scope.timeRemaining > 0)
+      $scope.auto_refresh_promise = $timeout($scope.auto_refresh, $scope.auto_refresh_timeout.current);
     console.log($scope.auto_refresh_timeout.current);
   }
 
@@ -1783,8 +1779,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     enter_nodes.append('svg:desc') .text(function(d) { return JSON.stringify(d); });
     enter_nodes.append('circle')
       .attr('class', 'node')
-      .attr('r', 5)
-      .style('fill', function(d) { return $scope.color(d); });
+      .attr('r', 6);
     enter_nodes.append('svg:image')
       .attr('xlink:href', $scope.getIcon)
       .attr('x', '-16px')
@@ -1794,6 +1789,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     enter_nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
     // Update
+    data.select('circle').style('fill', function(d) { return $scope.color(d); });
     data.select('image').attr('xlink:href', $scope.getIcon);
 
     // Exit
