@@ -1,17 +1,14 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
-"""Tests for chef-solo provider"""
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+'''Tests for chef-solo provider'''
 
 import __builtin__
+import hashlib
 import json
 import logging
 import os
+import shutil
 import unittest2 as unittest
 from urlparse import urlunparse
-import hashlib
-import git
-import shutil
 import yaml
 
 import mox
@@ -36,7 +33,7 @@ class TestChefSoloProvider(test.ProviderTester):
     def test_get_resource_prepared_maps(self):
         base.PROVIDER_CLASSES = {}
         register_providers([solo.Provider, test.TestProvider])
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test app
@@ -76,8 +73,8 @@ class TestChefSoloProvider(test.ProviderTester):
                             is: compute
                             provides:
                             - compute: linux
-            """))
-        chef_map = solo.ChefMap(raw="""
+            '''))
+        chef_map = solo.ChefMap(raw='''
             \n--- # foo component
                 id: foo
                 requires:
@@ -94,7 +91,7 @@ class TestChefSoloProvider(test.ProviderTester):
                 - source: clients://database:mysql/ip
                   targets:
                   - attributes://clients
-            """)
+            ''')
         deployments.Manager.plan(deployment, RequestContext())
         provider = deployment.environment().get_provider('chef-solo')
 
@@ -132,9 +129,9 @@ class TestChefSoloProvider(test.ProviderTester):
         self.assertListEqual(result, expected)
 
     def test_get_map_with_context_defaults(self):
-        """Make sure defaults get evaluated correctly"""
+        '''Make sure defaults get evaluated correctly'''
         provider = solo.Provider({})
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: Test
@@ -155,8 +152,8 @@ class TestChefSoloProvider(test.ProviderTester):
                       vendor: opscode
                       constraint:
                       - source: dummy
-            """))
-        chefmap = solo.ChefMap(raw="""
+            '''))
+        chefmap = solo.ChefMap(raw='''
                 id: test
                 options:
                   password:
@@ -164,7 +161,7 @@ class TestChefSoloProvider(test.ProviderTester):
                 output:
                   component: {{ setting('password') }}
                   blueprint: {{ setting('bp_password') }}
-            """)
+            ''')
         provider.map_file = chefmap
         component = chefmap.components[0]
 
@@ -191,7 +188,7 @@ class TestChefSoloProvider(test.ProviderTester):
 
 class TestCeleryTasks(unittest.TestCase):
 
-    """ Test Celery tasks """
+    ''' Test Celery tasks '''
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -207,7 +204,7 @@ class TestCeleryTasks(unittest.TestCase):
             os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
 
     def test_cook(self):
-        """Test that cook task picks up run_list and attributes"""
+        '''Test that cook task picks up run_list and attributes'''
         root_path = os.environ['CHECKMATE_CHEF_LOCAL_PATH']
         environment_path = os.path.join(root_path, "env_test")
         kitchen_path = os.path.join(environment_path, "kitchen")
@@ -276,20 +273,20 @@ class TestCeleryTasks(unittest.TestCase):
 
 class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
-    """
+    '''
 
     Test that cookbooks can be used without a map file (only catalog)
 
     This test is done using the MySQL cookbook. This is a very commonly used
     cookbook.
 
-    """
+    '''
 
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
         register_providers([solo.Provider, test.TestProvider])
-        self.deployment = Deployment(utils.yaml_to_dict("""
+        self.deployment = Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: MySQL Database
@@ -317,13 +314,13 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                           linux_instance:
                             provides:
                             - compute: linux
-            """))
+            '''))
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
 
     def test_workflow_task_generation(self):
-        """Verify workflow task creation"""
+        '''Verify workflow task creation'''
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
         workflow = create_workflow_deploy(self.deployment, context)
@@ -343,7 +340,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_completion(self):
-        """Verify workflow sequence and data flow"""
+        '''Verify workflow sequence and data flow'''
 
         expected = []
 
@@ -474,14 +471,14 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
 class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
 
-    """Test that map file works without maps (was 'checkmate.json')"""
+    '''Test that map file works without maps (was 'checkmate.json')'''
 
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
         register_providers([solo.Provider, test.TestProvider])
         self.deployment = \
-            Deployment(utils.yaml_to_dict("""
+            Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test app
@@ -510,9 +507,9 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                             is: compute
                             provides:
                             - compute: linux
-            """))
+            '''))
         self.map_file = \
-            """
+            '''
             \n--- # foo component
                 id: foo
                 requires:
@@ -522,10 +519,10 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                 provides:
                 - database: mysql
                 maps: {}  # blank map should be ignored as well
-            """
+            '''
 
     def test_workflow_task_generation(self):
-        """Verify workflow sequence and data flow"""
+        '''Verify workflow sequence and data flow'''
 
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(IgnoreArg())
@@ -558,7 +555,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
 
 
 class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
-    """
+    '''
 
     Test workflow for a single service works
 
@@ -570,7 +567,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
     - have a simple, one component test to test the basics if one of the more
       complex tests fails
 
-    """
+    '''
 
     def setUp(self):
         self.maxDiff = 1000
@@ -578,7 +575,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
         base.PROVIDER_CLASSES = {}
         register_providers([solo.Provider, test.TestProvider])
         self.deployment = \
-            Deployment(utils.yaml_to_dict("""
+            Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test db
@@ -610,9 +607,9 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                   blueprint:
                     username: u1  # test that this gets used
                     # test that database_name gets provided from defaults
-            """))
+            '''))
         self.map_file = \
-            """
+            '''
                 id: mysql
                 is: database
                 requires:
@@ -656,10 +653,10 @@ interfaces/mysql/host
                         mysql:
                           password: {{ setting('password') }}
                           username: {{ setting('username') }}
-            """
+            '''
 
     def test_workflow_task_creation(self):
-        """Verify workflow sequence and data flow"""
+        '''Verify workflow sequence and data flow'''
 
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(IgnoreArg())
@@ -691,7 +688,7 @@ interfaces/mysql/host
         self.assertIn("hash", resources['admin']['instance'])
 
     def test_workflow_execution(self):
-        """Verify workflow executes"""
+        '''Verify workflow executes'''
 
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(IgnoreArg())
@@ -832,7 +829,7 @@ interfaces/mysql/host
         self.mox.VerifyAll()
 
         final = workflow.get_tasks()[-1]
-        expected = utils.yaml_to_dict("""
+        expected = utils.yaml_to_dict('''
                 chef_options:
                 instance:0:
                     name: app_db
@@ -849,14 +846,14 @@ interfaces/mysql/host
                         password: myPassW0rd
                         username: u1
                         host: 4.4.4.4
-            """)
+            ''')
         self.assertDictEqual(final.attributes['instance:0'],
                              expected['instance:0'])
 
 
 class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
 
-    """
+    '''
 
     Test complex workflows
 
@@ -871,14 +868,14 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     - use conceptual (foo, bar, widget, etc) catalog, not mysql
     - check client mappings
 
-    """
+    '''
 
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
         register_providers([solo.Provider, test.TestProvider])
         self.deployment = \
-            Deployment(utils.yaml_to_dict("""
+            Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test app
@@ -906,9 +903,9 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                             is: compute
                             provides:
                             - compute: linux
-            """))
+            '''))
         self.map_file = \
-            """
+            '''
             \n--- # foo component
                 id: foo
                 is: application
@@ -965,10 +962,10 @@ interfaces/mysql/database_name
                 - source: clients://database:mysql/ip
                   targets:
                   - attributes://connections
-            """
+            '''
 
     def test_workflow_task_creation(self):
-        """Verify workflow sequence and data flow"""
+        '''Verify workflow sequence and data flow'''
 
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(IgnoreArg())
@@ -1097,7 +1094,7 @@ interfaces/mysql/database_name
         self.assertListEqual(role.kwargs['run_list'], expected)
 
     def test_workflow_execution(self):
-        """Verify workflow executes"""
+        '''Verify workflow executes'''
 
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(IgnoreArg())
@@ -1356,7 +1353,7 @@ interfaces/mysql/database_name
 
 class TestChefMap(unittest.TestCase):
 
-    """Test ChefMap Class"""
+    '''Test ChefMap Class'''
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -1373,7 +1370,7 @@ class TestChefMap(unittest.TestCase):
         # Clean up from previous failed run
         if os.path.exists(self.local_path):
             shutil.rmtree(self.local_path)
-            LOG.info("Removed '%s'" % self.local_path)
+            LOG.info("Removed '%s'", self.local_path)
 
     def tearDown(self):
         self.mox.UnsetStubs()
@@ -1382,9 +1379,9 @@ class TestChefMap(unittest.TestCase):
         os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
 
     def test_get_map_file_hit_cache(self):
-        """Test remote map file retrieval (cache hit)"""
+        '''Test remote map file retrieval (cache hit)'''
         os.makedirs(os.path.join(self.cache_path, ".git"))
-        LOG.info("Created '%s'" % self.cache_path)
+        LOG.info("Created '%s'", self.cache_path)
 
         # Create a dummy Chefmap and .git/FETCH_HEAD
         with file(self.fetch_head_path, 'a'):
@@ -1413,9 +1410,9 @@ class TestChefMap(unittest.TestCase):
             self.mox.VerifyAll()
 
     def test_get_map_file_miss_cache(self):
-        """Test remote map file retrieval (cache miss)"""
+        '''Test remote map file retrieval (cache miss)'''
         os.makedirs(os.path.join(self.cache_path, ".git"))
-        LOG.info("Created '%s'" % self.cache_path)
+        LOG.info("Created '%s'", self.cache_path)
 
         # Create a dummy Chefmap and .git/FETCH_HEAD
         with file(self.fetch_head_path, 'a'):
@@ -1449,7 +1446,7 @@ class TestChefMap(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_get_map_file_no_cache(self):
-        """Test remote map file retrieval (not cached)"""
+        '''Test remote map file retrieval (not cached)'''
         chefmap = solo.ChefMap()
 
         def fake_clone(url=None, path=None, branch=None):
@@ -1475,7 +1472,7 @@ class TestChefMap(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_get_map_file_local(self):
-        """Test local map file retrieval"""
+        '''Test local map file retrieval'''
         blueprint = os.path.join(self.local_path, "blueprint")
         os.makedirs(blueprint)
 
@@ -1582,59 +1579,59 @@ class TestChefMap(unittest.TestCase):
         self.assertEqual(result['path'], 'only')
 
     def test_has_mapping_positive(self):
-        chef_map = solo.ChefMap(raw="""
+        chef_map = solo.ChefMap(raw='''
                 id: test
                 maps:
                 - source: 1
-            """)
+            ''')
         self.assertTrue(chef_map.has_mappings('test'))
 
     def test_has_mapping_negative(self):
-        chef_map = solo.ChefMap(raw="""
+        chef_map = solo.ChefMap(raw='''
                 id: test
                 maps: {}
-            """)
+            ''')
         self.assertFalse(chef_map.has_mappings('test'))
 
     def test_has_requirement_map_positive(self):
-        chef_map = solo.ChefMap(raw="""
+        chef_map = solo.ChefMap(raw='''
                 id: test
                 maps:
                 - source: requirements://name/path
                 - source: requirements://database:mysql/username
-            """)
+            ''')
         self.assertTrue(chef_map.has_requirement_mapping('test', 'name'))
         self.assertTrue(chef_map.has_requirement_mapping('test',
                                                          'database:mysql'))
         self.assertFalse(chef_map.has_requirement_mapping('test', 'other'))
 
     def test_has_requirement_mapping_negative(self):
-        chef_map = solo.ChefMap(raw="""
+        chef_map = solo.ChefMap(raw='''
                 id: test
                 maps: {}
-            """)
+            ''')
         self.assertFalse(chef_map.has_requirement_mapping('test', 'name'))
 
     def test_has_client_map_positive(self):
-        chef_map = solo.ChefMap(raw="""
+        chef_map = solo.ChefMap(raw='''
                 id: test
                 maps:
                 - source: clients://name/path
                 - source: clients://database:mysql/ip
-            """)
+            ''')
         self.assertTrue(chef_map.has_client_mapping('test', 'name'))
         self.assertTrue(chef_map.has_client_mapping('test', 'database:mysql'))
         self.assertFalse(chef_map.has_client_mapping('test', 'other'))
 
     def test_has_client_mapping_negative(self):
-        chef_map = solo.ChefMap(raw="""
+        chef_map = solo.ChefMap(raw='''
                 id: test
                 maps: {}
-            """)
+            ''')
         self.assertFalse(chef_map.has_client_mapping('test', 'name'))
 
     def test_get_attributes(self):
-        chef_map = solo.ChefMap(raw="""
+        chef_map = solo.ChefMap(raw='''
                 id: foo
                 maps:
                 - value: 1
@@ -1646,26 +1643,26 @@ class TestChefMap(unittest.TestCase):
                 - value: 1
                   targets:
                   - databags://mybag/there
-            """)
+            ''')
         self.assertDictEqual(chef_map.get_attributes('foo', None), {'here': 1})
         self.assertDictEqual(chef_map.get_attributes('bar', None), {})
         self.assertIsNone(chef_map.get_attributes('not there', None))
 
     def test_has_runtime_options(self):
-        chef_map = solo.ChefMap(raw="""
+        chef_map = solo.ChefMap(raw='''
                 id: foo
                 maps:
                 - source: requirements://database:mysql/
                 \n---
                 id: bar
                 maps: {}
-                """)
+                ''')
         self.assertTrue(chef_map.has_runtime_options('foo'))
         self.assertFalse(chef_map.has_runtime_options('bar'))
         self.assertFalse(chef_map.has_runtime_options('not there'))
 
     def test_filter_maps_by_schemes(self):
-        maps = utils.yaml_to_dict("""
+        maps = utils.yaml_to_dict('''
                 - value: 1
                   targets:
                   - databags://bag/item
@@ -1676,7 +1673,7 @@ class TestChefMap(unittest.TestCase):
                 - value: 3
                   targets:
                   - attributes://id
-                """)
+                ''')
         expect = "Should detect all maps with databags target"
         ts = ['databags']
         result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
@@ -1702,7 +1699,7 @@ class TestChefMap(unittest.TestCase):
 
 
 class TestTransform(unittest.TestCase):
-    """Test Transform functionality"""
+    '''Test Transform functionality'''
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -1711,13 +1708,13 @@ class TestTransform(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_write_attribute(self):
-        maps = utils.yaml_to_dict("""
+        maps = utils.yaml_to_dict('''
                 # Simple scalar to attribute
                 - value: 10
                   targets:
                   - attributes://widgets
                   resource: '0'
-            """)
+            ''')
         fxn = solo.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
@@ -1734,15 +1731,15 @@ class TestTransform(unittest.TestCase):
         self.assertDictEqual(results, expected)
 
     def test_write_output_template(self):
-        """Test that an output template written as output"""
-        output = utils.yaml_to_dict("""
+        '''Test that an output template written as output'''
+        output = utils.yaml_to_dict('''
                   'instance:0':
                     name: test
                     instance:
                       interfaces:
                         mysql:
                           database_name: db1
-            """)
+            ''')
 
         self.mox.StubOutWithMock(
             checkmate.deployments.resource_postback, "delay")
@@ -1761,19 +1758,19 @@ class TestTransform(unittest.TestCase):
         result = fxn(spec, task)
         self.mox.VerifyAll()
         self.assertTrue(result)  # task completes
-        expected = utils.yaml_to_dict("""
+        expected = utils.yaml_to_dict('''
                   'instance:0':
                     name: test
                     instance:
                       interfaces:
                         mysql:
                           database_name: db1
-            """)
+            ''')
         self.assertDictEqual(results, expected)
 
 
 class TestChefMapEvaluator(unittest.TestCase):
-    """Test ChefMap Mapping Evaluation"""
+    '''Test ChefMap Mapping Evaluation'''
     def test_scalar_evaluation(self):
         chefmap = solo.ChefMap(parsed="")
         result = chefmap.evaluate_mapping_source({'value': 10}, None)
@@ -1801,7 +1798,7 @@ class TestChefMapEvaluator(unittest.TestCase):
 
 
 class TestChefMapApplier(unittest.TestCase):
-    """Test ChefMap Mapping writing to targets"""
+    '''Test ChefMap Mapping writing to targets'''
     def test_output_writing(self):
         chefmap = solo.ChefMap(parsed="")
         mapping = {'targets': ['outputs://ip']}
@@ -1811,9 +1808,9 @@ class TestChefMapApplier(unittest.TestCase):
 
 
 class TestChefMapResolver(unittest.TestCase):
-    """Test ChefMap Mapping writing to targets"""
+    '''Test ChefMap Mapping writing to targets'''
     def test_resolve_ready_maps(self):
-        maps = utils.yaml_to_dict("""
+        maps = utils.yaml_to_dict('''
                 - value: 1
                   resource: '0'
                   targets:
@@ -1828,13 +1825,13 @@ class TestChefMapResolver(unittest.TestCase):
                   resource: '0'
                   targets:
                   - attributes://not
-                """)
-        data = utils.yaml_to_dict("""
+                ''')
+        data = utils.yaml_to_dict('''
                 instance:1:
                   location:
                     path:
                       value: 8
-                """)
+                ''')
         result = {}
         unresolved = solo.ChefMap.resolve_ready_maps(maps, data, result)
         expected = {'attributes:0': {'ready': 8, 'simple': 1}}
@@ -1843,7 +1840,7 @@ class TestChefMapResolver(unittest.TestCase):
 
 
 class TestTemplating(unittest.TestCase):
-    """Test that templating engine handles the use cases we need"""
+    '''Test that templating engine handles the use cases we need'''
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -1852,14 +1849,14 @@ class TestTemplating(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_remote_catalog_sourcing(self):
-        """Test source constraint picks up remote catalog"""
+        '''Test source constraint picks up remote catalog'''
 
         provider = \
-            solo.Provider(utils.yaml_to_dict("""
+            solo.Provider(utils.yaml_to_dict('''
                 vendor: opscode
                 constraints:
                 - source: git://gh.acme.com/user/repo.git#branch
-                """))
+                '''))
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(IgnoreArg())
         chefmap.get_map_file().AndReturn(TEMPLATE)
@@ -1874,22 +1871,22 @@ class TestTemplating(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_parsing_scalar(self):
-        """Test parsing with simple, scalar variables"""
+        '''Test parsing with simple, scalar variables'''
         chef_map = solo.ChefMap('')
-        chef_map._raw = """
+        chef_map._raw = '''
             {% set id = 'foo' %}
             id: {{ id }}
             maps:
             - value: {{ 1 }}
               targets:
               - attributes://{{ 'here' }}
-        """
+        '''
         self.assertDictEqual(chef_map.get_attributes('foo', None), {'here': 1})
 
     def test_parsing_functions_parse_url(self):
-        """Test 'parse_url' function use in parsing"""
+        '''Test 'parse_url' function use in parsing'''
         chef_map = solo.ChefMap('')
-        chef_map._raw = """
+        chef_map._raw = '''
             id: foo
             maps:
             - value: {{ 1 }}
@@ -1911,7 +1908,7 @@ class TestTemplating(unittest.TestCase):
             - value: {{ parse_url('http://github.com/#master').fragment }}
               targets:
               - attributes://fragment
-        """
+        '''
         result = chef_map.get_attributes('bar', None)
         expected = {
             'scheme': 'http',
@@ -1923,9 +1920,9 @@ class TestTemplating(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_parse_url_Input(self):
-        """Test 'parse_url' function use in parsing of Inputs"""
+        '''Test 'parse_url' function use in parsing of Inputs'''
         chef_map = solo.ChefMap('')
-        chef_map._raw = """
+        chef_map._raw = '''
             id: foo
             maps:
             - value: {{ 1 }}
@@ -1942,7 +1939,7 @@ class TestTemplating(unittest.TestCase):
 'TEST_CERT'}).protocol }}
               targets:
               - attributes://protocol_target/scheme
-        """
+        '''
         chef_map.parse(chef_map.raw)
         result = chef_map.get_attributes('bar', None)
         expected = {
@@ -1956,15 +1953,15 @@ class TestTemplating(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_hash(self):
-        """Test 'hash' function use in parsing"""
+        '''Test 'hash' function use in parsing'''
         chef_map = solo.ChefMap('')
-        chef_map._raw = """
+        chef_map._raw = '''
             id: foo
             maps:
             - value: {{ hash('password', salt='ahem') }}
               targets:
               - attributes://here
-        """
+        '''
         self.assertDictEqual(
             chef_map.get_attributes('foo', None),
             {
@@ -1976,7 +1973,7 @@ class TestTemplating(unittest.TestCase):
         )
 
     def test_yaml_escaping_simple(self):
-        """Test parsing with simple strings that don't break YAML"""
+        '''Test parsing with simple strings that don't break YAML'''
         chef_map = solo.ChefMap('')
         template = "id: {{ setting('password') }}"
         deployment = Deployment({
@@ -1992,7 +1989,7 @@ class TestTemplating(unittest.TestCase):
         self.assertEqual(data, {'id': 'Password1'})
 
     def test_yaml_escaping_at(self):
-        """Test parsing with YAML-breaking values: @"""
+        '''Test parsing with YAML-breaking values: @'''
         chef_map = solo.ChefMap('')
         template = "id: {{ setting('password') }}"
         deployment = Deployment({
@@ -2108,17 +2105,9 @@ output:
           database_name: {{ setting('database_name') }}
 """
 
+
 if __name__ == '__main__':
-
-    # Run tests. Handle our parameters separately
-
+    # Any change here should be made in all test files
     import sys
-    args = sys.argv[:]
-
-    # Our --debug means --verbose for unitest
-
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    from checkmate.test import run_with_params
+    run_with_params(sys.argv[:])
