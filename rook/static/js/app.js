@@ -1838,29 +1838,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       $scope.buildNetwork(network, parent_element);
     }
   };
-
-  // Old code we might reuse
-  $scope.showConnections = function(task_div) {
-    jsPlumb.Defaults.Container = "task_container";
-
-    var selectedTask = _.find($scope.tasks, function(task) {
-      if (task.id === parseInt(task_div.attr('id'), 10))
-        return task;
-      return null;
-    });
-    var source = $('#' + selectedTask.id);
-    _.each(selectedTask.children, function(child) {
-      var target = $('#' + child.id);
-      if (target.length != 1) {
-        console.log("Error finding child " + child.id + " there were " + target.length + " matches.");
-      } else {
-        jsPlumb.connect({
-          source: source,
-          target: target
-        });
-      }
-     });
-  };
 }
 
 //Blueprint controllers
