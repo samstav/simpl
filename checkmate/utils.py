@@ -245,6 +245,12 @@ def to_yaml(data):
     return yaml.safe_dump(data, default_flow_style=False)
 
 
+def render_yaml_string(text):
+    '''Renders a string as valid YAML string escaping where necessary.'''
+    # yaml seems to append \n or \n...\n in certain circumstances
+    return yaml.safe_dump(text).strip('\n').strip('...').strip('\n')
+
+
 def write_json(data, request, response):
     """Write output in json"""
     response.set_header('content-type', 'application/json')
