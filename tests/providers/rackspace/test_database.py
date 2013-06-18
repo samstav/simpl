@@ -488,6 +488,7 @@ class TestCatalog(unittest.TestCase):
             "type": "rax:database"
         }]
         context.auth_token = "DUMMY_TOKEN"
+        context.region = None
         expected = {
             'compute': {
                 'mysql_instance': {

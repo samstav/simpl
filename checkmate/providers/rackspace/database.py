@@ -3,7 +3,6 @@ Rackspace Cloud Databases Provider
 '''
 import copy
 import logging
-import random
 import string
 
 from celery.task import task, current
@@ -128,7 +127,7 @@ class Provider(ProviderBase):
         return templates
 
     def verify_limits(self, context, resources):
-        """Verify that deployment stays within absolute resource limits"""
+        '''Verify that deployment stays within absolute resource limits'''
 
         # Cloud databases absolute limits are currently hard-coded
         # The limits are per customer per region.
@@ -174,7 +173,7 @@ class Provider(ProviderBase):
         return messages
 
     def verify_access(self, context):
-        """Verify that the user has permissions to create database resources"""
+        '''Verify that the user has permissions to create database resources'''
         roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
         if user_has_access(context, roles):
             return {
@@ -382,13 +381,13 @@ class Provider(ProviderBase):
                 alt_resource_postback.s(deployment_id))
 
     def _delete_db_res_tasks(self, context, deployment_id, resource, key):
-        """ Return delete tasks for the specified database instance """
+        ''' Return delete tasks for the specified database instance '''
         return (delete_database.s(context) |
                 alt_resource_postback.s(deployment_id))
 
     def get_catalog(self, context, type_filter=None):
-        """Return stored/override catalog if it exists, else connect, build,
-        and return one"""
+        '''Return stored/override catalog if it exists, else connect, build,
+        and return one'''
 
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
@@ -400,7 +399,9 @@ class Provider(ProviderBase):
 
         # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
-        region = Provider.find_a_region(context.catalog)
+        region = getattr(context, 'region', None)
+        if not region:
+            region = Provider.find_a_region(context.catalog)
         api_endpoint = Provider.find_url(context.catalog, region)
         if type_filter is None or type_filter == 'database':
             results['database'] = dict(mysql_database={
@@ -481,7 +482,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def find_a_region(catalog):
-        """Any region"""
+        '''Any region'''
         for service in catalog:
             if service['type'] == 'rax:database':
                 endpoints = service['endpoints']
@@ -490,7 +491,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def connect(context, region=None):
-        """Use context info to connect to API and return api object"""
+        '''Use context info to connect to API and return api object'''
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
             context = RequestContext(**context)
@@ -502,7 +503,9 @@ class Provider(ProviderBase):
             region = REGION_MAP[region]
 
         if not region:
-            region = Provider.find_a_region(context.catalog) or 'DFW'
+            region = getattr(context, 'region', None)
+            if not region:
+                region = Provider.find_a_region(context.catalog) or 'DFW'
 
         #TODO: instead of hacking auth using a token, submit patch upstream
         url = Provider.find_url(context.catalog, region)
@@ -535,7 +538,7 @@ def _get_flavors(api_endpoint, auth_token):
 @task(default_retry_delay=10, max_retries=2)
 def create_instance(context, instance_name, flavor, size, databases, region,
                     api=None):
-    """Creates a Cloud Database instance with optional initial databases.
+    '''Creates a Cloud Database instance with optional initial databases.
 
     :param databases: an array of dictionaries with keys to set the database
     name, character set and collation.  For example:
@@ -543,7 +546,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
         databases=[{'name': 'db1'},
                    {'name': 'db2', 'character_set': 'latin5',
                     'collate': 'latin5_turkish_ci'}]
-    """
+    '''
     match_celery_logging(LOG)
     if context.get('simulation') is True:
         resource_key = context['resource']
@@ -643,7 +646,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, instance_id, region, api=None):
-    """ Check to see if DB Instance has finished building """
+    ''' Check to see if DB Instance has finished building '''
 
     match_celery_logging(LOG)
     if context.get('simulation') is True:
@@ -696,7 +699,7 @@ def wait_on_build(context, instance_id, region, api=None):
 @task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
 def create_database(context, name, region, character_set=None, collate=None,
                     instance_id=None, instance_attributes=None, api=None):
-    """Create a database resource.
+    '''Create a database resource.
 
     This call also creates a server instance if it is not supplied.
 
@@ -710,7 +713,7 @@ def create_database(context, name, region, character_set=None, collate=None,
             supplied, the instance is created)
     :param instance_attributes: kwargs used to create the instance (used if
             instance_id not supplied)
-    """
+    '''
 
     match_celery_logging(LOG)
 
@@ -747,7 +750,7 @@ def create_database(context, name, region, character_set=None, collate=None,
 
     reset_failed_resource_task.delay(context["deployment"],
                                      context["resource"])
-                                     
+
     instance_key = 'instance:%s' % context['resource']
     if not instance_id:
         # Create instance & database
@@ -797,8 +800,7 @@ def create_database(context, name, region, character_set=None, collate=None,
             }
         }
         LOG.info('Created database(s) %s on instance %s',
-                 [db['name'] for db in
-                  databases], instance_id)
+                 [d['name'] for d in databases], instance_id)
         # Send data back to deployment
         resource_postback.delay(context['deployment'], results)
         return results
@@ -812,7 +814,7 @@ def create_database(context, name, region, character_set=None, collate=None,
 
 @task(default_retry_delay=10, max_retries=10)
 def add_databases(context, instance_id, databases, region, api=None):
-    """Adds new database(s) to an existing instance.
+    '''Adds new database(s) to an existing instance.
 
     :param databases: a list of dictionaries with a required key for database
     name and optional keys for setting the character set and collation.
@@ -822,7 +824,7 @@ def add_databases(context, instance_id, databases, region, api=None):
         databases = [{'name': 'mydb2', 'character_set': 'latin5',
                     'collate': 'latin5_turkish_ci'}]
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
-    """
+    '''
     match_celery_logging(LOG)
 
     dbnames = []
@@ -844,7 +846,7 @@ def add_databases(context, instance_id, databases, region, api=None):
 @task(default_retry_delay=10, max_retries=10)
 def add_user(context, instance_id, databases, username, password, region,
              api=None):
-    """Add a database user to an instance for one or more databases"""
+    '''Add a database user to an instance for one or more databases'''
     match_celery_logging(LOG)
 
     assert instance_id, "Instance ID not supplied"
@@ -931,6 +933,8 @@ def sync_resource_task(context, resource, resource_key, api=None):
             region = instance['host_region']
         elif 'region' in resource:
             region = resource['region']
+        elif hasattr(context, region):
+            region = context.region
         else:
             region = Provider.find_a_region(context)
         api = Provider.connect(context, region)
@@ -951,14 +955,14 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
 @task(default_retry_delay=2, max_retries=60)
 def delete_instance(context, api=None):
-    """Deletes a database server instance and its associated databases and
+    '''Deletes a database server instance and its associated databases and
     users.
-    """
+    '''
 
     match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        """ Handle task failure """
+        ''' Handle task failure '''
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -971,7 +975,8 @@ def delete_instance(context, api=None):
                         'database instance %s' % key
                     ),
                     'error-message': exc.message,
-                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-traceback': 'Task %s: %s' % (task_id,
+                                                        einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1044,12 +1049,12 @@ def delete_instance(context, api=None):
 
 @task(default_retry_delay=5, max_retries=60)
 def wait_on_del_instance(context, api=None):
-    """ Wait for the specified instance to be deleted """
+    ''' Wait for the specified instance to be deleted '''
 
     match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        """ Handle task failure """
+        ''' Handle task failure '''
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -1062,7 +1067,8 @@ def wait_on_del_instance(context, api=None):
                         'database instance %s' % key
                     ),
                     'error-message': exc.message,
-                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-traceback': 'Task %s: %s' % (task_id,
+                                                        einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1120,12 +1126,12 @@ def wait_on_del_instance(context, api=None):
 
 @task(default_retry_delay=2, max_retries=30)
 def delete_database(context, api=None):
-    """Delete a database from an instance"""
+    '''Delete a database from an instance'''
 
     match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        """ Handle task failure """
+        ''' Handle task failure '''
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -1138,7 +1144,8 @@ def delete_database(context, api=None):
                         'database %s' % key
                     ),
                     'error-message': exc.message,
-                    'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
+                    'error-traceback': 'Task %s: %s' % (task_id,
+                                                        einfo.traceback)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1196,7 +1203,7 @@ def delete_database(context, api=None):
 
 @task(default_retry_delay=10, max_retries=10)
 def delete_user(context, instance_id, username, region, api=None):
-    """Delete a database user from an instance."""
+    '''Delete a database user from an instance.'''
     match_celery_logging(LOG)
     if api is None:
         api = Provider.connect(context, region)

@@ -257,8 +257,9 @@ class Provider(RackspaceComputeProviderBase):
 
     def verify_limits(self, context, resources):
         """Verify that deployment stays within absolute resource limits"""
-
-        region = Provider.find_a_region(context.catalog)
+        region = getattr(context, 'region', None)
+        if not region:
+            region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
         flavors = _get_flavors(url, context.auth_token)['flavors']
 
@@ -334,7 +335,8 @@ class Provider(RackspaceComputeProviderBase):
             'checkmate.providers.rackspace.compute.create_server',
             call_args=[
                 context.get_queued_task_dict(deployment=deployment['id'],
-                                             resource=key),
+                                             resource=key,
+                                             region=resource['region']),
                 resource.get('dns-name'),
                 resource['region']
             ],
@@ -460,7 +462,9 @@ class Provider(RackspaceComputeProviderBase):
     @staticmethod
     def _get_api_info(context):
         '''Get Flavors, Images and Types available in a given Region'''
-        region = Provider.find_a_region(context.catalog)
+        region = getattr(context, 'region', None)
+        if not region:
+            region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
         jobs = eventlet.GreenPile(2)
         jobs.spawn(_get_flavors, url, context.auth_token)
@@ -595,7 +599,9 @@ class Provider(RackspaceComputeProviderBase):
             raise CheckmateNoTokenError()
 
         if not region:
-            region = Provider.find_a_region(context.catalog) or 'DFW'
+            region = getattr(context, 'region', None)
+            if not region:
+                region = Provider.find_a_region(context.catalog) or 'DFW'
 
         os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
         api = client.Client('ignore', 'ignore', None, 'localhost')

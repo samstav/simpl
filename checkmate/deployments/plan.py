@@ -3,26 +3,27 @@ import copy
 import logging
 import string
 
+import eventlet
+
 from checkmate import keys
+from checkmate import utils
 from checkmate.classes import ExtensibleDict
+from checkmate.deployment import (
+    validate_blueprint_options,
+    validate_input_constraints,
+)
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException
 )
 from checkmate.middleware import RequestContext
-from checkmate import utils
-from checkmate.deployment import (
-    validate_blueprint_options,
-    validate_input_constraints,
-)
 from checkmate.resource import Resource
-import eventlet
 
 LOG = logging.getLogger(__name__)
 
 
 class Plan(ExtensibleDict):
-    """Analyzes a Checkmate deployment and persists the analysis results
+    '''Analyzes a Checkmate deployment and persists the analysis results
 
     This class will do the following:
     - identify which components the blueprint calls for
@@ -63,7 +64,7 @@ class Plan(ExtensibleDict):
     The class behaves like a dict and will contain the analysis results.
     The resources attribute will contain the planned resources as well.
 
-    """
+    '''
 
     def __init__(self, deployment, *args, **kwargs):
         ExtensibleDict.__init__(self, *args, **kwargs)
@@ -87,7 +88,7 @@ class Plan(ExtensibleDict):
         validate_input_constraints(deployment)
 
     def plan(self, context):
-        """Perform plan analysis. Returns a reference to planned resources"""
+        '''Perform plan analysis. Returns a reference to planned resources'''
         LOG.info("Planning deployment '%s'", self.deployment['id'])
         # Fill the list of services
         service_names = self.deployment['blueprint'].get('services', {}).keys()
@@ -95,6 +96,13 @@ class Plan(ExtensibleDict):
 
         # Perform analysis steps
         self.evaluate_defaults()
+
+        # FIXME: we need to figure a way to make this happen in the providers
+        # Set region to pick up the right images
+        if not context.region:
+            region = self.deployment.get_setting('region')
+            if region:
+                context.region = region
         self.resolve_components(context)
         self.resolve_relations()
         self.resolve_remaining_requirements(context)
@@ -108,7 +116,7 @@ class Plan(ExtensibleDict):
         return self.resources
 
     def _unique_providers(self):
-        """Returns a list of provider instances, one per provider type."""
+        '''Returns a list of provider instances, one per provider type.'''
         providers = []
         names = []
         for name, provider in self.environment.providers.iteritems():
@@ -118,14 +126,14 @@ class Plan(ExtensibleDict):
         return providers
 
     def verify_limits(self, context):
-        """Ensure provider resources can be allocated.
+        '''Ensure provider resources can be allocated.
 
         Checks API limits against resources that will be spun up
         during deployment.
 
         :param context: a RequestContext
         :return: Returns a list of warning/error messages
-        """
+        '''
         pile = eventlet.GreenPile()
         providers = self._unique_providers()
         for provider in providers:
@@ -138,11 +146,11 @@ class Plan(ExtensibleDict):
         return results
 
     def verify_access(self, context):
-        """Ensure user has RBAC permissions to allocate provider resources.
+        '''Ensure user has RBAC permissions to allocate provider resources.
 
         :param context: a RequestContext
         :return: Returns a list of warning/error messages
-        """
+        '''
         pile = eventlet.GreenPile()
         providers = self._unique_providers()
         for provider in providers:
@@ -154,12 +162,12 @@ class Plan(ExtensibleDict):
         return results
 
     def plan_delete(self, context):
-        """
+        '''
         Collect delete resource tasks from the deployment
 
         :param context: a RequestContext
         :return: a celery.canvas.group of the delete tasks
-        """
+        '''
         assert isinstance(context, RequestContext)
         del_tasks = []
         dep_id = self.deployment.get("id")
@@ -184,14 +192,14 @@ class Plan(ExtensibleDict):
         return del_tasks
 
     def evaluate_defaults(self):
-        """
+        '''
 
         Evaluate option defaults
 
         Replaces defaults if they are a function with a final value so that the
         defaults are not evaluated once per workflow or once per component.
 
-        """
+        '''
         for _, option in self.blueprint.get('options', {}).iteritems():
             if 'default' in option:
                 default = option['default']
@@ -200,10 +208,10 @@ class Plan(ExtensibleDict):
                     option['default'] = utils.evaluate(default[1:])
 
     def add_resources(self, deployment, context):
-        """
+        '''
         This is a container for the origninal plan() function. It contains
         code that is not yet fully refactored. This will go away over time.
-        """
+        '''
         blueprint = self.blueprint
         environment = self.environment
         services = blueprint.get('services', {})
@@ -247,9 +255,8 @@ class Plan(ExtensibleDict):
                     extra_components = service_analysis.get(
                         'extra-components', {})
                     for key, extra_def in extra_components.iteritems():
-                        LOG.debug(
-                            "    Processing extra component '%s' for '%s'" %
-                            (key, service_name))
+                        LOG.debug("    Processing extra component '%s' for "
+                                  "'%s'", key, service_name)
                         extra_resources = deployment.create_resource_template(
                             service_index,
                             extra_def,
@@ -384,7 +391,7 @@ class Plan(ExtensibleDict):
             Resource.validate(result)
 
     def add_resource(self, resource, definition, service_name=None):
-        """Add a resource to the list of resources to be created"""
+        '''Add a resource to the list of resources to be created'''
         resource['index'] = str(self.resource_index)
 
         self.resource_index += 1
@@ -405,7 +412,7 @@ class Plan(ExtensibleDict):
                     "outbound-from"] = resource['index']
 
     def connect_resource(self, resource, definition):
-        """
+        '''
 
         Add 'relations' key to a resource based on the connection information
         in the plan to connect it to all other resources
@@ -413,7 +420,7 @@ class Plan(ExtensibleDict):
         :param resource: the resource to connect
         :param definition: the definition of the resource from the plan
 
-        """
+        '''
         for key, connection in definition.get('connections', {}).iteritems():
             if connection.get('outbound-from') and connection.get(
                     'outbound-from') != resource['index']:
@@ -450,7 +457,7 @@ class Plan(ExtensibleDict):
 
     @staticmethod
     def connect_instances(resource, target, connection, connection_key):
-        """Connect two resources based on the provided connection definition"""
+        '''Connect two resources based on the provided connection definition'''
         relation_type = connection.get('relation', 'reference')
         if relation_type == 'host':
             write_key = 'host'
@@ -510,14 +517,14 @@ class Plan(ExtensibleDict):
         relations[write_key] = result
 
     def resolve_components(self, context):
-        """
+        '''
 
         Identify needed components and resolve them to provider components
 
         :param context: the call context. Component catalog may depend on
                 current context
 
-        """
+        '''
         LOG.debug("Analyzing service components")
         services = self.deployment['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
@@ -530,14 +537,14 @@ class Plan(ExtensibleDict):
             self['services'][service_name]['component'] = component
 
     def resolve_relations(self):
-        """
+        '''
 
         Identifies source and target provides/requires keys for all relations
 
         Assumes that find_components() has already run and identified all the
         components in the deployment. If not, this will effectively be a noop
 
-        """
+        '''
         LOG.debug("Analyzing relations")
         services = self.deployment['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
@@ -604,7 +611,7 @@ class Plan(ExtensibleDict):
     @staticmethod
     def connect(source, target, interface, connection_key,
                 relation_type='reference', relation_key=None, attribute=None):
-        """
+        '''
 
         Connect two components by adding the connection information to them
 
@@ -640,7 +647,7 @@ class Plan(ExtensibleDict):
             attribute: if needed by v0.2 connection
 
 
-        """
+        '''
 
         # Write to source connections
 
@@ -685,7 +692,7 @@ class Plan(ExtensibleDict):
             connections[connection_key] = info
 
     def resolve_remaining_requirements(self, context):
-        """
+        '''
 
         Resolves all requirements by finding and loading appropriate components
 
@@ -696,7 +703,7 @@ class Plan(ExtensibleDict):
         Any additional components are added under a service's
         `extra-components` key using the requirement's key.
 
-        """
+        '''
         LOG.debug("Analyzing requirements")
         services = self['services']
         for service_name, service in services.iteritems():
@@ -755,14 +762,14 @@ class Plan(ExtensibleDict):
                              key, relation_type=relation)
 
     def resolve_recursive_requirements(self, context, history):
-        """
+        '''
 
         Goes through extra-component and resolves any of their requirements
 
         Loops recursively until all requirements are met. Detects cyclic Loops
         by keeping track of requirements met.
 
-        """
+        '''
         LOG.debug("Analyzing additional requirements")
         stack = []
         services = self['services']
@@ -836,7 +843,7 @@ class Plan(ExtensibleDict):
 
     def _satisfy_requirement(self, requirement, requirement_key, component,
                              component_service, relation_key=None, name=None):
-        """
+        '''
 
         Mark requirement as satisfied by component
 
@@ -849,7 +856,7 @@ class Plan(ExtensibleDict):
               relation-key: optional key of a relation if one was used as a
                             hint to identify this relationship
 
-        """
+        '''
         # Identify the matching interface
         provides_match = self._find_provides_key(requirement, component)
         if not provides_match:
@@ -867,7 +874,7 @@ class Plan(ExtensibleDict):
         requirement['satisfied-by'] = info
 
     def identify_component(self, definition, context):
-        """Identifies a component based on blueprint-type keys"""
+        '''Identifies a component based on blueprint-type keys'''
         assert not isinstance(definition, list)  # deprecated syntax
         found = self.environment.find_component(definition, context)
         if not found:
@@ -884,7 +891,7 @@ class Plan(ExtensibleDict):
 
     @staticmethod
     def _format_relation(key, value, service):
-        """
+        '''
 
         Parses relation and returns expanded relation as key and map tuple
 
@@ -907,7 +914,7 @@ class Plan(ExtensibleDict):
         connections generated by a named relation are named per the relation
         name, and other relations are named service:interface.
 
-        """
+        '''
         final_key = key
         final_map = {}
         if isinstance(value, dict):
@@ -941,7 +948,7 @@ class Plan(ExtensibleDict):
 
     @staticmethod
     def _find_requires_key(relation, component):
-        """
+        '''
 
         Matches a requirement on the source component as the source of a
         relation
@@ -952,7 +959,7 @@ class Plan(ExtensibleDict):
         :param component: a dict of the component as parsed by the analyzer
         :returns: 'requires' key
 
-        """
+        '''
         backup = None
         for key, requirement in component.get('requires', {}).iteritems():
             if requirement['interface'] == relation['interface']:
@@ -970,7 +977,7 @@ class Plan(ExtensibleDict):
 
     @staticmethod
     def _find_provides_key(relation, component):
-        """
+        '''
 
         Matches a provided interface on the target component as the target of a
         relation
@@ -979,7 +986,7 @@ class Plan(ExtensibleDict):
         :param component: a dict of the component as parsed by the analyzer
         :returns: 'provides' key
 
-        """
+        '''
         for key, provided in component.get('provides', {}).iteritems():
             if provided['interface'] == relation['interface']:
                 return key
