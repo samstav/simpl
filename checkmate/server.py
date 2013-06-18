@@ -272,6 +272,7 @@ def argument_parser():
 
 def main_func():
     '''Start the server based on passed in arguments. Called by __main__'''
+    CONFIG.update(vars(argument_parser()))
 
     resources = ['version']
     anonymous_paths = ['version']
@@ -284,7 +285,6 @@ def main_func():
     if utils.get_debug_level(CONFIG) == logging.DEBUG:
         bottle.debug(True)
 
-    CONFIG.update(vars(argument_parser()))
     if CONFIG.eventlet is True:
         eventlet.monkey_patch()
 
