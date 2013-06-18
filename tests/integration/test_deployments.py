@@ -1156,6 +1156,20 @@ class TestDeploymentSettings(unittest.TestCase):
                           "my_option", constraint, option=option,
                           option_key="my_option")
 
+    def test_handle_bad_call(self):
+        '''Validate missing options handled correctly'''
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                environment:
+                  providers: {}
+                blueprint: {}
+                inputs: {}
+            """))
+        self.assertRaises(CheckmateValidationException,
+                          deployment.get_setting, None)
+        self.assertRaises(CheckmateValidationException,
+                          deployment.get_setting, '')
+
 
 class TestDeploymentScenarios(unittest.TestCase):
 

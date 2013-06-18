@@ -352,6 +352,11 @@ class Deployment(ExtensibleDict):
                 compute, database)
         :param default: value to return if no match found
         """
+        if not name:
+            raise CheckmateValidationException("setting() was called with a "
+                                               "blank value. Check your map "
+                                               "file for bad calls to "
+                                               "'setting'")
         if relation:
             result = self._get_svc_relation_attribute(name, service_name,
                                                       relation)
