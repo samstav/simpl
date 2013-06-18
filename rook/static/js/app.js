@@ -969,8 +969,6 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
     if (newVal !== null) scroll.toCurrent();
   });
-
-  $scope.load();
 }
 
 function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q) {
@@ -2256,8 +2254,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
     if (newVal !== null) scroll.toCurrent();
   });
-
-  $scope.load();
 }
 
 //Hard-coded for Managed Cloud Wordpress
