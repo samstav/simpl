@@ -198,91 +198,91 @@ class TestResource(unittest.TestCase):
         self.assertEqual('ACTIVE', preexisting_resource.fsm.current)
 
     def test_from_PLANNED_straight_to_ACTIVE(self):
-        self.assertTrue(self.resource.fsm.can('active'))
+        self.assertTrue(self.resource.fsm.permitted('ACTIVE'))
 
     def test_from_PLANNED_straight_to_DELETING(self):
-        self.assertTrue(self.resource.fsm.can('deleting'))
+        self.assertTrue(self.resource.fsm.permitted('DELETING'))
 
     def test_from_NEW_straight_to_ACTIVE(self):
         self.resource['status'] = 'NEW'
-        self.assertTrue(self.resource.fsm.can('active'))
+        self.assertTrue(self.resource.fsm.permitted('ACTIVE'))
 
     def test_from_BUILD_straight_to_ACTIVE(self):
         self.resource['status'] = 'NEW'
         self.resource['status'] = 'BUILD'
-        self.assertTrue(self.resource.fsm.can('active'))
+        self.assertTrue(self.resource.fsm.permitted('ACTIVE'))
 
     def test_valid_new_to_deleted_with_no_errors(self):
         self.resource['status'] = 'PLANNED'
-        self.assertTrue(self.resource.fsm.can('new'))
-        self.assertTrue(self.resource.fsm.can('active'))
-        self.assertTrue(self.resource.fsm.can('deleting'))
+        self.assertTrue(self.resource.fsm.permitted('NEW'))
+        self.assertTrue(self.resource.fsm.permitted('ACTIVE'))
+        self.assertTrue(self.resource.fsm.permitted('DELETING'))
         self.resource['status'] = 'NEW'
-        self.assertTrue(self.resource.fsm.can('build'))
-        self.assertTrue(self.resource.fsm.can('active'))
-        self.assertTrue(self.resource.fsm.can('deleting'))
-        self.assertTrue(self.resource.fsm.can('error'))
+        self.assertTrue(self.resource.fsm.permitted('BUILD'))
+        self.assertTrue(self.resource.fsm.permitted('ACTIVE'))
+        self.assertTrue(self.resource.fsm.permitted('DELETING'))
+        self.assertTrue(self.resource.fsm.permitted('ERROR'))
         self.resource['status'] = 'BUILD'
-        self.assertTrue(self.resource.fsm.can('configure'))
-        self.assertTrue(self.resource.fsm.can('active'))
-        self.assertTrue(self.resource.fsm.can('deleting'))
-        self.assertTrue(self.resource.fsm.can('error'))
+        self.assertTrue(self.resource.fsm.permitted('CONFIGURE'))
+        self.assertTrue(self.resource.fsm.permitted('ACTIVE'))
+        self.assertTrue(self.resource.fsm.permitted('DELETING'))
+        self.assertTrue(self.resource.fsm.permitted('ERROR'))
         self.resource['status'] = 'CONFIGURE'
-        self.assertTrue(self.resource.fsm.can('active'))
-        self.assertTrue(self.resource.fsm.can('deleting'))
-        self.assertTrue(self.resource.fsm.can('error'))
+        self.assertTrue(self.resource.fsm.permitted('ACTIVE'))
+        self.assertTrue(self.resource.fsm.permitted('DELETING'))
+        self.assertTrue(self.resource.fsm.permitted('ERROR'))
         self.resource['status'] = 'ACTIVE'
-        self.assertTrue(self.resource.fsm.can('deleting'))
-        self.assertTrue(self.resource.fsm.can('error'))
+        self.assertTrue(self.resource.fsm.permitted('DELETING'))
+        self.assertTrue(self.resource.fsm.permitted('ERROR'))
         self.resource['status'] = 'DELETING'
-        self.assertTrue(self.resource.fsm.can('deleted'))
-        self.assertTrue(self.resource.fsm.can('error'))
+        self.assertTrue(self.resource.fsm.permitted('DELETED'))
+        self.assertTrue(self.resource.fsm.permitted('ERROR'))
         self.resource['status'] = 'DELETED'
-        self.assertTrue(self.resource.fsm.isstate('DELETED'))
+        self.assertEqual('DELETED', self.resource.fsm.current)
 
     def test_invalid_transitions_from_PLANNED(self):
-        self.assertFalse(self.resource.fsm.can('planned'))
-        self.assertFalse(self.resource.fsm.can('build'))
-        self.assertFalse(self.resource.fsm.can('configure'))
-        self.assertFalse(self.resource.fsm.can('deleted'))
-        self.assertFalse(self.resource.fsm.can('error'))
+        self.assertFalse(self.resource.fsm.permitted('PLANNED'))
+        self.assertFalse(self.resource.fsm.permitted('BUILD'))
+        self.assertFalse(self.resource.fsm.permitted('CONFIGURE'))
+        self.assertFalse(self.resource.fsm.permitted('DELETED'))
+        self.assertFalse(self.resource.fsm.permitted('ERROR'))
 
     def test_invalid_transitions_from_NEW(self):
         self.resource['status'] = 'NEW'
-        self.assertFalse(self.resource.fsm.can('planned'))
-        self.assertFalse(self.resource.fsm.can('new'))
-        self.assertFalse(self.resource.fsm.can('configure'))
-        self.assertFalse(self.resource.fsm.can('deleted'))
+        self.assertFalse(self.resource.fsm.permitted('PLANNED'))
+        self.assertFalse(self.resource.fsm.permitted('NEW'))
+        self.assertFalse(self.resource.fsm.permitted('CONFIGURE'))
+        self.assertFalse(self.resource.fsm.permitted('DELETED'))
 
     def test_invalid_transitions_from_BUILD(self):
         self.resource['status'] = 'NEW'
         self.resource['status'] = 'BUILD'
-        self.assertFalse(self.resource.fsm.can('planned'))
-        self.assertFalse(self.resource.fsm.can('new'))
-        self.assertFalse(self.resource.fsm.can('build'))
-        self.assertFalse(self.resource.fsm.can('deleted'))
+        self.assertFalse(self.resource.fsm.permitted('PLANNED'))
+        self.assertFalse(self.resource.fsm.permitted('NEW'))
+        self.assertFalse(self.resource.fsm.permitted('BUILD'))
+        self.assertFalse(self.resource.fsm.permitted('DELETED'))
 
     def test_invalid_transitions_from_CONFIGURE(self):
         self.resource['status'] = 'NEW'
         self.resource['status'] = 'BUILD'
         self.resource['status'] = 'CONFIGURE'
-        self.assertFalse(self.resource.fsm.can('planned'))
-        self.assertFalse(self.resource.fsm.can('new'))
-        self.assertFalse(self.resource.fsm.can('build'))
-        self.assertFalse(self.resource.fsm.can('configure'))
-        self.assertFalse(self.resource.fsm.can('deleted'))
+        self.assertFalse(self.resource.fsm.permitted('PLANNED'))
+        self.assertFalse(self.resource.fsm.permitted('NEW'))
+        self.assertFalse(self.resource.fsm.permitted('BUILD'))
+        self.assertFalse(self.resource.fsm.permitted('CONFIGURE'))
+        self.assertFalse(self.resource.fsm.permitted('DELETED'))
 
     def test_invalid_transitions_from_ACTIVE(self):
         self.resource['status'] = 'NEW'
         self.resource['status'] = 'BUILD'
         self.resource['status'] = 'CONFIGURE'
         self.resource['status'] = 'ACTIVE'
-        self.assertFalse(self.resource.fsm.can('planned'))
-        self.assertFalse(self.resource.fsm.can('new'))
-        self.assertFalse(self.resource.fsm.can('build'))
-        self.assertFalse(self.resource.fsm.can('configure'))
-        self.assertFalse(self.resource.fsm.can('active'))
-        self.assertFalse(self.resource.fsm.can('deleted'))
+        self.assertFalse(self.resource.fsm.permitted('PLANNED'))
+        self.assertFalse(self.resource.fsm.permitted('NEW'))
+        self.assertFalse(self.resource.fsm.permitted('BUILD'))
+        self.assertFalse(self.resource.fsm.permitted('CONFIGURE'))
+        self.assertFalse(self.resource.fsm.permitted('ACTIVE'))
+        self.assertFalse(self.resource.fsm.permitted('DELETED'))
 
     def test_invalid_transitions_from_DELETING(self):
         self.resource['status'] = 'NEW'
@@ -290,12 +290,12 @@ class TestResource(unittest.TestCase):
         self.resource['status'] = 'CONFIGURE'
         self.resource['status'] = 'ACTIVE'
         self.resource['status'] = 'DELETING'
-        self.assertFalse(self.resource.fsm.can('planned'))
-        self.assertFalse(self.resource.fsm.can('new'))
-        self.assertFalse(self.resource.fsm.can('build'))
-        self.assertFalse(self.resource.fsm.can('configure'))
-        self.assertFalse(self.resource.fsm.can('active'))
-        self.assertFalse(self.resource.fsm.can('deleting'))
+        self.assertFalse(self.resource.fsm.permitted('PLANNED'))
+        self.assertFalse(self.resource.fsm.permitted('NEW'))
+        self.assertFalse(self.resource.fsm.permitted('BUILD'))
+        self.assertFalse(self.resource.fsm.permitted('CONFIGURE'))
+        self.assertFalse(self.resource.fsm.permitted('ACTIVE'))
+        self.assertFalse(self.resource.fsm.permitted('DELETING'))
 
     def test_invalid_transitions_from_DELETED(self):
         self.resource['status'] = 'NEW'
@@ -304,21 +304,21 @@ class TestResource(unittest.TestCase):
         self.resource['status'] = 'ACTIVE'
         self.resource['status'] = 'DELETING'
         self.resource['status'] = 'DELETED'
-        self.assertFalse(self.resource.fsm.can('planned'))
-        self.assertFalse(self.resource.fsm.can('new'))
-        self.assertFalse(self.resource.fsm.can('build'))
-        self.assertFalse(self.resource.fsm.can('configure'))
-        self.assertFalse(self.resource.fsm.can('active'))
-        self.assertFalse(self.resource.fsm.can('deleting'))
-        self.assertFalse(self.resource.fsm.can('deleted'))
-        self.assertFalse(self.resource.fsm.can('error'))
+        self.assertFalse(self.resource.fsm.permitted('PLANNED'))
+        self.assertFalse(self.resource.fsm.permitted('NEW'))
+        self.assertFalse(self.resource.fsm.permitted('BUILD'))
+        self.assertFalse(self.resource.fsm.permitted('CONFIGURE'))
+        self.assertFalse(self.resource.fsm.permitted('ACTIVE'))
+        self.assertFalse(self.resource.fsm.permitted('DELETING'))
+        self.assertFalse(self.resource.fsm.permitted('DELETED'))
+        self.assertFalse(self.resource.fsm.permitted('ERROR'))
 
     def test_invalid_transitions_from_ERROR(self):
         self.resource['status'] = 'NEW'
         self.resource['status'] = 'ERROR'
-        self.assertFalse(self.resource.fsm.can('planned'))
-        self.assertFalse(self.resource.fsm.can('deleted'))
-        self.assertFalse(self.resource.fsm.can('error'))
+        self.assertFalse(self.resource.fsm.permitted('PLANNED'))
+        self.assertFalse(self.resource.fsm.permitted('DELETED'))
+        self.assertFalse(self.resource.fsm.permitted('ERROR'))
 
     def test_invalid_transition_results_in_warning(self):
         self.resource['status'] = 'BUILD'

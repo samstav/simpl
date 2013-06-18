@@ -2,16 +2,17 @@
 a deployment's resources
 '''
 import logging
+from morpheus import MorpheusDict as dict
+from morpheus import dict as exceptions
+from simplefsm import SimpleFSM
+from simplefsm.exceptions import InvalidStateError
 
 from checkmate.common import schema
-from checkmate.common.fysom import Fysom, FysomError
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException
 )
 from checkmate.providers import ProviderBase
-from morpheus import MorpheusDict as dict
-from morpheus import dict as exceptions
 
 exceptions.ValidationError = CheckmateValidationException
 
@@ -42,77 +43,23 @@ class Resource(dict):
         'id', 'flavor', 'image', 'disk', 'region', 'protocol', 'port'
     ]
 
-    FYSOM_STATES = {
-        'PLANNED': {
-            'description': 'Not Started',
-            'events': [
-                {'name': 'new', 'dst': 'NEW'},
-                {'name': 'active', 'dst': 'ACTIVE'},
-                {'name': 'deleting', 'dst': 'DELETING'},
-            ],
-        },
-        'NEW': {
-            'description': 'Starting to build',
-            'events': [
-                {'name': 'build', 'dst': 'BUILD'},
-                {'name': 'active', 'dst': 'ACTIVE'},
-                {'name': 'deleting', 'dst': 'DELETING'},
-                {'name': 'error', 'dst': 'ERROR'},
-            ],
-        },
-        'BUILD': {
-            'description': 'Resource is being built',
-            'events': [
-                {'name': 'configure', 'dst': 'CONFIGURE'},
-                {'name': 'active', 'dst': 'ACTIVE'},
-                {'name': 'deleting', 'dst': 'DELETING'},
-                {'name': 'error', 'dst': 'ERROR'},
-            ],
-        },
-        'CONFIGURE': {
-            'description': 'Resource is being configured',
-            'events': [
-                {'name': 'active', 'dst': 'ACTIVE'},
-                {'name': 'deleting', 'dst': 'DELETING'},
-                {'name': 'error', 'dst': 'ERROR'},
-            ],
-        },
-        'ACTIVE': {
-            'description': 'Resource is configured and ready for use',
-            'events': [
-                {'name': 'deleting', 'dst': 'DELETING'},
-                {'name': 'error', 'dst': 'ERROR'},
-            ],
-        },
-        'DELETING': {
-            'description': 'Resource is being deleted',
-            'events': [
-                {'name': 'deleted', 'dst': 'DELETED'},
-                {'name': 'error', 'dst': 'ERROR'},
-            ],
-        },
-        'DELETED': {
-            'description': 'Resource has been deleted'
-        },
-        'ERROR': {
-            'description': 'There was an error working on this resource',
-            'events': [
-                {'name': 'new', 'dst': 'NEW'},
-                {'name': 'build', 'dst': 'BUILD'},
-                {'name': 'configure', 'dst': 'CONFIGURE'},
-                {'name': 'active', 'dst': 'ACTIVE'},
-                {'name': 'deleting', 'dst': 'DELETING'},
-            ],
-        },
+    FSM_TRANSITIONS = {
+        'PLANNED': {'NEW', 'ACTIVE', 'DELETING'},
+        'NEW': {'BUILD', 'ACTIVE', 'DELETING', 'ERROR'},
+        'BUILD': {'CONFIGURE', 'ACTIVE', 'DELETING', 'ERROR'},
+        'CONFIGURE': {'ACTIVE', 'DELETING', 'ERROR'},
+        'ACTIVE': {'DELETING', 'ERROR'},
+        'DELETING': {'DELETED', 'ERROR'},
+        'DELETED': {},
+        'ERROR': {'NEW', 'BUILD', 'CONFIGURE', 'ACTIVE', 'DELETING'}
     }
 
     def __init__(self, key, obj):
-        self.fsm = Fysom({
-            'initial': self.get('status', 'PLANNED'),
-            'events': schema.get_state_events(Resource.FYSOM_STATES),
+        obj['status'] = obj.get('status', 'PLANNED')
+        self.fsm = SimpleFSM({
+            'initial': obj['status'],
+            'transitions': self.FSM_TRANSITIONS
         })
-        if 'status' not in obj:
-            obj['status'] = self.fsm.current
         Resource.validate(obj)
         if 'desired-state' in obj:
             if not isinstance(obj['desired-state'], Resource.DesiredState):
@@ -131,8 +78,8 @@ class Resource(dict):
                 LOG.info("Resource %s going from %s to %s",
                          self.get('id'), self.get('status'), value)
                 try:
-                    self.fsm.go_to(value)
-                except FysomError:
+                    self.fsm.change_to(value)
+                except InvalidStateError:
                     # This should raise a CheckmateBadState error with message:
                     #
                     # "Cannot transition from %s to %s" %
@@ -142,7 +89,7 @@ class Resource(dict):
                     # setting state anyway.
                     LOG.warn("State change from %s to %s is invalid",
                              self.fsm.current, value)
-                    self.fsm.force_go_to(value)
+                    self.fsm.force_change_to(value)
         super(Resource, self).__setitem__(key, value)
 
     @classmethod
@@ -151,7 +98,6 @@ class Resource(dict):
         _validate(obj, Resource.SCHEMA, Resource.SCHEMA_DEPRECATED)
         if 'desired-state' in obj:
             Resource.DesiredState.validate(obj['desired-state'])
-
 
     class DesiredState(dict):
         '''The Desired State section of a Resource'''

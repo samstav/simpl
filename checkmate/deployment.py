@@ -9,11 +9,12 @@ import urlparse
 
 from bottle import abort
 from celery.task import task
+from simplefsm import SimpleFSM
+from simplefsm.exceptions import InvalidStateError, InconsistentModelError
 
 from checkmate import keys
 from checkmate.blueprints import Blueprint
 from checkmate.classes import ExtensibleDict
-from checkmate.common.fysom import Fysom, FysomError
 from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import any_id_problems, get_driver
@@ -193,7 +194,18 @@ class Deployment(ExtensibleDict):
     Holds the Environment and providers during the processing of a deployment
     and creation of a workflow
     """
-    status_definitions = schema.get_state_events(schema.DEPLOYMENT_STATUSES)
+
+    FSM_TRANSITIONS = {
+        'NEW': {'PLANNED', 'FAILED'},
+        'PLANNED': {'UP', 'FAILED'},
+        'UP': {'ALERT', 'UNREACHABLE', 'DOWN', 'DELETED'},
+        'FAILED': {'DELETED'},
+        'ALERT': {'DELETED', 'UP'},
+        'UNREACHABLE': {'DOWN', 'UP', 'ALERT'},
+        'DOWN': {'UP', 'DELETED'},
+        'DELETED': {}
+    }
+
     legacy_statuses = {  # TODO: remove these when old data is clean
         "BUILD": 'UP',
         "CONFIGURE": 'UP',
@@ -206,22 +218,20 @@ class Deployment(ExtensibleDict):
     def __init__(self, *args, **kwargs):
         ExtensibleDict.__init__(self, *args, **kwargs)
         self._environment = None
-
-        self.fsm = Fysom({
-            'initial': self.get('status', 'NEW'),
-            'events': self.status_definitions,
+        self.fsm = SimpleFSM({
+            'initial': None,
+            'transitions': self.FSM_TRANSITIONS
         })
 
         if 'status' not in self:
             self['status'] = 'NEW'
         elif self['status'] in self.legacy_statuses:
-            ExtensibleDict.__setitem__(self, 'status',
-                                       self.legacy_statuses[self['status']])
-            self.fsm.current = self['status']
-
-        elif self['status'] not in schema.DEPLOYMENT_STATUSES:
-            raise CheckmateValidationException("Invalid deployment status "
-                                               "%s" % self['status'])
+            self['status'] = self.legacy_statuses[self['status']]
+        else:
+            try:
+                self.fsm.change_to(self['status'])
+            except InvalidStateError as error:
+                raise CheckmateValidationException(str(error))
 
         if 'created' not in self:
             self['created'] = get_time_string()
@@ -234,10 +244,9 @@ class Deployment(ExtensibleDict):
                 try:
                     LOG.info("Deployment %s going from %s to %s",
                              self.get('id'), self.get('status'), value)
-                    self.fsm.go_to(value)
-                except FysomError:
-                    raise CheckmateBadState("Cannot transition from %s to %s" %
-                                            (self.fsm.current, value))
+                    self.fsm.change_to(value)
+                except InvalidStateError as error:
+                    raise CheckmateBadState(str(error))
         ExtensibleDict.__setitem__(self, key, value)
 
     @classmethod
