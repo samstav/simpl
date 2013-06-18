@@ -590,6 +590,10 @@ def is_ssh_key(key):
     return False
 
 
+def get_class_name(instance):
+    return instance.__class__.__name__
+
+
 def get_source_body(function):
     '''Gets the body of a function (i.e. no definition line, and unindented'''
     lines = inspect.getsource(function).split('\n')

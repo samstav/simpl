@@ -22,6 +22,7 @@ from checkmate.exceptions import (
 from checkmate.utils import (
     get_time_string,
     extract_sensitive_data,
+    get_class_name,
 )
 
 DB = get_driver()
@@ -101,7 +102,7 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     driver.save_workflow(workflow_id, body, secrets=secrets)
 
 
-def get_failed_tasks(wf_dict, tenant_id):
+def get_errors(wf_dict, tenant_id):
     '''
     Traverses through the workflow-tasks, and collects errors information from
     all the failed tasks
@@ -119,25 +120,34 @@ def get_failed_tasks(wf_dict, tenant_id):
                 exception = eval(info)
                 if isinstance(exception, CheckmateRetriableException):
                     results.append({
+                        "error-type": exception.error_type,
                         "error-message": exception.args[0],
                         "error-help": exception.error_help,
                         "retriable": True,
+                        "task-id": task.id,
                         "retry-link":
                         "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
-                        tenant_id, wf_dict.attributes["id"], task.id)
+                        tenant_id, wf_dict.attributes["id"], task.id),
+                        "action-required": exception.action_required
+
                     })
                 elif isinstance(exception, CheckmateResumableException):
                     results.append({
                         "error-message": exception.args[0],
+                        "error-type": exception.error_type,
                         "error-help": exception.error_help,
                         "resumable": True,
-                        "resume-link": "/%s/workflows/%s/tasks/%s/+poke" % (
+                        "task-id": task.id,
+                        "resume-link": "/%s/workflows/%s/tasks/%s/+execute" % (
                             tenant_id,
                             wf_dict.attributes["id"],
-                            task.id)
+                            task.id),
+                        "action-required": exception.action_required
                     })
                 elif isinstance(exception, Exception):
-                    results.append({"error-message": exception.args[0]})
+                    results.append({
+                        "error-type": get_class_name(exception),
+                        "error-message": exception.args[0]})
             except Exception:
                 results.append({"error-message": info})
     return results

@@ -27,7 +27,7 @@ from checkmate.exceptions import (
 from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
-from checkmate.utils import match_celery_logging
+from checkmate.utils import match_celery_logging, get_class_name
 from checkmate.workflow import wait_for
 
 
@@ -776,8 +776,9 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             loadbalancer = api.loadbalancers.create(
                 name=name, port=port, protocol=protocol.upper(),
                 nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
-    except RateLimit as rate_limit_exc:
-        raise CheckmateRetriableException(rate_limit_exc.reason, "")
+    except RateLimit as exc:
+        raise CheckmateRetriableException(exc.reason, "", get_class_name(exc),
+                                          action_required=False)
 
     # Put the instance_id in the db as soon as it's available
     instance_id = {
@@ -1216,7 +1217,8 @@ def wait_on_build(context, lbid, region, api=None):
                                                context['deployment'],
                                                context['resource']),
                                            instance_key).apply_async()
-        raise CheckmateRetriableException(msg, "")
+        raise CheckmateRetriableException(msg, "", get_class_name(
+            CheckmateLoadbalancerBuildFailed()), action_required=True)
     elif loadbalancer.status == "ACTIVE":
         results = {
             instance_key: {
@@ -1228,5 +1230,10 @@ def wait_on_build(context, lbid, region, api=None):
         resource_postback.delay(context['deployment'], results)
         return results
     else:
-        msg = ("Loadbalancer status is %s, retrying" % (loadbalancer.status))
+        msg = ("Loadbalancer status is %s, retrying" % loadbalancer.status)
         return wait_on_build.retry(exc=CheckmateException(msg))
+
+
+class CheckmateLoadbalancerBuildFailed(CheckmateException):
+    """Error building loadbalancer"""
+    pass

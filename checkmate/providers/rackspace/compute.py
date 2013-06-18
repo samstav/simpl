@@ -28,6 +28,7 @@ from checkmate.exceptions import (
     CheckmateNoMapping,
     CheckmateException,
     CheckmateRetriableException,
+    CheckmateServerBuildFailed,
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
@@ -37,6 +38,7 @@ from checkmate.utils import (
     match_celery_logging,
     isUUID,
     yaml_to_dict,
+    get_class_name,
 )
 from checkmate.workflow import wait_for
 
@@ -785,12 +787,14 @@ def create_server(context, name, region, api_object=None, flavor="2",
     try:
         server = api_object.servers.create(name, image_object, flavor_object,
                                            meta=meta, files=files)
-    except OverLimit:
+    except OverLimit as exc:
         raise CheckmateRetriableException("You have reached the maximum "
                                           "number of servers that can be "
                                           "spinned up using this account. "
                                           "Please delete some servers to "
-                                          "continue", "")
+                                          "continue", "",
+                                          get_class_name(exc),
+                                          action_required=True)
 
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
@@ -1049,7 +1053,10 @@ def wait_on_build(context, server_id, region, resource,
                                                context['resource']),
                                            instance_key).apply_async()
         raise CheckmateRetriableException("Server %s build failed" % server_id,
-                                          "")
+                                          "",
+                                          get_class_name(
+                                              CheckmateServerBuildFailed()),
+                                          action_required=True)
 
     if server.status == 'BUILD':
         results['progress'] = server.progress
