@@ -930,6 +930,10 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
   $scope.selected = items.selected;
 
+  $scope.showPagination = function(){
+    return $scope.links && $scope.totalPages > 1;
+  };
+
   $scope.load = function() {
     console.log("Starting load");
     var path,
@@ -941,10 +945,6 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
     $location.replace();
 
     path = '/:tenantId/workflows.json' + paginator.buildPagingParams();
-    $scope.showPagination = function(){
-      return $scope.links && $scope.totalPages > 1;
-    };
-
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
       var paging_info,
@@ -2188,6 +2188,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.selected = items.selected;
 
+  $scope.showPagination = function(){
+    return $scope.links && $scope.totalPages > 1;
+  };
+
   $scope.load = function() {
     console.log("Starting load");
     var path,
@@ -2200,10 +2204,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     $location.replace();
 
     path = $location.path() + '.json';
-
-    $scope.showPagination = function(){
-      return $scope.links && $scope.totalPages > 1;
-    };
 
     params = {
         tenantId: $scope.auth.context.tenantId,
