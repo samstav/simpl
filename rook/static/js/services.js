@@ -1434,8 +1434,12 @@ services.factory('pagination', function(){
 
   function buildPaginator(offset, limit){
     var valid_params = _getValidPageParams(offset, limit);
+    var changed_params = function() {
+      return (offset && offset != valid_params.offset) || (limit && limit != valid_params.limit);
+    }
 
-    return { offset: valid_params.offset,
+    return { changed_params: changed_params,
+             offset: valid_params.offset,
              limit: valid_params.limit,
              buildPagingParams: buildPagingParams,
              getPagingInformation: getPagingInformation };

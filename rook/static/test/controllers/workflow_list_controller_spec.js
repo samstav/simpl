@@ -20,7 +20,7 @@ describe('WorkflowListController', function(){
     scroll = {};
     items = {};
     navbar = { highlight: emptyFunction };
-    pagination = { buildPaginator: sinon.stub().returns({ buildPagingParams: sinon.stub().returns('') }) };
+    pagination = { buildPaginator: sinon.stub().returns({ buildPagingParams: sinon.stub().returns(''), changed_params: sinon.spy() }) };
     controller = {};
     emptyResponse = { get: emptyFunction };
   });
@@ -34,19 +34,21 @@ describe('WorkflowListController', function(){
 
         scope = { $watch: emptyFunction, auth: { context: { tenantId: 'cats' }} };
         controller = new WorkflowListController(scope, location, resource_spy, workflow, items, navbar, scroll, pagination);
+        scope.load();
 
         expect(resource_spy.getCall(0).args[0]).toEqual('/:tenantId/workflows.json');
         expect(get_spy.getCall(0).args[0]).toEqual({ tenantId: 'cats' });
       });
 
       it('should append pagination params to the resource call', function(){
-        pagination = { buildPaginator: sinon.stub().returns({ buildPagingParams: sinon.stub().returns('?offset=20&limit=30') }) };
+        pagination.buildPaginator().buildPagingParams.returns('?offset=20&limit=30');
         location = { search: sinon.stub().returns({ offset: 20, limit: 30 }), replace: emptyFunction };
         resource = function(){ return { get: emptyFunction }; };
         resource_spy = sinon.spy(resource);
         pagination.extractPagingParams = sinon.stub().returns('?offset=20&limit=30');
 
         controller = new WorkflowListController(scope, location, resource_spy, workflow, items, navbar, scroll, pagination);
+        scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/:tenantId/workflows.json?offset=20&limit=30');
       });
     });

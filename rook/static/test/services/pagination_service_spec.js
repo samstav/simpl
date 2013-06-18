@@ -84,7 +84,6 @@ describe('pagination', function(){
       limit = null;
       expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=20&offset=0');
     });
-
   });
 
   describe('getPagingInformation', function(){
@@ -329,6 +328,41 @@ describe('pagination', function(){
         links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
         expect(_.filter(links.numbered_links, function(link){return (link.text < 1); }).length).toEqual(0);
       });
+    });
+  });
+
+  describe('#changed_params', function() {
+    var offset,
+        limit;
+    beforeEach(function(){
+      offset = undefined;
+      limit = undefined;
+    });
+
+    it('should return false if no query params were passed', function() {
+      expect(this.pagination.buildPaginator(offset, limit).changed_params()).toBeFalsy();
+    });
+
+    it('should return false if query params did not change', function() {
+      limit = 10;
+      offset = 10;
+      expect(this.pagination.buildPaginator(offset, limit).changed_params()).toBeFalsy();
+    });
+
+    it('should return true if query params were changed because limit was not valid', function() {
+      limit = -10;
+      expect(this.pagination.buildPaginator(offset, limit).changed_params()).toBeTruthy();
+    });
+
+    it('should return true if query params were changed because offset was not valid', function() {
+      offset = -10;
+      expect(this.pagination.buildPaginator(offset, limit).changed_params()).toBeTruthy();
+    });
+
+    it('should return true if query params were changed because they were not valid', function() {
+      limit = -10;
+      offset = -10;
+      expect(this.pagination.buildPaginator(offset, limit).changed_params()).toBeTruthy();
     });
   });
 });
