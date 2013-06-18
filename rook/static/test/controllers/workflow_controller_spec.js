@@ -10,7 +10,9 @@ describe('WorkflowController', function(){
       workflow,
       items,
       scroll,
-      deploymentDataParser;
+      deploymentDataParser,
+      $timeout,
+      $q;
 
   beforeEach(function(){
     $scope = { loginPrompt: sinon.stub().returns({ then: emptyFunction }), '$watch': emptyFunction, '$on': sinon.spy() };
@@ -23,6 +25,8 @@ describe('WorkflowController', function(){
     workflow = {};
     items = {};
     scroll = {};
+    $timeout = {};
+    $q = { defer: sinon.stub().returns({ resolve: emptyFunction, promise: {} }) };
     controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser);
   });
 
@@ -99,7 +103,7 @@ describe('WorkflowController', function(){
       var data = { wf_spec: ['cat'] };
       var get_spy = sinon.spy();
       $resource = sinon.stub().returns({ get: get_spy });
-      controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser);
+      controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q);
       var callback = get_spy.getCall(0).args[1];
       callback(data, emptyFunction);
     });
