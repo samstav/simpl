@@ -954,6 +954,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
       paging_info = paginator.getPagingInformation(data['collection-count'], workflows_url);
 
+      items.all = [];
       items.receive(data.results, function(item, key) {
         return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
       $scope.count = items.count;
