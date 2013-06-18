@@ -186,7 +186,9 @@ class Provider(ProviderBase):
 
     def verify_limits(self, context, resources):
         messages = []
-        region = Provider.find_a_region(context.catalog)
+        region = getattr(context, 'region', None)
+        if not region:
+            region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
         abs_limits = self._get_abs_limits(context.username, context.auth_token,
                                           url, region)
@@ -521,7 +523,9 @@ class Provider(ProviderBase):
         # build a live catalog ()this would be the on_get_catalog called if no
         # stored/override existed
         results = {}
-        region = Provider.find_a_region(context.catalog)
+        region = getattr(context, 'region', None)
+        if not region:
+            region = Provider.find_a_region(context.catalog)
         api_endpoint = Provider.find_url(context.catalog, region)
 
         if type_filter is None or type_filter == 'regions':
@@ -629,7 +633,9 @@ class Provider(ProviderBase):
             region = REGION_MAP[region]
 
         if not region:
-            region = Provider.find_a_region(context.catalog)
+            region = getattr(context, 'region', None)
+            if not region:
+                region = Provider.find_a_region(context.catalog)
             if not region:
                 raise CheckmateException("Unable to locate a load-balancer "
                                          "endpoint")
