@@ -493,18 +493,26 @@ class TestUtils(unittest.TestCase):
         password = utils.evaluate('generate_password(min_length=12)')
         self.assertEqual(12, len(password))
 
-    def test_render_yaml_string_simple(self):
-        self.assertEqual(utils.render_yaml_string('simple'), "simple")
+    def test_escape_yaml_simple_string_simple(self):
+        self.assertEqual(utils.escape_yaml_simple_string('simple'), "simple")
 
-    def test_render_yaml_string_null(self):
-        self.assertEqual(utils.render_yaml_string(None), 'null')
+    def test_escape_yaml_simple_string_null(self):
+        self.assertEqual(utils.escape_yaml_simple_string(None), 'null')
 
-    def test_render_yaml_string_blank(self):
-        self.assertEqual(utils.render_yaml_string(''), "''")
+    def test_escape_yaml_simple_string_blank(self):
+        self.assertEqual(utils.escape_yaml_simple_string(''), "''")
 
-    def test_render_yaml_string_at(self):
-        self.assertEqual(utils.render_yaml_string("@starts_with_at"),
+    def test_escape_yaml_simple_string_at(self):
+        self.assertEqual(utils.escape_yaml_simple_string("@starts_with_at"),
                          "'@starts_with_at'")
+
+    def test_escape_yaml_simple_string_multi_line(self):
+        '''Verify multi-line strings are not escaped (breaks cert parsing)'''
+        self.assertEqual(utils.escape_yaml_simple_string('A\nB'), 'A\nB')
+
+    def test_escape_yaml_simple_string_object(self):
+        '''Verify objects are bypassed'''
+        self.assertEqual(utils.escape_yaml_simple_string({'A': 1}), {'A': 1})
 
 
 if __name__ == '__main__':

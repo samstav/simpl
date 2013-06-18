@@ -244,11 +244,17 @@ def to_yaml(data):
     return yaml.safe_dump(data, default_flow_style=False)
 
 
-def render_yaml_string(text):
-    '''Renders a string as valid YAML string escaping where necessary.'''
-    # yaml seems to append \n or \n...\n in certain circumstances
-    return yaml.safe_dump(text).strip('\n').strip('...').strip('\n')
+def escape_yaml_simple_string(text):
+    '''Renders a simple string as valid YAML string escaping where necessary.
 
+    Note: Skips formatting if value supplied is not a string or is a multi-line
+          string and just returns the value unmodified
+    '''
+    # yaml seems to append \n or \n...\n in certain circumstances
+    if text is None or (isinstance(text, basestring) and '\n' not in text):
+        return yaml.safe_dump(text).strip('\n').strip('...').strip('\n')
+    else:
+        return text
 
 def write_json(data, request, response):
     '''Write output in json'''

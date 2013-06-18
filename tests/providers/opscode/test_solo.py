@@ -1952,6 +1952,52 @@ class TestTemplating(unittest.TestCase):
         }
         self.assertDictEqual(result, expected)
 
+    def test_parsing_functions_url_certificate(self):
+        '''Test 'parse_url' function use in parsing of Inputs'''
+        cert = """-----BEGIN CERTIFICATE-----
+MIICkjCCAfsCAgXeMA0GCSqGSIb3DQEBBQUAMIG2MQswCQYDVQQGEwJVUzEOMAwG
+A1UECBMFVGV4YXMxFDASBgNVBAcTC1NhbiBBbnRvbmlvMRIwEAYDVQQKEwlSYWNr
+c3BhY2UxHjAcBgNVBAsTFVN5c3RlbSBBZG1pbmlzdHJhdGlvbjEjMCEGA1UEAxMa
+UmFja3NwYWNlIEludGVybmFsIFJvb3QgQ0ExKDAmBgkqhkiG9w0BCQEWGVNlcnZp
+Y2VEZXNrQHJhY2tzcGFjZS5jb20wHhcNMTMwNTE2MDYxMDQ3WhcNMTQwNTE2MDYx
+MDQ3WjBrMQswCQYDVQQGEwJVUzEOMAwGA1UECBMFVGV4YXMxEjAQBgNVBAoTCVJh
+Y2tzcGFjZTEVMBMGA1UECxMMWmlhZCBTYXdhbGhhMSEwHwYDVQQDExhjaGVja21h
+dGUuY2xvdWQuaW50ZXJuYWwwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBALin
+K4gUwoQVt6mapFqmFBHAL1YUqabjWeyQNGD4Vt7L9XVgh6l1k+uqdzOKP7vlKh+T
+diUnDh/VTpq8HZ+bHI8HhDLLIXG61+3LDa+CkgRi4RuwgWIUUY7rs9rUCnJ2HeYa
+gRR+moptp+OK9rIwPv0k4O2Q29efBnZaL5Yyk3dPAgMBAAEwDQYJKoZIhvcNAQEF
+BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
+0qrcpuTvCS7ggfg1nCtXteJiYsRxZaleQeQSXBswXT3s3ZrUR9RSRPfGqJ9XiGlz
+/YrPhnGGC24lpqLV8lBZkLsdnnoKwQfI+aRGbg0x2pi+Zh22H8U=
+-----END CERTIFICATE-----
+"""
+        deployment = Deployment({
+            'inputs': {
+                'blueprint': {
+                    'url': {
+                        'url': 'http://github.com',
+                        'certificate': cert,
+                    },
+                },
+            },
+            'blueprint': {},
+        })
+        chef_map = solo.ChefMap('')
+        chef_map._raw = '''
+            id: foo
+            maps:
+            - value: |
+                {{ parse_url(setting('url')).certificate  | indent(16) }}
+              targets:
+              - attributes://cert_target/certificate
+            - value: {{ parse_url(setting('url')).protocol }}
+              targets:
+              - attributes://protocol_target/scheme
+        '''
+        result = chef_map.parse(chef_map.raw, deployment=deployment)
+        data = yaml.safe_load(result)
+        self.assertEqual(data['maps'][0]['value'], cert)
+
     def test_parsing_functions_hash(self):
         '''Test 'hash' function use in parsing'''
         chef_map = solo.ChefMap('')
