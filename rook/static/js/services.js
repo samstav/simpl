@@ -434,6 +434,11 @@ services.value('options', {
     var options = []; // The accumulating array
     var groups = {}; // The options grouped by groups in display-hints
     var region_option = null; // The option identified as the deployment region
+    var options_to_display = [];
+    var option_headers = {};
+    var DEFAULT_OPTIONS = ['application', 'server', 'load-balancer', 'database', 'dns'];
+    var DEFAULT_HEADERS = { 'application': 'Application Options', 'server': 'Server Options', 'load-balancer': 'Load Balancer Options', 'database': 'Database Options', 'dns': 'DNS Options'};
+
 
     var opts = blueprint.options;
     _.each(opts, function(item, key) {
@@ -505,7 +510,27 @@ services.value('options', {
       }
     });
 
-    return {options: options, groups: groups, region_option: region_option};
+    if(blueprint['meta-data'] && blueprint['meta-data']['reach-info'] && blueprint['meta-data']['reach-info']['option-groups']) {
+      _.each(blueprint['meta-data']['reach-info']['option-groups'], function(opt_group){
+        if(typeof(opt_group) === "string"){
+          options_to_display.push(opt_group);
+          option_headers[opt_group] = opt_group + " Options";
+        } else if(typeof(opt_group) === "object"){
+          for (var key in opt_group) {
+            if (opt_group.hasOwnProperty(key)) {
+              options_to_display.push(key);
+              option_headers[key] = opt_group[key];
+            }
+          }
+        }
+      });
+    }
+    else {
+      options_to_display = DEFAULT_OPTIONS;
+      option_headers = DEFAULT_HEADERS;
+    }
+
+    return { options: options, groups: groups, region_option: region_option, options_to_display: options_to_display, option_headers: option_headers };
   },
 
   getOptionsFromEnvironment: function(env) {

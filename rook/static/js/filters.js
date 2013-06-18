@@ -98,6 +98,22 @@ filters.filter('capitalize',
   }
 );
 
+filters.filter('capitalize_all',
+  function() {
+    return function(input) {
+      if(angular.isString(input) && input.length){
+        var words = input.split(' ');
+        var capital_words = [];
+        _.each(words, function(word){
+          capital_words.push(word.charAt(0).toUpperCase() + word.slice(1));
+        });
+        return capital_words.join(' ');
+      }
+      return input;
+    };
+  }
+);
+
 filters.filter('cm_validation_rules', function() {
   return function(constraints) {
     var html = '<div class=\"validation_rules\">';
