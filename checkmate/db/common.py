@@ -95,11 +95,11 @@ def any_id_problems(api_id):
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
                           "0123456789"
     allowed_chars = allowed_start_chars + "-_.+~@"
-    if api_id is None:
+    if not api_id:
         return 'ID cannot be blank'
     if not isinstance(api_id, basestring):
         return "ID must be a string, not an %s" % type(api_id).__name__
-    if 1 > len(api_id) > 32:
+    if 1 < len(api_id) > 32:
         return "ID must be 1 to 32 characters"
     if api_id[0] not in allowed_start_chars:
         return ("Invalid start character '%s'. ID can start with any of '%s'" %
@@ -122,11 +122,11 @@ def any_tenant_id_problems(api_id):
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
                           "0123456789"
     allowed_chars = allowed_start_chars + "-_.+~@()[]*&^=%$#!<>"
-    if api_id is None:
+    if not api_id:
         return 'Tenant ID cannot be blank'
     if not isinstance(api_id, basestring):
         api_id = str(api_id)
-    if 0 > len(api_id) > 255:
+    if 1 < len(api_id) > 255:
         return "Tenant ID must be 1 to 255 characters"
     if api_id[0] not in allowed_start_chars:
         return ("Invalid start character '%s'. Tenant ID can start with any "
