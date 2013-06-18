@@ -1250,9 +1250,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       if (['children', "$$hashKey"].indexOf(attr) == -1 && obj.hasOwnProperty(attr))
         copy[attr] = obj[attr];
     }
-    try {
-        $scope.$apply($scope.current_task_json = JSON.stringify(copy, null, 2));
-    } catch(err) {}
+    $scope.current_task_json = JSON.stringify(copy, null, 2)
     // Refresh CodeMirror since it might have been hidden
     _.each($('.CodeMirror'), function(inst) { inst.CodeMirror.refresh(); });
   };
@@ -1535,24 +1533,40 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   /*======================================*/
-  $scope._refresh_response = null;
+  $scope._task_states = null;
   $scope.auto_refresh_timeout = { current: 2000, min: 2000, max: 60000 };
   $scope.auto_refresh_promise = null;
 
+  // TODO: find a better way to decide if workflow is completed
+  $scope.is_completed = function() {
+    return ($scope.count === ($scope.taskStates['completed'] + $scope.taskStates['ready']))
+  }
+
+  $scope.reset_timeout = function() {
+    $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.min;
+  }
+
   $scope.increase_timeout = function() {
-    //$scope.auto_refresh_timeout.current *= 2;
-    //if ($scope.auto_refresh_timeout.current >= $scope.auto_refresh_timeout.max)
-    //  $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.max;
+    // Slowly increase timeout, but not too slowly
+    $scope.auto_refresh_timeout.current += $scope.auto_refresh_timeout.current / 2;
+    if ($scope.auto_refresh_timeout.current >= $scope.auto_refresh_timeout.max)
+      $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.max;
   }
 
   $scope.auto_refresh_success = function(response) {
-    if (_.isEqual($scope._refresh_response, response)) {
-      $scope.auto_refresh_timeout.current = $scope.auto_refresh_timeout.min;
-    } else {
+    if (_.isEqual($scope._task_states, $scope.taskStates)) {
       $scope.increase_timeout();
+    } else {
+      $scope.reset_timeout();
     }
+
+    if ($scope.is_completed()) {
+      $scope.reset_timeout();
+      return;
+    }
+
     $scope.auto_refresh_promise = $timeout($scope.auto_refresh, $scope.auto_refresh_timeout.current);
-    console.log($scope.auto_refresh_timeout.current);
+    $scope._task_states = _.clone($scope.taskStates);
   }
 
   $scope.auto_refresh = function() {
@@ -1567,8 +1581,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.$on('$routeChangeStart', $scope.cancel_auto_refresh);
 
   $scope.start_task_name = 'Start';
-  $scope.padding = 20;
-  $scope.spacing = 40;
+  $scope.padding = 8;
+  $scope.spacing = 10;
   $scope.default_task_duration = $scope.spacing;
   $scope.log_scale = 15;
   $scope.canvas = {
@@ -1578,15 +1592,19 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.getIcon = function(node) {
     var icon = '';
+    var color = '';
     var base_dir = "/img/icons/";
     var resource_id = node.spec.properties.resource || '';
     var resource = '';
 
-    if ($scope.deployment.resources && $scope.deployment.resources[resource_id])
+    if ($scope.deployment.resources && $scope.deployment.resources[resource_id]) {
       resource = $scope.deployment.resources[resource_id].type;
+      color = $scope.color(node);
+    }
 
     icon = resource;
-    if (icon != '') icon = base_dir + icon + '.svg';
+    if (['database', 'load-balancer', 'compute'].indexOf(icon) === -1) icon = '';
+    if (icon != '') icon = base_dir + icon + '-' + color + '.svg';
 
     return icon;
   }
@@ -1767,127 +1785,80 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     return color;
   }
 
-  $scope.buildNetwork = function(json, width, height, parent_element) {
-    var force = d3.layout.force()
-                .size([width, height]);
+  $scope.update_nodes = function(nodes, svg) {
+    var data = svg.select('#nodes').selectAll('g.node').data(nodes);
 
-    d3.select(".entries").select("svg").remove();
-    var svg = d3.select(parent_element)
-                .append("svg")
-                .attr("width", width)
-                .attr("height", height);
+    // Enter
+    var enter_nodes = data.enter()
+      .append('svg:g')
+      .attr('class', 'node')
+      .on('click', function(d){
+        $scope.$apply(function() {
+          $scope.selectSpec(d.name);
+        });
+      });
+    enter_nodes.append('svg:title').text(function(d) { return d.name; });
+    enter_nodes.append('svg:desc') .text(function(d) { return JSON.stringify(d); });
+    enter_nodes.append('circle')
+      .attr('class', 'node')
+      .attr('r', 6);
+    enter_nodes.append('svg:image')
+      .attr('xlink:href', $scope.getIcon)
+      .attr('x', '-16px')
+      .attr('y', '-16px')
+      .attr('width', '32px')
+      .attr('height', '32px');
+    enter_nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
-    force
-        .nodes(json.nodes)
-        .links(json.links)
-        .start()
-        ;
+    // Update
+    data.select('circle').style('fill', function(d) { return $scope.color(d); });
+    data.select('image').attr('xlink:href', $scope.getIcon);
 
-    var zoomBehavior = d3.behavior.zoom()
-      .on("zoom", redraw);
+    // Exit
+    data.exit().remove();
 
+    return data;
+  }
 
-    function redraw() {
-      console.log("here", d3.event.translate, d3.event.scale);
-      svg.select('#nodes').attr("transform",
-               "translate(" + d3.event.translate + ")"
-               + " scale(" + d3.event.scale + ")");
-      svg.select('#links').attr("transform",
-               "translate(" + d3.event.translate + ")"
-               + " scale(" + d3.event.scale + ")");
-    }
+  $scope.update_links = function(links, svg) {
+    var data = svg.select('#links').selectAll('line.link').data(links);
 
-    function zoom() {
-      svg.translate(d3.event.translate).scale(d3.event.scale);
-      states.selectAll("path").attr("d", path);
-    }
+    // Enter
+    var enter_links = data.enter()
+      .append('line')
+      .attr('class', 'link')
+      .attr('x1', function(d) { return d.source.x; })
+      .attr('y1', function(d) { return d.source.y; })
+      .attr('x2', function(d) { return d.target.x; })
+      .attr('y2', function(d) { return d.target.y; })
+      ;
 
-    svg.call(zoomBehavior);
+    // Exit
+    data.exit().remove();
 
-    var links = svg.append("g")
-        .attr('id', 'links')
-        .selectAll("line.link")
-        .data(force.links())
-        .enter().append("line")
-        .attr("class", "link")
-        ;
+    return data;
+  }
 
-    var nodes = svg.append('g')
-        .attr('id', 'nodes')
-        .selectAll("g.node")
-        .data(force.nodes())
-        .enter()
-        .append("svg:g")
-        .attr("class", "node")
-        .on('click', function(d){ $scope.selectSpec(d.name) })
-        ;
+  $scope.buildNetwork = function(json, parent_element) {
+    var svg = d3.select(parent_element);
 
-    nodes.append("svg:title")
-        .text(function(d) { return d.name; });
+    if (svg.select('g#links')[0][0] === null)
+      svg.append('g').attr('id', 'links');
+    $scope.update_links(json.links, svg);
 
-    nodes.append("svg:desc")
-        .text(function(d) { return JSON.stringify(d); });
-
-    nodes.append('circle')
-        .attr("r", 8)
-        .attr("class", "node")
-        .style("fill", function(d) { return $scope.color(d); });
-
-    // TODO: fix image sizes
-    nodes.append("svg:image")
-        .attr("class", "circle")
-        .attr("xlink:href", $scope.getIcon)
-        .attr("x", "-160px")
-        .attr("y", "-160px")
-        .attr("width", "320px")
-        .attr("height", "320px");
-
-    force.on("tick", function() {
-        links.attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
-
-        nodes.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-        nodes.selectAll("title").text(function(d) { return d.name; });
-    });
-
-    return force;
+    if (svg.select('g#nodes')[0][0] === null)
+      svg.append('g').attr('id', 'nodes');
+    $scope.update_nodes(json.nodes, svg);
   };
 
   $scope.start_tree_preview = function(parent_element) {
     if($scope.data){
       specs = $scope.data.wf_spec.task_specs
-      var WIDTH = 1080;
-      var HEIGHT = 300;
       var nodes = $scope.buildNodes(specs);
       var links = $scope.buildLinks(specs, nodes);
       var network = { nodes: nodes, links: links };
-      var force = $scope.buildNetwork(network, WIDTH, HEIGHT, parent_element);
+      $scope.buildNetwork(network, parent_element);
     }
-  };
-
-  // Old code we might reuse
-  $scope.showConnections = function(task_div) {
-    jsPlumb.Defaults.Container = "task_container";
-
-    var selectedTask = _.find($scope.tasks, function(task) {
-      if (task.id === parseInt(task_div.attr('id'), 10))
-        return task;
-      return null;
-    });
-    var source = $('#' + selectedTask.id);
-    _.each(selectedTask.children, function(child) {
-      var target = $('#' + child.id);
-      if (target.length != 1) {
-        console.log("Error finding child " + child.id + " there were " + target.length + " matches.");
-      } else {
-        jsPlumb.connect({
-          source: source,
-          target: target
-        });
-      }
-     });
   };
 }
 
