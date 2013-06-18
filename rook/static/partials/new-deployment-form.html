@@ -104,47 +104,11 @@ url: shows "Address Builder" to handle url options
       </div>
     </div>
 
-    <!-- Application options -->
-    <div class="row-fluid" ng-cloak ng-show="option_groups['application']">
+    <div class="row-fluid" ng-show="options_to_display.length > 0" ng-repeat="opt in options_to_display">
       <div class="control-group span10">
-        <h4>Application Options</h4>
-        <cm-option ng-repeat="option in option_groups['application'] | orderBy:'order'" />
-      </div>
-    </div>
-
-    <!-- Server options -->
-    <div class="row-fluid" ng-cloak ng-show="option_groups['server']">
-      <div class="control-group span10">
-        <h4>Server Options</h4>
-        <cm-option ng-repeat="option in option_groups['server'] | orderBy:'order'" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Load Balancer options -->
-    <div class="row-fluid" ng-cloak ng-show="option_groups['load-balancer']">
-      <div class="control-group span10">
-        <h4>Load Balancer Options</h4>
-        <cm-option ng-repeat="option in option_groups['load-balancer'] | orderBy:'order'" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Database options -->
-    <div class="row-fluid" ng-cloak ng-show="option_groups['database']">
-      <div class="control-group span10">
-        <h4>Database Options</h4>
-        <cm-option ng-repeat="option in option_groups['database'] | orderBy:'order'" />
-        </div>
-      </div>
-    </div>
-
-    <!-- DNS options -->
-    <div class="row-fluid" ng-cloak ng-show="option_groups['dns']">
-      <div class="control-group span10">
-        <h4>DNS Options</h4>
-        <cm-option ng-repeat="option in option_groups['dns'] | orderBy:'order'" />
-        </div>
+        <h4>{{option_headers[opt] | capitalize_all}}</h4>
+        <span ng-show="!option_groups[opt]">No options available</span>
+        <cm-option ng-repeat="option in option_groups[opt] | orderBy:'order'" />
       </div>
     </div>
   </fieldset>
