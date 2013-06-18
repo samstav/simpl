@@ -941,8 +941,10 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
         paginator;
 
     paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
-    $location.search({ limit: paginator.limit, offset: paginator.offset });
-    $location.replace();
+    if (paginator.changed_params()) {
+      $location.search({ limit: paginator.limit, offset: paginator.offset });
+      $location.replace();
+    }
 
     path = '/:tenantId/workflows.json' + paginator.buildPagingParams();
     this.klass = $resource((checkmate_server_base || '') + path);
@@ -956,7 +958,8 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
       items.all = [];
       items.receive(data.results, function(item, key) {
-        return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
+        return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};
+      });
       $scope.count = items.count;
       $scope.items = items.all;
       $scope.currentPage = paging_info.currentPage;
@@ -2199,8 +2202,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
         params;
 
     paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
-    $location.search({ limit: paginator.limit, offset: paginator.offset });
-    $location.replace();
+    if (paginator.changed_params()) {
+      $location.search({ limit: paginator.limit, offset: paginator.offset });
+      $location.replace();
+    }
 
     path = $location.path() + '.json';
 
@@ -2222,7 +2227,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment,
-                status: item.status};});
+                status: item.status};
+      });
       $scope.count = items.count;
       $scope.items = items.all;
       $scope.currentPage = paging_info.currentPage;
