@@ -826,7 +826,7 @@ class Provider(ProviderBase):
         return catalog
 
 
-class Transforms():
+class Transforms(object):
     """Class to hold transform functions.
 
     We put them in a separate class to:
@@ -931,7 +931,7 @@ class Transforms():
                                                            exc, mod, line))
 
 
-class ChefMap():
+class ChefMap(object):
     """Retrieves and parses Chefmap files"""
 
     def __init__(self, url=None, raw=None, parsed=None):

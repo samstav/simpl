@@ -211,7 +211,7 @@ class Provider(ProviderBase):
             token = context.auth_token
             url = Provider._find_url(context.catalog)
 
-        class CloudDNS_Auth_Proxy():
+        class CloudDNS_Auth_Proxy(object):
             """We pass this class to clouddns for it to use instead of its own
             auth mechanism"""
             def __init__(self, url, token):

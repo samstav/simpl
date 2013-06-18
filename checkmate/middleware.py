@@ -501,7 +501,7 @@ class ExtensionsMiddleware(object):
         return self.app(environ, start_response)
 
 
-class DebugMiddleware():
+class DebugMiddleware(object):
     '''Helper class for debugging a WSGI application.
 
     Can be inserted into any WSGI application chain to get information
@@ -543,7 +543,7 @@ class DebugMiddleware():
         print
 
 
-class ExceptionMiddleware():
+class ExceptionMiddleware(object):
     '''Formats errors correctly.'''
 
     def __init__(self, app):
@@ -725,7 +725,7 @@ class ContextMiddleware(object):
         return self.app(environ, start_response)
 
 
-class AuthTokenRouterMiddleware():
+class AuthTokenRouterMiddleware(object):
     '''
 
     Middleware that routes auth to multiple endpoints
