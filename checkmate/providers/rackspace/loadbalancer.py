@@ -843,7 +843,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
     if context.get('simulation') is True:
         return {
             key: {
-                "status": resource.get('status', 'DELETED')
+                'status': resource.get('status', 'DELETED')
             }
         }
 
@@ -862,14 +862,14 @@ def sync_resource_task(context, resource, resource_key, api=None):
         #    instance['protocol'] = lb.protocol
         return {
             key: {
-                "status": lb.status
+                'status': lb.status
                 #'instance': instance
             }
         }
     except NotFound:
         return {
             key: {
-                "status": "DELETED"
+                'status': 'DELETED'
             }
         }
 
@@ -883,7 +883,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         resource_key = context['resource']
         results = {
             "instance:%s" % resource_key: {
-                "status": "DELETING",
+                'status': 'DELETING',
                 "status-message": "Waiting on resource deletion"
             }
         }
@@ -915,8 +915,8 @@ def delete_lb_task(context, key, lbid, region, api=None):
         LOG.debug('Load balancer %s was already deleted.', lbid)
         results = {
             instance_key: {
-                "status": "DELETED",
-                "status-message": ""
+                'status': 'DELETED',
+                'status-message': ''
             }
         }
         return results
@@ -926,8 +926,8 @@ def delete_lb_task(context, key, lbid, region, api=None):
     LOG.debug('Deleting Load balancer %s.', lbid)
     return {
         instance_key: {
-            "status": "DELETING",
-            "status-message": "Waiting on resource deletion"
+            'status': 'DELETING',
+            'status-message': 'Waiting on resource deletion'
         }
     }
 

@@ -66,8 +66,8 @@ def pause_workflow(w_id, driver):
 
     if number_of_waiting_celery_tasks == 0:
         LOG.debug("No waiting celery tasks for workflow %s", w_id)
-        kwargs.update({"status": "PAUSED", "action-response": None,
-                       "action": None})
+        kwargs.update({'status': 'PAUSED', 'action-response': None,
+                       'action': None})
         update_operation.delay(deployment_id, driver=driver, **kwargs)
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                     status="PAUSED", driver=driver,
@@ -103,7 +103,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         w_id = args[0]
         workflow = driver.get_workflow(w_id)
         dep_id = workflow["attributes"]["deploymentId"] or w_id
-        kwargs = {"status": "ERROR"}
+        kwargs = {'status': 'ERROR'}
 
         if isinstance(exc, MaxRetriesExceededError):
             kwargs.update({"errors": [{
