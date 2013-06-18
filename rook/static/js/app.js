@@ -930,6 +930,10 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
   $scope.selected = items.selected;
 
+  $scope.showPagination = function(){
+    return $scope.links && $scope.totalPages > 1;
+  };
+
   $scope.load = function() {
     console.log("Starting load");
     var path,
@@ -937,14 +941,12 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
         paginator;
 
     paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
-    $location.search({ limit: paginator.limit, offset: paginator.offset });
-    $location.replace();
+    if (paginator.changed_params()) {
+      $location.search({ limit: paginator.limit, offset: paginator.offset });
+      $location.replace();
+    }
 
     path = '/:tenantId/workflows.json' + paginator.buildPagingParams();
-    $scope.showPagination = function(){
-      return $scope.links && $scope.totalPages > 1;
-    };
-
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
       var paging_info,
@@ -954,8 +956,10 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
       paging_info = paginator.getPagingInformation(data['collection-count'], workflows_url);
 
+      items.all = [];
       items.receive(data.results, function(item, key) {
-        return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};});
+        return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};
+      });
       $scope.count = items.count;
       $scope.items = items.all;
       $scope.currentPage = paging_info.currentPage;
@@ -969,8 +973,6 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
     if (newVal !== null) scroll.toCurrent();
   });
-
-  $scope.load();
 }
 
 function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q) {
@@ -2188,6 +2190,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.selected = items.selected;
 
+  $scope.showPagination = function(){
+    return $scope.links && $scope.totalPages > 1;
+  };
+
   $scope.load = function() {
     console.log("Starting load");
     var path,
@@ -2196,14 +2202,12 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
         params;
 
     paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
-    $location.search({ limit: paginator.limit, offset: paginator.offset });
-    $location.replace();
+    if (paginator.changed_params()) {
+      $location.search({ limit: paginator.limit, offset: paginator.offset });
+      $location.replace();
+    }
 
     path = $location.path() + '.json';
-
-    $scope.showPagination = function(){
-      return $scope.links && $scope.totalPages > 1;
-    };
 
     params = {
         tenantId: $scope.auth.context.tenantId,
@@ -2223,7 +2227,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment,
-                status: item.status};});
+                status: item.status};
+      });
       $scope.count = items.count;
       $scope.items = items.all;
       $scope.currentPage = paging_info.currentPage;
@@ -2256,8 +2261,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
     if (newVal !== null) scroll.toCurrent();
   });
-
-  $scope.load();
 }
 
 //Hard-coded for Managed Cloud Wordpress
