@@ -2923,9 +2923,6 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
-
-  //Setup
-  $scope.load();
 }
 
 /*

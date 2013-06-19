@@ -52,6 +52,7 @@ describe('DeploymentController', function(){
       var resource_result = { get: sinon.spy() };
       resource = sinon.stub().returns(resource_result);
       controller = new DeploymentController(scope, location, resource, routeParams, dialog, deploymentDataParser);
+      scope.load();
       expect(resource_result.get).toHaveBeenCalled();
     });
 
@@ -62,6 +63,7 @@ describe('DeploymentController', function(){
 
         resource = sinon.stub().returns(resource_result);
         controller = new DeploymentController(scope, location, resource, routeParams, dialog, deploymentDataParser);
+        scope.load()
         var callback = resource_result.get.getCall(0).args[1];
         callback(data, emptyFunction);
         expect(scope.data).toEqual(data);
@@ -74,6 +76,7 @@ describe('DeploymentController', function(){
 
         resource = sinon.stub().returns(resource_result);
         controller = new DeploymentController(scope, location, resource, routeParams, dialog, deploymentDataParser);
+        scope.load();
         var callback = resource_result.get.getCall(0).args[1];
         callback({}, emptyFunction);
         expect(scope.formatted_data).toEqual(data);
