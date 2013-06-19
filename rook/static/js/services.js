@@ -436,9 +436,8 @@ services.value('options', {
     var region_option = null; // The option identified as the deployment region
     var options_to_display = [];
     var option_headers = {};
-    var DEFAULT_OPTIONS = ['application', 'server', 'load-balancer', 'database', 'dns'];
     var DEFAULT_HEADERS = { 'application': 'Application Options', 'server': 'Server Options', 'load-balancer': 'Load Balancer Options', 'database': 'Database Options', 'dns': 'DNS Options'};
-
+    var DEFAULT_OPTIONS = _.keys(DEFAULT_HEADERS);
 
     var opts = blueprint.options;
     _.each(opts, function(item, key) {
@@ -461,6 +460,8 @@ services.value('options', {
           // Detect region (overrides legacy guess)
           if (dh['list-type'] == 'region' && group == 'deployment')
             region_option = option;
+        } else {
+          group = 'application';
         }
         if ('sample' in dh)
           option.sample = dh.sample;
