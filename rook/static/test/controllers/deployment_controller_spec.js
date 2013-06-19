@@ -74,4 +74,109 @@ describe('DeploymentController', function(){
       });
     });
   });
+
+  describe('#operation_progress', function() {
+    it('should return 0 if operation does not exist', function() {
+      expect($scope.operation_progress()).toBe(0);
+    });
+
+    describe('for 78 tasks', function() {
+      beforeEach(function() {
+        $scope.data.operation = { tasks: 78 };
+      });
+
+      it('should return 5 if only 4 tasks are complete', function() {
+        $scope.data.operation.complete = 4;
+        expect($scope.operation_progress()).toBe(5);
+      });
+
+      it('should round down to 45 if 35 tasks are complete', function() {
+        $scope.data.operation.complete = 35;
+        expect($scope.operation_progress()).toBe(45);
+      });
+
+      it('should round up to 46 if 36 tasks are complete', function() {
+        $scope.data.operation.complete = 36;
+        expect($scope.operation_progress()).toBe(46);
+      });
+
+      it('should return 100 if all tasks are complete', function() {
+        $scope.data.operation.complete = 78;
+        expect($scope.operation_progress()).toBe(100);
+      });
+    });
+  });
+
+  describe('#operation_status', function() {
+    it('should return undefined if no operation exists', function() {
+      expect($scope.operation_status()).toBe(undefined);
+    });
+
+    it('should return operation status if an operation exists', function() {
+      $scope.data.operation = { status: 'fakestatus' };
+      expect($scope.operation_status()).toBe('fakestatus');
+    });
+  });
+
+  describe('#deployment_status', function() {
+    it('should return deployment status', function() {
+      $scope.data.status = 'deployment_fakestatus';
+      expect($scope.deployment_status()).toBe('deployment_fakestatus');
+    });
+
+    describe('when operation exists', function() {
+      beforeEach(function() {
+        $scope.data.status = 'deployment_fakestatus';
+        $scope.data.operation = { type: 'operation_faketype', status: 'operation_fakestatus' };
+        $scope.operation_status = sinon.stub();
+      });
+
+      it('should return deployment status if operation is COMPLETE', function() {
+        $scope.operation_status.returns('COMPLETE');
+        expect($scope.deployment_status()).toBe('deployment_fakestatus');
+      });
+
+      it('should return deployment status if operation is ERROR', function() {
+        $scope.operation_status.returns('ERROR');
+        expect($scope.deployment_status()).toBe('deployment_fakestatus');
+      });
+
+      it('should return the operation type if operation is running', function() {
+        $scope.operation_status.returns('fakestatus_running');
+        expect($scope.deployment_status()).toBe('operation_faketype');
+      });
+    });
+  });
+
+  describe('#is_resumable', function() {
+    it('should return true if operation is resumable', function() {
+      $scope.data.operation = { resumable: true };
+      expect($scope.is_resumable()).toBeTruthy();
+    });
+
+    it('should return false if operation is not resumable', function() {
+      $scope.data.operation = { resumable: false };
+      expect($scope.is_resumable()).toBeFalsy();
+    });
+
+    it('should return false if operation does not contain resume information', function() {
+      expect($scope.is_resumable()).toBeFalsy();
+    });
+  });
+
+  describe('#is_retriable', function() {
+    it('should return true if operation is retriable', function() {
+      $scope.data.operation = { retriable: true };
+      expect($scope.is_retriable()).toBeTruthy();
+    });
+
+    it('should return false if operation is not retriable', function() {
+      $scope.data.operation = { retriable: false };
+      expect($scope.is_retriable()).toBeFalsy();
+    });
+
+    it('should return false if operation does not contain retry information', function() {
+      expect($scope.is_retriable()).toBeFalsy();
+    });
+  });
 });
