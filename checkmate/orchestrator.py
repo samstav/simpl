@@ -119,7 +119,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             LOG.error("Workflow %s has reached the maximum number of "
                       "permissible retries!", w_id)
         else:
-            kwargs.update({"errors": [{'error-message': exc.message}]})
+            kwargs.update({"errors": [{'error-message': exc.args[0]}]})
 
         update_operation.delay(dep_id, driver=driver, **kwargs)
 

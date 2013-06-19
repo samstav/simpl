@@ -123,12 +123,10 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_on_failure(self):
-        """
-        Test create servrer on failure postback data
-        """
+        '''Test create server on failure postback data'''
 
         exc = self.mox.CreateMockAnything()
-        exc.message = "some message"
+        exc.__str__().AndReturn('some message')
         task_id = "1234"
         args = [{
                 'deployment_id': '4321',
@@ -148,7 +146,7 @@ class TestNovaCompute(test.ProviderTester):
                     "Unexpected error deleting compute "
                     "instance 0"
                 ),
-                'error-message': exc.message,
+                'error-message': 'some message',
                 'error-traceback': 'Task 1234: some traceback'
             }
         }

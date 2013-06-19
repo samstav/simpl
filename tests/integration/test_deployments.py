@@ -1530,7 +1530,7 @@ class TestGetResourceStuff(unittest.TestCase):
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
-            self.assertIn("No deployment with id 1234", exc.message)
+            self.assertIn("No deployment with id 1234", str(exc))
 
     def test_dep_404_status(self):
         """ Test when deployment not found """
@@ -1545,7 +1545,7 @@ class TestGetResourceStuff(unittest.TestCase):
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
-            self.assertIn("No deployment with id 1234", exc.message)
+            self.assertIn("No deployment with id 1234", str(exc))
 
     def test_status_trace(self):
         """ Make sure trace is included if query param present """

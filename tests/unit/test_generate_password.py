@@ -85,7 +85,7 @@ class TestGeneratePassword(unittest.TestCase):
             )
         self.assertEqual(
             'Password length is less than the number of required characters.',
-            expected.exception.message
+            str(expected.exception)
         )
 
     def test_all_the_things(self):

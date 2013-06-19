@@ -1,0 +1,1 @@
+-e git://github.rackspace.com/checkmate/pawn.git@master#egg=pawn
