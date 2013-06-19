@@ -1156,6 +1156,20 @@ class TestDeploymentSettings(unittest.TestCase):
                           "my_option", constraint, option=option,
                           option_key="my_option")
 
+    def test_handle_bad_call(self):
+        '''Validate missing options handled correctly'''
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                environment:
+                  providers: {}
+                blueprint: {}
+                inputs: {}
+            """))
+        self.assertRaises(CheckmateValidationException,
+                          deployment.get_setting, None)
+        self.assertRaises(CheckmateValidationException,
+                          deployment.get_setting, '')
+
 
 class TestDeploymentScenarios(unittest.TestCase):
 
@@ -1373,8 +1387,8 @@ class TestDeleteDeployments(unittest.TestCase):
         common_tasks.update_operation.s('1234', status='IN PROGRESS')\
             .AndReturn(mock_subtask)
         mock_subtask.delay().AndReturn(True)
-        self._mox.StubOutClassWithMocks(checkmate.deployments.router, "chord")
-        mock_chord = checkmate.deployments.router.chord(mock_steps)
+        self._mox.StubOutClassWithMocks(checkmate.deployments.router.celery, "chord")
+        mock_chord = checkmate.deployments.router.celery.chord(mock_steps)
         mock_delete_dep = self._mox.CreateMockAnything()
         delete_op = {
             'link': '/canvases/1234',

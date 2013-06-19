@@ -187,83 +187,10 @@ DEPLOYMENT_SCHEMA = [
     'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
     'error-messages', 'live', 'plan', 'operations-history', 'created-by',
     'secrets',
+    'meta-data',  # Used to store, display miscellaneous data on the deploymnt
     'error-message',  # to be deprecated
     'includes',  # used to place YAML-referenced parts but then removed
 ]
-
-# Useful command for printing this out:
-# print "\n".join(['%s: %s (can go to %s)' % (k, v['description'],
-#     ', '.join([e['dst'] for e in v.get('events', [])])) for k, v in
-#     DEPLOYMENT_STATUSES.items()])
-DEPLOYMENT_STATUSES = {
-    'NEW': {
-        'description': "Has topology, but no resources",
-        'events': [
-            {'name': 'plan', 'dst': 'PLANNED'},
-            {'name': 'fail', 'dst': 'FAILED'},
-        ],
-    },
-    'PLANNED': {
-        'description': "Has topology and resources",
-        'events': [
-            {'name': 'deploy', 'dst': 'UP'},
-            {'name': 'fail', 'dst': 'FAILED'},
-        ],
-    },
-    'UP': {
-        'description': "Deployment is launched and running",
-        'events': [
-            {'name': 'alert', 'dst': 'ALERT'},
-            {'name': 'cannot_connect', 'dst': 'UNREACHABLE'},
-            {'name': 'down', 'dst': 'DOWN'},
-            {'name': 'delete', 'dst': 'DELETED'},
-        ],
-    },
-    'FAILED': {
-        'description': "Planning or building failed",
-        'events': [
-            {'name': 'delete', 'dst': 'DELETED'},
-        ],
-    },
-    'ALERT': {
-        'description': "Attention required",
-        'events': [
-            {'name': 'delete', 'dst': 'DELETED'},
-            {'name': 'fix', 'dst': 'UP'},
-        ],
-    },
-    'UNREACHABLE': {
-        'description': "Cannot contact infrastructure",
-        'events': [
-            {'name': 'down', 'dst': 'DOWN'},
-            {'name': 'reconnect', 'dst': 'UP'},
-            {'name': 'alert', 'dst': 'ALERT'},
-        ],
-    },
-    'DOWN': {
-        'description': "Deployment is down",
-        'events': [
-            {'name': 'fix', 'dst': 'UP'},
-            {'name': 'delete', 'dst': 'DELETED'},
-        ],
-    },
-    'DELETED': {
-        'description': "Deployment has been deleted",
-    },
-}
-
-
-def get_state_events(status_definitions):
-    '''Return events in a format suitable for creating a Fysom state machine'''
-    events = []
-    if status_definitions:
-        for status, definition in status_definitions.iteritems():
-            if 'events' in definition:
-                for event in definition['events']:
-                    event['src'] = status
-                    events.append(event)
-    return events
-
 
 COMPONENT_SCHEMA = [
     'id', 'options', 'requires', 'provides', 'summary', 'dependencies',

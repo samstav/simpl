@@ -152,7 +152,7 @@ class TestDatabase(ProviderTester):
             context['deployment'], context['resource']
         ).AndReturn(expected_resource)
 
-        class FakeTask():
+        class FakeTask(object):
             def apply_async(self):
                 pass
 
@@ -488,6 +488,7 @@ class TestCatalog(unittest.TestCase):
             "type": "rax:database"
         }]
         context.auth_token = "DUMMY_TOKEN"
+        context.region = None
         expected = {
             'compute': {
                 'mysql_instance': {

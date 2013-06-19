@@ -9,7 +9,7 @@ LOG = logging.getLogger(__name__)
 API_POOL = eventlet.GreenPool()
 
 
-class Environment():
+class Environment(object):
     def __init__(self, environment):
         self.dict = environment
         self.providers = None

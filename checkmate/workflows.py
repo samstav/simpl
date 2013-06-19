@@ -223,8 +223,8 @@ def pause_workflow(id, tenant_id=None, driver=DB):
     deployment = driver.get_deployment(dep_id)
     operation = deployment.get("operation")
 
-    if (operation and operation.get('action') != "PAUSE" and
-            operation["status"] != "PAUSED"):
+    if (operation and operation.get('action') != 'PAUSE' and
+            operation['status'] != 'PAUSED'):
         update_operation.delay(dep_id, driver=driver, action='PAUSE')
     return write_body(workflow, request, response)
 
@@ -247,7 +247,7 @@ def resume_workflow(id, tenant_id=None, driver=DB):
     dep_id = workflow["attributes"]["deploymentId"] or id
     deployment = driver.get_deployment(dep_id)
     operation = deployment.get("operation")
-    if operation and operation.get("status") == "PAUSED":
+    if operation and operation.get('status') == 'PAUSED':
         async_call = orchestrator.run_workflow.delay(id, timeout=1800,
                                                      driver=driver)
         LOG.debug("Executed a task to run workflow '%s'", async_call)
@@ -532,7 +532,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
                   % task.get_state_name())
 
         # Refresh token if it exists in args[0]['auth_token]
-        if hasattr(task, 'args') and task.task_spec.args and \
+        if hasattr(task.task_spec, 'args') and task.task_spec.args and \
                 len(task.task_spec.args) > 0 and \
                 isinstance(task.task_spec.args[0], dict) and \
                 task.task_spec.args[0].get('auth_token') != \
@@ -540,8 +540,8 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
             task.task_spec.args[0]['auth_token'] = request.context.auth_token
             LOG.debug("Updating task auth token with new caller token")
         if task.task_spec.retry_fire(task):
-            LOG.debug("Progressing task '%s' (%s)" % (task_id,
-                                                      task.get_state_name()))
+            LOG.debug("Progressing task '%s' (%s)", task_id,
+                      task.get_state_name())
             task.task_spec._update_state(task)
 
         wf_import.update_workflow_status(wf, workflow_id=workflow_id)

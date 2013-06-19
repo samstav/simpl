@@ -25,7 +25,8 @@ class TestOperations(unittest.TestCase):
 
     def test_update_operation(self):
         db = self.mox.CreateMockAnything()
-        db.get_deployment('1234', with_secrets=True).AndReturn({})
+        db.get_deployment('1234', with_secrets=True).AndReturn({'operation': {
+            'status': 'NEW'}})
         db.save_deployment('1234', {'operation': {'status': 'NEW'}},
                            partial=True).AndReturn(None)
         self.mox.ReplayAll()
@@ -34,10 +35,20 @@ class TestOperations(unittest.TestCase):
 
     def test_update_operation_with_deployment_status(self):
         db = self.mox.CreateMockAnything()
-        db.get_deployment('1234', with_secrets=True).AndReturn({})
+        db.get_deployment('1234', with_secrets=True).AndReturn({'operation': {
+            'status': 'NEW'}})
         db.save_deployment('1234', {'operation': {'status': 'NEW'},
                                     'status': "PLANNED"},
                            partial=True).AndReturn(None)
+        self.mox.ReplayAll()
+        operations.update_operation('1234', status='NEW',
+                                    deployment_status="PLANNED", driver=db)
+        self.mox.VerifyAll()
+
+    def test_update_operation_with_operation_marked_complete(self):
+        db = self.mox.CreateMockAnything()
+        db.get_deployment('1234', with_secrets=True).AndReturn({'operation': {
+            'status': 'COMPLETE'}})
         self.mox.ReplayAll()
         operations.update_operation('1234', status='NEW',
                                     deployment_status="PLANNED", driver=db)

@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 
 
 def generate_response(self, environ, start_response):
-    """A patch for webob.exc.WSGIHTTPException to handle YAML and JSON"""
+    '''A patch for webob.exc.WSGIHTTPException to handle YAML and JSON'''
     if self.content_length is not None:
         del self.content_length
     headerlist = list(self.headerlist)
@@ -70,10 +70,10 @@ webob.exc.WSGIHTTPException.generate_response = generate_response
 
 
 class TenantMiddleware(object):
-    """Strips /tenant_id/ from path and puts it in context
+    '''Strips /tenant_id/ from path and puts it in context
 
     This is needed by the authz middleware too
-    """
+    '''
     def __init__(self, app, resources=None):
         '''
         :param resources: REST resources that are NOT tenants
@@ -109,11 +109,11 @@ class TenantMiddleware(object):
         return self.app(environ, start_response)
 
     def _remove_auth_headers(self, env):
-        """Remove headers so a user can't fake authentication.
+        '''Remove headers so a user can't fake authentication.
 
         :param env: wsgi request environment
 
-        """
+        '''
         auth_headers = (
             'X-Identity-Status',
             'X-Tenant-Id',
@@ -129,7 +129,7 @@ class TenantMiddleware(object):
         self._remove_headers(env, auth_headers)
 
     def _remove_headers(self, env, keys):
-        """Remove http headers from environment."""
+        '''Remove http headers from environment.'''
         for k in keys:
             env_key = self._header_to_env_var(k)
             if env_key in env:
@@ -139,23 +139,23 @@ class TenantMiddleware(object):
 
     @staticmethod
     def _header_to_env_var(key):
-        """Convert header to wsgi env variable.
+        '''Convert header to wsgi env variable.
 
         :param key: http header name (ex. 'X-Auth-Token')
         :return wsgi env variable name (ex. 'HTTP_X_AUTH_TOKEN')
 
-        """
+        '''
         return 'HTTP_%s' % key.replace('-', '_').upper()
 
     def _add_headers(self, env, headers):
-        """Add http headers to environment."""
+        '''Add http headers to environment.'''
         for (key, value) in headers.iteritems():
             env_key = self._header_to_env_var(key)
             env[env_key] = value
 
 
 class PAMAuthMiddleware(object):
-    """Authenticate basic auth calls to PAM and optionally mark user as admin
+    '''Authenticate basic auth calls to PAM and optionally mark user as admin
 
     - Authenticates any basic auth to PAM
         - 401 if fails
@@ -163,7 +163,7 @@ class PAMAuthMiddleware(object):
         - checks for domain if set. Ignores other domains otherwise
     - Adds basic auth header to any returning calls so client knows basic
       auth is supported
-    """
+    '''
     def __init__(self, app, domain=None, all_admins=False):
         self.app = app
         self.domain = domain  # Which domain to authenticate in this instance
@@ -206,9 +206,9 @@ class PAMAuthMiddleware(object):
         return self.app(environ, start_response)
 
     def start_response_callback(self, start_response):
-        """Intercepts upstream start_response and adds our headers"""
+        '''Intercepts upstream start_response and adds our headers'''
         def callback(status, headers, exc_info=None):
-            """Intercepts upstream start_response and adds our headers"""
+            '''Intercepts upstream start_response and adds our headers'''
             # Add our headers to response
             headers.append(('WWW-Authenticate', self.auth_header))
             # Call upstream start_response
@@ -220,13 +220,13 @@ TOKEN_CACHE_TIMEOUT = 600
 
 
 class TokenAuthMiddleware(object):
-    """Authenticate any tokens provided.
+    '''Authenticate any tokens provided.
 
     - Appends www-authenticate headers to returning calls
     - Authenticates all tokens passed in with X-Auth-Token
         - 401s if invalid
         - Marks authenticated if valid and populates user and catalog data
-    """
+    '''
     def __init__(self, app, endpoint, anonymous_paths=None):
         self.app = app
         self.endpoint = endpoint
@@ -260,7 +260,7 @@ class TokenAuthMiddleware(object):
                           endpoint.get('kwargs', {}).get('realm'))
 
     def __call__(self, environ, start_response):
-        """Authenticate calls with X-Auth-Token to the source auth service"""
+        '''Authenticate calls with X-Auth-Token to the source auth service'''
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
         if self.anonymous_paths and root in self.anonymous_paths:
@@ -303,7 +303,7 @@ class TokenAuthMiddleware(object):
                     timeout=600, cache_exceptions=True)
     def auth_keystone(self, tenant, auth_url, auth_header, token=None,
                       username=None, apikey=None, password=None):
-        """Authenticates to keystone"""
+        '''Authenticates to keystone'''
         url = urlparse(auth_url)
         if url.scheme == 'https':
             port = url.port or 443
@@ -404,9 +404,9 @@ class TokenAuthMiddleware(object):
         return content
 
     def start_response_callback(self, start_response):
-        """Intercepts upstream start_response and adds our headers"""
+        '''Intercepts upstream start_response and adds our headers'''
         def callback(status, headers, exc_info=None):
-            """Intercepts upstream start_response and adds our headers"""
+            '''Intercepts upstream start_response and adds our headers'''
             # Add our headers to response
             header = ('WWW-Authenticate', self.auth_header)
             if header not in headers:
@@ -417,7 +417,7 @@ class TokenAuthMiddleware(object):
 
 
 class AuthorizationMiddleware(object):
-    """Checks that call is authenticated and authorized to access the resource
+    '''Checks that call is authenticated and authorized to access the resource
     requested.
 
     - Allows all calls to anonymous_paths
@@ -425,7 +425,7 @@ class AuthorizationMiddleware(object):
     - Denies all others (redirect to tenant URL if we have the tenant)
     Note: calls authenticated with PAM will not have an auth_token. They will
           not be able to access calls that need an auth token
-    """
+    '''
     def __init__(self, app, anonymous_paths=None, admin_paths=None):
         self.app = app
         self.anonymous_paths = anonymous_paths
@@ -459,7 +459,7 @@ class AuthorizationMiddleware(object):
         return HTTPUnauthorized()(environ, start_response)
 
     def start_response_callback(self, start_response):
-        """Intercepts upstream start_response and adds auth-z headers"""
+        '''Intercepts upstream start_response and adds auth-z headers'''
         def callback(status, headers, exc_info=None):
             # Add our headers to response
             header = ('X-AuthZ-Admin', "True")
@@ -471,7 +471,7 @@ class AuthorizationMiddleware(object):
 
 
 class StripPathMiddleware(object):
-    """Strips extra / at end of path"""
+    '''Strips extra / at end of path'''
     def __init__(self, app):
         self.app = app
 
@@ -481,7 +481,7 @@ class StripPathMiddleware(object):
 
 
 class ExtensionsMiddleware(object):
-    """Converts extensions to accept headers: yaml, json, html"""
+    '''Converts extensions to accept headers: yaml, json, html'''
     def __init__(self, app):
         self.app = app
 
@@ -501,13 +501,13 @@ class ExtensionsMiddleware(object):
         return self.app(environ, start_response)
 
 
-class DebugMiddleware():
-    """Helper class for debugging a WSGI application.
+class DebugMiddleware(object):
+    '''Helper class for debugging a WSGI application.
 
     Can be inserted into any WSGI application chain to get information
     about the request and response.
 
-    """
+    '''
 
     def __init__(self, app):
         self.app = app
@@ -531,7 +531,7 @@ class DebugMiddleware():
 
     @staticmethod
     def print_generator(app_iter):
-        """Iterator that prints the contents of a wrapper string."""
+        '''Iterator that prints the contents of a wrapper string.'''
         LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE BODY', ('*' * 20))
         isimage = response.content_type.startswith("image")
         if (isimage):
@@ -543,8 +543,8 @@ class DebugMiddleware():
         print
 
 
-class ExceptionMiddleware():
-    """Formats errors correctly."""
+class ExceptionMiddleware(object):
+    '''Formats errors correctly.'''
 
     def __init__(self, app):
         self.app = app
@@ -577,17 +577,17 @@ class ExceptionMiddleware():
 #
 #TODO: Get this from openstack common?
 class RequestContext(object):
-    """
+    '''
     Stores information about the security context under which the user
     accesses the system, as well as additional request information related to
     the current call, such as scope (which object, resource, etc).
-    """
+    '''
 
     def __init__(self, auth_token=None, username=None, tenant=None,
                  is_admin=False, read_only=False, show_deleted=False,
                  authenticated=False, catalog=None, user_tenants=None,
                  roles=None, domain=None, auth_source=None, simulation=False,
-                 base_url=None, **kwargs):
+                 base_url=None, region=None, **kwargs):
         self.authenticated = authenticated
         self.auth_source = auth_source
         self.auth_token = auth_token
@@ -602,17 +602,18 @@ class RequestContext(object):
         self.domain = domain  # which cloud?
         self.simulation = simulation
         self.base_url = base_url
+        self.region = region
         self.kwargs = kwargs  # store extra args and retrieve them when needed
 
     def get_queued_task_dict(self, **kwargs):
-        """Get a serializable dict of this context for use with remote, queued
+        '''Get a serializable dict of this context for use with remote, queued
         tasks.
 
         :param kwargs: any additional kwargs get added to the context
 
         Only certain fields are needed.
         Extra kwargs from __init__ are also provided.
-        """
+        '''
         keyword_args = copy.copy(self.kwargs)
         if kwargs:
             keyword_args.update(kwargs)
@@ -621,14 +622,14 @@ class RequestContext(object):
         return result
 
     def allowed_to_access_tenant(self, tenant_id=None):
-        """Checks if a tenant can be accessed by this current session.
+        '''Checks if a tenant can be accessed by this current session.
 
         If no tenant is specified, the check will be done against the current
-        context's tenant."""
+        context's tenant.'''
         return (tenant_id or self.tenant) in (self.user_tenants or [])
 
     def set_context(self, content):
-        """Updates context with current auth data"""
+        '''Updates context with current auth data'''
         catalog = self.get_service_catalog(content)
         self.catalog = catalog
         user_tenants = self.get_user_tenants(content)
@@ -640,25 +641,26 @@ class RequestContext(object):
 
     @staticmethod
     def get_service_catalog(content):
-        """Returns Service Catalog"""
+        '''Returns Service Catalog'''
         return content['access'].get('serviceCatalog')
 
-    def get_user_tenants(self, content):
-        """Returns a list of tenants from token and catalog."""
+    @staticmethod
+    def get_user_tenants(content):
+        '''Returns a list of tenants from token and catalog.'''
 
         user = content['access']['user']
         token = content['access']['token']
 
         def essex():
-            """Essex puts the tenant ID and name on the token."""
+            '''Essex puts the tenant ID and name on the token.'''
             return token['tenant']['id']
 
         def pre_diablo():
-            """Pre-diablo, Keystone only provided tenantId."""
+            '''Pre-diablo, Keystone only provided tenantId.'''
             return token['tenantId']
 
         def default_tenant():
-            """Assume the user's default tenant."""
+            '''Assume the user's default tenant.'''
             return user['tenantId']
 
         user_tenants = {}
@@ -670,7 +672,7 @@ class RequestContext(object):
                 pass
 
         # Get tenants from service catalog
-        catalog = self.get_service_catalog(content)
+        catalog = RequestContext.get_service_catalog(content)
         if catalog:
             for service in catalog:
                 endpoints = service['endpoints']
@@ -681,20 +683,20 @@ class RequestContext(object):
 
     @staticmethod
     def get_username(content):
-        """Returns username"""
+        '''Returns username'''
         # FIXME: when Global Auth implements name, remove the logic for 'id'
         user = content['access']['user']
         return user.get('name') or user.get('id')
 
     @staticmethod
     def get_roles(content):
-        """Returns roles for a given user"""
+        '''Returns roles for a given user'''
         user = content['access']['user']
         return [role['name'] for role in user.get('roles', [])]
 
 
 class ContextMiddleware(object):
-    """Adds a request.context to the call which holds authn+z data"""
+    '''Adds a request.context to the call which holds authn+z data'''
     def __init__(self, app):
         self.app = app
 
@@ -723,8 +725,8 @@ class ContextMiddleware(object):
         return self.app(environ, start_response)
 
 
-class AuthTokenRouterMiddleware():
-    """
+class AuthTokenRouterMiddleware(object):
+    '''
 
     Middleware that routes auth to multiple endpoints
 
@@ -760,9 +762,9 @@ class AuthTokenRouterMiddleware():
 
             Class(endpoint, anonymous_path=None).
 
-    """
+    '''
     def __init__(self, app, endpoints, anonymous_paths=None):
-        """
+        '''
         :param endpoints: an array of auth endpoint dicts which is the list of
                 endpoints to authenticate against.
                 Each entry should have the following keys:
@@ -773,7 +775,7 @@ class AuthTokenRouterMiddleware():
                 kwargs: the arguments to pass to the middleware
 
         :param anonymous_paths: paths to ignore and allow through.
-        """
+        '''
         self.app = app
 
         # parse endpoints
@@ -871,7 +873,7 @@ class AuthTokenRouterMiddleware():
         return self.app(environ, start_response)
 
     def start_response_intercept(self, start_response):
-        """Intercepts upstream start_response and remembers status"""
+        '''Intercepts upstream start_response and remembers status'''
         def callback(status, headers, exc_info=None):
             self.last_status = status
             self.last_headers = headers
@@ -881,7 +883,7 @@ class AuthTokenRouterMiddleware():
         return callback
 
     def start_response_callback(self, start_response):
-        """Intercepts upstream start_response and adds our headers"""
+        '''Intercepts upstream start_response and adds our headers'''
         def callback(status, headers, exc_info=None):
             # Add our headers to response
             for header in self.response_headers:
@@ -893,10 +895,10 @@ class AuthTokenRouterMiddleware():
 
 
 class CatchAll404(object):
-    """Facilitates 404 responses for any path not defined elsewhere.  Kept in
+    '''Facilitates 404 responses for any path not defined elsewhere.  Kept in
        separate class to facilitate adding gui before this catchall definition
        is added.
-    """
+    '''
 
     def __init__(self, app):
         self.app = app
@@ -907,8 +909,8 @@ class CatchAll404(object):
         # code)
         @get('<path:path>')
         def extensions(path):  # pylint: disable=W0612
-            """Catch-all unmatched paths (so we know we got the request, but
-               didn't match it)"""
+            '''Catch-all unmatched paths (so we know we got the request, but
+               didn't match it)'''
             abort(404, "Path '%s' not recognized" % path)
 
     def __call__(self, environ, start_response):

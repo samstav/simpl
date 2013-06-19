@@ -826,7 +826,7 @@ class Provider(ProviderBase):
         return catalog
 
 
-class Transforms():
+class Transforms(object):
     """Class to hold transform functions.
 
     We put them in a separate class to:
@@ -931,7 +931,7 @@ class Transforms():
                                                            exc, mod, line))
 
 
-class ChefMap():
+class ChefMap(object):
     """Retrieves and parses Chefmap files"""
 
     def __init__(self, url=None, raw=None, parsed=None):
@@ -1351,19 +1351,30 @@ class ChefMap():
         defaults = kwargs.get('defaults', {})
         if deployment:
             if resource:
-                fxn = lambda setting_name: evaluate(deployment.get_setting(
-                    setting_name,
-                    resource_type=resource['type'],
-                    provider_key=resource['provider'],
-                    service_name=resource['service'],
-                    default=defaults.get(setting_name, ''))
+                fxn = lambda setting_name: evaluate(
+                    utils.escape_yaml_simple_string(
+                        deployment.get_setting(
+                            setting_name,
+                            resource_type=resource['type'],
+                            provider_key=resource['provider'],
+                            service_name=resource['service'],
+                            default=defaults.get(setting_name, '')
+                        )
+                    )
                 )
             else:
-                fxn = lambda setting_name: evaluate(deployment.get_setting(
-                    setting_name, default=defaults.get(setting_name, '')))
+                fxn = lambda setting_name: evaluate(
+                    utils.escape_yaml_simple_string(
+                        deployment.get_setting(
+                            setting_name, default=defaults.get(setting_name, '')
+                        )
+                    )
+                )
         else:
             # noop
-            fxn = lambda setting_name: evaluate(defaults.get(setting_name, ''))
+            fxn = lambda setting_name: evaluate(
+                utils.escape_yaml_simple_string(
+                    defaults.get(setting_name, '')))
         env.globals['setting'] = fxn
         env.globals['hash'] = hash_SHA512
 
