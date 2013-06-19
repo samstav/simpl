@@ -455,7 +455,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
                         'status': 'ERROR',
                         'error-message': (
                             'Error writing software configuration '
-                            'to host %s: %s' % (host, exc.message)
+                            'to host %s: %s' % (host, exc.args[0])
                         ),
                         'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                     }
@@ -605,7 +605,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
                         'status': 'ERROR',
                         'error-message': (
                             'Error installing to host %s:%s' %
-                            (host, exc.message)
+                            (host, exc.args[0])
                         ),
                         'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                     }
@@ -794,7 +794,7 @@ def create_environment(name, service_name, path=None, private_key=None,
                                                 'ERROR',
                                                 message=('Error creating chef '
                                                          'environment: %s'
-                                                         % exc.message),
+                                                         % exc.args[0]),
                                                 trace=einfo.traceback)
 
     create_environment.on_failure = on_failure
@@ -917,7 +917,7 @@ def register_node(host, environment, resource, path=None, password=None,
                         'status': 'ERROR',
                         'error-message': (
                             'Error registering host %s: %s' %
-                            (host, exc.message)
+                            (host, exc.args[0])
                         ),
                         'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
                     }

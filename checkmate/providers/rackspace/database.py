@@ -806,7 +806,7 @@ def create_database(context, name, region, character_set=None, collate=None,
         return results
     except clouddb.errors.ResponseError as exc:
         LOG.exception(exc)
-        if str(exc) == '400: Bad Request':
+        if srt(exc) == '400: Bad Request':
             current.retry(exc=exc, throw=True)  # Do not retry. Will fail.
         # Expected while instance is being created. So retry
         return current.retry(exc=exc)
@@ -888,7 +888,7 @@ def add_user(context, instance_id, databases, username, password, region,
     except clouddb.errors.ResponseError as exc:
         # This could be '422 Unprocessable Entity', meaning the instance is not
         # up yet
-        if '422' in exc.message:
+        if '422' in exc.args[0]:
             current.retry(exc=exc)
         else:
             raise exc
@@ -974,7 +974,7 @@ def delete_instance(context, api=None):
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
-                    'error-message': exc.message,
+                    'error-message': exc.args[0],
                     'error-traceback': 'Task %s: %s' % (task_id,
                                                         einfo.traceback)
                 }
@@ -1066,7 +1066,7 @@ def wait_on_del_instance(context, api=None):
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
-                    'error-message': exc.message,
+                    'error-message': exc.args[0],
                     'error-traceback': 'Task %s: %s' % (task_id,
                                                         einfo.traceback)
                 }
@@ -1143,7 +1143,7 @@ def delete_database(context, api=None):
                         'Unexpected error while deleting '
                         'database %s' % key
                     ),
-                    'error-message': exc.message,
+                    'error-message': exc.args[0],
                     'error-traceback': 'Task %s: %s' % (task_id,
                                                         einfo.traceback)
                 }
