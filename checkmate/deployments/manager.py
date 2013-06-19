@@ -41,12 +41,13 @@ class Manager(ManagerBase):
         # TODO: This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
         deployments = self.driver.get_deployments(tenant_id=tenant_id,
+                                                  with_count=True,
                                                   status=status)
         count = 0
         if blueprint_id:
             if not deployments:
                 LOG.debug("No deployments")
-            for dep_id, dep in deployments.items():
+            for dep_id, dep in deployments['results'].items():
                 if "blueprint" in dep:
                     LOG.debug("Found blueprint %s in deployment %s",
                               dep.get("blueprint"), dep_id)
