@@ -537,11 +537,23 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
       $location.path(next_path);
   };
 
+  $scope.on_impersonate_error = function(response) {
+    mixpanel.track("Impersonation Failed");
+    $scope.$root.error = {
+      data: response.data,
+      status: response.status,
+      title: "Error Impersonating User",
+      message: "There was an error during impersonation:"
+    };
+    $scope.open_modal('error');
+  }
+
   $scope.username = "";
   $scope.impersonate = function(username) {
+    mixpanel.track("Impersonation", { user: auth.identity.username, tenant: username });
     $scope.username = "";
     return auth.impersonate(username)
-      .then($scope.on_impersonate_success, $scope.on_auth_failed);
+      .then($scope.on_impersonate_success, $scope.on_impersonate_error);
   };
 
   $scope.exit_impersonation = function() {

@@ -160,24 +160,28 @@ describe('AppController', function(){
     beforeEach(inject(function(_$rootScope_, $q) {
       $rootScope = _$rootScope_;
       deferred = $q.defer();
+      auth.identity = { username: 'fakeracker' };
+      auth.impersonate = sinon.stub().returns(deferred.promise);
+      scope.on_impersonate_error = sinon.stub();
+      scope.on_impersonate_success = sinon.stub();
+      scope.impersonate('fakeuser');
     }));
+
+    it('should log impersonation on mixpanel', function() {
+      expect(mixpanel.track).toHaveBeenCalledWith('Impersonation', {user: 'fakeracker', tenant: 'fakeuser'});
+    });
 
     it('should call the appropriate callback after impersonating user', function() {
       deferred.resolve('success');
-      auth.impersonate = sinon.stub().returns(deferred.promise);
-      scope.on_impersonate_success = sinon.stub();
-      scope.impersonate('fakeuser');
       $rootScope.$apply();
       expect(scope.on_impersonate_success).toHaveBeenCalled();
     });
 
     it('should call the appropriate callback if unable to impersonate user', function() {
       deferred.reject('error');
-      auth.impersonate = sinon.stub().returns(deferred.promise);
-      scope.on_auth_failed = sinon.stub();
       scope.impersonate('fakeuser');
       $rootScope.$apply();
-      expect(scope.on_auth_failed).toHaveBeenCalled();
+      expect(scope.on_impersonate_error).toHaveBeenCalled();
     });
   });
 
@@ -198,6 +202,26 @@ describe('AppController', function(){
       location.path.returns('/somepath');
       scope.on_impersonate_success();
       expect($route.reload).toHaveBeenCalled();
+    });
+  });
+
+  describe('#on_impersonate_error', function() {
+    beforeEach(function() {
+      var response = {};
+      scope.open_modal = sinon.spy();
+      scope.on_impersonate_error(response);
+    });
+
+    it('should log error to mixpanel', function() {
+      expect(mixpanel.track).toHaveBeenCalledWith('Impersonation Failed');
+    });
+
+    it('should set an error message', function() {
+      expect(scope.$root.error).not.toBe(null);
+    });
+
+    it('should show an error modal', function() {
+      expect(scope.open_modal).toHaveBeenCalledWith('error');
     });
   });
 
