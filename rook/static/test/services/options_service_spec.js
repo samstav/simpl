@@ -15,6 +15,22 @@ describe('options', function(){
       expect(this.options.getOptionsFromBlueprint(blueprint).options).toEqual([{ required: true , id: 'deployment' }]);
     });
 
+    it('should use default options_to_display if there is no reach info option groups', function(){
+      blueprint = {};
+      expect(this.options.getOptionsFromBlueprint(blueprint).options_to_display).toEqual(['application', 'server', 'load-balancer', 'database', 'dns']);
+    });
+
+    it('should use reach info option groups if present', function(){
+      blueprint = {
+        'meta-data': {
+          'reach-info': {
+            'option-groups': [ 'thou', 'shall', 'not', 'pass' ]
+          }
+        }
+      };
+      expect(this.options.getOptionsFromBlueprint(blueprint).options_to_display).toEqual(['thou', 'shall', 'not', 'pass']);
+    });
+
     describe('option does not have display hints', function(){
       it('should add "application" to groups if key is site_address', function(){
         blueprint = { options:
@@ -44,6 +60,16 @@ describe('options', function(){
         };
 
         expect(this.options.getOptionsFromBlueprint(blueprint).groups['application']).toEqual([{ id: 'url', something: 'www.rackspace.com', type: 'url' }]);
+      });
+
+      it('should add option to the application option group if it doesnt fall into another category', function(){
+        blueprint = { options:
+          { unknownOption:
+            { something: 'www.rackspace.com' }
+          }
+        };
+
+        expect(this.options.getOptionsFromBlueprint(blueprint).groups['application']).toEqual([{ id: 'unknownOption', something: 'www.rackspace.com'}]);
       });
     });
 
@@ -118,6 +144,15 @@ describe('options', function(){
           }
         };
         expect(this.options.getOptionsFromBlueprint(blueprint).options[0]['always-accept-certificates']).toEqual('cats');
+      });
+
+      it('should add option to application group if dh doesnt have a group', function(){
+        blueprint = { options:
+          { deployment:
+            { 'display-hints': { 'cheese': 'cats' } }
+          }
+        };
+        expect(this.options.getOptionsFromBlueprint(blueprint).groups['application']).toEqual([{ id: 'deployment', 'display-hints': { cheese: 'cats' }, order: 'XXX' }]);
       });
     });
   });
