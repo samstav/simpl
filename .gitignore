@@ -22,6 +22,7 @@ checkmate/openstack
 /tests/data/environments
 /tests/data/simulator.json
 /checkmate/providers/opscode/chef-stockton
+tmp
 
 # possible locations of chef-stockton repo
 checkmate/providers/opscode/chef-stockton
