@@ -223,8 +223,8 @@ def pause_workflow(id, tenant_id=None, driver=DB):
     deployment = driver.get_deployment(dep_id)
     operation = deployment.get("operation")
 
-    if (operation and operation.get('action') != "PAUSE" and
-            operation["status"] != "PAUSED"):
+    if (operation and operation.get('action') != 'PAUSE' and
+            operation['status'] != 'PAUSED'):
         update_operation.delay(dep_id, driver=driver, action='PAUSE')
     return write_body(workflow, request, response)
 
@@ -247,7 +247,7 @@ def resume_workflow(id, tenant_id=None, driver=DB):
     dep_id = workflow["attributes"]["deploymentId"] or id
     deployment = driver.get_deployment(dep_id)
     operation = deployment.get("operation")
-    if operation and operation.get("status") == "PAUSED":
+    if operation and operation.get('status') == 'PAUSED':
         async_call = orchestrator.run_workflow.delay(id, timeout=1800,
                                                      driver=driver)
         LOG.debug("Executed a task to run workflow '%s'", async_call)

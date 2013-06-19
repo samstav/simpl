@@ -374,20 +374,20 @@ class Manager(ManagerBase):
         The data updated must be a dict containing any/all of the following:
         - a deployment status: must be checkmate valid
         - a operation: dict containing operation data
-            "operation": {
-                "status": "COMPLETE",
-                "tasks": 64,
-                "complete": 64,
-                "type": "BUILD"
+            'operation': {
+                'status': 'COMPLETE',
+                'tasks': 64,
+                'complete': 64,
+                'type': 'BUILD'
             }
         - a resources dict containing resources data
-            "resources": {
-                "1": {
-                    "status": "ACTIVE",
-                    "status-message": ""
-                    "instance": {
-                        "status": "ACTIVE"
-                        "status-message": ""
+            'resources': {
+                '1': {
+                    'status': 'ACTIVE',
+                    'status-message': ''
+                    'instance': {
+                        'status': 'ACTIVE'
+                        'status-message': ''
                     }
                 }
             }

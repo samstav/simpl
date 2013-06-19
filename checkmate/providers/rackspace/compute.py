@@ -821,7 +821,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
     if context.get('simulation') is True:
         return {
             key: {
-                "status": resource.get('status', 'DELETED')
+                'status': resource.get('status', 'DELETED')
             }
         }
 
@@ -831,13 +831,13 @@ def sync_resource_task(context, resource, resource_key, api=None):
         server = api.servers.get(resource.get("instance", {}).get("id"))
         return {
             key: {
-                "status": server.status
+                'status': server.status
             }
         }
     except NotFound:
         return {
             key: {
-                "status": "DELETED"
+                'status': 'DELETED'
             }
         }
 
@@ -875,7 +875,7 @@ def delete_server_task(context, api=None):
     if (not server) or (server.status == 'DELETED'):
         ret = {
             inst_key: {
-                "status": "DELETED",
+                'status': 'DELETED',
                 'status-message': ''
             }
         }
@@ -888,8 +888,8 @@ def delete_server_task(context, api=None):
         ret = {}
         ret.update({
             inst_key: {
-                "status": "DELETING",
-                "status-message": "Waiting on resource deletion"
+                'status': 'DELETING',
+                'status-message': 'Waiting on resource deletion'
             }
         })
         if 'hosts' in resource:

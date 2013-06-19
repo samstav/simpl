@@ -423,19 +423,19 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
 
 
 def init_operation(workflow, tenant_id=None):
-    """Create a new operation dictionary for a given workflow.
+    '''Create a new operation dictionary for a given workflow.
 
     Example:
 
-    "operation": {
-        "type": "deploy",
-        "status": "IN PROGRESS",
-        "estimated-duration": 2400,
-        "tasks": 175,
-        "complete": 100,
-        "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
+    'operation': {
+        'type': 'deploy',
+        'status': 'IN PROGRESS',
+        'estimated-duration': 2400,
+        'tasks': 175,
+        'complete': 100,
+        'link': '/v1/{tenant_id}/workflows/982h3f28937h4f23847'
     }
-    """
+    '''
     operation = {}
 
     _update_operation(operation, workflow)
@@ -449,22 +449,22 @@ def init_operation(workflow, tenant_id=None):
 
 
 def _update_operation(operation, workflow):
-    """Update an operation dictionary for a given workflow.
+    '''Update an operation dictionary for a given workflow.
 
     Example:
 
-    "operation": {
-        "type": "deploy",
-        "status": "IN PROGRESS",
-        "estimated-duration": 2400,
-        "tasks": 175,
-        "complete": 100,
-        "link": "/v1/{tenant_id}/workflows/982h3f28937h4f23847"
+    'operation': {
+        'type': 'deploy',
+        'status': 'IN PROGRESS',
+        'estimated-duration': 2400,
+        'tasks': 175,
+        'complete': 100,
+        'link': '/v1/{tenant_id}/workflows/982h3f28937h4f23847'
     }
 
     :param operation: a deployment operation dict
     :param workflow: SpiffWorkflow
-    """
+    '''
 
     tasks = workflow.task_tree.children
 

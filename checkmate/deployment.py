@@ -1101,6 +1101,7 @@ class Deployment(ExtensibleDict):
         for resource in resources:
             resource['component'] = definition['id']
             resource['status'] = "NEW"
+            resource['desired-state'] = {}
             Resource.validate(resource)
         return resources
 

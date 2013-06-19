@@ -55,7 +55,7 @@ if '--trace-calls' in sys.argv or '-t' in sys.argv:
                                        os.pardir,
                                        os.pardir))
 
-    class ConsoleColors():
+    class ConsoleColors(object):
         HEADER = '\033[95m'
         OKBLUE = '\033[94m'
         OKGREEN = '\033[92m'

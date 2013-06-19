@@ -36,7 +36,7 @@ class ComponentTestCase(unittest.TestCase):
 
     def test_provider_attribute(self):
         """Check that passing in special value gets processed correctly"""
-        class dummy():
+        class dummy(object):
             key = 1
         c = Component({}, provider=dummy())
         self.assertEqual(c.provider.key, 1)

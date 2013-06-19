@@ -152,7 +152,7 @@ class TestDatabase(ProviderTester):
             context['deployment'], context['resource']
         ).AndReturn(expected_resource)
 
-        class FakeTask():
+        class FakeTask(object):
             def apply_async(self):
                 pass
 

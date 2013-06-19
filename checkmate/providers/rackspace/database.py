@@ -921,7 +921,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
     if context.get('simulation') is True:
         return {
             key: {
-                "status": resource.get('status', 'DELETED')
+                'status': resource.get('status', 'DELETED')
             }
         }
     if api is None:
@@ -942,13 +942,13 @@ def sync_resource_task(context, resource, resource_key, api=None):
         database = api.get_instance(resource.get("instance", {}).get("id"))
         return {
             key: {
-                "status": database.status
+                'status': database.status
             }
         }
     except ResponseError:
         return {
             key: {
-                "status": "DELETED"
+                'status': 'DELETED'
             }
         }
 
