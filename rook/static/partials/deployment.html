@@ -14,7 +14,7 @@ Password: {{formatted_data.password}}
 Priv Key: {{formatted_data.private_key}}
 </div>
 
-<div class="entries container-fluid">
+<div class="entries container-fluid" ng-init="load()">
   <div class="entry well">
     <div class="row-fluid">
       <div class="span2">
@@ -76,13 +76,19 @@ Priv Key: {{formatted_data.private_key}}
             <div class="control-group">
               <label class="control-label" for="status">Status</label>
               <div class="controls">
-                <div id="status" class="label"
-                ng-class="{
-                'label-success': data.status == 'UP' || data.status == 'LAUNCHED' || data.status == 'ACTIVE',
-                'label-warning': data.status == 'ALERT' || data.status == 'DELETING' || data.status == 'BUILD', 'label-important': data.status == 'FAILED' || data.status == 'UNREACHABLE' || data.status == 'DOWN',
-                'label-info': data.status == 'PLANNED',
-                'label-inverse': data.status == 'DELETED'
-              }" style="margin-right: 10px; margin-bottom: 5px;">{{deployment_status()}}</div> <!-- if there's an operation running, operation type, otherwise data.status -->
+                <span id="status" class="label" ng-class="{
+                  'label-info': data.status == 'PLANNED',
+                  'label-success': data.status == 'UP' || data.status == 'LAUNCHED' || data.status == 'ACTIVE',
+                  'label-warning': data.status == 'ALERT' || data.status == 'DELETING' || data.status == 'BUILD',
+                  'label-important': data.status == 'FAILED' || data.status == 'UNREACHABLE' || data.status == 'DOWN',
+                  'label-inverse': data.status == 'DELETED'
+                }">
+                  {{deployment_status()}}
+                </span>
+
+                <span ng-show="is_resumable()"><a ng-href="{{data.operation['resume-link']}}">Resume</a></span>
+                <span ng-show="is_resumable() && is_retriable()"> &#8226; </span>
+                <span ng-show="is_retriable()"><a ng-href="{{data.operation['retry-link']}}">Retry</a></span>
               </div>
             </div>
 

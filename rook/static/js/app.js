@@ -2827,15 +2827,6 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     }
   };
 
-  $scope.deployment_status = function() {
-    var status = $scope.data.status;
-    if ($scope.data.operation && $scope.data.operation.status != 'COMPLETE') {
-      status = $scope.data.operation.type;
-    }
-
-    return status;
-  };
-
   $scope.operation_progress = function() {
     var percentage = 0;
     if ($scope.data.operation) {
@@ -2846,12 +2837,28 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   };
 
   $scope.operation_status = function() {
-    try {
-      return $scope.data.operation.status;
-    } catch(err) {
-      return "";
-    }
+    return $scope.data.operation && $scope.data.operation.status;
   };
+
+  $scope.deployment_status = function() {
+    var status = $scope.data.status;
+    var stop_statuses = ['COMPLETE', 'ERROR'];
+
+    // if there's an operation running, override status:
+    if ($scope.data.operation && stop_statuses.indexOf($scope.operation_status()) === -1) {
+      status = $scope.data.operation.type;
+    }
+
+    return status;
+  };
+
+  $scope.is_resumable = function() {
+    return $scope.data.operation && $scope.data.operation.resumable;
+  }
+
+  $scope.is_retriable = function() {
+    return $scope.data.operation && $scope.data.operation.retriable;
+  }
 
   $scope.save = function() {
     var editor = _.find($('.CodeMirror'), function(c) {
@@ -2923,9 +2930,6 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
-
-  //Setup
-  $scope.load();
 }
 
 /*
