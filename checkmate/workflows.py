@@ -532,7 +532,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
                   % task.get_state_name())
 
         # Refresh token if it exists in args[0]['auth_token]
-        if hasattr(task, 'args') and task.task_spec.args and \
+        if hasattr(task.task_spec, 'args') and task.task_spec.args and \
                 len(task.task_spec.args) > 0 and \
                 isinstance(task.task_spec.args[0], dict) and \
                 task.task_spec.args[0].get('auth_token') != \
@@ -540,8 +540,8 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
             task.task_spec.args[0]['auth_token'] = request.context.auth_token
             LOG.debug("Updating task auth token with new caller token")
         if task.task_spec.retry_fire(task):
-            LOG.debug("Progressing task '%s' (%s)" % (task_id,
-                                                      task.get_state_name()))
+            LOG.debug("Progressing task '%s' (%s)", task_id,
+                      task.get_state_name())
             task.task_spec._update_state(task)
 
         wf_import.update_workflow_status(wf, workflow_id=workflow_id)
