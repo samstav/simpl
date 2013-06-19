@@ -119,7 +119,7 @@ def get_failed_tasks(wf_dict, tenant_id):
                 exception = eval(info)
                 if isinstance(exception, CheckmateRetriableException):
                     results.append({
-                        "error-message": exception.message,
+                        "error-message": exception.args[0],
                         "error-help": exception.error_help,
                         "retriable": True,
                         "retry-link":
@@ -128,7 +128,7 @@ def get_failed_tasks(wf_dict, tenant_id):
                     })
                 elif isinstance(exception, CheckmateResumableException):
                     results.append({
-                        "error-message": exception.message,
+                        "error-message": exception.args[0],
                         "error-help": exception.error_help,
                         "resumable": True,
                         "resume-link": "/%s/workflows/%s/tasks/%s/+poke" % (
@@ -137,7 +137,7 @@ def get_failed_tasks(wf_dict, tenant_id):
                             task.id)
                     })
                 elif isinstance(exception, Exception):
-                    results.append({"error-message": str(exception)})
+                    results.append({"error-message": exception.args[0]})
             except Exception:
                 results.append({"error-message": info})
     return results

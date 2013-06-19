@@ -396,7 +396,7 @@ def delete_record(context, domain_id, record_id):
                   record_id, res_err.status, res_err.reason))
         delete_record.retry(exc=res_err)
     except Exception as exc:
-        if "Not found" in exc.message:
+        if "Not found" in exc.args[0]:
             return
         LOG.debug('Error deleting DNS record %s. Retrying.' % record_id,
                   exc_info=True)
