@@ -12,12 +12,9 @@ import logging
 import unittest2 as unittest
 
 from celery.task import task
-from cloudlb.errors import RateLimit
-from novaclient.exceptions import OverLimit
 
 from checkmate.db.common import ObjectLockedError
 from checkmate.db.mongodb import Driver
-from checkmate.exceptions import CheckmateRetriableException
 
 try:
     from mongobox import MongoBox

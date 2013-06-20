@@ -26,7 +26,11 @@ from checkmate.exceptions import (
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
-from checkmate.utils import match_celery_logging, generate_password
+from checkmate.utils import (
+    match_celery_logging,
+    generate_password,
+    get_class_name,
+)
 from checkmate.workflow import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -682,7 +686,8 @@ def wait_on_build(context, instance_id, region, api=None):
                                                context['resource']
                                            ),
                                            instance_key).apply_async()
-        raise CheckmateRetriableException(msg, "")
+        raise CheckmateRetriableException(msg, "", get_class_name(
+            CheckmateDatabaseBuildFailed()), action_required=True)
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
         results['id'] = instance_id
@@ -1212,3 +1217,9 @@ def delete_user(context, instance_id, username, region, api=None):
     instance.delete_user(username)
     LOG.info('Deleted user %s from database instance %d', username,
              instance_id)
+
+
+#Database provider specific exceptions
+class CheckmateDatabaseBuildFailed(CheckmateException):
+    """Error building database"""
+    pass

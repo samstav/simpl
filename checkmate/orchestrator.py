@@ -15,6 +15,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.common.tasks import update_operation
 from checkmate.db.common import ObjectLockedError
 from checkmate.middleware import RequestContext
+from checkmate.operations import get_status_info
 from checkmate.utils import extract_sensitive_data, match_celery_logging
 
 LOG = logging.getLogger(__name__)
@@ -184,10 +185,10 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     finally:
         # Save any changes, even if we errored out
         deployment_status = None
-        failed_tasks = cm_workflow.get_failed_tasks(d_wf, tenant_id)
+        errors = cm_workflow.get_errors(d_wf, tenant_id)
         after = d_wf.get_dump()
 
-        if before != after or failed_tasks:
+        if before != after or errors:
             #save if there are failed tasks or the workflow has progressed
             cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                         driver=driver, workflow_id=w_id)
@@ -200,18 +201,24 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             completed = d_wf.get_attribute('completed')
             total = d_wf.get_attribute('total')
             workflow_status = operation_status = d_wf.get_attribute('status')
+            status_info = {}
 
-            if failed_tasks:
+            if errors:
                 operation_status = "ERROR"
+                status_info = get_status_info(errors, tenant_id, w_id)
 
             if total == completed:
                 deployment_status = "UP"
 
+            operation_kwargs = {'status': operation_status,
+                                'tasks': total,
+                                'complete': completed,
+                                'errors': errors}
+            operation_kwargs.update(status_info)
+
             update_operation.delay(dep_id, driver=driver,
                                    deployment_status=deployment_status,
-                                   status=operation_status, tasks=total,
-                                   complete=completed,
-                                   errors=failed_tasks)
+                                   **operation_kwargs)
 
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
                                                              total,

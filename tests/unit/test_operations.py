@@ -88,6 +88,57 @@ class TestOperations(unittest.TestCase):
         }
         self.assertDictEqual(deployment, expected)
 
+    def test_status_info_with_retriable_errors(self):
+        errors = [
+            {"error-type": "OverLimit", "error-message": "OverLimit Message",
+             "action-required": True, "retriable": True},
+            {"error-type": "OverLimit", "error-message": "OverLimit Message",
+             "action-required": True},
+            {"error-type": "RateLimit", "error-message": "RateLimit Message",
+             "action-required": True},
+            {"error-type": "RandomError", "error-message": "Random Message",
+             "action-required": False},
+            {"error-type": "RandomError", "error-message": "Random Message"},
+        ]
+        info = operations.get_status_info(errors, "tenantId", "workflowId")
+        expected = {
+            'status-message': "1. OverLimit Message\n2. RateLimit Message\n",
+            'retry-link': "/tenantId/workflows/workflowId/+retry-failed-tasks",
+            'retriable': True
+        }
+        self.assertDictEqual(info, expected)
+
+    def test_status_info_with_no_retriable_and_resumable_errors(self):
+        errors = [
+            {"error-type": "OverLimit", "error-message": "OverLimit Message",
+             "action-required": True},
+            {"error-type": "OverLimit", "error-message": "OverLimit Message",
+             "action-required": True},
+            {"error-type": "RateLimit", "error-message": "RateLimit Message",
+             "action-required": True},
+        ]
+        info = operations.get_status_info(errors, "tenantId", "workflowId")
+        expected = {
+            'status-message': "1. OverLimit Message\n2. RateLimit Message\n",
+        }
+        self.assertDictEqual(info, expected)
+
+    def test_status_info_with_resumable_errors(self):
+        errors = [
+            {"error-type": "OverLimit", "error-message": "OverLimit Message",
+             "action-required": True,},
+            {"error-type": "SomeError", "error-message": "SomeError Message",
+             "action-required": True, "resumable": True},
+        ]
+        info = operations.get_status_info(errors, "tenantId", "workflowId")
+        expected = {
+            'status-message': "1. OverLimit Message\n2. SomeError Message\n",
+            'resume-link': "/tenantId/workflows/workflowId/"
+                           "+resume-failed-tasks",
+            'resumable': True
+        }
+        self.assertDictEqual(info, expected)
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

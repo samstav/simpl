@@ -95,10 +95,13 @@ class CheckmateRetriableException(CheckmateException):
     Retriable Exception
     '''
 
-    def __init__(self, message, error_help):
+    def __init__(self, message, error_help, error_type, action_required=False):
         self.error_help = error_help
         self.message = message
-        super(CheckmateException, self).__init__(message, error_help)
+        self.error_type = error_type
+        self.action_required = action_required
+        super(CheckmateException, self).__init__(message, error_help,
+                                                 error_type, action_required)
 
 
 class CheckmateResumableException(CheckmateException):
@@ -106,10 +109,13 @@ class CheckmateResumableException(CheckmateException):
     Retriable Exception
     '''
 
-    def __init__(self, message, error_help):
+    def __init__(self, message, error_help, error_type, action_required=False):
         self.error_help = error_help
         self.message = message
-        super(CheckmateException, self).__init__(message, error_help)
+        self.error_type = error_type
+        self.action_required = action_required
+        super(CheckmateException, self).__init__(message, error_help,
+                                                 error_type, action_required)
 
 
 class CheckmateValidationException(CheckmateException):

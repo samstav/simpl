@@ -17,7 +17,7 @@ from SpiffWorkflow.Workflow import Workflow
 
 from checkmate import workflow
 from checkmate.workflow import (
-    get_failed_tasks,
+    get_errors,
     is_failed_task,
     update_workflow,
 )
@@ -49,7 +49,7 @@ class TestWorkflow(unittest.TestCase):
                                                     self.task_without_error])
         self.mox.ReplayAll()
 
-        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
+        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
 
         self.assertEqual(1, len(failed_tasks))
         self.assertDictEqual({"error-message": "Error Information"},
@@ -58,7 +58,7 @@ class TestWorkflow(unittest.TestCase):
     def test_get_failed_tasks_with_retriable_exception(self):
         task_state = {
             "info": "CheckmateRetriableException('exception_message', "
-                    "'error-help')",
+                    "'error-help', 'error-type', True)",
             "state": "FAILURE",
             "traceback": "Traceback"
         }
@@ -70,7 +70,7 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.attributes = {"id": "wf_id"}
         self.mox.ReplayAll()
 
-        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
+        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
@@ -79,7 +79,10 @@ class TestWorkflow(unittest.TestCase):
             "error-help": "error-help",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/tasks/task_id/"
-                          "+reset-task-tree"
+                          "+reset-task-tree",
+            "error-type": "error-type",
+            "action-required": True,
+            "task-id": "task_id"
         }
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
@@ -87,7 +90,7 @@ class TestWorkflow(unittest.TestCase):
     def test_get_failed_tasks_with_resumable_exception(self):
         task_state = {
             "info": "CheckmateResumableException('exception_message', "
-                    "'error-help')",
+                    "'error-help', 'error-type', True)",
             "state": "FAILURE",
             "traceback": "Traceback"
         }
@@ -99,7 +102,7 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.attributes = {"id": "wf_id"}
         self.mox.ReplayAll()
 
-        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
+        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
@@ -107,7 +110,10 @@ class TestWorkflow(unittest.TestCase):
             "error-message": "exception_message",
             "error-help": "error-help",
             "resumable": True,
-            "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+poke"
+            "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute",
+            "error-type": "error-type",
+            "action-required": True,
+            "task-id": "task_id"
         }
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
@@ -125,11 +131,12 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
         self.mox.ReplayAll()
 
-        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
+        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
-        expected_error = {"error-message": "This is an exception"}
+        expected_error = {"error-message": "This is an exception",
+                          "error-type": "Exception"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
@@ -146,7 +153,7 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
         self.mox.ReplayAll()
 
-        failed_tasks = get_failed_tasks(self.mocked_workflow, self.tenant_id)
+        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
