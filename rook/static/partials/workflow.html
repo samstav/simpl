@@ -1,11 +1,11 @@
 <div id="leftControls" class="lcontrols no-select" ng-cloak ng-show="showControls" ng-init="auto_refresh()">
   <div class="tControls">
     <div class="top" ng-cloak ng-show="data">
-      <button ng-click="workflow_action(data.id, 'execute')" class="btn" tooltip="Run workflow" alt="Run"><i class="icon-play"></i></button>
-      <button ng-click="navigate(data.tenantId + '/workflows/' + data.id + '/status')" class="btn" tooltip="Check status" alt="Status"><i class="icon-heart"></i></button>
+      <button ng-click="workflow_action(data.id, 'execute')" class="btn" tooltip-placement='right' tooltip="Run workflow" alt="Run"><i class="icon-play"></i></button>
+      <button ng-click="navigate(data.tenantId + '/workflows/' + data.id + '/status')" class="btn" tooltip-placement='right' tooltip="Check status" alt="Status"><i class="icon-heart"></i></button>
     </div>
     <div class="bottom" ng-cloak ng-show="data">
-      <button ng-click="load()" class="btn" tooltip="Refresh" alt="Refresh"><i class="icon-repeat"></i></button>
+      <button ng-click="load()" class="btn" tooltip-placement='right' tooltip="Refresh" alt="Refresh"><i class="icon-repeat"></i></button>
     </div>
   </div>
 </div>
@@ -77,7 +77,7 @@
         <ul class="nav nav-list">
           <li class="nav-header">Task Spec</li>
 
-          <li><a href="#" ng-click="save_spec()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
+          <li><a href="#" ng-click="save_spec()" tooltip-placement='left' tooltip="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
 
           <li class="nav-header">Preceding Tasks</li>
 
