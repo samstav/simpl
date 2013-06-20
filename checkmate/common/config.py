@@ -17,6 +17,7 @@ class Config(object):
     quiet = False
     newrelic = False
     trace_calls = False
+    statsd = None
 
     with_ui = False
     with_simulator = False
