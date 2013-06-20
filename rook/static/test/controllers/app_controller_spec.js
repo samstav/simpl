@@ -424,7 +424,7 @@ describe('AppController', function(){
 
   describe('#on_auth_failed', function() {
     beforeEach(function() {
-      var response = { statusText: "fakestatustext" };
+      var response = { status: "fakestatustext" };
       scope.on_auth_failed(response);
     });
 
@@ -483,7 +483,7 @@ describe('AppController', function(){
 
   describe('#logIn', function() {
     beforeEach(function() {
-      auth.authenticate = sinon.spy();
+      auth.authenticate = sinon.stub().returns({ then: emptyFunction });
       scope.get_selected_endpoint = sinon.stub().returns({ uri: "fakeendpoint" });
       scope.logIn();
     });
