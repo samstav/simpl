@@ -64,37 +64,43 @@ def instrument_task(func):
 
     def instrument_wrapper(*args, **kwargs):
         import celery
+        from checkmate.common import config
         import statsd
 
-        stats_conn = statsd.connection.Connection(
-            host=celery.current_app.conf['STATSD_HOST'],
-            port=celery.current_app.conf['STATSD_PORT'],
-            sample_rate=1
-        )
+        CONFIG = config.current()
 
-        task_name = func.__name__
+        if CONFIG.statsd:
+            stats_conn = statsd.connection.Connection(
+                host=celery.current_app.conf['STATSD_HOST'],
+                port=celery.current_app.conf['STATSD_PORT'],
+                sample_rate=1
+            )
 
-        counter = statsd.counter.Counter('celery.tasks.status', stats_conn)
-        counter.increment('{task_name}.started'.format(**locals()))
+            task_name = func.__name__
 
-        timer = statsd.timer.Timer('celery.tasks.duration', stats_conn)
-        timer.start()
+            counter = statsd.counter.Counter('celery.tasks.status', stats_conn)
+            counter.increment('{task_name}.started'.format(**locals()))
 
-        try:
-            ret = func(*args, **kwargs)
-        except StandardError:
-            counter.increment('{task_name}.exceptions'.format(**locals()))
-            raise
-        else:
-            counter.increment('{task_name}.success'.format(**locals()))
-            timer.stop('{task_name}.success'.format(**locals()))
-            return ret
-        finally:
+            timer = statsd.timer.Timer('celery.tasks.duration', stats_conn)
+            timer.start()
+
             try:
-                del timer
-                del counter
-                del stats_conn
+                ret = func(*args, **kwargs)
             except StandardError:
-                pass
+                counter.increment('{task_name}.exceptions'.format(**locals()))
+                raise
+            else:
+                counter.increment('{task_name}.success'.format(**locals()))
+                timer.stop('{task_name}.success'.format(**locals()))
+                return ret
+            finally:
+                try:
+                    del timer
+                    del counter
+                    del stats_conn
+                except StandardError:
+                    pass
+        else:
+            return func(*args, **kwargs)
 
     return instrument_wrapper
