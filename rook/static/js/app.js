@@ -1515,6 +1515,12 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .attr("class", "node")
         .call(node_drag);
 
+    node.append("svg:text")
+        .attr("class", "nodetext")
+        .attr("dx", 12)
+        .attr("dy", ".35em")
+        .text(function(d) { return d.name; });
+
     node.append("svg:image")
         .attr("class", "circle")
         .attr("xlink:href", "/favicon.ico")
@@ -1522,12 +1528,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .attr("y", "-8px")
         .attr("width", "16px")
         .attr("height", "16px");
-
-    node.append("svg:text")
-        .attr("class", "nodetext")
-        .attr("dx", 12)
-        .attr("dy", ".35em")
-        .text(function(d) { return d.name; });
 
     force.on("tick", tick);
 
@@ -1741,6 +1741,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           node.x = position.x;
           node.y = position.y;
           node.spec = spec;
+          if(_.contains(spec.properties.task_tags, 'root'))
+            node.resource_number = spec.defines.resource;
 
           nodes.push(node)
         }
@@ -1820,6 +1822,21 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       });
     enter_nodes.append('svg:title').text(function(d) { return d.name; });
     enter_nodes.append('svg:desc') .text(function(d) { return JSON.stringify(d); });
+
+    enter_nodes.append("text")
+      .attr("class", "nodetext")
+      .attr("dx", -40)
+      .attr("dy", -10)
+      .text(function(d) {
+        var display_name = '';
+        if(d.resource_number){
+          if($scope.deployment && $scope.deployment.resources) {
+            display_name = $scope.deployment.resources[d.resource_number]['dns-name']
+          }
+        }
+        return display_name;
+      });
+
     enter_nodes.append('circle')
       .attr('class', 'node')
       .attr('r', 6);

@@ -491,3 +491,6 @@ line.link {
   stroke-opacity: 0.6;
 }
 
+text.nodetext {
+  font-size: 12px;
+}
