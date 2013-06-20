@@ -1515,6 +1515,12 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .attr("class", "node")
         .call(node_drag);
 
+    node.append("svg:text")
+        .attr("class", "nodetext")
+        .attr("dx", 12)
+        .attr("dy", ".35em")
+        .text(function(d) { return d.name; });
+
     node.append("svg:image")
         .attr("class", "circle")
         .attr("xlink:href", "/favicon.ico")
@@ -1522,12 +1528,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         .attr("y", "-8px")
         .attr("width", "16px")
         .attr("height", "16px");
-
-    node.append("svg:text")
-        .attr("class", "nodetext")
-        .attr("dx", 12)
-        .attr("dy", ".35em")
-        .text(function(d) { return d.name; });
 
     force.on("tick", tick);
 
@@ -1592,8 +1592,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.start_task_name = 'Start';
   $scope.padding = 8;
-  $scope.spacing = 10;
-  $scope.default_task_duration = $scope.spacing;
+  $scope.group_spacing = 10;
+  $scope.collision_spacing = 7;
+  $scope.default_task_duration = $scope.group_spacing;
   $scope.log_scale = 15;
   $scope.canvas = {
     width: 1080,
@@ -1639,18 +1640,17 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.resource_position = function(group) {
-    return group * $scope.spacing;
+    return group * $scope.group_spacing;
   }
 
   $scope.avoid_collision = function(nodes, current_position, axis, level) {
     level = level || 0;
-    var spacing = $scope.spacing / 2;
     var new_position = _.clone(current_position);
     var existing_node = _.findWhere(nodes, new_position);
     if (!existing_node) {
       return new_position;
     }
-    new_position[axis] += spacing;
+    new_position[axis] += $scope.collision_spacing;
     return $scope.avoid_collision(nodes, new_position, axis, level+1);
   }
 
@@ -1741,6 +1741,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           node.x = position.x;
           node.y = position.y;
           node.spec = spec;
+          if(_.contains(spec.properties.task_tags, 'root'))
+            node.resource_number = spec.defines.resource;
 
           nodes.push(node)
         }
@@ -1803,12 +1805,38 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       .append('svg:g')
       .attr('class', 'node')
       .on('click', function(d){
+        d3.select("#highlight").remove();
+
+        svg.insert('g', ':first-child')
+          .attr("transform", function() { return "translate(" + d.x + "," + d.y + ")"; })
+          .insert('circle', ':first-child')
+          .attr('id', 'highlight')
+          .attr('r', 36)
+          .attr('x', d.x)
+          .attr('y', d.y)
+          .style('fill', 'url(#gradient)');
+
         $scope.$apply(function() {
           $scope.selectSpec(d.name);
         });
       });
     enter_nodes.append('svg:title').text(function(d) { return d.name; });
     enter_nodes.append('svg:desc') .text(function(d) { return JSON.stringify(d); });
+
+    enter_nodes.append("text")
+      .attr("class", "nodetext")
+      .attr("dx", -40)
+      .attr("dy", -10)
+      .text(function(d) {
+        var display_name = '';
+        if(d.resource_number){
+          if($scope.deployment && $scope.deployment.resources) {
+            display_name = $scope.deployment.resources[d.resource_number]['dns-name']
+          }
+        }
+        return display_name;
+      });
+
     enter_nodes.append('circle')
       .attr('class', 'node')
       .attr('r', 6);
@@ -1851,6 +1879,20 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.buildNetwork = function(json, parent_element) {
     var svg = d3.select(parent_element);
+
+    var gradient = svg.append("svg:defs")
+    .append("svg:radialGradient")
+    .attr("id", "gradient")
+
+    gradient.append("svg:stop")
+    .attr("offset", "0%")
+    .attr("stop-color", "#0E90D2")
+    .attr("stop-opacity", 1);
+
+    gradient.append("svg:stop")
+    .attr("offset", "100%")
+    .attr("stop-color", "#F5F5F5")
+    .attr("stop-opacity", 1);
 
     if (svg.select('g#links')[0][0] === null)
       svg.append('g').attr('id', 'links');
