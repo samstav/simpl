@@ -240,15 +240,13 @@ function RawController($scope, $location, $http) {
 function AutoLoginController($scope, $location, $cookies, auth) {
   $scope.auto_login_success = function() {
     $location.path('/');
-    $scope.$apply(); // Make angular aware of the changes made outside it's environment
   };
 
   $scope.auto_login_fail = function(response) {
-    mixpanel.track("Log In Failed", {'problem': response.statusText});
+    mixpanel.track("Log In Failed", {'problem': response.status});
     $location.path('/');
-    $scope.$apply();
     $scope.loginPrompt();
-    auth.error_message = response.statusText + ". Your credentials could not be verified.";
+    auth.error_message = response.status + ". Your credentials could not be verified.";
   };
 
   $scope.autoLogIn = function() {
@@ -537,11 +535,23 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
       $location.path(next_path);
   };
 
+  $scope.on_impersonate_error = function(response) {
+    mixpanel.track("Impersonation Failed");
+    $scope.$root.error = {
+      data: response.data,
+      status: response.status,
+      title: "Error Impersonating User",
+      message: "There was an error during impersonation:"
+    };
+    $scope.open_modal('error');
+  }
+
   $scope.username = "";
   $scope.impersonate = function(username) {
+    mixpanel.track("Impersonation", { user: auth.identity.username, tenant: username });
     $scope.username = "";
     return auth.impersonate(username)
-      .then($scope.on_impersonate_success, $scope.on_auth_failed);
+      .then($scope.on_impersonate_success, $scope.on_impersonate_error);
   };
 
   $scope.exit_impersonation = function() {

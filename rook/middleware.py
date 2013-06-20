@@ -106,11 +106,6 @@ class BrowserMiddleware(object):
         except HTTPError:
             pass
 
-        # Let methods we don't handle go through
-        if (environ.get('REQUEST_METHOD', 'GET').upper() in
-                ['POST', 'PUT', 'DELETE']):
-            return self.nextapp(environ, handler)
-
         # .yaml, .json, and .xml not handled by rook
         #
         # Note: curl calls to .yaml resources will come with text/html or */*.
