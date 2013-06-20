@@ -305,9 +305,6 @@ class TestGenerateServices(unittest.TestCase):
         services = deployment.calculate_services()
         expected = {
             'app': {
-                'interfaces': {
-                    'http': {}
-                },
                 'resources': [],
             }
         }
