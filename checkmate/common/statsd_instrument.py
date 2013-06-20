@@ -1,4 +1,4 @@
-"""Decorator to quickly add statsd (graphite) instrumentation to Celery
+'''Decorator to quickly add statsd (graphite) instrumentation to Celery
 task functions.
 
 With some slight modification, this could be used to instrument just
@@ -25,14 +25,11 @@ http://wiki.python.org/moin/PythonDecoratorLibrary#Property_Definition
 
 Limitation: Does not readily work on subclasses of celery.tasks.Task
 because it always reports `task_name` as 'run'
-"""
+'''
 
-# statsd instrumentation
-from celery import current_app
-import statsd
-        
+
 def simple_decorator(decorator):
-    """Borrowed from:
+    '''Borrowed from:
     http://wiki.python.org/moin/PythonDecoratorLibrary#Property_Definition
 
     Original docstring:
@@ -44,11 +41,12 @@ def simple_decorator(decorator):
     eligible to use this. Simply apply @simple_decorator to
     your decorator and it will automatically preserve the
     docstring and function attributes of functions to which
-    it is applied."""
+    it is applied.
+    '''
     def new_decorator(f):
         g = decorator(f)
         g.__name__ = f.__name__
-        g.__module__ = f.__module__ # or celery throws a fit
+        g.__module__ = f.__module__  # or celery throws a fit
         g.__doc__ = f.__doc__
         g.__dict__.update(f.__dict__)
         return g
@@ -59,20 +57,24 @@ def simple_decorator(decorator):
     new_decorator.__dict__.update(decorator.__dict__)
     return new_decorator
 
+
 @simple_decorator
 def instrument_task(func):
-    """Wraps a celery task with statsd instrumentation code"""
+    '''Wraps a celery task with statsd instrumentation code.'''
 
     def instrument_wrapper(*args, **kwargs):
-        
+        import celery
+        import statsd
+
         stats_conn = statsd.connection.Connection(
-            host = current_app.conf['STATSD_HOST'],
-            port = current_app.conf['STATSD_PORT'],
-            sample_rate = 1)
+            host=celery.current_app.conf['STATSD_HOST'],
+            port=celery.current_app.conf['STATSD_PORT'],
+            sample_rate=1
+        )
 
         task_name = func.__name__
 
-        counter = statsd.counter.Counter('celery.tasks.status',stats_conn)
+        counter = statsd.counter.Counter('celery.tasks.status', stats_conn)
         counter.increment('{task_name}.started'.format(**locals()))
 
         timer = statsd.timer.Timer('celery.tasks.duration', stats_conn)
@@ -80,7 +82,7 @@ def instrument_task(func):
 
         try:
             ret = func(*args, **kwargs)
-        except:
+        except StandardError:
             counter.increment('{task_name}.exceptions'.format(**locals()))
             raise
         else:
@@ -92,7 +94,7 @@ def instrument_task(func):
                 del timer
                 del counter
                 del stats_conn
-            except:
+            except StandardError:
                 pass
 
     return instrument_wrapper

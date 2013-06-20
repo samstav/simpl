@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 ''' Module to initialize and run Checkmate server'''
 import argparse
-import os
 import json
 import logging
+import os
 import string
 import sys
 import threading
@@ -13,18 +13,26 @@ import checkmate.common.tracer  # module runs on import
 
 # pylint: disable=E0611
 import bottle
-from bottle import app, run, request, response, HeaderDict, default_app, load
+from bottle import (
+    app,
+    run,
+    request,
+    response,
+    HeaderDict,
+    default_app,
+    load,
+)
 from celery import Celery
 import eventlet
 
-from checkmate import db
 from checkmate import blueprints
 from checkmate import celeryconfig
-from checkmate.common import config
+from checkmate import db
 from checkmate import deployments
 from checkmate import middleware
 from checkmate import utils
 from checkmate.api.admin import Router as AdminRouter
+from checkmate.common import config
 from checkmate.common.gzip_middleware import Gzipper
 from checkmate.exceptions import (
     CheckmateException,
@@ -45,7 +53,7 @@ CONFIG = config.current()
 
 # Check our configuration
 def check_celery_config(values=None):
-    '''Make sure a backend is configured'''
+    '''Make sure a backend is configured.'''
     from celery import current_app
     try:
         if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
@@ -81,7 +89,7 @@ DEFAULT_AUTH_ENDPOINTS = [{
 
 
 def error_formatter(error):
-    '''Catch errors and output them in the correct format/media-type'''
+    '''Catch errors and output them in the correct format/media-type.'''
     output = {}
     accept = request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
@@ -127,12 +135,12 @@ def error_formatter(error):
 
 
 def comma_separated_strs(value):
-    '''Handles comma-separated arguments passed in command-line'''
+    '''Handles comma-separated arguments passed in command-line.'''
     return map(str, value.split(","))
 
 
 def comma_separated_key_value_pairs(value):
-    '''Handles comma-separated key/values passed in command-line'''
+    '''Handles comma-separated key/values passed in command-line.'''
     pairs = value.split(",")
     results = {}
     for pair in pairs:
@@ -142,7 +150,8 @@ def comma_separated_key_value_pairs(value):
 
 
 def argument_parser():
-    '''Parses start-up arguments and returns namespace with config variables'''
+    '''Parses start-up arguments and returns namespace with config variables.
+    '''
 
     parser = argparse.ArgumentParser()
 
@@ -276,7 +285,7 @@ def argument_parser():
 
 
 def main_func():
-    '''Start the server based on passed in arguments. Called by __main__'''
+    '''Start the server based on passed in arguments. Called by __main__.'''
     CONFIG.update(vars(argument_parser()))
 
     resources = ['version']
@@ -307,7 +316,10 @@ def main_func():
     check_celery_config(values)
 
     # Register built-in providers
-    from checkmate.providers import rackspace, opscode
+    from checkmate.providers import (
+        rackspace,
+        opscode,
+    )
     rackspace.register()
     opscode.register()
 
@@ -472,7 +484,7 @@ def main_func():
         try:
             if worker:
                 worker.stop()
-        except:
+        except StandardError:
             pass
 
 
