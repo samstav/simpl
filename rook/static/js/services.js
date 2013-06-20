@@ -1013,7 +1013,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     },
 
     // Authenticate
-    authenticate: function(endpoint, username, apikey, password, token, pin_rsa, tenant, callback, error_callback) {
+    authenticate: function(endpoint, username, apikey, password, token, pin_rsa, tenant) {
       var headers,
           target = endpoint['uri'],
           data = this.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, endpoint.scheme);
@@ -1029,34 +1029,25 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       var url = is_chrome_extension ? target : "/authproxy";
       var config = { headers: headers };
       return $http.post(url, data, config)
-        .success(function(response, status, headers, config) {
-          var params = { headers: headers, endpoint: endpoint };
-          auth.context = auth.create_context(response, params);
-          auth.identity = auth.create_identity(response, params);
-          auth.identity.context = _.clone(auth.context);
-          auth.save();
+        .then(
+          // Success
+          function(response) {
+            var params = { headers: response.headers, endpoint: endpoint };
+            auth.context = auth.create_context(response.data, params);
+            auth.identity = auth.create_identity(response.data, params);
+            auth.identity.context = _.clone(auth.context);
+            auth.save();
+            auth.check_state();
 
-          //Check token expiration
-          auth.check_state();
-          /*
-          var expires = new Date(response.access.token.expires);
-          var now = new Date();
-          if (expires < now) {
-            auth.expires = 'expired';
-            $scope.auth.loggedIn = false;
-          } else {
-            $scope.auth.expires = expires - now;
-            $scope.auth.loggedIn = true;
+            $rootScope.$broadcast('logIn');
+            $rootScope.$broadcast('contextChanged');
+          },
+          // Error
+          function(response) {
+            console.log("Authentication Error:");
+            console.log(response.data);
           }
-          */
-
-          if (callback) callback(response);
-          $rootScope.$broadcast('logIn');
-          $rootScope.$broadcast('contextChanged');
-        })
-        .error(function(response, status, headers, config) {
-          if (error_callback) error_callback(response);
-        });
+        );
     },
 
     logOut: function(broadcast) {

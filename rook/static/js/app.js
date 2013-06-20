@@ -259,8 +259,8 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     delete $cookies.endpoint;
 
     console.log("Submitting auto login credentials");
-    return auth.authenticate(endpoint, null, null, null, token, null, tenantId,
-      $scope.auto_login_success, $scope.auto_login_fail);
+    return auth.authenticate(endpoint, null, null, null, token, null, tenantId)
+      .then($scope.auto_login_success, $scope.auto_login_fail);
   };
 }
 
@@ -441,8 +441,8 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
 
   $scope.auth_error_message = function() { return auth.error_message; };
   $scope.on_auth_failed = function(response) {
-    mixpanel.track("Log In Failed", {'problem': response.statusText});
-    auth.error_message = response.statusText + ". Check that you typed in the correct credentials.";
+    mixpanel.track("Log In Failed", {'problem': response.status});
+    auth.error_message = response.status + ". Check that you typed in the correct credentials.";
   };
 
   $scope.uses_pin_rsa = function(endpoint) {
@@ -513,8 +513,8 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     }
 
     var endpoint = $scope.get_selected_endpoint();
-    return auth.authenticate(endpoint, username, apikey, password, null, pin_rsa, null,
-      $scope.on_auth_success, $scope.on_auth_failed);
+    return auth.authenticate(endpoint, username, apikey, password, null, pin_rsa, null)
+      .then($scope.on_auth_success, $scope.on_auth_failed);
   };
 
   $scope.logOut = function() {
