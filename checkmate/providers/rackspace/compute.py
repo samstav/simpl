@@ -681,8 +681,8 @@ REGION_MAP = {'dallas': 'DFW',
 
 def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
     """ Handle task failure """
-    dep_id = args[0].get('deployment_id')
-    key = args[0].get('resource_key')
+    dep_id = args[0].get('deployment')
+    key = args[0].get('resource')
     if dep_id and key:
         k = "instance:%s" % key
         ret = {
