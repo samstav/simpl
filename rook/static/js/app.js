@@ -1592,8 +1592,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.start_task_name = 'Start';
   $scope.padding = 8;
-  $scope.spacing = 10;
-  $scope.default_task_duration = $scope.spacing;
+  $scope.group_spacing = 10;
+  $scope.collision_spacing = 7;
+  $scope.default_task_duration = $scope.group_spacing;
   $scope.log_scale = 15;
   $scope.canvas = {
     width: 1080,
@@ -1639,18 +1640,17 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.resource_position = function(group) {
-    return group * $scope.spacing;
+    return group * $scope.group_spacing;
   }
 
   $scope.avoid_collision = function(nodes, current_position, axis, level) {
     level = level || 0;
-    var spacing = $scope.spacing / 2;
     var new_position = _.clone(current_position);
     var existing_node = _.findWhere(nodes, new_position);
     if (!existing_node) {
       return new_position;
     }
-    new_position[axis] += spacing;
+    new_position[axis] += $scope.collision_spacing;
     return $scope.avoid_collision(nodes, new_position, axis, level+1);
   }
 
@@ -1803,6 +1803,17 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       .append('svg:g')
       .attr('class', 'node')
       .on('click', function(d){
+        d3.select("#highlight").remove();
+
+        svg.insert('g', ':first-child')
+          .attr("transform", function() { return "translate(" + d.x + "," + d.y + ")"; })
+          .insert('circle', ':first-child')
+          .attr('id', 'highlight')
+          .attr('r', 36)
+          .attr('x', d.x)
+          .attr('y', d.y)
+          .style('fill', 'url(#gradient)');
+
         $scope.$apply(function() {
           $scope.selectSpec(d.name);
         });
@@ -1851,6 +1862,20 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.buildNetwork = function(json, parent_element) {
     var svg = d3.select(parent_element);
+
+    var gradient = svg.append("svg:defs")
+    .append("svg:radialGradient")
+    .attr("id", "gradient")
+
+    gradient.append("svg:stop")
+    .attr("offset", "0%")
+    .attr("stop-color", "#0E90D2")
+    .attr("stop-opacity", 1);
+
+    gradient.append("svg:stop")
+    .attr("offset", "100%")
+    .attr("stop-color", "#F5F5F5")
+    .attr("stop-opacity", 1);
 
     if (svg.select('g#links')[0][0] === null)
       svg.append('g').attr('id', 'links');
