@@ -7,12 +7,14 @@ import json
 import logging
 import os
 import shutil
+import uuid
 import unittest2 as unittest
 from urlparse import urlunparse
 import yaml
 
 import mox
 from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
+from SpiffWorkflow.util import merge_dictionary
 
 import checkmate
 from checkmate import test, utils
@@ -22,6 +24,7 @@ from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
 from checkmate.workflow import create_workflow_deploy
+
 
 LOG = logging.getLogger(__name__)
 
@@ -816,11 +819,9 @@ interfaces/mysql/host
         # Hack to hijack postback in Transform which is called as a string in
         # exec(), so cannot be easily mocked.
         # We make the call hit our deployment directly
-        call_me = 'dep.on_resource_postback(output_template) #'
         transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
         transmerge.set_property(deployment=self.deployment)
-        stub = transmerge.transforms[0].replace('postback.', call_me)
-        transmerge.transforms[0] = stub
+        transmerge.function_name="tests.providers.opscode.test_solo.do_nothing"
 
         self.mox.ReplayAll()
         workflow.complete_all()
@@ -847,8 +848,20 @@ interfaces/mysql/host
                         username: u1
                         host: 4.4.4.4
             ''')
+        print final.attributes
         self.assertDictEqual(final.attributes['instance:0'],
                              expected['instance:0'])
+
+
+def do_nothing(self, my_task):
+    call_me = 'dep.on_resource_postback(output_template) #'
+    source = utils.get_source_body(solo.Transforms.collect_options)
+    source = source.replace('postback.', call_me)
+    tabbed_code = '\n    '.join(source.split('\n'))
+    func_name = "trans_%s" % uuid.uuid4().hex[0:8]
+    exec("def %s(self, my_task):\n    %s"
+                     "\n%s(self, my_task)" %
+                     (func_name, tabbed_code, func_name))
 
 
 class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
@@ -1311,8 +1324,8 @@ interfaces/mysql/database_name
         ]:
             transmerge = workflow.spec.task_specs[task_name]
             transmerge.set_property(deployment=self.deployment)
-            stub = transmerge.transforms[0].replace('postback.', call_me)
-            transmerge.transforms[0] = stub
+            transmerge.function_name="tests.providers.opscode.test_solo." \
+                                     "do_nothing"
 
         self.mox.ReplayAll()
         workflow.complete_all()

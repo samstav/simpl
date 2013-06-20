@@ -8,7 +8,7 @@ import urlparse
 from jinja2 import DictLoader, TemplateError
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from SpiffWorkflow.operators import Attrib, PathAttrib
-from SpiffWorkflow.specs import Celery, TransMerge
+from SpiffWorkflow.specs import Celery, SafeTransMerge
 import yaml
 from yaml.composer import ComposerError
 from yaml.parser import ParserError
@@ -277,14 +277,13 @@ class Provider(ProviderBase):
         # Create the output template defined in the map file
 
         output = map_with_context.get_component_output_template(component_id)
-
-        source = utils.get_source_body(Transforms.collect_options)
         name = "%s Chef Data for %s" % (collect_tag.capitalize(),
                                         resource_key)
-        collect_data = TransMerge(
+        func = "checkmate.providers.opscode.solo.Transforms.collect_options"
+        collect_data = SafeTransMerge(
             wfspec,
             name,
-            transforms=[source],
+            function_name=func,
             description="Get data needed for our cookbooks and place it in a "
                         "structure ready for storage in a databag or role",
             properties={
