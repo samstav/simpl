@@ -52,7 +52,7 @@ CONFIG = config.current()
 
 
 # Check our configuration
-def check_celery_config(values=None):
+def check_celery_config():
     '''Make sure a backend is configured.'''
     from celery import current_app
     try:
@@ -63,8 +63,6 @@ def check_celery_config(values=None):
         if not current_app.conf.get("CELERY_RESULT_DBURI"):
             LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
                         "checkmate environment loaded?")
-        if values:
-            current_app.conf.update(**values)
     except StandardError:
         pass
 
@@ -199,7 +197,7 @@ def argument_parser():
                         help="display call hierarchy and errors to stdout"
                         )
     parser.add_argument("--statsd",
-                        help="enable statsd server with <address:port>",
+                        help="enable statsd server with [address[:port]]",
                         )
 
     #
@@ -302,18 +300,19 @@ def main_func():
     if CONFIG.eventlet is True:
         eventlet.monkey_patch()
 
-    values = None
     if CONFIG.statsd:
         user_values = CONFIG.statsd.split(':')
-        if (len(user_values) != 2):
+        if (len(user_values) < 1 and len(user_values) > 2):
             raise CheckmateException('statsd config required in format '
                                      'server:port')
-        values = {
-            'STATSD_HOST': user_values[0],
-            'STATSD_PORT': int(user_values[1])
-        }
+        elif (len(user_values) == 1):
+            CONFIG.STATSD_HOST = user_values[0]
+            CONFIG.STATSD_PORT = 8125
+        else:
+            CONFIG.STATSD_HOST = user_values[0]
+            CONFIG.STATSD_PORT = user_values[1]
 
-    check_celery_config(values)
+    check_celery_config()
 
     # Register built-in providers
     from checkmate.providers import (
