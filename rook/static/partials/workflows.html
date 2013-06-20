@@ -9,7 +9,7 @@
     </thead>
     <tbody>
       <tr ng-repeat="workflow in items | orderBy:'id'" >
-        <td><a ng-href="/{{auth.context.tenantId}}/workflows/{{workflow.id}}"><i class="icon-tasks"></i> {{workflow.id}}</a></td>
+        <td><a ng-href="/{{workflow.tenantId}}/workflows/{{workflow.id}}"><i class="icon-tasks"></i> {{workflow.id}}</a></td>
         <td>{{workflow.name}}</td>
         <td><div class="progress" style="margin-bottom: 0px;">
               <div class="bar" ng-style="{width: (workflow.progress || '0') + '%'}"
