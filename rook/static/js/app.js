@@ -240,15 +240,13 @@ function RawController($scope, $location, $http) {
 function AutoLoginController($scope, $location, $cookies, auth) {
   $scope.auto_login_success = function() {
     $location.path('/');
-    $scope.$apply(); // Make angular aware of the changes made outside it's environment
   };
 
   $scope.auto_login_fail = function(response) {
-    mixpanel.track("Log In Failed", {'problem': response.statusText});
+    mixpanel.track("Log In Failed", {'problem': response.status});
     $location.path('/');
-    $scope.$apply();
     $scope.loginPrompt();
-    auth.error_message = response.statusText + ". Your credentials could not be verified.";
+    auth.error_message = response.status + ". Your credentials could not be verified.";
   };
 
   $scope.autoLogIn = function() {

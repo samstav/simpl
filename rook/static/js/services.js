@@ -1050,12 +1050,12 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           }
           */
 
-          callback(response);
+          if (callback) callback(response);
           $rootScope.$broadcast('logIn');
           $rootScope.$broadcast('contextChanged');
         })
         .error(function(response, status, headers, config) {
-          error_callback(response);
+          if (error_callback) error_callback(response);
         });
     },
 
