@@ -1047,7 +1047,7 @@ def wait_on_build(context, server_id, region, resource,
                                            get_resource_by_id(
                                                context['deployment'],
                                                context['resource']),
-                                           instance_key).apply_async()
+                                           context['resource']).apply_async()
         raise CheckmateRetriableException("Server %s build failed" % server_id,
                                           "")
 
