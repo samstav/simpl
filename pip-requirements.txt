@@ -104,5 +104,6 @@ SQLAlchemy==0.7.8
 sqlalchemy-migrate==0.7.2
 tldextract==1.1.2
 WebOb==1.2.2
+redis==2.7.6
 
 # All other needed requirements should work as specified through the setup.py file.
