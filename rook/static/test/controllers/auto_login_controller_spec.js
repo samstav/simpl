@@ -24,7 +24,7 @@ describe('AutoLoginController', function(){
     var response;
 
     beforeEach(function() {
-      response = { statusText: 'faketext' };
+      response = { status: 'faketext' };
     });
 
     it('should track the failure with mixpanel', function(){
@@ -53,8 +53,10 @@ describe('AutoLoginController', function(){
   });
 
   describe('autoLogIn', function(){
+    var promise_callback;
     beforeEach(function(){
-      auth.authenticate = emptyFunction;
+      promise_callback = sinon.spy();
+      auth.authenticate = sinon.stub().returns({ then: promise_callback });
       cookies.endpoint = 'www.uri.com';
       cookies.token = 'token';
       cookies.tenantId = 'tenantId';
@@ -62,7 +64,6 @@ describe('AutoLoginController', function(){
 
     it('should call authenticate with the matching endpoint', function(){
       auth.endpoints = [{ uri: 'www.uri.com', scheme: 'Kablamo' }];
-      sinon.spy(auth, 'authenticate');
       scope.autoLogIn();
 
       expect(auth.authenticate.getCall(0).args[0]).toEqual({ uri: 'www.uri.com', scheme: 'Kablamo' });
@@ -70,7 +71,6 @@ describe('AutoLoginController', function(){
 
     it('should pass an empty endpoint object if no matches are found', function(){
       auth.endpoints = [];
-      sinon.spy(auth, 'authenticate');
       scope.autoLogIn();
 
       expect(auth.authenticate.getCall(0).args[0]).toEqual({});
@@ -78,7 +78,6 @@ describe('AutoLoginController', function(){
 
     it('should call authenticate with info from the cookie', function(){
       auth.endpoints = [{ uri: 'www.uri.com', scheme: 'Kablamo' }];
-      sinon.spy(auth, 'authenticate');
       scope.autoLogIn();
 
       expect(auth.authenticate.getCall(0).args[0]).toEqual(auth.endpoints[0]);
@@ -88,8 +87,11 @@ describe('AutoLoginController', function(){
       expect(auth.authenticate.getCall(0).args[4]).toEqual('token');
       expect(auth.authenticate.getCall(0).args[5]).toBeNull();
       expect(auth.authenticate.getCall(0).args[6]).toEqual('tenantId');
-      expect(auth.authenticate.getCall(0).args[7]).toEqual(scope.auto_login_success);
-      expect(auth.authenticate.getCall(0).args[8]).toEqual(scope.auto_login_fail);
+    });
+
+    it('should pass success and error callbacks', function() {
+      scope.autoLogIn();
+      expect(promise_callback).toHaveBeenCalledWith(scope.auto_login_success, scope.auto_login_fail);
     });
   });
 });
