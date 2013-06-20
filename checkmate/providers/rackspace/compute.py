@@ -681,8 +681,8 @@ REGION_MAP = {'dallas': 'DFW',
 
 def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
     """ Handle task failure """
-    dep_id = args[0].get('deployment_id')
-    key = args[0].get('resource_key')
+    dep_id = args[0].get('deployment')
+    key = args[0].get('resource')
     if dep_id and key:
         k = "instance:%s" % key
         ret = {
@@ -1047,7 +1047,7 @@ def wait_on_build(context, server_id, region, resource,
                                            get_resource_by_id(
                                                context['deployment'],
                                                context['resource']),
-                                           instance_key).apply_async()
+                                           context['resource']).apply_async()
         raise CheckmateRetriableException("Server %s build failed" % server_id,
                                           "")
 
