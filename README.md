@@ -423,6 +423,7 @@ Options:
     -q, --quiet           turn down logging to WARN (default is INFO)
     --newrelic            enable newrelic monitoring (place newrelic.ini in your
                           directory
+	--statsd server:port  enable statsd logging to specified ip:port
     -t, --trace-calls     display call hierarchy and errors to stdout
     -u, --with-ui         enable support for browsers and HTML templates
     -s, --with-simulator  enable support for the deployment simulator
