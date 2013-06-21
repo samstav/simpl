@@ -65,8 +65,7 @@ def simple_decorator(decorator):
 def collect(func):
     '''Wraps a celery task with statsd collect code.'''
 
-    def collect_wrapper(statsd_counter=None, statsd_timer=None, *args,
-                        **kwargs):
+    def collect_wrapper(*args, **kwargs):
 
         CONFIG = config.current()
 
@@ -81,17 +80,17 @@ def collect(func):
 
         task_name = func.__name__
 
-        if statsd_counter is None:
+        if kwargs.get('statsd_counter') is None:
             counter = statsd.counter.Counter('celery.tasks.status', stats_conn)
         else:
-            counter = statsd_counter
+            counter = kwargs['statsd_counter']
 
         counter.increment('{task_name}.started'.format(**locals()))
 
-        if statsd_timer is None:
+        if kwargs.get('statsd_timer') is None:
             timer = statsd.timer.Timer('celery.tasks.duration', stats_conn)
         else:
-            timer = statsd_timer
+            timer = kwargs['statsd_timer']
 
         timer.start()
 
