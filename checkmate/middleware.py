@@ -616,9 +616,9 @@ class RequestContext(object):
         '''
         keyword_args = copy.copy(self.kwargs)
         if kwargs:
-            keyword_args.update(kwargs)
+            keyword_args.update(self.__dict__)
         result = dict(**keyword_args)
-        result.update(self.__dict__)
+        result.update(kwargs)
         return result
 
     def allowed_to_access_tenant(self, tenant_id=None):
