@@ -316,7 +316,7 @@ def main_func():
 
     if CONFIG.statsd:
         config_statsd()
-        
+    
     check_celery_config()
 
     # Register built-in providers
