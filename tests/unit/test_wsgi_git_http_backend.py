@@ -115,7 +115,7 @@ class TestWsgiGitHttpBackend_find_header_end_2_chunks(unittest.TestCase):
         resp = wsgi_git_http_backend._find_header_end_in_2_chunks(
             chunk0, chunk1
         )
-        self.assertEqual((False, 3), resp) 
+        self.assertEqual((False, 3), resp)
 
 
 class TestWsgiGitHttpBackend_separate_header(unittest.TestCase):
