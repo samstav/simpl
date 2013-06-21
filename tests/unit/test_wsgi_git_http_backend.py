@@ -2,19 +2,10 @@ import unittest
 from mock import patch, Mock, mock_open
 import os
 from checkmate import wsgi_git_http_backend
+from eventlet.green import threading, subprocess
 
-'''
-[*] wsgi_to_git_http_backend
-[*]run_git_http_backend
-[*]build_cgi_environ
-[*]parse_cgi_header
-_communicate_with_git
-_input_data_pump
-_find_header_end_in_2_chunks
-[*] _search_str_for_header_end
-_separate_header
-_response_body_generator
-'''
+#TODO: [need help] _comm_with_git, _input_data_pump, _response_body_generator
+#TODO: _separate_header
 
 
 class TestWsgiGitHttpBackend_wsgi_to_git_http_backend(unittest.TestCase):
@@ -87,6 +78,44 @@ class TestWsgiGitHttpBackend_parse_cgi_header(unittest.TestCase):
             cgienv, None, None
         )
         assert mock_comm.called
+
+
+class TestWsgiGitHttpBackend_comm_with_git(unittest.TestCase):
+
+    @patch.object(threading, 'Thread')
+    @patch.object(wsgi_git_http_backend, 'sum')
+    @patch.object(wsgi_git_http_backend, 'EnvironmentError')
+    @patch.object(wsgi_git_http_backend, '_find_header_end_in_2_chunks')
+    @patch.object(wsgi_git_http_backend, '_separate_header')
+    @patch.object(wsgi_git_http_backend, 'response_body_generator')
+    @unittest.skip("Temp skip")
+    def test_mocked_up(
+        self, mock_gen, mock_sep,
+        mock_find, mock_enverr, mock_sum, mock_thread
+    ):
+        # mocks
+        mock_subproc.Popen.return_value = True
+        mock_subproc.PIPE = Mock()
+        #mock_read.return_value = 'foobar'
+        mock_find.return_value = (None, None)
+        mock_sep.return_value = {}, 0
+        mock_gen.return_value = True
+        # kick off
+        wsgi_git_http_backend._communicate_with_git('proc', 'in', 1)
+        assert mock_resp.called
+
+
+class TestWsgiGitHttpBackend_find_header_end_2_chunks(unittest.TestCase):
+
+    #@unittest.skip("Temp skip")
+    def test_end_in_first_arg(self):
+        chunk0 = 'foo123456\r\n\r\nblah'
+        chunk1 = 'abc\r\n\r\nyoyo'
+        # kick off
+        resp = wsgi_git_http_backend._find_header_end_in_2_chunks(
+            chunk0, chunk1
+        )
+        self.assertEqual((False, 3), resp) 
 
 
 class TestWsgiGitHttpBackend_search_str_for_header_end(unittest.TestCase):
