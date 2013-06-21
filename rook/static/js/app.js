@@ -3004,7 +3004,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       var group = resources[i].service;
       var index = $scope.vertex_groups[group];
       if (!vertices[index]) vertices[index] = [];
-      var vertex = { id: i };
+      var vertex = { id: i, group: group };
       vertices[index].push(vertex);
 
       // Edges
@@ -3018,7 +3018,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       }
     }
 
-    $scope.tree_data = { vertices: vertices, edges: edges };
+    $scope.tree_data = { vertex_groups: vertices, edges: edges };
     return $scope.tree_data;
   }
   $scope.$watch('data', $scope.build_tree);

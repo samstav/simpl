@@ -501,3 +501,9 @@ text.nodetext {
   height: 256px;
 }
 
+#deployment_tree .edge {
+  stroke-dasharray: 2, 5;
+  stroke-width: 2px;
+  stroke: #999;
+  stroke-opacity: 0.6;
+}

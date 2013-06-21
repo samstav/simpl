@@ -170,15 +170,88 @@ directives.directive('cmTreeView', function() {
     }
   }
 
+  var get_vertex_data = function(vertex_groups, scope) {
+    var data = {};
+    var groups = vertex_groups;
+    var num_groups = groups.length;
+    var group_height = scope.height / num_groups;
+    var group_center = group_height / 2;
+    for (var i=0 ; i<num_groups ; i++) {
+      var vertices = groups[i];
+      var num_vertices = vertices.length;
+      var vertex_width = scope.width / num_vertices;
+      var vertex_center = vertex_width / 2;
+      for (var j=0 ; j<num_vertices ; j++) {
+        var vertex = vertices[j];
+        vertex.x = vertex_center + vertex_width * j;
+        vertex.y = group_center + group_height * i;
+        data[vertex.id] = vertex;
+      }
+    }
+    return data;
+  }
+
+  var get_icon = function(vertex) {
+    var icon = null;
+    var base_dir = '/img/icons/';
+    switch(vertex.group) {
+      case 'web':
+      case 'master':
+        icon = 'compute-gray';
+        break;
+      case 'lb':
+        icon = 'load-balancer-gray';
+        break;
+      case 'backend':
+        icon = 'database-gray';
+        break;
+    }
+    if (icon)
+      icon = [base_dir, icon, '.svg'].join('');
+
+    return icon;
+  }
+
   var update_svg = function(new_data, old_data, scope) {
     console.log("Updating SVG element...");
-    var edges = scope.svg.select('g.edges').selectAll('.edge');;
-    var vertices = scope.svg.select('g.vertices').selectAll('.vertex');
 
     if (!new_data) new_data = {};
-    _.each(new_data.vertices, function() {
-      // TODO: display vertices on canvas
-    });
+    var vertex_data = get_vertex_data(new_data.vertex_groups, scope);
+    var vertices = scope.svg.select('g.vertices').selectAll('.vertex')
+      .data(_.values(vertex_data), function(d) { return d.id; });
+
+    // Update
+    vertices.select('circle')
+      .attr('class', 'vertex')
+      .attr('r', '6');
+    // Enter
+    vertices.enter()
+      .append('svg:image')
+      .attr('xlink:href', get_icon)
+      .attr('class', function(d) { return d.group })
+      .attr('x', '-16px')
+      .attr('y', '-16px')
+      .attr('width', '32px')
+      .attr('height', '32px')
+      .attr('transform', function(d) {
+        return ['translate(', d.x, ',', d.y, ')'].join('');
+      });
+
+    // Exit
+    vertices.exit().remove();
+
+    var edges = scope.svg.select('g.edges').selectAll('.edge')
+      .data(new_data.edges);
+
+    // Enter
+    edges.enter()
+      .append('svg:line')
+      .attr('class', 'edge')
+      .attr('x1', function(d) { return vertex_data[d.v1].x })
+      .attr('y1', function(d) { return vertex_data[d.v1].y })
+      .attr('x2', function(d) { return vertex_data[d.v2].x })
+      .attr('y2', function(d) { return vertex_data[d.v2].y });
+    // Exit
   }
 
   return {
