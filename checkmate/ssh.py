@@ -5,6 +5,7 @@ import logging
 import os
 import StringIO
 
+from celery.exceptions import SoftTimeLimitExceeded
 from celery.task.sets import subtask
 from celery.task import task
 import paramiko
@@ -101,9 +102,41 @@ def execute(ip, command, username, timeout=10, password=None,
     """
     match_celery_logging(LOG)
     LOG.debug("Executing '%s' on ssh://%s@%s:%s.", command, username, ip, port)
+    try:
+        results = remote_execute(ip, command, username, password=password,
+                                 identity_file=identity_file,
+                                 private_key=private_key, port=port,
+                                 timeout=timeout)
+        if callback is not None:
+            subtask(callback).delay()
+        return results
+    except Exception as exc:
+        LOG.info("ssh://%s@%s:%d failed.  %s", username, ip, port, exc)
+        execute.retry(exc=exc)
+
+
+def remote_execute(host, command, username, password=None, identity_file=None,
+                   private_key=None, port=22, timeout=10):
+    '''Executes an ssh command on a remote host.
+
+    Tries cert auth first and falls back to password auth if password provided
+
+    :param host:           the ip address or host name of the server
+    :param command:        shell command to execute
+    :param username:       the username to use
+    :param password:       password to use for username/password auth
+    :param identity_file:  a private key file to use
+    :param private_key:    an RSA string for the private key to use (instead of
+                           using a file)
+    :param port:           TCP IP port to use (ssh default is 22)
+    :param timeout:        timeout in seconds
+    :returns: a dict with stdin and stdout of the call.
+    '''
+    LOG.debug("Executing '%s' on ssh://%s@%s:%s.", command, username, host,
+              port)
     client = None
     try:
-        client = connect(ip, port=port, username=username, timeout=timeout,
+        client = connect(host, port=port, username=username, timeout=timeout,
                          private_key=private_key, identity_file=identity_file,
                          password=password)
         _, stdout, stderr = client.exec_command(command)
@@ -111,17 +144,14 @@ def execute(ip, command, username, timeout=10, password=None,
             'stdout': stdout.read(),
             'stderr': stderr.read(),
         }
-        LOG.debug('ssh://%s@%s:%d responded.', username, ip, port)
-        if callback is not None:
-            subtask(callback).delay()
+        LOG.debug('ssh://%s@%s:%d responded.', username, host, port)
         return results
     except Exception as exc:
-        LOG.info("ssh://%s@%s:%d failed.  %s", username, ip, port, exc)
-        execute.retry(exc=exc)
+        LOG.info("ssh://%s@%s:%d failed.  %s", username, host, port, exc)
+        raise
     finally:
         if client:
             client.close()
-    return False
 
 
 def connect(ip, port=22, username="root", timeout=10, identity_file=None,
