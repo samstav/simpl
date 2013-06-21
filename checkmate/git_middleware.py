@@ -37,10 +37,9 @@ class GitMiddleware():
     def __init__(self, app):
         self.app = app
 
-
     def __call__(self, e, h):
         if re.search('.git', e['PATH_INFO']):
-            print "[["+e['PATH_INFO']+"]]\n" 
+            print "[["+e['PATH_INFO']+"]]\n"
             pass
         elif e['CONTENT_TYPE'] in [
             'application/x-git-upload-pack-request',
@@ -67,7 +66,7 @@ class GitMiddleware():
 def _check_git_auth(user, passwd):
     '''Basic Auth for git back-end (smart HTTP)'''
     # TODO: set this up? (ziad?)
-    if user=='zak':
+    if user == 'zak':
         return True
     else:
         return False
@@ -111,7 +110,7 @@ def _git_init_deployment(dep_path):
 
     # check if this is already a repo
     if _is_git_repo(dep_path):
-        return 
+        return
     # init
     print "[init]\n"
     repo = git.Repo.init(dep_path)
@@ -119,14 +118,13 @@ def _git_init_deployment(dep_path):
     sms_f = open(dep_path + '/.gitmodules', 'ab+')
     for foldfile in os.listdir(dep_path):
         #repo.git.submodule('add', '--path='+foldfile, '--ignore=dirty')
-        if _is_git_repo(os.path.join(dep_path,foldfile)):
+        if _is_git_repo(os.path.join(dep_path, foldfile)):
             git_buf = open(
                 dep_path +
                 '/' +
                 foldfile +
                 '/.git/config',
-                'r').read(
-            )
+                'r').read()
             urls = re.findall('url = (.*?)\n', git_buf)
             url = urls[0]
             sms_f.seek(0)
@@ -197,7 +195,7 @@ def _git_route_callback():
         return
     _git_init_deployment(environ['GIT_PROJECT_ROOT'])
     # beg: debugging
-    print str(dict(environ))+"\n";
+    print str(dict(environ))+"\n"
     # end: debugging
     (status_line, headers, response_body_generator
      ) = wsgi_git_http_backend.wsgi_to_git_http_backend(environ)
@@ -297,9 +295,7 @@ to/by gitHttpBackend.
 '''
 
 
-
 # Bottle routes
-
 
 @GIT_SERVER_APP.get("/<tenant_id>/deployments/<url:re:.+>")
 #@auth_basic(_check_git_auth) #basic auth
@@ -311,4 +307,3 @@ def git_route_get(tenant_id, url):
 #@auth_basic(_check_git_auth) #basic auth
 def git_route_post(tenant_id, url):
     return _git_route_callback()
-

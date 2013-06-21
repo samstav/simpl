@@ -241,5 +241,3 @@ def _response_body_generator(remainder, proc):
     # TODO: Do we need this?
     while proc.poll() is None:
         yield ''
-
-
