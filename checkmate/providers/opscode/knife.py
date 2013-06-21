@@ -16,9 +16,9 @@ from Crypto.Random import atfork
 from checkmate import utils
 from checkmate.exceptions import (CheckmateException,
                                   CheckmateCalledProcessError)
-from checkmate.ssh import execute as ssh_execute
 from checkmate.deployments import (resource_postback,
                                    update_all_provider_resources)
+from checkmate import ssh
 
 LOG = logging.getLogger(__name__)
 
@@ -970,8 +970,8 @@ def register_node(host, environment, resource, path=None, password=None,
 
     # Rsync problem with creating path (missing -p so adding it ourselves) and
     # doing this before the complex prepare work
-    ssh_execute(host, "mkdir -p %s" % kitchen_path, 'root', password=password,
-                identity_file=identity_file)
+    ssh.remote_execute(host, "mkdir -p %s" % kitchen_path, 'root',
+                       password=password, identity_file=identity_file)
 
     # Calculate node path and check for prexistance
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
