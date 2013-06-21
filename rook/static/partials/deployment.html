@@ -71,7 +71,7 @@ Priv Key: {{formatted_data.private_key}}
           <h3 style="display: inline">{{data.name || data.blueprint.name}}  </h3>
         </div>
         <p class="lead">{{data.blueprint['meta-data']['application']}} Details</p>
-        <cm-tree-view data="tree_data" width="20%" height="20%"></cm-tree-view>
+        <cm-tree-view data="tree_data" id="deployment_tree" width="256" height="256"></cm-tree-view>
         <form class="form-horizontal">
           <fieldset>
             <div class="control-group">

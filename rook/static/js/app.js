@@ -2982,6 +2982,46 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
+
+  $scope.tree_data = null;
+  $scope.vertex_groups = {
+    lb: 0,
+    master: 1,
+    web: 1,
+    backend: 2
+  };
+
+  $scope.build_tree = function() {
+    var edges = [];
+    var vertices = [];
+    var resources = $scope.data.resources;
+
+    for (var i in resources) {
+      if (!resources[i].relations) continue;
+      var resource = resources[i];
+
+      // Vertices
+      var group = resources[i].service;
+      var index = $scope.vertex_groups[group];
+      if (!vertices[index]) vertices[index] = [];
+      var vertex = { id: i };
+      vertices[index].push(vertex);
+
+      // Edges
+      for (var j in resource.relations) {
+        var relation = resource.relations[j];
+        if (relation.relation != 'reference') continue;
+
+        var v2 = relation.source || relation.target;
+        var edge = { v1: i, v2: v2 };
+        edges.push(edge);
+      }
+    }
+
+    $scope.tree_data = { vertices: vertices, edges: edges };
+    return $scope.tree_data;
+  }
+  $scope.$watch('data', $scope.build_tree);
 }
 
 /*

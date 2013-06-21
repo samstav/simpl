@@ -162,20 +162,23 @@ directives.directive('cmTreeView', function() {
     if (!scope.svg) {
       scope.svg = d3.select(element[0])
         .append('svg:svg')
-        .attr('class', 'tree-view')
-        .attr('width', attrs.width)
-        .attr('height', attrs.height)
+        .attr('id', attrs.id)
         .attr('viewBox', [0, 0, scope.width, scope.height].join(' '));
 
-      scope.svg.append('svg:g').attr('id', 'nodes');
-      scope.svg.append('svg:g').attr('id', 'edges');
+      scope.svg.append('svg:g').attr('class', 'edges');
+      scope.svg.append('svg:g').attr('class', 'vertices');
     }
   }
 
-  var update_svg = function(oldVal, newVal, scope) {
+  var update_svg = function(new_data, old_data, scope) {
     console.log("Updating SVG element...");
-    var nodes;
-    var edges;
+    var edges = scope.svg.select('g.edges').selectAll('.edge');;
+    var vertices = scope.svg.select('g.vertices').selectAll('.vertex');
+
+    if (!new_data) new_data = {};
+    _.each(new_data.vertices, function() {
+      // TODO: display vertices on canvas
+    });
   }
 
   return {

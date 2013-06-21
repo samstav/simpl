@@ -494,3 +494,10 @@ line.link {
 text.nodetext {
   font-size: 12px;
 }
+
+/* Tree View */
+#deployment_tree {
+  width: 256px;
+  height: 256px;
+}
+
