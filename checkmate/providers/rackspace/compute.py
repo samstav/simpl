@@ -1148,6 +1148,8 @@ def wait_on_build(context, server_id, region, resource,
         isup = False
         image_details = api_object.images.find(id=server.image['id'])
         if image_details.metadata['os_type'] == 'linux':
+            msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
+                  "to connect." % (server_id, username, ip, port)
             isup = checkmate.ssh.test_connection(context, ip, username,
                                                  timeout=timeout,
                                                  password=password,
@@ -1155,13 +1157,13 @@ def wait_on_build(context, server_id, region, resource,
                                                  port=port,
                                                  private_key=private_key)
         else:
+            msg = "Server '%s' is ACTIVE but is not responding to ping " \
+                  " attempts" % server_id
             isup = checkmate.rdp.test_connection(context, ip,
                                                  timeout=timeout)
 
         if not isup:
             # try again in half a second but only wait for another 2 minutes
-            msg = ("Server "
-                   "'%s' is ACTIVE but cannot be contacted." % server_id)
             results['status-message'] = msg
             resource_postback.delay(context['deployment'],
                                     {instance_key: results})
