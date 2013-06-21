@@ -879,7 +879,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     return results
 
 
-@task(max_retries=2, soft_time_limit=120)
+@task(max_retries=2, soft_time_limit=300)
 def register_node(host, environment, resource, path=None, password=None,
                   omnibus_version=None, attributes=None, identity_file=None,
                   kitchen_name='kitchen'):
@@ -1003,32 +1003,31 @@ def register_node(host, environment, resource, path=None, password=None,
     # Calculate node path and check for prexistance
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
     if os.path.exists(node_path):
-        raise CheckmateException("Node seems to already be registered: %s" %
-                                 node_path)
-
-    # Build and execute command 'knife prepare' command
-    params = ['knife', 'solo', 'prepare', 'root@%s' % host,
-              '-c', os.path.join(kitchen_path, 'solo.rb')]
-    if password:
-        params.extend(['-P', password])
-    if omnibus_version:
-        params.extend(['--omnibus-version', omnibus_version])
-    if identity_file:
-        params.extend(['-i', identity_file])
-    try:
-        _run_kitchen_command(environment, kitchen_path, params)
-        LOG.info("Knife prepare succeeded for %s in %s", host, environment)
-    except SoftTimeLimitExceeded:
-        msg = "Timeout trying to ssh to %s" % host
-        LOG.info("%s in deployment %s", msg, environment)
-        raise CheckmateException(msg)
-    except (CalledProcessError, CheckmateCalledProcessError) as exc:
-        LOG.warn("Knife prepare failed for %s. Retrying.", host)
-        register_node.retry(exc=exc)
-    except StandardError as exc:
-        LOG.error("Knife prepare failed with an unhandled error '%s' for %s.",
-                  exc, host)
-        raise exc
+        LOG.info("Node is already registered: %s", node_path)
+    else:
+        # Build and execute command 'knife prepare' command
+        params = ['knife', 'solo', 'prepare', 'root@%s' % host,
+                  '-c', os.path.join(kitchen_path, 'solo.rb')]
+        if password:
+            params.extend(['-P', password])
+        if omnibus_version:
+            params.extend(['--omnibus-version', omnibus_version])
+        if identity_file:
+            params.extend(['-i', identity_file])
+        try:
+            _run_kitchen_command(environment, kitchen_path, params)
+            LOG.info("Knife prepare succeeded for %s in %s", host, environment)
+        except SoftTimeLimitExceeded:
+            msg = "Timeout trying to ssh to %s" % host
+            LOG.info("%s in deployment %s", msg, environment)
+            raise CheckmateException(msg)
+        except (CalledProcessError, CheckmateCalledProcessError) as exc:
+            LOG.warn("Knife prepare failed for %s. Retrying.", host)
+            register_node.retry(exc=exc)
+        except StandardError as exc:
+            LOG.error("Knife prepare failed with an unhandled error '%s' for "
+                      "%s.", exc, host)
+            raise exc
 
     if attributes:
         lock = threading.Lock()
