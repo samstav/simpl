@@ -118,6 +118,17 @@ class TestWsgiGitHttpBackend_find_header_end_2_chunks(unittest.TestCase):
         self.assertEqual((False, 3), resp) 
 
 
+class TestWsgiGitHttpBackend_separate_header(unittest.TestCase):
+
+    #@unittest.skip("Temp skip")
+    def test_end_on_boundary(self):
+        pass
+
+    #@unittest.skip("Temp skip")
+    def test_not_end_on_boundary(self):
+        pass
+
+
 class TestWsgiGitHttpBackend_search_str_for_header_end(unittest.TestCase):
 
     #@unittest.skip("Temp skip")
