@@ -443,7 +443,8 @@ class Provider(RackspaceComputeProviderBase):
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
         inst_id = resource.get("instance", {}).get("id")
-        region = resource.get("region")
+        region = (resource.get("region") or
+                  resource.get("instance", {}).get("region"))
         if isinstance(context, RequestContext):
             context = context.get_queued_task_dict(deployment_id=deployment_id,
                                                    resource_key=key,
