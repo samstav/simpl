@@ -147,6 +147,20 @@ def comma_separated_key_value_pairs(value):
     return results
 
 
+def config_statsd():
+    '''Stores statsd config in checkmate.common.config.'''
+    user_values = CONFIG.statsd.split(':')
+    if (len(user_values) < 1 or len(user_values) > 2):
+        raise CheckmateException('statsd config required in format '
+                                 'server:port')
+    elif len(user_values) == 1:
+        CONFIG.STATSD_PORT = 8125
+    else:
+        CONFIG.STATSD_PORT = user_values[1]
+
+    CONFIG.STATSD_HOST = user_values[0]
+
+
 def argument_parser():
     '''Parses start-up arguments and returns namespace with config variables.
     '''
@@ -301,17 +315,8 @@ def main_func():
         eventlet.monkey_patch()
 
     if CONFIG.statsd:
-        user_values = CONFIG.statsd.split(':')
-        if (len(user_values) < 1 and len(user_values) > 2):
-            raise CheckmateException('statsd config required in format '
-                                     'server:port')
-        elif (len(user_values) == 1):
-            CONFIG.STATSD_HOST = user_values[0]
-            CONFIG.STATSD_PORT = 8125
-        else:
-            CONFIG.STATSD_HOST = user_values[0]
-            CONFIG.STATSD_PORT = user_values[1]
-
+        config_statsd()
+        
     check_celery_config()
 
     # Register built-in providers

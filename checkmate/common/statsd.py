@@ -27,8 +27,9 @@ Limitation: Does not readily work on subclasses of celery.tasks.Task
 because it always reports `task_name` as 'run'
 '''
 from __future__ import absolute_import
-from checkmate.common import config
 import statsd
+from checkmate.common import config
+
 
 def simple_decorator(decorator):
     '''Borrowed from:
@@ -68,38 +69,38 @@ def collect(func):
 
         CONFIG = config.current()
 
-        if CONFIG.statsd:
-            stats_conn = statsd.connection.Connection(
-                host=CONFIG.STATSD_HOST,
-                port=CONFIG.STATSD_PORT,
-                sample_rate=1
-            )
-
-            task_name = func.__name__
-
-            counter = statsd.counter.Counter('celery.tasks.status', stats_conn)
-            counter.increment('{task_name}.started'.format(**locals()))
-
-            timer = statsd.timer.Timer('celery.tasks.duration', stats_conn)
-            timer.start()
-
-            try:
-                ret = func(*args, **kwargs)
-            except StandardError:
-                counter.increment('{task_name}.exceptions'.format(**locals()))
-                raise
-            else:
-                counter.increment('{task_name}.success'.format(**locals()))
-                timer.stop('{task_name}.success'.format(**locals()))
-                return ret
-            finally:
-                try:
-                    del timer
-                    del counter
-                    del stats_conn
-                except StandardError:
-                    pass
-        else:
+        if not CONFIG.statsd:
             return func(*args, **kwargs)
+
+        stats_conn = statsd.connection.Connection(
+            host=CONFIG.STATSD_HOST,
+            port=CONFIG.STATSD_PORT,
+            sample_rate=1
+        )
+
+        task_name = func.__name__
+
+        counter = statsd.counter.Counter('celery.tasks.status', stats_conn)
+        counter.increment('{task_name}.started'.format(**locals()))
+
+        timer = statsd.timer.Timer('celery.tasks.duration', stats_conn)
+        timer.start()
+
+        try:
+            ret = func(*args, **kwargs)
+        except StandardError:
+            counter.increment('{task_name}.exceptions'.format(**locals()))
+            raise
+        else:
+            counter.increment('{task_name}.success'.format(**locals()))
+            timer.stop('{task_name}.success'.format(**locals()))
+            return ret
+        finally:
+            try:
+                del timer
+                del counter
+                del stats_conn
+            except StandardError:
+                pass
 
     return collect_wrapper
