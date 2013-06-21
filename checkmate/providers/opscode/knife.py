@@ -9,6 +9,7 @@ import threading
 import time
 import urlparse
 
+from celery.exceptions import SoftTimeLimitExceeded
 from celery import task
 from Crypto.PublicKey import RSA
 from Crypto.Random import atfork
@@ -858,7 +859,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     return results
 
 
-@task(max_retries=2)
+@task(max_retries=2, soft_time_limit=120)
 def register_node(host, environment, resource, path=None, password=None,
                   omnibus_version=None, attributes=None, identity_file=None,
                   kitchen_name='kitchen'):
@@ -970,8 +971,13 @@ def register_node(host, environment, resource, path=None, password=None,
 
     # Rsync problem with creating path (missing -p so adding it ourselves) and
     # doing this before the complex prepare work
-    ssh.remote_execute(host, "mkdir -p %s" % kitchen_path, 'root',
-                       password=password, identity_file=identity_file)
+    try:
+        ssh.remote_execute(host, "mkdir -p %s" % kitchen_path, 'root',
+                           password=password, identity_file=identity_file)
+    except SoftTimeLimitExceeded:
+        msg = "Timeout trying to ssh to %s" % host
+        LOG.info("%s in deployment %s", msg, environment)
+        raise CheckmateException(msg)
 
     # Calculate node path and check for prexistance
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
@@ -991,6 +997,10 @@ def register_node(host, environment, resource, path=None, password=None,
     try:
         _run_kitchen_command(environment, kitchen_path, params)
         LOG.info("Knife prepare succeeded for %s in %s", host, environment)
+    except SoftTimeLimitExceeded:
+        msg = "Timeout trying to ssh to %s" % host
+        LOG.info("%s in deployment %s", msg, environment)
+        raise CheckmateException(msg)
     except (CalledProcessError, CheckmateCalledProcessError) as exc:
         LOG.warn("Knife prepare failed for %s. Retrying.", host)
         register_node.retry(exc=exc)
