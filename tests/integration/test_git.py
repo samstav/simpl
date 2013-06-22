@@ -1,6 +1,7 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import os
 import shutil
+import subprocess
 import sys
 import unittest2 as unittest
 import uuid
@@ -48,6 +49,17 @@ class TestCloneSimple(unittest.TestCase):
             expect_errors=True
         )
         self.assertEqual(res.status, '404 Not Found')
+
+    def test_backend_clone_first_call(self):
+        '''Test:
+        GIT_CURL_VERBOSE=1 git clone http://localhost:8080/557366/deployments/08af2c9e979e4c0c9e2561791a745794.git
+        '''
+        os.environ['REQUEST_METHOD'] = 'GET'
+        os.environ['GIT_PROJECT_ROOT'] = self.repo_path
+        os.environ['PATH_INFO'] = '/info/refs'
+        os.environ['GIT_HTTP_EXPORT_ALL'] = '1'
+        response = subprocess.check_output(['git', 'http-backend'])
+        print response
 
     @unittest.skip('Unable to get this to work with TestApp')
     def test_clone(self):
