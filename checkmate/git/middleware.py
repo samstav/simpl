@@ -2,9 +2,7 @@ import os
 import re
 
 from bottle import (
-    get,
-    post,
-    Response,
+    response,
     auth_basic,
     Bottle,
     request,
@@ -101,12 +99,12 @@ def _git_route_callback(dep_id, path):
         # TODO: not sure what to do about this
         raise HTTPError(code=404, output="%s not found" % environ['PATH_INFO'])
     manager.init_deployment_repo(environ['GIT_PROJECT_ROOT'])
-    # beg: debugging
-    print str(dict(environ)) + "\n"
-    # end: debugging
     (status_line, headers, response_body_generator
      ) = wsgi_git_http_backend.wsgi_to_git_http_backend(environ)
-    return Response(response_body_generator, status_line, headers=headers)
+    for header, value in headers:
+        response.set_header(header, value)
+    response.status = status_line
+    return response_body_generator
 
 
 # Routines for bottle usage
