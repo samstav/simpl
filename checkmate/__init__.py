@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+import eventlet
+eventlet.monkey_patch(socket=True, thread=True, os=True)
 
 import gettext
 import os
