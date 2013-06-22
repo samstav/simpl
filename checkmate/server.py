@@ -19,7 +19,7 @@ from eventlet.green import threading
 from eventlet import wsgi
 
 from checkmate.api import admin
-from checkmate import git_middleware
+from checkmate import git
 from checkmate import blueprints
 from checkmate import celeryconfig
 from checkmate.common import config
@@ -269,7 +269,7 @@ def main():
 
     # Load Git if requested
     if CONFIG.with_git is True:
-        next_app = git_middleware.GitMiddleware(next_app)
+        next_app = git.middleware.GitMiddleware(next_app)
 
     next_app = middleware.ContextMiddleware(next_app)
 

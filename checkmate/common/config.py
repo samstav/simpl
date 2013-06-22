@@ -38,6 +38,7 @@ class Config(object):
     statsd_port = 8125
     statsd_host = None
 
+    with_git = False
     with_ui = False
     with_simulator = False
     with_admin = False
