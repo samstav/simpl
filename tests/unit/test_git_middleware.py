@@ -1,7 +1,10 @@
-import unittest
-from mock import patch, Mock, mock_open
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import os
-import git
+import unittest
+
+from mock import patch
+
+from checkmate.git import manager
 from checkmate.git import middleware
 from checkmate import wsgi_git_http_backend
 
@@ -11,7 +14,7 @@ class TestGitMiddleware_set_git_environ(unittest.TestCase):
     #@unittest.skip("Temp skip")
     def test_set_git_environ_no_env(self):
         environE = {}
-        environ = git_middleware._set_git_environ(environE)
+        environ = middleware._set_git_environ(environE)
         testEnviron = {
             'GIT_PROJECT_ROOT': os.environ.get(
             "CHECKMATE_CHEF_LOCAL_PATH",
@@ -25,7 +28,7 @@ class TestGitMiddleware_set_git_environ(unittest.TestCase):
     #@unittest.skip("Temp skip")
     def test_set_git_environ_extra_env(self):
         environE = {'foo': 'bar'}
-        environ = git_middleware._set_git_environ(environE)
+        environ = middleware._set_git_environ(environE)
         testEnviron = {
             'GIT_PROJECT_ROOT': os.environ.get(
             "CHECKMATE_CHEF_LOCAL_PATH",
@@ -45,9 +48,9 @@ class TestGitMiddleware_set_git_environ(unittest.TestCase):
             "CHECKMATE_CHEF_LOCAL_PATH",
             "/var/local/checkmate/deployments"
         )
-        environ = git_middleware._set_git_environ(environE)
+        environ = middleware._set_git_environ(environE)
         self.assertEqual(
-            dep_path+'/b3fe346f543a4a95b4712969c420dde6',
+            dep_path + '/b3fe346f543a4a95b4712969c420dde6',
             environ['GIT_PROJECT_ROOT']
         )
         self.assertEqual('/.git', environ['PATH_INFO'])
@@ -55,11 +58,11 @@ class TestGitMiddleware_set_git_environ(unittest.TestCase):
 
 class TestGitMiddleware_git_route_callback(unittest.TestCase):
 
-    @patch.object(git_middleware, 'Response')
+    @patch.object(middleware, 'Response')
     @patch.object(os.path, 'isdir')
-    @patch.object(git_middleware, '_set_git_environ')
-    @patch.object(git_middleware, 'request')
-    @patch.object(git_middleware, '_git_init_deployment')
+    @patch.object(middleware, '_set_git_environ')
+    @patch.object(middleware, 'request')
+    @patch.object(manager, 'init_deployment_repo')
     @patch.object(wsgi_git_http_backend, 'wsgi_to_git_http_backend')
     #@unittest.skip("Temp skip")
     def test_route_cb(
@@ -73,7 +76,12 @@ class TestGitMiddleware_git_route_callback(unittest.TestCase):
         mock_wsgi.return_value = (1, 2, 3)
         mock_response.return_value = True
         # kick off
-        git_middleware._git_route_callback()
+        middleware._git_route_callback()
         assert mock_wsgi.called
 
 
+if __name__ == '__main__':
+    # Any change here should be made in all test files
+    import sys
+    from checkmate.test import run_with_params
+    run_with_params(sys.argv[:])
