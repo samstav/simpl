@@ -23,6 +23,7 @@ from bottle import (
 )
 from celery import Celery
 import eventlet
+from eventlet import wsgi
 
 from checkmate import blueprints
 from checkmate import celeryconfig
@@ -321,24 +322,49 @@ def main_func():
                 ip_address = supplied
 
     # Select server (wsgiref by default. eventlet if requested)
-    reloader = True
-    server = 'wsgiref'
+    kwargs = dict(
+        server='wsgiref',
+        quiet=CONFIG.quiet,
+        reloader=True,
+    )
     if CONFIG.eventlet is True:
-        server = 'eventlet'
-        reloader = False  # assume eventlet is prod, so don't reload
+        kwargs['server'] = CustomEventletServer
+        kwargs['reloader'] = False  # assume eventlet is prod, so don't reload
+        kwargs['backlog'] = 100
+        kwargs['log'] = CONFIG.access_log
+    else:
+        if CONFIG.access_log:
+            print "--access-log only works with --eventlet"
+            sys.exit(1)
 
     # Start listening. Enable reload by default to pick up file changes
     try:
-        run(app=next_app, host=ip_address, port=port, reloader=reloader,
-            server=server)
-    except Exception as exc:
-        print "Caught:", exc
+        bottle.run(app=next_app, host=ip_address, port=port, **kwargs)
+    except StandardError as exc:
+        print "Caught Exception:", exc
     finally:
         try:
             if worker:
                 worker.stop()
         except StandardError:
             pass
+
+
+class CustomEventletServer(bottle.ServerAdapter):
+    '''Handles added backlog'''
+    def run(self, handler):
+        try:
+            socket_args = {}
+            for arg in ['backlog', 'family']:
+                if arg in self.options:
+                    socket_args[arg] = self.options.pop(arg)
+            if 'log_output' not in self.options:
+                self.options['log_output'] = (not self.quiet)
+            socket = eventlet.listen((self.host, self.port), **socket_args)
+            wsgi.server(socket, handler, **self.options)
+        except TypeError:
+            # Fallback, if we have old version of eventlet
+            wsgi.server(eventlet.listen((self.host, self.port)), handler)
 
 
 #

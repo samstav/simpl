@@ -31,6 +31,7 @@ class Config(object):
     verbose = False
     quiet = False
     trace_calls = False
+    access_log = None
 
     newrelic = False
     statsd = False
@@ -160,6 +161,11 @@ def parse_arguments(args=None):
                         )
     parser.add_argument("--statsd",
                         help="enable statsd server with [address[:port]]",
+                        )
+    parser.add_argument("--access-log",
+                        type=argparse.FileType('a'),
+                        help="File to store access HTTP logs in (only works "
+                        "with eventlet server)"
                         )
 
     #

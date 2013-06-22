@@ -16,6 +16,7 @@ class TestConfig(unittest.TestCase):
         self.assertFalse(default.debug)
         self.assertFalse(default.verbose)
         self.assertFalse(default.trace_calls)
+        self.assertIsNone(default.access_log)
 
         self.assertFalse(default.newrelic)
         self.assertFalse(default.statsd)
