@@ -1,3 +1,4 @@
+import errno
 import os
 import re
 import git
@@ -78,6 +79,78 @@ def _is_git_repo(path):
     return False
 
 
+def _find_unregistered_submodules(dep_path):
+    '''Loops through directory and finds unregistered submodules
+
+    :param path: a path to check
+    :returns: dict of paths and submodule urls
+
+    Note: will return an empty dict in cases where the directory does not exist
+    or is not a valid git repo
+    '''
+    if not os.path.exists(dep_path):
+        return {}
+
+    try:
+        repo = git.Repo(dep_path)
+        existing_submodule_paths = [s.path for s in repo.submodules]
+    except git.BadObject:
+        existing_submodule_paths = []
+    except git.InvalidGitRepositoryError:
+        existing_submodule_paths = []
+
+    unregistered_submodules = {}
+    directory_entries = os.listdir(dep_path)
+    if directory_entries:
+        for dir_entry in directory_entries:
+            sub_folder = os.path.join(dep_path, dir_entry)
+            if _is_git_repo(sub_folder):
+                sub_folder_git_config = os.path.join(dep_path, dir_entry,
+                                                     '.git', 'config')
+                git_buf = open(sub_folder_git_config, 'r').read()
+                urls = re.findall('url = (.*?)\n', git_buf)
+                url = urls[0]
+                if dir_entry not in existing_submodule_paths:
+                    unregistered_submodules[dir_entry] = url
+
+    return unregistered_submodules
+
+
+def _add_submodules_to_config(dep_path, submodules_to_add):
+    '''Adds list of path/urls to existing repo'''
+    with open(os.path.join(dep_path, '.gitmodules'), 'ab+') as sms_f:
+        for path, url in submodules_to_add.items():
+            sms_f.write(
+                '[submodule "%s"]\n'
+                '\tpath = %s\n'
+                '\turl = %s\n'
+                '\tignore = dirty\n' % (path, path, url)
+            )
+
+
+def add_post_receive_hook(dep_path):
+    '''implement a special git repo event hook ('post-receive').
+
+    Whenever there are new updates, the checkout is always automatically reset
+    to include those differences and to be current. (aka: HEAD)
+    '''
+    hook_path = os.path.join(dep_path, '.git', 'hooks', 'post-receive')
+    post_recv_hook = '''#!/bin/bash
+cd ..
+GIT_DIR=".git"
+git reset --hard HEAD
+'''
+    with open(hook_path, "w") as hook_file_w:
+        hook_file_w.write(post_recv_hook)
+    os.chmod(hook_path, 0o777)
+    # config (ignore non-bare when using as remote)
+    repo = git.Repo(dep_path)
+    writer = repo.config_writer()
+    writer.set_value('receive', 'denyCurrentBranch', 'ignore')
+    # config (allow receivepack for pushes with http-backend)
+    writer.set_value('http', 'receivepack', 'true')
+
+
 def _git_init_deployment(dep_path):
     '''
     Ensure that an existing deployment folder and its sub-directories are
@@ -105,61 +178,27 @@ def _git_init_deployment(dep_path):
     this repo, the submodules will sustain their original HEAD sha's
     (stable tags).
     '''
-
-    dep_id = os.path.basename(dep_path)
+    if not os.path.exists(dep_path):
+        raise OSError(errno.ENOENT, "No such file or directory")
 
     # check if this is already a repo
     if _is_git_repo(dep_path):
         return
-    # init
-    print "[init]\n"
     repo = git.Repo.init(dep_path)
-    # add submodules
-    sms_f = open(dep_path + '/.gitmodules', 'ab+')
-    for foldfile in os.listdir(dep_path):
-        #repo.git.submodule('add', '--path='+foldfile, '--ignore=dirty')
-        if _is_git_repo(os.path.join(dep_path, foldfile)):
-            git_buf = open(
-                dep_path +
-                '/' +
-                foldfile +
-                '/.git/config',
-                'r').read()
-            urls = re.findall('url = (.*?)\n', git_buf)
-            url = urls[0]
-            sms_f.seek(0)
-            sms_buf = sms_f.read()
-            sms = re.findall('submodule "' + foldfile + '"', sms_buf)
-            if len(sms) == 0:
-                sms_f.write(
-                    '[submodule "' + foldfile + '"]\n' +
-                    '  path = ' + foldfile + '\n' +
-                    '  url = ' + url + '\n' +
-                    '  ignore = dirty\n'
-                )
-        if os.path.isfile(dep_path + '/' + foldfile):
-            repo.git.add(foldfile)
-    sms_f.close()
-    repo.git.commit(m="init deployment: " + str(dep_id))
-    repo.git.submodule('update', '--init', '--recursive')
-    repo.git.add('*')
-    repo.git.commit(m="add subfolders: " + str(dep_id))
-    # add post-receive hook
-    hook_path = dep_path + '/.git/hooks/post-receive'
-    post_recv_hook = '''#!/bin/bash
-    cd ..
-    GIT_DIR=".git"
-    git reset --hard HEAD
-    '''
-    fo = open(hook_path, "w")
-    fo.write(post_recv_hook)
-    fo.close
-    os.chmod(dep_path + '/.git/hooks/post-receive', 0o777)
-    # config (ignore non-bare when using as remote)
-    cw = repo.config_writer()
-    cw.set_value('receive', 'denyCurrentBranch', 'ignore')
-    # config (allow receivepack for pushes with http-backend)
-    cw.set_value('http', 'receivepack', 'true')
+
+    # find submodules to add
+    submodules_to_add = _find_unregistered_submodules(dep_path)
+
+    # find files or folders to add
+    entries_to_add = repo.git.ls_files('--exclude-standard', '--others')
+
+    if entries_to_add or submodules_to_add:
+        if submodules_to_add:
+            _add_submodules_to_config(dep_path, submodules_to_add)
+        repo.git.add('*')
+        repo.git.commit(m="Initial Commit")
+
+    add_post_receive_hook(dep_path)
 
 
 def _set_git_environ(environE):
