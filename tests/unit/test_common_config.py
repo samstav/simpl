@@ -72,7 +72,7 @@ class TestParsers(unittest.TestCase):
 
 class TestArgParser(unittest.TestCase):
     def test_default(self):
-        parsed = config.parse_arguments([])
+        parsed = config.parse_arguments(['/prog'])
         self.assertFalse(parsed.with_admin)
         self.assertFalse(parsed.eventlet)
 
