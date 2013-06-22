@@ -2,7 +2,7 @@ import unittest
 from mock import patch, Mock, mock_open
 import os
 import git
-from checkmate import git_middleware
+from checkmate.git import middleware
 from checkmate import wsgi_git_http_backend
 
 

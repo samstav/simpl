@@ -8,10 +8,9 @@ import re
 import git
 
 
-def _is_git_repo(path):
-    if os.path.isfile(os.path.join(path, '.git/config')):
-        return True
-    return False
+def is_git_repo(path):
+    '''Checks if a folder is a git repo'''
+    return os.path.isfile(os.path.join(path, '.git', 'config'))
 
 
 def _find_unregistered_submodules(dep_path):
@@ -39,7 +38,7 @@ def _find_unregistered_submodules(dep_path):
     if directory_entries:
         for dir_entry in directory_entries:
             sub_folder = os.path.join(dep_path, dir_entry)
-            if _is_git_repo(sub_folder):
+            if is_git_repo(sub_folder):
                 sub_folder_git_config = os.path.join(dep_path, dir_entry,
                                                      '.git', 'config')
                 git_buf = open(sub_folder_git_config, 'r').read()
@@ -117,7 +116,7 @@ def init_deployment_repo(dep_path):
         raise OSError(errno.ENOENT, "No such file or directory")
 
     # check if this is already a repo
-    if _is_git_repo(dep_path):
+    if is_git_repo(dep_path):
         return
     repo = git.Repo.init(dep_path)
 
