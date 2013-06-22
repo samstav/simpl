@@ -269,7 +269,9 @@ def main():
 
     # Load Git if requested
     if CONFIG.with_git is True:
-        next_app = git.middleware.GitMiddleware(next_app)
+        root_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
+                                   "/var/local/checkmate/deployments")
+        next_app = git.middleware.GitMiddleware(next_app, root_path)
 
     next_app = middleware.ContextMiddleware(next_app)
 

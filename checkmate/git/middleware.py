@@ -37,14 +37,12 @@ class GitMiddleware():
 
     '''Adds support for git http-backend interaction'''
 
-    def __init__(self, app):
+    def __init__(self, app, root_path):
         self.app = app
+        self.root = root_path
 
     def __call__(self, e, h):
-        if re.search('.git', e['PATH_INFO']):
-            print "[["+e['PATH_INFO']+"]]\n"
-            pass
-        elif e['CONTENT_TYPE'] in [
+        if e.get('CONTENT_TYPE') in [
             'application/x-git-upload-pack-request',
             'application/x-git-receive-pack-request'
         ]:
@@ -58,6 +56,7 @@ class GitMiddleware():
             return self.app(e, h)
         try:
             GIT_SERVER_APP.match(e)
+            e['GIT_PROJECT_BASE'] = self.root
             return GIT_SERVER_APP(e, h)
         except HTTPError:
             pass
@@ -75,7 +74,7 @@ def _check_git_auth(user, passwd):
         return False
 
 
-def _set_git_environ(environE):
+def _set_git_environ(environE, dep_id, path):
     '''Bottle environment tweaking for git kitchen routes'''
     environ = dict()
     for e_ in expected_environ_list:
@@ -84,13 +83,9 @@ def _set_git_environ(environE):
     if 'PATH_INFO' not in environ:
         environ['PATH_INFO'] = ''
     environ['GIT_HTTP_EXPORT_ALL'] = '1'
-    path_info = environ['PATH_INFO'][53:]
-    dep_id = environ['PATH_INFO'][20:52]
-    dep_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
-                              "/var/local/checkmate/deployments"
-                              ) + "/" + dep_id
-    environ['GIT_PROJECT_ROOT'] = dep_path
-    environ['PATH_INFO'] = '/.' + path_info
+    environ['GIT_PROJECT_ROOT'] = os.path.join(environE['GIT_PROJECT_BASE'],
+                                               dep_id)
+    environ['PATH_INFO'] = '/%s' % path
     if (
         re.search('/info/refs', environ['PATH_INFO']) and
         environ['REQUEST_METHOD'] == 'GET'
@@ -100,15 +95,14 @@ def _set_git_environ(environE):
     return environ
 
 
-def _git_route_callback():
-    #print "[cb]\n"
-    environ = _set_git_environ(dict(request.environ))
+def _git_route_callback(dep_id, path):
+    environ = _set_git_environ(dict(request.environ), dep_id, path)
     if not os.path.isdir(environ['GIT_PROJECT_ROOT']):
         # TODO: not sure what to do about this
-        return
+        raise HTTPError(code=404, output="%s not found" % environ['PATH_INFO'])
     manager.init_deployment_repo(environ['GIT_PROJECT_ROOT'])
     # beg: debugging
-    print str(dict(environ))+"\n"
+    print str(dict(environ)) + "\n"
     # end: debugging
     (status_line, headers, response_body_generator
      ) = wsgi_git_http_backend.wsgi_to_git_http_backend(environ)
@@ -131,19 +125,23 @@ Tested bottle routes:
 
 Currently, all git http-backend routes initiate with this request type:
 
-    GET /{tenant_id}/deployments/{key}.git/info/refs HTTP/1.1
 
-    PATH_INFO: /deployments/{key}.git/info/refs
-    REQUEST_METHOD: GET
-    CONTENT_TYPE: text/plain
-    QUERY_STRING: service=git-upload-pack
-    GIT_HTTP_EXPORT_ALL: 1
-    wsgi.version: (1,0)
-    wsgi.run_once: False
-    wsgi.input: <eventlet.wsgi.Input object>
-    wsgi.errors: <open file '<stderr>', mode 'w'>
-    wsgi.multiprocess: False, 'wsgi.input': <eventlet.wsgi.Input object>
-    wsgi.multithread: True
+    NEEDED BY HTTP-PBACKEND:
+        GET /{tenant_id}/deployments/{key}.git/info/refs HTTP/1.1
+
+        PATH_INFO: /deployments/{key}.git/info/refs
+        REQUEST_METHOD: GET
+        QUERY_STRING: service=git-upload-pack
+        GIT_HTTP_EXPORT_ALL: 1
+
+    NEEDED BY OTHER FOLKS (middleware, etc):
+        CONTENT_TYPE: text/plain
+        wsgi.version: (1,0)
+        wsgi.run_once: False
+        wsgi.input: <eventlet.wsgi.Input object>
+        wsgi.errors: <open file '<stderr>', mode 'w'>
+        wsgi.multiprocess: False, 'wsgi.input': <eventlet.wsgi.Input object>
+        wsgi.multithread: True
 
 Currently, all successful git http-backend routes end with this response:
 
@@ -210,13 +208,13 @@ to/by gitHttpBackend.
 
 # Bottle routes
 
-@GIT_SERVER_APP.get("/<tenant_id>/deployments/<url:re:.+>")
+@GIT_SERVER_APP.get("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
 #@auth_basic(_check_git_auth) #basic auth
-def git_route_get(tenant_id, url):
-    return _git_route_callback()
+def git_route_get(tenant_id, dep_id, path):
+    return _git_route_callback(dep_id, path)
 
 
-@GIT_SERVER_APP.post("/<tenant_id>/deployments/<url:re:.+>")
+@GIT_SERVER_APP.post("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
 #@auth_basic(_check_git_auth) #basic auth
-def git_route_post(tenant_id, url):
-    return _git_route_callback()
+def git_route_post(tenant_id, dep_id, path):
+    return _git_route_callback(dep_id, path)
