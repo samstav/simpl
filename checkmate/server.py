@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 ''' Module to initialize and run Checkmate server'''
-import argparse
 import json
 import logging
 import os
@@ -132,21 +131,6 @@ def error_formatter(error):
     return utils.write_body(dict(error=output), request, response)
 
 
-def comma_separated_strs(value):
-    '''Handles comma-separated arguments passed in command-line.'''
-    return map(str, value.split(","))
-
-
-def comma_separated_key_value_pairs(value):
-    '''Handles comma-separated key/values passed in command-line.'''
-    pairs = value.split(",")
-    results = {}
-    for pair in pairs:
-        key, pair_value = pair.split('=')
-        results[key] = pair_value
-    return results
-
-
 def config_statsd():
     '''Stores statsd config in checkmate.common.config.'''
     user_values = CONFIG.statsd.split(':')
@@ -161,144 +145,9 @@ def config_statsd():
     CONFIG.STATSD_HOST = user_values[0]
 
 
-def argument_parser():
-    '''Parses start-up arguments and returns namespace with config variables.
-    '''
-
-    parser = argparse.ArgumentParser()
-
-    #
-    # Positional arguments
-    #
-    if len(sys.argv) > 1 and sys.argv[1] == 'START':
-        sys.argv.pop(1)
-    parser.add_argument("address",
-                        help="address and optional port to start server on "
-                        "[address[:port]]",
-                        nargs='?',
-                        default="127.0.0.1:8080"
-                        )
-
-    #
-    # Verbosity, debugging, and monitoring
-    #
-    parser.add_argument("--logconfig",
-                        help="Optional logging configuration file")
-    parser.add_argument("-d", "--debug",
-                        action="store_true",
-                        help="turn on additional debugging inspection and "
-                        "output including full HTTP requests and responses. "
-                        "Log output includes source file path and line "
-                        "numbers."
-                        )
-    parser.add_argument("-v", "--verbose",
-                        action="store_true",
-                        help="turn up logging to DEBUG (default is INFO)"
-                        )
-    parser.add_argument("-q", "--quiet",
-                        action="store_true",
-                        help="turn down logging to WARN (default is INFO)"
-                        )
-    parser.add_argument("--newrelic",
-                        action="store_true",
-                        default=False,
-                        help="enable newrelic monitoring (place newrelic.ini "
-                        "in your directory"
-                        )
-    parser.add_argument("-t", "--trace-calls",
-                        action="store_true",
-                        default=False,
-                        help="display call hierarchy and errors to stdout"
-                        )
-    parser.add_argument("--statsd",
-                        help="enable statsd server with [address[:port]]",
-                        )
-
-    #
-    # Optional Capabilities
-    #
-    parser.add_argument("-u", "--with-ui",
-                        action="store_true",
-                        default=False,
-                        help="enable support for browsers and HTML templates"
-                        )
-    parser.add_argument("-s", "--with-simulator",
-                        action="store_true",
-                        default=False,
-                        help="enable support for the deployment simulator"
-                        )
-    parser.add_argument("-a", "--with-admin",
-                        action="store_true",
-                        default=False,
-                        help="enable /admin calls (authorized to admin users "
-                        "only)"
-                        )
-    parser.add_argument("-e", "--eventlet",
-                        action="store_true",
-                        default=False,
-                        help="use the eventlet server (recommended in "
-                        "production)"
-                        )
-
-    #
-    # Queue
-    #
-    parser.add_argument("--eager",
-                        action="store_true",
-                        default=False,
-                        help="all celery (queue) tasks will be executed "
-                        "in-process. Use this for debugging only. There is no "
-                        "need to start a queue instance when running eager."
-                        )
-    parser.add_argument("--worker",
-                        action="store_true",
-                        default=False,
-                        help="start the celery worker in-process as well"
-                        )
-
-    #
-    # Blueprint handling (CrossCheck functionality)
-    #
-    parser.add_argument("--webhook",
-                        action="store_true",
-                        default=False,
-                        help="Enable blueprints GitHub webhook responder"
-                        )
-    parser.add_argument("-g", "--github-api",
-                        help="Root github API uri for the repository "
-                        "containing blueprints. ex: "
-                        "https://api.github.com/v3")
-    parser.add_argument("-o", "--organization",
-                        help="The github organization owning the blueprint "
-                        "repositories",
-                        default="Blueprints")
-    parser.add_argument("-r", "--ref",
-                        help="Branch/tag/reference denoting the version of "
-                        "blueprints to use.",
-                        default="master")
-    parser.add_argument("--cache-dir",
-                        help="cache directory")
-    parser.add_argument("--preview-ref",
-                        help="version of deployment templates for preview",
-                        default=None)
-    parser.add_argument("--preview-tenants",
-                        help="preview tenant IDs",
-                        type=comma_separated_strs,
-                        default=None)
-    parser.add_argument("--group-refs",
-                        help="Auth Groups and refs to associate with them as "
-                        "a comma-delimited list. Ex. "
-                        "--group-refs tester=master,prod=stable",
-                        type=comma_separated_key_value_pairs,
-                        default=None)
-
-    args = parser.parse_args()
-    return args
-
-
 def main_func():
     '''Start the server based on passed in arguments. Called by __main__.'''
-    CONFIG.update(vars(argument_parser()))
+    CONFIG.initialize()
 
     resources = ['version']
     anonymous_paths = ['version']
