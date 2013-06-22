@@ -20,6 +20,8 @@ PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
 ### Clone the chef-stockton repo
 # DEPRECATED 2013-05-19 by ZNS git clone -b master git://github.rackspace.com/checkmate/chef-stockton.git $CHECKMATE_CHEF_REPO
 
+flake8 checkmate bin | tee flake8.out || exit 0
+
 nosetests --with-coverage --cover-package=checkmate --with-xunit -w tests/
 
 # Create coverage.xml for Cobertura
