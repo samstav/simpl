@@ -8,7 +8,8 @@ LOG = logging.getLogger(__name__)
 
 class Config(object):
     '''Temporary placeholder until we implement a more sophisticated config
-    systems'''
+    systems
+    '''
     address = "127.0.0.1:8080"
 
     logconfig = None
@@ -17,6 +18,7 @@ class Config(object):
     quiet = False
     newrelic = False
     trace_calls = False
+    statsd = None
 
     with_ui = False
     with_simulator = False
@@ -40,7 +42,7 @@ class Config(object):
             self.update(values)
 
     def update(self, values):
-        '''Update config with new values'''
+        '''Update config with new values.'''
         for key, value in values.items():
             LOG.debug("Config change: %s=%s", key, value)
             setattr(self, key, value)
