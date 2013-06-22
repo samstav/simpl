@@ -6,7 +6,6 @@
    License: None observed by original author.
 '''
 
-import os
 from eventlet.green import threading, subprocess
 
 DEFAULT_CHUNK_SIZE = 0x8000
