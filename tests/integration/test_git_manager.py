@@ -226,6 +226,169 @@ class TestGitRepo(unittest.TestCase):
         self.assertEqual(results, {})
 
 
+@unittest.skip('Not yet converted to new refactored code')
+class TestGitMiddleware_init_deployment(unittest.TestCase):
+
+    @mock.patch.object(git.Repo, 'init')
+    @mock.patch.object(manager, 'is_git_repo')
+    def test_git_repo(self, mock_is_git_repo, mock_init):
+        # mocks
+        mock_is_git_repo.return_value = True
+        # kick off
+        manager.init_deployment_repo('/dep/path')
+        assert not mock_init.called
+
+    @mock.patch.object(os, 'chmod')
+    @mock.patch.object(os, 'listdir')
+    @mock.patch.object(os, 'path')
+    @mock.patch.object(git.Repo, 'init')
+    @mock.patch.object(manager, 'is_git_repo')
+    #@unittest.skip("Temp skip")
+    def test_no_git_repo_no_content(
+        self, mock_is_git_repo,
+        mock_init, mock_listdir, mock_path, mock_chmod
+    ):
+        with mock.patch.object(
+            manager,
+            'open',
+            mock.mock_open(read_data='foobar'),
+            create=True
+        ) as m:
+            # mocks
+            mock_repo = mock.Mock()
+            mock_cw = mock.Mock()
+            mock_repo.config_writer = mock_cw
+            mock_is_git_repo.return_value = False
+            mock_init.return_value = mock_repo
+            mock_listdir.return_value = []
+            mock_chmod.return_value = True
+            mock_path.isfile.return_value = False
+            # kick off
+            manager.init_deployment_repo('/dep/path')
+            #mock_repo.git.commit.assert_called_with(m='init deployment: path')
+            assert mock_repo.git.submodule.called
+            assert mock_repo.git.commit.called
+            #mock_repo.git.submodule.assert_called_with(
+            #   'update', '--init', '--recursive'
+            #)
+            mock_repo.git.add.assert_called_with('*')
+            #mock_repo.git.commit.assert_called_with(m='add subfolders: path')
+            mock_cw.set_value.asset_called_with(
+                'receive',
+                'denyCurrentBranch',
+                'ignore')
+            mock_cw.set_value.asset_called_with('http', 'receivepack', 'true')
+
+    @mock.patch.object(os, 'chmod')
+    @mock.patch.object(os, 'listdir')
+    @mock.patch.object(os, 'path')
+    @mock.patch.object(git.Repo, 'init')
+    @mock.patch.object(manager, 'is_git_repo')
+    #@unittest.skip("Temp skip")
+    def test_no_git_repo_with_file(
+            self, mock_is_git_repo,
+            mock_init, mock_path, mock_listdir, mock_chmod
+    ):
+        with mock.patch.object(
+            manager,
+            'open',
+            mock.mock_open(read_data='foobar'),
+            create=True
+        ) as m:
+            # mocks
+            mock_repo = mock.Mock()
+            mock_cw = mock.Mock()
+            mock_repo.config_writer = mock_cw
+            mock_is_git_repo.return_value = False
+            mock_init.return_value = mock_repo
+            mock_listdir.return_value = ['file']
+            mock_chmod.return_value = True
+            mock_path.isfile.return_value = True
+            # kick off
+            manager.init_deployment_repo('/dep/path')
+            mock_repo.git.add.asset_called_with('/dep/path/file')
+            #mock_repo.git.commit.assert_called_with(m='init deployment: path')
+            assert mock_repo.git.commit.called
+            mock_cw.set_value.asset_called_with(
+                'receive',
+                'denyCurrentBranch',
+                'ignore')
+            mock_cw.set_value.asset_called_with('http', 'receivepack', 'true')
+
+    @mock.patch.object(os, 'chmod')
+    @mock.patch.object(os, 'listdir')
+    @mock.patch.object(os, 'path')
+    @mock.patch.object(git.Repo, 'init')
+    @mock.patch.object(manager, 'is_git_repo')
+    #@unittest.skip("Temp skip")
+    def test_no_git_repo_with_folder(
+            self, mock_is_git_repo,
+            mock_init, mock_path, mock_listdir, mock_chmod
+    ):
+        with mock.patch.object(
+            manager,
+            'open',
+            mock.mock_open(read_data='foobar'),
+            create=True
+        ) as m:
+            # mocks
+            mock_repo = mock.Mock()
+            mock_cw = mock.Mock()
+            mock_repo.config_writer = mock_cw
+            mock_is_git_repo.return_value = False
+            mock_init.return_value = mock_repo
+            mock_listdir.return_value = ['folder']
+            mock_chmod.return_value = True
+            mock_path.isfile.return_value = False
+            # kick off
+            manager.init_deployment_repo('/dep/path')
+            mock_repo.git.add.asset_called_with('/dep/path/folder')
+            #mock_repo.git.commit.assert_called_with(m='init deployment: path')
+            assert mock_repo.git.commit.called
+            mock_cw.set_value.asset_called_with(
+                'receive',
+                'denyCurrentBranch',
+                'ignore')
+            mock_cw.set_value.asset_called_with('http', 'receivepack', 'true')
+
+    @mock.patch.object(os, 'chmod')
+    @mock.patch.object(os, 'listdir')
+    @mock.patch.object(os, 'path')
+    @mock.patch.object(git.Repo, 'init')
+    @mock.patch.object(manager, 'is_git_repo')
+    #@unittest.skip("Temp skip")
+    def test_no_git_repo_with_submodule(
+            self, mock_is_git_repo,
+            mock_init, mock_path, mock_listdir, mock_chmod
+    ):
+        with mock.patch.object(
+            manager,
+            'open',
+            mock.mock_open(read_data='foobar'),
+            create=True
+        ) as m:
+            # mocks
+            mock_repo = mock.Mock()
+            mock_cw = mock.Mock()
+            mock_repo.config_writer = mock_cw
+            mock_is_git_repo.return_value = False
+            mock_init.return_value = mock_repo
+            mock_listdir.return_value = ['submod']
+            mock_chmod.return_value = True
+            mock_path.isfile.return_value = False
+            # kick off
+            manager.init_deployment_repo('/dep/path')
+            #mock_repo.git.submodule.asset_called_with(
+            #    'add', '--path=submodule', '--ignore=dirty')
+            #mock_repo.git.commit.assert_called_with(m='init deployment: path')
+            assert mock_repo.git.commit.called
+            mock_cw.set_value.asset_called_with(
+                'receive',
+                'denyCurrentBranch',
+                'ignore')
+            mock_cw.set_value.asset_called_with('http', 'receivepack', 'true')
+
+
 if __name__ == '__main__':
     # Any change here should be made in all test files
     import sys
