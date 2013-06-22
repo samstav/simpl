@@ -42,10 +42,6 @@ import sys
 
 
 if '--trace-calls' in sys.argv or '-t' in sys.argv:
-    # Remove the trace arguments
-    for i in range(len(sys.argv) - 1):
-        if sys.argv[i] in ['-t', '--trace-calls']:
-            sys.argv.pop(i)
 
     STACK_DEPTH = 0
 

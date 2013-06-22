@@ -68,6 +68,8 @@ class Config(object):
             if not hasattr(source, '__iter__'):
                 raise ValueError("Config.update requires iterables or kwargs")
             for key, value in source.items():
+                if not hasattr(self, key):
+                    LOG.warn("Unrecognized config value being set: %s", key)
                 LOG.debug("Config change: %s=%s", key, value)
                 setattr(self, key, value)
 
@@ -252,7 +254,8 @@ def parse_arguments(args=None):
                         default=None)
 
     if not args:
-        if len(sys.argv) > 1 and sys.argv[1] == 'START':
-            args = sys.argv[1:]
-    parsed = parser.parse_args(args)
+        args = sys.argv
+    if len(args) > 1 and args[1] == 'START':
+        args = args[1:]
+    parsed = parser.parse_args(args[1:])
     return parsed

@@ -77,24 +77,29 @@ class TestArgParser(unittest.TestCase):
         self.assertFalse(parsed.eventlet)
 
     def test_flag(self):
-        parsed = config.parse_arguments(['--with-admin'])
+        parsed = config.parse_arguments(['/prog', '--with-admin'])
         self.assertTrue(parsed.with_admin)
 
     def test_flag_singlechar(self):
-        parsed = config.parse_arguments(['-e'])
+        parsed = config.parse_arguments(['/prog', '-e'])
         self.assertTrue(parsed.eventlet)
 
     def test_ignore_start(self):
         '''Ignore unused/old START position'''
-        parsed = config.parse_arguments(['START', '-e'])
+        parsed = config.parse_arguments(['/prog', 'START', '-e'])
         self.assertTrue(parsed.eventlet)
 
+    def test_start_as_address(self):
+        '''Ensure START is not picked up as address'''
+        parsed = config.parse_arguments(['/prog', 'START', '-e'])
+        self.assertEqual(parsed.address, '127.0.0.1:8080')
+
     def test_address(self):
-        parsed = config.parse_arguments(['10.1.1.1'])
+        parsed = config.parse_arguments(['/prog', '10.1.1.1'])
         self.assertEqual(parsed.address, '10.1.1.1')
 
     def test_port(self):
-        parsed = config.parse_arguments(['10.1.1.1:10000'])
+        parsed = config.parse_arguments(['/prog', '10.1.1.1:10000'])
         self.assertEqual(parsed.address, '10.1.1.1:10000')
 
 
