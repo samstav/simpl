@@ -33,6 +33,7 @@ from checkmate import middleware
 from checkmate import utils
 from checkmate.api.admin import Router as AdminRouter
 from checkmate.common import config
+from checkmate.common import eventlet_backdoor
 from checkmate.common.gzip_middleware import Gzipper
 from checkmate.exceptions import (
     CheckmateException,
@@ -332,6 +333,7 @@ def main_func():
         kwargs['reloader'] = False  # assume eventlet is prod, so don't reload
         kwargs['backlog'] = 100
         kwargs['log'] = CONFIG.access_log
+        eventlet_backdoor.initialize_if_enabled()
     else:
         if CONFIG.access_log:
             print "--access-log only works with --eventlet"

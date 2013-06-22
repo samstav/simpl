@@ -27,6 +27,8 @@ class TestConfig(unittest.TestCase):
         self.assertFalse(default.with_simulator)
         self.assertFalse(default.with_admin)
         self.assertFalse(default.eventlet)
+        self.assertIsNone(default.backdoor_port)
+
         self.assertFalse(default.eager)
         self.assertFalse(default.worker)
 

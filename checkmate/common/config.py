@@ -42,6 +42,7 @@ class Config(object):
     with_simulator = False
     with_admin = False
     eventlet = False
+    backdoor_port = None
 
     eager = False
     worker = False
@@ -192,6 +193,10 @@ def parse_arguments(args=None):
                         default=False,
                         help="use the eventlet server (recommended in "
                         "production)"
+                        )
+    parser.add_argument("--backdoor-port",
+                        default=None,
+                        help='port for eventlet backdoor to listen'
                         )
 
     #

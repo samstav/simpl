@@ -429,6 +429,7 @@ Options:
     -s, --with-simulator  enable support for the deployment simulator
     -a, --with-admin      enable /admin calls (authorized to admin users only)
     -e, --eventlet        use the eventlet server (recommended in production)
+    --backdoor-port       port to use for eventlet backdoor to listen on
     --access-log FILE     file to log HTTP calls to (only works with --eventlet)
     --eager               all celery (queue) tasks will be executed in-process.
                           Use this for debugging only. There is no need to start
