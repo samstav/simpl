@@ -75,30 +75,6 @@ class TestCaching(unittest.TestCase):
         self.assertEqual(increment.counter, 6)
         self.assertListEqual(results, [1, 2, 3, 4, 1, 2, 5, 6])
 
-    def test_caching_reaping(self):
-
-        def increment():
-            '''For testing'''
-            increment.counter += 1
-            return increment.counter
-
-        # With caching
-        store = {((), ()): (0, 1)}  # stale cache entry
-        cache = caching.Memorize(max_entries=2, timeout=100, store=store)
-        _mox = mox.Mox()
-        mock_thread = _mox.CreateMockAnything()
-        _mox.StubOutWithMock(caching.threading, 'Thread')
-        caching.threading.Thread(target=cache.collect).AndReturn(mock_thread)
-        mock_thread.setDaemon(False).AndReturn(True)
-        mock_thread.start().AndReturn(True)
-        _mox.ReplayAll()
-        increment.counter = 0
-        fxn = cache(increment)
-        # Make it look like it's been a while since we've cleaned up
-        cache.last_reaping = time.time() - cache.cleaning_schedule
-        fxn()
-        _mox.VerifyAll()
-
     def test_caching_timeout(self):
 
         def increment():
@@ -161,6 +137,37 @@ class TestHashing(unittest.TestCase):
         first = self.cache.get_hash(1, x="A")
         second = self.cache.get_hash(2, x="B")
         self.assertNotEqual(first, second)
+
+
+class TestCachingMocked(unittest.TestCase):
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_caching_reaping(self):
+
+        def increment():
+            '''For testing'''
+            increment.counter += 1
+            return increment.counter
+
+        # With caching
+        store = {((), ()): (0, 1)}  # stale cache entry
+        cache = caching.Memorize(max_entries=2, timeout=100, store=store)
+        mock_thread = self.mox.CreateMockAnything()
+        self.mox.StubOutWithMock(caching.threading, 'Thread')
+        caching.threading.Thread(target=cache.collect).AndReturn(mock_thread)
+        mock_thread.setDaemon(False).AndReturn(True)
+        mock_thread.start().AndReturn(True)
+        self.mox.ReplayAll()
+        increment.counter = 0
+        fxn = cache(increment)
+        # Make it look like it's been a while since we've cleaned up
+        cache.last_reaping = time.time() - cache.cleaning_schedule
+        fxn()
+        self.mox.VerifyAll()
 
 
 class TestSecretHashing(unittest.TestCase):
