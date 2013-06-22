@@ -3,7 +3,6 @@
 import json
 import logging
 import os
-import string
 import sys
 import threading
 
@@ -12,29 +11,20 @@ import checkmate.common.tracer  # module runs on import
 
 # pylint: disable=E0611
 import bottle
-from bottle import (
-    app,
-    run,
-    request,
-    response,
-    HeaderDict,
-    default_app,
-    load,
-)
-from celery import Celery
+from bottle import request
+from bottle import response
+import celery
 import eventlet
 from eventlet import wsgi
 
+from checkmate.api import admin
 from checkmate import blueprints
 from checkmate import celeryconfig
-from checkmate import db
-from checkmate import deployments
-from checkmate import middleware
-from checkmate import utils
-from checkmate.api.admin import Router as AdminRouter
 from checkmate.common import config
 from checkmate.common import eventlet_backdoor
-from checkmate.common.gzip_middleware import Gzipper
+from checkmate.common import gzip_middleware
+from checkmate import db
+from checkmate import deployments
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
@@ -44,6 +34,8 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
 )
+from checkmate import middleware
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DRIVERS = {}
@@ -55,13 +47,12 @@ CONFIG = config.current()
 # Check our configuration
 def check_celery_config():
     '''Make sure a backend is configured.'''
-    from celery import current_app
     try:
-        if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
-                                                          'MongoBackend']:
+        backend = celery.current_app.backend.__class__.__name__
+        if backend not in ['DatabaseBackend', 'MongoBackend']:
             LOG.warning("Celery backend does not seem to be configured for a "
-                        "database: %s", current_app.backend.__class__.__name__)
-        if not current_app.conf.get("CELERY_RESULT_DBURI"):
+                        "database: %s", backend)
+        if not celery.current_app.conf.get("CELERY_RESULT_DBURI"):
             LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
                         "checkmate environment loaded?")
     except StandardError:
@@ -92,10 +83,11 @@ def error_formatter(error):
     output = {}
     accept = request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
-        error.headers = HeaderDict({"content-type": "application/x-yaml"})
+        error.headers = bottle.HeaderDict(
+            {"content-type": "application/x-yaml"})
         error.apply(response)
     else:  # default to JSON
-        error.headers = HeaderDict({"content-type": "application/json"})
+        error.headers = bottle.HeaderDict({"content-type": "application/json"})
         error.apply(response)
 
     if isinstance(error.exception, CheckmateNoMapping):
@@ -167,7 +159,7 @@ def main_func():
 
     if CONFIG.statsd:
         config_statsd()
-    
+
     check_celery_config()
 
     # Register built-in providers
@@ -180,11 +172,11 @@ def main_func():
 
     # Load routes from other modules
     LOG.info("Loading API")
-    load("checkmate.api")
+    bottle.load("checkmate.api")
 
     # Build WSGI Chain:
     LOG.info("Loading Application")
-    next_app = root_app = default_app()  # This is the main checkmate app
+    next_app = root_app = bottle.default_app()  # the main checkmate app
     root_app.error_handler = {
         500: error_formatter,
         400: error_formatter,
@@ -235,7 +227,7 @@ def main_func():
     # Load admin routes if requested
     if CONFIG.with_admin is True:
         LOG.info("Loading Admin Endpoints")
-        ROUTERS['admin'] = AdminRouter(root_app, MANAGERS['deployments'])
+        ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'])
         resources.append('admin')
 
     next_app = middleware.AuthorizationMiddleware(
@@ -295,16 +287,16 @@ def main_func():
     # Load request/response dumping if debugging enabled
     if CONFIG.debug is True:
         next_app = middleware.DebugMiddleware(next_app)
-        LOG.debug("Routes: %s", ['%s %s' % (r.method, r.rule) for r in
-                                 app().routes])
+        LOG.debug("Routes: %s", ['\n%s %s' % (r.method, r.rule) for r in
+                                 bottle.app().routes])
 
-    next_app = Gzipper(next_app, compresslevel=8)
+    next_app = gzip_middleware.Gzipper(next_app, compresslevel=8)
 
     worker = None
     if CONFIG.worker is True:
-        celery = Celery(log=LOG, set_as_current=True)
-        celery.config_from_object(celeryconfig)
-        worker = celery.WorkController(pool_cls="solo")
+        celery_app = celery.Celery(log=LOG, set_as_current=True)
+        celery_app.config_from_object(celeryconfig)
+        worker = celery_app.WorkController(pool_cls="solo")
         worker.disable_rate_limits = True
         worker.concurrency = 1
         worker_thread = threading.Thread(target=worker.start)
@@ -315,8 +307,7 @@ def main_func():
     port = 8080
     if CONFIG.address:
         supplied = CONFIG.address
-        if len([c for c in supplied if c in '%s:.' % string.digits]) == \
-                len(supplied):
+        if supplied and all((c for c in supplied if c in '0123456789:.')):
             if ':' in supplied:
                 ip_address, port = supplied.split(':')
             else:
@@ -353,7 +344,7 @@ def main_func():
 
 
 class CustomEventletServer(bottle.ServerAdapter):
-    '''Handles added backlog'''
+    '''Handles added backlog.'''
     def run(self, handler):
         try:
             socket_args = {}
