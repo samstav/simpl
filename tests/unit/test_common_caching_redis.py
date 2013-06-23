@@ -1,5 +1,5 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''Tests the Memorize and MemorizeMethod decorators'''
+'''Tests the Cache and CacheMethod decorators'''
 import unittest2 as unittest
 
 try:
@@ -21,7 +21,7 @@ def sample_method(*args, **kwargs):
 class TestRedisCache(unittest.TestCase):
     def test_redis_store(self):
         r = fakeredis.FakeStrictRedis()
-        fxn = caching.Memorize(store=r)(sample_method)
+        fxn = caching.Cache(store=r)(sample_method)
         args, kwargs = fxn(1, x='2')
         print args, kwargs
 

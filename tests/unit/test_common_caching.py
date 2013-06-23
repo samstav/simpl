@@ -1,5 +1,5 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''Tests the Memorize and MemorizeMethod decorators'''
+'''Tests the Cache and CacheMethod decorators'''
 
 import time
 import unittest2 as unittest
@@ -15,14 +15,14 @@ def sample_method(*args, **kwargs):
 
 class TestCaching(unittest.TestCase):
     def test_init_method(self):
-        self.assertIsInstance(caching.Memorize({}), caching.Memorize)
+        self.assertIsInstance(caching.Cache({}), caching.Cache)
 
     def test_is_green(self):
         self.assertEqual(caching.threading.__name__,
                          'eventlet.green.threading')
 
     def test_decorating(self):
-        fxn = caching.Memorize()(sample_method)
+        fxn = caching.Cache()(sample_method)
         args, kwargs = fxn(1, x='2')
         self.assertListEqual(args, [1])
         self.assertDictEqual(kwargs, dict(x='2'))
@@ -43,7 +43,7 @@ class TestCaching(unittest.TestCase):
         self.assertEqual(result2, 2)
 
         # With caching
-        cache = caching.Memorize()
+        cache = caching.Cache()
         increment.counter = 0
         fxn = cache(increment)
         result1 = fxn()
@@ -64,7 +64,7 @@ class TestCaching(unittest.TestCase):
             return increment.counter
 
         # With caching
-        cache = caching.Memorize(max_entries=2)
+        cache = caching.Cache(max_entries=2)
         increment.counter = 0
         fxn = cache(increment)
         # In second round, only last two will be called. First two are cached
@@ -80,7 +80,7 @@ class TestCaching(unittest.TestCase):
             return increment.counter
 
         # With caching
-        cache = caching.Memorize(timeout=0)
+        cache = caching.Cache(timeout=0)
         increment.counter = 0
         fxn = cache(increment)
         results = [fxn() for _ in range(4)]
@@ -93,7 +93,7 @@ class TestCaching(unittest.TestCase):
 
 class TestHashing(unittest.TestCase):
     def setUp(self):
-        self.cache = caching.Memorize({})
+        self.cache = caching.Cache({})
 
     def test_get_hash_blank(self):
         self.assertIsNotNone(self.cache.get_hash())
@@ -151,7 +151,7 @@ class TestCachingMocked(unittest.TestCase):
 
         # With caching
         store = {((), ()): (0, 1)}  # stale cache entry
-        cache = caching.Memorize(max_entries=2, timeout=100, store=store)
+        cache = caching.Cache(max_entries=2, timeout=100, store=store)
         mock_thread = self.mox.CreateMockAnything()
         self.mox.StubOutWithMock(caching.threading, 'Thread')
         caching.threading.Thread(target=cache.collect).AndReturn(mock_thread)
@@ -168,7 +168,7 @@ class TestCachingMocked(unittest.TestCase):
 
 class TestSecretHashing(unittest.TestCase):
     def setUp(self):
-        self.cache = caching.Memorize(sensitive_args=[0],
+        self.cache = caching.Cache(sensitive_args=[0],
                                       sensitive_kwargs=["x"])
 
     def test_get_hash_blank(self):

@@ -173,7 +173,7 @@ class GitHubManager(ManagerBase):
             'results': results,
         }
 
-    @caching.MemorizeMethod(store=BLUEPRINT_CACHE, timeout=60)
+    @caching.CacheMethod(store=BLUEPRINT_CACHE, timeout=60)
     def _get_blueprint_list_by_tag(self, tag, include_preview=False):
         '''Filter blueprints to show
 

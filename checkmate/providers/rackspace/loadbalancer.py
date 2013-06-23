@@ -12,7 +12,7 @@ from SpiffWorkflow.specs import Celery
 
 import cloudlb
 
-from checkmate.common.caching import Memorize, MemorizeMethod
+from checkmate.common import caching
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -177,7 +177,7 @@ class Provider(ProviderBase):
                                          default="false"))
         return dns.lower() in ['true', '1', 'yes']
 
-    @MemorizeMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
+    @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
     def _get_abs_limits(self, username, auth_token, api_endpoint, region):
         api = cloudlb.CloudLoadBalancer(username, 'ignore', region)
         api.client.auth_token = auth_token
@@ -652,7 +652,7 @@ class Provider(ProviderBase):
         return api
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
 def _get_algorithms(api_endpoint, auth_token):
     '''Ask CLB for Algorithms'''
     # the region must be supplied but is not used
@@ -663,7 +663,7 @@ def _get_algorithms(api_endpoint, auth_token):
              api.client.region_account_url)
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
 def _get_protocols(api_endpoint, auth_token):
     '''Ask CLB for Protocols'''
     # the region must be supplied but is not used
@@ -895,7 +895,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
             "instance:%s" % args[1]: {
                 'status': 'ERROR',
                 'status-message': ('Unexpected error deleting loadbalancer'
-                    ' %s' % key),
+                                   ' %s' % key),
                 'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
@@ -948,7 +948,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
             "instance:%s" % args[1]: {
                 'status': 'ERROR',
                 'status-message': ('Unexpected error waiting on loadbalancer'
-                    ' %s delete' % key),
+                                   ' %s delete' % key),
                 'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }

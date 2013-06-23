@@ -14,7 +14,7 @@ LOG = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 3600
 
 
-class Memorize:
+class Cache:
     '''Cache a function'''
 
     def __init__(self, max_entries=1000, timeout=DEFAULT_TIMEOUT,
@@ -129,14 +129,18 @@ class Memorize:
     def start_collection(self):
         '''Initizate the removal of stale cache items'''
         if self.reaper is None:
-            self.reaper = threading.Thread(target=self.collect)
-            self.reaper.setDaemon(False)
-            LOG.debug("Reaping cache for %s", self.memorized_function)
-            self.reaper.start()
+            try:
+                self.reaper = threading.Thread(target=self.collect)
+                self.reaper.setDaemon(False)
+                LOG.debug("Reaping cache for %s", self.memorized_function)
+                self.reaper.start()
+            except Exception as exc:
+                print "E", exc
+                raise exc
 
 
-class MemorizeMethod(Memorize):
-    '''Use this instead of @Memorize with instance methods'''
+class CacheMethod(Cache):
+    '''Use this instead of @Cache with instance methods'''
     def __call__(self, func):
         self.memorized_function = func.__name__
 

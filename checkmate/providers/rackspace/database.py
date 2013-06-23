@@ -11,7 +11,7 @@ from clouddb.errors import ResponseError
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.common.caching import Memorize
+from checkmate.common import caching
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -523,7 +523,7 @@ class Provider(ProviderBase):
         return api
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
     '''Ask DBaaS for Flavors (RAM, CPU, HDD) options'''
     # the region must be supplied but is not used
@@ -811,7 +811,7 @@ def create_database(context, name, region, character_set=None, collate=None,
         return results
     except clouddb.errors.ResponseError as exc:
         LOG.exception(exc)
-        if srt(exc) == '400: Bad Request':
+        if str(exc) == '400: Bad Request':
             current.retry(exc=exc, throw=True)  # Do not retry. Will fail.
         # Expected while instance is being created. So retry
         return current.retry(exc=exc)
