@@ -9,6 +9,7 @@ from __future__ import absolute_import
 
 import base64
 import collections
+import copy
 import json
 import logging
 import os
@@ -24,6 +25,8 @@ from eventlet.green import socket
 from eventlet.greenpool import GreenPile
 github = eventlet.import_patched('github')  # pylint: disable=C0103
 from github import GithubException
+import redis
+from redis.exceptions import ConnectionError
 
 from checkmate.base import ManagerBase
 from checkmate.common import caching
@@ -31,6 +34,13 @@ from checkmate.common import caching
 LOG = logging.getLogger(__name__)
 DEFAULT_CACHE_TIMEOUT = 10 * 60
 BLUEPRINT_CACHE = {}
+
+REDIS = None
+if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
+    try:
+        REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
+    except StandardError as exc:
+        LOG.warn("Error connecting to Redis: %s", exc)
 
 
 def _handle_ghe(ghe, msg="Unexpected Github error"):
@@ -77,6 +87,7 @@ class GitHubManager(ManagerBase):
         self.start_refresh_lock = threading.Lock()
         self.refresh_lock = threading.Lock()
         self.load_cache()
+        self.check_cache_freshess()
 
     def get_tenant_tag(self, tenant_id, tenant_auth_groups):
         '''Find the tag to return for this tenant
@@ -163,9 +174,7 @@ class GitHubManager(ManagerBase):
                     if k in blueprint_ids[offset:offset + limit]
                 }
 
-        if (self.background is None and
-                time.time() - self.last_refresh > DEFAULT_CACHE_TIMEOUT):
-            self.start_background_refresh()
+        self.check_cache_freshess()
 
         return {
             'collection-count': len(results),
@@ -173,7 +182,8 @@ class GitHubManager(ManagerBase):
             'results': results,
         }
 
-    @caching.MemorizeMethod(store=BLUEPRINT_CACHE, timeout=60)
+    @caching.CacheMethod(store=BLUEPRINT_CACHE, timeout=60,
+                         backing_store=REDIS)
     def _get_blueprint_list_by_tag(self, tag, include_preview=False):
         '''Filter blueprints to show
 
@@ -229,22 +239,65 @@ class GitHubManager(ManagerBase):
         self._refresh_from_repo(self._get_repo(repo_name))
         self._update_cache()
 
+    def check_cache_freshess(self):
+        '''Check if cache is up to date. Trigger refresh if not'''
+        if (self.background is None and
+                time.time() - self.last_refresh > DEFAULT_CACHE_TIMEOUT):
+            if not self._load_redis_cache():
+                self.start_background_refresh()
+
+    def _load_redis_cache(self):
+        '''Load blueprints from Redis
+
+        :retruns: True if loaded valid blueprints
+        '''
+        if REDIS:
+            try:
+                cache = REDIS['blueprint_cache']
+                data = json.loads(cache)
+                timestamp = data.pop('timestamp', None)
+                self._blueprints = json.loads(cache)  # make available to calls
+                if timestamp:
+                    self.last_refresh = timestamp
+                    expire = (timestamp + DEFAULT_CACHE_TIMEOUT) - time.time()
+                    if expire > 0:
+                        LOG.info("Retrieved blueprints from Redis with %ss "
+                                 "left until they expire", int(expire))
+                        return True
+                    else:
+                        LOG.debug("Retrieved expired blueprints.")
+            except ConnectionError as exc:
+                LOG.warn("Error connecting to Redis: %s", exc)
+            except KeyError:
+                pass  # expired or not there
+            except StandardError as exc:
+                LOG.debug("Error retrieving blueprints from Redis: %s", exc)
+        return False
+
     def load_cache(self):
         '''pre-seed with existing cache if any in case we can't connect to the
         repo'''
+        if self._load_redis_cache():
+            return
+
         if os.path.exists(self._cache_file):
             try:
                 with open(self._cache_file, 'r') as cache:
                     self._blueprints = json.load(cache)
+                    LOG.info("Retrieved blueprints from cache file")
             except IOError:
                 LOG.warn("Could not load cache file", exc_info=True)
 
     def background_refresh(self):
         '''Called by background thread to start a refresh'''
         with self.refresh_lock:
+            LOG.info("Starting background refresh of blueprint cache")
             try:
                 self.refresh_all()
-                LOG.debug("Background refresh complete")
+                LOG.info("Background refresh of blueprint cache complete")
+            except StandardError as exc:
+                LOG.warning("Background refresh of blueprint cache failed: %s",
+                            exc)
             finally:
                 self.background = None
 
@@ -290,11 +343,11 @@ class GitHubManager(ManagerBase):
                 self._store(result, ref, fresh)
 
         self._blueprints = fresh
-        self._update_cache()
         self.last_refresh = time.time()
+        self._update_cache()
 
     def _get_repo_owner(self):
-        ''' Return the user or organization owning the repo '''
+        '''Return the user or organization owning the repo.'''
         if self._repo_org:
             try:
                 return self._github.get_organization(self._repo_org)
@@ -307,7 +360,19 @@ class GitHubManager(ManagerBase):
                     LOG.warn("Could not find user %s.", self._repo_org)
 
     def _update_cache(self):
-        ''' Write the current blueprint map to local disk '''
+        '''Write the current blueprint map to local disk and Redis.'''
+        if REDIS:
+            try:
+                timestamped = copy.copy(self._blueprints)
+                timestamped['timestamp'] = self.last_refresh
+                value = json.dumps(timestamped)
+                REDIS.setex('blueprint_cache', value, DEFAULT_CACHE_TIMEOUT)
+                LOG.debug("Wrote blueprints to Redis")
+            except ConnectionError as exc:
+                LOG.warn("Error connecting to Redis: %s", exc)
+            except StandardError:
+                pass
+
         if not os.path.exists(self._cache_root):
             try:
                 os.makedirs(self._cache_root, 0766)
@@ -317,12 +382,12 @@ class GitHubManager(ManagerBase):
         with open(self._cache_file, 'w') as cache:
             try:
                 cache.write(json.dumps(self._blueprints))
+                LOG.debug("Wrote blueprints to file cache")
             except IOError:
                 LOG.warn("Error updating disk cache", exc_info=True)
 
     def _refresh_from_repo(self, repo):
-        '''
-        Store/update blueprint info from the specified repository
+        '''Store/update blueprint info from the specified repository,
 
         :param repo: the repository containing blueprint data or :None:
         '''
@@ -343,7 +408,7 @@ class GitHubManager(ManagerBase):
                         self._preview_ref, self._blueprints)
 
     def _get_repo(self, repo_name):
-        '''Return the specified github repo
+        '''Return the specified github repo.
 
         :param repo_name: the repo to get; must belong to :self.repo_org:
         '''
@@ -359,7 +424,7 @@ class GitHubManager(ManagerBase):
 
     @staticmethod
     def _repo_contains_ref(repo, ref_name):
-        '''Check if a repo contains a tag or reference'''
+        '''Check if a repo contains a tag or reference.'''
         if '/' in ref_name:
             return ref_name in repo.get_git_refs()
         else:

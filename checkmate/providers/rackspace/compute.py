@@ -17,7 +17,7 @@ client = eventlet.import_patched('novaclient.v1_1.client')
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.common.caching import Memorize
+from checkmate.common import caching
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -616,7 +616,7 @@ class Provider(RackspaceComputeProviderBase):
         return api
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
 def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
@@ -641,7 +641,7 @@ def _get_images_and_types(api_endpoint, auth_token):
     return ret
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
     '''Ask Nova for Flavors (RAM, CPU, HDD) options'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
@@ -662,7 +662,7 @@ def _get_flavors(api_endpoint, auth_token):
     }
 
 
-@Memorize(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
+@caching.Cache(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
 def _get_limits(api_endpoint, auth_token):
     api = client.Client('ignore', 'ignore', None, 'localhost')
     api.client.auth_token = auth_token
