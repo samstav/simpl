@@ -14,6 +14,7 @@ from bottle import request
 from bottle import response
 import celery
 import eventlet
+from eventlet import debug
 from eventlet.green import threading
 from eventlet import wsgi
 
@@ -139,7 +140,7 @@ def config_statsd():
     CONFIG.STATSD_HOST = user_values[0]
 
 
-def main_func():
+def main():
     '''Start the server based on passed in arguments. Called by __main__.'''
     CONFIG.initialize()
 
@@ -364,4 +365,19 @@ class CustomEventletServer(bottle.ServerAdapter):
 # Main function
 #
 if __name__ == '__main__':
-    main_func()
+    if False:  # enable this for profiling and blocking detection
+        LOG.warn("Profiling and blocking detection enabled")
+        debug.hub_blocking_detection(state=True)
+        import yappi
+        try:
+            yappi.start(True)
+            main()
+        finally:
+            yappi.stop()
+            stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
+            print "tsub   ttot   count  function"
+            for stat in stats.func_stats:
+                print str(stat[3]).ljust(6), stat[2].ljust(6), \
+                    stat[1].ljust(6), stat[0]
+    else:
+        main()
