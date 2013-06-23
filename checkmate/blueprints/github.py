@@ -25,7 +25,6 @@ from eventlet.greenpool import GreenPile
 github = eventlet.import_patched('github')  # pylint: disable=C0103
 from github import GithubException
 
-from checkmate import utils
 from checkmate.base import ManagerBase
 from checkmate.common import caching
 
@@ -89,7 +88,7 @@ class GitHubManager(ManagerBase):
         Otherwise, default to ref.
         Finally, if none specified, use 'master'
         '''
-        assert tenant_id, "must provide a tenant-id"
+        assert tenant_id, "must provide a tenant id"
 
         if self._preview_tenants and tenant_id in self._preview_tenants:
             return self._preview_ref or self._ref or 'master'
@@ -445,7 +444,7 @@ class GitHubManager(ManagerBase):
                 file_name = file_name.replace("')", '')
 
         if file_name:
-            file_content = self._get_repo_file_contents(repo,  file_name)
+            file_content = self._get_repo_file_contents(repo, file_name)
             if file_content:
                 blueprint['documentation'][doc_field] = file_content
 

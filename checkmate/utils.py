@@ -20,9 +20,9 @@ import uuid
 import shutil
 
 from bottle import abort, request, response
-from functools import wraps
 from Crypto.Random import random
 from eventlet.green import threading
+from functools import wraps
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 from yaml.composer import ComposerError
@@ -256,6 +256,7 @@ def escape_yaml_simple_string(text):
     else:
         return text
 
+
 def write_json(data, request, response):
     '''Write output in json'''
     response.set_header('content-type', 'application/json')
@@ -348,7 +349,7 @@ def _write_pagination_headers(data, offset, limit, response,
             nextfmt = \
                 '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
             response.add_header(
-                "Link", nextfmt % (tenant_id, uripath, limit, offset+limit)
+                "Link", nextfmt % (tenant_id, uripath, limit, offset + limit)
             )
 
         # Add Previous page link to http header
@@ -356,7 +357,7 @@ def _write_pagination_headers(data, offset, limit, response,
             prevfmt = '</%s/%s?limit=%d&offset=%d>; rel="previous"; \
             title="Previous page"'
             response.add_header(
-                "Link", prevfmt % (tenant_id, uripath, limit, offset-limit)
+                "Link", prevfmt % (tenant_id, uripath, limit, offset - limit)
             )
 
         # Add first page link to http header
