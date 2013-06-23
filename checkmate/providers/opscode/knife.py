@@ -16,7 +16,6 @@ import subprocess
 from subprocess import (  # noqa
     CalledProcessError,
 )
-import threading
 import time
 import urlparse
 
@@ -26,6 +25,7 @@ from celery.exceptions import (  # noqa
 from celery.task import task
 from Crypto.PublicKey import RSA
 from Crypto.Random import atfork
+from eventlet.green import threading
 
 from checkmate.exceptions import (  # noqa
     CheckmateException,

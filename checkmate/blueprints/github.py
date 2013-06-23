@@ -12,22 +12,25 @@ import collections
 import json
 import logging
 import os
-import socket
-import threading
 import time
 from urlparse import urlparse, unquote
 import yaml
 
 #pylint: disable=E0611
 from bottle import abort, request
+import eventlet
+from eventlet.green import threading
+from eventlet.green import socket
 from eventlet.greenpool import GreenPile
-from github import Github, Repository, GithubException
+github = eventlet.import_patched('github')  # pylint: disable=C0103
+from github import GithubException
 
-from checkmate import utils
 from checkmate.base import ManagerBase
+from checkmate.common import caching
 
 LOG = logging.getLogger(__name__)
 DEFAULT_CACHE_TIMEOUT = 10 * 60
+BLUEPRINT_CACHE = {}
 
 
 def _handle_ghe(ghe, msg="Unexpected Github error"):
@@ -53,7 +56,7 @@ class GitHubManager(ManagerBase):
         ManagerBase.__init__(self, drivers)
         self._github_api_base = config.github_api
         if self._github_api_base:
-            self._github = Github(base_url=self._github_api_base)
+            self._github = github.Github(base_url=self._github_api_base)
             self._api_host = urlparse(self._github_api_base).netloc
         self._repo_org = config.organization
         self._ref = config.ref
@@ -85,7 +88,7 @@ class GitHubManager(ManagerBase):
         Otherwise, default to ref.
         Finally, if none specified, use 'master'
         '''
-        assert tenant_id, "must provide a tenant-id"
+        assert tenant_id, "must provide a tenant id"
 
         if self._preview_tenants and tenant_id in self._preview_tenants:
             return self._preview_ref or self._ref or 'master'
@@ -135,31 +138,21 @@ class GitHubManager(ManagerBase):
         if limit is None:
             limit = 100
 
-        blueprint_ids = [key for key in self._blueprints.keys()
-                         if key.endswith(":%s" % tag)]
+        preview = self._preview_tenants and tenant_id in self._preview_tenants
+        results = self._get_blueprint_list_by_tag(tag, include_preview=preview)
 
-        if self._preview_tenants and tenant_id in self._preview_tenants:
-            # override default blueprint with preview blueprint
-            preview_blueprint_id_prefixes = [
-                key.split(":")[0] for key in self._blueprints.keys()
-                if key.endswith(":%s" % self._preview_ref)
-            ]
-
-            blueprint_ids = self._blueprints.keys()
-            for key in self._blueprints.keys():
-                for key2 in preview_blueprint_id_prefixes:
-                    if (key.startswith("%s:" % key2) and
-                            key != "%s:%s" % (key2, self._preview_ref)):
-                        blueprint_ids.remove(key)
-
-        results = {}
-        if blueprint_ids:
-            if details:
+        # Skip filtering for most common use case (details=1 and no pagination)
+        only_basic_info = details is 0
+        paginate = offset > 0 or len(results) > limit
+        if results and (only_basic_info or paginate):
+            LOG.debug("Paginating blueprints")
+            blueprint_ids = results.keys()
+            blueprint_ids.sort()
+            if only_basic_info:
                 results = {
-                    k: v for k, v in self._blueprints.iteritems()
+                    k: v for k, v in results.iteritems()
                     if k in blueprint_ids[offset:offset + limit]
                 }
-
             else:
                 results = {
                     k: {
@@ -179,6 +172,41 @@ class GitHubManager(ManagerBase):
             '_links': {},
             'results': results,
         }
+
+    @caching.MemorizeMethod(store=BLUEPRINT_CACHE, timeout=60)
+    def _get_blueprint_list_by_tag(self, tag, include_preview=False):
+        '''Filter blueprints to show
+
+        :param tag: git to include
+        :param include_preview: if preview blueprints should be included
+        :returns: filtered blueprints dict
+        '''
+        LOG.debug("Filtering blueprints: cache miss")
+        results = {}
+        if include_preview:
+            # override default blueprint with preview blueprint
+            preview_filter = ":%s" % self._preview_ref
+            preview_blueprint_id_prefixes = [
+                key.split(":")[0] for key in self._blueprints.keys()
+                if key.endswith(preview_filter)
+            ]
+            filtered_ids = self._blueprints.keys()
+            for key in self._blueprints.keys():
+                for preview_key in preview_blueprint_id_prefixes:
+                    if (key.startswith("%s:" % preview_key) and
+                            key != "%s:%s" % (preview_key, self._preview_ref)):
+                        filtered_ids.remove(key)
+            results = {
+                key: value for key, value in self._blueprints.items()
+                if key in filtered_ids
+            }
+        else:
+            tag_filter = ":%s" % tag
+            results = {
+                key: value for key, value in self._blueprints.items()
+                if key.endswith(tag_filter)
+            }
+        return results
 
     def get_blueprint(self, blueprint_id):
         '''
@@ -348,7 +376,7 @@ class GitHubManager(ManagerBase):
 
         :param repo: the repo containing the blueprint
         '''
-        if repo and isinstance(repo, Repository.Repository) and tag:
+        if repo and isinstance(repo, github.Repository.Repository) and tag:
             dep_file = None
             try:
                 if not self._repo_contains_ref(repo, tag):
@@ -416,7 +444,7 @@ class GitHubManager(ManagerBase):
                 file_name = file_name.replace("')", '')
 
         if file_name:
-            file_content = self._get_repo_file_contents(repo,  file_name)
+            file_content = self._get_repo_file_contents(repo, file_name)
             if file_content:
                 blueprint['documentation'][doc_field] = file_content
 
@@ -428,7 +456,7 @@ class GitHubManager(ManagerBase):
         :param repo: the repo containing the blueprint
         :param filename: file name
         '''
-        isinstance(repo, Repository.Repository)
+        isinstance(repo, github.Repository.Repository)
         try:
             repo_file = repo.get_file_contents(filename)
             return base64.b64decode(repo_file.content)

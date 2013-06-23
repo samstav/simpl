@@ -7,7 +7,6 @@ This needs to be changed so the middleware is loaded by configuration.
 '''
 import base64
 import copy
-import httplib
 import json
 import logging
 import os
@@ -21,6 +20,7 @@ except ImportError:
 from urlparse import urlparse
 
 from bottle import get, request, response, abort  # pylint: disable=E0611
+from eventlet.green import httplib
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized

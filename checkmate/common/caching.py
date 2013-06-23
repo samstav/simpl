@@ -1,12 +1,12 @@
 '''
 Function Caching Decorators
 '''
-
 import copy
 import hashlib
 import logging
 import time
-import threading
+
+from eventlet.green import threading
 
 LOG = logging.getLogger(__name__)
 
@@ -97,8 +97,11 @@ class Memorize:
                 if key in clean_kwargs:
                     value = clean_kwargs.pop(key)
                     secrets.append("%s|%s" % (key, value))
-        hasher = hashlib.md5("%s:%s" % (self.salt, ':'.join(secrets)))
-        secret_hash = hasher.hexdigest()
+        if secrets:
+            hasher = hashlib.md5("%s:%s" % (self.salt, ':'.join(secrets)))
+            secret_hash = hasher.hexdigest()
+        else:
+            secret_hash = None
         return (tuple(clean_args), tuple(sorted(clean_kwargs.items())),
                 secret_hash)
 

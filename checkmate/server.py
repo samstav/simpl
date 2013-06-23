@@ -1,39 +1,31 @@
 #!/usr/bin/env python
 ''' Module to initialize and run Checkmate server'''
-import argparse
 import json
 import logging
 import os
-import string
 import sys
-import threading
 
 # pylint: disable=W0611
 import checkmate.common.tracer  # module runs on import
 
 # pylint: disable=E0611
 import bottle
-from bottle import (
-    app,
-    run,
-    request,
-    response,
-    HeaderDict,
-    default_app,
-    load,
-)
-from celery import Celery
+from bottle import request
+from bottle import response
+import celery
 import eventlet
+from eventlet import debug
+from eventlet.green import threading
+from eventlet import wsgi
 
+from checkmate.api import admin
 from checkmate import blueprints
 from checkmate import celeryconfig
+from checkmate.common import config
+from checkmate.common import eventlet_backdoor
+from checkmate.common import gzip_middleware
 from checkmate import db
 from checkmate import deployments
-from checkmate import middleware
-from checkmate import utils
-from checkmate.api.admin import Router as AdminRouter
-from checkmate.common import config
-from checkmate.common.gzip_middleware import Gzipper
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
@@ -43,6 +35,8 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
 )
+from checkmate import middleware
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DRIVERS = {}
@@ -54,13 +48,12 @@ CONFIG = config.current()
 # Check our configuration
 def check_celery_config():
     '''Make sure a backend is configured.'''
-    from celery import current_app
     try:
-        if current_app.backend.__class__.__name__ not in ['DatabaseBackend',
-                                                          'MongoBackend']:
+        backend = celery.current_app.backend.__class__.__name__
+        if backend not in ['DatabaseBackend', 'MongoBackend']:
             LOG.warning("Celery backend does not seem to be configured for a "
-                        "database: %s", current_app.backend.__class__.__name__)
-        if not current_app.conf.get("CELERY_RESULT_DBURI"):
+                        "database: %s", backend)
+        if not celery.current_app.conf.get("CELERY_RESULT_DBURI"):
             LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
                         "checkmate environment loaded?")
     except StandardError:
@@ -91,10 +84,11 @@ def error_formatter(error):
     output = {}
     accept = request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
-        error.headers = HeaderDict({"content-type": "application/x-yaml"})
+        error.headers = bottle.HeaderDict(
+            {"content-type": "application/x-yaml"})
         error.apply(response)
     else:  # default to JSON
-        error.headers = HeaderDict({"content-type": "application/json"})
+        error.headers = bottle.HeaderDict({"content-type": "application/json"})
         error.apply(response)
 
     if isinstance(error.exception, CheckmateNoMapping):
@@ -132,21 +126,6 @@ def error_formatter(error):
     return utils.write_body(dict(error=output), request, response)
 
 
-def comma_separated_strs(value):
-    '''Handles comma-separated arguments passed in command-line.'''
-    return map(str, value.split(","))
-
-
-def comma_separated_key_value_pairs(value):
-    '''Handles comma-separated key/values passed in command-line.'''
-    pairs = value.split(",")
-    results = {}
-    for pair in pairs:
-        key, pair_value = pair.split('=')
-        results[key] = pair_value
-    return results
-
-
 def config_statsd():
     '''Stores statsd config in checkmate.common.config.'''
     user_values = CONFIG.statsd.split(':')
@@ -161,144 +140,9 @@ def config_statsd():
     CONFIG.STATSD_HOST = user_values[0]
 
 
-def argument_parser():
-    '''Parses start-up arguments and returns namespace with config variables.
-    '''
-
-    parser = argparse.ArgumentParser()
-
-    #
-    # Positional arguments
-    #
-    if len(sys.argv) > 1 and sys.argv[1] == 'START':
-        sys.argv.pop(1)
-    parser.add_argument("address",
-                        help="address and optional port to start server on "
-                        "[address[:port]]",
-                        nargs='?',
-                        default="127.0.0.1:8080"
-                        )
-
-    #
-    # Verbosity, debugging, and monitoring
-    #
-    parser.add_argument("--logconfig",
-                        help="Optional logging configuration file")
-    parser.add_argument("-d", "--debug",
-                        action="store_true",
-                        help="turn on additional debugging inspection and "
-                        "output including full HTTP requests and responses. "
-                        "Log output includes source file path and line "
-                        "numbers."
-                        )
-    parser.add_argument("-v", "--verbose",
-                        action="store_true",
-                        help="turn up logging to DEBUG (default is INFO)"
-                        )
-    parser.add_argument("-q", "--quiet",
-                        action="store_true",
-                        help="turn down logging to WARN (default is INFO)"
-                        )
-    parser.add_argument("--newrelic",
-                        action="store_true",
-                        default=False,
-                        help="enable newrelic monitoring (place newrelic.ini "
-                        "in your directory"
-                        )
-    parser.add_argument("-t", "--trace-calls",
-                        action="store_true",
-                        default=False,
-                        help="display call hierarchy and errors to stdout"
-                        )
-    parser.add_argument("--statsd",
-                        help="enable statsd server with [address[:port]]",
-                        )
-
-    #
-    # Optional Capabilities
-    #
-    parser.add_argument("-u", "--with-ui",
-                        action="store_true",
-                        default=False,
-                        help="enable support for browsers and HTML templates"
-                        )
-    parser.add_argument("-s", "--with-simulator",
-                        action="store_true",
-                        default=False,
-                        help="enable support for the deployment simulator"
-                        )
-    parser.add_argument("-a", "--with-admin",
-                        action="store_true",
-                        default=False,
-                        help="enable /admin calls (authorized to admin users "
-                        "only)"
-                        )
-    parser.add_argument("-e", "--eventlet",
-                        action="store_true",
-                        default=False,
-                        help="use the eventlet server (recommended in "
-                        "production)"
-                        )
-
-    #
-    # Queue
-    #
-    parser.add_argument("--eager",
-                        action="store_true",
-                        default=False,
-                        help="all celery (queue) tasks will be executed "
-                        "in-process. Use this for debugging only. There is no "
-                        "need to start a queue instance when running eager."
-                        )
-    parser.add_argument("--worker",
-                        action="store_true",
-                        default=False,
-                        help="start the celery worker in-process as well"
-                        )
-
-    #
-    # Blueprint handling (CrossCheck functionality)
-    #
-    parser.add_argument("--webhook",
-                        action="store_true",
-                        default=False,
-                        help="Enable blueprints GitHub webhook responder"
-                        )
-    parser.add_argument("-g", "--github-api",
-                        help="Root github API uri for the repository "
-                        "containing blueprints. ex: "
-                        "https://api.github.com/v3")
-    parser.add_argument("-o", "--organization",
-                        help="The github organization owning the blueprint "
-                        "repositories",
-                        default="Blueprints")
-    parser.add_argument("-r", "--ref",
-                        help="Branch/tag/reference denoting the version of "
-                        "blueprints to use.",
-                        default="master")
-    parser.add_argument("--cache-dir",
-                        help="cache directory")
-    parser.add_argument("--preview-ref",
-                        help="version of deployment templates for preview",
-                        default=None)
-    parser.add_argument("--preview-tenants",
-                        help="preview tenant IDs",
-                        type=comma_separated_strs,
-                        default=None)
-    parser.add_argument("--group-refs",
-                        help="Auth Groups and refs to associate with them as "
-                        "a comma-delimited list. Ex. "
-                        "--group-refs tester=master,prod=stable",
-                        type=comma_separated_key_value_pairs,
-                        default=None)
-
-    args = parser.parse_args()
-    return args
-
-
-def main_func():
+def main():
     '''Start the server based on passed in arguments. Called by __main__.'''
-    CONFIG.update(vars(argument_parser()))
+    CONFIG.initialize()
 
     resources = ['version']
     anonymous_paths = ['version']
@@ -316,7 +160,7 @@ def main_func():
 
     if CONFIG.statsd:
         config_statsd()
-    
+
     check_celery_config()
 
     # Register built-in providers
@@ -329,11 +173,11 @@ def main_func():
 
     # Load routes from other modules
     LOG.info("Loading API")
-    load("checkmate.api")
+    bottle.load("checkmate.api")
 
     # Build WSGI Chain:
     LOG.info("Loading Application")
-    next_app = root_app = default_app()  # This is the main checkmate app
+    next_app = root_app = bottle.default_app()  # the main checkmate app
     root_app.error_handler = {
         500: error_formatter,
         400: error_formatter,
@@ -384,7 +228,7 @@ def main_func():
     # Load admin routes if requested
     if CONFIG.with_admin is True:
         LOG.info("Loading Admin Endpoints")
-        ROUTERS['admin'] = AdminRouter(root_app, MANAGERS['deployments'])
+        ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'])
         resources.append('admin')
 
     next_app = middleware.AuthorizationMiddleware(
@@ -444,16 +288,16 @@ def main_func():
     # Load request/response dumping if debugging enabled
     if CONFIG.debug is True:
         next_app = middleware.DebugMiddleware(next_app)
-        LOG.debug("Routes: %s", ['%s %s' % (r.method, r.rule) for r in
-                                 app().routes])
+        LOG.debug("Routes: %s", ['\n%s %s' % (r.method, r.rule) for r in
+                                 bottle.app().routes])
 
-    next_app = Gzipper(next_app, compresslevel=8)
+    next_app = gzip_middleware.Gzipper(next_app, compresslevel=8)
 
     worker = None
     if CONFIG.worker is True:
-        celery = Celery(log=LOG, set_as_current=True)
-        celery.config_from_object(celeryconfig)
-        worker = celery.WorkController(pool_cls="solo")
+        celery_app = celery.Celery(log=LOG, set_as_current=True)
+        celery_app.config_from_object(celeryconfig)
+        worker = celery_app.WorkController(pool_cls="solo")
         worker.disable_rate_limits = True
         worker.concurrency = 1
         worker_thread = threading.Thread(target=worker.start)
@@ -464,26 +308,34 @@ def main_func():
     port = 8080
     if CONFIG.address:
         supplied = CONFIG.address
-        if len([c for c in supplied if c in '%s:.' % string.digits]) == \
-                len(supplied):
+        if supplied and all((c for c in supplied if c in '0123456789:.')):
             if ':' in supplied:
                 ip_address, port = supplied.split(':')
             else:
                 ip_address = supplied
 
     # Select server (wsgiref by default. eventlet if requested)
-    reloader = True
-    server = 'wsgiref'
+    kwargs = dict(
+        server='wsgiref',
+        quiet=CONFIG.quiet,
+        reloader=True,
+    )
     if CONFIG.eventlet is True:
-        server = 'eventlet'
-        reloader = False  # assume eventlet is prod, so don't reload
+        kwargs['server'] = CustomEventletServer
+        kwargs['reloader'] = False  # assume eventlet is prod, so don't reload
+        kwargs['backlog'] = 100
+        kwargs['log'] = CONFIG.access_log
+        eventlet_backdoor.initialize_if_enabled()
+    else:
+        if CONFIG.access_log:
+            print "--access-log only works with --eventlet"
+            sys.exit(1)
 
     # Start listening. Enable reload by default to pick up file changes
     try:
-        run(app=next_app, host=ip_address, port=port, reloader=reloader,
-            server=server)
-    except Exception as exc:
-        print "Caught:", exc
+        bottle.run(app=next_app, host=ip_address, port=port, **kwargs)
+    except StandardError as exc:
+        print "Caught Exception:", exc
     finally:
         try:
             if worker:
@@ -492,8 +344,40 @@ def main_func():
             pass
 
 
+class CustomEventletServer(bottle.ServerAdapter):
+    '''Handles added backlog.'''
+    def run(self, handler):
+        try:
+            socket_args = {}
+            for arg in ['backlog', 'family']:
+                if arg in self.options:
+                    socket_args[arg] = self.options.pop(arg)
+            if 'log_output' not in self.options:
+                self.options['log_output'] = (not self.quiet)
+            socket = eventlet.listen((self.host, self.port), **socket_args)
+            wsgi.server(socket, handler, **self.options)
+        except TypeError:
+            # Fallback, if we have old version of eventlet
+            wsgi.server(eventlet.listen((self.host, self.port)), handler)
+
+
 #
 # Main function
 #
 if __name__ == '__main__':
-    main_func()
+    if False:  # enable this for profiling and blocking detection
+        LOG.warn("Profiling and blocking detection enabled")
+        debug.hub_blocking_detection(state=True)
+        import yappi
+        try:
+            yappi.start(True)
+            main()
+        finally:
+            yappi.stop()
+            stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
+            print "tsub   ttot   count  function"
+            for stat in stats.func_stats:
+                print str(stat[3]).ljust(6), stat[2].ljust(6), \
+                    stat[1].ljust(6), stat[0]
+    else:
+        main()
