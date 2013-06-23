@@ -2,11 +2,8 @@
 import json
 import unittest2 as unittest
 
-from bottle import default_app
 from eventlet.green import socket
 import mox
-from mox import IgnoreArg
-from webtest import TestApp
 
 from checkmate.blueprints import github
 from checkmate.common.config import Config

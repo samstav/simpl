@@ -151,7 +151,6 @@ class TestCachingMocked(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_caching_reaping(self):
-
         def increment():
             '''For testing'''
             increment.counter += 1
@@ -163,13 +162,13 @@ class TestCachingMocked(unittest.TestCase):
         mock_thread = self.mox.CreateMockAnything()
         self.mox.StubOutWithMock(caching.threading, 'Thread')
         caching.threading.Thread(target=cache.collect).AndReturn(mock_thread)
-        mock_thread.setDaemon(False).AndReturn(True)
-        mock_thread.start().AndReturn(True)
-        self.mox.ReplayAll()
+        mock_thread.setDaemon(False).AndReturn(None)
+        mock_thread.start().AndReturn(None)
         increment.counter = 0
         fxn = cache(increment)
         # Make it look like it's been a while since we've cleaned up
         cache.last_reaping = time.time() - cache.cleaning_schedule
+        self.mox.ReplayAll()
         fxn()
         self.mox.VerifyAll()
 

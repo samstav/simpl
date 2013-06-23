@@ -27,9 +27,11 @@ from github import GithubException
 
 from checkmate import utils
 from checkmate.base import ManagerBase
+from checkmate.common import caching
 
 LOG = logging.getLogger(__name__)
 DEFAULT_CACHE_TIMEOUT = 10 * 60
+BLUEPRINT_CACHE = {}
 
 
 def _handle_ghe(ghe, msg="Unexpected Github error"):
@@ -137,31 +139,21 @@ class GitHubManager(ManagerBase):
         if limit is None:
             limit = 100
 
-        blueprint_ids = [key for key in self._blueprints.keys()
-                         if key.endswith(":%s" % tag)]
+        preview = self._preview_tenants and tenant_id in self._preview_tenants
+        results = self._get_blueprint_list_by_tag(tag, include_preview=preview)
 
-        if self._preview_tenants and tenant_id in self._preview_tenants:
-            # override default blueprint with preview blueprint
-            preview_blueprint_id_prefixes = [
-                key.split(":")[0] for key in self._blueprints.keys()
-                if key.endswith(":%s" % self._preview_ref)
-            ]
-
-            blueprint_ids = self._blueprints.keys()
-            for key in self._blueprints.keys():
-                for key2 in preview_blueprint_id_prefixes:
-                    if (key.startswith("%s:" % key2) and
-                            key != "%s:%s" % (key2, self._preview_ref)):
-                        blueprint_ids.remove(key)
-
-        results = {}
-        if blueprint_ids:
-            if details:
+        # Skip filtering for most common use case (details=1 and no pagination)
+        only_basic_info = details is 0
+        paginate = offset > 0 or len(results) > limit
+        if results and (only_basic_info or paginate):
+            LOG.debug("Paginating blueprints")
+            blueprint_ids = results.keys()
+            blueprint_ids.sort()
+            if only_basic_info:
                 results = {
-                    k: v for k, v in self._blueprints.iteritems()
+                    k: v for k, v in results.iteritems()
                     if k in blueprint_ids[offset:offset + limit]
                 }
-
             else:
                 results = {
                     k: {
@@ -181,6 +173,41 @@ class GitHubManager(ManagerBase):
             '_links': {},
             'results': results,
         }
+
+    @caching.MemorizeMethod(store=BLUEPRINT_CACHE, timeout=60)
+    def _get_blueprint_list_by_tag(self, tag, include_preview=False):
+        '''Filter blueprints to show
+
+        :param tag: git to include
+        :param include_preview: if preview blueprints should be included
+        :returns: filtered blueprints dict
+        '''
+        LOG.debug("Filtering blueprints: cache miss")
+        results = {}
+        if include_preview:
+            # override default blueprint with preview blueprint
+            preview_filter = ":%s" % self._preview_ref
+            preview_blueprint_id_prefixes = [
+                key.split(":")[0] for key in self._blueprints.keys()
+                if key.endswith(preview_filter)
+            ]
+            filtered_ids = self._blueprints.keys()
+            for key in self._blueprints.keys():
+                for preview_key in preview_blueprint_id_prefixes:
+                    if (key.startswith("%s:" % preview_key) and
+                            key != "%s:%s" % (preview_key, self._preview_ref)):
+                        filtered_ids.remove(key)
+            results = {
+                key: value for key, value in self._blueprints.items()
+                if key in filtered_ids
+            }
+        else:
+            tag_filter = ":%s" % tag
+            results = {
+                key: value for key, value in self._blueprints.items()
+                if key.endswith(tag_filter)
+            }
+        return results
 
     def get_blueprint(self, blueprint_id):
         '''
