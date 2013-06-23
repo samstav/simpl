@@ -58,7 +58,8 @@ class TestRedisCache(unittest.TestCase):
         args, kwargs = fxn(1, x='2')
         key = cache.get_hash(1, x='2')
         self.assertIn(key, self.redis)
-        self.assertEqual(self.redis[key], (args, kwargs))
+        value = cache._decode(self.redis[key])
+        self.assertEqual(value, (args, kwargs))
 
     def test_shared_caching(self):
 

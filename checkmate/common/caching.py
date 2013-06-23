@@ -68,9 +68,11 @@ Note: avoid using arguments that cannot be used as a hash key (ex. an object)
 import copy
 import hashlib
 import logging
+import cPickle as pickle
 import time
 
 from eventlet.green import threading
+from redis.exceptions import ConnectionError
 
 LOG = logging.getLogger(__name__)
 
@@ -123,7 +125,10 @@ class Cache:
         return wrapped_f
 
     def try_cache(self, *args, **kwargs):
-        '''Return cached value if it exists and isn't stale'''
+        '''Return cached value if it exists and isn't stale
+
+        Returns key, value as tuple
+        '''
         key = self.get_hash(*args, **kwargs)
         if key in self._store:
             birthday, data = self._store[key]
@@ -136,8 +141,11 @@ class Cache:
         elif self.backing_store:
             try:
                 value = self.backing_store[key]
+                value = self._decode(value)
                 self._cache_local(value, key)
                 return key, value
+            except ConnectionError as exc:
+                LOG.warn("Error connecting to Redis: %s", exc)
             except KeyError:
                 pass
             except StandardError as exc:
@@ -162,7 +170,9 @@ class Cache:
         '''Cache item to backing store (if it is configured)'''
         if self.backing_store:
             try:
-                self.backing_store.setex(key, data, self.max_age)
+                self.backing_store.setex(key, self._encode(data), self.max_age)
+            except ConnectionError as exc:
+                LOG.warn("Error connecting to Redis: %s", exc)
             except StandardError as exc:
                 LOG.warn("Error storing value in backing store: %s", exc)
 
@@ -224,6 +234,16 @@ class Cache:
             except Exception as exc:
                 print "E", exc
                 raise exc
+
+    @staticmethod
+    def _encode(data):
+        '''Encode python data into format we can restore from Redis'''
+        return pickle.dumps(data, pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def _decode(data):
+        '''Decode our python data from the Redis string'''
+        return pickle.loads(data)
 
 
 class CacheMethod(Cache):
