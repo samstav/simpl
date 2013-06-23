@@ -19,7 +19,6 @@ from eventlet.green import threading
 from eventlet import wsgi
 
 from checkmate.api import admin
-from checkmate import git
 from checkmate import blueprints
 from checkmate import celeryconfig
 from checkmate.common import config
@@ -36,6 +35,7 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
 )
+from checkmate.git import middleware as git_middleware
 from checkmate import middleware
 from checkmate import utils
 
@@ -269,6 +269,10 @@ def main():
 
     # Load Git if requested
     if CONFIG.with_git is True:
+        #TODO: auth
+        if True:
+            raise NotImplementedError("Git middleware lacks authentication "
+                                      "and is not ready yet")
         root_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
                                    "/var/local/checkmate/deployments")
         next_app = git_middleware.GitMiddleware(next_app, root_path)

@@ -9,7 +9,7 @@ import git
 
 
 def is_git_repo(path):
-    '''Checks if a folder is a git repo'''
+    '''Checks if a folder is a git repo.'''
     return os.path.isfile(os.path.join(path, '.git', 'config'))
 
 
@@ -51,7 +51,7 @@ def _find_unregistered_submodules(dep_path):
 
 
 def _add_submodules_to_config(dep_path, submodules_to_add):
-    '''Adds list of path/urls to existing repo'''
+    '''Adds list of path/urls to existing repo.'''
     with open(os.path.join(dep_path, '.gitmodules'), 'ab+') as sms_f:
         for path, url in submodules_to_add.items():
             sms_f.write(
@@ -86,8 +86,7 @@ git reset --hard HEAD
 
 
 def init_deployment_repo(dep_path):
-    '''
-    Ensure that an existing deployment folder and its sub-directories are
+    '''Ensure that an existing deployment folder and its sub-directories are
     git-ready.
 
     IMPORTANT NOTE: Typically, server based repos (ie: github) are 'bare' --

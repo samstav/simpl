@@ -201,6 +201,12 @@ def parse_arguments(args=None):
                         default=None,
                         help='port for eventlet backdoor to listen'
                         )
+    parser.add_argument("--with-git",
+                        action="store_true",
+                        default=False,
+                        help="Enable git protocl support (git clone, push, "
+                        "pull to deplpoyments.git URLs"
+                        )
 
     #
     # Queue

@@ -1,116 +1,8 @@
-import os
-import re
-
-from bottle import (
-    response,
-    auth_basic,
-    Bottle,
-    request,
-    HTTPError
-)
-
-from checkmate.git import manager
-from checkmate import wsgi_git_http_backend
-
-
-GIT_SERVER_APP = Bottle()
-
-expected_environ_list = [
-    'wsgi.errors',
-    'wsgi.input',
-    'wsgi.multiprocess',
-    'wsgi.multithread',
-    'wsgi.run_once',
-    'wsgi.url.scheme',
-    'wsgi.version',
-    'CONTENT_LENGTH',
-    'CONTENT_TYPE',
-    'PATH_INFO',
-    'QUERY_STRING',
-    'REQUEST_METHOD'
-]
-
-
-class GitMiddleware():
-
-    '''Adds support for git http-backend interaction'''
-
-    def __init__(self, app, root_path):
-        self.app = app
-        self.root = root_path
-
-    def __call__(self, e, h):
-        if e.get('CONTENT_TYPE') in [
-            'application/x-git-upload-pack-request',
-            'application/x-git-receive-pack-request'
-        ]:
-            pass
-        elif e['QUERY_STRING'] in [
-            'service=git-upload-pack',
-            'service=git-receive-pack'
-        ]:
-            pass
-        else:
-            return self.app(e, h)
-        try:
-            GIT_SERVER_APP.match(e)
-            e['GIT_PROJECT_BASE'] = self.root
-            return GIT_SERVER_APP(e, h)
-        except HTTPError:
-            pass
-        return self.app(e, h)
-
-
-# Route utility routines
-
-def _check_git_auth(user, passwd):
-    '''Basic Auth for git back-end (smart HTTP)'''
-    # TODO: set this up? (ziad?)
-    if user == 'zak':
-        return True
-    else:
-        return False
-
-
-def _set_git_environ(environE, dep_id, path):
-    '''Bottle environment tweaking for git kitchen routes'''
-    environ = dict()
-    for e_ in expected_environ_list:
-        if e_ in environE:
-            environ[e_] = environE[e_]
-    if 'PATH_INFO' not in environ:
-        environ['PATH_INFO'] = ''
-    environ['GIT_HTTP_EXPORT_ALL'] = '1'
-    environ['GIT_PROJECT_ROOT'] = os.path.join(environE['GIT_PROJECT_BASE'],
-                                               dep_id)
-    environ['PATH_INFO'] = '/%s' % path
-    if (
-        re.search('/info/refs', environ['PATH_INFO']) and
-        environ['REQUEST_METHOD'] == 'GET'
-    ):
-        environ['CONTENT_TYPE'] = ''
-    # TODO: (REMOTE_USER) where some authorization could go
-    return environ
-
-
-def _git_route_callback(dep_id, path):
-    environ = _set_git_environ(dict(request.environ), dep_id, path)
-    if not os.path.isdir(environ['GIT_PROJECT_ROOT']):
-        # TODO: not sure what to do about this
-        raise HTTPError(code=404, output="%s not found" % environ['PATH_INFO'])
-    manager.init_deployment_repo(environ['GIT_PROJECT_ROOT'])
-    (status_line, headers, response_body_generator
-     ) = wsgi_git_http_backend.wsgi_to_git_http_backend(environ)
-    for header, value in headers:
-        response.set_header(header, value)
-    response.status = status_line
-    return response_body_generator
-
-
-# Routines for bottle usage
-
-
 '''
+Middleware to detect and handle git SmartHTTP traffic
+
+
+
 -----------------------------------------------------------------------
 Git http-backend Bottle Routes
 -----------------------------------------------------------------------
@@ -202,10 +94,123 @@ to/by gitHttpBackend.
 
 -----------------------------------------------------------------------
 '''
+import os
+import re
+
+from bottle import (
+    response,
+    Bottle,
+    request,
+    HTTPError
+)
+
+from checkmate.git import manager
+from checkmate import wsgi_git_http_backend
+
+GIT_SERVER_APP = Bottle()
+EXPECTED_ENVIRONMENT_LIST = [
+    'wsgi.errors',
+    'wsgi.input',
+    'wsgi.multiprocess',
+    'wsgi.multithread',
+    'wsgi.run_once',
+    'wsgi.url.scheme',
+    'wsgi.version',
+    'CONTENT_LENGTH',
+    'CONTENT_TYPE',
+    'PATH_INFO',
+    'QUERY_STRING',
+    'REQUEST_METHOD'
+]
 
 
+class GitMiddleware():
+
+    '''Adds support for git http-backend interaction.'''
+
+    def __init__(self, app, root_path):
+        self.app = app
+        self.root = root_path
+
+    def __call__(self, e, h):
+        if e.get('CONTENT_TYPE') in [
+            'application/x-git-upload-pack-request',
+            'application/x-git-receive-pack-request'
+        ]:
+            pass
+        elif e['QUERY_STRING'] in [
+            'service=git-upload-pack',
+            'service=git-receive-pack'
+        ]:
+            pass
+        else:
+            return self.app(e, h)
+        try:
+            GIT_SERVER_APP.match(e)
+            e['GIT_PROJECT_BASE'] = self.root
+            return GIT_SERVER_APP(e, h)
+        except HTTPError:
+            pass
+        return self.app(e, h)
+
+
+#
+# Route utility routines
+#
+def _check_git_auth(user, passwd):
+    '''Basic Auth for git back-end (smart HTTP).'''
+    # TODO: set this up? (ziad?)
+    if user == 'zak':
+        return True
+    else:
+        return False
+
+
+def _set_git_environ(environ, repo, path):
+    '''Bottle environment tweaking for git kitchen routes
+
+    :param environ: CGI environment (converted from WSGI)
+    :param repo: the git repo to base calls off off (a single path part that
+        gets added to GIT_PROJECT_BASE)
+    :param path: the path into the repo that is being requested
+    '''
+    cgi_env = dict()
+    for env_var in EXPECTED_ENVIRONMENT_LIST:
+        if env_var in environ:
+            cgi_env[env_var] = environ[env_var]
+    if 'PATH_INFO' not in cgi_env:
+        cgi_env['PATH_INFO'] = ''
+    cgi_env['GIT_HTTP_EXPORT_ALL'] = '1'
+    cgi_env['GIT_PROJECT_ROOT'] = os.path.join(environ['GIT_PROJECT_BASE'],
+                                               repo)
+    cgi_env['PATH_INFO'] = '/%s' % path
+    if (
+        re.search('/info/refs', cgi_env['PATH_INFO']) and
+        cgi_env['REQUEST_METHOD'] == 'GET'
+    ):
+        cgi_env['CONTENT_TYPE'] = ''
+    # TODO: (REMOTE_USER) where some authorization could go
+    return cgi_env
+
+
+def _git_route_callback(dep_id, path):
+    '''Check deployment and verify it is valid before git backend call.'''
+    environ = _set_git_environ(dict(request.environ), dep_id, path)
+    if not os.path.isdir(environ['GIT_PROJECT_ROOT']):
+        # TODO: not sure what to do about this
+        raise HTTPError(code=404, output="%s not found" % environ['PATH_INFO'])
+    manager.init_deployment_repo(environ['GIT_PROJECT_ROOT'])
+    (status_line, headers, response_body_generator
+     ) = wsgi_git_http_backend.wsgi_to_git_http_backend(environ)
+    for header, value in headers:
+        response.set_header(header, value)
+    response.status = status_line
+    return response_body_generator
+
+
+#
 # Bottle routes
-
+#
 @GIT_SERVER_APP.get("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
 #@auth_basic(_check_git_auth) #basic auth
 def git_route_get(tenant_id, dep_id, path):
