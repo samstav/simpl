@@ -38,6 +38,7 @@ class Config(object):
     statsd_port = 8125
     statsd_host = None
 
+    with_git = False
     with_ui = False
     with_simulator = False
     with_admin = False
@@ -199,6 +200,12 @@ def parse_arguments(args=None):
     parser.add_argument("--backdoor-port",
                         default=None,
                         help='port for eventlet backdoor to listen'
+                        )
+    parser.add_argument("--with-git",
+                        action="store_true",
+                        default=False,
+                        help="Enable git protocl support (git clone, push, "
+                        "pull to deplpoyments.git URLs"
                         )
 
     #

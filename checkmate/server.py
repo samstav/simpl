@@ -35,6 +35,7 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
 )
+from checkmate.git import middleware as git_middleware
 from checkmate import middleware
 from checkmate import utils
 
@@ -143,7 +144,6 @@ def config_statsd():
 def main():
     '''Start the server based on passed in arguments. Called by __main__.'''
     CONFIG.initialize()
-
     resources = ['version']
     anonymous_paths = ['version']
 
@@ -266,6 +266,16 @@ def main():
             LOG.error(msg)
             print msg
             sys.exit(1)
+
+    # Load Git if requested
+    if CONFIG.with_git is True:
+        #TODO: auth
+        if True:
+            raise NotImplementedError("Git middleware lacks authentication "
+                                      "and is not ready yet")
+        root_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
+                                   "/var/local/checkmate/deployments")
+        next_app = git_middleware.GitMiddleware(next_app, root_path)
 
     next_app = middleware.ContextMiddleware(next_app)
 
