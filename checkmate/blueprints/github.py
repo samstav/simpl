@@ -347,7 +347,7 @@ class GitHubManager(ManagerBase):
         self._update_cache()
 
     def _get_repo_owner(self):
-        ''' Return the user or organization owning the repo '''
+        '''Return the user or organization owning the repo.'''
         if self._repo_org:
             try:
                 return self._github.get_organization(self._repo_org)
@@ -387,8 +387,7 @@ class GitHubManager(ManagerBase):
                 LOG.warn("Error updating disk cache", exc_info=True)
 
     def _refresh_from_repo(self, repo):
-        '''
-        Store/update blueprint info from the specified repository
+        '''Store/update blueprint info from the specified repository,
 
         :param repo: the repository containing blueprint data or :None:
         '''
@@ -409,7 +408,7 @@ class GitHubManager(ManagerBase):
                         self._preview_ref, self._blueprints)
 
     def _get_repo(self, repo_name):
-        '''Return the specified github repo
+        '''Return the specified github repo.
 
         :param repo_name: the repo to get; must belong to :self.repo_org:
         '''
@@ -425,7 +424,7 @@ class GitHubManager(ManagerBase):
 
     @staticmethod
     def _repo_contains_ref(repo, ref_name):
-        '''Check if a repo contains a tag or reference'''
+        '''Check if a repo contains a tag or reference.'''
         if '/' in ref_name:
             return ref_name in repo.get_git_refs()
         else:

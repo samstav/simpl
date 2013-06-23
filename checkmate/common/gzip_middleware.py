@@ -227,5 +227,4 @@ class Gzipper(object):
 
         if _buffer['body']:
             _writable(_buffer['body'])
-
         return data
