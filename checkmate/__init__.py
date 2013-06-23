@@ -1,5 +1,8 @@
-import eventlet
-eventlet.monkey_patch(socket=True, thread=True, os=True)
+try:
+    import eventlet
+    eventlet.monkey_patch(socket=True, thread=True, os=True)
+except ImportError:
+    pass  # OK if running setup.py or not using eventlet somehow
 
 import gettext
 import os

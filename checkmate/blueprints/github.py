@@ -12,16 +12,18 @@ import collections
 import json
 import logging
 import os
-import socket
-import threading
 import time
 from urlparse import urlparse, unquote
 import yaml
 
 #pylint: disable=E0611
 from bottle import abort, request
+import eventlet
+from eventlet.green import threading
+from eventlet.green import socket
 from eventlet.greenpool import GreenPile
-from github import Github, Repository, GithubException
+github = eventlet.import_patched('github')  # pylint: disable=C0103
+from github import GithubException
 
 from checkmate import utils
 from checkmate.base import ManagerBase
@@ -53,7 +55,7 @@ class GitHubManager(ManagerBase):
         ManagerBase.__init__(self, drivers)
         self._github_api_base = config.github_api
         if self._github_api_base:
-            self._github = Github(base_url=self._github_api_base)
+            self._github = github.Github(base_url=self._github_api_base)
             self._api_host = urlparse(self._github_api_base).netloc
         self._repo_org = config.organization
         self._ref = config.ref
@@ -348,7 +350,7 @@ class GitHubManager(ManagerBase):
 
         :param repo: the repo containing the blueprint
         '''
-        if repo and isinstance(repo, Repository.Repository) and tag:
+        if repo and isinstance(repo, github.Repository.Repository) and tag:
             dep_file = None
             try:
                 if not self._repo_contains_ref(repo, tag):
@@ -428,7 +430,7 @@ class GitHubManager(ManagerBase):
         :param repo: the repo containing the blueprint
         :param filename: file name
         '''
-        isinstance(repo, Repository.Repository)
+        isinstance(repo, github.Repository.Repository)
         try:
             repo_file = repo.get_file_contents(filename)
             return base64.b64decode(repo_file.content)

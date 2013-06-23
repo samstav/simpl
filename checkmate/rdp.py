@@ -2,10 +2,10 @@
     Celery tasks to handle RDP connections
 """
 import logging
-import socket
 
 from celery.task import task
 from celery.task.sets import subtask
+from eventlet.green import socket
 
 from checkmate.utils import match_celery_logging
 

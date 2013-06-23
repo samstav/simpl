@@ -15,7 +15,6 @@ import string
 import struct
 from subprocess import CalledProcessError, Popen, PIPE, check_output
 import sys
-import threading
 from time import gmtime, strftime
 import uuid
 import shutil
@@ -23,6 +22,7 @@ import shutil
 from bottle import abort, request, response
 from functools import wraps
 from Crypto.Random import random
+from eventlet.green import threading
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 from yaml.composer import ComposerError

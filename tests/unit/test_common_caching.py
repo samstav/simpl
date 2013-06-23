@@ -24,6 +24,10 @@ class TestCaching(unittest.TestCase):
     def test_init_method(self):
         self.assertIsInstance(caching.Memorize({}), caching.Memorize)
 
+    def test_is_green(self):
+        self.assertEqual(caching.threading.__name__,
+                         'eventlet.green.threading')
+
     def test_decorating(self):
         fxn = caching.Memorize()(sample_method)
         args, kwargs = fxn(1, x='2')

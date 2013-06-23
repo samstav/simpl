@@ -1,12 +1,12 @@
 '''
 Function Caching Decorators
 '''
-
 import copy
 import hashlib
 import logging
 import time
-import threading
+
+from eventlet.green import threading
 
 LOG = logging.getLogger(__name__)
 

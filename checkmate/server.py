@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import sys
-import threading
 
 # pylint: disable=W0611
 import checkmate.common.tracer  # module runs on import
@@ -15,6 +14,7 @@ from bottle import request
 from bottle import response
 import celery
 import eventlet
+from eventlet.green import threading
 from eventlet import wsgi
 
 from checkmate.api import admin
