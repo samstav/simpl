@@ -226,6 +226,7 @@ def pause_workflow(id, tenant_id=None, driver=DB):
     if (operation and operation.get('action') != 'PAUSE' and
             operation['status'] != 'PAUSED'):
         update_operation.delay(dep_id, driver=driver, action='PAUSE')
+        orchestrator.pause_workflow.delay(id, driver)
     return write_body(workflow, request, response)
 
 

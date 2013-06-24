@@ -51,6 +51,18 @@ def pause_workflow(w_id, driver):
         pause_workflow.retry()
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
+    deployment = driver.get_deployment(deployment_id)
+    operation = deployment["operation"]
+    action = operation.get("action")
+
+    if action and action == "PAUSE":
+        kwargs = {"action-response": "ACK"}
+        update_operation.delay(deployment_id, driver=driver, **kwargs)
+    else:
+        LOG.warn("Pause Workflow called when operation's action is not PAUSE")
+        driver.unlock_workflow(w_id, key)
+        pause_workflow.retry()
+
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
 
@@ -144,10 +156,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     action = deployment["operation"].get("action")
 
     if action and action == "PAUSE":
-        kwargs = {"action-response": "ACK"}
-        update_operation.delay(dep_id, driver=driver, **kwargs)
         driver.unlock_workflow(w_id, key)
-        pause_workflow.delay(w_id, driver)
         return False
 
     # Get the workflow
