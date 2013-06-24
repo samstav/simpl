@@ -16,6 +16,9 @@ LOG = logging.getLogger(__name__)
 
 class TestLegacyCompute(test.ProviderTester):
     """ Test Legacy Compute Provider """
+    def setUp(self):
+        test.ProviderTester.setUp(self)
+
     def test_create_server(self):
         provider = compute_legacy.Provider({})
 
