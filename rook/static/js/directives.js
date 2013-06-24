@@ -257,7 +257,7 @@ directives.directive('cmTreeView', function() {
     scope: { data: '=' },
     link: function(scope, element, attrs) {
       create_svg(scope, element, attrs);
-      scope.$watch('data', update_svg, true);
+      scope.$watch('data', update_svg);
     }
   };
 });
