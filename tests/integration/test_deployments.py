@@ -1156,6 +1156,20 @@ class TestDeploymentSettings(unittest.TestCase):
                           "my_option", constraint, option=option,
                           option_key="my_option")
 
+    def test_handle_bad_call(self):
+        '''Validate missing options handled correctly'''
+        deployment = Deployment(yaml_to_dict("""
+                id: test
+                environment:
+                  providers: {}
+                blueprint: {}
+                inputs: {}
+            """))
+        self.assertRaises(CheckmateValidationException,
+                          deployment.get_setting, None)
+        self.assertRaises(CheckmateValidationException,
+                          deployment.get_setting, '')
+
 
 class TestDeploymentScenarios(unittest.TestCase):
 
@@ -1472,7 +1486,7 @@ class TestGetResourceStuff(unittest.TestCase):
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
         self.assertEquals('A certain error happened',
-                          ret.get('2', {}).get('message'))
+                          ret.get('2', {}).get('error-message'))
         self.assertNotIn('error-traceback', ret.get('3', {'error-traceback': 'FAIL'}))
 
     def test_no_resources(self):
@@ -1516,7 +1530,7 @@ class TestGetResourceStuff(unittest.TestCase):
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
-            self.assertIn("No deployment with id 1234", exc.message)
+            self.assertIn("No deployment with id 1234", str(exc))
 
     def test_dep_404_status(self):
         """ Test when deployment not found """
@@ -1531,7 +1545,7 @@ class TestGetResourceStuff(unittest.TestCase):
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
         except CheckmateDoesNotExist as exc:
-            self.assertIn("No deployment with id 1234", exc.message)
+            self.assertIn("No deployment with id 1234", str(exc))
 
     def test_status_trace(self):
         """ Make sure trace is included if query param present """
@@ -1548,7 +1562,7 @@ class TestGetResourceStuff(unittest.TestCase):
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
         self.assertEquals('A certain error happened',
-                          ret.get('2', {}).get('message'))
+                          ret.get('2', {}).get('error-message'))
         self.assertIn('error-traceback', ret.get('3', {}))
 
 

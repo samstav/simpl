@@ -25,6 +25,93 @@ from checkmate.exceptions import (
 from checkmate import utils
 
 
+class TestDeploymentStateTransitions(unittest.TestCase):
+    def test_deployment_states_fail_to_plan(self):
+        deployment = Deployment({'id': 'test'})
+        self.assertEquals('NEW', deployment.fsm.current)
+
+        deployment.fsm.change_to('FAILED')
+        self.assertEquals('FAILED', deployment.fsm.current)
+
+        deployment.fsm.change_to('DELETED')
+        self.assertEquals('DELETED', deployment.fsm.current)
+
+    def test_deployment_states_fail_to_build(self):
+        deployment = Deployment({'id': 'test'})
+        self.assertEquals('NEW', deployment.fsm.current)
+
+        deployment.fsm.change_to('PLANNED')
+        self.assertEquals('PLANNED', deployment.fsm.current)
+
+        deployment.fsm.change_to('FAILED')
+        self.assertEquals('FAILED', deployment.fsm.current)
+
+    def test_deployment_states_build(self):
+        deployment = Deployment({'id': 'test', 'status': 'PLANNED'})
+        self.assertEquals('PLANNED', deployment.fsm.current)
+
+        deployment.fsm.change_to('UP')
+        self.assertEquals('UP', deployment.fsm.current)
+
+    def test_deployment_states_alert_and_fix(self):
+        deployment = Deployment({'id': 'test', 'status': 'UP'})
+        self.assertEquals('UP', deployment.fsm.current)
+
+        deployment.fsm.change_to('ALERT')
+        self.assertEquals('ALERT', deployment.fsm.current)
+
+        deployment.fsm.change_to('UP')
+        self.assertEquals('UP', deployment.fsm.current)
+
+    def test_deployment_states_reconnect(self):
+        deployment = Deployment({'id': 'test', 'status': 'UP'})
+        self.assertEquals('UP', deployment.fsm.current)
+
+        deployment.fsm.change_to('UNREACHABLE')
+        self.assertEquals('UNREACHABLE', deployment.fsm.current)
+
+        deployment.fsm.change_to('UP')
+        self.assertEquals('UP', deployment.fsm.current)
+
+    def test_deployment_states_reconnect_to_alert(self):
+        deployment = Deployment({'id': 'test', 'status': 'UNREACHABLE'})
+        self.assertEquals('UNREACHABLE', deployment.fsm.current)
+
+        deployment.fsm.change_to('ALERT')
+        self.assertEquals(deployment.fsm.current, 'ALERT')
+
+    def test_deployment_states_reconnect_to_down(self):
+        deployment = Deployment({'id': 'test', 'status': 'UNREACHABLE'})
+        self.assertEquals('UNREACHABLE', deployment.fsm.current)
+
+        deployment.fsm.change_to('DOWN')
+        self.assertEquals('DOWN', deployment.fsm.current)
+
+    def test_deployment_states_up_down(self):
+        deployment = Deployment({'id': 'test', 'status': 'UP'})
+        self.assertEquals('UP', deployment.fsm.current)
+
+        deployment.fsm.change_to('DOWN')
+        self.assertEquals('DOWN', deployment.fsm.current)
+
+        deployment.fsm.change_to('UP')
+        self.assertEquals('UP', deployment.fsm.current)
+
+    def test_deployment_states_delete_broken(self):
+        deployment = Deployment({'id': 'test', 'status': 'DOWN'})
+        self.assertEquals('DOWN', deployment.fsm.current)
+
+        deployment.fsm.change_to('DELETED')
+        self.assertEquals(deployment.fsm.current, 'DELETED')
+
+    def test_deployment_states_delete(self):
+        deployment = Deployment({'id': 'test', 'status': 'UP'})
+        self.assertEquals('UP', deployment.fsm.current)
+
+        deployment.fsm.change_to('DELETED')
+        self.assertEquals('DELETED', deployment.fsm.current)
+
+
 class TestDeployments(unittest.TestCase):
     def test_schema(self):
         """Test the schema validates a deployment with all possible fields"""
@@ -55,6 +142,7 @@ class TestDeployments(unittest.TestCase):
                 'providers': {},
             },
             'display-outputs': {},
+            'meta-data': {},
         }
         valid = Deployment(deployment)
         self.assertDictEqual(valid._data, deployment)
@@ -135,7 +223,7 @@ class TestDeployments(unittest.TestCase):
     def test_legacy_to_new_maps_are_valid(self):
         '''Test the assumption thatlegacy_statuses maps to valid statuses'''
         for new_status in Deployment.legacy_statuses.values():
-            self.assertIn(new_status, schema.DEPLOYMENT_STATUSES)
+            self.assertIn(new_status, Deployment.FSM_TRANSITIONS)
 
     def test_id_validation(self):
         self.assertRaises(CheckmateValidationException, Deployment,
@@ -217,9 +305,6 @@ class TestGenerateServices(unittest.TestCase):
         services = deployment.calculate_services()
         expected = {
             'app': {
-                'interfaces': {
-                    'http': {}
-                },
                 'resources': [],
             }
         }

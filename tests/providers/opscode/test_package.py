@@ -1,3 +1,4 @@
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import unittest2 as unittest
 
 from checkmate.providers import opscode
@@ -15,12 +16,7 @@ class TestPackage(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
+    # Any change here should be made in all test files
     import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unittest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    from checkmate.test import run_with_params
+    run_with_params(sys.argv[:])

@@ -1,12 +1,78 @@
 '''
 Function Caching Decorators
-'''
 
+Usage:
+
+    from checkmate.common import caching
+
+    @caching.Cache
+    def my_cached_function(arg, kwarg=None):
+        ...
+        return data
+
+    class MyClass():
+        @caching.CacheMethod
+        def method(self, arg):
+            ...
+            return data
+
+
+To specify where to store data use the 'store' kwarg:
+
+    MY_CACHE = {}
+
+    @caching.Cache(store=MY_CACHE)
+    def my_cached_function(arg, kwarg=None):
+        ...
+
+To use a shared Redis cache also use the 'backing_store' kwarg:
+
+    import redis
+    MY_CACHE = {}
+
+    REDIS_URL = 'redis://localhost:10000/3'
+
+    @caching.Cache(store=MY_CACHE, backing_store=redis.from_url(REDIS_URL))
+    def my_cached_function(arg, kwarg=None):
+        ...
+
+
+Specify which arguments need to be hashed to protect them from being exposed:
+
+    @caching.Cache(sensitive_args=[0])
+    def my_cached_function(password):
+        ...
+
+    @caching.Cache(sensitive_kwargs=['encryption_key'])
+    def my_cached_function(data, encryption_key=None):
+        ...
+
+Tune cache timeout and whether you also want exceptions cached:
+
+
+    @caching.Cache(timeout=600, cache_exceptions=True)
+    def my_cached_function():
+        ...
+
+
+Secondary cache is used to back the in-memory cache with a shared, remote
+cache. The local n-memory cache acts as a write-thru cache.
+
+The secondary cache is expected to be a Redis cache (uses setex)
+
+Note: avoid using arguments that cannot be used as a hash key (ex. an object)
+      or the cache key generated for the call will never match other calls (or
+      worse, will match an incorrect call by pure chance)
+
+'''
 import copy
 import hashlib
 import logging
+import cPickle as pickle
 import time
-import threading
+
+from eventlet.green import threading
+from redis.exceptions import ConnectionError
 
 LOG = logging.getLogger(__name__)
 
@@ -14,12 +80,12 @@ LOG = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 3600
 
 
-class Memorize:
+class Cache:
     '''Cache a function'''
 
     def __init__(self, max_entries=1000, timeout=DEFAULT_TIMEOUT,
                  sensitive_args=None, sensitive_kwargs=None, salt='a_salt',
-                 store=None, cache_exceptions=False):
+                 store=None, cache_exceptions=False, backing_store=None):
         self.max_entries = max_entries
         self.salt = salt
         self.max_age = timeout
@@ -29,6 +95,7 @@ class Memorize:
         self.cleaning_schedule = int(timeout / 2) if timeout > 1 else 1
         self.limit_reached = False
         self._store = store or {}
+        self.backing_store = backing_store or {}
         self.reaper = None
         self.last_reaping = time.time()
         self.memorized_function = None
@@ -58,7 +125,10 @@ class Memorize:
         return wrapped_f
 
     def try_cache(self, *args, **kwargs):
-        '''Return cached value if it exists and isn't stale'''
+        '''Return cached value if it exists and isn't stale
+
+        Returns key, value as tuple
+        '''
         key = self.get_hash(*args, **kwargs)
         if key in self._store:
             birthday, data = self._store[key]
@@ -68,16 +138,43 @@ class Memorize:
                 return key, data
             if time.time() - self.last_reaping > self.cleaning_schedule:
                 self.start_collection()
-
+        elif self.backing_store:
+            try:
+                value = self.backing_store[key]
+                value = self._decode(value)
+                self._cache_local(value, key)
+                return key, value
+            except ConnectionError as exc:
+                LOG.warn("Error connecting to Redis: %s", exc)
+            except KeyError:
+                pass
+            except StandardError as exc:
+                LOG.warn("Error accesing backing store: %s", exc)
         return None, None
 
     def cache(self, data, key):
         '''Store return value in cache'''
+        self._cache_local(data, key)
+        if self.backing_store:
+            self._cache_backing(data, key)
+
+    def _cache_local(self, data, key):
+        '''Cache item to local, in-momory store'''
         if self.max_entries == 0 or len(self._store) < self.max_entries:
             self._store[key] = (time.time(), data)
         elif self.limit_reached is not True:
             self.limit_reached = True
             LOG.warn("Maximum entries reached for %s", self.memorized_function)
+
+    def _cache_backing(self, data, key):
+        '''Cache item to backing store (if it is configured)'''
+        if self.backing_store:
+            try:
+                self.backing_store.setex(key, self._encode(data), self.max_age)
+            except ConnectionError as exc:
+                LOG.warn("Error connecting to Redis: %s", exc)
+            except StandardError as exc:
+                LOG.warn("Error storing value in backing store: %s", exc)
 
     def get_hash(self, *args, **kwargs):
         '''Calculate a secure hash'''
@@ -97,8 +194,11 @@ class Memorize:
                 if key in clean_kwargs:
                     value = clean_kwargs.pop(key)
                     secrets.append("%s|%s" % (key, value))
-        hasher = hashlib.md5("%s:%s" % (self.salt, ':'.join(secrets)))
-        secret_hash = hasher.hexdigest()
+        if secrets:
+            hasher = hashlib.md5("%s:%s" % (self.salt, ':'.join(secrets)))
+            secret_hash = hasher.hexdigest()
+        else:
+            secret_hash = None
         return (tuple(clean_args), tuple(sorted(clean_kwargs.items())),
                 secret_hash)
 
@@ -126,14 +226,28 @@ class Memorize:
     def start_collection(self):
         '''Initizate the removal of stale cache items'''
         if self.reaper is None:
-            self.reaper = threading.Thread(target=self.collect)
-            self.reaper.setDaemon(False)
-            LOG.debug("Reaping cache for %s", self.memorized_function)
-            self.reaper.start()
+            try:
+                self.reaper = threading.Thread(target=self.collect)
+                self.reaper.setDaemon(False)
+                LOG.debug("Reaping cache for %s", self.memorized_function)
+                self.reaper.start()
+            except Exception as exc:
+                print "E", exc
+                raise exc
+
+    @staticmethod
+    def _encode(data):
+        '''Encode python data into format we can restore from Redis'''
+        return pickle.dumps(data, pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def _decode(data):
+        '''Decode our python data from the Redis string'''
+        return pickle.loads(data)
 
 
-class MemorizeMethod(Memorize):
-    '''Use this instead of @Memorize with instance methods'''
+class CacheMethod(Cache):
+    '''Use this instead of @Cache with instance methods'''
     def __call__(self, func):
         self.memorized_function = func.__name__
 

@@ -266,9 +266,9 @@ class Router(object):
             abort(404, "No deployment with id %s" % api_id)
         deployment = Deployment(deployment)
         if request.query.get('force') != '1':
-            if not deployment.fsm.has_path_to('DELETED'):
+            if not deployment.fsm.permitted('DELETED'):
                 abort(400, "Deployment %s cannot be deleted while in status "
-                      "%s." % (api_id, deployment.get("status", "UNKNOWN")))
+                      "%s." % (api_id, deployment.get('status', 'UNKNOWN')))
 
         planner = Plan(deployment)
         planned_tasks = planner.plan_delete(request.context)
@@ -477,17 +477,12 @@ class Router(object):
                 resp.update({
                     key: {
                         'service': val.get('service', 'UNKNOWN'),
-                        "status": (val.get("status") or
-                                   val.get("instance", {}).get("status")),
-                        'message': (val.get('error-message') or
-                                    val.get('instance', {}).get(
-                                        "error-message") or
-                                    val.get('status-message') or
-                                    val.get("instance", {}).get(
-                                        "status-message")),
-                        "type": val.get("type", "UNKNOWN"),
-                        "component": val.get("component", "UNKNOWN"),
-                        "provider": val.get("provider", "core")
+                        'status': val.get('status'),
+                        'status-message': val.get('status-message'),
+                        'error-message': val.get('error-message'),
+                        'type': val.get('type', 'UNKNOWN'),
+                        'component': val.get('component', 'UNKNOWN'),
+                        'provider': val.get('provider', 'core')
                     }
                 })
                 if ('trace' in request.query_string and

@@ -15,6 +15,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.common.tasks import update_operation
 from checkmate.db.common import ObjectLockedError
 from checkmate.middleware import RequestContext
+from checkmate.operations import get_status_info
 from checkmate.utils import extract_sensitive_data, match_celery_logging
 
 LOG = logging.getLogger(__name__)
@@ -66,8 +67,8 @@ def pause_workflow(w_id, driver):
 
     if number_of_waiting_celery_tasks == 0:
         LOG.debug("No waiting celery tasks for workflow %s", w_id)
-        kwargs.update({"status": "PAUSED", "action-response": None,
-                       "action": None})
+        kwargs.update({'status': 'PAUSED', 'action-response': None,
+                       'action': None})
         update_operation.delay(deployment_id, driver=driver, **kwargs)
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                     status="PAUSED", driver=driver,
@@ -103,7 +104,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         w_id = args[0]
         workflow = driver.get_workflow(w_id)
         dep_id = workflow["attributes"]["deploymentId"] or w_id
-        kwargs = {"status": "ERROR"}
+        kwargs = {'status': 'ERROR'}
 
         if isinstance(exc, MaxRetriesExceededError):
             kwargs.update({"errors": [{
@@ -119,7 +120,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             LOG.error("Workflow %s has reached the maximum number of "
                       "permissible retries!", w_id)
         else:
-            kwargs.update({"errors": [{'error-message': exc.message}]})
+            kwargs.update({"errors": [{'error-message': exc.args[0]}]})
 
         update_operation.delay(dep_id, driver=driver, **kwargs)
 
@@ -183,32 +184,41 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         LOG.exception(exc)
     finally:
         # Save any changes, even if we errored out
-        failed_tasks = cm_workflow.get_failed_tasks(d_wf, tenant_id)
-        after = d_wf.get_dump()
         deployment_status = None
+        errors = cm_workflow.get_errors(d_wf, tenant_id)
+        after = d_wf.get_dump()
 
-        if before != after or failed_tasks:
-            # We made some progress, so save and prioritize next run
+        if before != after or errors:
+            #save if there are failed tasks or the workflow has progressed
             cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                         driver=driver, workflow_id=w_id)
+
+        if before != after:
+            # We made some progress, so prioritize next run
             wait = 1
 
             # Report progress
             completed = d_wf.get_attribute('completed')
             total = d_wf.get_attribute('total')
             workflow_status = operation_status = d_wf.get_attribute('status')
+            status_info = {}
 
-            if failed_tasks:
+            if errors:
                 operation_status = "ERROR"
+                status_info = get_status_info(errors, tenant_id, w_id)
 
             if total == completed:
                 deployment_status = "UP"
 
+            operation_kwargs = {'status': operation_status,
+                                'tasks': total,
+                                'complete': completed,
+                                'errors': errors}
+            operation_kwargs.update(status_info)
+
             update_operation.delay(dep_id, driver=driver,
                                    deployment_status=deployment_status,
-                                   status=operation_status, tasks=total,
-                                   complete=completed,
-                                   errors=failed_tasks)
+                                   **operation_kwargs)
 
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
                                                              total,

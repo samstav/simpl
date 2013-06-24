@@ -8,16 +8,19 @@ import yaml
 LOG = logging.getLogger(__name__)
 
 from string import Template
+
+from checkmate import db, deployment
+deployment.DB = db.get_driver(connection_string='sqlite://')
 from checkmate.deployment import Deployment
 from checkmate.test import StubbedWorkflowBase, ENV_VARS
-from checkmate.utils import yaml_to_dict
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
-from checkmate.utils import resolve_yaml_external_refs
+from checkmate.utils import yaml_to_dict, resolve_yaml_external_refs
 
 
 class TestWorkflowStubbing(StubbedWorkflowBase):
     """Test workflow stubbing using mox"""
+
     def test_workflow_run(self):
         self.deployment = Deployment(yaml_to_dict("""
                 id: test
@@ -89,9 +92,6 @@ class TestWorkflowLogic(StubbedWorkflowBase):
 
 class TestWorkflow(StubbedWorkflowBase):
     """Test Workflow Execution"""
-
-    def setUp(self):
-        StubbedWorkflowBase.setUp(self)
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow"""

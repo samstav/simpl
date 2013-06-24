@@ -13,7 +13,7 @@ from checkmate.middleware import RequestContext
 LOG = logging.getLogger(__name__)
 
 try:
-    import socket
+    from eventlet.green import socket
     # Test for internet connection using rackspace.com
     response = socket.getaddrinfo(
         'www.rackspace.com', 80, 0, 0, socket.TCP_NODELAY)

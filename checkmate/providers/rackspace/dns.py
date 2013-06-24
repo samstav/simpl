@@ -9,7 +9,7 @@ from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 import os
 from checkmate.providers.base import user_has_access
-from checkmate.common.caching import MemorizeMethod
+from checkmate.common import caching
 import sys
 from eventlet.greenpool import GreenPile
 from clouddns.domain import Domain
@@ -22,7 +22,7 @@ class Provider(ProviderBase):
     name = 'dns'
     vendor = 'rackspace'
 
-    @MemorizeMethod(timeout=3600, sensitive_args=[1], store=DNS_API_CACHE)
+    @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=DNS_API_CACHE)
     def _get_limits(self, url, token):
         api = self.connect(token=token, url=url)
         return api.get_limits()
@@ -43,7 +43,8 @@ class Provider(ProviderBase):
                 LOG.warn("Error checking record limits for %s", dom_name,
                          exc_info=True)
 
-    def _check_record_limits(self, context, dom_name, max_records, num_new_recs):
+    def _check_record_limits(self, context, dom_name, max_records,
+                             num_new_recs):
         if num_new_recs > 0:
             api = self.connect(context)
             if dom_name:
@@ -211,7 +212,7 @@ class Provider(ProviderBase):
             token = context.auth_token
             url = Provider._find_url(context.catalog)
 
-        class CloudDNS_Auth_Proxy():
+        class CloudDNS_Auth_Proxy(object):
             """We pass this class to clouddns for it to use instead of its own
             auth mechanism"""
             def __init__(self, url, token):
@@ -396,7 +397,7 @@ def delete_record(context, domain_id, record_id):
                   record_id, res_err.status, res_err.reason))
         delete_record.retry(exc=res_err)
     except Exception as exc:
-        if "Not found" in exc.message:
+        if "Not found" in exc.args[0]:
             return
         LOG.debug('Error deleting DNS record %s. Retrying.' % record_id,
                   exc_info=True)

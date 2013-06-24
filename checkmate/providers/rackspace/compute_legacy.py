@@ -15,9 +15,10 @@ from checkmate.exceptions import (
     CheckmateNoMapping,
     CheckmateException,
     CheckmateRetriableException,
+    CheckmateServerBuildFailed,
 )
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
-from checkmate.utils import match_celery_logging, yaml_to_dict
+from checkmate.utils import match_celery_logging, yaml_to_dict, get_class_name
 from checkmate.workflow import wait_for
 from openstack.compute.exceptions import OverLimit
 
@@ -106,7 +107,6 @@ class Provider(RackspaceComputeProviderBase):
             self, deployment, resource_type, service,
             context, index, key, definition
         )
-        print templates
 
         catalog = self.get_catalog(context)
 
@@ -522,13 +522,14 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
             'combination.'
         )
         raise
-    except OverLimit:
+    except OverLimit as exc:
         raise CheckmateRetriableException("You have reached the maximum "
                                           "number of servers that can be "
                                           "spinned up using this account. "
                                           "Please delete some servers to "
                                           "continue",
-                                          "")
+                                          "", get_class_name(exc),
+                                          action_required=True)
     except Exception, exc:
         LOG.debug(
             'Error creating server %s (image: %s, flavor: %s) Error: %s' % (
@@ -580,7 +581,8 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         delete_server(context, server_id, api_object)
-        raise CheckmateRetriableException(msg, "")
+        raise CheckmateRetriableException(msg, "", get_class_name(
+            CheckmateServerBuildFailed()), action_required=True)
 
     ip = None
     if server.addresses:

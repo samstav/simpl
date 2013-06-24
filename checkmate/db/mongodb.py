@@ -156,13 +156,12 @@ class Driver(DbBase):
 
     def acquire_lock(self, key, timeout):
         existing_lock = self.database()['locks'].find_one({'_id': key})
-        result = self.database()['locks'].find_and_modify(
-            query={'_id': key, 'expires_at': {'$lt': time.time()}},
-            update={'_id': key, 'expires_at': (time.time() + timeout)},
-            upsert=existing_lock is None,
-            new=True
-        )
-        if not result:
+        if not existing_lock or existing_lock["expires_at"] < time.time():
+            self.database()['locks'].update({'_id': key}, {
+                '_id': key,
+                'expires_at': (time.time() + timeout)
+            }, upsert=True, multi=False, check_keys=False)
+        else:
             raise ObjectLockedError(
                 "Can't lock %s as it is already locked!" % key)
 

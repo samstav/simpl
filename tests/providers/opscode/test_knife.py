@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import unittest2 as unittest
 import uuid
 
@@ -204,8 +205,8 @@ class TestKnife(unittest.TestCase):
         os.path.exists(os.path.join(kitchen_path, 'Cheffile')).AndReturn(True)
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
-        self.mox.StubOutWithMock(knife, 'check_output')
-        knife.check_output(['librarian-chef', 'install']).AndReturn('OK')
+        self.mox.StubOutWithMock(subprocess, 'check_output')
+        subprocess.check_output(['librarian-chef', 'install']).AndReturn('OK')
 
         self.mox.ReplayAll()
         expected = {'environment': '/fake_path/test',
@@ -259,8 +260,8 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(os, 'chdir')
         os.chdir(kitchen_path).AndReturn(True)
 
-        self.mox.StubOutWithMock(knife, 'check_output')
-        knife.check_output([
+        self.mox.StubOutWithMock(subprocess, 'check_output')
+        subprocess.check_output([
             'berks', 'install', '--path',
             os.path.join(kitchen_path, 'cookbooks')
         ]).AndReturn('OK')

@@ -10,6 +10,7 @@ from checkmate import celeryglobal as celery
 from checkmate import db
 from checkmate import utils
 from checkmate.common import tasks as common_tasks
+from checkmate.common import statsd
 from checkmate.deployments import Manager
 from checkmate.db.common import ObjectLockedError
 from checkmate.deployment import Deployment
@@ -40,6 +41,7 @@ def reset_failed_resource_task(deployment_id, resource_id):
 
 
 @task
+@statsd.collect
 def process_post_deployment(deployment, request_context, driver=DB):
     '''Assess deployment, then create and trigger a workflow'''
     utils.match_celery_logging(LOG)
@@ -142,7 +144,7 @@ def update_all_provider_resources(provider, deployment_id, status,
 
 @task(default_retry_delay=0.5, max_retries=6)
 def postback(deployment_id, contents):
-    """ Exposes DeploymentsManager.postback as a task"""
+    '''Exposes DeploymentsManager.postback as a task'''
     utils.match_celery_logging(LOG)
     MANAGERS['deployments'].postback(deployment_id, contents)
 

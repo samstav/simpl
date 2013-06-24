@@ -168,14 +168,14 @@ class TestServer(unittest.TestCase):
     # Other tests
     #
     def test_add_workflow(self):
-        obj_id = str(uuid.uuid4())
+        obj_id = uuid.uuid4().hex
         entity = {"id": obj_id, 'tenantId': 'T1000'}
         res = self.app.post_json('/T1000/workflows', entity)
         #TODO: make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
     def test_save_workflow(self):
-        obj_id = str(uuid.uuid4())
+        obj_id = uuid.uuid4().hex
         entity = {"id": obj_id, 'tenantId': 'T1000'}
         res = self.app.post_json('/T1000/workflows/' + obj_id, entity)
         #TODO: make tests clean so we can predict if we get a 200 or 201

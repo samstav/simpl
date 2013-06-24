@@ -12,7 +12,7 @@ from SpiffWorkflow.specs import Celery
 
 import cloudlb
 
-from checkmate.common.caching import Memorize, MemorizeMethod
+from checkmate.common import caching
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -27,7 +27,7 @@ from checkmate.exceptions import (
 from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
-from checkmate.utils import match_celery_logging
+from checkmate.utils import match_celery_logging, get_class_name
 from checkmate.workflow import wait_for
 
 
@@ -177,7 +177,7 @@ class Provider(ProviderBase):
                                          default="false"))
         return dns.lower() in ['true', '1', 'yes']
 
-    @MemorizeMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
+    @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
     def _get_abs_limits(self, username, auth_token, api_endpoint, region):
         api = cloudlb.CloudLoadBalancer(username, 'ignore', region)
         api.client.auth_token = auth_token
@@ -186,7 +186,9 @@ class Provider(ProviderBase):
 
     def verify_limits(self, context, resources):
         messages = []
-        region = Provider.find_a_region(context.catalog)
+        region = getattr(context, 'region', None)
+        if not region:
+            region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
         abs_limits = self._get_abs_limits(context.username, context.auth_token,
                                           url, region)
@@ -506,8 +508,9 @@ class Provider(ProviderBase):
                               task_tags=['root']))
 
     def get_catalog(self, context, type_filter=None):
-        """Return stored/override catalog if it exists, else connect, build,
-        and return one"""
+        '''Return stored/override catalog if it exists, else connect, build,
+        and return one
+        '''
 
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
@@ -520,7 +523,9 @@ class Provider(ProviderBase):
         # build a live catalog ()this would be the on_get_catalog called if no
         # stored/override existed
         results = {}
-        region = Provider.find_a_region(context.catalog)
+        region = getattr(context, 'region', None)
+        if not region:
+            region = Provider.find_a_region(context.catalog)
         api_endpoint = Provider.find_url(context.catalog, region)
 
         if type_filter is None or type_filter == 'regions':
@@ -597,7 +602,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def find_url(catalog, region):
-        """Find endpoint URL for region"""
+        '''Find endpoint URL for region'''
         for service in catalog:
             if service['type'] == 'rax:load-balancer':
                 endpoints = service['endpoints']
@@ -607,7 +612,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def find_a_region(catalog):
-        """Any region"""
+        '''Any region'''
         for service in catalog:
             if service['type'] == 'rax:load-balancer':
                 endpoints = service['endpoints']
@@ -616,7 +621,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def connect(context, region=None):
-        """Use context info to connect to API and return api object"""
+        '''Use context info to connect to API and return api object'''
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
             context = RequestContext(**context)
@@ -628,7 +633,9 @@ class Provider(ProviderBase):
             region = REGION_MAP[region]
 
         if not region:
-            region = Provider.find_a_region(context.catalog)
+            region = getattr(context, 'region', None)
+            if not region:
+                region = Provider.find_a_region(context.catalog)
             if not region:
                 raise CheckmateException("Unable to locate a load-balancer "
                                          "endpoint")
@@ -645,7 +652,7 @@ class Provider(ProviderBase):
         return api
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
 def _get_algorithms(api_endpoint, auth_token):
     '''Ask CLB for Algorithms'''
     # the region must be supplied but is not used
@@ -656,7 +663,7 @@ def _get_algorithms(api_endpoint, auth_token):
              api.client.region_account_url)
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
 def _get_protocols(api_endpoint, auth_token):
     '''Ask CLB for Protocols'''
     # the region must be supplied but is not used
@@ -689,7 +696,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
-    """Celery task to create Cloud Load Balancer"""
+    '''Celery task to create Cloud Load Balancer'''
     assert 'deployment' in context, "Deployment not supplied in context"
     match_celery_logging(LOG)
 
@@ -769,8 +776,9 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             loadbalancer = api.loadbalancers.create(
                 name=name, port=port, protocol=protocol.upper(),
                 nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
-    except RateLimit as rate_limit_exc:
-        raise CheckmateRetriableException(rate_limit_exc.reason, "")
+    except RateLimit as exc:
+        raise CheckmateRetriableException(exc.reason, "", get_class_name(exc),
+                                          action_required=False)
 
     # Put the instance_id in the db as soon as it's available
     instance_id = {
@@ -836,7 +844,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
     if context.get('simulation') is True:
         return {
             key: {
-                "status": resource.get('status', 'DELETED')
+                'status': resource.get('status', 'DELETED')
             }
         }
 
@@ -855,14 +863,14 @@ def sync_resource_task(context, resource, resource_key, api=None):
         #    instance['protocol'] = lb.protocol
         return {
             key: {
-                "status": lb.status
+                'status': lb.status
                 #'instance': instance
             }
         }
     except NotFound:
         return {
             key: {
-                "status": "DELETED"
+                'status': 'DELETED'
             }
         }
 
@@ -876,7 +884,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         resource_key = context['resource']
         results = {
             "instance:%s" % resource_key: {
-                "status": "DELETING",
+                'status': 'DELETING',
                 "status-message": "Waiting on resource deletion"
             }
         }
@@ -887,7 +895,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
             "instance:%s" % args[1]: {
                 'status': 'ERROR',
                 'status-message': ('Unexpected error deleting loadbalancer'
-                    ' %s' % key),
+                                   ' %s' % key),
                 'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
@@ -908,8 +916,8 @@ def delete_lb_task(context, key, lbid, region, api=None):
         LOG.debug('Load balancer %s was already deleted.', lbid)
         results = {
             instance_key: {
-                "status": "DELETED",
-                "status-message": ""
+                'status': 'DELETED',
+                'status-message': ''
             }
         }
         return results
@@ -919,8 +927,8 @@ def delete_lb_task(context, key, lbid, region, api=None):
     LOG.debug('Deleting Load balancer %s.', lbid)
     return {
         instance_key: {
-            "status": "DELETING",
-            "status-message": "Waiting on resource deletion"
+            'status': 'DELETING',
+            'status-message': 'Waiting on resource deletion'
         }
     }
 
@@ -940,7 +948,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
             "instance:%s" % args[1]: {
                 'status': 'ERROR',
                 'status-message': ('Unexpected error waiting on loadbalancer'
-                    ' %s delete' % key),
+                                   ' %s delete' % key),
                 'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
@@ -978,7 +986,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
 
 @task(default_retry_delay=10, max_retries=10)
 def add_node(context, lbid, ipaddr, region, resource, api=None):
-    """Celery task to add a node to a Cloud Load Balancer"""
+    '''Celery task to add a node to a Cloud Load Balancer'''
     match_celery_logging(LOG)
 
     if context.get('simulation') is True:
@@ -1082,7 +1090,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 
 @task(default_retry_delay=10, max_retries=10)
 def delete_node(context, lbid, ipaddr, port, region, api=None):
-    """Celery task to delete a node from a Cloud Load Balancer"""
+    '''Celery task to delete a node from a Cloud Load Balancer'''
     match_celery_logging(LOG)
 
     if context.get('simulation') is True:
@@ -1123,7 +1131,7 @@ def delete_node(context, lbid, ipaddr, port, region, api=None):
 def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
                 timeout=10, attempts=3, body='(.*)',
                 status='^[234][0-9][0-9]$', api=None):
-    """Create a monitor for a Cloud Load Balancer"""
+    '''Create a monitor for a Cloud Load Balancer'''
     match_celery_logging(LOG)
 
     if context.get('simulation') is True:
@@ -1166,7 +1174,7 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, lbid, region, api=None):
-    ''' Checks to see if a lb's status is ACTIVE, so we can change resource
+    '''Checks to see if a lb's status is ACTIVE, so we can change resource
     status in deployment
     '''
 
@@ -1209,7 +1217,8 @@ def wait_on_build(context, lbid, region, api=None):
                                                context['deployment'],
                                                context['resource']),
                                            instance_key).apply_async()
-        raise CheckmateRetriableException(msg, "")
+        raise CheckmateRetriableException(msg, "", get_class_name(
+            CheckmateLoadbalancerBuildFailed()), action_required=True)
     elif loadbalancer.status == "ACTIVE":
         results = {
             instance_key: {
@@ -1221,5 +1230,10 @@ def wait_on_build(context, lbid, region, api=None):
         resource_postback.delay(context['deployment'], results)
         return results
     else:
-        msg = ("Loadbalancer status is %s, retrying" % (loadbalancer.status))
+        msg = ("Loadbalancer status is %s, retrying" % loadbalancer.status)
         return wait_on_build.retry(exc=CheckmateException(msg))
+
+
+class CheckmateLoadbalancerBuildFailed(CheckmateException):
+    """Error building loadbalancer"""
+    pass

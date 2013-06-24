@@ -42,10 +42,6 @@ import sys
 
 
 if '--trace-calls' in sys.argv or '-t' in sys.argv:
-    # Remove the trace arguments
-    for i in range(len(sys.argv) - 1):
-        if sys.argv[i] in ['-t', '--trace-calls']:
-            sys.argv.pop(i)
 
     STACK_DEPTH = 0
 
@@ -55,7 +51,7 @@ if '--trace-calls' in sys.argv or '-t' in sys.argv:
                                        os.pardir,
                                        os.pardir))
 
-    class ConsoleColors():
+    class ConsoleColors(object):
         HEADER = '\033[95m'
         OKBLUE = '\033[94m'
         OKGREEN = '\033[92m'

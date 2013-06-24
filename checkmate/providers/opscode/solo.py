@@ -8,7 +8,7 @@ import urlparse
 from jinja2 import DictLoader, TemplateError
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from SpiffWorkflow.operators import Attrib, PathAttrib
-from SpiffWorkflow.specs import Celery, TransMerge
+from SpiffWorkflow.specs import Celery, SafeTransMerge
 import yaml
 from yaml.composer import ComposerError
 from yaml.parser import ParserError
@@ -277,14 +277,13 @@ class Provider(ProviderBase):
         # Create the output template defined in the map file
 
         output = map_with_context.get_component_output_template(component_id)
-
-        source = utils.get_source_body(Transforms.collect_options)
         name = "%s Chef Data for %s" % (collect_tag.capitalize(),
                                         resource_key)
-        collect_data = TransMerge(
+        func = "checkmate.providers.opscode.solo.Transforms.collect_options"
+        collect_data = SafeTransMerge(
             wfspec,
             name,
-            transforms=[source],
+            function_name=func,
             description="Get data needed for our cookbooks and place it in a "
                         "structure ready for storage in a databag or role",
             properties={
@@ -826,7 +825,7 @@ class Provider(ProviderBase):
         return catalog
 
 
-class Transforms():
+class Transforms(object):
     """Class to hold transform functions.
 
     We put them in a separate class to:
@@ -931,7 +930,7 @@ class Transforms():
                                                            exc, mod, line))
 
 
-class ChefMap():
+class ChefMap(object):
     """Retrieves and parses Chefmap files"""
 
     def __init__(self, url=None, raw=None, parsed=None):
@@ -1351,19 +1350,30 @@ class ChefMap():
         defaults = kwargs.get('defaults', {})
         if deployment:
             if resource:
-                fxn = lambda setting_name: evaluate(deployment.get_setting(
-                    setting_name,
-                    resource_type=resource['type'],
-                    provider_key=resource['provider'],
-                    service_name=resource['service'],
-                    default=defaults.get(setting_name, ''))
+                fxn = lambda setting_name: evaluate(
+                    utils.escape_yaml_simple_string(
+                        deployment.get_setting(
+                            setting_name,
+                            resource_type=resource['type'],
+                            provider_key=resource['provider'],
+                            service_name=resource['service'],
+                            default=defaults.get(setting_name, '')
+                        )
+                    )
                 )
             else:
-                fxn = lambda setting_name: evaluate(deployment.get_setting(
-                    setting_name, default=defaults.get(setting_name, '')))
+                fxn = lambda setting_name: evaluate(
+                    utils.escape_yaml_simple_string(
+                        deployment.get_setting(
+                            setting_name, default=defaults.get(setting_name, '')
+                        )
+                    )
+                )
         else:
             # noop
-            fxn = lambda setting_name: evaluate(defaults.get(setting_name, ''))
+            fxn = lambda setting_name: evaluate(
+                utils.escape_yaml_simple_string(
+                    defaults.get(setting_name, '')))
         env.globals['setting'] = fxn
         env.globals['hash'] = hash_SHA512
 
