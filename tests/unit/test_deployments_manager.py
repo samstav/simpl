@@ -149,38 +149,40 @@ class TestCount(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_get_count_all(self):
-        self.db.get_deployments(tenant_id=None).AndReturn(self._deployments)
+        self.db.get_deployments(tenant_id=None, with_count=True,
+                                status=None).AndReturn(self._deployments)
         self._mox.ReplayAll()
-        self.assertEqual(self.controller.count(), 3)
+        self.assertEqual(self.controller.count(), 4)
 
     def test_get_count_tenant(self):
-        # remove the extra deployment
-        self._deployments.pop("3fgh")
-        self.db.get_deployments(tenant_id="12345").AndReturn(
-            self._deployments)
+        # remove the deployments that dont belong to our tenant
+        deployments = self._deployments.copy()
+        deployments['results'].pop("3fgh")
+        deployments['results'].pop("4ijk")
+        deployments['collection-count'] = 2
+        self.db.get_deployments(tenant_id="12345", with_count=True,
+                                status=None).AndReturn(deployments)
         self._mox.ReplayAll()
         self.assertEqual(self.controller.count(tenant_id="12345"), 2)
 
-    def test_get_count_deployment(self):
-        self.db.get_deployments(tenant_id=None).AndReturn(
+    def test_get_count_blueprint(self):
+        self.db.get_deployments(status=None, tenant_id=None, with_count=True).AndReturn(
             self._deployments)
         self._mox.ReplayAll()
         result = self.controller.count(blueprint_id="blp-123-aabc-efg")
         self.assertEqual(result, 2)
 
-    def test_get_count_deployment_and_tenant(self):
-        raw_deployments = self._deployments.copy()
-        raw_deployments.pop("3fgh")
-        self._deployments.pop("2def")
-        self._deployments.pop("1abc")
-        self.db.get_deployments(tenant_id="854673")\
-            .AndReturn(self._deployments)
-        self.db.get_deployments(tenant_id="12345").AndReturn(raw_deployments)
+    def test_get_count_blueprint_and_tenant(self):
+        deployments = self._deployments.copy()
+        deployments['results'].pop("2def")
+        deployments['results'].pop("3fgh")
+        deployments['results'].pop("4ijk")
+        deployments['collection-count'] = 1
+
+        self.db.get_deployments(tenant_id="12345", with_count=True,
+                                status=None).AndReturn(deployments)
         self._mox.ReplayAll()
         result = self.controller.count(blueprint_id="blp-123-aabc-efg",
-                                       tenant_id="854673")
-        self.assertEquals(result, 1)
-        result = self.controller.count(blueprint_id="blp123avc",
                                        tenant_id="12345")
         self.assertEquals(result, 1)
 

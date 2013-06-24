@@ -55,6 +55,26 @@ LOG = logging.getLogger(__name__)
 BASE = declarative_base()
 
 
+def filter_custom_comparison(query_obj, field, value):
+    '''Return a sqlalchemy filter based on `value`
+
+    The following are accepted forms of filtering:
+        VALUE, !VALUE, >=VALUE, >VALUE, <=VALUE, <VALUE
+    '''
+    if value.startswith('!'):
+        return query_obj.filter("%s != '%s'" % (field, value[1:]))
+    elif field.startswith('>='):
+        return query_obj.filter("%s >= '%s'" % (field, value[2:]))
+    elif field.startswith('>'):
+        return query_obj.filter("%s > '%s'" % (field, value[1:]))
+    elif field.startswith('<='):
+        return query_obj.filter("%s <= '%s'" % (field, value[2:]))
+    elif field.startswith('<'):
+        return query_obj.filter("%s < '%s'" % (field, value[1:]))
+    else:
+        return query_obj.filter("%s == '%s'" % (field, value))
+
+
 class TextPickleType(PickleType):
     """Type that can be set to dict and stored in the database as Text.
     This allows us to read and write the 'body' attribute as dicts"""
@@ -327,7 +347,8 @@ class Driver(DbBase):
         return self._get_object(Deployment, id, with_secrets=with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None, offset=None,
-                        limit=None, with_count=True, with_deleted=False):
+                        limit=None, with_count=True, with_deleted=False,
+                        status=None):
         '''Retrieve all deployments for a given tenant id'''
         return self._get_objects(
             Deployment,
@@ -336,7 +357,8 @@ class Driver(DbBase):
             offset=offset,
             limit=limit,
             with_count=with_count,
-            with_deleted=with_deleted
+            with_deleted=with_deleted,
+            status=status
         )
 
     def save_deployment(self, id, body, secrets=None, tenant_id=None,
@@ -416,13 +438,13 @@ class Driver(DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
                      offset=None, limit=None, with_count=True,
-                     with_deleted=False):
+                     with_deleted=False, status=None):
         '''Retrieve all recrods from a given table for a given tenant id'''
         response = {}
         response['_links'] = {}  # To be populated soon!
         response['results'] = {}
         results = self._add_filters(
-            klass, self.session.query(klass), tenant_id, with_deleted)
+            klass, self.session.query(klass), tenant_id, with_deleted, status)
         if klass is Deployment:
             results = results.order_by(Deployment.created.desc())
         elif klass is Workflow:
@@ -446,19 +468,23 @@ class Driver(DbBase):
                     response['results'][entry.id]['tenantId'] = entry.tenant_id
         if with_count:
             response['collection-count'] = self._get_count(
-                klass, tenant_id, with_deleted)
+                klass, tenant_id, with_deleted, status)
         return response
 
-    def _add_filters(self, klass, query, tenant_id, with_deleted):
+    def _add_filters(self, klass, query, tenant_id, with_deleted, status=None):
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
-        if klass is Deployment and not with_deleted:
-            query = query.filter(Deployment.status != 'DELETED')
+        if klass is Deployment and (not with_deleted or status):
+            if not status:
+                status = "!DELETED"
+            query = filter_custom_comparison(query, 'deployments_status',
+                                             status)
         return query
 
-    def _get_count(self, klass, tenant_id, with_deleted):
+    def _get_count(self, klass, tenant_id, with_deleted, status=None):
         return self._add_filters(
-            klass, self.session.query(klass), tenant_id, with_deleted).count()
+            klass, self.session.query(klass), tenant_id, with_deleted,
+            status).count()
 
     def _save_object(self, klass, api_id, body, secrets=None,
                      tenant_id=None, merge_existing=False):

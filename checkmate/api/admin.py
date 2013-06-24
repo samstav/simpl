@@ -146,12 +146,14 @@ class Router(object):
     def get_deployments(self, tenant_id=None, offset=None, limit=None):
         """ Get existing deployments """
         show_deleted = request.query.get('show_deleted')
+        status = request.query.get('status')
         tenant_id = request.query.get('tenant_id')
         data = self.manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
-            with_deleted=show_deleted == '1'
+            with_deleted=show_deleted == '1',
+            status=status,
         )
         return data
 
@@ -164,7 +166,8 @@ class Router(object):
         :param:tenant_id: the (optional) tenant
         '''
         tenant_id = request.query.get('tenant_id')
-        count = self.manager.count(tenant_id=tenant_id)
+        status = request.query.get('status')
+        count = self.manager.count(tenant_id=tenant_id, status=status)
         return utils.write_body({"count": count}, request, response)
 
     @utils.only_admins

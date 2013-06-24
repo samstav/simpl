@@ -27,6 +27,22 @@ from checkmate.utils import merge_dictionary
 LOG = logging.getLogger(__name__)
 
 
+def parse_comparison(field):
+    '''Return a MongoDB filter by looking for comparisons in `field`.'''
+    if field.startswith('!'):
+        return {'$ne': field[1:]}
+    elif field.startswith('>='):
+        return {'$gte': field[2:]}
+    elif field.startswith('>'):
+        return {'$gt': field[1:]}
+    elif field.startswith('<='):
+        return {'$lte': field[2:]}
+    elif field.startswith('<'):
+        return {'$lt': field[1:]}
+    else:
+        return field
+
+
 class Driver(DbBase):
     '''MongoDB Database Driver'''
     _workflow_collection_name = "workflows"
@@ -249,12 +265,14 @@ class Driver(DbBase):
         return deployment
 
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=None,
-                        offset=None, with_count=True, with_deleted=False):
+                        offset=None, with_count=True, with_deleted=False,
+                        status=None):
         deployments = self._get_objects(self._deployment_collection_name,
                                         tenant_id, with_secrets=with_secrets,
                                         offset=offset,
                                         limit=limit, with_count=with_count,
-                                        with_deleted=with_deleted)
+                                        with_deleted=with_deleted,
+                                        status=status)
         return deployments
 
     def _remove_all(self, collection_name, ids):
@@ -647,7 +665,8 @@ class Driver(DbBase):
         return body
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
-                     limit=0, with_count=True, with_deleted=False):
+                     limit=0, with_count=True, with_deleted=False,
+                     status=None):
         if klass == self._deployment_collection_name:
             projection = self._deployment_projection
             sort_key = 'created'
@@ -666,7 +685,7 @@ class Driver(DbBase):
             limit = 0
         with self._get_client().start_request():
             results = self.database()[klass].find(self._build_filters(
-                klass, tenant_id, with_deleted), projection)
+                klass, tenant_id, with_deleted, status), projection)
             if sort_key:
                 results.sort(sort_key, sort_direction)
             results = results.skip(offset).limit(limit)
@@ -682,22 +701,37 @@ class Driver(DbBase):
 
             if with_count:
                 response['collection-count'] = self._get_count(
-                    klass, tenant_id, with_deleted)
+                    klass, tenant_id, with_deleted, status)
         return response
 
-    def _get_count(self, klass, tenant_id, with_deleted):
+    def _get_count(self, klass, tenant_id, with_deleted, status=None):
         return self.database()[klass].find(
-            self._build_filters(klass, tenant_id, with_deleted),
+            self._build_filters(klass, tenant_id, with_deleted, status),
             self._object_projection
         ).count()
 
     @staticmethod
-    def _build_filters(klass, tenant_id, with_deleted):
+    def _build_filters(klass, tenant_id, with_deleted, status=None):
+        '''Build MongoDB filters.
+
+        `with_deleted` is a handy shortcut for including/excluding deleted
+        deployments. For more complicated status filtering set `status`. The
+        default comparison is equality. To reverse it, prepend the status with
+        an exclamation mark. If `status` is set, `with_deleted` will be
+        ignored.
+
+        Examples:
+          - status = "UP" to find deployments in the "UP" state
+          - status = "!UP" to find deployments that are not in the "UP" state
+        '''
         filters = {}
         if tenant_id:
             filters['tenantId'] = tenant_id
-        if klass == Driver._deployment_collection_name and not with_deleted:
-            filters['status'] = {'$ne': 'DELETED'}
+        if klass == Driver._deployment_collection_name and (
+                not with_deleted or status):
+            if not status:
+                status = "!DELETED"
+            filters['status'] = parse_comparison(status)
         return filters
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
