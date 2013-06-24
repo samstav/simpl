@@ -177,6 +177,7 @@ directives.directive('cmTreeView', function() {
     var group_center = group_height / 2;
     for (var i=0 ; i<num_groups ; i++) {
       var vertices = groups[i];
+      if (!vertices) continue;
       var num_vertices = vertices.length;
       var vertex_width = scope.width / num_vertices;
       var vertex_center = vertex_width / 2;
