@@ -89,9 +89,9 @@ def get_debug_formatter(config):
     elif config.verbose is True:
         return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
     elif config.quiet is True:
-        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
+        return logging.Formatter('%(message)s')
     else:
-        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
+        return logging.Formatter('%(message)s')
 
 
 def find_console_handler(logger):

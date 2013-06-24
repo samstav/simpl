@@ -18,6 +18,7 @@ from eventlet import debug
 from eventlet.green import threading
 from eventlet import wsgi
 
+import checkmate
 from checkmate.api import admin
 from checkmate import blueprints
 from checkmate import celeryconfig
@@ -143,6 +144,7 @@ def config_statsd():
 
 def main():
     '''Start the server based on passed in arguments. Called by __main__.'''
+    global LOG  # pylint: disable=W0603
     CONFIG.initialize()
     resources = ['version']
     anonymous_paths = ['version']
@@ -150,8 +152,8 @@ def main():
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(CONFIG,
                        default_config="/etc/default/checkmate-svr-log.conf")
-    global LOG  # pylint: disable=W0603
     LOG = logging.getLogger(__name__)  # reload
+    LOG.info("*** Checkmate v%s ***", checkmate.__version__)
     if utils.get_debug_level(CONFIG) == logging.DEBUG:
         bottle.debug(True)
 
@@ -172,11 +174,9 @@ def main():
     opscode.register()
 
     # Load routes from other modules
-    LOG.info("Loading API")
+    LOG.info("Loading Checkmate API")
     bottle.load("checkmate.api")
-
     # Build WSGI Chain:
-    LOG.info("Loading Application")
     next_app = root_app = bottle.default_app()  # the main checkmate app
     root_app.error_handler = {
         500: error_formatter,
@@ -227,7 +227,7 @@ def main():
 
     # Load admin routes if requested
     if CONFIG.with_admin is True:
-        LOG.info("Loading Admin Endpoints")
+        LOG.info("Loading Admin API")
         ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'])
         resources.append('admin')
 
@@ -271,8 +271,8 @@ def main():
     if CONFIG.with_git is True:
         #TODO: auth
         if True:
-            raise NotImplementedError("Git middleware lacks authentication "
-                                      "and is not ready yet")
+            print "Git middleware lacks authentication and is not ready yet"
+            sys.exit(1)
         root_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
                                    "/var/local/checkmate/deployments")
         next_app = git_middleware.GitMiddleware(next_app, root_path)
@@ -334,7 +334,7 @@ def main():
         kwargs['server'] = CustomEventletServer
         kwargs['reloader'] = False  # assume eventlet is prod, so don't reload
         kwargs['backlog'] = 100
-        kwargs['log'] = CONFIG.access_log
+        kwargs['log'] = EventletLogFilter
         eventlet_backdoor.initialize_if_enabled()
     else:
         if CONFIG.access_log:
@@ -345,13 +345,15 @@ def main():
     try:
         bottle.run(app=next_app, host=ip_address, port=port, **kwargs)
     except StandardError as exc:
-        print "Caught Exception:", exc
+        print "Unexpected Exception Caught:", exc
+        sys.exit(1)
     finally:
         try:
             if worker:
                 worker.stop()
+            print "Shutdown complete..."
         except StandardError:
-            pass
+            print "Unexpected error shutting down worker:", exc
 
 
 class CustomEventletServer(bottle.ServerAdapter):
@@ -369,6 +371,21 @@ class CustomEventletServer(bottle.ServerAdapter):
         except TypeError:
             # Fallback, if we have old version of eventlet
             wsgi.server(eventlet.listen((self.host, self.port)), handler)
+
+
+class EventletLogFilter(object):
+    '''Receives eventlet log.write() calls and routes them'''
+    @staticmethod
+    def write(text):
+        '''Write to appropriate target'''
+        if text:
+            if text[0] in '(w':
+                # write thread and wsgi messages to debug only
+                LOG.debug(text[:-1])
+                return
+            if CONFIG.access_log:
+                CONFIG.access_log.write(text)
+            LOG.info(text[:-1])
 
 
 #
