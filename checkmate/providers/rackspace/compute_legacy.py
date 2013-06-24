@@ -107,7 +107,6 @@ class Provider(RackspaceComputeProviderBase):
             self, deployment, resource_type, service,
             context, index, key, definition
         )
-        print templates
 
         catalog = self.get_catalog(context)
 

@@ -1,14 +1,30 @@
 #!/usr/bin/env python
-''' Module to initialize and run Checkmate server'''
+'''Module to initialize and run Checkmate server.
+
+Note: To support running with a wsgiref server with auto reloading and also
+full eventlet support, we need to handle eventlet up front. If we are using
+eventlet, then we'll monkey_patch ASAP. If not, then we won't monkey_patch at
+all as that breaks reloading.
+
+'''
+# BEGIN: ignore style guide
+# monkey_patch ASAP if we're using eventlet
+import sys
+if '--eventlet' in sys.argv:
+    try:
+        import eventlet
+        eventlet.monkey_patch(socket=True, thread=True, os=True)
+    except ImportError:
+        pass  # OK if running setup.py or not using eventlet somehow
+
+# start tracer - pyling/flakes friendly
+__import__('checkmate.common.tracer')
+# END: ignore style guide
+
 import json
 import logging
 import os
-import sys
 
-# pylint: disable=W0611
-import checkmate.common.tracer  # module runs on import
-
-# pylint: disable=E0611
 import bottle
 from bottle import request
 from bottle import response
@@ -18,6 +34,7 @@ from eventlet import debug
 from eventlet.green import threading
 from eventlet import wsgi
 
+import checkmate
 from checkmate.api import admin
 from checkmate import blueprints
 from checkmate import celeryconfig
@@ -143,6 +160,7 @@ def config_statsd():
 
 def main():
     '''Start the server based on passed in arguments. Called by __main__.'''
+    global LOG  # pylint: disable=W0603
     CONFIG.initialize()
     resources = ['version']
     anonymous_paths = ['version']
@@ -150,8 +168,8 @@ def main():
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(CONFIG,
                        default_config="/etc/default/checkmate-svr-log.conf")
-    global LOG  # pylint: disable=W0603
     LOG = logging.getLogger(__name__)  # reload
+    LOG.info("*** Checkmate v%s ***", checkmate.__version__)
     if utils.get_debug_level(CONFIG) == logging.DEBUG:
         bottle.debug(True)
 
@@ -172,11 +190,9 @@ def main():
     opscode.register()
 
     # Load routes from other modules
-    LOG.info("Loading API")
+    LOG.info("Loading Checkmate API")
     bottle.load("checkmate.api")
-
     # Build WSGI Chain:
-    LOG.info("Loading Application")
     next_app = root_app = bottle.default_app()  # the main checkmate app
     root_app.error_handler = {
         500: error_formatter,
@@ -227,7 +243,7 @@ def main():
 
     # Load admin routes if requested
     if CONFIG.with_admin is True:
-        LOG.info("Loading Admin Endpoints")
+        LOG.info("Loading Admin API")
         ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'])
         resources.append('admin')
 
@@ -254,11 +270,13 @@ def main():
     # Load Rook if requested (after Context as Rook depends on it)
     if CONFIG.with_ui is True:
         try:
-            from rook.middleware import BrowserMiddleware
-            next_app = BrowserMiddleware(next_app,
-                                         proxy_endpoints=endpoints,
-                                         with_simulator=CONFIG.with_simulator,
-                                         with_admin=CONFIG.with_admin)
+            from rook import middleware as rook_middleware
+            next_app = rook_middleware.BrowserMiddleware(
+                next_app,
+                proxy_endpoints=endpoints,
+                with_simulator=CONFIG.with_simulator,
+                with_admin=CONFIG.with_admin
+            )
         except ImportError as exc:
             LOG.exception(exc)
             msg = ("Unable to load the UI (rook.middleware). Make sure rook "
@@ -269,10 +287,10 @@ def main():
 
     # Load Git if requested
     if CONFIG.with_git is True:
-        #TODO: auth
+        #TODO(zak): auth
         if True:
-            raise NotImplementedError("Git middleware lacks authentication "
-                                      "and is not ready yet")
+            print "Git middleware lacks authentication and is not ready yet"
+            sys.exit(1)
         root_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
                                    "/var/local/checkmate/deployments")
         next_app = git_middleware.GitMiddleware(next_app, root_path)
@@ -332,9 +350,9 @@ def main():
     )
     if CONFIG.eventlet is True:
         kwargs['server'] = CustomEventletServer
-        kwargs['reloader'] = False  # assume eventlet is prod, so don't reload
+        kwargs['reloader'] = False  # reload fails in bottle with eventlet
         kwargs['backlog'] = 100
-        kwargs['log'] = CONFIG.access_log
+        kwargs['log'] = EventletLogFilter
         eventlet_backdoor.initialize_if_enabled()
     else:
         if CONFIG.access_log:
@@ -345,13 +363,15 @@ def main():
     try:
         bottle.run(app=next_app, host=ip_address, port=port, **kwargs)
     except StandardError as exc:
-        print "Caught Exception:", exc
+        print "Unexpected Exception Caught:", exc
+        sys.exit(1)
     finally:
         try:
             if worker:
                 worker.stop()
+            print "Shutdown complete..."
         except StandardError:
-            pass
+            print "Unexpected error shutting down worker:", exc
 
 
 class CustomEventletServer(bottle.ServerAdapter):
@@ -371,23 +391,43 @@ class CustomEventletServer(bottle.ServerAdapter):
             wsgi.server(eventlet.listen((self.host, self.port)), handler)
 
 
+class EventletLogFilter(object):
+    '''Receives eventlet log.write() calls and routes them'''
+    @staticmethod
+    def write(text):
+        '''Write to appropriate target'''
+        if text:
+            if text[0] in '(w':
+                # write thread and wsgi messages to debug only
+                LOG.debug(text[:-1])
+                return
+            if CONFIG.access_log:
+                CONFIG.access_log.write(text)
+            LOG.info(text[:-1])
+
+
+def run_with_profiling():
+    '''Start srver with yappi profiling and eventlet blocking detection on.'''
+    LOG.warn("Profiling and blocking detection enabled")
+    debug.hub_blocking_detection(state=True)
+    import yappi
+    try:
+        yappi.start(True)
+        main()
+    finally:
+        yappi.stop()
+        stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
+        print "tsub   ttot   count  function"
+        for stat in stats.func_stats:
+            print str(stat[3]).ljust(6), stat[2].ljust(6), \
+                stat[1].ljust(6), stat[0]
+
+
 #
 # Main function
 #
 if __name__ == '__main__':
     if False:  # enable this for profiling and blocking detection
-        LOG.warn("Profiling and blocking detection enabled")
-        debug.hub_blocking_detection(state=True)
-        import yappi
-        try:
-            yappi.start(True)
-            main()
-        finally:
-            yappi.stop()
-            stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
-            print "tsub   ttot   count  function"
-            for stat in stats.func_stats:
-                print str(stat[3]).ljust(6), stat[2].ljust(6), \
-                    stat[1].ljust(6), stat[0]
+        run_with_profiling()
     else:
         main()

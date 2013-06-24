@@ -64,7 +64,7 @@ def get_debug_level(config):
 
 class DebugFormatter(logging.Formatter):
     '''Log formatter that outputs any 'data' values passed in the 'extra'
-    parameter if provided'''
+    parameter if provided.'''
     def format(self, record):
         # Print out any 'extra' data provided in logs
         if hasattr(record, 'data'):
@@ -89,9 +89,9 @@ def get_debug_formatter(config):
     elif config.verbose is True:
         return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
     elif config.quiet is True:
-        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
+        return logging.Formatter('%(message)s')
     else:
-        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
+        return logging.Formatter('%(message)s')
 
 
 def find_console_handler(logger):
