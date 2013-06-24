@@ -1,14 +1,30 @@
 #!/usr/bin/env python
-''' Module to initialize and run Checkmate server'''
+'''Module to initialize and run Checkmate server.
+
+Note: To support running with a wsgiref server with auto reloading and also
+full eventlet support, we need to handle eventlet up front. If we are using
+eventlet, then we'll monkey_patch ASAP. If not, then we won't monkey_patch at
+all as that breaks reloading.
+
+'''
+# BEGIN: ignore style guide
+# monkey_patch ASAP if we're using eventlet
+import sys
+if '--eventlet' in sys.argv:
+    try:
+        import eventlet
+        eventlet.monkey_patch(socket=True, thread=True, os=True)
+    except ImportError:
+        pass  # OK if running setup.py or not using eventlet somehow
+
+# start tracer - pyling/flakes friendly
+__import__('checkmate.common.tracer')
+# END: ignore style guide
+
 import json
 import logging
 import os
-import sys
 
-# pylint: disable=W0611
-import checkmate.common.tracer  # module runs on import
-
-# pylint: disable=E0611
 import bottle
 from bottle import request
 from bottle import response
@@ -254,11 +270,13 @@ def main():
     # Load Rook if requested (after Context as Rook depends on it)
     if CONFIG.with_ui is True:
         try:
-            from rook.middleware import BrowserMiddleware
-            next_app = BrowserMiddleware(next_app,
-                                         proxy_endpoints=endpoints,
-                                         with_simulator=CONFIG.with_simulator,
-                                         with_admin=CONFIG.with_admin)
+            from rook import middleware as rook_middleware
+            next_app = rook_middleware.BrowserMiddleware(
+                next_app,
+                proxy_endpoints=endpoints,
+                with_simulator=CONFIG.with_simulator,
+                with_admin=CONFIG.with_admin
+            )
         except ImportError as exc:
             LOG.exception(exc)
             msg = ("Unable to load the UI (rook.middleware). Make sure rook "
@@ -269,7 +287,7 @@ def main():
 
     # Load Git if requested
     if CONFIG.with_git is True:
-        #TODO: auth
+        #TODO(zak): auth
         if True:
             print "Git middleware lacks authentication and is not ready yet"
             sys.exit(1)
@@ -332,7 +350,7 @@ def main():
     )
     if CONFIG.eventlet is True:
         kwargs['server'] = CustomEventletServer
-        kwargs['reloader'] = False  # assume eventlet is prod, so don't reload
+        kwargs['reloader'] = False  # reload fails in bottle with eventlet
         kwargs['backlog'] = 100
         kwargs['log'] = EventletLogFilter
         eventlet_backdoor.initialize_if_enabled()
@@ -388,23 +406,28 @@ class EventletLogFilter(object):
             LOG.info(text[:-1])
 
 
+def run_with_profiling():
+    '''Start srver with yappi profiling and eventlet blocking detection on.'''
+    LOG.warn("Profiling and blocking detection enabled")
+    debug.hub_blocking_detection(state=True)
+    import yappi
+    try:
+        yappi.start(True)
+        main()
+    finally:
+        yappi.stop()
+        stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
+        print "tsub   ttot   count  function"
+        for stat in stats.func_stats:
+            print str(stat[3]).ljust(6), stat[2].ljust(6), \
+                stat[1].ljust(6), stat[0]
+
+
 #
 # Main function
 #
 if __name__ == '__main__':
     if False:  # enable this for profiling and blocking detection
-        LOG.warn("Profiling and blocking detection enabled")
-        debug.hub_blocking_detection(state=True)
-        import yappi
-        try:
-            yappi.start(True)
-            main()
-        finally:
-            yappi.stop()
-            stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
-            print "tsub   ttot   count  function"
-            for stat in stats.func_stats:
-                print str(stat[3]).ljust(6), stat[2].ljust(6), \
-                    stat[1].ljust(6), stat[0]
+        run_with_profiling()
     else:
         main()

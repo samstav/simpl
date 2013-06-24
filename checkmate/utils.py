@@ -64,7 +64,7 @@ def get_debug_level(config):
 
 class DebugFormatter(logging.Formatter):
     '''Log formatter that outputs any 'data' values passed in the 'extra'
-    parameter if provided'''
+    parameter if provided.'''
     def format(self, record):
         # Print out any 'extra' data provided in logs
         if hasattr(record, 'data'):
