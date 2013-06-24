@@ -2988,12 +2988,16 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     // Standard architecture
     lb: 0,
     master: 1,
-    web: 2,
-    backend: 3,
+    web: 1,
+    backend: 2,
 
-    // Mongo and Cassandra
+    // Cassandra
     seed: 0,
-    node: 1
+    node: 1,
+
+    // Mongo
+    primary: 0,
+    data: 1
   };
 
   $scope.build_tree = function() {
