@@ -3008,6 +3008,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       // Vertices
       var group = resources[i].service;
       var index = $scope.vertex_groups[group];
+      if (index === undefined) index = 1;
       if (!vertices[index]) vertices[index] = [];
       var vertex = { id: i, group: group };
       vertices[index].push(vertex);

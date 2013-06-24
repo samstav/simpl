@@ -207,6 +207,9 @@ directives.directive('cmTreeView', function() {
       case 'backend':
         icon = 'database-gray';
         break;
+      default:
+        icon = 'compute-gray';
+        break;
     }
     if (icon)
       icon = [base_dir, icon, '.svg'].join('');
