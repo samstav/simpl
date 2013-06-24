@@ -9,7 +9,7 @@ from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 import os
 from checkmate.providers.base import user_has_access
-from checkmate.common.caching import MemorizeMethod
+from checkmate.common import caching
 import sys
 from eventlet.greenpool import GreenPile
 from clouddns.domain import Domain
@@ -22,7 +22,7 @@ class Provider(ProviderBase):
     name = 'dns'
     vendor = 'rackspace'
 
-    @MemorizeMethod(timeout=3600, sensitive_args=[1], store=DNS_API_CACHE)
+    @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=DNS_API_CACHE)
     def _get_limits(self, url, token):
         api = self.connect(token=token, url=url)
         return api.get_limits()
@@ -43,7 +43,8 @@ class Provider(ProviderBase):
                 LOG.warn("Error checking record limits for %s", dom_name,
                          exc_info=True)
 
-    def _check_record_limits(self, context, dom_name, max_records, num_new_recs):
+    def _check_record_limits(self, context, dom_name, max_records,
+                             num_new_recs):
         if num_new_recs > 0:
             api = self.connect(context)
             if dom_name:

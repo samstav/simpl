@@ -7,7 +7,6 @@ This needs to be changed so the middleware is loaded by configuration.
 '''
 import base64
 import copy
-import httplib
 import json
 import logging
 import os
@@ -21,11 +20,12 @@ except ImportError:
 from urlparse import urlparse
 
 from bottle import get, request, response, abort  # pylint: disable=E0611
+from eventlet.green import httplib
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized
 
-from checkmate.common.caching import MemorizeMethod
+from checkmate.common import caching
 from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import CheckmateException
 from checkmate.utils import to_json, to_yaml, import_class
@@ -299,8 +299,8 @@ class TokenAuthMiddleware(object):
                                   apikey=apikey,
                                   password=password)
 
-    @MemorizeMethod(sensitive_kwargs=['token', 'apikey', 'password'],
-                    timeout=600, cache_exceptions=True)
+    @caching.CacheMethod(sensitive_kwargs=['token', 'apikey', 'password'],
+                         timeout=600, cache_exceptions=True)
     def auth_keystone(self, tenant, auth_url, auth_header, token=None,
                       username=None, apikey=None, password=None):
         '''Authenticates to keystone'''
@@ -356,7 +356,7 @@ class TokenAuthMiddleware(object):
             LOG.debug(msg)
             raise HTTPUnauthorized(msg)
 
-    @MemorizeMethod(sensitive_args=[0], timeout=600)
+    @caching.CacheMethod(sensitive_args=[0], timeout=600)
     def _validate_keystone(self, token, tenant_id=None):
         '''Validates a Keystone Auth Token using a service token'''
         url = urlparse(self.endpoint['uri'])
@@ -616,9 +616,9 @@ class RequestContext(object):
         '''
         keyword_args = copy.copy(self.kwargs)
         if kwargs:
-            keyword_args.update(kwargs)
+            keyword_args.update(self.__dict__)
         result = dict(**keyword_args)
-        result.update(self.__dict__)
+        result.update(kwargs)
         return result
 
     def allowed_to_access_tenant(self, tenant_id=None):

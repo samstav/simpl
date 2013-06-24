@@ -11,7 +11,7 @@ from clouddb.errors import ResponseError
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.common.caching import Memorize
+from checkmate.common import caching
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -26,7 +26,11 @@ from checkmate.exceptions import (
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
-from checkmate.utils import match_celery_logging, generate_password
+from checkmate.utils import (
+    match_celery_logging,
+    generate_password,
+    get_class_name,
+)
 from checkmate.workflow import wait_for
 
 LOG = logging.getLogger(__name__)
@@ -519,7 +523,7 @@ class Provider(ProviderBase):
         return api
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
     '''Ask DBaaS for Flavors (RAM, CPU, HDD) options'''
     # the region must be supplied but is not used
@@ -682,7 +686,8 @@ def wait_on_build(context, instance_id, region, api=None):
                                                context['resource']
                                            ),
                                            instance_key).apply_async()
-        raise CheckmateRetriableException(msg, "")
+        raise CheckmateRetriableException(msg, "", get_class_name(
+            CheckmateDatabaseBuildFailed()), action_required=True)
     elif instance.status == "ACTIVE":
         results['status'] = "ACTIVE"
         results['id'] = instance_id
@@ -806,7 +811,7 @@ def create_database(context, name, region, character_set=None, collate=None,
         return results
     except clouddb.errors.ResponseError as exc:
         LOG.exception(exc)
-        if srt(exc) == '400: Bad Request':
+        if str(exc) == '400: Bad Request':
             current.retry(exc=exc, throw=True)  # Do not retry. Will fail.
         # Expected while instance is being created. So retry
         return current.retry(exc=exc)
@@ -1212,3 +1217,9 @@ def delete_user(context, instance_id, username, region, api=None):
     instance.delete_user(username)
     LOG.info('Deleted user %s from database instance %d', username,
              instance_id)
+
+
+#Database provider specific exceptions
+class CheckmateDatabaseBuildFailed(CheckmateException):
+    """Error building database"""
+    pass

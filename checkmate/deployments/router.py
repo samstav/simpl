@@ -494,14 +494,9 @@ class Router(object):
                 resp.update({
                     key: {
                         'service': val.get('service', 'UNKNOWN'),
-                        'status': (val.get('status') or
-                                   val.get('instance', {}).get('status')),
-                        'message': (val.get('error-message') or
-                                    val.get('instance', {}).get(
-                                        'error-message') or
-                                    val.get('status-message') or
-                                    val.get('instance', {}).get(
-                                        'status-message')),
+                        'status': val.get('status'),
+                        'status-message': val.get('status-message'),
+                        'error-message': val.get('error-message'),
                         'type': val.get('type', 'UNKNOWN'),
                         'component': val.get('component', 'UNKNOWN'),
                         'provider': val.get('provider', 'core')

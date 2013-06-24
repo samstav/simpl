@@ -137,8 +137,8 @@ server:
     gem install chef --version 11.4.0 --no-rdoc --no-ri
     gem install knife-solo --version 0.2.0 --no-rdoc --no-ri
     gem install knife-solo_data_bag --version 0.3.2 --no-rdoc --no-ri
-    gem install librarian --version 0.0.24 --no-rdoc --no-ri
-    gem install berkshelf --version 1.2.1 --no-rdoc --no-ri
+    gem install librarian --version 0.0.26 --no-rdoc --no-ri
+    gem install berkshelf --version 2.0.4 --no-rdoc --no-ri
 
     # If this is a production system, install the same gems in global, because root from cron needs them
     rvm gemset use global

@@ -1058,15 +1058,7 @@ class Deployment(ExtensibleDict):
                 instance = primary.get('instance') or {}
                 interfaces = instance.get('interfaces')
                 if interfaces:
-                    output = interfaces.get(component['interface'])
-                else:
-                    output = {}
-            else:
-                output = {}
-            if component and 'interface' in component:
-                write_path(services[key],
-                           'interfaces/%s' % component['interface'],
-                           output)
+                    write_path(services[key], 'interfaces', interfaces)
         return services
 
     def create_resource_template(self, index, definition, service_name,

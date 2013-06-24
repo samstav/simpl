@@ -423,17 +423,20 @@ Options:
     -q, --quiet           turn down logging to WARN (default is INFO)
     --newrelic            enable newrelic monitoring (place newrelic.ini in your
                           directory
+	  --statsd server:port  enable statsd logging to specified ip:port
     -t, --trace-calls     display call hierarchy and errors to stdout
     -u, --with-ui         enable support for browsers and HTML templates
     -s, --with-simulator  enable support for the deployment simulator
     -a, --with-admin      enable /admin calls (authorized to admin users only)
     -e, --eventlet        use the eventlet server (recommended in production)
+    --backdoor-port       port to use for eventlet backdoor to listen on
+    --access-log FILE     file to log HTTP calls to (only works with --eventlet)
     --eager               all celery (queue) tasks will be executed in-process.
                           Use this for debugging only. There is no need to start
                           a queue instance when running eager.
     --worker              start the celery worker in-process as well
     --webhook             Enable blueprints GitHub webhook responder
-    -g GITHUB_API, --github-api GITHUB_API
+    -g, --github-api GITHUB_API
                           Root github API uri for the repository containing
                           blueprints. ex: https://api.github.com/v3
     -o ORGANIZATION, --organization ORGANIZATION
@@ -506,6 +509,10 @@ Note: to connect to mongodb, also install the pymongo client library:
     $ pip install pymongo  # you probably need to sudo this
 
 **CHECKMATE_SIMULATOR_CONNECTION_STRING**: a sql-alchemy or mongodb connection string pointing to the database store for checkmate simulations.
+
+**CHECKMATE_CACHE_CONNECTION_STRING**: connection string for a shared cache. Currently only support Redis using URI syntax:
+
+    redis://:secret@redis.example.com:6379/0
 
 **CHECKMATE_DOMAIN**: a default DNS domain to use for resources created.
 

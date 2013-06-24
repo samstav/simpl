@@ -254,9 +254,72 @@ def resume_workflow(id, tenant_id=None, driver=DB):
         workflow = driver.get_workflow(id)
     return write_body(workflow, request, response)
 
-#
-# Workflow Specs
-#
+
+@route('/workflows/<id>/+retry-failed-tasks', method=['GET', 'POST'])
+@with_tenant
+def retry_all_failed_tasks(id, tenant_id=None, driver=DB):
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+
+    workflow = driver.get_workflow(id)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    serializer = DictionarySerializer()
+    wf = SpiffWorkflow.deserialize(serializer, workflow)
+
+    dep_id = workflow["attributes"]["deploymentId"] or id
+    deployment = driver.get_deployment(dep_id)
+    operation = deployment.get("operation")
+
+    if operation.get("errors"):
+        retriable_errors = filter(lambda x: x.get("retriable", False),
+                                  operation.get("errors"))
+        for error in retriable_errors:
+            task_id = error["task-id"]
+            task = wf.get_task(task_id)
+            LOG.debug("Resetting task %s for workflow %s", task_id, id)
+            wf_import.reset_task_tree(task)
+
+        wf_import.update_workflow_status(wf)
+        entity = wf.serialize(serializer)
+        body, secrets = extract_sensitive_data(entity)
+        body['tenantId'] = workflow.get('tenantId', tenant_id)
+        body['id'] = id
+        workflow = safe_workflow_save(id, body, secrets=secrets,
+                                      tenant_id=tenant_id, driver=driver)
+    return write_body(workflow, request, response)
+
+
+@route('/workflows/<id>/+resume-failed-tasks', method=['GET', 'POST'])
+@with_tenant
+def resume_all_failed_tasks(id, tenant_id=None, driver=DB):
+    if is_simulation(id):
+        driver = SIMULATOR_DB
+
+    workflow = driver.get_workflow(id)
+    if not workflow:
+        abort(404, 'No workflow with id %s' % id)
+
+    dep_id = workflow["attributes"]["deploymentId"] or id
+    deployment = driver.get_deployment(dep_id)
+    operation = deployment.get("operation")
+
+    if operation.get("errors"):
+        retriable_errors = filter(lambda x: x.get("resumable", False),
+                                  operation.get("errors"))
+        for error in retriable_errors:
+            task_id = error["task-id"]
+            LOG.debug("Resuming task %s for workflow %s", task_id, id)
+            orchestrator.run_one_task.delay(request.context, id,
+                                            task_id, timeout=10,
+                                            driver=driver)
+
+        workflow = driver.get_workflow(id)
+
+    return write_body(workflow, request, response)
+
+
 @post('/workflows/<workflow_id>/specs/<spec_id>')
 @with_tenant
 def post_workflow_spec(workflow_id, spec_id, tenant_id=None, driver=DB):

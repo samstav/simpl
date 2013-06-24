@@ -1,12 +1,9 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import json
-import socket
 import unittest2 as unittest
 
-from bottle import default_app
+from eventlet.green import socket
 import mox
-from mox import IgnoreArg
-from webtest import TestApp
 
 from checkmate.blueprints import github
 from checkmate.common.config import Config

@@ -15,14 +15,14 @@ import string
 import struct
 from subprocess import CalledProcessError, Popen, PIPE, check_output
 import sys
-import threading
 from time import gmtime, strftime
 import uuid
 import shutil
 
 from bottle import abort, request, response
-from functools import wraps
 from Crypto.Random import random
+from eventlet.green import threading
+from functools import wraps
 import yaml
 from yaml.events import AliasEvent, ScalarEvent
 from yaml.composer import ComposerError
@@ -64,7 +64,7 @@ def get_debug_level(config):
 
 class DebugFormatter(logging.Formatter):
     '''Log formatter that outputs any 'data' values passed in the 'extra'
-    parameter if provided'''
+    parameter if provided.'''
     def format(self, record):
         # Print out any 'extra' data provided in logs
         if hasattr(record, 'data'):
@@ -89,9 +89,9 @@ def get_debug_formatter(config):
     elif config.verbose is True:
         return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
     elif config.quiet is True:
-        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
+        return logging.Formatter('%(message)s')
     else:
-        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
+        return logging.Formatter('%(message)s')
 
 
 def find_console_handler(logger):
@@ -256,6 +256,7 @@ def escape_yaml_simple_string(text):
     else:
         return text
 
+
 def write_json(data, request, response):
     '''Write output in json'''
     response.set_header('content-type', 'application/json')
@@ -348,7 +349,7 @@ def _write_pagination_headers(data, offset, limit, response,
             nextfmt = \
                 '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
             response.add_header(
-                "Link", nextfmt % (tenant_id, uripath, limit, offset+limit)
+                "Link", nextfmt % (tenant_id, uripath, limit, offset + limit)
             )
 
         # Add Previous page link to http header
@@ -356,7 +357,7 @@ def _write_pagination_headers(data, offset, limit, response,
             prevfmt = '</%s/%s?limit=%d&offset=%d>; rel="previous"; \
             title="Previous page"'
             response.add_header(
-                "Link", prevfmt % (tenant_id, uripath, limit, offset-limit)
+                "Link", prevfmt % (tenant_id, uripath, limit, offset - limit)
             )
 
         # Add first page link to http header
@@ -588,6 +589,10 @@ def is_ssh_key(key):
     if data[int_len:int_len + str_len] == 'ssh-rsa':
         return True
     return False
+
+
+def get_class_name(instance):
+    return instance.__class__.__name__
 
 
 def get_source_body(function):

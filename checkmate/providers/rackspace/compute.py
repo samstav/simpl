@@ -17,7 +17,7 @@ client = eventlet.import_patched('novaclient.v1_1.client')
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.common.caching import Memorize
+from checkmate.common import caching
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -28,6 +28,7 @@ from checkmate.exceptions import (
     CheckmateNoMapping,
     CheckmateException,
     CheckmateRetriableException,
+    CheckmateServerBuildFailed,
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
@@ -37,6 +38,7 @@ from checkmate.utils import (
     match_celery_logging,
     isUUID,
     yaml_to_dict,
+    get_class_name,
 )
 from checkmate.workflow import wait_for
 
@@ -441,7 +443,8 @@ class Provider(RackspaceComputeProviderBase):
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
         inst_id = resource.get("instance", {}).get("id")
-        region = resource.get("region")
+        region = (resource.get("region") or
+                  resource.get("instance", {}).get("region"))
         if isinstance(context, RequestContext):
             context = context.get_queued_task_dict(deployment_id=deployment_id,
                                                    resource_key=key,
@@ -613,7 +616,7 @@ class Provider(RackspaceComputeProviderBase):
         return api
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
 def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
@@ -638,7 +641,7 @@ def _get_images_and_types(api_endpoint, auth_token):
     return ret
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
     '''Ask Nova for Flavors (RAM, CPU, HDD) options'''
     api = client.Client('ignore', 'ignore', None, 'localhost')
@@ -659,7 +662,7 @@ def _get_flavors(api_endpoint, auth_token):
     }
 
 
-@Memorize(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
+@caching.Cache(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
 def _get_limits(api_endpoint, auth_token):
     api = client.Client('ignore', 'ignore', None, 'localhost')
     api.client.auth_token = auth_token
@@ -681,8 +684,8 @@ REGION_MAP = {'dallas': 'DFW',
 
 def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
     """ Handle task failure """
-    dep_id = args[0].get('deployment_id')
-    key = args[0].get('resource_key')
+    dep_id = args[0].get('deployment')
+    key = args[0].get('resource')
     if dep_id and key:
         k = "instance:%s" % key
         ret = {
@@ -785,12 +788,14 @@ def create_server(context, name, region, api_object=None, flavor="2",
     try:
         server = api_object.servers.create(name, image_object, flavor_object,
                                            meta=meta, files=files)
-    except OverLimit:
+    except OverLimit as exc:
         raise CheckmateRetriableException("You have reached the maximum "
                                           "number of servers that can be "
                                           "spinned up using this account. "
                                           "Please delete some servers to "
-                                          "continue", "")
+                                          "continue", "",
+                                          get_class_name(exc),
+                                          action_required=True)
 
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
@@ -1047,9 +1052,12 @@ def wait_on_build(context, server_id, region, resource,
                                            get_resource_by_id(
                                                context['deployment'],
                                                context['resource']),
-                                           instance_key).apply_async()
+                                           context['resource']).apply_async()
         raise CheckmateRetriableException("Server %s build failed" % server_id,
-                                          "")
+                                          "",
+                                          get_class_name(
+                                              CheckmateServerBuildFailed()),
+                                          action_required=True)
 
     if server.status == 'BUILD':
         results['progress'] = server.progress
@@ -1141,6 +1149,8 @@ def wait_on_build(context, server_id, region, resource,
         isup = False
         image_details = api_object.images.find(id=server.image['id'])
         if image_details.metadata['os_type'] == 'linux':
+            msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
+                  "to connect." % (server_id, username, ip, port)
             isup = checkmate.ssh.test_connection(context, ip, username,
                                                  timeout=timeout,
                                                  password=password,
@@ -1148,13 +1158,13 @@ def wait_on_build(context, server_id, region, resource,
                                                  port=port,
                                                  private_key=private_key)
         else:
+            msg = "Server '%s' is ACTIVE but is not responding to ping " \
+                  " attempts" % server_id
             isup = checkmate.rdp.test_connection(context, ip,
                                                  timeout=timeout)
 
         if not isup:
             # try again in half a second but only wait for another 2 minutes
-            msg = ("Server "
-                   "'%s' is ACTIVE but cannot be contacted." % server_id)
             results['status-message'] = msg
             resource_postback.delay(context['deployment'],
                                     {instance_key: results})

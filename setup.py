@@ -63,7 +63,7 @@ setup(
     install_requires=requires,
     entry_points={
         'console_scripts': [
-            'checkmate-server=checkmate.server:main_func',
+            'checkmate-server=checkmate.server:main',
             'checkmate=checkmate.checkmate_client:main_func',
             'checkmate-queue=checkmate.checkmate_queue:main_func',
             'checkmate-database=checkmate.checkmate_database:main_func',

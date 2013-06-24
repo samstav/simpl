@@ -129,8 +129,8 @@ class TestNovaCompute(test.ProviderTester):
         exc.__str__().AndReturn('some message')
         task_id = "1234"
         args = [{
-                'deployment_id': '4321',
-                'resource_key': '0'
+                'deployment': '4321',
+                'resource': '0'
                 }]
         kwargs = {}
         einfo = self.mox.CreateMockAnything()

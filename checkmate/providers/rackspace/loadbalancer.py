@@ -12,7 +12,7 @@ from SpiffWorkflow.specs import Celery
 
 import cloudlb
 
-from checkmate.common.caching import Memorize, MemorizeMethod
+from checkmate.common import caching
 from checkmate.deployments import (
     resource_postback,
     alt_resource_postback,
@@ -27,7 +27,7 @@ from checkmate.exceptions import (
 from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
-from checkmate.utils import match_celery_logging
+from checkmate.utils import match_celery_logging, get_class_name
 from checkmate.workflow import wait_for
 
 
@@ -177,7 +177,7 @@ class Provider(ProviderBase):
                                          default="false"))
         return dns.lower() in ['true', '1', 'yes']
 
-    @MemorizeMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
+    @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
     def _get_abs_limits(self, username, auth_token, api_endpoint, region):
         api = cloudlb.CloudLoadBalancer(username, 'ignore', region)
         api.client.auth_token = auth_token
@@ -652,7 +652,7 @@ class Provider(ProviderBase):
         return api
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
 def _get_algorithms(api_endpoint, auth_token):
     '''Ask CLB for Algorithms'''
     # the region must be supplied but is not used
@@ -663,7 +663,7 @@ def _get_algorithms(api_endpoint, auth_token):
              api.client.region_account_url)
 
 
-@Memorize(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
 def _get_protocols(api_endpoint, auth_token):
     '''Ask CLB for Protocols'''
     # the region must be supplied but is not used
@@ -776,8 +776,9 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             loadbalancer = api.loadbalancers.create(
                 name=name, port=port, protocol=protocol.upper(),
                 nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
-    except RateLimit as rate_limit_exc:
-        raise CheckmateRetriableException(rate_limit_exc.reason, "")
+    except RateLimit as exc:
+        raise CheckmateRetriableException(exc.reason, "", get_class_name(exc),
+                                          action_required=False)
 
     # Put the instance_id in the db as soon as it's available
     instance_id = {
@@ -894,7 +895,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
             "instance:%s" % args[1]: {
                 'status': 'ERROR',
                 'status-message': ('Unexpected error deleting loadbalancer'
-                    ' %s' % key),
+                                   ' %s' % key),
                 'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
@@ -947,7 +948,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
             "instance:%s" % args[1]: {
                 'status': 'ERROR',
                 'status-message': ('Unexpected error waiting on loadbalancer'
-                    ' %s delete' % key),
+                                   ' %s delete' % key),
                 'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
             }
         }
@@ -1216,7 +1217,8 @@ def wait_on_build(context, lbid, region, api=None):
                                                context['deployment'],
                                                context['resource']),
                                            instance_key).apply_async()
-        raise CheckmateRetriableException(msg, "")
+        raise CheckmateRetriableException(msg, "", get_class_name(
+            CheckmateLoadbalancerBuildFailed()), action_required=True)
     elif loadbalancer.status == "ACTIVE":
         results = {
             instance_key: {
@@ -1228,5 +1230,10 @@ def wait_on_build(context, lbid, region, api=None):
         resource_postback.delay(context['deployment'], results)
         return results
     else:
-        msg = ("Loadbalancer status is %s, retrying" % (loadbalancer.status))
+        msg = ("Loadbalancer status is %s, retrying" % loadbalancer.status)
         return wait_on_build.retry(exc=CheckmateException(msg))
+
+
+class CheckmateLoadbalancerBuildFailed(CheckmateException):
+    """Error building loadbalancer"""
+    pass

@@ -1486,7 +1486,7 @@ class TestGetResourceStuff(unittest.TestCase):
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
         self.assertEquals('A certain error happened',
-                          ret.get('2', {}).get('message'))
+                          ret.get('2', {}).get('error-message'))
         self.assertNotIn('error-traceback', ret.get('3', {'error-traceback': 'FAIL'}))
 
     def test_no_resources(self):
@@ -1562,7 +1562,7 @@ class TestGetResourceStuff(unittest.TestCase):
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
         self.assertEquals('A certain error happened',
-                          ret.get('2', {}).get('message'))
+                          ret.get('2', {}).get('error-message'))
         self.assertIn('error-traceback', ret.get('3', {}))
 
 
