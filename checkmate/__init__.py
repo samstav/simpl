@@ -38,9 +38,9 @@ def _get_version():
 
 def _get_release():
     '''Load release information from checkmate.cfg.'''
-    import pkg_resources
     val = "unknown"
     try:
+        import pkg_resources
         dist = pkg_resources.get_distribution("checkmate")
         # pylint: disable=E1103
         match = re.search(r'((\d+\.)+)(\D.+)', dist.version)
