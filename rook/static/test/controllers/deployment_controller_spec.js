@@ -8,7 +8,7 @@ describe('DeploymentController', function(){
       controller;
 
   beforeEach(function(){
-    $scope = {};
+    $scope = { $watch: sinon.spy() };
     location = { path: emptyFunction, absUrl: emptyFunction };
     resource = sinon.stub().returns({ get: emptyFunction });
     routeParams = undefined;
