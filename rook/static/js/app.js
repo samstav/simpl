@@ -3003,16 +3003,17 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     var resources = $scope.data.resources;
 
     for (var i in resources) {
-      if (!resources[i].relations) continue;
       var resource = resources[i];
+      if (!resource.relations) continue;
 
       // Vertices
       var v1 = i;
-      var group = resources[i].service;
+      var group = resource.service;
+      var name = resource['dns-name'].split('.').shift();
       var index = $scope.vertex_groups[group];
       if (index === undefined) index = 1;
       if (!vertices[index]) vertices[index] = [];
-      var vertex = { id: i, group: group };
+      var vertex = { id: i, group: group, name: name, status: resource.status };
       vertices[index].push(vertex);
 
       // Edges

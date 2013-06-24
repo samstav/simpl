@@ -191,6 +191,34 @@ directives.directive('cmTreeView', function() {
     return data;
   }
 
+  var get_color = function(status) {
+    var color;
+    switch(status) {
+      case "UP":
+      case "ACTIVE":
+      case "LAUNCHED":
+        color = 'green';
+        break;
+      case "ALERT":
+      case "BUILD":
+      case "DELETING":
+        color = 'orange';
+        break;
+      case "DOWN":
+      case "FAILED":
+      case "UNREACHABLE":
+        color = 'red';
+        break;
+      case "PLANNED":
+        color = 'gray';
+        break;
+      default:
+        color = 'black';
+        break;
+    }
+    return color;
+  }
+
   var get_icon = function(vertex) {
     var icon = null;
     var base_dir = '/img/icons/';
@@ -199,20 +227,21 @@ directives.directive('cmTreeView', function() {
       case 'seed':
       case 'node':
       case 'master':
-        icon = 'compute-gray';
+        icon = 'compute';
         break;
       case 'lb':
-        icon = 'load-balancer-gray';
+        icon = 'load-balancer';
         break;
       case 'backend':
-        icon = 'database-gray';
+        icon = 'database';
         break;
       default:
-        icon = 'compute-gray';
+        icon = 'compute';
         break;
     }
+    color = get_color(vertex.status);
     if (icon)
-      icon = [base_dir, icon, '.svg'].join('');
+      icon = [base_dir, icon, '-', color, '.svg'].join('');
 
     return icon;
   }
@@ -224,21 +253,28 @@ directives.directive('cmTreeView', function() {
       .data(_.values(vertex_data), function(d) { return d.id; });
 
     // Update
-    vertices.select('circle')
-      .attr('class', 'vertex')
-      .attr('r', '6');
+    vertices.select('image')
+      .attr('xlink:href', get_icon);
     // Enter
-    vertices.enter()
+    var vertex = vertices.enter()
+      .append('svg:g')
+      .attr('class', 'vertex')
+      .attr('transform', function(d) {
+        return ['translate(', d.x, ',', d.y, ')'].join('');
+      });
+    vertex
+      .append('svg:text')
+      .attr('text-anchor', 'middle')
+      .attr('y', '-18')
+      .text(function(d) { return d.name; });
+    vertex
       .append('svg:image')
       .attr('xlink:href', get_icon)
       .attr('class', function(d) { return d.group })
       .attr('x', '-16px')
       .attr('y', '-16px')
       .attr('width', '32px')
-      .attr('height', '32px')
-      .attr('transform', function(d) {
-        return ['translate(', d.x, ',', d.y, ')'].join('');
-      });
+      .attr('height', '32px');
 
     // Exit
     vertices.exit().remove();
