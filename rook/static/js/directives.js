@@ -155,7 +155,6 @@ directives.directive('validateOption', function () {
 
 directives.directive('cmTreeView', function() {
   var create_svg = function(scope, element, attrs) {
-    console.log("Creating SVG element...");
     scope.width = attrs.width || 256;
     scope.height = attrs.height || 256;
 
@@ -213,8 +212,6 @@ directives.directive('cmTreeView', function() {
   }
 
   var update_svg = function(new_data, old_data, scope) {
-    console.log("Updating SVG element...");
-
     if (!new_data) new_data = {};
     var vertex_data = get_vertex_data(new_data.vertex_groups, scope);
     var vertices = scope.svg.select('g.vertices').selectAll('.vertex')
