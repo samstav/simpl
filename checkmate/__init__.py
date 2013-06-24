@@ -41,11 +41,14 @@ def _get_release():
     val = "unknown"
     try:
         import pkg_resources
-        dist = pkg_resources.get_distribution("checkmate")
-        # pylint: disable=E1103
-        match = re.search(r'((\d+\.)+)(\D.+)', dist.version)
-        if match:
-            val = match.group(match.lastindex)
+        try:
+            dist = pkg_resources.get_distribution("checkmate")
+            # pylint: disable=E1103
+            match = re.search(r'((\d+\.)+)(\D.+)', dist.version)
+            if match:
+                val = match.group(match.lastindex)
+        except pkg_resources.DistributionNotFound:
+            pass
     except StandardError:
         pass
     return val
