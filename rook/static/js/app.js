@@ -2985,10 +2985,15 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
 
   $scope.tree_data = null;
   $scope.vertex_groups = {
+    // Standard architecture
     lb: 0,
     master: 1,
-    web: 1,
-    backend: 2
+    web: 2,
+    backend: 3,
+
+    // Mongo and Cassandra
+    seed: 0,
+    node: 1
   };
 
   $scope.build_tree = function() {

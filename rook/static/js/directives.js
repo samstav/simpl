@@ -196,6 +196,8 @@ directives.directive('cmTreeView', function() {
     var base_dir = '/img/icons/';
     switch(vertex.group) {
       case 'web':
+      case 'seed':
+      case 'node':
       case 'master':
         icon = 'compute-gray';
         break;
