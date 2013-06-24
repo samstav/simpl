@@ -56,19 +56,23 @@ BASE = declarative_base()
 
 
 def filter_custom_comparison(query_obj, field, value):
-    '''Return a SQL filter by looking for comparisons in `value`.'''
+    '''Return a sqlalchemy filter based on `value`
+
+    The following are accepted forms of filtering:
+        VALUE, !VALUE, >=VALUE, >VALUE, <=VALUE, <VALUE
+    '''
     if value.startswith('!'):
-        return query_obj.filter(field != value[1:])
+        return query_obj.filter("%s != '%s'" % (field, value[1:]))
     elif field.startswith('>='):
-        return query_obj.filter(field >= value[2:])
+        return query_obj.filter("%s >= '%s'" % (field, value[2:]))
     elif field.startswith('>'):
-        return query_obj.filter(field > value[1:])
+        return query_obj.filter("%s > '%s'" % (field, value[1:]))
     elif field.startswith('<='):
-        return query_obj.filter(field <= value[2:])
+        return query_obj.filter("%s <= '%s'" % (field, value[2:]))
     elif field.startswith('<'):
-        return query_obj.filter(field > value[1:])
+        return query_obj.filter("%s < '%s'" % (field, value[1:]))
     else:
-        return query_obj.filter(field == value[1:])
+        return query_obj.filter("%s == '%s'" % (field, value))
 
 
 class TextPickleType(PickleType):
@@ -473,7 +477,8 @@ class Driver(DbBase):
         if klass is Deployment and (not with_deleted or status):
             if not status:
                 status = "!DELETED"
-            query = filter_custom_comparison(query, Deployment.status, status)
+            query = filter_custom_comparison(query, 'deployments_status',
+                                             status)
         return query
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None):

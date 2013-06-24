@@ -6,6 +6,8 @@ import sys
 
 import base  # pylint: disable=W0403
 import unittest
+import checkmate.db.sql
+from checkmate.db.sql import Deployment
 from checkmate.db.sql import Tenant
 
 
@@ -23,6 +25,20 @@ class TestDBSQL(base.DBDriverTests, unittest.TestCase):
         (self.driver.session.query(Tenant).filter(Tenant.tenant_id == '11111')
          .delete())
         self.driver.session.commit()
+
+    def test_not_depleted_deployment_count_filter(self):
+        query = self.driver.session.query(Deployment)
+        query = checkmate.db.sql.filter_custom_comparison(query,
+                                                          'deployments_status',
+                                                          '!DELETED')
+        self.assertIn("deployments_status != 'DELETED'", str(query))
+
+    def test_active_deployment_count_filter(self):
+        query = self.driver.session.query(Deployment)
+        query = checkmate.db.sql.filter_custom_comparison(query,
+                                                          'deployments_status',
+                                                          'ACTIVE')
+        self.assertIn("deployments_status == 'ACTIVE'", str(query))
 
 
 if __name__ == '__main__':

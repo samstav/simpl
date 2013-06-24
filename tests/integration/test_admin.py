@@ -35,7 +35,7 @@ class TestAdminDeploymentCounts(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_get_count_all(self):
-        self.manager.count(tenant_id=None).AndReturn(3)
+        self.manager.count(tenant_id=None, status=None).AndReturn(3)
         self._mox.ReplayAll()
         res = self.app.get('/admin/deployments/count')
         self.assertEqual(res.status, '200 OK')
