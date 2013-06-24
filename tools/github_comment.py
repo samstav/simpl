@@ -52,25 +52,26 @@ def get_github_credentials(filepath):
         }
 
 
-def post_pull_request_comment(status, branch, github_creds, url):
+def post_pull_request_comment(success, branch, github_creds, url):
     """
     Posts a comment on the pull request specified by the branch, indicating if
     testing passed or failed.
 
-    :param status: True if PASSED False if FAILED
+    :param success: True if PASSED False if FAILED
     :param branch: the pull request to comment on
     """
-    status_string = "PASSED" if status else "FAILED"
+    status_string = "PASS" if success else "FAIL"
+    icon = ":+1:" if success else ":-1:"
 
     return bash(
         (
             'curl -H "Authorization: token %s" -X POST '
-            '-d \'{ "body": "Pull request:%s %s testing! %s" }\' '
+            '-d \'{ "body": "%s %s: Tests and basic simulations [%sed](%s)." }\' '
             'https://github.rackspace.com/api/v3/repos/checkmate/checkmate/issues/%s/'
             'comments'
         ) % (
-            github_creds['oauth_token'],
-            branch, status_string, url, branch
+            github_creds['oauth_token'], icon, status_string,
+            status_string.lower(), url, branch
         ),
         verbose=False
     )
