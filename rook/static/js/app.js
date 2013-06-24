@@ -2998,6 +2998,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
 
   $scope.build_tree = function() {
     var edges = [];
+    var edge_set = {};
     var vertices = [];
     var resources = $scope.data.resources;
 
@@ -3006,6 +3007,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       var resource = resources[i];
 
       // Vertices
+      var v1 = i;
       var group = resources[i].service;
       var index = $scope.vertex_groups[group];
       if (index === undefined) index = 1;
@@ -3019,8 +3021,12 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         if (relation.relation != 'reference') continue;
 
         var v2 = relation.source || relation.target;
-        var edge = { v1: i, v2: v2 };
-        edges.push(edge);
+        var edge = { v1: v1, v2: v2 };
+        var edge_id = [v1, v2].sort().join('-');
+        if (edge_set[edge_id] === undefined) {
+          edge_set[edge_id] = true;
+          edges.push(edge);
+        }
       }
     }
 
