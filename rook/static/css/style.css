@@ -499,6 +499,7 @@ text.nodetext {
 #deployment_tree {
   width: 256px;
   height: 256px;
+  float: right;
 }
 
 #deployment_tree .edge {
