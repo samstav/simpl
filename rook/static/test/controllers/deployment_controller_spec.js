@@ -179,4 +179,88 @@ describe('DeploymentController', function(){
       expect($scope.is_retriable()).toBeFalsy();
     });
   });
+
+  describe('#build_tree', function() {
+    it('should set tree_data information', function() {
+      $scope.build_tree();
+      expect($scope.tree_data).toEqual({vertex_groups: [], edges: []});
+    });
+
+    it('should handle empty data', function() {
+      expect($scope.build_tree()).toEqual({vertex_groups: [], edges: []});
+    });
+
+    describe('when resource is present', function() {
+      var tree;
+      beforeEach(function() {
+        $scope.data.resources = {
+          v1: {
+            'service': 'fakegroup',
+            'dns-name': 'fakename.example.com',
+            'status': 'fakestatus',
+            'relations': {}
+          },
+          v2: {
+            'service': 'fakegroup2',
+            'dns-name': undefined,
+            'status': 'fakestatus2',
+            'relations': {}
+          },
+          v3: {}
+        };
+        tree = $scope.build_tree();
+      });
+
+      it('should skip resource with no relations', function() {
+        expect(tree.vertex_groups[0].length).toBe(2);
+      });
+
+      it('should default group number to 0', function() {
+        expect(tree.vertex_groups[0]).not.toBe(undefined);
+      });
+
+      it('should set edge ID', function() {
+        expect(tree.vertex_groups[0][0].id).toEqual('v1');
+      });
+
+      it('should set edge group', function() {
+        expect(tree.vertex_groups[0][0].group).toEqual('fakegroup');
+      });
+
+      it('should set edge name', function() {
+        expect(tree.vertex_groups[0][0].name).toEqual('fakename');
+      });
+
+      it('should set edge status', function() {
+        expect(tree.vertex_groups[0][0].status).toEqual('fakestatus');
+      });
+
+      it('should build tree with no edges if no relation is present', function() {
+        expect(tree.edges).toEqual([]);
+      });
+
+      describe('and resource contains relations', function() {
+        beforeEach(function() {
+          $scope.data.resources.v1.relations = {
+            r1: { relation: 'reference', target: 'v2' }
+          };
+          $scope.data.resources.v2.relations = {
+            r1: { relation: 'reference', target: 'v1' }
+          };
+        });
+
+        it('should skip relations that are not reference', function() {
+          $scope.data.resources.v1.relations.r1.relation = 'fakerelation';
+          $scope.data.resources.v2.relations.r1.relation = 'fakerelation';
+          var tree = $scope.build_tree();
+          expect(tree.edges).toEqual([]);
+        });
+
+        it('should create undirected edges', function() {
+          var tree = $scope.build_tree();
+          expect(tree.edges.length).toBe(1);
+        });
+      });
+    });
+  });
 });

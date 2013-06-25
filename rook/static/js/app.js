@@ -3025,9 +3025,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       // Vertices
       var v1 = i;
       var group = resource.service;
-      var name = resource['dns-name'].split('.').shift();
-      var index = $scope.vertex_groups[group];
-      if (index === undefined) index = 1;
+      var dns_name = resource['dns-name'] || '';
+      var name = dns_name.split('.').shift();
+      var index = $scope.vertex_groups[group] || 0;
       if (!vertices[index]) vertices[index] = [];
       var vertex = { id: i, group: group, name: name, status: resource.status };
       vertices[index].push(vertex);
