@@ -1298,15 +1298,6 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 }]);
 
 services.factory('pagination', function(){
-  function buildPagingParams(){
-    var paging_params = [];
-
-    paging_params.push('limit=' + this.limit);
-    paging_params.push('offset=' + this.offset);
-
-    return '?' + paging_params.join('&');
-  }
-
   function _buildPagingLinks(current_page, total_pages, base_url, offset, limit){
     var counter = 0,
         links = { middle_numbered_links: [], separator: '...',
@@ -1428,12 +1419,11 @@ services.factory('pagination', function(){
     var valid_params = _getValidPageParams(offset, limit);
     var changed_params = function() {
       return (offset && offset != valid_params.offset) || (limit && limit != valid_params.limit);
-    }
+    };
 
     return { changed_params: changed_params,
              offset: valid_params.offset,
              limit: valid_params.limit,
-             buildPagingParams: buildPagingParams,
              getPagingInformation: getPagingInformation };
   }
 

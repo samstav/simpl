@@ -956,9 +956,17 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
       $location.replace();
     }
 
-    path = '/:tenantId/workflows.json' + paginator.buildPagingParams();
+    path = $location.path() + '.json';
+
+    adjusted_params = {
+        tenantId: $scope.auth.context.tenantId,
+        offset: paginator.offset,
+        limit: paginator.limit
+    };
+
+    params = _.defaults(adjusted_params, query_params)
     this.klass = $resource((checkmate_server_base || '') + path);
-    this.klass.get({tenantId: $scope.auth.context.tenantId}, function(data, getResponseHeaders){
+    this.klass.get(params, function(data, getResponseHeaders){
       var paging_info,
           workflows_url = '/' + $scope.auth.context.tenantId + '/workflows';
 
@@ -2232,11 +2240,13 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
     path = $location.path() + '.json';
 
-    params = {
+    adjusted_params = {
         tenantId: $scope.auth.context.tenantId,
         offset: paginator.offset,
         limit: paginator.limit
     };
+
+    params = _.defaults(adjusted_params, query_params)
     this.klass = $resource((checkmate_server_base || '') + path);
     this.klass.get(params, function(data, getResponseHeaders){
       var paging_info,

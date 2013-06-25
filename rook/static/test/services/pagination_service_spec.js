@@ -4,7 +4,7 @@ describe('pagination', function(){
     this.pagination = pagination;
   }));
 
-  describe('buildPagingParams', function(){
+  describe('buildPaginator', function(){
     var offset,
         limit;
     beforeEach(function(){
@@ -15,74 +15,68 @@ describe('pagination', function(){
     it('should force offset to a number divisible by limit', function(){
       offset = 25;
       limit = 22;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=22&offset=22');
+      expect(this.pagination.buildPaginator(offset, limit).offset).toEqual(22);
     });
 
     it('should force offset to 0 if it is less than limit', function(){
       offset = 17;
       limit = 22;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=22&offset=0');
-    });
-
-    it('should construct paging parameters from the query params', function(){
-      offset = 25;
-      limit = 5;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=5&offset=25');
+      expect(this.pagination.buildPaginator(offset, limit).offset).toEqual(0);
     });
 
     it('should default limit 20 if no limit param found', function(){
       offset = undefined;
       limit = undefined;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=20&offset=0');
+      expect(this.pagination.buildPaginator(offset, limit).limit).toEqual(20);
     });
 
     it('should set offset to 0 if offset is null', function(){
       offset = null;
       limit = 20;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=20&offset=0');
+      expect(this.pagination.buildPaginator(offset, limit).offset).toEqual(0);
     });
 
     it('should default limit to 20 if limit cannot be parsed', function(){
       limit = 'ninja_turtles';
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=20&offset=0');
+      expect(this.pagination.buildPaginator(offset, limit).limit).toEqual(20);
     });
 
     it('should ignore offset if offset cannot be parsed', function(){
       offset = 'cowabunga';
       limit = 14;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=14&offset=0');
+      expect(this.pagination.buildPaginator(offset, limit).offset).toEqual(0);
     });
 
     it('should round down if a user passes in a fraction for offset (default parseInt behavior)', function(){
       offset = 20.3;
       limit = 10;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=10&offset=20');
+      expect(this.pagination.buildPaginator(offset, limit).offset).toEqual(20);
     });
 
     it('should round down if a user passes in a fraction for limit (default parseInt behavior)', function(){
       limit = 14.9;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=14&offset=0');
+      expect(this.pagination.buildPaginator(offset, limit).limit).toEqual(14);
     });
 
     it('should set offset to 0 if the offset is negative', function(){
       offset = -2;
       limit = 2;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=2&offset=0');
+      expect(this.pagination.buildPaginator(offset, limit).offset).toEqual(0);
     });
 
     it('should default the limit to 20 if given limit is negative', function(){
       limit = -13;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=20&offset=0');
+      expect(this.pagination.buildPaginator(offset, limit).limit).toEqual(20);
     });
 
     it('should default the limit to 20 if limit is 0', function(){
       limit = 0;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=20&offset=0');
+      expect(this.pagination.buildPaginator(offset, limit).limit).toEqual(20);
     });
 
     it('should default the limit to 20 if limit is null', function(){
       limit = null;
-      expect(this.pagination.buildPaginator(offset, limit).buildPagingParams()).toEqual('?limit=20&offset=0');
+      expect(this.pagination.buildPaginator(offset, limit).limit).toEqual(20);
     });
   });
 
