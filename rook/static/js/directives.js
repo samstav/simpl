@@ -153,6 +153,157 @@ directives.directive('validateOption', function () {
   };
 });
 
+directives.directive('cmTreeView', function() {
+  var create_svg = function(scope, element, attrs) {
+    scope.width = attrs.width || 256;
+    scope.height = attrs.height || 256;
+
+    if (!scope.svg) {
+      scope.svg = d3.select(element[0])
+        .append('svg:svg')
+        .attr('id', attrs.id)
+        .attr('viewBox', [0, 0, scope.width, scope.height].join(' '));
+
+      scope.svg.append('svg:g').attr('class', 'edges');
+      scope.svg.append('svg:g').attr('class', 'vertices');
+    }
+  }
+
+  var get_vertex_data = function(vertex_groups, scope) {
+    var data = {};
+    var groups = vertex_groups;
+    var num_groups = groups.length;
+    var group_height = scope.height / num_groups;
+    var group_center = group_height / 2;
+    for (var i=0 ; i<num_groups ; i++) {
+      var vertices = groups[i];
+      if (!vertices) continue;
+      var num_vertices = vertices.length;
+      var vertex_width = scope.width / num_vertices;
+      var vertex_center = vertex_width / 2;
+      for (var j=0 ; j<num_vertices ; j++) {
+        var vertex = vertices[j];
+        vertex.x = vertex_center + vertex_width * j;
+        vertex.y = group_center + group_height * i;
+        data[vertex.id] = vertex;
+      }
+    }
+    return data;
+  }
+
+  var get_color = function(status) {
+    var color;
+    switch(status) {
+      case "UP":
+      case "ACTIVE":
+      case "LAUNCHED":
+        color = 'green';
+        break;
+      case "ALERT":
+      case "BUILD":
+      case "DELETING":
+        color = 'orange';
+        break;
+      case "DOWN":
+      case "FAILED":
+      case "UNREACHABLE":
+        color = 'red';
+        break;
+      case "PLANNED":
+        color = 'gray';
+        break;
+      default:
+        color = 'black';
+        break;
+    }
+    return color;
+  }
+
+  var get_icon = function(vertex) {
+    var icon = null;
+    var base_dir = '/img/icons/';
+    switch(vertex.group) {
+      case 'web':
+      case 'seed':
+      case 'node':
+      case 'master':
+        icon = 'compute';
+        break;
+      case 'lb':
+        icon = 'load-balancer';
+        break;
+      case 'backend':
+        icon = 'database';
+        break;
+      default:
+        icon = 'compute';
+        break;
+    }
+    color = get_color(vertex.status);
+    if (icon)
+      icon = [base_dir, icon, '-', color, '.svg'].join('');
+
+    return icon;
+  }
+
+  var update_svg = function(new_data, old_data, scope) {
+    if (!new_data) new_data = {};
+    var vertex_data = get_vertex_data(new_data.vertex_groups, scope);
+    var vertices = scope.svg.select('g.vertices').selectAll('.vertex')
+      .data(_.values(vertex_data), function(d) { return d.id; });
+
+    // Update
+    vertices.select('image')
+      .attr('xlink:href', get_icon);
+    // Enter
+    var vertex = vertices.enter()
+      .append('svg:g')
+      .attr('class', 'vertex')
+      .attr('transform', function(d) {
+        return ['translate(', d.x, ',', d.y, ')'].join('');
+      });
+    vertex
+      .append('svg:text')
+      .attr('text-anchor', 'middle')
+      .attr('y', '-18')
+      .text(function(d) { return d.name; });
+    vertex
+      .append('svg:image')
+      .attr('xlink:href', get_icon)
+      .attr('class', function(d) { return d.group })
+      .attr('x', '-16px')
+      .attr('y', '-16px')
+      .attr('width', '32px')
+      .attr('height', '32px');
+
+    // Exit
+    vertices.exit().remove();
+
+    var edges = scope.svg.select('g.edges').selectAll('.edge')
+      .data(new_data.edges);
+
+    // Enter
+    edges.enter()
+      .append('svg:line')
+      .attr('class', 'edge')
+      .attr('x1', function(d) { return vertex_data[d.v1].x })
+      .attr('y1', function(d) { return vertex_data[d.v1].y })
+      .attr('x2', function(d) { return vertex_data[d.v2].x })
+      .attr('y2', function(d) { return vertex_data[d.v2].y });
+    // Exit
+  }
+
+  return {
+    restrict: 'E',
+    replace: true,
+    scope: { data: '=' },
+    link: function(scope, element, attrs) {
+      create_svg(scope, element, attrs);
+      scope.$watch('data', update_svg);
+    }
+  };
+});
+
 
 // Extend ui-bootstrap to use HTML popovers
 directives.directive( 'popoverHtmlUnsafePopup', function () {
