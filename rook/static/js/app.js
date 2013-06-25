@@ -2259,7 +2259,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       items.all = [];
       items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
-                blueprint: item.blueprint, environment: item.environment,
+                blueprint: item.blueprint, environment: item.environment, operation: item.operation,
                 status: item.status};
       });
       $scope.count = items.count;

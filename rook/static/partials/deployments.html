@@ -3,20 +3,20 @@
     <thead>
       <tr>
         <th>ID</th>
+        <th>Name</th>
         <th>Blueprint</th>
-        <th>Environment</th>
-        <th>Tenant</th>
+        <th ng-cloak ng-show="auth.identity.is_admin">Tenant</th>
         <th>Status</th>
         <th>Date Created</th>
       </tr>
     </thead>
     <tbody>
       <tr ng-repeat="deployment in items | orderBy:'-created'" >
-        <td><a ng-href="/{{deployment.tenantId}}/deployments/{{deployment.id}}"><i class="icon-picture"></i> {{deployment.id}}</a></td>
+        <td><a ng-href="/{{deployment.tenantId}}/deployments/{{deployment.id}}"><i class="icon-picture"></i> {{deployment.id | truncate:10}}</a></td>
+        <td>{{deployment.name}}</td>
         <td>{{deployment.blueprint.name}}</td>
-        <td>{{deployment.environment.name}}</td>
-        <td>{{deployment.tenantId}}</td>
-        <td>{{deployment.status}}</td>
+        <td ng-cloak ng-show="auth.identity.is_admin">{{deployment.tenantId}}</td>
+        <td><span class="label" ng-class="{'label-success': deployment.status == 'UP', 'label-important': deployment.status == 'FAILED', 'label-inverse': deployment.status == 'DELETED'}">{{deployment.status}}</span></td>
         <td>{{deployment.created | formattedFullDate}} <button ng-cloak ng-show="auth.identity.is_admin" class="btn btn-mini btn-info pull-right" type="button" ng-click="sync(deployment)">sync</button></td>
       </tr>
     </tbody>
