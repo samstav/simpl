@@ -195,12 +195,14 @@ describe('DeploymentController', function(){
       beforeEach(function() {
         $scope.data.resources = {
           v1: {
+            'index': 'v1',
             'service': 'fakegroup',
             'dns-name': 'fakename.example.com',
             'status': 'fakestatus',
             'relations': {}
           },
           v2: {
+            'index': 'v2',
             'service': 'fakegroup2',
             'dns-name': undefined,
             'status': 'fakestatus2',

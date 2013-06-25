@@ -3023,13 +3023,13 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       if (!resource.relations) continue;
 
       // Vertices
-      var v1 = i;
+      var v1 = resource.index;
       var group = resource.service;
       var dns_name = resource['dns-name'] || '';
       var name = dns_name.split('.').shift();
       var index = $scope.vertex_groups[group] || 0;
       if (!vertices[index]) vertices[index] = [];
-      var vertex = { id: i, group: group, name: name, status: resource.status };
+      var vertex = { id: resource.index, group: group, name: name, status: resource.status };
       vertices[index].push(vertex);
 
       // Edges
