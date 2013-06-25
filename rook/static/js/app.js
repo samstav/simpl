@@ -2982,6 +2982,63 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
     }
   };
+
+  $scope.tree_data = null;
+  $scope.vertex_groups = {
+    // Standard architecture
+    lb: 0,
+    master: 1,
+    web: 1,
+    backend: 2,
+
+    // Cassandra
+    seed: 0,
+    node: 1,
+
+    // Mongo
+    primary: 0,
+    data: 1
+  };
+
+  $scope.build_tree = function() {
+    var edges = [];
+    var edge_set = {};
+    var vertices = [];
+    var resources = $scope.data.resources;
+
+    for (var i in resources) {
+      var resource = resources[i];
+      if (!resource.relations) continue;
+
+      // Vertices
+      var v1 = i;
+      var group = resource.service;
+      var name = resource['dns-name'].split('.').shift();
+      var index = $scope.vertex_groups[group];
+      if (index === undefined) index = 1;
+      if (!vertices[index]) vertices[index] = [];
+      var vertex = { id: i, group: group, name: name, status: resource.status };
+      vertices[index].push(vertex);
+
+      // Edges
+      for (var j in resource.relations) {
+        var relation = resource.relations[j];
+        if (relation.relation != 'reference') continue;
+
+        var v2 = relation.source || relation.target;
+        var edge = { v1: v1, v2: v2 };
+        var edge_id = [v1, v2].sort().join('-');
+        if (edge_set[edge_id] === undefined) {
+          edge_set[edge_id] = true;
+          edges.push(edge);
+        }
+      }
+    }
+
+    $scope.tree_data = { vertex_groups: vertices, edges: edges };
+    return $scope.tree_data;
+  }
+  $scope.$watch('data', $scope.build_tree);
 }
 
 /*
