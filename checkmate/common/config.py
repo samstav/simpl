@@ -167,7 +167,7 @@ def parse_arguments(args=None):
                         help="enable statsd server with [address[:port]]",
                         )
     parser.add_argument("--access-log",
-                        type=argparse.FileType('a'),
+                        type=argparse.FileType('a', 0),
                         help="File to store access HTTP logs in (only works "
                         "with eventlet server)"
                         )
