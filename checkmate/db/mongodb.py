@@ -18,6 +18,7 @@ from checkmate.classes import ExtensibleDict
 from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
 from checkmate.exceptions import (
     CheckmateDatabaseConnectionError,
+    CheckmateDataIntegrityError,
     CheckmateException,
 )
 from checkmate.db.db_lock import DbLock
@@ -694,6 +695,17 @@ class Driver(DbBase):
             response['results'] = {}
 
             for entry in results:
+                if tenant_id and entry.get('tenantId') != tenant_id:
+                    LOG.warn(
+                        'Cross-Tenant Violation: requested tenant %s does not '
+                        'match tenant %s in response.\nLocals:\n %s\nGlobals:'
+                        '\n%s', tenant_id, entry.get('tenandId'),
+                        locals(), globals()
+                    )
+                    raise CheckmateDataIntegrityError(
+                        'A Tenant ID in the results does not match %s.',
+                        tenant_id
+                    )
                 if with_secrets is True:
                     entry = self.merge_secrets(klass, entry['id'], entry)
                 self.convert_data(klass, entry)

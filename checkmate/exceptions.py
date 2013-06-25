@@ -121,3 +121,7 @@ class CheckmateResumableException(CheckmateException):
 class CheckmateValidationException(CheckmateException):
     """Validation Error"""
     pass
+
+class CheckmateDataIntegrityError(CheckmateException):
+    '''Data has failed integrity checks'''
+    pass
