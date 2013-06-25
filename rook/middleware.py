@@ -80,6 +80,7 @@ class BrowserMiddleware(object):
 
     def __init__(self, nextapp, proxy_endpoints=None,
                  with_simulator=False, with_admin=False):
+        LOG.info("Loading Rook API")
         self.nextapp = nextapp
         HANDLERS['application/vnd.github.v3.raw'] = write_raw
         self.proxy_endpoints = None
@@ -474,15 +475,14 @@ class RackspaceSSOAuthMiddleware(object):
         if 'HTTP_X_AUTH_TOKEN' in environ and self.service_token:
             context = request.context
             try:
-                content = (self._validate_keystone(context,
-                           token=environ['HTTP_X_AUTH_TOKEN']))
+                content = self._validate_keystone(
+                    context, token=environ['HTTP_X_AUTH_TOKEN'])
                 environ['HTTP_X_AUTHORIZED'] = "Confirmed"
                 if (self.admin_role and
                         any(r for r in content['access']['user'].get('roles')
                             if r['name'] == self.admin_role['name'])):
                     request.context.is_admin = True
             except HTTPUnauthorized as exc:
-                LOG.exception(exc)
                 return exc(environ, start_response)
             context.set_context(content)
 
