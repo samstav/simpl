@@ -6,7 +6,7 @@ var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : ''
 var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui', 'ngLocale', 'ui.bootstrap']);
 
 //Load Angular Routes
-checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', function($routeProvider, $locationProvider, $httpProvider) {
+checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider) {
   // Static Paths
   $routeProvider.
   when('/', {
@@ -127,6 +127,8 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', functi
   $httpProvider.defaults.headers.common['Accept'] = "application/json";
   $httpProvider.defaults.headers.post['Content-Type'] = "application/json;charset=utf-8";
 
+  // Allow ssh, irc URLs
+  $compileProvider.urlSanitizationWhitelist(/^\s*(https?|mailto|ssh|irc):/);
 }]);
 
 /*
