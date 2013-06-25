@@ -791,9 +791,10 @@ def create_server(context, name, region, api_object=None, flavor="2",
     except OverLimit as exc:
         raise CheckmateRetriableException("You have reached the maximum "
                                           "number of servers that can be "
-                                          "spinned up using this account. "
+                                          "spun up using this account. "
                                           "Please delete some servers to "
-                                          "continue", "",
+                                          "continue or contact your support "
+                                          "team to increase your limit", "",
                                           get_class_name(exc),
                                           action_required=True)
 
