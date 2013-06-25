@@ -167,7 +167,7 @@ Priv Key: {{formatted_data.private_key}}
               </td>
               <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
               <td>{{resource.instance.public_ip}}</td>
-              <td>{{resource.status}} <span ng-cloak ng-show="resource.instance['status-message']">({{resource.instance['status-message']}})</span></td>
+              <td>{{resource.status}} <span ng-cloak ng-show="resource['status-message']">({{resource['status-message']}})</span><span ng-cloak ng-show="resource['error-message']">({{resource['error-message']}})</span></td>
             </tr>
           </tbody>
         </table>
