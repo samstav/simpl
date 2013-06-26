@@ -485,12 +485,7 @@ class Router(object):
                         'provider': val.get('provider', 'core')
                     }
                 })
-                if ('trace' in request.query_string and
-                        ('error-traceback' in val or
-                         'error-traceback' in val.get('instance', {}))):
-                    resp.get(key, {})['error-traceback'] = (val.get('error-traceback') or
-                                                  val.get('instance',
-                                                          {}).get('error-traceback'))
+
         for val in resp.values():
             if not val.get('status'):
                 val['status'] = 'UNKNOWN'
