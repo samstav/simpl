@@ -3028,8 +3028,23 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       var dns_name = resource['dns-name'] || '';
       var name = dns_name.split('.').shift();
       var index = $scope.vertex_groups[group] || 0;
+      var host_id = resource.hosted_on;
+      var host = resources[host_id];
       if (!vertices[index]) vertices[index] = [];
-      var vertex = { id: resource.index, group: group, name: name, status: resource.status };
+      var vertex = {
+        id: resource.index,
+        group: group,
+        name: name,
+        status: resource.status,
+        host: {}
+      };
+      if (host) {
+        vertex.host = {
+          id: host.index,
+          status: host.status,
+          type: host.component
+        };
+      }
       vertices[index].push(vertex);
 
       // Edges

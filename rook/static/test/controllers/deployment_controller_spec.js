@@ -199,14 +199,16 @@ describe('DeploymentController', function(){
             'service': 'fakegroup',
             'dns-name': 'fakename.example.com',
             'status': 'fakestatus',
-            'relations': {}
+            'relations': {},
+            'hosted_on': '1'
           },
           v2: {
             'index': 'v2',
             'service': 'fakegroup2',
             'dns-name': undefined,
             'status': 'fakestatus2',
-            'relations': {}
+            'relations': {},
+            'hosted_on': '2'
           },
           v3: {}
         };
