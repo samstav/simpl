@@ -1255,7 +1255,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() { console.log("Failed"); }); //TODO: implement a callback
+      $scope.loginPrompt().then($scope.save_spec);
     }
   };
 
@@ -1298,7 +1298,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this); //TODO: implement a callback
+      $scope.loginPrompt().then($scope.save_task);
     }
   };
 
@@ -1344,17 +1344,25 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.workflow_action = function(workflow_id, action) {
+    var retry = function() {
+      $scope.workflow_action(workflow_id, action);
+    };
+
     if (auth.identity.loggedIn) {
       console.log("Executing '" + action + " on workflow " + workflow_id);
       var action_url = $location.path() + '/+' + action;
       $http.get(action_url)
         .then($scope.workflow_action_success, $scope.workflow_action_error);
     } else {
-      $scope.loginPrompt(); //TODO: implement a callback
+      $scope.loginPrompt().then(retry);
     }
   };
 
   $scope.task_action = function(task_id, action) {
+    var retry = function() {
+      $scope.task_action(task_id, action);
+    }
+
     if (auth.identity.loggedIn) {
       console.log("Executing '" + action + " on task " + task_id);
       $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
@@ -1369,7 +1377,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           mixpanel.track("Task Action Failed", {'action': action});
         });
     } else {
-      $scope.loginPrompt(); //TODO: implement a callback
+      $scope.loginPrompt().then(retry);
     }
   };
 
@@ -2277,6 +2285,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   // This also exists on DeploymentController - can be refactored
   $scope.sync = function(deployment) {
+    var retry = function() {
+      $scope.sync(deployment);
+    };
+
     if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
@@ -2290,7 +2302,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(retry);
     }
   };
 
@@ -2945,11 +2957,15 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then($scope.save);
     }
   };
 
   $scope.delete_deployment = function(force) {
+    var retry = function() {
+      $scope.delete_deployment(force);
+    };
+
     if (force == '1') {
       $scope.close_modal('force_delete_warning');
     } else {
@@ -2973,7 +2989,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(retry);
     }
   };
 
@@ -2993,7 +3009,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then($scope.sync);
     }
   };
 

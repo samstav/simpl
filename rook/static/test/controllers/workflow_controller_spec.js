@@ -160,7 +160,7 @@ describe('WorkflowController', function(){
   describe('#workflow_action', function() {
     it('should display login prompt if not logged in', function() {
       auth.identity.loggedIn = false;
-      spyOn($scope, 'loginPrompt');
+      spyOn($scope, 'loginPrompt').andReturn({ then: emptyFunction });
       $scope.workflow_action('fakeid', 'fakeaction');
       expect($scope.loginPrompt).toHaveBeenCalled();
     });
