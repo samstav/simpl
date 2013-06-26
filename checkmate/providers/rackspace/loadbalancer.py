@@ -896,7 +896,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
                 'status': 'ERROR',
                 'status-message': ('Unexpected error deleting loadbalancer'
                                    ' %s' % key),
-                'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
+                'error-message': str(exc)
             }
         }
         resource_postback.delay(args[2], results)
@@ -949,7 +949,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
                 'status': 'ERROR',
                 'status-message': ('Unexpected error waiting on loadbalancer'
                                    ' %s delete' % key),
-                'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
+                'error-message': str(exc)
             }
         }
         resource_postback.delay(args[2], results)
