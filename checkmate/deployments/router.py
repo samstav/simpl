@@ -260,7 +260,7 @@ class Router(object):
             request.context.simulation = True
         deployment = self.manager.get_deployment(api_id)
         if not deployment:
-            abort(404, "No deployment with id %s" % api_id)
+            raise CheckmateDoesNotExist("No deployment with id %s" % api_id)
         deployment = Deployment(deployment)
         if request.query.get('force') != '1':
             if not deployment.fsm.permitted('DELETED'):
@@ -313,7 +313,7 @@ class Router(object):
             abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id, with_secrets=True)
         if not entity:
-            raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
+             CheckmateDoesNotExist('No deployment with id %s' % api_id)
         if entity.get('status', 'NEW') != 'NEW':
             raise CheckmateBadState("Deployment '%s' is in '%s' status and "
                                     "must be in 'NEW' to be planned" %
