@@ -30,7 +30,11 @@ from yaml.scanner import ScannerError
 from yaml.parser import ParserError
 
 from checkmate.common.codegen import kwargs_from_string
-from checkmate.exceptions import CheckmateNoData, CheckmateValidationException
+from checkmate.exceptions import (
+    CheckmateDataIntegrityError,
+    CheckmateNoData,
+    CheckmateValidationException,
+)
 
 
 LOG = logging.getLogger(__name__)
@@ -302,6 +306,26 @@ def formatted_response(uripath, with_pagination=False):
                     uripath,
                     kwargs.get('tenant_id', request.context.tenant)
                 )
+            if 'deployments' in uripath:
+                expected_tenant = kwargs.get('tenant_id', request.context.tenant)
+                if expected_tenant:
+                    print data
+                    for _, deployment in data['results'].items():
+                        print deployment
+                        if (deployment.get('tenantId') and
+                                deployment['tenantId'] != expected_tenant):
+                            LOG.warn(
+                                'Cross-Tenant Violation in '
+                                'formatted_response: requested tenant %s does '
+                                'not match tenant %s in response.\nLocals:\n '
+                                '%s\nGlobals:\n%s', tenant_id,
+                                entry.get('tenandId'), locals(), globals()
+                            )
+                            raise CheckmateDataIntegrityError(
+                                'A Tenant ID in the results '
+                                'does not match %s.',
+                                tenant_id
+                            )
             return write_body(
                 data,
                 request,
