@@ -4,28 +4,25 @@ Tenants
 import logging
 
 from checkmate import base
-from checkmate.exceptions import (
-    CheckmateDoesNotExist,
-    CheckmateValidationException,
-)
+from checkmate.exceptions import CheckmateDoesNotExist
 
 LOG = logging.getLogger(__name__)
 
 
 class Manager(base.ManagerBase):
-    '''Contains Tenants Model and Logic for Accessing Tenants'''
+    '''Contains Tenants Model and Logic for Accessing Tenants.'''
 
     def list_tenants(self, tags):
         '''Get existing tenants.'''
         return self.driver.list_tenants(tags)
 
     def save_tenant(self, tenant_id, body):
-        '''Save tenant (and overwrite)'''
+        '''Save tenant (and overwrite).'''
         body['id'] = tenant_id
         self.driver.save_tenant(body)
 
     def get_tenant(self, tenant_id):
-        '''Get a single tenant'''
+        '''Get a single tenant.'''
         if tenant_id:
             tenant = self.driver.get_tenant(tenant_id)
             if not tenant:
@@ -33,7 +30,7 @@ class Manager(base.ManagerBase):
             return tenant
 
     def add_tenant_tags(self, tenant_id, tags):
-        '''Add a set of tags to an individual tenant'''
+        '''Add a set of tags to an individual tenant.'''
         if tenant_id:
             if tags is None:
                 tags = []
