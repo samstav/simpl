@@ -110,35 +110,35 @@ def error_formatter(error):
 
     if isinstance(error.exception, CheckmateNoMapping):
         error.status = 406
-        error.output = error.exception.args[0]
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateDoesNotExist):
         error.status = 404
-        error.output = error.exception.args[0]
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateValidationException):
         error.status = 400
-        error.output = error.exception.args[0]
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateDataIntegrityError):
         error.status = 401
-        error.output = error.exception.args[0]
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateNoData):
         error.status = 400
-        error.output = error.exception.args[0]
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateBadState):
         error.status = 409
-        error.output = error.exception.args[0]
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateDatabaseConnectionError):
         error.status = 500
         error.output = "Database connection error on server."
-        output['message'] = error.exception.args[0]
+        output['message'] = str(error.exception)
     elif isinstance(error.exception, CheckmateException):
-        error.output = error.exception.args[0]
+        error.output = str(error.exception)
     elif isinstance(error.exception, AssertionError):
         error.status = 400
-        error.output = error.exception.args[0]
+        error.output = str(error.exception)
     else:
         # For other 500's, provide underlying cause
         if error.exception:
-            output['message'] = error.exception.args[0]
+            output['message'] = str(error.exception)
 
     output['description'] = error.output
     output['code'] = error.status
