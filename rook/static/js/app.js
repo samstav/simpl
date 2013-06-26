@@ -3012,9 +3012,50 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     data: 1
   };
 
+  $scope.create_vertex = function(resource, resource_list) {
+    var v1 = resource.index;
+    var group = resource.service;
+    var dns_name = resource['dns-name'] || '';
+    var name = dns_name.split('.').shift();
+    var host_id = resource.hosted_on;
+    var host = resource_list[host_id];
+
+    var vertex = {
+      id: resource.index,
+      group: group,
+      name: name,
+      status: resource.status,
+      host: {}
+    };
+    if (host) {
+      vertex.host = {
+        id: host.index,
+        status: host.status,
+        type: host.component
+      };
+    }
+    return vertex;
+  };
+
+  $scope.create_edges = function(vertex, relations) {
+    var edges = [];
+
+    var v1 = vertex.id;
+    for (var i in relations) {
+      var relation = relations[i];
+      if (relation.relation != 'reference') continue;
+
+      var v2 = relation.source || relation.target;
+      var sorted_edges = [v1, v2].sort();
+      var edge = { v1: sorted_edges[0], v2: sorted_edges[1] };
+      edges.push(edge);
+    }
+
+    return edges;
+  }
+
   $scope.build_tree = function() {
     var edges = [];
-    var edge_set = {};
     var vertices = [];
     var resources = $scope.data.resources;
 
@@ -3023,43 +3064,13 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       if (!resource.relations) continue;
 
       // Vertices
-      var v1 = resource.index;
-      var group = resource.service;
-      var dns_name = resource['dns-name'] || '';
-      var name = dns_name.split('.').shift();
-      var index = $scope.vertex_groups[group] || 0;
-      var host_id = resource.hosted_on;
-      var host = resources[host_id];
-      if (!vertices[index]) vertices[index] = [];
-      var vertex = {
-        id: resource.index,
-        group: group,
-        name: name,
-        status: resource.status,
-        host: {}
-      };
-      if (host) {
-        vertex.host = {
-          id: host.index,
-          status: host.status,
-          type: host.component
-        };
-      }
-      vertices[index].push(vertex);
+      var vertex = $scope.create_vertex(resource, resources);
+      var group_idx = $scope.vertex_groups[vertex.group] || 0;
+      if (!vertices[group_idx]) vertices[group_idx] = [];
+      vertices[group_idx].push(vertex);
 
       // Edges
-      for (var j in resource.relations) {
-        var relation = resource.relations[j];
-        if (relation.relation != 'reference') continue;
-
-        var v2 = relation.source || relation.target;
-        var edge = { v1: v1, v2: v2 };
-        var edge_id = [v1, v2].sort().join('-');
-        if (edge_set[edge_id] === undefined) {
-          edge_set[edge_id] = true;
-          edges.push(edge);
-        }
-      }
+      edges = edges.concat($scope.create_edges(vertex, resource.relations));
     }
 
     $scope.tree_data = { vertex_groups: vertices, edges: edges };

@@ -259,11 +259,6 @@ describe('DeploymentController', function(){
           var tree = $scope.build_tree();
           expect(tree.edges).toEqual([]);
         });
-
-        it('should create undirected edges', function() {
-          var tree = $scope.build_tree();
-          expect(tree.edges.length).toBe(1);
-        });
       });
     });
   });
