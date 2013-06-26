@@ -25,11 +25,6 @@ from copy import deepcopy
 import sqlite3
 from checkmate.utils import merge_dictionary
 
-try:
-    # pylint: disable=E0611
-    from migrate.versioning import exceptions as versioning_exceptions
-except ImportError:
-    from migrate import exceptions as versioning_exceptions
 
 from checkmate.classes import ExtensibleDict
 from checkmate.db import migration
@@ -188,32 +183,8 @@ class Driver(DbBase):
         else:
             self.engine = create_engine(connection_string)
             LOG.info("Connected to '%s'", connection_string)
-        self._init_version_control()
         self.session = scoped_session(sessionmaker(self.engine))
         BASE.metadata.create_all(self.engine)
-
-    def _init_version_control(self):
-        """Verify the state of the database"""
-        if self.connection_string == "sqlite://":
-            return
-        repo_path = migration.get_migrate_repo_path()
-
-        try:
-            repo_version = migration.get_repo_version(repo_path)
-            db_version = migration.get_db_version(self.engine, repo_path)
-
-            if repo_version != db_version:
-                msg = ("Database (%s) is not up to date (current=%s, "
-                       "latest=%s); run `checkmate-database upgrade` or '"
-                       "override your migrate version manually (see docs)")
-                LOG.warning(msg, self.connection_string, db_version,
-                            repo_version)
-                raise CheckmateDatabaseMigrationError(msg)
-        except versioning_exceptions.DatabaseNotControlledError:
-            msg = ("Database (%s) is not version controlled; "
-                   "run `checkmate-database version_control` or "
-                   "override your migrate version manually (see docs)")
-            LOG.warning(msg, self.connection_string)
 
     def __setstate__(self, dict):  # pylint: disable=W0622
         '''Support deserializing from connection string'''
