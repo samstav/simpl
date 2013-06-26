@@ -192,28 +192,28 @@ directives.directive('cmTreeView', function() {
   }
 
   var get_color = function(status) {
+    if (!status) return null;
+
     var color;
     switch(status) {
-      case "UP":
       case "ACTIVE":
-      case "LAUNCHED":
         color = 'green';
         break;
-      case "ALERT":
-      case "BUILD":
-      case "DELETING":
+      case 'NEW':
+      case 'BUILD':
+      case 'DELETING':
+      case 'CONFIGURE':
         color = 'orange';
         break;
-      case "DOWN":
-      case "FAILED":
-      case "UNREACHABLE":
+      case 'ERROR':
         color = 'red';
         break;
-      case "PLANNED":
-        color = 'gray';
-        break;
-      default:
+      case 'DELETED':
         color = 'black';
+        break;
+      case "PLANNED":
+      default:
+        color = 'gray';
         break;
     }
     return color;
