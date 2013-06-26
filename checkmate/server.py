@@ -33,7 +33,7 @@ from eventlet.green import threading
 from eventlet import wsgi
 
 import checkmate
-from checkmate.api import admin
+from checkmate import admin
 from checkmate import blueprints
 from checkmate import celeryconfig
 from checkmate.common import config
@@ -193,6 +193,7 @@ def main():
     # Load routes from other modules
     LOG.info("Loading Checkmate API")
     bottle.load("checkmate.api")
+
     # Build WSGI Chain:
     next_app = root_app = bottle.default_app()  # the main checkmate app
     root_app.error_handler = {
@@ -245,7 +246,9 @@ def main():
     # Load admin routes if requested
     if CONFIG.with_admin is True:
         LOG.info("Loading Admin API")
-        ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'])
+        MANAGERS['tenants'] = admin.TenantManager(DRIVERS)
+        ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'],
+                                        MANAGERS['tenants'])
         resources.append('admin')
 
     next_app = middleware.AuthorizationMiddleware(
@@ -317,8 +320,8 @@ def main():
     # Load request/response dumping if debugging enabled
     if CONFIG.debug is True:
         next_app = middleware.DebugMiddleware(next_app)
-        LOG.debug("Routes: %s", ['\n%s %s' % (r.method, r.rule) for r in
-                                 bottle.app().routes])
+        LOG.debug("Routes: %s", ''.join(['\n    %s %s' % (r.method, r.rule)
+                                         for r in bottle.app().routes]))
 
     next_app = gzip_middleware.Gzipper(next_app, compresslevel=8)
 

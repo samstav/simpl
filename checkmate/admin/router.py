@@ -6,6 +6,12 @@ This module load the /admin/* routes. It validates that all calls are performed
 by a user with an admin context. It is optionally loadable (as determined by
 server.py based on the --with-admin argument)
 
+Supports:
+PUT /admin/tenants
+GET /admin/tenants/tenant_id
+GET /admin/tenants/ and return all
+GET /admin/tenants?tag=foo&tag=bar
+
 """
 import logging
 from subprocess import check_output
@@ -22,10 +28,11 @@ LOG = logging.getLogger(__name__)
 class Router(object):
     '''Route /admin/ calls'''
 
-    def __init__(self, app, manager):
+    def __init__(self, app, manager, tenant_manager):
         '''Takes a bottle app and routes traffic for it'''
         self.app = app
         self.manager = manager
+        self.tenant_manager = tenant_manager
 
         app.route('/admin/status/celery', 'GET', self.get_celery_worker_status)
         app.route('/admin/status/libraries', 'GET',
@@ -36,6 +43,10 @@ class Router(object):
         app.route('/admin/deployments/count/<blueprint_id>', 'GET',
                   self.get_deployment_count_by_bp)
 
+        app.route('/admin/tenants', 'GET', self.get_tenants)
+        app.route('/admin/tenants/<tenant_id>', 'GET', self.get_tenant)
+        app.route('/admin/tenants/<tenant_id>', 'PUT', self.put_tenant)
+        app.route('/admin/tenants/<tenant_id>', 'POST', self.add_tenant_tags)
 
     #
     # Status and System Information
@@ -70,7 +81,8 @@ class Router(object):
         except IOError as exc:
             from errno import errorcode
             msg = "Error connecting to the backend: " + str(exc)
-            if len(exc.args) > 0 and errorcode.get(exc.args[0]) == 'ECONNREFUSED':
+            if len(exc.args) > 0 and \
+                    errorcode.get(exc.args[0]) == 'ECONNREFUSED':
                 msg += ' Check that the RabbitMQ server is running.'
             stats = {ERROR_KEY: msg}
         except ImportError as exc:
@@ -104,7 +116,8 @@ class Router(object):
                     module = sys.modules[library]
                     if hasattr(module, '__version__'):
                         result[library]['version'] = module.__version__
-                    result[library]['path'] = getattr(module, '__path__', 'N/A')
+                    result[library]['path'] = getattr(module, '__path__',
+                                                      'N/A')
                     result[library]['status'] = 'loaded'
                 else:
                     result[library]['status'] = 'not loaded'
@@ -119,7 +132,7 @@ class Router(object):
             result['knife'] = {'status': 'ERROR: %s' % exc}
 
         # Chef version
-        expected = ['knife-solo',  'knife-solo_data_bag']
+        expected = ['knife-solo', 'knife-solo_data_bag']
         try:
             output = check_output(['gem', 'list', 'knife-solo'])
 
@@ -181,5 +194,37 @@ class Router(object):
         '''
         tenant_id = request.query.get('tenant_id')
         count = self.manager.count(tenant_id=tenant_id,
-                                      blueprint_id=blueprint_id)
+                                   blueprint_id=blueprint_id)
         return utils.write_body({'count': count}, request, response)
+
+    #
+    # Tenants
+    #
+    @utils.only_admins
+    @utils.formatted_response('tenants', with_pagination=False)
+    def get_tenants(self):
+        return self.manager.list_tenants(*request.query.getall('tag'))
+
+    @utils.only_admins
+    def put_tenant(self, tenant_id):
+        ten = {}
+        if request.content_length > 0:
+            ten = utils.read_body(request)
+        ten['tenant_id'] = tenant_id
+        self.manager.save_tenant(tenant_id, ten)
+
+    @utils.only_admins
+    def get_tenant(self, tenant_id):
+        if tenant_id:
+            tenant = self.manager.get_tenant(tenant_id)
+            return utils.write_body(tenant, request, response)
+
+    @utils.only_admins
+    def add_tenant_tags(self, tenant_id):
+        if tenant_id:
+            body = utils.read_body(request)
+            new = body.get('tags')
+            if new and not isinstance(new, (list, tuple)):
+                new = [new]
+            self.manager.add_tenant_tags(tenant_id, *new)
+            response.status = 204

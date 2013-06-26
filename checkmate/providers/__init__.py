@@ -1,2 +1,2 @@
-#
-from checkmate.providers.base import *
+#pylint: disable=W-4-1
+from .base import *

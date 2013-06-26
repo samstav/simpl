@@ -8,13 +8,13 @@ import mox
 from webtest import TestApp
 
 from checkmate import test
-from checkmate.api import admin
+from checkmate import admin
 
 LOG = logging.getLogger(__name__)
 
 
 class TestAdminDeploymentCounts(unittest.TestCase):
-    """ Tests getting deployment numbers """
+    ''''Tests getting deployment numbers.'''
 
     def setUp(self):
         self._mox = mox.Mox()
@@ -26,7 +26,9 @@ class TestAdminDeploymentCounts(unittest.TestCase):
         self.app = TestApp(self.filters)
 
         self.manager = self._mox.CreateMockAnything()
-        self.router = admin.Router(self.root_app, self.manager)
+        self.tenant_manager = self._mox.CreateMockAnything()
+        self.router = admin.Router(self.root_app, self.manager,
+                                   self.tenant_manager)
 
         unittest.TestCase.setUp(self)
 
@@ -73,6 +75,61 @@ class TestAdminDeploymentCounts(unittest.TestCase):
         self.assertIn("count", ret, "Return does not contain count")
         self.assertEqual(expected_count, ret.get("count", -1),
                          "Wrong count returned")
+
+
+class TestAdminTenants(unittest.TestCase):
+    ''''Tests tenant calls.'''
+
+    def setUp(self):
+        self._mox = mox.Mox()
+
+        self.root_app = bottle.Bottle()
+        self.root_app.catchall = False
+        self.filters = test.MockWsgiFilters(self.root_app)
+        self.filters.context.is_admin = True
+        self.app = TestApp(self.filters)
+
+        self.manager = self._mox.CreateMockAnything()
+        self.tenant_manager = self._mox.CreateMockAnything()
+        self.router = admin.Router(self.root_app, self.manager,
+                                   self.tenant_manager)
+
+        unittest.TestCase.setUp(self)
+
+    def tearDown(self):
+        self._mox.UnsetStubs()
+        unittest.TestCase.tearDown(self)
+
+    def test_get_tenant(self):
+        self.tenant_manager.get_tenant("456").AndReturn({'id': '456'})
+        self._mox.ReplayAll()
+        res = self.app.get('/admin/tenants/456')
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+        self.assertEqual(json.loads(res.body), {'id': '456'})
+
+    def test_get_tenants(self):
+        tenants = {'123': {'id': '123'}, '456': {'id': '456'}}
+        self.tenant_manager.list_tenants().AndReturn(tenants)
+        self._mox.ReplayAll()
+        res = self.app.get('/admin/tenants')
+        self.assertEqual(res.status, '200 OK')
+        self.assertEqual(res.content_type, 'application/json')
+        self.assertEqual(json.loads(res.body), tenants)
+
+    def test_put_tenant(self):
+        self.tenant_manager.save_tenant("456", {'id': '456'}).AndReturn(None)
+        self._mox.ReplayAll()
+        res = self.app.put('/admin/tenants/456', json.dumps({'id': '456'}),
+                           content_type='application/json')
+        self.assertEqual(res.status, '201 Created')
+
+    def test_put_tenant_tags(self):
+        self.tenant_manager.add_tenant_tags("456", 'A').AndReturn(None)
+        self._mox.ReplayAll()
+        res = self.app.post('/admin/tenants/456', json.dumps({'tags': ['A']}),
+                            content_type='application/json')
+        self.assertEqual(res.status, '204 No Content')
 
 
 if __name__ == '__main__':
