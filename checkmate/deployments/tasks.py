@@ -43,7 +43,7 @@ def reset_failed_resource_task(deployment_id, resource_id):
 @task
 @statsd.collect
 def process_post_deployment(deployment, request_context, driver=DB):
-    '''Assess deployment, then create and trigger a workflow'''
+    '''Assess deployment, then create and trigger a workflow.'''
     utils.match_celery_logging(LOG)
 
     deployment = Deployment(deployment)
@@ -62,15 +62,15 @@ def process_post_deployment(deployment, request_context, driver=DB):
 
 @task
 def update_operation(deployment_id, driver=DB, **kwargs):
-    '''Wrapper for common_tasks.update_operation'''
-    # TODO: Deprecate this
+    '''Wrapper for common_tasks.update_operation.'''
+    # TODO(any): Deprecate this
     return common_tasks.update_operation(deployment_id, driver=driver,
                                          **kwargs)
 
 
 @task(default_retry_delay=2, max_retries=60)
 def delete_deployment_task(dep_id, driver=DB):
-    """ Mark the specified deployment as deleted """
+    """Mark the specified deployment as deleted."""
     utils.match_celery_logging(LOG)
     if utils.is_simulation(dep_id):
         driver = SIMULATOR_DB
@@ -108,8 +108,9 @@ def delete_deployment_task(dep_id, driver=DB):
 
 @task(default_retry_delay=0.25, max_retries=4)
 def alt_resource_postback(contents, deployment_id, driver=DB):
-    """ This is just an argument shuffle to make it easier
-    to chain this with other tasks """
+    '''This is just an argument shuffle to make it easier
+    to chain this with other tasks.
+    '''
     utils.match_celery_logging(LOG)
     if utils.is_simulation(deployment_id):
         driver = SIMULATOR_DB
@@ -142,7 +143,7 @@ def update_all_provider_resources(provider, deployment_id, status,
 
 @task(default_retry_delay=0.5, max_retries=6)
 def postback(deployment_id, contents):
-    '''Exposes DeploymentsManager.postback as a task'''
+    '''Exposes DeploymentsManager.postback as a task.'''
     utils.match_celery_logging(LOG)
     MANAGERS['deployments'].postback(deployment_id, contents)
 
@@ -206,7 +207,7 @@ def resource_postback(deployment_id, contents, driver=DB):
                     updates['error-message'].append(r_msg)
 
     # Create new contents dict if values existed
-    # TODO: make this smarter
+    # TODO(any): make this smarter
     new_contents = {}
     for key, value in contents.items():
         if value:

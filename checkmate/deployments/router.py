@@ -19,12 +19,12 @@ from checkmate import utils
 from checkmate import db
 from checkmate.common import tasks as common_tasks
 from checkmate.deployment import Deployment
+from checkmate.deployments import tasks
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,
     CheckmateValidationException,
 )
-from checkmate.deployments import tasks
 from checkmate.utils import with_tenant, formatted_response
 from checkmate.workflow import create_workflow_spec_deploy
 
@@ -69,7 +69,7 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
 
 
 def write_deploy_headers(deployment_id, tenant_id=None):
-    '''Write new resource location and link headers'''
+    '''Write new resource location and link headers.'''
     if tenant_id:
         response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
                                                                 deployment_id))
@@ -83,10 +83,10 @@ def write_deploy_headers(deployment_id, tenant_id=None):
 
 
 class Router(object):
-    '''Route /deployments/ calls'''
+    '''Route /deployments/ calls.'''
 
     def __init__(self, app, manager):
-        '''Takes a bottle app and routes traffic for it'''
+        '''Takes a bottle app and routes traffic for it.'''
         self.app = app
         self.manager = manager
 
@@ -130,7 +130,7 @@ class Router(object):
     @with_tenant
     @formatted_response('deployments', with_pagination=True)
     def get_deployments(self, tenant_id=None, offset=None, limit=None):
-        ''' Get existing deployments '''
+        '''Get existing deployments.'''
         show_deleted = request.query.get('show_deleted')
         status = request.query.get('status')
         return self.manager.get_deployments(
@@ -143,9 +143,8 @@ class Router(object):
 
     @with_tenant
     def post_deployment(self, tenant_id=None):
-        '''
-        Creates deployment and workflow based on sent information
-        and triggers workflow execution
+        '''Creates deployment and workflow based on sent information
+        and triggers workflow execution.
         '''
         deployment = _content_to_deployment(request, tenant_id=tenant_id)
         if request.context.simulation is True:
@@ -166,19 +165,19 @@ class Router(object):
 
     @with_tenant
     def simulate(self, tenant_id=None):
-        ''' Run a simulation '''
+        '''Run a simulation.'''
         request.context.simulation = True
         return self.post_deployment(tenant_id=tenant_id)
 
     @with_tenant
     def get_count(self, tenant_id=None):
-        ''' Get existing deployment count '''
+        '''Get existing deployment count.'''
         result = self.manager.count(tenant_id=tenant_id)
         return utils.write_body({'count': result}, request, response)
 
     @with_tenant
     def parse_deployment(self, tenant_id=None):
-        '''Parse a deployment and return the parsed response'''
+        '''Parse a deployment and return the parsed response.'''
         if request.query.get('check_limits') == "0":
             check_limits = False
         else:
@@ -195,7 +194,7 @@ class Router(object):
 
     @with_tenant
     def preview_deployment(self, tenant_id=None):
-        '''Parse and preview a deployment and its workflow'''
+        '''Parse and preview a deployment and its workflow.'''
         deployment = _content_to_deployment(request, tenant_id=tenant_id)
         results = self.manager.plan(deployment, request.context)
         spec = create_workflow_spec_deploy(results, request.context)
@@ -212,9 +211,9 @@ class Router(object):
 
     @with_tenant
     def get_deployment(self, api_id, tenant_id=None):
-        '''Return deployment with given ID'''
+        '''Return deployment with given ID.'''
         try:
-            if 'with_secrets' in request.query:  # TODO: verify admin-ness
+            if 'with_secrets' in request.query:  # TODO(any): verify admin-ness
                 entity = self.manager.get_a_deployment(api_id, tenant_id,
                                                        with_secrets=True)
             else:
@@ -256,9 +255,7 @@ class Router(object):
 
     @with_tenant
     def delete_deployment(self, api_id, tenant_id=None):
-        '''
-        Delete the specified deployment
-        '''
+        '''Delete the specified deployment.'''
         if utils.is_simulation(api_id):
             request.context.simulation = True
         deployment = self.manager.get_deployment(api_id)
@@ -300,9 +297,8 @@ class Router(object):
 
     @with_tenant
     def clone_deployment(self, api_id, tenant_id=None):
-        '''
-        Creates deployment and wokflow based on deleted/active
-        deployment information
+        '''Creates deployment and wokflow based on deleted/active
+        deployment information.
         '''
         assert api_id, "Deployment ID cannot be empty"
         deployment = self.manager.clone(api_id, request.context,
@@ -312,7 +308,7 @@ class Router(object):
 
     @with_tenant
     def plan_deployment(self, api_id, tenant_id=None):
-        '''Plan a NEW deployment and save it as PLANNED'''
+        '''Plan a NEW deployment and save it as PLANNED.'''
         if db.any_id_problems(api_id):
             abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id, with_secrets=True)
@@ -331,7 +327,7 @@ class Router(object):
 
     @with_tenant
     def sync_deployment(self, api_id, tenant_id=None):
-        '''Sync existing deployment objects with current cloud status'''
+        '''Sync existing deployment objects with current cloud status.'''
         if db.any_id_problems(api_id):
             abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id)
@@ -352,7 +348,7 @@ class Router(object):
 
     @with_tenant
     def deploy_deployment(self, api_id, tenant_id=None):
-        '''Deploy a NEW or PLANNED deployment and save it as DEPLOYED'''
+        '''Deploy a NEW or PLANNED deployment and save it as DEPLOYED.'''
         if db.any_id_problems(api_id):
             raise CheckmateValidationException(db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id, with_secrets=True)
@@ -378,7 +374,7 @@ class Router(object):
 
     @with_tenant
     def get_deployment_secrets(self, api_id, tenant_id=None):
-        '''Return deployment secrets'''
+        '''Return deployment secrets.'''
         try:
             entity = self.manager.get_a_deployment(api_id, tenant_id=tenant_id)
         except CheckmateDoesNotExist:
@@ -401,7 +397,7 @@ class Router(object):
 
     @with_tenant
     def update_deployment_secrets(self, api_id, tenant_id=None):
-        '''Update/Lock deployment secrets'''
+        '''Update/Lock deployment secrets.'''
         partial = utils.read_body(request)
         try:
             entity = self.manager.get_a_deployment(api_id,
@@ -449,8 +445,8 @@ class Router(object):
 
     @with_tenant
     def get_deployment_resources(self, api_id, tenant_id=None):
-        ''' Return the resources for a deployment '''
-        if 'with_secrets' in request.query:  # TODO: verify admin-ness
+        '''Return the resources for a deployment.'''
+        if 'with_secrets' in request.query:  # TODO(any): verify admin-ness
             deployment = self.manager.get_a_deployment(api_id, tenant_id,
                                                        with_secrets=True)
         else:
@@ -462,8 +458,8 @@ class Router(object):
 
     @with_tenant
     def get_resources_statuses(self, api_id, tenant_id=None):
-        ''' Get basic status of all deployment resources '''
-        if 'with_secrets' in request.query:  # TODO: verify admin-ness
+        '''Get basic status of all deployment resources.'''
+        if 'with_secrets' in request.query:  # TODO(any): verify admin-ness
             deployment = self.manager.get_a_deployment(api_id, tenant_id,
                                                        with_secrets=True)
         else:
@@ -495,7 +491,7 @@ class Router(object):
 
     @with_tenant
     def get_resource(self, api_id, rid, tenant_id=None):
-        ''' Get a specific resource from a deployment '''
+        '''Get a specific resource from a deployment.'''
         try:
             result = self.manager.get_resource_by_id(api_id, rid, tenant_id)
             return utils.write_body(result, request, response)

@@ -509,7 +509,7 @@ class Provider(ProviderBase):
 
     def get_catalog(self, context, type_filter=None):
         '''Return stored/override catalog if it exists, else connect, build,
-        and return one
+        and return one.
         '''
 
         # TODO: maybe implement this an on_get_catalog so we don't have to do
@@ -602,7 +602,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def find_url(catalog, region):
-        '''Find endpoint URL for region'''
+        '''Find endpoint URL for region.'''
         for service in catalog:
             if service['type'] == 'rax:load-balancer':
                 endpoints = service['endpoints']
@@ -612,7 +612,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def find_a_region(catalog):
-        '''Any region'''
+        '''Any region.'''
         for service in catalog:
             if service['type'] == 'rax:load-balancer':
                 endpoints = service['endpoints']
@@ -621,7 +621,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def connect(context, region=None):
-        '''Use context info to connect to API and return api object'''
+        '''Use context info to connect to API and return api object.'''
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
             context = RequestContext(**context)
@@ -654,7 +654,7 @@ class Provider(ProviderBase):
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
 def _get_algorithms(api_endpoint, auth_token):
-    '''Ask CLB for Algorithms'''
+    '''Ask CLB for Algorithms.'''
     # the region must be supplied but is not used
     api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
     api.client.auth_token = auth_token
@@ -665,7 +665,7 @@ def _get_algorithms(api_endpoint, auth_token):
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
 def _get_protocols(api_endpoint, auth_token):
-    '''Ask CLB for Protocols'''
+    '''Ask CLB for Protocols.'''
     # the region must be supplied but is not used
     api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
     api.client.auth_token = auth_token
@@ -696,7 +696,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
-    '''Celery task to create Cloud Load Balancer'''
+    '''Celery task to create Cloud Load Balancer.'''
     assert 'deployment' in context, "Deployment not supplied in context"
     match_celery_logging(LOG)
 
@@ -943,7 +943,7 @@ def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
         return results
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        """ Handle task failure """
+        '''Handle task failure.'''
         results = {
             "instance:%s" % args[1]: {
                 'status': 'ERROR',
