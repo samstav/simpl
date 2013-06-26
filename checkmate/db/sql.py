@@ -79,7 +79,7 @@ class TextPickleType(PickleType):
 class Tenant(BASE):
     '''Class to encapsulate tenants table'''
     __tablename__ = "tenants"
-    tenant_id = Column(String(255), primary_key=True)
+    id = Column(String(255), primary_key=True)
     tags = relationship("TenantTag", cascade="all, delete, delete-orphan")
 
 
@@ -90,7 +90,7 @@ class TenantTag(BASE):
     tenant = Column(
         String(255),
         ForeignKey(
-            'tenants.tenant_id',
+            'tenants.id',
             ondelete="CASCADE",
             onupdate="RESTRICT"
         )
@@ -221,15 +221,15 @@ class Driver(DbBase):
     # TENANTS
     def save_tenant(self, tenant):
         '''Save a tenant in the tenants table'''
-        if tenant and tenant.get('tenant_id'):
-            tenant_id = tenant.get('tenant_id')
+        if tenant and tenant.get('id'):
+            tenant_id = tenant.get('id')
             current = (
                 self.session.query(Tenant).filter(
-                    Tenant.tenant_id == tenant_id).first()
+                    Tenant.id == tenant_id).first()
             )
             if not current:
                 current = Tenant(
-                    tenant_id=tenant_id,
+                    id=tenant_id,
                     tags=[
                         TenantTag(tag=tag) for tag in tenant.get('tags', [])
                     ] or None
@@ -253,14 +253,14 @@ class Driver(DbBase):
         tenants = query.all()
         ret = {}
         for tenant in tenants:
-            ret.update({tenant.tenant_id: self._fix_tenant(tenant)})
+            ret.update({tenant.id: self._fix_tenant(tenant)})
         return ret
 
     def _fix_tenant(self, tenant):
         '''Rearrange tag information in tenant record'''
         if tenant:
             tags = [tag.tag for tag in tenant.tags or []]
-            ret = {'tenant_id': tenant.tenant_id}
+            ret = {'id': tenant.id}
             if tags:
                 ret['tags'] = tags
             return ret
@@ -268,7 +268,7 @@ class Driver(DbBase):
 
     def get_tenant(self, tenant_id):
         '''Retrieve a tenant by tenant_id'''
-        tenant = (self.session.query(Tenant).filter_by(tenant_id=tenant_id)
+        tenant = (self.session.query(Tenant).filter_by(id=tenant_id)
                   .first())
         return self._fix_tenant(tenant)
 
@@ -276,11 +276,11 @@ class Driver(DbBase):
         '''Add tags to an existing tenant'''
         if tenant_id:
             tenant = (self.session.query(Tenant)
-                      .filter(Tenant.tenant_id == tenant_id)
+                      .filter(Tenant.id == tenant_id)
                       .first())
             new_tags = set(args or [])
             if not tenant:
-                tenant = Tenant(tenant_id=tenant_id,
+                tenant = Tenant(id=tenant_id,
                                 tags=[TenantTag(tag=tag) for tag in new_tags]
                                 or None)
                 self.session.add(tenant)

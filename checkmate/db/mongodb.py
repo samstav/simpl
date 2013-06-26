@@ -51,6 +51,7 @@ class Driver(common.DbBase):
     _deployment_collection_name = "deployments"
     _resource_collection_name = "resources"
     _environment_collection_name = "environments"
+    _tenant_collection_name = "tenants"
 
     #db fields we do not want returned to the client
     _object_projection = {'_lock': 0, '_lock_timestamp': 0, '_id': 0}
@@ -107,6 +108,16 @@ class Driver(common.DbBase):
             [('id', pymongo.ASCENDING)],
             background=True,
             name='workflows_id',
+        )
+        self.database()[self._tenant_collection_name].create_index(
+            [('id', pymongo.ASCENDING)],
+            background=True,
+            name='tenant_id',
+        )
+        self.database()[self._tenant_collection_name].create_index(
+            [('tags', pymongo.ASCENDING)],
+            background=True,
+            name='tenant_tags',
         )
 
     def __getstate__(self):
@@ -174,17 +185,18 @@ class Driver(common.DbBase):
 
     # TENANTS
     def save_tenant(self, tenant):
-        if tenant and tenant.get('tenant_id'):
-            tenant_id = tenant.get("tenant_id")
-            ten = {"tenant_id": tenant_id}
+        if tenant and tenant.get('id'):
+            tenant_id = tenant.get("id")
+            ten = {"id": tenant_id}
             if tenant.get('tags'):
                 ten['tags'] = tenant.get('tags')
-            resp = self.database()['tenants'].find_and_modify(
-                query={'tenant_id': tenant_id},
-                update=ten,
-                upsert=True,
-                new=True
-            )
+            resp = self.database()[self._tenant_collection_name]\
+                .find_and_modify(
+                    query={'id': tenant_id},
+                    update=ten,
+                    upsert=True,
+                    new=True
+                )
             LOG.debug("Saved tenant: %s", resp)
         else:
             raise CheckmateException("Must provide a tenant id")
@@ -194,28 +206,31 @@ class Driver(common.DbBase):
         find = {}
         if args:
             find = {"tags": {"$all": args}}
-        results = self.database()['tenants'].find(find, {"_id": 0})
+        results = self.database()[self._tenant_collection_name].find(
+            find, {"_id": 0})
         for result in results:
-            ret.update({result['tenant_id']: result})
+            if 'id' not in result and 'tenant_id' in result:
+                result['id'] = result.pop('tenant_id')
+            ret.update({result['id']: result})
         return ret
 
     def get_tenant(self, tenant_id):
         LOG.debug("Looking for tenant %s", tenant_id)
-        return self.database()['tenants'].find_one({"tenant_id": tenant_id},
-                                                   {"_id": 0})
+        return self.database()[self._tenant_collection_name].find_one(
+            {"id": tenant_id}, {"_id": 0})
 
     def add_tenant_tags(self, tenant_id, *args):
         if tenant_id:
-            tenant = (self.database()['tenants']
-                      .find_one({"tenant_id": tenant_id}))
+            tenant = (self.database()[self._tenant_collection_name]
+                      .find_one({"id": tenant_id}))
             if not tenant:
-                tenant = {"tenant_id": tenant_id}
+                tenant = {"id": tenant_id}
             if args and tenant:
                 if 'tags' not in tenant:
                     tenant['tags'] = []
                 tags = tenant['tags']
                 tags.extend([t for t in args if t not in tags])
-                self.database()['tenants'].save(tenant)
+                self.database()[self._tenant_collection_name].save(tenant)
         else:
             raise CheckmateException("Must provide a tenant with a tenant id")
 
