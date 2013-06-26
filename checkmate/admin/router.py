@@ -203,20 +203,20 @@ class Router(object):
     @utils.only_admins
     @utils.formatted_response('tenants', with_pagination=False)
     def get_tenants(self):
-        return self.manager.list_tenants(*request.query.getall('tag'))
+        return self.tenant_manager.list_tenants(*request.query.getall('tag'))
 
     @utils.only_admins
     def put_tenant(self, tenant_id):
         ten = {}
         if request.content_length > 0:
             ten = utils.read_body(request)
-        ten['tenant_id'] = tenant_id
-        self.manager.save_tenant(tenant_id, ten)
+        self.tenant_manager.save_tenant(tenant_id, ten)
+        response.status = 201
 
     @utils.only_admins
     def get_tenant(self, tenant_id):
         if tenant_id:
-            tenant = self.manager.get_tenant(tenant_id)
+            tenant = self.tenant_manager.get_tenant(tenant_id)
             return utils.write_body(tenant, request, response)
 
     @utils.only_admins
@@ -226,5 +226,5 @@ class Router(object):
             new = body.get('tags')
             if new and not isinstance(new, (list, tuple)):
                 new = [new]
-            self.manager.add_tenant_tags(tenant_id, *new)
+            self.tenant_manager.add_tenant_tags(tenant_id, *new)
             response.status = 204

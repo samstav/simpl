@@ -35,8 +35,8 @@ class Manager(base.ManagerBase):
     def add_tenant_tags(self, tenant_id, tags):
         '''Add a set of tags to an individual tenant'''
         if tenant_id:
-            if not tags:
-                raise CheckmateValidationException(tags, (list, tuple))
-            if not isinstance(tags, (list, tuple)):
+            if tags is None:
+                tags = []
+            elif not isinstance(tags, (list, tuple)):
                 tags = [tags]
             self.driver.add_tenant_tags(tenant_id, *tags)
