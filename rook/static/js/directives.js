@@ -192,28 +192,28 @@ directives.directive('cmTreeView', function() {
   }
 
   var get_color = function(status) {
+    if (!status) return null;
+
     var color;
     switch(status) {
-      case "UP":
       case "ACTIVE":
-      case "LAUNCHED":
         color = 'green';
         break;
-      case "ALERT":
-      case "BUILD":
-      case "DELETING":
+      case 'NEW':
+      case 'BUILD':
+      case 'DELETING':
+      case 'CONFIGURE':
         color = 'orange';
         break;
-      case "DOWN":
-      case "FAILED":
-      case "UNREACHABLE":
+      case 'ERROR':
         color = 'red';
         break;
-      case "PLANNED":
-        color = 'gray';
-        break;
-      default:
+      case 'DELETED':
         color = 'black';
+        break;
+      case "PLANNED":
+      default:
+        color = 'gray';
         break;
     }
     return color;
@@ -239,7 +239,7 @@ directives.directive('cmTreeView', function() {
         icon = 'compute';
         break;
     }
-    color = get_color(vertex.status);
+    color = get_color(vertex.host.status || vertex.status);
     if (icon)
       icon = [base_dir, icon, '-', color, '.svg'].join('');
 
@@ -255,6 +255,10 @@ directives.directive('cmTreeView', function() {
     // Update
     vertices.select('image')
       .attr('xlink:href', get_icon);
+    vertices.select('circle')
+      .attr('r', function(d) { if (d.host.id) return 8; })
+      .attr('cy', -20)
+      .attr('fill', function(d) { return get_color(d.status); });
     // Enter
     var vertex = vertices.enter()
       .append('svg:g')
@@ -265,8 +269,15 @@ directives.directive('cmTreeView', function() {
     vertex
       .append('svg:text')
       .attr('text-anchor', 'middle')
-      .attr('y', '-18')
+      .attr('y', 20)
       .text(function(d) { return d.name; });
+    vertex
+      .append('svg:circle')
+      .attr('r', function(d) { if (d.host.id) return 8; })
+      .attr('cy', -20)
+      .attr('fill', function(d) { return get_color(d.status); })
+      .append('svg:title')
+        .text(function(d) { return d.component; });
     vertex
       .append('svg:image')
       .attr('xlink:href', get_icon)

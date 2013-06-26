@@ -100,11 +100,11 @@ Priv Key: {{formatted_data.private_key}}
                   <div class="bar" style="width: {{percentComplete()}}%;"></div>
                 </div>
                 <div class="controls">
-                  <p><span class="label label-info cmtip" title="Total items">{{count}}</span> tasks total:</p>
-                  <p>&nbsp;&nbsp;<span class="label label-success cmtip" title="Completed">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>
-                  <p>&nbsp;&nbsp;<span class="label label-warning cmtip" title="In Progress">{{taskStates['waiting']}}</span> in progress</p>
-                  <p>&nbsp;&nbsp;<span class="label label-important cmtip" title="Errors">{{taskStates['error']}}</span> errored out</p>
-                  <p>&nbsp;&nbsp;<span class="label cmtip" title="Waiting on other tasks">{{taskStates['future'] + taskStates['likely'] +
+                  <p><span class="label label-info">{{count}}</span> tasks total:</p>
+                  <p>&nbsp; &nbsp; &nbsp;<span class="label label-success">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>
+                  <p>&nbsp; &nbsp; &nbsp;<span class="label label-warning">{{taskStates['waiting']}}</span> in progress</p>
+                  <p>&nbsp; &nbsp; &nbsp;<span class="label label-important">{{taskStates['error']}}</span> errored out</p>
+                  <p>&nbsp; &nbsp; &nbsp;<span class="label">{{taskStates['future'] + taskStates['likely'] +
                   taskStates['maybe']}}</span> tasks waiting on other tasks to finish.</p>
                 </div>
                 &nbsp;
