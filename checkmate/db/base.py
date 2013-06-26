@@ -24,7 +24,7 @@ LOG = logging.getLogger()
 
 
 class DbBase(object):  # pylint: disable=R0921
-    '''Interface for all database drivers'''
+    '''Interface for all database drivers.'''
 
     def __init__(self, connection_string, driver=None, *args, **kwargs):
         '''Initialize database driver
@@ -45,24 +45,24 @@ class DbBase(object):  # pylint: disable=R0921
         self.driver = driver
 
     def __getstate__(self):
-        '''Support serializing to connection string'''
+        '''Support serializing to connection string.'''
         return {'connection_string': self.connection_string}
 
     def __setstate__(self, dict):  # pylint: disable=W0622
-        '''Support deserializing from connection string'''
+        '''Support deserializing from connection string.'''
         self.connection_string = dict['connection_string']
 
     def __str__(self):
-        '''Support serializing to connection string'''
+        '''Support serializing to connection string.'''
         return self.connection_string
 
     def __repr__(self):
-        '''Support displaying connection string'''
+        '''Support displaying connection string.'''
         return ("<%s.%s connection_string='%s'>" % (self.__class__.__module__,
                 self.__class__.__name__, self.connection_string))
 
     def dump(self):
-        '''Dump all data n the database'''
+        '''Dump all data n the database.'''
         raise NotImplementedError()
 
     # ENVIRONMENTS
@@ -166,7 +166,7 @@ class DbBase(object):  # pylint: disable=R0921
     # Data conversion helper
     # TODO(zns): remove this when we're done
     #
-    legacy_statuses = {  # TODO: remove these when old data is clean
+    legacy_statuses = {
         "BUILD": 'UP',
         "CONFIGURE": 'UP',
         "ACTIVE": 'UP',
