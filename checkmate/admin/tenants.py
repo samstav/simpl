@@ -12,9 +12,9 @@ LOG = logging.getLogger(__name__)
 class Manager(base.ManagerBase):
     '''Contains Tenants Model and Logic for Accessing Tenants.'''
 
-    def list_tenants(self, tags):
+    def list_tenants(self, *tags):
         '''Get existing tenants.'''
-        return self.driver.list_tenants(tags)
+        return self.driver.list_tenants(*tags)
 
     def save_tenant(self, tenant_id, body):
         '''Save tenant (and overwrite).'''
