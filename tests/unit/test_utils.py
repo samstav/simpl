@@ -386,8 +386,8 @@ class TestUtils(unittest.TestCase):
     def test_get_formatted_time_string(self):
         mock = mox.Mox()
         mock_time = time.gmtime(0)
-        mock.StubOutWithMock(utils, 'gmtime')
-        utils.gmtime().AndReturn(mock_time)
+        mock.StubOutWithMock(utils.time, 'gmtime')
+        utils.time.gmtime().AndReturn(mock_time)
         mock.ReplayAll()
         result = utils.get_time_string()
         mock.VerifyAll()
@@ -395,7 +395,7 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
     def test_get_formatted_time_string_with_input(self):
-        result = utils.get_time_string(time.gmtime(0))
+        result = utils.get_time_string(time_gmt=time.gmtime(0))
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
     #

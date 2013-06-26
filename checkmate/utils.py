@@ -5,31 +5,32 @@
 '''
 # pylint: disable=E0611
 import base64
-from collections import MutableMapping, deque
+import collections
 import inspect
 import json
 import logging.config
 import os
 import re
+import shutil
 import string
 import struct
-from subprocess import CalledProcessError, Popen, PIPE, check_output
+import subprocess
+from subprocess import CalledProcessError
 import sys
-from time import gmtime, strftime
+import time
 import uuid
-import shutil
 
-from bottle import abort, request, response
+import bottle
 from Crypto.Random import random
 from eventlet.green import threading
-from functools import wraps
+import functools
 import yaml
-from yaml.events import AliasEvent, ScalarEvent
 from yaml.composer import ComposerError
-from yaml.scanner import ScannerError
+from yaml import events
 from yaml.parser import ParserError
+from yaml.scanner import ScannerError
 
-from checkmate.common.codegen import kwargs_from_string
+from checkmate.common import codegen
 from checkmate.exceptions import (
     CheckmateDataIntegrityError,
     CheckmateNoData,
@@ -67,8 +68,10 @@ def get_debug_level(config):
 
 
 class DebugFormatter(logging.Formatter):
-    '''Log formatter that outputs any 'data' values passed in the 'extra'
-    parameter if provided.'''
+    '''Log formatter.
+
+    Outputs any 'data' values passed in the 'extra' parameter if provided.
+    '''
     def format(self, record):
         # Print out any 'extra' data provided in logs
         if hasattr(record, 'data'):
@@ -99,7 +102,7 @@ def get_debug_formatter(config):
 
 
 def find_console_handler(logger):
-    '''Returns a stream handler, if it exists'''
+    '''Returns a stream handler, if it exists.'''
     for handler in logger.handlers:
         if isinstance(handler, logging.StreamHandler) and \
                 handler.stream == sys.stderr:
@@ -122,7 +125,7 @@ def init_logging(config, default_config=None):
 
 
 def init_console_logging(config):
-    '''Log to console'''
+    '''Log to console.'''
     # define a Handler which writes messages to the sys.stderr
     console = find_console_handler(logging.getLogger())
     if not console:
@@ -142,7 +145,7 @@ def init_console_logging(config):
 
 
 def match_celery_logging(logger):
-    '''Match celery log level'''
+    '''Match celery log level.'''
     if logger.level < int(os.environ.get('CELERY_LOG_LEVEL', logger.level)):
         logger.setLevel(int(os.environ.get('CELERY_LOG_LEVEL')))
 
@@ -176,12 +179,13 @@ def resolve_yaml_external_refs(document):
     '''
     anchors = []
     for event in yaml.parse(document, Loader=yaml.SafeLoader):
-        if isinstance(event, AliasEvent):
+        if isinstance(event, events.AliasEvent):
             if event.anchor not in anchors:
                 # Swap out local reference for external reference
                 new_ref = u'ref://%s' % event.anchor
-                event = ScalarEvent(anchor=None, tag=None,
-                                    implicit=(True, False), value=new_ref)
+                event = events.ScalarEvent(anchor=None, tag=None,
+                                           implicit=(True, False),
+                                           value=new_ref)
         if hasattr(event, 'anchor') and event.anchor:
             anchors.append(event.anchor)
 
@@ -189,12 +193,12 @@ def resolve_yaml_external_refs(document):
 
 
 def read_body(request):
-    '''Reads request body, taking into consideration the content-type, and
-    return it as a dict'''
+    '''Reads request body considering content-type and returns it as a dict.'''
     data = request.body
     if not data or getattr(data, 'len', -1) == 0:
         raise CheckmateNoData("No data provided")
-    content_type = request.get_header('Content-type', 'application/json')
+    content_type = request.get_header(
+        'Content-type', 'application/json')
     if ';' in content_type:
         content_type = content_type.split(';')[0]
 
@@ -220,7 +224,7 @@ def read_body(request):
                                            "POSTs only support objects in the "
                                            "'object' field")
     else:
-        abort(415, "Unsupported Media Type: %s" % content_type)
+        bottle.abort(415, "Unsupported Media Type: %s" % content_type)
 
 
 def yaml_to_dict(data):
@@ -235,15 +239,17 @@ def dict_to_yaml(data):
 
 
 def write_yaml(data, request, response):
-    '''Write output in yaml'''
+    '''Write output in yaml.'''
     response.set_header('content-type', 'application/x-yaml')
     return to_yaml(data)
 
 
 def to_yaml(data):
-    '''Writes out python object to YAML (with special handling for Checkmate
-    objects derived from MutableMapping)'''
-    if isinstance(data, MutableMapping) and hasattr(data, '_data'):
+    '''Writes python object to YAML.
+
+    Includes special handling for Checkmate objects derived from MutableMapping
+    '''
+    if isinstance(data, collections.MutableMapping) and hasattr(data, '_data'):
         return yaml.safe_dump(data._data, default_flow_style=False)
     return yaml.safe_dump(data, default_flow_style=False)
 
@@ -262,15 +268,17 @@ def escape_yaml_simple_string(text):
 
 
 def write_json(data, request, response):
-    '''Write output in json'''
+    '''Write output in json.'''
     response.set_header('content-type', 'application/json')
     return to_json(data)
 
 
 def to_json(data):
-    '''Writes out python object to JSON (with special handling for Checkmate
-    objects derived from MutableMapping)'''
-    if isinstance(data, MutableMapping) and hasattr(data, 'dumps'):
+    '''Writes out python object to JSON.
+
+    Includes special handling for Checkmate objects derived from MutableMapping
+    '''
+    if isinstance(data, collections.MutableMapping) and hasattr(data, 'dumps'):
         return data.dumps(indent=4)
     return json.dumps(data, indent=4)
 
@@ -289,11 +297,11 @@ def formatted_response(uripath, with_pagination=False):
     def _formatted_response(fxn):
         def _decorator(*args, **kwargs):
             try:
-                _validate_range_values(request, 'offset', kwargs)
-                _validate_range_values(request, 'limit', kwargs)
+                _validate_range_values(bottle.request, 'offset', kwargs)
+                _validate_range_values(bottle.request, 'limit', kwargs)
             except ValueError:
-                response.status = 416
-                response.set_header('Content-Range', '%s */*' % uripath)
+                bottle.response.status = 416
+                bottle.response.set_header('Content-Range', '%s */*' % uripath)
                 return
 
             data = fxn(*args, **kwargs)
@@ -302,36 +310,35 @@ def formatted_response(uripath, with_pagination=False):
                     data,
                     kwargs.get('offset') or 0,
                     kwargs.get('limit'),
-                    response,
+                    bottle.response,
                     uripath,
-                    kwargs.get('tenant_id', request.context.tenant)
+                    kwargs.get('tenant_id', bottle.request.context.tenant)
                 )
             if 'deployments' in uripath:
-                expected_tenant = kwargs.get('tenant_id', request.context.tenant)
+                expected_tenant = kwargs.get(
+                    'tenant_id', bottle.request.context.tenant)
                 if expected_tenant:
-                    print data
                     for _, deployment in data['results'].items():
-                        print deployment
                         if (deployment.get('tenantId') and
                                 deployment['tenantId'] != expected_tenant):
                             LOG.warn(
                                 'Cross-Tenant Violation in '
                                 'formatted_response: requested tenant %s does '
                                 'not match tenant %s in response.\nLocals:\n '
-                                '%s\nGlobals:\n%s', tenant_id,
-                                entry.get('tenandId'), locals(), globals()
+                                '%s\nGlobals:\n%s', expected_tenant,
+                                deployment['tenandId'], locals(), globals()
                             )
                             raise CheckmateDataIntegrityError(
                                 'A Tenant ID in the results '
                                 'does not match %s.',
-                                tenant_id
+                                expected_tenant
                             )
             return write_body(
                 data,
-                request,
-                response
+                bottle.request,
+                bottle.response
             )
-        return wraps(fxn)(_decorator)
+        return functools.wraps(fxn)(_decorator)
     return _formatted_response
 
 
@@ -349,7 +356,7 @@ def _validate_range_values(request, label, kwargs):
 
 def _write_pagination_headers(data, offset, limit, response,
                               uripath, tenant_id):
-    '''Add pagination headers to the response body'''
+    '''Add pagination headers to the response body.'''
     count = len(data.get('results'))
     if 'collection-count' in data:
         total = int(data.get('collection-count', 0))
@@ -387,7 +394,8 @@ def _write_pagination_headers(data, offset, limit, response,
         # Add first page link to http header
         if offset > 0:
             firstfmt = '</%s/%s?limit=%d>; rel="first"; title="First page"'
-            response.add_header("Link", firstfmt % (tenant_id, uripath, limit))
+            response.add_header(
+                "Link", firstfmt % (tenant_id, uripath, limit))
 
         # Add last page link to http header
         if limit and limit < total:
@@ -396,8 +404,8 @@ def _write_pagination_headers(data, offset, limit, response,
                 last_offset = total - (total % limit)
             else:
                 last_offset = total - limit
-            response.add_header("Link",
-                                lastfmt % (tenant_id, uripath, last_offset))
+            response.add_header(
+                "Link", lastfmt % (tenant_id, uripath, last_offset))
 
 
 def write_body(data, request, response):
@@ -411,18 +419,21 @@ def write_body(data, request, response):
 
     for content_type in HANDLERS:
         if content_type in accept:
-            return HANDLERS[content_type](data, request, response)
+            return HANDLERS[content_type](
+                data, request, response)
 
     #Use default
     return HANDLERS['default'](data, request, response)
 
 
 def extract_sensitive_data(data, sensitive_keys=None):
-    '''Parses the dict passed in, extracts all sensitive data into another
-    dict, and returns two dicts; one without the sensitive data and with only
-    the sensitive data.
-    :param sensitive_keys: a list of keys considered sensitive'''
+    '''Parses the dict passed in, extracting all sensitive data.
 
+    Extracted data is placed into another dict, and returns two dicts; one
+    without the sensitive data and with only the sensitive data.
+
+    :param sensitive_keys: a list of keys considered sensitive
+    '''
     def key_match(key, sensitive_keys):
         if key in sensitive_keys:
             return True
@@ -434,8 +445,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
         return False
 
     def recursive_split(data, sensitive_keys=[]):
-        '''Returns split of a dict or list if it contains any of the sensitive
-        fields'''
+        '''Returns split dict or list if it contains any sensitive fields.'''
         clean = None
         sensitive = None
         has_sensitive_data = False
@@ -520,9 +530,11 @@ def extract_sensitive_data(data, sensitive_keys=None):
 
 
 def flatten(list_of_dict):
-    '''Converts a list of dictionary to a single dictionary. If 2 or more
-     dictionaries have the same key then the data from the last dictionary in
-     the list will be taken.'''
+    '''Converts a list of dictionary to a single dictionary.
+
+    If 2 or more dictionaries have the same key then the data from the last
+    dictionary in the list will be taken.
+    '''
     result = {}
     for d in list_of_dict:
         result.update(d)
@@ -530,9 +542,12 @@ def flatten(list_of_dict):
 
 
 def merge_dictionary(dst, src, extend_lists=False):
-    '''Recursive merge two dicts (vs .update which overwrites the hashes at the
-        root level)
-    Note: This updates dst.'''
+    '''Recursively merge two dicts.
+
+    Hashes at the root level are NOT overwritten
+
+    Note: This updates dst.
+    '''
     stack = [(dst, src)]
     while stack:
         current_dst, current_src = stack.pop()
@@ -552,10 +567,11 @@ def merge_dictionary(dst, src, extend_lists=False):
 
 
 def merge_lists(dest, source, extend_lists=False):
-    '''Recursive merge two lists
+    '''Recursively merge two lists
 
     This applies merge_dictionary if any of the entries are dicts.
-    Note: This updates dst.'''
+    Note: This updates dst.
+    '''
     if not source:
         return
     if not extend_lists:
@@ -586,7 +602,7 @@ def merge_lists(dest, source, extend_lists=False):
 
 
 def is_ssh_key(key):
-    '''Checks if string looks like it is an ssh key'''
+    '''Checks if string looks like it is an ssh key.'''
     if not key:
         return False
     if not isinstance(key, basestring):
@@ -620,7 +636,7 @@ def get_class_name(instance):
 
 
 def get_source_body(function):
-    '''Gets the body of a function (i.e. no definition line, and unindented'''
+    '''Gets the body of a function (i.e. no definition line, and unindented.'''
     lines = inspect.getsource(function).split('\n')
 
     # Find body - skip decorators and definition
@@ -641,57 +657,66 @@ def get_source_body(function):
 
 
 def with_tenant(fxn):
-    '''A function decorator that ensures a context tenant_id is passed in to
-    the decorated function as a kwarg'''
+    '''Ensure a context tenant_id is passed into decorated function
+
+    A function decorator that ensures a context tenant_id is passed in to
+    the decorated function as a kwarg
+    '''
     def wrapped(*args, **kwargs):
         if kwargs.get('tenant_id'):
             # Tenant ID is being passed in
             return fxn(*args, **kwargs)
         else:
-            return fxn(*args, tenant_id=request.context.tenant, **kwargs)
+            return fxn(
+                *args, tenant_id=bottle.request.context.tenant, **kwargs)
     return wrapped
 
 
 def support_only(types):
-    '''A function decorator that ensures the route is only accepted if the
-    content type is in the list of types supplied'''
+    '''Ensures route is only accepted if content type is supported.
+
+    A function decorator that ensures the route is only accepted if the
+    content type is in the list of types supplied
+    '''
     def wrap(fxn):
         def wrapped(*args, **kwargs):
-            accept = request.get_header("Accept", [])
+            accept = bottle.request.get_header("Accept", [])
             if accept == "*/*":
                 return fxn(*args, **kwargs)
             for content_type in types:
                 if content_type in accept:
                     return fxn(*args, **kwargs)
             LOG.debug("support_only decorator filtered call")
-            raise abort(415, "Unsupported media type")
+            raise bottle.abort(415, "Unsupported media type")
         return wrapped
     return wrap
 
 
 def only_admins(fxn):
-    ''' Decorator to limit access to admins only '''
+    '''Decorator to limit access to admins only.'''
     def wrapped(*args, **kwargs):
-        if request.context.is_admin is True:
+        if bottle.request.context.is_admin is True:
             LOG.debug("Admin account '%s' accessing '%s'",
-                      request.context.username, request.path)
+                      bottle.request.context.username, bottle.request.path)
             return fxn(*args, **kwargs)
         else:
-            abort(403, "Administrator privileges needed for this "
-                  "operation")
+            bottle.abort(
+                403, "Administrator privileges needed for this operation")
     return wrapped
 
 
-def get_time_string(time=None):
-    '''Central function that returns time (UTC in ISO format) as a string
+def get_time_string(time_gmt=None):
+    '''The Checkmate canonical time string format.
 
     Changing this function will change all times that checkmate uses in
-    blueprints, deployments, etc...'''
-    return strftime("%Y-%m-%d %H:%M:%S +0000", time or gmtime())
+    blueprints, deployments, etc...
+    '''
+    # TODO(Pablo): This should just return the time format string
+    return time.strftime("%Y-%m-%d %H:%M:%S +0000", time_gmt or time.gmtime())
 
 
 def isUUID(value):
-    '''Tests if a provided value is a valid uuid'''
+    '''Tests if a provided value is a valid uuid.'''
     if not value:
         return False
     if isinstance(value, uuid.UUID):
@@ -704,7 +729,7 @@ def isUUID(value):
 
 
 def write_path(target, path, value):
-    '''Writes a value into a dict building any intermediate keys'''
+    '''Writes a value into a dict building any intermediate keys.'''
     parts = path.split('/')
     current = target
     for part in parts[:-1]:
@@ -716,7 +741,7 @@ def write_path(target, path, value):
 
 
 def read_path(source, path):
-    '''Reads a value from a dict supporting a path as a key'''
+    '''Reads a value from a dict supporting a path as a key.'''
     parts = path.strip('/').split('/')
     current = source
     for part in parts[:-1]:
@@ -729,7 +754,7 @@ def read_path(source, path):
 
 
 def is_evaluable(value):
-    ''' Check if value is a function that can be passed to evaluate() '''
+    '''Check if value is a function that can be passed to evaluate().'''
     try:
         return (value.startswith('=generate_password(') or
                 value.startswith('=generate_uuid('))
@@ -797,7 +822,7 @@ def evaluate(function_string):
     - generate_password()
     - generate_uuid()
     '''
-    func_name, kwargs = kwargs_from_string(function_string)
+    func_name, kwargs = codegen.kwargs_from_string(function_string)
     if func_name == 'generate_uuid':
         return uuid.uuid4().hex
     if func_name == 'generate_password':
@@ -806,7 +831,7 @@ def evaluate(function_string):
 
 
 def check_all_output(params, find="ERROR"):
-    '''
+    '''Detects 'find' string in params, returning a list of all matching lines
 
     Similar to subprocess.check_output, but parses both stdout and stderr
     and detects any string passed in as the find parameter.
@@ -834,13 +859,14 @@ def check_all_output(params, find="ERROR"):
                 found(line)
         infile.close()
 
-    p = Popen(params, stdout=PIPE, stderr=PIPE, bufsize=1, close_fds=ON_POSIX)
+    p = subprocess.Popen(params, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, bufsize=1, close_fds=ON_POSIX)
 
     # preserve last N lines of stdout and stderr
     N = 100
-    stdout = deque(maxlen=N)  # will capture stdout
-    stderr = deque(maxlen=N)  # will capture stderr
-    found = deque(maxlen=N)  # will capture found (contain param find)
+    stdout = collections.deque(maxlen=N)
+    stderr = collections.deque(maxlen=N)
+    found = collections.deque(maxlen=N)
     threads = [start_thread(consume, *args)
                for args in (p.stdout, stdout.append, found.append),
                (p.stderr, stderr.append, found.append)]
@@ -861,33 +887,36 @@ def check_all_output(params, find="ERROR"):
 
 
 def is_simulation(api_id):
-    '''Determine if the current object is in simulation'''
+    '''Determine if the current object is in simulation.'''
     return str(api_id).startswith('simulate')
 
 
 def git_clone(repo_dir, url, branch="master"):
     '''Do a git checkout of `head' in `repo_dir'.'''
-    return check_output(['git', 'clone', url, repo_dir, '--branch', branch])
+    return subprocess.check_output(
+        ['git', 'clone', url, repo_dir, '--branch', branch])
 
 
 def git_tags(repo_dir):
     '''Return a list of git tags for the git repo in `repo_dir'.'''
-    return check_output(['git', 'tag', '-l'], cwd=repo_dir).split("\n")
+    return subprocess.check_output(
+        ['git', 'tag', '-l'], cwd=repo_dir).split("\n")
 
 
 def git_checkout(repo_dir, head):
     '''Do a git checkout of `head' in `repo_dir'.'''
-    return check_output(['git', 'checkout', head], cwd=repo_dir)
+    return subprocess.check_output(['git', 'checkout', head], cwd=repo_dir)
 
 
 def git_fetch(repo_dir, refspec, remote="origin"):
     '''Do a git fetch of `refspec' in `repo_dir'.'''
-    return check_output(['git', 'fetch', remote, refspec], cwd=repo_dir)
+    return subprocess.check_output(
+        ['git', 'fetch', remote, refspec], cwd=repo_dir)
 
 
 def git_pull(repo_dir, head, remote="origin"):
     '''Do a git pull of `head' from `remote'.'''
-    return check_output(['git', 'pull', remote, head], cwd=repo_dir)
+    return subprocess.check_output(['git', 'pull', remote, head], cwd=repo_dir)
 
 
 def copy_contents(source, dest, with_overwrite=False, create_path=True):
@@ -922,7 +951,7 @@ def copy_contents(source, dest, with_overwrite=False, create_path=True):
 
 
 def filter_resources(resources, provider_name):
-    '''Return resources of a specified type'''
+    '''Return resources of a specified type.'''
     results = []
     for resource in resources.values():
         if 'provider' in resource:

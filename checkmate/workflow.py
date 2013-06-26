@@ -509,7 +509,7 @@ def _update_operation(operation, workflow):
     operation['tasks'] = total
     operation['complete'] = complete
     operation['estimated-duration'] = duration
-    operation['last-change'] = get_time_string(time=time.gmtime(last_change))
+    operation['last-change'] = get_time_string(time_gmt=time.gmtime(last_change))
     if failure > 0:
         operation['status'] = "ERROR"
     elif total > complete:
