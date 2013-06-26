@@ -22,7 +22,7 @@ describe('WorkflowController', function(){
     $location = {};
     $window = {};
     auth = { identity: {} };
-    workflow = {};
+    workflow = { flattenTasks: emptyFunction };
     items = {};
     scroll = {};
     $timeout = {};
@@ -219,6 +219,17 @@ describe('WorkflowController', function(){
     it('should be true if status is "PAUSED"', function() {
       $scope.data.attributes.status = "PAUSED";
       expect($scope.is_paused()).toBe(true);
+    });
+  });
+
+  describe('#selectTask', function(){
+    beforeEach(function(){
+      $scope.data = { task_tree: 'irrelevant' };
+    });
+
+    it('should set the current task index', function(){
+      $scope.selectTask(1);
+      expect($scope.current_task_index).toEqual(1);
     });
   });
 });

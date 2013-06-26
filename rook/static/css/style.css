@@ -508,3 +508,8 @@ text.nodetext {
   stroke: #999;
   stroke-opacity: 0.6;
 }
+
+a:hover {
+  cursor: pointer;
+}
+
