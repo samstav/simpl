@@ -295,6 +295,7 @@ def formatted_response(uripath, with_pagination=False):
     header of a route/get/post/put function
     '''
     def _formatted_response(fxn):
+        '''Add pagination (optional) and headers to response.'''
         def _decorator(*args, **kwargs):
             try:
                 _validate_range_values(bottle.request, 'offset', kwargs)
@@ -343,11 +344,8 @@ def formatted_response(uripath, with_pagination=False):
 
 
 def _validate_range_values(request, label, kwargs):
-    value = None
-    if label not in kwargs:
-        value = request.query.get(label)
-    else:
-        value = kwargs[label]
+    '''Ensures value contained in label is a positive integer.'''
+    value = kwargs.get(label, request.query.get(label))
     if value:
         kwargs[label] = int(value)
         if kwargs[label] < 0:
@@ -435,6 +433,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
     :param sensitive_keys: a list of keys considered sensitive
     '''
     def key_match(key, sensitive_keys):
+        '''Determines whether or not key is in sensitive_keys.'''
         if key in sensitive_keys:
             return True
         for reg_expr in [pattern for pattern in sensitive_keys
@@ -455,28 +454,28 @@ def extract_sensitive_data(data, sensitive_keys=None):
             sensitive = []
             for value in data:
                 if isinstance(value, dict):
-                    c, s = recursive_split(value,
-                                           sensitive_keys=sensitive_keys)
-                    if s is not None:
-                        sensitive.append(s)
+                    clean_value, sensitive_value = recursive_split(
+                        value, sensitive_keys=sensitive_keys)
+                    if sensitive_value is not None:
+                        sensitive.append(sensitive_value)
                         has_sensitive_data = True
                     else:
                         sensitive.append({})  # placeholder
-                    if c is not None:
-                        clean.append(c)
+                    if clean_value is not None:
+                        clean.append(clean_value)
                         has_clean_data = True
                     else:
                         clean.append({})  # placeholder
                 elif isinstance(value, list):
-                    c, s = recursive_split(value,
-                                           sensitive_keys=sensitive_keys)
-                    if s is not None:
-                        sensitive.append(s)
+                    clean_value, sensitive_value = recursive_split(
+                        value, sensitive_keys=sensitive_keys)
+                    if sensitive_value is not None:
+                        sensitive.append(sensitive_value)
                         has_sensitive_data = True
                     else:
                         sensitive.append([])  # placeholder
-                    if c is not None:
-                        clean.append(c)
+                    if clean_value is not None:
+                        clean.append(clean_value)
                         has_clean_data = True
                     else:
                         clean.append([])
@@ -492,23 +491,23 @@ def extract_sensitive_data(data, sensitive_keys=None):
                     has_sensitive_data = True
                     sensitive[key] = value
                 elif isinstance(value, dict):
-                    c, s = recursive_split(value,
-                                           sensitive_keys=sensitive_keys)
-                    if s is not None:
+                    clean_value, sensitive_value = recursive_split(
+                        value, sensitive_keys=sensitive_keys)
+                    if sensitive_value is not None:
                         has_sensitive_data = True
-                        sensitive[key] = s
-                    if c is not None:
+                        sensitive[key] = sensitive_value
+                    if clean_value is not None:
                         has_clean_data = True
-                        clean[key] = c
+                        clean[key] = clean_value
                 elif isinstance(value, list):
-                    c, s = recursive_split(value,
-                                           sensitive_keys=sensitive_keys)
-                    if s is not None:
+                    clean_value, sensitive_value = recursive_split(
+                        value, sensitive_keys=sensitive_keys)
+                    if sensitive_value is not None:
                         has_sensitive_data = True
-                        sensitive[key] = s
-                    if c is not None:
+                        sensitive[key] = sensitive_value
+                    if clean_value is not None:
                         has_clean_data = True
-                        clean[key] = c
+                        clean[key] = clean_value
                 else:
                     has_clean_data = True
                     clean[key] = value
@@ -536,8 +535,8 @@ def flatten(list_of_dict):
     dictionary in the list will be taken.
     '''
     result = {}
-    for d in list_of_dict:
-        result.update(d)
+    for entry in list_of_dict:
+        result.update(entry)
     return result
 
 
@@ -632,6 +631,7 @@ def is_ssh_key(key):
 
 
 def get_class_name(instance):
+    '''Return instance's class name.'''
     return instance.__class__.__name__
 
 
@@ -711,7 +711,7 @@ def get_time_string(time_gmt=None):
     Changing this function will change all times that checkmate uses in
     blueprints, deployments, etc...
     '''
-    # TODO(Pablo): This should just return the time format string
+    # TODO(Pablo): We should assert that time_gmt is a time.struct_time
     return time.strftime("%Y-%m-%d %H:%M:%S +0000", time_gmt or time.gmtime())
 
 
@@ -805,7 +805,7 @@ def generate_password(min_length=None, max_length=None, required_chars=None,
         password = ''.join([
             password,
             ''.join(
-                [random.choice(valid_chars) for x in range(password_length)]
+                [random.choice(valid_chars) for _ in range(password_length)]
             )
         ])
 
@@ -844,36 +844,39 @@ def check_all_output(params, find="ERROR"):
     keeping it for the script provider (coming soon)
 
     '''
-    ON_POSIX = 'posix' in sys.builtin_module_names
+    on_posix = 'posix' in sys.builtin_module_names
 
     def start_thread(func, *args):
-        t = threading.Thread(target=func, args=args)
-        t.daemon = True
-        t.start()
-        return t
+        '''Start thread as a daemon.'''
+        thread = threading.Thread(target=func, args=args)
+        thread.daemon = True
+        thread.start()
+        return thread
 
     def consume(infile, output, found):
+        '''Per thread: read lines in file searching for find.'''
         for line in iter(infile.readline, ''):
             output(line)
             if find in line:
                 found(line)
         infile.close()
 
-    p = subprocess.Popen(params, stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE, bufsize=1, close_fds=ON_POSIX)
+    process = subprocess.Popen(params, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, bufsize=1,
+                               close_fds=on_posix)
 
-    # preserve last N lines of stdout and stderr
-    N = 100
-    stdout = collections.deque(maxlen=N)
-    stderr = collections.deque(maxlen=N)
-    found = collections.deque(maxlen=N)
+    # preserve last numlines of stdout and stderr
+    numlines = 100
+    stdout = collections.deque(maxlen=numlines)
+    stderr = collections.deque(maxlen=numlines)
+    found = collections.deque(maxlen=numlines)
     threads = [start_thread(consume, *args)
-               for args in (p.stdout, stdout.append, found.append),
-               (p.stderr, stderr.append, found.append)]
-    for t in threads:
-        t.join()  # wait for IO completion
+               for args in (process.stdout, stdout.append, found.append),
+               (process.stderr, stderr.append, found.append)]
+    for thread in threads:
+        thread.join()  # wait for IO completion
 
-    retcode = p.wait()
+    retcode = process.wait()
 
     if retcode == 0:
         return (stdout, stderr, found)
@@ -933,16 +936,17 @@ def copy_contents(source, dest, with_overwrite=False, create_path=True):
         else:
             raise IOError("%s does not exist.  Use create_path=True to create "
                           "destination" % dest)
-    for file in os.listdir(source):
-        source_path = os.path.join(source, file)
+    for src_file in os.listdir(source):
+        source_path = os.path.join(source, src_file)
         if os.path.isdir(source_path):
             try:
-                shutil.copytree(source_path, os.path.join(dest, file))
-            except OSError, e:
-                if e.errno == 17:  # File exists
+                shutil.copytree(source_path, os.path.join(dest, src_file))
+            except OSError, exc:
+                if exc.errno == 17:  # File exists
                     if with_overwrite:
-                        shutil.rmtree(os.path.join(dest, file))
-                        shutil.copytree(source_path, os.path.join(dest, file))
+                        shutil.rmtree(os.path.join(dest, src_file))
+                        shutil.copytree(
+                            source_path, os.path.join(dest, src_file))
                     else:
                         raise IOError("%s exists, use with_overwrite=True to "
                                       "overwrite destination." % dest)
