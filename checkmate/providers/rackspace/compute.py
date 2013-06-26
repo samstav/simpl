@@ -694,8 +694,7 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
                 'status-message': (
                     'Unexpected error %s compute instance %s' % (action, key)
                 ),
-                'error-message': str(exc),
-                'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
+                'error-message': str(exc)
             }
         }
         resource_postback.delay(dep_id, ret)
