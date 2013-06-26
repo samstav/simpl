@@ -66,12 +66,17 @@ class Plan(ExtensibleDict):
 
     '''
 
-    def __init__(self, deployment, *args, **kwargs):
+    def __init__(self, deployment, parse_only=False, *args, **kwargs):
+        '''
+
+        :param parse_only: optimize for parsing. Uses dummy keys
+        '''
         ExtensibleDict.__init__(self, *args, **kwargs)
 
         self.deployment = deployment
         self.resources = {}
         self.connections = {}
+        self.parse_only = parse_only
 
         # Find blueprint and environment. Otherwise, there's nothing to plan!
         self.blueprint = deployment.get('blueprint')
@@ -358,7 +363,16 @@ class Plan(ExtensibleDict):
                     private_key = resource.get('private_key')
                     if private_key is None:
                         # Generate and store all key types
-                        private, public = keys.generate_key_pair()
+                        if self.parse_only:
+                            private = {
+                                'PEM': "--- BEGIN PARSE ONLY ---"
+                            }
+                            public = {
+                                'PEM': "--- BEGIN PARSE ONLY ---",
+                                "ssh": "ssh-dummy",
+                            }
+                        else:
+                            private, public = keys.generate_key_pair()
                         instance['public_key'] = public['PEM']
                         instance['public_key_ssh'] = public['ssh']
                         instance['private_key'] = private['PEM']

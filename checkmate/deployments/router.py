@@ -189,7 +189,8 @@ class Router(object):
         deployment = _content_to_deployment(request, tenant_id=tenant_id)
         results = self.manager.plan(deployment, request.context,
                                     check_limits=check_limits,
-                                    check_access=check_access)
+                                    check_access=check_access,
+                                    parse_only=True)
         return utils.write_body(results, request, response)
 
     @with_tenant
