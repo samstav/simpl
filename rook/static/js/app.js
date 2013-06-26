@@ -1270,9 +1270,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       if (['children', "$$hashKey"].indexOf(attr) == -1 && obj.hasOwnProperty(attr))
         copy[attr] = obj[attr];
     }
+
     $scope.current_task_json = JSON.stringify(copy, null, 2)
     // Refresh CodeMirror since it might have been hidden
-    _.each($('.CodeMirror'), function(inst) { inst.CodeMirror.refresh(); });
+    _.each($('.CodeMirror'), function(inst) { $timeout(function(){ inst.CodeMirror.refresh();}, 0) });
   };
 
   $scope.save_task = function() {
