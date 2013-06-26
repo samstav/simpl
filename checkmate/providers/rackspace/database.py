@@ -979,9 +979,7 @@ def delete_instance(context, api=None):
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
-                    'error-message': exc.args[0],
-                    'error-traceback': 'Task %s: %s' % (task_id,
-                                                        einfo.traceback)
+                    'error-message': str(exc)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1071,9 +1069,7 @@ def wait_on_del_instance(context, api=None):
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
-                    'error-message': exc.args[0],
-                    'error-traceback': 'Task %s: %s' % (task_id,
-                                                        einfo.traceback)
+                    'error-message': str(exc)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1148,9 +1144,7 @@ def delete_database(context, api=None):
                         'Unexpected error while deleting '
                         'database %s' % key
                     ),
-                    'error-message': exc.args[0],
-                    'error-traceback': 'Task %s: %s' % (task_id,
-                                                        einfo.traceback)
+                    'error-message': str(exc)
                 }
             }
             resource_postback.delay(dep_id, ret)
