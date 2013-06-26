@@ -26,8 +26,6 @@ import logging
 import os
 
 import bottle
-from bottle import request
-from bottle import response
 import celery
 import eventlet
 from eventlet import debug
@@ -44,13 +42,14 @@ from checkmate.common import gzip_middleware
 from checkmate import db
 from checkmate import deployments
 from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateNoMapping,
-    CheckmateValidationException,
-    CheckmateNoData,
-    CheckmateDoesNotExist,
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
+    CheckmateDataIntegrityError,
+    CheckmateDoesNotExist,
+    CheckmateException,
+    CheckmateNoData,
+    CheckmateNoMapping,
+    CheckmateValidationException,
 )
 from checkmate.git import middleware as git_middleware
 from checkmate import middleware
@@ -100,48 +99,52 @@ DEFAULT_AUTH_ENDPOINTS = [{
 def error_formatter(error):
     '''Catch errors and output them in the correct format/media-type.'''
     output = {}
-    accept = request.get_header("Accept") or ""
+    accept = bottle.request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
         error.headers = bottle.HeaderDict(
             {"content-type": "application/x-yaml"})
-        error.apply(response)
+        error.apply(bottle.response)
     else:  # default to JSON
         error.headers = bottle.HeaderDict({"content-type": "application/json"})
-        error.apply(response)
+        error.apply(bottle.response)
 
     if isinstance(error.exception, CheckmateNoMapping):
         error.status = 406
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateDoesNotExist):
         error.status = 404
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateValidationException):
         error.status = 400
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
+    elif isinstance(error.exception, CheckmateDataIntegrityError):
+        error.status = 401
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateNoData):
         error.status = 400
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateBadState):
         error.status = 409
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateDatabaseConnectionError):
         error.status = 500
         error.output = "Database connection error on server."
-        output['message'] = error.exception.__str__()
+        output['message'] = str(error.exception)
     elif isinstance(error.exception, CheckmateException):
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     elif isinstance(error.exception, AssertionError):
         error.status = 400
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     else:
         # For other 500's, provide underlying cause
         if error.exception:
-            output['message'] = error.exception.__str__()
+            output['message'] = str(error.exception)
 
     output['description'] = error.output
     output['code'] = error.status
-    response.status = error.status
-    return utils.write_body(dict(error=output), request, response)
+    bottle.response.status = error.status
+    return utils.write_body(
+        dict(error=output), bottle.request, bottle.response)
 
 
 def config_statsd():
@@ -182,12 +185,9 @@ def main():
     check_celery_config()
 
     # Register built-in providers
-    from checkmate.providers import (
-        rackspace,
-        opscode,
-    )
-    rackspace.register()
-    opscode.register()
+    from checkmate import providers
+    providers.rackspace.register()
+    providers.opscode.register()
 
     # Load routes from other modules
     LOG.info("Loading Checkmate API")
@@ -392,10 +392,10 @@ class CustomEventletServer(bottle.ServerAdapter):
 
 
 class EventletLogFilter(object):
-    '''Receives eventlet log.write() calls and routes them'''
+    '''Receives eventlet log.write() calls and routes them.'''
     @staticmethod
     def write(text):
-        '''Write to appropriate target'''
+        '''Write to appropriate target.'''
         if text:
             if text[0] in '(w':
                 # write thread and wsgi messages to debug only
