@@ -3023,6 +3023,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     var vertex = {
       id: resource.index,
       group: group,
+      component: resource.component,
       name: name,
       status: resource.status,
       host: {}

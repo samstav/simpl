@@ -197,6 +197,7 @@ describe('DeploymentController', function(){
           v1: {
             'index': 'v1',
             'service': 'fakegroup',
+            'component': 'fakecomponent',
             'dns-name': 'fakename.example.com',
             'status': 'fakestatus',
             'relations': {},
@@ -205,6 +206,7 @@ describe('DeploymentController', function(){
           v2: {
             'index': 'v2',
             'service': 'fakegroup2',
+            'component': 'fakecomponent2',
             'dns-name': undefined,
             'status': 'fakestatus2',
             'relations': {},
@@ -223,19 +225,23 @@ describe('DeploymentController', function(){
         expect(tree.vertex_groups[0]).not.toBe(undefined);
       });
 
-      it('should set edge ID', function() {
+      it('should set vertex ID', function() {
         expect(tree.vertex_groups[0][0].id).toEqual('v1');
       });
 
-      it('should set edge group', function() {
+      it('should set vertex group', function() {
         expect(tree.vertex_groups[0][0].group).toEqual('fakegroup');
       });
 
-      it('should set edge name', function() {
+      it('should set vertex component', function() {
+        expect(tree.vertex_groups[0][0].component).toEqual('fakecomponent');
+      });
+
+      it('should set vertex name', function() {
         expect(tree.vertex_groups[0][0].name).toEqual('fakename');
       });
 
-      it('should set edge status', function() {
+      it('should set vertex status', function() {
         expect(tree.vertex_groups[0][0].status).toEqual('fakestatus');
       });
 

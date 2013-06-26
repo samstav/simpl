@@ -275,7 +275,9 @@ directives.directive('cmTreeView', function() {
       .append('svg:circle')
       .attr('r', function(d) { if (d.host.id) return 8; })
       .attr('cy', -20)
-      .attr('fill', function(d) { return get_color(d.status); });
+      .attr('fill', function(d) { return get_color(d.status); })
+      .append('svg:title')
+        .text(function(d) { return d.component; });
     vertex
       .append('svg:image')
       .attr('xlink:href', get_icon)
