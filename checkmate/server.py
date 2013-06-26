@@ -185,9 +185,10 @@ def main():
     check_celery_config()
 
     # Register built-in providers
-    from checkmate import providers
-    providers.rackspace.register()
-    providers.opscode.register()
+    from checkmate.providers import rackspace
+    rackspace.register()
+    from checkmate.providers import opscode
+    opscode.register()
 
     # Load routes from other modules
     LOG.info("Loading Checkmate API")
