@@ -1814,6 +1814,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var enter_nodes = data.enter()
       .append('svg:g')
       .attr('class', 'node')
+      .attr('cursor', 'pointer')
       .on('click', function(d){
         d3.select("#highlight").remove();
 
