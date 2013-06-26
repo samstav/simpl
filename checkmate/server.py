@@ -110,37 +110,37 @@ def error_formatter(error):
 
     if isinstance(error.exception, CheckmateNoMapping):
         error.status = 406
-        error.output = str(error.exception)
+        error.body = str(error.exception)
     elif isinstance(error.exception, CheckmateDoesNotExist):
         error.status = 404
-        error.output = str(error.exception)
+        error.body = str(error.exception)
     elif isinstance(error.exception, CheckmateValidationException):
         error.status = 400
-        error.output = str(error.exception)
-    elif isinstance(error.exception, CheckmateDataIntegrityError):
-        error.status = 401
-        error.output = str(error.exception)
+        error.body = str(error.exception)
     elif isinstance(error.exception, CheckmateNoData):
         error.status = 400
-        error.output = str(error.exception)
+        error.body = str(error.exception)
     elif isinstance(error.exception, CheckmateBadState):
         error.status = 409
-        error.output = str(error.exception)
+        error.body = str(error.exception)
     elif isinstance(error.exception, CheckmateDatabaseConnectionError):
         error.status = 500
-        error.output = "Database connection error on server."
-        output['message'] = str(error.exception)
+        error.body = str(error.exception)
+        output['message'] = "Database connection error on server."
     elif isinstance(error.exception, CheckmateException):
-        error.output = str(error.exception)
+        error.body = str(error.exception)
     elif isinstance(error.exception, AssertionError):
         error.status = 400
-        error.output = str(error.exception)
+        error.body = str(error.exception)
     else:
         # For other 500's, provide underlying cause
         if error.exception:
             output['message'] = str(error.exception)
 
-    output['description'] = error.output
+    if len(error.exception.args > 1):
+        LOG.warning('HTTPError: %s', error.exception.args)
+
+    output['description'] = error.body
     output['code'] = error.status
     bottle.response.status = error.status
     return utils.write_body(

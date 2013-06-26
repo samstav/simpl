@@ -205,20 +205,13 @@ class DbBase(object):  # pylint: disable=R0921
                     elif ('errmessage' in resource and
                           'error-message' not in instance):
                         instance['error-message'] = resource.pop('errmessage')
-                    if ('trace' in instance and
-                          'error-traceback' not in instance):
-                        instance['error-traceback'] = instance.pop('trace')
-                    elif ('trace' in resource and
-                          'error-traceback' not in instance):
-                        instance['error-traceback'] = resource.pop('trace')
-                    if 'errmessage' in instance:
-                        del instance['errmessage']
-                    if 'errmessage' in resource:
-                        del resource['errmessage']
-                    if 'trace' in instance:
-                        del instance['trace']
-                    if 'trace' in resource:
-                        del resource['trace']
+
+                    remove_keys = ['errmessage', 'trace', 'error-traceback']
+                    for key in remove_keys:
+                        if key in instance:
+                            del instance[key]
+                        if key in resource:
+                            del resource[key]
 
     def lock(self, key, timeout):
         raise NotImplementedError()
