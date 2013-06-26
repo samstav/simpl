@@ -24,7 +24,7 @@ Priv Key: {{formatted_data.private_key}}
           </li>
           <li><a href="#" ng-click="save()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
           <li>
-            <a href="#" ng-click="open_modal('delete_warning')" class="tip" title="Delete Resources and Deployment">
+            <a ng-click="open_modal('delete_warning')" class="tip" title="Delete Resources and Deployment">
               <i class="icon-remove"></i> Delete
             </a>
             <!-- delete_warning -->
@@ -43,7 +43,7 @@ Priv Key: {{formatted_data.private_key}}
           </li>
 
           <li>
-            <a href="#" ng-click="open_modal('force_delete_warning')" class="tip" title="Delete Resources and Deployment even if status does not allow it">
+            <a ng-click="open_modal('force_delete_warning')" class="tip" title="Delete Resources and Deployment even if status does not allow it">
               <i class="icon-remove"></i> Force Delete
             </a>
             <!-- forceDeleteWarning -->

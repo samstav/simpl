@@ -99,11 +99,11 @@
           <li class="nav-header">Task</li>
           <li><a ng-href="#{{current_task.task_spec}}" ng-click="save_task()" tooltip-placement='left' tooltip="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
           <li>
-            <a href="#resetWarning" tooltip-placement='left' tooltip="Clear the task data and reset it" ng-click="open_modal('reset_warning')">
+            <a tooltip-placement='left' tooltip="Clear the task data and reset it" ng-click="open_modal('reset_warning', $event)">
               <i class="icon-repeat"></i> Reset
             </a>
             <!-- resetWarning -->
-            <div modal="reset_warning" close="close_modal('reset_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="reset_warning_title" aria-hidden="true">
+            <div modal="modal_window.reset_warning" close="close_modal('reset_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="reset_warning_title" aria-hidden="true">
               <div class="modal-header">
                 <h3 id="reset_warning_title" class="alert alert-danger">Warning! Data Destructive Task</h3>
               </div>
