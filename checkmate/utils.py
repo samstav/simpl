@@ -318,7 +318,12 @@ def formatted_response(uripath, with_pagination=False):
             if 'deployments' in uripath:
                 expected_tenant = kwargs.get(
                     'tenant_id', bottle.request.context.tenant)
-                if expected_tenant:
+                if bottle.request.context.is_admin is True:
+                    LOG.warn('An Administrator performed a GET on deployments '
+                             'with Tenant ID %s.\nLocals:%s\nGlobals:\n',
+                             expected_tenant, locals(), globals())
+                    pass
+                elif expected_tenant:
                     for _, deployment in data['results'].items():
                         if (deployment.get('tenantId') and
                                 deployment['tenantId'] != expected_tenant):
