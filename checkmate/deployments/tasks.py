@@ -130,8 +130,6 @@ def update_all_provider_resources(provider, deployment_id, status,
         rupdate = {'status': status}
         if message:
             rupdate['status-message'] = message
-        if trace:
-            rupdate['error-traceback'] = trace
         ret = {}
         for resource in [res for res in dep.get('resources', {}).values()
                          if res.get('provider') == provider]:
