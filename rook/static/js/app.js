@@ -313,7 +313,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
         $scope.force_logout = true;
         $scope.bound_creds.username = auth.context.username;
         auth.error_message = "It seems your token has expired. Please log back in again.";
-        $scope.loginPrompt();
+        $scope.loginPrompt().then($route.reload);
       }
     }
   };
@@ -438,7 +438,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     $scope.close_login_prompt();
 
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
-    $route.reload(); // needed in case of token expiration
   };
 
   $scope.auth_error_message = function() { return auth.error_message; };
