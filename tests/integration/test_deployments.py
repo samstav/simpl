@@ -1318,12 +1318,13 @@ class TestDeleteDeployments(unittest.TestCase):
         manager = self._mox.CreateMockAnything()
         router = Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(None)
-        router.delete_deployment('1234')
         self._mox.ReplayAll()
-
-        self.assertRaisesRegexp(CheckmateDoesNotExist, "No deployment with "
-                                "id 1234 ",
-                                router.delete_deployment, '1234')
+        try:
+            router.delete_deployment('1234')
+            self.fail("Delete deployment with not found did not raise "
+                      "exception")
+        except CheckmateDoesNotExist as exc:
+            self.assertEqual("No deployment with id 1234", str(exc))
 
     def test_no_tasks(self):
         """ Test when there are no resource tasks for delete """
