@@ -5,6 +5,7 @@ describe('DeploymentController', function(){
       routeParams,
       dialog,
       deploymentDataParser,
+      $http,
       controller;
 
   beforeEach(function(){
@@ -14,7 +15,8 @@ describe('DeploymentController', function(){
     routeParams = undefined;
     dialog = undefined;
     deploymentDataParser = { formatData: emptyFunction };
-    controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser);
+    $http = { post: sinon.spy() };
+    controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http);
   });
 
   it('should show summaries', function(){
@@ -177,6 +179,129 @@ describe('DeploymentController', function(){
 
     it('should return false if operation does not contain retry information', function() {
       expect($scope.is_retriable()).toBeFalsy();
+    });
+  });
+
+  describe('#retry', function() {
+    beforeEach(function() {
+      spyOn($http, 'post');
+      spyOn(mixpanel, 'track');
+      $scope.data = { id: 'fakeid', operation: { 'retry-link': 'fakelink', 'retriable': true } };
+      $scope.retry();
+    });
+
+    it('should post to retry-lik', function() {
+      expect($http.post).toHaveBeenCalledWith('fakelink');
+    });
+
+    it('should log information to mixpanel', function() {
+      expect(mixpanel.track).toHaveBeenCalledWith('Deployment::Retry', { deployment_id: 'fakeid' });
+    });
+  });
+
+  describe('#resume', function() {
+    beforeEach(function() {
+      spyOn($http, 'post');
+      spyOn(mixpanel, 'track');
+      $scope.data = { id: 'fakeid', operation: { 'resume-link': 'fakelink', 'resumable': true } };
+      $scope.resume();
+    });
+
+    it('should post to resume-link', function() {
+      expect($http.post).toHaveBeenCalledWith('fakelink');
+    });
+
+    it('should log information to mixpanel', function() {
+      expect(mixpanel.track).toHaveBeenCalledWith('Deployment::Resume', { deployment_id: 'fakeid' });
+    });
+  });
+
+  describe('#build_tree', function() {
+    it('should set tree_data information', function() {
+      $scope.build_tree();
+      expect($scope.tree_data).toEqual({vertex_groups: [], edges: []});
+    });
+
+    it('should handle empty data', function() {
+      expect($scope.build_tree()).toEqual({vertex_groups: [], edges: []});
+    });
+
+    describe('when resource is present', function() {
+      var tree;
+      beforeEach(function() {
+        $scope.data.resources = {
+          v1: {
+            'index': 'v1',
+            'service': 'fakegroup',
+            'component': 'fakecomponent',
+            'dns-name': 'fakename.example.com',
+            'status': 'fakestatus',
+            'relations': {},
+            'hosted_on': '1'
+          },
+          v2: {
+            'index': 'v2',
+            'service': 'fakegroup2',
+            'component': 'fakecomponent2',
+            'dns-name': undefined,
+            'status': 'fakestatus2',
+            'relations': {},
+            'hosted_on': '2'
+          },
+          v3: {}
+        };
+        tree = $scope.build_tree();
+      });
+
+      it('should skip resource with no relations', function() {
+        expect(tree.vertex_groups[0].length).toBe(2);
+      });
+
+      it('should default group number to 0', function() {
+        expect(tree.vertex_groups[0]).not.toBe(undefined);
+      });
+
+      it('should set vertex ID', function() {
+        expect(tree.vertex_groups[0][0].id).toEqual('v1');
+      });
+
+      it('should set vertex group', function() {
+        expect(tree.vertex_groups[0][0].group).toEqual('fakegroup');
+      });
+
+      it('should set vertex component', function() {
+        expect(tree.vertex_groups[0][0].component).toEqual('fakecomponent');
+      });
+
+      it('should set vertex name', function() {
+        expect(tree.vertex_groups[0][0].name).toEqual('fakename');
+      });
+
+      it('should set vertex status', function() {
+        expect(tree.vertex_groups[0][0].status).toEqual('fakestatus');
+      });
+
+      it('should build tree with no edges if no relation is present', function() {
+        expect(tree.edges).toEqual([]);
+      });
+
+      describe('and resource contains relations', function() {
+        beforeEach(function() {
+          $scope.data.resources.v1.relations = {
+            r1: { relation: 'reference', target: 'v2' }
+          };
+          $scope.data.resources.v2.relations = {
+            r1: { relation: 'reference', target: 'v1' }
+          };
+        });
+
+        it('should skip relations that are not reference', function() {
+          $scope.data.resources.v1.relations.r1.relation = 'fakerelation';
+          $scope.data.resources.v2.relations.r1.relation = 'fakerelation';
+          var tree = $scope.build_tree();
+          expect(tree.edges).toEqual([]);
+        });
+      });
     });
   });
 });

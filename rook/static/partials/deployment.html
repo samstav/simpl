@@ -24,7 +24,7 @@ Priv Key: {{formatted_data.private_key}}
           </li>
           <li><a href="#" ng-click="save()" class="tip" title="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
           <li>
-            <a href="#" ng-click="open_modal('delete_warning')" class="tip" title="Delete Resources and Deployment">
+            <a ng-click="open_modal('delete_warning')" class="tip" title="Delete Resources and Deployment">
               <i class="icon-remove"></i> Delete
             </a>
             <!-- delete_warning -->
@@ -43,7 +43,7 @@ Priv Key: {{formatted_data.private_key}}
           </li>
 
           <li>
-            <a href="#" ng-click="open_modal('force_delete_warning')" class="tip" title="Delete Resources and Deployment even if status does not allow it">
+            <a ng-click="open_modal('force_delete_warning')" class="tip" title="Delete Resources and Deployment even if status does not allow it">
               <i class="icon-remove"></i> Force Delete
             </a>
             <!-- forceDeleteWarning -->
@@ -87,9 +87,9 @@ Priv Key: {{formatted_data.private_key}}
                   {{deployment_status()}}
                 </span>
 
-                <span ng-show="is_resumable()"><a ng-href="{{data.operation['resume-link']}}">Resume</a></span>
+                <span ng-show="is_resumable()"><a ng-href="resume()">Resume</a></span>
                 <span ng-show="is_resumable() && is_retriable()"> &#8226; </span>
-                <span ng-show="is_retriable()"><a ng-href="{{data.operation['retry-link']}}">Retry</a></span>
+                <span ng-show="is_retriable()"><a ng-href="retry()">Retry</a></span>
               </div>
             </div>
 
@@ -100,16 +100,16 @@ Priv Key: {{formatted_data.private_key}}
                   <div class="bar" style="width: {{percentComplete()}}%;"></div>
                 </div>
                 <div class="controls">
-                  <p><span class="label label-info cmtip" title="Total items">{{count}}</span> tasks total:</p>
-                  <p>&nbsp;&nbsp;<span class="label label-success cmtip" title="Completed">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>
-                  <p>&nbsp;&nbsp;<span class="label label-warning cmtip" title="In Progress">{{taskStates['waiting']}}</span> in progress</p>
-                  <p>&nbsp;&nbsp;<span class="label label-important cmtip" title="Errors">{{taskStates['error']}}</span> errored out</p>
-                  <p>&nbsp;&nbsp;<span class="label cmtip" title="Waiting on other tasks">{{taskStates['future'] + taskStates['likely'] +
+                  <p><span class="label label-info">{{count}}</span> tasks total:</p>
+                  <p>&nbsp; &nbsp; &nbsp;<span class="label label-success">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>
+                  <p>&nbsp; &nbsp; &nbsp;<span class="label label-warning">{{taskStates['waiting']}}</span> in progress</p>
+                  <p>&nbsp; &nbsp; &nbsp;<span class="label label-important">{{taskStates['error']}}</span> errored out</p>
+                  <p>&nbsp; &nbsp; &nbsp;<span class="label">{{taskStates['future'] + taskStates['likely'] +
                   taskStates['maybe']}}</span> tasks waiting on other tasks to finish.</p>
                 </div>
                 &nbsp;
                 <a style="margin-bottom: 15px;" class="btn" ng-cloak ng-show="data.id == 'simulate'" href="./status?complete">Complete the Simulation Now</a>
-                <div class="alert controls">You can access an <a ng-href="/{{auth.context.tenantId}}/workflows/{{data.id}}">advanced</a> view of
+                <div class="alert controls">You can access an <a ng-href="/{{data.tenantId}}/workflows/{{data.id}}">advanced</a> view of
                 the workflow to manage any errors or hack at the workflow.</div>
               </div>
             </div>
@@ -159,10 +159,10 @@ Priv Key: {{formatted_data.private_key}}
           <tbody>
             <tr ng-repeat="resource in data.resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
               <td ng-switch="resource.provider">
-                <a ng-switch-when="nova" target="_blank" ng-href="{{CloudControlURL(rresource.region || resource.instance.region)}}/customer/{{auth.context.tenantId}}/next_gen_servers/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
-                <a ng-switch-when="legacy" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{auth.context.tenantId}}/first_gen_servers/{{resource.instance.id}}">{{resource['dns-name']}}</a>
-                <a ng-switch-when="load-balancer" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{auth.context.tenantId}}/load_balancers/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
-                <a ng-switch-when="databases" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{auth.context.tenantId}}/dbaas/instances/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="nova" target="_blank" ng-href="{{CloudControlURL(rresource.region || resource.instance.region)}}/customer/{{data.tenantId}}/next_gen_servers/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="legacy" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{data.tenantId}}/first_gen_servers/{{resource.instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="load-balancer" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{data.tenantId}}/load_balancers/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="databases" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{data.tenantId}}/dbaas/instances/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
                 <span ng-switch-default>{{resource['dns-name']}} ({{resource.provider}})</a>
               </td>
               <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
@@ -212,7 +212,7 @@ Priv Key: {{formatted_data.private_key}}
             <p ng-cloak ng-show="formatted_data.private_key">Alternatively, you can use this private key:<clippy content="{{formatted_data.private_key}}" bgcolor="#f5f5f5"></clippy>
             </p>
             <p ng-cloak ng-show="formatted_data.private_key"><pre>{{formatted_data.private_key}}</pre></p>
-            <p>The advanced view of the workflow can still be reached <a ng-href="/{{auth.context.tenantId}}/workflows/{{data.id}}">here</a>.</p>
+            <p>The advanced view of the workflow can still be reached <a ng-href="/{{data.tenantId}}/workflows/{{data.id}}">here</a>.</p>
           </accordion-group>
         </accordion>
 

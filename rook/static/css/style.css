@@ -478,6 +478,7 @@ form#impersonate input {
 #workflow_tree {
   width: 100%;
   height: 10%;
+  min-height: 250px; /* For Safari */
 }
 
 circle.node {
@@ -508,3 +509,8 @@ text.nodetext {
   stroke: #999;
   stroke-opacity: 0.6;
 }
+
+a:hover {
+  cursor: pointer;
+}
+

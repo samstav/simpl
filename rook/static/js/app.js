@@ -313,7 +313,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
         $scope.force_logout = true;
         $scope.bound_creds.username = auth.context.username;
         auth.error_message = "It seems your token has expired. Please log back in again.";
-        $scope.loginPrompt();
+        $scope.loginPrompt().then($route.reload);
       }
     }
   };
@@ -438,7 +438,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     $scope.close_login_prompt();
 
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
-    $route.reload(); // needed in case of token expiration
   };
 
   $scope.auth_error_message = function() { return auth.error_message; };
@@ -1255,7 +1254,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() { console.log("Failed"); }); //TODO: implement a callback
+      $scope.loginPrompt().then($scope.save_spec);
     }
   };
 
@@ -1270,9 +1269,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       if (['children', "$$hashKey"].indexOf(attr) == -1 && obj.hasOwnProperty(attr))
         copy[attr] = obj[attr];
     }
+
     $scope.current_task_json = JSON.stringify(copy, null, 2)
     // Refresh CodeMirror since it might have been hidden
-    _.each($('.CodeMirror'), function(inst) { inst.CodeMirror.refresh(); });
+    _.each($('.CodeMirror'), function(inst) { $timeout(function(){ inst.CodeMirror.refresh();}, 0) });
   };
 
   $scope.save_task = function() {
@@ -1297,7 +1297,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this); //TODO: implement a callback
+      $scope.loginPrompt().then($scope.save_task);
     }
   };
 
@@ -1343,17 +1343,25 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.workflow_action = function(workflow_id, action) {
+    var retry = function() {
+      $scope.workflow_action(workflow_id, action);
+    };
+
     if (auth.identity.loggedIn) {
       console.log("Executing '" + action + " on workflow " + workflow_id);
       var action_url = $location.path() + '/+' + action;
       $http.get(action_url)
         .then($scope.workflow_action_success, $scope.workflow_action_error);
     } else {
-      $scope.loginPrompt(); //TODO: implement a callback
+      $scope.loginPrompt().then(retry);
     }
   };
 
   $scope.task_action = function(task_id, action) {
+    var retry = function() {
+      $scope.task_action(task_id, action);
+    }
+
     if (auth.identity.loggedIn) {
       console.log("Executing '" + action + " on task " + task_id);
       $http({method: 'POST', url: $location.path() + '/tasks/' + task_id + '/+' + action}).
@@ -1368,7 +1376,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           mixpanel.track("Task Action Failed", {'action': action});
         });
     } else {
-      $scope.loginPrompt(); //TODO: implement a callback
+      $scope.loginPrompt().then(retry);
     }
   };
 
@@ -1814,6 +1822,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     var enter_nodes = data.enter()
       .append('svg:g')
       .attr('class', 'node')
+      .attr('cursor', 'pointer')
       .on('click', function(d){
         d3.select("#highlight").remove();
 
@@ -2275,6 +2284,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   // This also exists on DeploymentController - can be refactored
   $scope.sync = function(deployment) {
+    var retry = function() {
+      $scope.sync(deployment);
+    };
+
     if ($scope.auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
@@ -2288,7 +2301,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(retry);
     }
   };
 
@@ -2826,7 +2839,7 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser) {
+function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -2924,6 +2937,18 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     return $scope.data.operation && $scope.data.operation.retriable;
   }
 
+  $scope.retry = function() {
+    var url = $scope.data.operation['retry-link'];
+    $http.post(url);
+    mixpanel.track('Deployment::Retry', { deployment_id: $scope.data.id });
+  }
+
+  $scope.resume = function() {
+    var url = $scope.data.operation['resume-link'];
+    $http.post(url);
+    mixpanel.track('Deployment::Resume', { deployment_id: $scope.data.id });
+  }
+
   $scope.save = function() {
     var editor = _.find($('.CodeMirror'), function(c) {
       return c.CodeMirror.getTextArea().id == 'source';
@@ -2943,11 +2968,15 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then($scope.save);
     }
   };
 
   $scope.delete_deployment = function(force) {
+    var retry = function() {
+      $scope.delete_deployment(force);
+    };
+
     if (force == '1') {
       $scope.close_modal('force_delete_warning');
     } else {
@@ -2971,7 +3000,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then(retry);
     }
   };
 
@@ -2991,7 +3020,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.open_modal('error');
         });
     } else {
-      $scope.loginPrompt().then(this, function() {console.log("Failed");}); //TODO: implement a callback
+      $scope.loginPrompt().then($scope.sync);
     }
   };
 
@@ -3012,9 +3041,51 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     data: 1
   };
 
+  $scope.create_vertex = function(resource, resource_list) {
+    var v1 = resource.index;
+    var group = resource.service;
+    var dns_name = resource['dns-name'] || '';
+    var name = dns_name.split('.').shift();
+    var host_id = resource.hosted_on;
+    var host = resource_list[host_id];
+
+    var vertex = {
+      id: resource.index,
+      group: group,
+      component: resource.component,
+      name: name,
+      status: resource.status,
+      host: {}
+    };
+    if (host) {
+      vertex.host = {
+        id: host.index,
+        status: host.status,
+        type: host.component
+      };
+    }
+    return vertex;
+  };
+
+  $scope.create_edges = function(vertex, relations) {
+    var edges = [];
+
+    var v1 = vertex.id;
+    for (var i in relations) {
+      var relation = relations[i];
+      if (relation.relation != 'reference') continue;
+
+      var v2 = relation.source || relation.target;
+      var sorted_edges = [v1, v2].sort();
+      var edge = { v1: sorted_edges[0], v2: sorted_edges[1] };
+      edges.push(edge);
+    }
+
+    return edges;
+  }
+
   $scope.build_tree = function() {
     var edges = [];
-    var edge_set = {};
     var vertices = [];
     var resources = $scope.data.resources;
 
@@ -3023,28 +3094,13 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       if (!resource.relations) continue;
 
       // Vertices
-      var v1 = i;
-      var group = resource.service;
-      var name = resource['dns-name'].split('.').shift();
-      var index = $scope.vertex_groups[group];
-      if (index === undefined) index = 1;
-      if (!vertices[index]) vertices[index] = [];
-      var vertex = { id: i, group: group, name: name, status: resource.status };
-      vertices[index].push(vertex);
+      var vertex = $scope.create_vertex(resource, resources);
+      var group_idx = $scope.vertex_groups[vertex.group] || 0;
+      if (!vertices[group_idx]) vertices[group_idx] = [];
+      vertices[group_idx].push(vertex);
 
       // Edges
-      for (var j in resource.relations) {
-        var relation = resource.relations[j];
-        if (relation.relation != 'reference') continue;
-
-        var v2 = relation.source || relation.target;
-        var edge = { v1: v1, v2: v2 };
-        var edge_id = [v1, v2].sort().join('-');
-        if (edge_set[edge_id] === undefined) {
-          edge_set[edge_id] = true;
-          edges.push(edge);
-        }
-      }
+      edges = edges.concat($scope.create_edges(vertex, resource.relations));
     }
 
     $scope.tree_data = { vertex_groups: vertices, edges: edges };
