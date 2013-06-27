@@ -20,6 +20,22 @@ describe('auth Service', function(){
     $rootScope = _$rootScope_;
   }));
 
+  describe('#is_admin', function() {
+    it('should default to false', function() {
+      expect(this.auth.is_admin()).toBeFalsy();
+    });
+
+    it('should return true when current identity is an admin', function() {
+      this.auth.identity.is_admin = true;
+      expect(this.auth.is_admin()).toBeTruthy();
+    });
+
+    it('should return false when current identity is not an admin', function() {
+      this.auth.identity.is_admin = false;
+      expect(this.auth.is_admin()).toBeFalsy();
+    });
+  });
+
   describe('create_identity', function(){
     it('should create an identity object based on response, and params', function(){
       expect(this.auth.create_identity(response, params)).not.toBe(null);

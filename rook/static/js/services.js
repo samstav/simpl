@@ -876,6 +876,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     error_message: "",
     selected_endpoint: null,
 
+    is_admin: function() {
+      return auth.identity.is_admin;
+    },
+
     generate_auth_data: function(token, tenant, apikey, pin_rsa, username, password, scheme) {
       var data = {};
       if (token) {
