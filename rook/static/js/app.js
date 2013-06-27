@@ -2828,7 +2828,7 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser) {
+function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -2924,6 +2924,18 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
 
   $scope.is_retriable = function() {
     return $scope.data.operation && $scope.data.operation.retriable;
+  }
+
+  $scope.retry = function() {
+    var url = $scope.data.operation['retry-link'];
+    $http.post(url);
+    mixpanel.track('Deployment::Retry', { deployment_id: $scope.data.id });
+  }
+
+  $scope.resume = function() {
+    var url = $scope.data.operation['resume-link'];
+    $http.post(url);
+    mixpanel.track('Deployment::Resume', { deployment_id: $scope.data.id });
   }
 
   $scope.save = function() {

@@ -5,6 +5,7 @@ describe('DeploymentController', function(){
       routeParams,
       dialog,
       deploymentDataParser,
+      $http,
       controller;
 
   beforeEach(function(){
@@ -14,7 +15,8 @@ describe('DeploymentController', function(){
     routeParams = undefined;
     dialog = undefined;
     deploymentDataParser = { formatData: emptyFunction };
-    controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser);
+    $http = { post: sinon.spy() };
+    controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http);
   });
 
   it('should show summaries', function(){
@@ -177,6 +179,40 @@ describe('DeploymentController', function(){
 
     it('should return false if operation does not contain retry information', function() {
       expect($scope.is_retriable()).toBeFalsy();
+    });
+  });
+
+  describe('#retry', function() {
+    beforeEach(function() {
+      spyOn($http, 'post');
+      spyOn(mixpanel, 'track');
+      $scope.data = { id: 'fakeid', operation: { 'retry-link': 'fakelink', 'retriable': true } };
+      $scope.retry();
+    });
+
+    it('should post to retry-lik', function() {
+      expect($http.post).toHaveBeenCalledWith('fakelink');
+    });
+
+    it('should log information to mixpanel', function() {
+      expect(mixpanel.track).toHaveBeenCalledWith('Deployment::Retry', { deployment_id: 'fakeid' });
+    });
+  });
+
+  describe('#resume', function() {
+    beforeEach(function() {
+      spyOn($http, 'post');
+      spyOn(mixpanel, 'track');
+      $scope.data = { id: 'fakeid', operation: { 'resume-link': 'fakelink', 'resumable': true } };
+      $scope.resume();
+    });
+
+    it('should post to resume-link', function() {
+      expect($http.post).toHaveBeenCalledWith('fakelink');
+    });
+
+    it('should log information to mixpanel', function() {
+      expect(mixpanel.track).toHaveBeenCalledWith('Deployment::Resume', { deployment_id: 'fakeid' });
     });
   });
 
