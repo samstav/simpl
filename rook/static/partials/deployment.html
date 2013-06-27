@@ -87,9 +87,9 @@ Priv Key: {{formatted_data.private_key}}
                   {{deployment_status()}}
                 </span>
 
-                <span ng-show="is_resumable()"><a ng-href="resume()">Resume</a></span>
+                <span ng-show="is_resumable()"><a href="#" ng-click="resume()">Resume</a></span>
                 <span ng-show="is_resumable() && is_retriable()"> &#8226; </span>
-                <span ng-show="is_retriable()"><a ng-href="retry()">Retry</a></span>
+                <span ng-show="is_retriable()"><a href="#" ng-click="retry()">Retry</a></span>
               </div>
             </div>
 
