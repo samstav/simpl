@@ -20,9 +20,9 @@ class TestDBSQL(base.DBDriverTests, unittest.TestCase):
 
     def setUp(self):
         base.DBDriverTests.setUp(self)
-        (self.driver.session.query(Tenant).filter(Tenant.tenant_id == '1234')
+        (self.driver.session.query(Tenant).filter(Tenant.id == '1234')
          .delete())
-        (self.driver.session.query(Tenant).filter(Tenant.tenant_id == '11111')
+        (self.driver.session.query(Tenant).filter(Tenant.id == '11111')
          .delete())
         self.driver.session.commit()
 

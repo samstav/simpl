@@ -64,8 +64,8 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         # HACK until we get proper test data management; don't drop collections
         # as there is a risk of deleting everything out of a remote database
         # as per line 50 above
-        self.driver.database()['tenants'].remove({'tenant_id': '1234'})
-        self.driver.database()['tenants'].remove({'tenant_id': '111111'})
+        self.driver.database()['tenants'].remove({'id': '1234'})
+        self.driver.database()['tenants'].remove({'id': '111111'})
         self.driver.database()['deployments'].remove({'tenantId': 'T3'})
         self.driver.database()['deployments'].remove({'tenantId': 'TOTHER'})
         self.driver.database()['blueprints'].remove({})
@@ -278,6 +278,7 @@ class TestMongoDBCapabilities(unittest.TestCase):
             fields={'_lock': 0, '_id': 0}
         )
         self.assertIsNone(obj)
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

@@ -8,7 +8,6 @@ from bottle import get, request, response
 
 import checkmate
 from checkmate import environments  # loads /providers too
-from checkmate import tenants
 from checkmate import workflows
 from checkmate import utils
 
@@ -26,5 +25,6 @@ def get_api_version():
     global __version_string__
     if not __version_string__:
         __version_string__ = checkmate.version()
-    LOG.debug('GET /version called and reported version %s', __version_string__)
+    LOG.debug('GET /version called and reported version %s',
+              __version_string__)
     return utils.write_body({"version": __version_string__}, request, response)

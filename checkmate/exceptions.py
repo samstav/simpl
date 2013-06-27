@@ -18,11 +18,6 @@ class CheckmateException(Exception):
     pass
 
 
-class CheckmateDatabaseMigrationError(CheckmateException):
-    '''Error switching databases.'''
-    pass
-
-
 class CheckmateDatabaseConnectionError(CheckmateException):
     '''Error connecting to backend database.'''
     pass

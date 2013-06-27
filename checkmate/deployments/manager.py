@@ -18,7 +18,7 @@ from checkmate import (
     operations,
     orchestrator,
 )
-from checkmate.base import ManagerBase
+from checkmate import base
 from checkmate.deployment import (
     Deployment,
     generate_keys,
@@ -33,7 +33,7 @@ from checkmate.workflow import create_workflow_deploy, init_operation
 LOG = logging.getLogger(__name__)
 
 
-class Manager(ManagerBase):
+class Manager(base.ManagerBase):
     '''Contains Deployments Model and Logic for Accessing Deployments'''
 
     def count(self, tenant_id=None, blueprint_id=None, status=None):

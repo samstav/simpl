@@ -99,7 +99,7 @@ class DBDriverTests(object):
 
     def test_save_tenant(self):
         # save a new one
-        tenant_data = {"tenant_id": '1234', "tags": ['foo', 'bar']}
+        tenant_data = {"id": '1234', "tags": ['foo', 'bar']}
         tenant = self.driver.get_tenant('1234')
         self.assertIsNone(tenant, "Tenant 1234 exists!")
         self.driver.save_tenant(tenant_data)
