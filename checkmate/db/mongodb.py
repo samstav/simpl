@@ -30,6 +30,8 @@ LOG = logging.getLogger(__name__)
 
 def parse_comparison(field):
     '''Return a MongoDB filter by looking for comparisons in `field`.'''
+    if isinstance(field, (list, tuple)):
+        return {'$in': list(field)}
     if field.startswith('!'):
         return {'$ne': field[1:]}
     elif field.startswith('>='):
