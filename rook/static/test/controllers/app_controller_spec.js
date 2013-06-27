@@ -270,8 +270,8 @@ describe('AppController', function(){
 
   describe('#check_token_validity', function() {
     beforeEach(function() {
-      auth.context = { token: {} }
-      spyOn(scope, 'loginPrompt');
+      auth.context = { token: {} };
+      spyOn(scope, 'loginPrompt').andReturn({ then: emptyFunction });
       spyOn(scope, 'impersonate');
     });
 
@@ -415,10 +415,6 @@ describe('AppController', function(){
 
     it('should close the login prompt', function() {
       expect(scope.close_login_prompt).toHaveBeenCalled();
-    });
-
-    it('should reload current route', function() {
-      expect($route.reload).toHaveBeenCalled();
     });
   });
 
