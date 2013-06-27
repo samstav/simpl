@@ -2237,9 +2237,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   };
 
   $scope.load = function() {
-    console.log("Starting load");
-    var path,
-        query_params = $location.search(),
+    var query_params = $location.search(),
         paginator,
         params;
 
@@ -2249,8 +2247,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $location.replace();
     }
 
-    path = $location.path() + '.json';
-
     adjusted_params = {
         tenantId: $scope.auth.context.tenantId,
         offset: paginator.offset,
@@ -2258,12 +2254,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     };
 
     params = _.defaults(adjusted_params, query_params)
-    this.klass = $resource((checkmate_server_base || '') + path);
+    this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
     this.klass.get(params, function(data, getResponseHeaders){
       var paging_info,
           deployments_url = $location.path();
-
-      console.log("Load returned");
 
       paging_info = paginator.getPagingInformation(data['collection-count'], deployments_url);
 
@@ -2278,7 +2272,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.currentPage = paging_info.currentPage;
       $scope.totalPages = paging_info.totalPages;
       $scope.links = paging_info.links;
-      console.log("Done loading");
     });
   };
 
