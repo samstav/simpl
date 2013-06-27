@@ -2,8 +2,8 @@
 
   <label ng-repeat="filter in filter_list">
     <div>
-      <input type="radio" ng-model="activeFilter" value="{{filter}}" name='activeFilter' ng-click="applyFilter(filter)"> 
-      <span>{{filter}}</span>
+      <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
+      <span>{{filter.name}}</span>
     </div>
   </label>
 

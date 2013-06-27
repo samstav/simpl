@@ -2213,10 +2213,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
 //Deployment list
 function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment) {
   //Model: UI
-  $scope.showItemsBar = true;
-  $scope.showStatus = true;
-  $scope.name = "Deployments";
-  $scope.filter_list = [
+  var STATUSES = [
     "ALERT",
     "DELETED",
     "DOWN",
@@ -2225,10 +2222,20 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     "PLANNED",
     "UNREACHABLE",
     "UP"
-  ];
-  $scope.activeFilter = $location.search().status
-  $scope.applyFilter = function(filter){
-    $location.search({ status: filter })
+  ]
+  $scope.showItemsBar = true;
+  $scope.showStatus = true;
+  $scope.name = "Deployments";
+  $scope.activeFilters = $location.search().status ? $location.search().status.split(',') : null
+  $scope.filter_list = _.map(STATUSES, function(status){
+    var is_active = $scope.activeFilters === status || _.contains($scope.activeFilters, status);
+    return { name: status, active: is_active };
+  })
+
+  $scope.applyFilters = function(){
+    var active_filters = _.where($scope.filter_list, { active: true });
+    var filter_names = _.map(active_filters, function(f){ return f.name }).join(',')
+    $location.search({ status: filter_names });
   }
 
   navbar.highlight("deployments");
