@@ -624,8 +624,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
                     k: {
                         'status': 'ERROR',
                         'error-message': (
-                            'Error installing to host %s:%s' %
-                            (host, exc.args[0])
+                            'Error installing software on host %s' % host
                         ),
                         'error-traceback': 'Task %s: %s' % (task_id,
                                                             einfo.traceback)
