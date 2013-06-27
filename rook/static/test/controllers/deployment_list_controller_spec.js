@@ -7,19 +7,22 @@ describe('DeploymentListController', function(){
       items,
       navbar,
       pagination,
+      auth,
       controller,
+      resource_spy,
       emptyResponse;
 
   beforeEach(function(){
-    scope = { $watch: emptyFunction, auth: { context: {}} };
+    scope = { $watch: emptyFunction };
     location = { search: sinon.stub().returns({}), replace: emptyFunction, path: sinon.stub().returns('/1/deployments') };
     http = {};
-    resource = sinon.stub().returns(emptyResponse);
+    resource = { get: sinon.spy() };
     scroll = {};
     items = {};
     navbar = { highlight: emptyFunction };
     pagination = { buildPaginator: sinon.stub().returns({ changed_params: sinon.spy() }) };
-    controller = {};
+    auth = { context: {} };
+    controller = new DeploymentListController(scope, location, http, resource, scroll, items, navbar, pagination, auth);
     emptyResponse = { get: emptyFunction };
   });
 
@@ -38,8 +41,8 @@ describe('DeploymentListController', function(){
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        scope = { $watch: emptyFunction, auth: { context: { tenantId: 'cats' }} };
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination);
+        auth.context.tenantId = 'cats';
+        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
 
         expect(resource_spy.getCall(0).args[0]).toEqual('/1/deployments.json');
@@ -53,7 +56,7 @@ describe('DeploymentListController', function(){
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination);
+        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/123/deployments.json');
         expect(get_spy.getCall(0).args[0].offset).toEqual(20);
@@ -67,7 +70,7 @@ describe('DeploymentListController', function(){
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination);
+        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/123/deployments.json');
         expect(get_spy.getCall(0).args[0].offset).toEqual(20);
@@ -80,7 +83,7 @@ describe('DeploymentListController', function(){
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination);
+        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/123/deployments.json');
         expect(get_spy.getCall(0).args[0].show_deleted).toEqual(true);

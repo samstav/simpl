@@ -2207,7 +2207,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
  * Deployment controllers
  */
 //Deployment list
-function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -2248,7 +2248,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     }
 
     adjusted_params = {
-        tenantId: $scope.auth.context.tenantId,
+        tenantId: auth.context.tenantId,
         offset: paginator.offset,
         limit: paginator.limit
     };
@@ -2281,7 +2281,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.sync(deployment);
     };
 
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
       thang.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, function(returned, getHeaders){
