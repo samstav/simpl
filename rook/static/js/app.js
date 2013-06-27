@@ -2216,6 +2216,21 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.showItemsBar = true;
   $scope.showStatus = true;
   $scope.name = "Deployments";
+  $scope.filter_list = [
+    "ALERT",
+    "DELETED",
+    "DOWN",
+    "FAILED",
+    "NEW",
+    "PLANNED",
+    "UNREACHABLE",
+    "UP"
+  ];
+  $scope.activeFilter = $location.search().status
+  $scope.applyFilter = function(filter){
+    $location.search({ status: filter })
+  }
+
   navbar.highlight("deployments");
 
   //Model: data

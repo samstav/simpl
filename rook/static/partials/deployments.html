@@ -1,4 +1,12 @@
 <div class="entries container-fluid" ng-init="load()" ng-show="is_content_loaded()">
+
+  <label ng-repeat="filter in filter_list">
+    <div>
+      <input type="radio" ng-model="activeFilter" value="{{filter}}" name='activeFilter' ng-click="applyFilter(filter)"> 
+      <span>{{filter}}</span>
+    </div>
+  </label>
+
   <table class="table table-striped">
     <thead>
       <tr>
