@@ -2269,7 +2269,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
       items.all = [];
       items.receive(data.results, function(item) {
-        return {id: item.id, name: item.name, created: item.created, tenantId: item.tenantId,
+        return {id: item.id, name: item.name, created: item.created, created_by: item['created-by'], tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment, operation: item.operation,
                 status: item.status};
       });
