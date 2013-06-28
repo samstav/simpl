@@ -450,17 +450,23 @@ class RackspaceSSOAuthMiddleware(object):
             self.service_password = None
             self.admin_role = None
 
-        # FIXME: temporary logic. Make this get a new token when needed
         if self.service_username:
-            try:
-                result = self._auth_keystone(RequestContext(),
-                                             username=self.service_username,
-                                             password=self.service_password)
-                self.service_token = result['access']['token']['id']
-            except Exception:
-                LOG.error("Unable to authenticate to Global Auth. Endpoint "
-                          "'%s' will be disabled", endpoint.get('kwargs', {}).
-                          get('realm'))
+            self._get_service_token()
+
+    def _get_service_token(self):
+        '''Retrieve service token from auth to use for validation'''
+        LOG.info("Obtaining new service token")
+        try:
+            result = self._auth_keystone(RequestContext(),
+                                         username=self.service_username,
+                                         password=self.service_password)
+            self.service_token = result['access']['token']['id']
+        except Exception as exc:
+            self.service_token = None
+            LOG.debug("Error obtaining service token: %s", exc)
+            LOG.error("Unable to authenticate to Global Auth. Endpoint "
+                      "'%s' will be disabled", self.endpoint.get('kwargs', {}).
+                      get('realm'))
 
     def __call__(self, environ, start_response):
         """Authenticate calls with X-Auth-Token to the source auth service"""
@@ -512,30 +518,40 @@ class RackspaceSSOAuthMiddleware(object):
         }
         # TODO: implement some caching to not overload auth
         try:
-            LOG.debug('Validating token with %s' % self.endpoint['uri'])
+            LOG.debug('Validating token with %s', self.endpoint['uri'])
             http.request('GET', path, headers=headers)
             resp = http.getresponse()
             body = resp.read()
-        except StandardError as exc:
-            LOG.error('HTTP connection exception: %s', exc)
+        except Exception as exc:
+            LOG.error('Error validating token: %s', exc)
             raise HTTPUnauthorized('Unable to communicate with %s' %
                                    self.endpoint['uri'])
         finally:
             http.close()
 
-        if resp.status != 200:
+        if resp.status == 200:
+            try:
+                content = json.loads(body)
+                return content
+            except ValueError:
+                msg = 'Keystone did not return json-encoded body'
+                LOG.debug(msg)
+                raise HTTPUnauthorized(msg)
+        elif resp.status == 404:
             LOG.debug('Invalid token for tenant: %s', resp.reason)
             raise HTTPUnauthorized("Token invalid or not valid for this "
                                    "tenant (%s)" % resp.reason,
                                    [('WWW-Authenticate', self.auth_header)])
-
-        try:
-            content = json.loads(body)
-        except ValueError:
-            msg = 'Keystone did not return json-encoded body'
-            LOG.debug(msg)
-            raise HTTPUnauthorized(msg)
-        return content
+        elif resp.status == 401:
+            LOG.info('Service token expired')
+            self._get_service_token()
+            if self.service_token:
+                return self._validate_keystone(context, token=token,
+                                               username=username,
+                                               apikey=apikey,
+                                               password=password)
+        LOG.debug("Unexpected response validating token: %s", resp.reason)
+        raise HTTPUnauthorized(resp.reason)
 
     def _auth_keystone(self, context, token=None, username=None, apikey=None,
                        password=None):
