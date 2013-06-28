@@ -514,3 +514,7 @@ a:hover {
   cursor: pointer;
 }
 
+.sub-lead {
+  margin-left: 12px;
+  line-height: 34px;
+}
