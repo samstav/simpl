@@ -5,7 +5,7 @@
         <th>ID</th>
         <th>Name</th>
         <th>Blueprint</th>
-        <th ng-cloak ng-show="auth.identity.is_admin">Tenant</th>
+        <th ng-cloak ng-show="is_admin()">Tenant</th>
         <th>Status</th>
         <th>Date Created</th>
       </tr>
@@ -15,9 +15,15 @@
         <td><a ng-href="/{{deployment.tenantId}}/deployments/{{deployment.id}}"><i class="icon-picture"></i> {{deployment.id | truncate:10}}</a></td>
         <td>{{deployment.name}}</td>
         <td>{{deployment.blueprint.name}}</td>
-        <td ng-cloak ng-show="auth.identity.is_admin">{{deployment.tenantId}}</td>
+        <td ng-cloak ng-show="is_admin()">
+          {{deployment.tenantId}}
+          <span class="tenant_tag" ng-repeat="tag in tenant_tags(deployment.tenantId)">
+            <i class="icon {{tag | lowercase}}" tooltip="{{tag}}"></i>
+            <span class="label {{tag | lowercase}}">{{tag}}</span>
+          </span>
+        </td>
         <td><span class="label" ng-class="{'label-success': deployment.status == 'UP', 'label-important': deployment.status == 'FAILED', 'label-inverse': deployment.status == 'DELETED'}">{{deployment.status}}</span></td>
-        <td>{{deployment.created | formattedFullDate}} <button ng-cloak ng-show="auth.identity.is_admin" class="btn btn-mini btn-info pull-right" type="button" ng-click="sync(deployment)">sync</button></td>
+        <td>{{deployment.created | formattedFullDate}} <button ng-cloak ng-show="is_admin()" class="btn btn-mini btn-info pull-right" type="button" ng-click="sync(deployment)">sync</button></td>
       </tr>
     </tbody>
   </table>

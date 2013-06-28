@@ -273,6 +273,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
+  $scope.is_admin = function() {
+    return auth.is_admin();
+  }
+
   $scope.remove_popovers = function() {
     _.each(angular.element('.popover').siblings('i'), function(el){
       angular.element(el).scope().tt_isOpen = false;
