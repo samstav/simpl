@@ -2278,7 +2278,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.links = paging_info.links;
 
       var tenant_ids = $scope.get_tenant_ids($scope.items);
-      $scope.load_tenant_tags(tenant_ids)
+      $scope.load_tenant_info(tenant_ids)
         .then($scope.mark_content_as_loaded, $scope.mark_content_as_loaded);
     });
   };
@@ -2319,7 +2319,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     return _.compact(unique_ids);
   };
 
-  $scope.load_tenant_tags = function(tenant_ids) {
+  $scope.load_tenant_info = function(tenant_ids) {
     var promises = [];
     tenant_ids = tenant_ids || [];
 

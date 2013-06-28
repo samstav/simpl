@@ -144,10 +144,10 @@ describe('DeploymentListController', function(){
   });
 
   // TODO: find the proper way to test resources and implement tests!
-  describe('#load_tenant_tags', function() {
+  describe('#load_tenant_info', function() {
     it('should not load tags if user is not an admin', function() {
       auth.is_admin = sinon.stub().returns(false);
-      scope.load_tenant_tags();
+      scope.load_tenant_info();
       expect($q.all).toHaveBeenCalledWith([]);
     });
 
