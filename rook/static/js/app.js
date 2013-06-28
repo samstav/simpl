@@ -273,6 +273,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
+  $scope.is_admin = function() {
+    return auth.is_admin();
+  }
+
   $scope.remove_popovers = function() {
     _.each(angular.element('.popover').siblings('i'), function(el){
       angular.element(el).scope().tt_isOpen = false;
@@ -2207,7 +2211,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
  * Deployment controllers
  */
 //Deployment list
-function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -2237,9 +2241,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   };
 
   $scope.load = function() {
-    console.log("Starting load");
-    var path,
-        query_params = $location.search(),
+    var query_params = $location.search(),
         paginator,
         params;
 
@@ -2249,21 +2251,17 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $location.replace();
     }
 
-    path = $location.path() + '.json';
-
     adjusted_params = {
-        tenantId: $scope.auth.context.tenantId,
+        tenantId: auth.context.tenantId,
         offset: paginator.offset,
         limit: paginator.limit
     };
 
     params = _.defaults(adjusted_params, query_params)
-    this.klass = $resource((checkmate_server_base || '') + path);
+    this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
     this.klass.get(params, function(data, getResponseHeaders){
       var paging_info,
           deployments_url = $location.path();
-
-      console.log("Load returned");
 
       paging_info = paginator.getPagingInformation(data['collection-count'], deployments_url);
 
@@ -2278,7 +2276,10 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.currentPage = paging_info.currentPage;
       $scope.totalPages = paging_info.totalPages;
       $scope.links = paging_info.links;
-      console.log("Done loading");
+
+      var tenant_ids = $scope.get_tenant_ids($scope.items);
+      $scope.load_tenant_tags(tenant_ids)
+        .then($scope.mark_content_as_loaded, $scope.mark_content_as_loaded);
     });
   };
 
@@ -2288,7 +2289,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.sync(deployment);
     };
 
-    if ($scope.auth.identity.loggedIn) {
+    if (auth.identity.loggedIn) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
       thang.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, function(returned, getHeaders){
@@ -2303,6 +2304,46 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     } else {
       $scope.loginPrompt().then(retry);
     }
+  };
+
+  $scope.__tenants = {};
+  $scope.__content_loaded = false;
+  $scope.tenant_tags = function(tenant_id) {
+    var tags = $scope.__tenants[tenant_id] && $scope.__tenants[tenant_id].tags;
+    return (tags || []);
+  };
+
+  $scope.get_tenant_ids = function(deployments) {
+    var all_ids = _.map(deployments, function(deployment) { return deployment.tenantId; });
+    var unique_ids = _.uniq(all_ids);
+    return _.compact(unique_ids);
+  };
+
+  $scope.load_tenant_tags = function(tenant_ids) {
+    var promises = [];
+    tenant_ids = tenant_ids || [];
+
+    if (auth.is_admin()) {
+      var Tenant = $resource('/admin/tenants/:tenant_id', {tenant_id: '@id'});
+
+      tenant_ids.forEach(function(id) {
+        if (!id) return;
+
+        var deferred = $q.defer();
+        promises.push(deferred.promise);
+        $scope.__tenants[id] = Tenant.get({tenant_id: id}, function() { deferred.resolve(); });
+      });
+    }
+
+    return $q.all(promises);
+  };
+
+  $scope.mark_content_as_loaded = function() {
+    $scope.__content_loaded = true;
+  };
+
+  $scope.is_content_loaded = function() {
+    return $scope.__content_loaded;
   };
 
   //Setup

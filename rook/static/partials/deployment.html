@@ -71,7 +71,12 @@ Priv Key: {{formatted_data.private_key}}
           <h3 style="display: inline">{{data.name || data.blueprint.name}}  </h3>
         </div>
         <cm-tree-view data="tree_data" id="deployment_tree" width="256" height="256"></cm-tree-view>
-        <p class="lead">{{data.blueprint['meta-data']['application']}} Details</p>
+        <div>
+          <div class="lead pull-left">{{data.blueprint['meta-data']['application']}} Details</div>
+          <div class="sub-lead pull-left">
+          <a ng-href="/{{data.tenantId}}/workflows/{{data.id}}">See workflow</a>
+         </div>
+        </div>
         <form class="form-horizontal">
           <fieldset>
             <div class="control-group">
