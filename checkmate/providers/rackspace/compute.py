@@ -607,7 +607,9 @@ class Provider(RackspaceComputeProviderBase):
                 region = Provider.find_a_region(context.catalog) or 'DFW'
 
         os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
-        api = client.Client('ignore', 'ignore', None, 'localhost')
+        insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1','true']
+        api = client.Client('ignore', 'ignore', None, 'localhost',
+                            insecure=insecure)
         api.client.auth_token = context.auth_token
 
         url = Provider.find_url(context.catalog, region)
@@ -619,7 +621,9 @@ class Provider(RackspaceComputeProviderBase):
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
 def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types'''
-    api = client.Client('ignore', 'ignore', None, 'localhost')
+    insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1','true']
+    api = client.Client('ignore', 'ignore', None, 'localhost',
+                        insecure=insecure)
     api.client.auth_token = auth_token
     api.client.management_url = api_endpoint
 
@@ -644,7 +648,9 @@ def _get_images_and_types(api_endpoint, auth_token):
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
     '''Ask Nova for Flavors (RAM, CPU, HDD) options'''
-    api = client.Client('ignore', 'ignore', None, 'localhost')
+    insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1','true']
+    api = client.Client('ignore', 'ignore', None, 'localhost',
+                        insecure=insecure)
     api.client.auth_token = auth_token
     api.client.management_url = api_endpoint
 
@@ -664,7 +670,9 @@ def _get_flavors(api_endpoint, auth_token):
 
 @caching.Cache(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
 def _get_limits(api_endpoint, auth_token):
-    api = client.Client('ignore', 'ignore', None, 'localhost')
+    insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1','true']
+    api = client.Client('ignore', 'ignore', None, 'localhost',
+                        insecure=insecure)
     api.client.auth_token = auth_token
     api.client.management_url = api_endpoint
     api_limits = api.limits.get()
