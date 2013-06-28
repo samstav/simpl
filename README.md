@@ -793,6 +793,7 @@ And then start the checkmate server:
     export CHECKMATE_CONNECTION_STRING="mongodb://checkmate:password@localhost:27017/checkmate"
     export CHECKMATE_CHEF_LOCAL_PATH=/var/local/checkmate/deployments
     export CHECKMATE_PUBLIC_KEY=`cat ~/.ssh/id_rsa.pub`  # on a mac
+    export CHECKMATE_SIMULATOR_CONNECTION_STRING="mongodb://checkmate:password@localhost:27017/checkmate"
     bin/checkmate-server START --with-ui --with-simulator
 
 
