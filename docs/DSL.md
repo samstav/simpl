@@ -713,7 +713,6 @@ Deployment Resources
         }
         status-message: "<instance_message>",
 		error-message: "<provider_error_message>",
-		error-traceback: "<provider_error_traceback>",
         addresses: {
             "<name>": [
                 {

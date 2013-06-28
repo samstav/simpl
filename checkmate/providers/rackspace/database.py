@@ -131,7 +131,7 @@ class Provider(ProviderBase):
         return templates
 
     def verify_limits(self, context, resources):
-        '''Verify that deployment stays within absolute resource limits'''
+        '''Verify that deployment stays within absolute resource limits.'''
 
         # Cloud databases absolute limits are currently hard-coded
         # The limits are per customer per region.
@@ -177,7 +177,9 @@ class Provider(ProviderBase):
         return messages
 
     def verify_access(self, context):
-        '''Verify that the user has permissions to create database resources'''
+        '''Verify that the user has permissions to create database
+        resources.
+        '''
         roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
         if user_has_access(context, roles):
             return {
@@ -385,16 +387,17 @@ class Provider(ProviderBase):
                 alt_resource_postback.s(deployment_id))
 
     def _delete_db_res_tasks(self, context, deployment_id, resource, key):
-        ''' Return delete tasks for the specified database instance '''
+        '''Return delete tasks for the specified database instance.'''
         return (delete_database.s(context) |
                 alt_resource_postback.s(deployment_id))
 
     def get_catalog(self, context, type_filter=None):
         '''Return stored/override catalog if it exists, else connect, build,
-        and return one'''
+        and return one.
+        '''
 
-        # TODO: maybe implement this an on_get_catalog so we don't have to do
-        #        this for every provider
+        # TODO(any): maybe implement this an on_get_catalog so we don't have to 
+        #        do this for every provider
         results = ProviderBase.get_catalog(self, context,
                                            type_filter=type_filter)
         if results:
@@ -486,7 +489,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def find_a_region(catalog):
-        '''Any region'''
+        '''Any region.'''
         for service in catalog:
             if service['type'] == 'rax:database':
                 endpoints = service['endpoints']
@@ -495,7 +498,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def connect(context, region=None):
-        '''Use context info to connect to API and return api object'''
+        '''Use context info to connect to API and return api object.'''
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
             context = RequestContext(**context)
@@ -511,7 +514,7 @@ class Provider(ProviderBase):
             if not region:
                 region = Provider.find_a_region(context.catalog) or 'DFW'
 
-        #TODO: instead of hacking auth using a token, submit patch upstream
+        #TODO(any): instead of hacking auth using a token, submit patch
         url = Provider.find_url(context.catalog, region)
         if not url:
             raise CheckmateException("Unable to locate region url for DBaaS "
@@ -525,7 +528,7 @@ class Provider(ProviderBase):
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
-    '''Ask DBaaS for Flavors (RAM, CPU, HDD) options'''
+    '''Ask DBaaS for Flavors (RAM, CPU, HDD) options.'''
     # the region must be supplied but is not used
     api = clouddb.CloudDB('ignore', 'ignore', 'DFW')
     api.client.auth_token = auth_token
@@ -650,7 +653,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, instance_id, region, api=None):
-    ''' Check to see if DB Instance has finished building '''
+    '''Check to see if DB Instance has finished building.'''
 
     match_celery_logging(LOG)
     if context.get('simulation') is True:
@@ -851,7 +854,7 @@ def add_databases(context, instance_id, databases, region, api=None):
 @task(default_retry_delay=10, max_retries=10)
 def add_user(context, instance_id, databases, username, password, region,
              api=None):
-    '''Add a database user to an instance for one or more databases'''
+    '''Add a database user to an instance for one or more databases.'''
     match_celery_logging(LOG)
 
     assert instance_id, "Instance ID not supplied"
@@ -967,7 +970,7 @@ def delete_instance(context, api=None):
     match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        ''' Handle task failure '''
+        '''Handle task failure.'''
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -979,9 +982,7 @@ def delete_instance(context, api=None):
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
-                    'error-message': exc.args[0],
-                    'error-traceback': 'Task %s: %s' % (task_id,
-                                                        einfo.traceback)
+                    'error-message': str(exc)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1054,12 +1055,12 @@ def delete_instance(context, api=None):
 
 @task(default_retry_delay=5, max_retries=60)
 def wait_on_del_instance(context, api=None):
-    ''' Wait for the specified instance to be deleted '''
+    '''Wait for the specified instance to be deleted.'''
 
     match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        ''' Handle task failure '''
+        '''Handle task failure.'''
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -1071,9 +1072,7 @@ def wait_on_del_instance(context, api=None):
                         'Unexpected error while deleting '
                         'database instance %s' % key
                     ),
-                    'error-message': exc.args[0],
-                    'error-traceback': 'Task %s: %s' % (task_id,
-                                                        einfo.traceback)
+                    'error-message': str(exc)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1131,12 +1130,12 @@ def wait_on_del_instance(context, api=None):
 
 @task(default_retry_delay=2, max_retries=30)
 def delete_database(context, api=None):
-    '''Delete a database from an instance'''
+    '''Delete a database from an instance.'''
 
     match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        ''' Handle task failure '''
+        '''Handle task failure.'''
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -1148,9 +1147,7 @@ def delete_database(context, api=None):
                         'Unexpected error while deleting '
                         'database %s' % key
                     ),
-                    'error-message': exc.args[0],
-                    'error-traceback': 'Task %s: %s' % (task_id,
-                                                        einfo.traceback)
+                    'error-message': str(exc)
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -1221,5 +1218,5 @@ def delete_user(context, instance_id, username, region, api=None):
 
 #Database provider specific exceptions
 class CheckmateDatabaseBuildFailed(CheckmateException):
-    """Error building database"""
+    """Error building database."""
     pass

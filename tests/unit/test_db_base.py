@@ -78,6 +78,7 @@ class TestDbBase(unittest.TestCase):
         data = {
             "1": {
                 'errmessage': 'my error message',
+                'error-traceback': 'some trace',
                 'instance': {
                     'trace': ''
                 }
@@ -87,7 +88,6 @@ class TestDbBase(unittest.TestCase):
             "1": {
                 'instance': {
                     'error-message': 'my error message',
-                    'error-traceback': ''
                 }
             }
         }
