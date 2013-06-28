@@ -11,11 +11,14 @@
       <tr ng-repeat="workflow in items | orderBy:'id'" >
         <td><a ng-href="/{{workflow.tenantId}}/workflows/{{workflow.id}}"><i class="icon-tasks"></i> {{workflow.id}}</a></td>
         <td>{{workflow.name}}</td>
-        <td><div class="progress" style="margin-bottom: 0px;">
-              <div class="bar" ng-style="{width: (workflow.progress || '0') + '%'}"
-                 ng-class="{'bar-success': workflow.status == 'COMPLETE'}">
-                 <span>{{workflow.status}}</span></div>
-            </div></td>
+        <td>
+          <div class="progress deploy_progress">
+            <div class="bar" ng-style="{width: (workflow.progress || '0') + '%'}"
+              ng-class="{'bar-success': workflow.status == 'COMPLETE'}">
+            </div>
+            <span>{{workflow.status}}</span>
+          </div>
+        </td>
       </tr>
     </tbody>
   </table>
