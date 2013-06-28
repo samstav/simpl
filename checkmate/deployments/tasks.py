@@ -61,6 +61,7 @@ def process_post_deployment(deployment, request_context, driver=DB):
 
 
 @task
+@statsd.collect
 def update_operation(deployment_id, driver=DB, **kwargs):
     '''Wrapper for common_tasks.update_operation'''
     # TODO: Deprecate this
@@ -69,6 +70,7 @@ def update_operation(deployment_id, driver=DB, **kwargs):
 
 
 @task(default_retry_delay=2, max_retries=60)
+@statsd.collect
 def delete_deployment_task(dep_id, driver=DB):
     """ Mark the specified deployment as deleted """
     utils.match_celery_logging(LOG)
@@ -107,6 +109,7 @@ def delete_deployment_task(dep_id, driver=DB):
 
 
 @task(default_retry_delay=0.25, max_retries=4)
+@statsd.collect
 def alt_resource_postback(contents, deployment_id, driver=DB):
     """ This is just an argument shuffle to make it easier
     to chain this with other tasks """
@@ -117,6 +120,7 @@ def alt_resource_postback(contents, deployment_id, driver=DB):
 
 
 @task(default_retry_delay=0.25, max_retries=4)
+@statsd.collect
 def update_all_provider_resources(provider, deployment_id, status,
                                   message=None, trace=None, driver=DB):
     '''Given a deployment, update all resources
@@ -143,6 +147,7 @@ def update_all_provider_resources(provider, deployment_id, status,
 
 
 @task(default_retry_delay=0.5, max_retries=6)
+@statsd.collect
 def postback(deployment_id, contents):
     '''Exposes DeploymentsManager.postback as a task'''
     utils.match_celery_logging(LOG)
@@ -150,6 +155,7 @@ def postback(deployment_id, contents):
 
 
 @task(default_retry_delay=0.5, max_retries=6)
+@statsd.collect
 def resource_postback(deployment_id, contents, driver=DB):
     #FIXME: we need to receive a context and check access
     """Accepts back results from a remote call and updates the deployment with
