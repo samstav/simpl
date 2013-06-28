@@ -426,7 +426,19 @@ def get_admin():
 class RackspaceSSOAuthMiddleware(object):
     def __init__(self, app, endpoint, anonymous_paths=None):
         self.app = app
+
+        # Parse endpiont URL
         self.endpoint = endpoint
+        self.endpoint_uri = endpoint.get('uri')
+        url = urlparse(self.endpoint_uri)
+        self.use_https = url.scheme == 'https'
+        self.host = url.hostname
+        self.base_path = url.path
+        if self.use_https:
+            self.port = url.port or 443
+        else:
+            self.port = url.port or 80
+
         self.anonymous_paths = anonymous_paths or []
         self.auth_header = 'GlobalAuth uri="%s"' % endpoint['uri']
         if ('kwargs' in endpoint and 'realm' in endpoint['kwargs'] and
@@ -497,35 +509,29 @@ class RackspaceSSOAuthMiddleware(object):
     def _validate_keystone(self, context, token=None, username=None,
                            apikey=None, password=None):
         """Validates a Keystone Auth Token"""
-        url = urlparse(self.endpoint['uri'])
-        if url.scheme == 'https':
+        if self.use_https:
             http_class = httplib.HTTPSConnection
-            port = url.port or 443
         else:
             http_class = httplib.HTTPConnection
-            port = url.port or 80
-        host = url.hostname
-
-        http = http_class(host, port)
-
-        path = os.path.join(url.path, token)
+        http = http_class(self.host, self.port)
+        path = os.path.join(self.base_path, token)
         if context.tenant:
             path = "%s?belongsTo=%s" % (path, context.tenant)
-            LOG.debug("Validating on tenant '%s'", context.tenant)
+            LOG.debug("Validating token for tenant '%s'", context.tenant)
         headers = {
             'X-Auth-Token': self.service_token,
             'Accept': 'application/json',
         }
         # TODO: implement some caching to not overload auth
         try:
-            LOG.debug('Validating token with %s', self.endpoint['uri'])
+            LOG.debug('Validating token with %s', self.endpoint_uri)
             http.request('GET', path, headers=headers)
             resp = http.getresponse()
             body = resp.read()
         except Exception as exc:
             LOG.error('Error validating token: %s', exc)
             raise HTTPUnauthorized('Unable to communicate with %s' %
-                                   self.endpoint['uri'])
+                                   self.endpoint_uri)
         finally:
             http.close()
 
@@ -556,16 +562,11 @@ class RackspaceSSOAuthMiddleware(object):
     def _auth_keystone(self, context, token=None, username=None, apikey=None,
                        password=None):
         """Authenticates to keystone"""
-        url = urlparse(self.endpoint['uri'])
-        if url.scheme == 'https':
+        if self.use_https:
             http_class = httplib.HTTPSConnection
-            port = url.port or 443
         else:
             http_class = httplib.HTTPConnection
-            port = url.port or 80
-        host = url.hostname
-
-        http = http_class(host, port)
+        http = http_class(self.host, self.port)
         if token:
             body = {"auth": {"token": {"id": token}}}
         elif password:
@@ -587,15 +588,15 @@ class RackspaceSSOAuthMiddleware(object):
         }
         # TODO: implement some caching to not overload auth
         try:
-            LOG.debug('Authenticating to %s', self.endpoint['uri'])
-            http.request('POST', url.path, body=json.dumps(body),
+            LOG.debug('Authenticating to %s', self.endpoint_uri)
+            http.request('POST', self.base_path, body=json.dumps(body),
                          headers=headers)
             resp = http.getresponse()
             body = resp.read()
         except Exception as exc:
             LOG.error('HTTP connection exception: %s', exc)
             raise HTTPUnauthorized('Unable to communicate with %s' %
-                                   self.endpoint['uri'])
+                                   self.endpoint_uri)
         finally:
             http.close()
 
