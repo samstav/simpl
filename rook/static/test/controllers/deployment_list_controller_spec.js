@@ -9,6 +9,7 @@ describe('DeploymentListController', function(){
       pagination,
       auth,
       $q,
+      cmTenant,
       controller,
       emptyResponse;
 
@@ -22,8 +23,9 @@ describe('DeploymentListController', function(){
     navbar = { highlight: emptyFunction };
     pagination = { buildPaginator: sinon.stub().returns({ changed_params: sinon.spy() }) };
     auth = { context: {} };
-    $q = { all: sinon.stub().returns( sinon.spy() ), defer: sinon.spy() };
-    controller = new DeploymentListController(scope, location, http, resource, scroll, items, navbar, pagination, auth, $q);
+    $q = { all: sinon.stub().returns( sinon.spy() ), defer: sinon.stub() };
+    cmTenant = {};
+    controller = new DeploymentListController(scope, location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant);
     emptyResponse = { get: emptyFunction };
   });
 
@@ -105,6 +107,12 @@ describe('DeploymentListController', function(){
     });
   });
 
+  describe('default_tags', function() {
+    it('should contain main Rackspace tags', function() {
+      expect(scope.default_tags).toEqual(['RackConnect', 'Managed', 'Racker', 'Internal']);
+    });
+  });
+
   describe('#tenant_tags', function() {
     it('should return the tags of a given tenant', function() {
       scope.__tenants = { '666666': { id: '666666', tags: ['faketag'] } };
@@ -119,6 +127,85 @@ describe('DeploymentListController', function(){
     it('should return an empty array if tenant has no tags defined', function() {
       scope.__tenants = { '666666': { id: '666666' } };
       expect(scope.tenant_tags('666666')).toEqual([]);
+    });
+  });
+
+  describe('#get_tenant', function() {
+    it('should return cached tenant if one exists', function() {
+      scope.__tenants['123'] = { id: 123 };
+      expect(scope.get_tenant(123)).toEqual({id:123});
+    });
+
+    it('should fetch tenant if not yet cached', function() {
+      scope.__tenants['123'] = undefined;
+      cmTenant.get = sinon.stub().returns({id:123});
+      expect(scope.get_tenant(123)).toEqual({id:123});
+    });
+  });
+
+  describe('#toggle_tag', function() {
+    beforeEach(function() {
+      scope.has_tag = sinon.stub();
+      spyOn(scope, 'add_tag');
+      spyOn(scope, 'remove_tag');
+    });
+
+    it('should add tag to tenant if tag not yet added', function() {
+      scope.has_tag.returns(false);
+      scope.toggle_tag(123, 'faketag');
+      expect(scope.add_tag).toHaveBeenCalledWith(123, 'faketag');
+    });
+
+    it('should remove tag from tenant if tag already set', function() {
+      scope.has_tag.returns(true);
+      scope.toggle_tag(123, 'faketag');
+      expect(scope.remove_tag).toHaveBeenCalledWith(123, 'faketag');
+    });
+  });
+
+  describe('#add_tag', function() {
+    it('should add tag to tenant', function() {
+      scope.get_tenant = sinon.stub().returns({ id: 123 });
+      cmTenant.add_tag = sinon.spy();
+      scope.add_tag(123, 'faketag');
+      expect(cmTenant.add_tag).toHaveBeenCalledWith({id:123}, 'faketag')
+    });
+  });
+
+  describe('#remove_tag', function() {
+    it('should add tag to tenant', function() {
+      scope.get_tenant = sinon.stub().returns({ id: 123 });
+      cmTenant.remove_tag = sinon.spy();
+      scope.remove_tag(123, 'faketag');
+      expect(cmTenant.remove_tag).toHaveBeenCalledWith({id:123}, 'faketag')
+    });
+  });
+
+  describe('#has_tag', function() {
+    it('should return false if content not yet loaded', function() {
+      scope.__content_loaded = false;
+      expect(scope.has_tag(123, 'faketag')).toBe(false);
+    });
+
+    describe('when content is loaded', function() {
+      beforeEach(function() {
+        scope.__content_loaded = true;
+      });
+
+      it('should return true if tenant has tag', function() {
+        spyOn(scope, 'get_tenant').andReturn({id:123, tags: ['faketag']});
+        expect(scope.has_tag(123, 'faketag')).toBe(true);
+      });
+
+      it('should return false if tenant does not have any tags', function() {
+        spyOn(scope, 'get_tenant').andReturn({id:123});
+        expect(scope.has_tag(123, 'faketag')).toBeFalsy();
+      });
+
+      it('should return false if tenant does not have that specific tag', function() {
+        spyOn(scope, 'get_tenant').andReturn({id:123, tags: ['othertag']});
+        expect(scope.has_tag(123, 'faketag')).toBe(false);
+      });
     });
   });
 
@@ -143,24 +230,41 @@ describe('DeploymentListController', function(){
     });
   });
 
-  // TODO: find the proper way to test resources and implement tests!
   describe('#load_tenant_info', function() {
+    beforeEach(function() {
+      auth.is_admin = sinon.stub();
+    });
+
     it('should not load tags if user is not an admin', function() {
-      auth.is_admin = sinon.stub().returns(false);
+      auth.is_admin.returns(false);
       scope.load_tenant_info();
       expect($q.all).toHaveBeenCalledWith([]);
     });
 
-    it('should should create a promise for each tenant ID', function() {
-      // expect('pending').toBe('complete');
-    });
+    describe('when user is admin', function() {
+      beforeEach(function() {
+        auth.is_admin.returns(true);
+        $q.defer.returns({ promise: 'fakepromise' });
+        cmTenant.get = sinon.spy();
+      });
 
-    it('should call server to get each tenant ID', function() {
-      // expect('pending').toBe('complete');
-    });
+      it('should should create a promise for each tenant ID', function() {
+        var tenant_ids = [123, 234, 345];
+        scope.load_tenant_info(tenant_ids);
+        expect($q.all.getCall(0).args[0].length).toBe(3);
+      });
 
-    it('should not send calls to get invalid tenant IDs', function() {
-      // expect('pending').toBe('complete');
+      it('should call server to get each tenant ID', function() {
+        var tenant_ids = [123];
+        scope.load_tenant_info(tenant_ids);
+        expect(cmTenant.get).toHaveBeenCalled();
+      });
+
+      it('should not send calls to get invalid tenant IDs', function() {
+        var tenant_ids = [null, undefined];
+        scope.load_tenant_info(tenant_ids);
+        expect(cmTenant.get).not.toHaveBeenCalled();
+      });
     });
   });
 

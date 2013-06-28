@@ -1624,3 +1624,62 @@ services.factory('webengage', function(config){
   return { init: init };
 });
 
+angular.module('checkmate.services').factory('cmTenant', ['$resource', function($resource) {
+  var scope = {};
+
+  var params = { tenant_id: '@id' };
+  var actions = { save: { method: 'PUT' } };
+  var Tenant = $resource('/admin/tenants/:tenant_id', params, actions);
+
+  var add_tag_error = function(response) {
+    console.log('cmTenant: Error adding tag');
+    var tenant = response.config.data;
+    tenant.tags = _.without(tenant.tags, tenant.new_tag);
+    delete tenant.new_tag;
+  }
+
+  scope.add_tag = function(tenant, new_tag) {
+    if (new_tag) {
+      var current_tags = tenant.tags || [];
+      var new_tags = current_tags.concat(new_tag);
+      tenant.tags = _.uniq(new_tags);
+      tenant.new_tag = new_tag;
+      tenant.$save(null, null, add_tag_error);
+    }
+  }
+
+  var remove_tag_error = function(response) {
+    console.log('cmTenant: Error removing tag');
+    var tenant = response.config.data;
+    var tags = tenant.tags.concat(tenant.old_tag);
+    tenant.tags = _.uniq(tags);
+    delete tenant.old_tag;
+  }
+
+  scope.remove_tag = function(tenant, old_tag) {
+    if (old_tag) {
+      tenant.old_tag = old_tag;
+      tenant.tags = _.without(tenant.tags, tenant.old_tag);
+      tenant.$save(null, null, remove_tag_error);
+    }
+  }
+
+  var clear_tags_error = function(response) {
+    console.log('cmTenant: Error clearing tags');
+    var tenant = response.config.data;
+    tenant.tags = tenant.old_tags;
+    delete tenant.old_tags;
+  }
+
+  scope.clear_tags = function() {
+    tenant.old_tags = tenant.tags;
+    tenant.tags = [];
+    tenant.$save(null, null, clear_tag_error);
+  }
+
+  scope.get = function(id, callback) {
+    return Tenant.get({tenant_id: id}, callback);
+  }
+
+  return scope;
+}]);
