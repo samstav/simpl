@@ -514,3 +514,28 @@ a:hover {
   cursor: pointer;
 }
 
+/* Deployment List */
+.tenant_tag {
+  margin-right: 5px;
+}
+.tenant_tag .label.managed,
+.tenant_tag .label.rackconnect,
+.tenant_tag .label.racker,
+.tenant_tag .label.internal {
+  display: none;
+}
+.tenant_tag .icon.managed,
+.tenant_tag .icon.rackconnect,
+.tenant_tag .icon.racker,
+.tenant_tag .icon.internal {
+  background-size: 18px 18px;
+  background-repeat: no-repeat;
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  margin-bottom: -4px;
+}
+.tenant_tag .icon.racker { background-image: url("/img/icons/racker_plan.png"); }
+.tenant_tag .icon.managed { background-image: url("/img/icons/managed_cloud.png"); }
+.tenant_tag .icon.internal { background-image: url("/img/icons/internal_plan.png"); }
+.tenant_tag .icon.rackconnect { background-image: url("/img/icons/rack_connect.png"); }

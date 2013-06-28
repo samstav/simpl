@@ -8,8 +8,8 @@ describe('DeploymentListController', function(){
       navbar,
       pagination,
       auth,
+      $q,
       controller,
-      resource_spy,
       emptyResponse;
 
   beforeEach(function(){
@@ -22,7 +22,8 @@ describe('DeploymentListController', function(){
     navbar = { highlight: emptyFunction };
     pagination = { buildPaginator: sinon.stub().returns({ changed_params: sinon.spy() }) };
     auth = { context: {} };
-    controller = new DeploymentListController(scope, location, http, resource, scroll, items, navbar, pagination, auth);
+    $q = { all: sinon.stub().returns( sinon.spy() ), defer: sinon.spy() };
+    controller = new DeploymentListController(scope, location, http, resource, scroll, items, navbar, pagination, auth, $q);
     emptyResponse = { get: emptyFunction };
   });
 
@@ -89,6 +90,96 @@ describe('DeploymentListController', function(){
         expect(get_spy.getCall(0).args[0].show_deleted).toEqual(true);
         expect(get_spy.getCall(0).args[0].cats).toEqual('dogs');
       });
+    });
+  });
+
+  describe('__tenants', function() {
+    it('should default to empty object', function() {
+      expect(scope.__tenants).toEqual({});
+    });
+  });
+
+  describe('__content_loaded', function() {
+    it('should default to false', function() {
+      expect(scope.__content_loaded).toBe(false);
+    });
+  });
+
+  describe('#tenant_tags', function() {
+    it('should return the tags of a given tenant', function() {
+      scope.__tenants = { '666666': { id: '666666', tags: ['faketag'] } };
+      expect(scope.tenant_tags('666666')).toEqual(['faketag']);
+    });
+
+    it('should return an empty array if tenant is not cached', function() {
+      scope.__tenants = {};
+      expect(scope.tenant_tags('666666')).toEqual([]);
+    });
+
+    it('should return an empty array if tenant has no tags defined', function() {
+      scope.__tenants = { '666666': { id: '666666' } };
+      expect(scope.tenant_tags('666666')).toEqual([]);
+    });
+  });
+
+  describe('#get_tenant_ids', function() {
+    it('should return an empty array if no deployment is passed', function() {
+      expect(scope.get_tenant_ids()).toEqual([]);
+    });
+
+    it('should return an array with no undefined/null tenant IDs', function() {
+      var deployments = [{tenantId: undefined}, {tenantId: null}];
+      expect(scope.get_tenant_ids(deployments)).toEqual([]);
+    });
+
+    it('should return a list of tenant IDS for the given deployments', function() {
+      var deployments = [{tenantId: '123'}];
+      expect(scope.get_tenant_ids(deployments)).toEqual(['123']);
+    });
+
+    it('should return a unique list of tenant IDs for given deployments', function() {
+      var deployments = [{tenantId: '123'}, {tenantId: '234'}, {tenantId: '123'}];
+      expect(scope.get_tenant_ids(deployments).length).toBe(2);
+    });
+  });
+
+  // TODO: find the proper way to test resources and implement tests!
+  describe('#load_tenant_tags', function() {
+    it('should not load tags if user is not an admin', function() {
+      auth.is_admin = sinon.stub().returns(false);
+      scope.load_tenant_tags();
+      expect($q.all).toHaveBeenCalledWith([]);
+    });
+
+    it('should should create a promise for each tenant ID', function() {
+      // expect('pending').toBe('complete');
+    });
+
+    it('should call server to get each tenant ID', function() {
+      // expect('pending').toBe('complete');
+    });
+
+    it('should not send calls to get invalid tenant IDs', function() {
+      // expect('pending').toBe('complete');
+    });
+  });
+
+  describe('#mark_content_as_loaded', function() {
+    it('should mark content as loaded', function() {
+      scope.mark_content_as_loaded();
+      expect(scope.__content_loaded).toBe(true);
+    });
+  });
+
+  describe('#is_content_loaded', function() {
+    it('should be true if content is loaded', function() {
+      scope.__content_loaded = true;
+      expect(scope.is_content_loaded()).toBe(true);
+    });
+
+    it('should be false if content not yet loaded', function() {
+      scope.__content_loaded = false;
+      expect(scope.is_content_loaded()).toBe(false);
     });
   });
 });
