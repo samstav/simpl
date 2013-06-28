@@ -376,21 +376,16 @@ body {
     color: inherit;
 }
 
-#deployment_progress {
+.deploy_progress {
   position: relative;
-  margin-right: 10px;
+  background-image: none;
+  background-color: #AAA;
   margin-bottom: 0px;
-  width: 300px;
-  float: left;
 }
-#deployment_progress .bar {
+.deploy_progress .bar {
   position: absolute;
 }
-#deployment_progress .bar.background {
-  width: 100%;
-  background-color: #AAA;
-}
-#deployment_progress span {
+.deploy_progress span {
   position: absolute;
   text-align: center;
   width: 100%;
@@ -514,3 +509,7 @@ a:hover {
   cursor: pointer;
 }
 
+.sub-lead {
+  margin-left: 12px;
+  line-height: 34px;
+}
