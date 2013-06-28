@@ -39,6 +39,6 @@ class TestMongoDB(unittest.TestCase):
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
+    from checkmate import test
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+    test.run_with_params(sys.argv[:])
