@@ -6,12 +6,10 @@ for auth and github (to avoid CORS limitations)
 '''
 
 import base64
-import httplib
 import json
 import logging
 import os
 from socket import gaierror
-import urllib2
 from urlparse import urlparse
 
 # pylint: disable=E0611
@@ -28,6 +26,8 @@ from checkmate.middleware import TokenAuthMiddleware, RequestContext
 from Crypto.Hash import MD5
 import webob
 import webob.dec
+from eventlet.green import httplib
+from eventlet.green import urllib2
 from webob.exc import HTTPUnauthorized, HTTPNotFound
 
 import rook
