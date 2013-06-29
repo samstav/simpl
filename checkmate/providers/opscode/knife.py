@@ -873,7 +873,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     return results
 
 
-@task(max_retries=2, soft_time_limit=300)
+@task(max_retries=3, soft_time_limit=600)
 def register_node(host, environment, resource, path=None, password=None,
                   omnibus_version=None, attributes=None, identity_file=None,
                   kitchen_name='kitchen'):
