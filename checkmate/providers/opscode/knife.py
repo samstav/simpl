@@ -475,9 +475,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
                         'error-message': (
                             'Error writing software configuration '
                             'to host %s: %s' % (host, exc.args[0])
-                        ),
-                        'error-traceback': 'Task %s: %s' % (task_id,
-                                                            einfo.traceback)
+                        )
                     }
                 })
                 if host_k:
@@ -625,9 +623,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
                         'status': 'ERROR',
                         'error-message': (
                             'Error installing software on host %s' % host
-                        ),
-                        'error-traceback': 'Task %s: %s' % (task_id,
-                                                            einfo.traceback)
+                        )
                     }
                 })
                 if host_k:
@@ -814,8 +810,7 @@ def create_environment(name, service_name, path=None, private_key=None,
                                                 'ERROR',
                                                 message=('Error creating chef '
                                                          'environment: %s'
-                                                         % exc.args[0]),
-                                                trace=einfo.traceback)
+                                                         % exc.args[0]))
 
     create_environment.on_failure = on_failure
 
@@ -938,9 +933,7 @@ def register_node(host, environment, resource, path=None, password=None,
                         'error-message': (
                             'Error registering host %s: %s' %
                             (host, exc)
-                        ),
-                        'error-traceback': 'Task %s: %s' % (task_id,
-                                                            einfo.traceback)
+                        )
                     }
                 })
                 if host_k:

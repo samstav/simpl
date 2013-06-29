@@ -117,9 +117,6 @@ def error_formatter(error):
     elif isinstance(error.exception, CheckmateValidationException):
         error.status = 400
         error.output = str(error.exception)
-    elif isinstance(error.exception, CheckmateDataIntegrityError):
-        error.status = 401
-        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateNoData):
         error.status = 400
         error.output = str(error.exception)
@@ -139,6 +136,10 @@ def error_formatter(error):
         # For other 500's, provide underlying cause
         if error.exception:
             output['message'] = str(error.exception)
+
+    if hasattr(error.exception, 'args'):
+        if len(error.exception.args) > 1:
+            LOG.warning('HTTPError: %s', error.exception.args)
 
     output['description'] = error.output
     output['code'] = error.status

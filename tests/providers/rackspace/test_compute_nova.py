@@ -134,7 +134,6 @@ class TestNovaCompute(test.ProviderTester):
                 }]
         kwargs = {}
         einfo = self.mox.CreateMockAnything()
-        einfo.traceback = "some traceback"
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
@@ -147,7 +146,6 @@ class TestNovaCompute(test.ProviderTester):
                     "instance 0"
                 ),
                 'error-message': 'some message',
-                'error-traceback': 'Task 1234: some traceback'
             }
         }
 

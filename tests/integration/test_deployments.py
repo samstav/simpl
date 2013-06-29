@@ -1323,9 +1323,8 @@ class TestDeleteDeployments(unittest.TestCase):
             router.delete_deployment('1234')
             self.fail("Delete deployment with not found did not raise "
                       "exception")
-        except HTTPError as exc:
-            self.assertEqual(404, exc.status)
-            self.assertIn("No deployment with id 1234", exc.output)
+        except CheckmateDoesNotExist as exc:
+            self.assertEqual("No deployment with id 1234", str(exc))
 
     def test_no_tasks(self):
         """ Test when there are no resource tasks for delete """
@@ -1451,8 +1450,7 @@ class TestGetResourceStuff(unittest.TestCase):
                       'status-message': 'An error happened',
                       'error-message': 'A certain error happened'},
                 '3': {'status': 'ERROR',
-                      'error-message': 'whoops',
-                      'error-traceback': 'stacktrace'},
+                      'error-message': 'whoops'},
                 '9': {'status-message': 'I have an unknown status'}
             }
         }
@@ -1487,7 +1485,6 @@ class TestGetResourceStuff(unittest.TestCase):
             self.assertIn(key, ret)
         self.assertEquals('A certain error happened',
                           ret.get('2', {}).get('error-message'))
-        self.assertNotIn('error-traceback', ret.get('3', {'error-traceback': 'FAIL'}))
 
     def test_no_resources(self):
         """ Test when no resources in deployment """
@@ -1547,24 +1544,6 @@ class TestGetResourceStuff(unittest.TestCase):
         except CheckmateDoesNotExist as exc:
             self.assertIn("No deployment with id 1234", str(exc))
 
-    def test_status_trace(self):
-        """ Make sure trace is included if query param present """
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        router = Router(bottle.default_app(), manager)
-        db.get_deployment('1234', with_secrets=False)\
-            .AndReturn(self._deployment)
-
-        self._mox.ReplayAll()
-        bottle.request.environ['QUERY_STRING'] = "?trace"
-        ret = json.loads(router.get_resources_statuses('1234'))
-        self.assertNotIn('fake', ret)
-        for key in ['1', '2', '3', '9']:
-            self.assertIn(key, ret)
-        self.assertEquals('A certain error happened',
-                          ret.get('2', {}).get('error-message'))
-        self.assertIn('error-traceback', ret.get('3', {}))
-
 
 class TestPostbackHelpers(unittest.TestCase):
     """ Test deployment update helpers """
@@ -1619,7 +1598,6 @@ class TestPostbackHelpers(unittest.TestCase):
         self._mox.ReplayAll()
         ret = update_all_provider_resources('foo', '1234', 'NEW',
                                             message='I test u',
-                                            trace='A trace',
                                             driver=db)
         self.assertIn('instance:1', ret)
         self.assertIn('instance:9', ret)
@@ -1629,10 +1607,6 @@ class TestPostbackHelpers(unittest.TestCase):
                                               {}).get('status-message'))
         self.assertEquals('I test u', ret.get('instance:9',
                                               {}).get('status-message'))
-        self.assertEquals('A trace', ret.get('instance:1',
-                                             {}).get('error-traceback'))
-        self.assertEquals('A trace', ret.get('instance:9',
-                                             {}).get('error-traceback'))
 
 
 class TestDeploymentDisplayOutputs(unittest.TestCase):
