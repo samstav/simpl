@@ -1636,7 +1636,7 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', function(
     var tenant = response.config.data;
     tenant.tags = _.without(tenant.tags, tenant.new_tag);
     delete tenant.new_tag;
-  }
+  };
 
   scope.add_tag = function(tenant, new_tag) {
     if (new_tag) {
@@ -1646,7 +1646,7 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', function(
       tenant.new_tag = new_tag;
       tenant.$save(null, null, add_tag_error);
     }
-  }
+  };
 
   var remove_tag_error = function(response) {
     console.log('cmTenant: Error removing tag');
@@ -1654,7 +1654,7 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', function(
     var tags = tenant.tags.concat(tenant.old_tag);
     tenant.tags = _.uniq(tags);
     delete tenant.old_tag;
-  }
+  };
 
   scope.remove_tag = function(tenant, old_tag) {
     if (old_tag) {
@@ -1662,24 +1662,24 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', function(
       tenant.tags = _.without(tenant.tags, tenant.old_tag);
       tenant.$save(null, null, remove_tag_error);
     }
-  }
+  };
 
   var clear_tags_error = function(response) {
     console.log('cmTenant: Error clearing tags');
     var tenant = response.config.data;
     tenant.tags = tenant.old_tags;
     delete tenant.old_tags;
-  }
+  };
 
   scope.clear_tags = function() {
     tenant.old_tags = tenant.tags;
     tenant.tags = [];
     tenant.$save(null, null, clear_tag_error);
-  }
+  };
 
-  scope.get = function(id, callback) {
-    return Tenant.get({tenant_id: id}, callback);
-  }
+  scope.get = function(id, callback, failure) {
+    return Tenant.get({tenant_id: id}, callback, failure);
+  };
 
   return scope;
 }]);
