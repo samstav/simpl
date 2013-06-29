@@ -18,6 +18,7 @@ from checkmate.deployments import (
 )
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
+    CheckmateDoesNotExist,
     CheckmateException,
     CheckmateNoTokenError,
     CheckmateNoMapping,
@@ -396,7 +397,7 @@ class Provider(ProviderBase):
         and return one.
         '''
 
-        # TODO(any): maybe implement this an on_get_catalog so we don't have to 
+        # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
         results = ProviderBase.get_catalog(self, context,
                                            type_filter=type_filter)
@@ -934,26 +935,31 @@ def sync_resource_task(context, resource, resource_key, api=None):
         }
     if api is None:
         # TODO(NATE): Fix after region added to context
-        instance = resource.get("instance")
+        instance = resource.get("instance") or {}
+        region = None
         if 'region' in instance:
             region = instance['region']
         elif 'host_region' in instance:
             region = instance['host_region']
         elif 'region' in resource:
             region = resource['region']
-        elif hasattr(context, region):
+        elif hasattr(context, 'region'):
             region = context.region
         else:
-            region = Provider.find_a_region(context)
+            region = Provider.find_a_region(context.get('catalog') or {})
         api = Provider.connect(context, region)
     try:
-        database = api.get_instance(resource.get("instance", {}).get("id"))
+        instance = resource.get("instance") or {}
+        instance_id = instance.get("id")
+        if not instance_id:
+            raise CheckmateDoesNotExist("Instance is blank or has no ID")
+        database = api.get_instance(instance_id)
         return {
             key: {
                 'status': database.status
             }
         }
-    except ResponseError:
+    except (ResponseError, CheckmateDoesNotExist):
         return {
             key: {
                 'status': 'DELETED'
