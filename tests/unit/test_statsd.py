@@ -16,7 +16,7 @@ def return_success(*args, **kwargs):
 
 
 def return_failure(*args, **kwargs):
-    raise StandardError
+    raise StandardError()
 
 
 class TestStatsd(unittest.TestCase):
@@ -26,9 +26,9 @@ class TestStatsd(unittest.TestCase):
 
     def test_collect_exception(self):
         '''Tests that statsd raises exception with invalid arg.'''
-        CONFIG.statsd = True
-        CONFIG.STATSD_HOST = '111.222.222.111'
-        CONFIG.STATSD_PORT = 1234
+        CONFIG.statsd = '111.222.222.111:1234'
+        CONFIG.statsd_host = '111.222.222.111'
+        CONFIG.statsd_port = 1234
 
         mock_counter = py_statsd.counter.Counter('test')
         mock_counter.increment = mock.MagicMock()
@@ -46,6 +46,7 @@ class TestStatsd(unittest.TestCase):
 
         # counter increment within except StandardError block
         mock_counter.increment.assert_called_with('return_failure.exceptions')
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

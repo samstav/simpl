@@ -27,8 +27,12 @@ Limitation: Does not readily work on subclasses of celery.tasks.Task
 because it always reports `task_name` as 'run'
 '''
 from __future__ import absolute_import
+
 import statsd
+
 from checkmate.common import config
+
+CONFIG = config.current()
 
 
 def simple_decorator(decorator):
@@ -66,15 +70,14 @@ def collect(func):
     '''Wraps a celery task with statsd collect code.'''
 
     def collect_wrapper(*args, **kwargs):
-
-        CONFIG = config.current()
+        '''Replaces decorated function.'''
 
         if not CONFIG.statsd:
             return func(*args, **kwargs)
 
         stats_conn = statsd.connection.Connection(
-            host=CONFIG.STATSD_HOST,
-            port=CONFIG.STATSD_PORT,
+            host=CONFIG.statsd_host,
+            port=CONFIG.statsd_port,
             sample_rate=1
         )
 
@@ -85,7 +88,7 @@ def collect(func):
         else:
             counter = kwargs['statsd_counter']
 
-        counter.increment('{task_name}.started'.format(**locals()))
+        counter.increment('%s.started' % task_name)
 
         if kwargs.get('statsd_timer') is None:
             timer = statsd.timer.Timer('celery.tasks.duration', stats_conn)
@@ -97,11 +100,11 @@ def collect(func):
         try:
             ret = func(*args, **kwargs)
         except StandardError:
-            counter.increment('{task_name}.exceptions'.format(**locals()))
+            counter.increment('%s.exceptions' % task_name)
             raise
         else:
-            counter.increment('{task_name}.success'.format(**locals()))
-            timer.stop('{task_name}.success'.format(**locals()))
+            counter.increment('%s.success' % task_name)
+            timer.stop('%s.success' % task_name)
             return ret
         finally:
             try:

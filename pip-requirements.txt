@@ -55,7 +55,7 @@
 #   Upstream: https://github.com/rackerlabs/python-cloudlb
 #   Notes:    If https://github.com/rackerlabs/python-cloudlb/pull/36 is
 #             accepted we will be in sync with upstream.
--e git://github.com/calebgroom/python-cloudlb.git@41d93de78c31fb1434ef623031df3cdc2a4ee691#egg=python-cloudlb
+-e git://github.com/checkmate/python-cloudlb.git@08a7109d4a78725898768b048e5cadb89ed29d36#egg=python-cloudlb
 
 # python-cloudfiles
 #   Upstream: https://github.com/rackerlabs/python-cloudfiles

@@ -44,7 +44,6 @@ from checkmate import deployments
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
-    CheckmateDataIntegrityError,
     CheckmateDoesNotExist,
     CheckmateException,
     CheckmateNoData,
@@ -155,11 +154,11 @@ def config_statsd():
         raise CheckmateException('statsd config required in format '
                                  'server:port')
     elif len(user_values) == 1:
-        CONFIG.STATSD_PORT = 8125
+        CONFIG.statsd_port = 8125
     else:
-        CONFIG.STATSD_PORT = user_values[1]
+        CONFIG.statsd_port = user_values[1]
 
-    CONFIG.STATSD_HOST = user_values[0]
+    CONFIG.statsd_host = user_values[0]
 
 
 def main():
@@ -168,6 +167,9 @@ def main():
     CONFIG.initialize()
     resources = ['version']
     anonymous_paths = ['version']
+    if CONFIG.webhook:
+        resources.append('webhooks')
+        anonymous_paths.append('webhooks')
 
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(CONFIG,
