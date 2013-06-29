@@ -2,8 +2,8 @@
 import unittest2 as unittest
 
 from checkmate.common import config
-from checkmate.server import config_statsd
 from checkmate.exceptions import CheckmateException
+from checkmate.server import config_statsd
 
 CONFIG = config.current()
 
@@ -15,8 +15,8 @@ class TestServer(unittest.TestCase):
 
         config_statsd()
 
-        self.assertEqual(CONFIG.STATSD_HOST, '111.222.222.111')
-        self.assertEqual(CONFIG.STATSD_PORT, '1234')
+        self.assertEqual(CONFIG.statsd_host, '111.222.222.111')
+        self.assertEqual(CONFIG.statsd_port, '1234')
 
     def test_config_statsd_no_port(self):
         '''Tests that statsd config defaults port settings.'''
@@ -24,14 +24,15 @@ class TestServer(unittest.TestCase):
 
         config_statsd()
 
-        self.assertEqual(CONFIG.STATSD_HOST, '111.222.222.111')
-        self.assertEqual(CONFIG.STATSD_PORT, 8125)
+        self.assertEqual(CONFIG.statsd_host, '111.222.222.111')
+        self.assertEqual(CONFIG.statsd_port, 8125)
 
     def test_config_statsd_fail(self):
         '''Tests that statsd raises exception with invalid arg.'''
         CONFIG.statsd = '111.222.222.111:1234:1312'
         with self.assertRaises(CheckmateException):
             config_statsd()
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
