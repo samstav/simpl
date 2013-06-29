@@ -24,6 +24,7 @@ from checkmate.deployments import (
 )
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
+    CheckmateDoesNotExist,
     CheckmateNoTokenError,
     CheckmateNoMapping,
     CheckmateException,
@@ -841,13 +842,17 @@ def sync_resource_task(context, resource, resource_key, api=None):
     if api is None:
         api = Provider.connect(context, resource.get("region"))
     try:
-        server = api.servers.get(resource.get("instance", {}).get("id"))
+        instance = resource.get("instance") or {}
+        instance_id = instance.get("id")
+        if not instance_id:
+            raise CheckmateDoesNotExist("Instance is blank or has no ID")
+        server = api.servers.get(instance_id)
         return {
             key: {
                 'status': server.status
             }
         }
-    except NotFound:
+    except (NotFound, CheckmateDoesNotExist):
         return {
             key: {
                 'status': 'DELETED'
