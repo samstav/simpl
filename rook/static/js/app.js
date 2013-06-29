@@ -2211,7 +2211,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
  * Deployment controllers
  */
 //Deployment list
-function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -2278,7 +2278,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.links = paging_info.links;
 
       var tenant_ids = $scope.get_tenant_ids($scope.items);
-      $scope.load_tenant_tags(tenant_ids)
+      $scope.load_tenant_info(tenant_ids)
         .then($scope.mark_content_as_loaded, $scope.mark_content_as_loaded);
     });
   };
@@ -2308,10 +2308,47 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.__tenants = {};
   $scope.__content_loaded = false;
+  $scope.default_tags = ['RackConnect', 'Managed', 'Racker', 'Internal'];
   $scope.tenant_tags = function(tenant_id) {
     var tags = $scope.__tenants[tenant_id] && $scope.__tenants[tenant_id].tags;
     return (tags || []);
   };
+
+  $scope.get_tenant = function(tenant_id) {
+    var tenant = $scope.__tenants[tenant_id];
+    if (!tenant) {
+      tenant = cmTenant.get(tenant_id);
+      $scope.__tenants[tenant_id] = tenant;
+    }
+    return tenant;
+  }
+
+  $scope.toggle_tag = function(tenant_id, tag) {
+    if ($scope.has_tag(tenant_id, tag)) {
+      $scope.remove_tag(tenant_id, tag);
+    } else {
+      $scope.add_tag(tenant_id, tag);
+    }
+  }
+
+  $scope.add_tag = function(tenant_id, new_tag) {
+    var tenant = $scope.get_tenant(tenant_id);
+    cmTenant.add_tag(tenant, new_tag);
+  }
+
+  $scope.remove_tag = function(tenant_id, old_tag) {
+    var tenant = $scope.get_tenant(tenant_id);
+    cmTenant.remove_tag(tenant, old_tag);
+  }
+
+  $scope.has_tag = function(tenant_id, tag) {
+    if ($scope.__content_loaded) {
+      var tenant = $scope.get_tenant(tenant_id);
+      return (tenant.tags && tenant.tags.indexOf(tag) !== -1);
+    }
+
+    return false;
+  }
 
   $scope.get_tenant_ids = function(deployments) {
     var all_ids = _.map(deployments, function(deployment) { return deployment.tenantId; });
@@ -2319,19 +2356,17 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     return _.compact(unique_ids);
   };
 
-  $scope.load_tenant_tags = function(tenant_ids) {
+  $scope.load_tenant_info = function(tenant_ids) {
     var promises = [];
     tenant_ids = tenant_ids || [];
 
     if (auth.is_admin()) {
-      var Tenant = $resource('/admin/tenants/:tenant_id', {tenant_id: '@id'});
-
       tenant_ids.forEach(function(id) {
         if (!id) return;
 
         var deferred = $q.defer();
         promises.push(deferred.promise);
-        $scope.__tenants[id] = Tenant.get({tenant_id: id}, function() { deferred.resolve(); });
+        $scope.__tenants[id] = cmTenant.get(id, function() { deferred.resolve(); });
       });
     }
 
