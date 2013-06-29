@@ -11,11 +11,23 @@
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="deployment in items | orderBy:'-created'" >
+      <tr ng-repeat="deployment in items | orderBy:'-created'" class="deployment">
         <td><a ng-href="/{{deployment.tenantId}}/deployments/{{deployment.id}}"><i class="icon-picture"></i> {{deployment.id | truncate:10}}</a></td>
         <td>{{deployment.name}}</td>
         <td>{{deployment.blueprint.name}}</td>
-        <td ng-cloak ng-show="is_admin()">
+        <td class="tags-row" ng-cloak ng-show="is_admin()">
+          <span class="dropdown tag-settings">
+            <button class="btn btn-mini dropdown-toggle">
+              <i class="icon-tags"></i>
+            </button>
+            <ul class="dropdown-menu">
+              <li ng-repeat="tag in default_tags">
+                <a ng-click="toggle_tag(deployment.tenantId, tag)">
+                  {{tag}}<i class="icon-remove pull-right" ng-show="has_tag(deployment.tenantId, tag)"></i>
+                </a>
+              </li>
+            </ul>
+          </span>
           {{deployment.tenantId}}
           <span class="tenant_tag" ng-repeat="tag in tenant_tags(deployment.tenantId)">
             <i class="icon {{tag | lowercase}}" tooltip="{{tag}}"></i>
