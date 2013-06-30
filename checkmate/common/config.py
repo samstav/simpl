@@ -14,8 +14,9 @@ To load config from sys.args and environment variables:
 
 '''
 import argparse
-import sys
 import logging
+import os
+import sys
 
 LOG = logging.getLogger(__name__)
 
@@ -56,6 +57,11 @@ class Config(object):
     preview_ref = 'master'
     preview_tenants = None
     group_refs = {}
+
+    @property
+    def bottle_parent(self):
+        '''Detect if running as a bottle autoreload parent.'''
+        return self.eventlet is False and 'BOTTLE_CHILD' not in os.environ
 
     def __init__(self, values=None):
         if values:

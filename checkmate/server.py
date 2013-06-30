@@ -128,13 +128,16 @@ def error_formatter(error):
         output['message'] = str(error.exception)
     elif isinstance(error.exception, CheckmateException):
         error.output = str(error.exception)
+        LOG.exception(error.exception)
     elif isinstance(error.exception, AssertionError):
         error.status = 400
         error.output = str(error.exception)
+        LOG.exception(error.exception)
     else:
         # For other 500's, provide underlying cause
         if error.exception:
             output['message'] = str(error.exception)
+            LOG.exception(error.exception)
 
     if hasattr(error.exception, 'args'):
         if len(error.exception.args) > 1:
@@ -181,6 +184,13 @@ def main():
 
     if CONFIG.eventlet is True:
         eventlet.monkey_patch()
+    else:
+        LOG.warn(">>> Loading single-threaded dev server <<<")
+        print ("You've loaded Checkmate as a single-threaded WSGIRef server. "
+               "The advantage is that it will autoreload when you edit any "
+               "files. However, it will block when performing background "
+               "operations or responding to requests. To run a multi-threaded "
+               "server start Checkmate with the '--eventlet' switch")
 
     if CONFIG.statsd:
         config_statsd()

@@ -948,18 +948,21 @@ def sync_resource_task(context, resource, resource_key, api=None):
         else:
             region = Provider.find_a_region(context.get('catalog') or {})
         api = Provider.connect(context, region)
+    instance = resource.get("instance") or {}
+    instance_id = instance.get("id")
     try:
-        instance = resource.get("instance") or {}
-        instance_id = instance.get("id")
         if not instance_id:
             raise CheckmateDoesNotExist("Instance is blank or has no ID")
         database = api.get_instance(instance_id)
+        LOG.info("Marking database instance %s as %s", instance_id,
+                 database.status)
         return {
             key: {
                 'status': database.status
             }
         }
     except (ResponseError, CheckmateDoesNotExist):
+        LOG.info("Marking database instance %s as DELETED", instance_id)
         return {
             key: {
                 'status': 'DELETED'
