@@ -9,7 +9,7 @@ import base64
 import json
 import logging
 import os
-from socket import gaierror
+import sys
 from urlparse import urlparse
 
 # pylint: disable=E0611
@@ -24,7 +24,9 @@ from bottle import (
 )
 from checkmate.middleware import TokenAuthMiddleware, RequestContext
 from Crypto.Hash import MD5
+import eventlet
 from eventlet.green import httplib
+from eventlet.green import socket
 from eventlet.green import urllib2
 from webob.exc import HTTPUnauthorized, HTTPNotFound
 
@@ -243,7 +245,7 @@ def authproxy(path=None):
         http_class = httplib.HTTPConnection
         port = url.port or 80
     host = url.hostname
-    http = http_class(host, port)
+    http = http_class(host, port, timeout=10)
 
     headers = {}
     token = request.get_header('X-Auth-Token')
@@ -334,7 +336,7 @@ def githubproxy(path=None):
         resp = urllib2.urlopen(req)
         status = resp.getcode()
         body = resp.read()
-    except gaierror as exc:
+    except socket.gaierror as exc:
         LOG.error('HTTP connection exception: %s', exc)
         raise HTTPError(500, output="Unable to communicate with "
                         "github server: %s" % source)
@@ -457,16 +459,21 @@ class RackspaceSSOAuthMiddleware(object):
             self.admin_role = None
 
         if self.service_username:
-            self._get_service_token()
+            if '--eventlet' in sys.argv:
+                eventlet.spawn_n(self._get_service_token)
+            else:
+                self._get_service_token()
+        LOG.info("Listening for SSO auth for %s", self.endpoint_uri)
 
     def _get_service_token(self):
         '''Retrieve service token from auth to use for validation.'''
-        LOG.info("Obtaining new service token")
+        LOG.info("Obtaining new service token from %s", self.endpoint_uri)
         try:
             result = self._auth_keystone(RequestContext(),
                                          username=self.service_username,
                                          password=self.service_password)
             self.service_token = result['access']['token']['id']
+            LOG.info("Service token obtained. %s enabled", self.endpoint_uri)
         except Exception as exc:
             self.service_token = None
             LOG.debug("Error obtaining service token: %s", exc)
@@ -507,11 +514,13 @@ class RackspaceSSOAuthMiddleware(object):
             http_class = httplib.HTTPSConnection
         else:
             http_class = httplib.HTTPConnection
-        http = http_class(self.host, self.port)
+        http = http_class(self.host, self.port, timeout=10)
         path = os.path.join(self.base_path, token)
         if context.tenant:
             path = "%s?belongsTo=%s" % (path, context.tenant)
             LOG.debug("Validating token for tenant '%s'", context.tenant)
+        if self.service_username and self.service_token is None:
+            self._get_service_token()
         headers = {
             'X-Auth-Token': self.service_token,
             'Accept': 'application/json',
@@ -560,7 +569,7 @@ class RackspaceSSOAuthMiddleware(object):
             http_class = httplib.HTTPSConnection
         else:
             http_class = httplib.HTTPConnection
-        http = http_class(self.host, self.port)
+        http = http_class(self.host, self.port, timeout=10)
         if token:
             body = {"auth": {"token": {"id": token}}}
         elif password:
