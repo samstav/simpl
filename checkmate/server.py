@@ -128,13 +128,16 @@ def error_formatter(error):
         output['message'] = str(error.exception)
     elif isinstance(error.exception, CheckmateException):
         error.output = str(error.exception)
+        LOG.exception(error.exception)
     elif isinstance(error.exception, AssertionError):
         error.status = 400
         error.output = str(error.exception)
+        LOG.exception(error.exception)
     else:
         # For other 500's, provide underlying cause
         if error.exception:
             output['message'] = str(error.exception)
+            LOG.exception(error.exception)
 
     if hasattr(error.exception, 'args'):
         if len(error.exception.args) > 1:
