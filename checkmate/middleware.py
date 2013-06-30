@@ -258,6 +258,7 @@ class TokenAuthMiddleware(object):
                 LOG.error("Unable to authenticate as a service. Endpoint '%s' "
                           "will be auth using client token",
                           endpoint.get('kwargs', {}).get('realm'))
+        LOG.info("Listening for Keystone auth for %s", self.endpoint['uri'])
 
     def __call__(self, environ, start_response):
         '''Authenticate calls with X-Auth-Token to the source auth service'''
@@ -377,7 +378,7 @@ class TokenAuthMiddleware(object):
             'Accept': 'application/json',
         }
         LOG.debug('Validating token with %s', self.endpoint['uri'])
-        http = http_class(host, port)
+        http = http_class(host, port, timeout=10)
         try:
             http.request('GET', path, headers=headers)
             resp = http.getresponse()

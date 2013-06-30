@@ -30,8 +30,10 @@ from redis.exceptions import ConnectionError
 
 from checkmate.base import ManagerBase
 from checkmate.common import caching
+from checkmate.common import config
 
 LOG = logging.getLogger(__name__)
+CONFIG = config.current()
 DEFAULT_CACHE_TIMEOUT = 10 * 60
 BLUEPRINT_CACHE = {}
 
@@ -86,8 +88,9 @@ class GitHubManager(ManagerBase):
         self.last_refresh = time.time() - DEFAULT_CACHE_TIMEOUT
         self.start_refresh_lock = threading.Lock()
         self.refresh_lock = threading.Lock()
-        self.load_cache()
-        self.check_cache_freshess()
+        if not CONFIG.bottle_parent:
+            self.load_cache()
+            self.check_cache_freshess()
 
     def get_tenant_tag(self, tenant_id, tenant_auth_groups):
         '''Find the tag to return for this tenant.
@@ -310,11 +313,8 @@ class GitHubManager(ManagerBase):
         '''Initiate a background refresh of all blueprints.'''
         if self.background is None and self.start_refresh_lock.acquire(False):
             try:
-                self.background = threading.Thread(
-                    target=self.background_refresh)
-                self.background.setDaemon(False)
+                self.background = eventlet.spawn_n(self.background_refresh)
                 LOG.debug("Refreshing blueprint cache")
-                self.background.start()
             except StandardError:
                 self.background = None
                 LOG.error("Error initiating refresh", exc_info=True)
@@ -356,12 +356,12 @@ class GitHubManager(ManagerBase):
             try:
                 return self._github.get_organization(self._repo_org)
             except GithubException:
-                LOG.info("Could not retrieve org information for %s; trying "
-                         "users", self._repo_org, exc_info=True)
+                LOG.debug("Could not retrieve org information for %s; trying "
+                          "users", self._repo_org, exc_info=True)
                 try:
                     return self._github.get_user(self._repo_org)
                 except GithubException:
-                    LOG.warn("Could not find user %s.", self._repo_org)
+                    LOG.warn("Could not find user or org %s.", self._repo_org)
 
     def _update_cache(self):
         '''Write the current blueprint map to local disk and Redis.'''
@@ -371,7 +371,7 @@ class GitHubManager(ManagerBase):
                 timestamped['timestamp'] = self.last_refresh
                 value = json.dumps(timestamped)
                 REDIS.setex('blueprint_cache', value, DEFAULT_CACHE_TIMEOUT)
-                LOG.debug("Wrote blueprints to Redis")
+                LOG.info("Wrote blueprints to Redis")
             except ConnectionError as exc:
                 LOG.warn("Error connecting to Redis: %s", exc)
             except StandardError:
@@ -386,7 +386,7 @@ class GitHubManager(ManagerBase):
         with open(self._cache_file, 'w') as cache:
             try:
                 cache.write(json.dumps(self._blueprints))
-                LOG.debug("Wrote blueprints to file cache")
+                LOG.info("Cached blueprints to file: %s", self._cache_file)
             except IOError:
                 LOG.warn("Error updating disk cache", exc_info=True)
 
@@ -485,6 +485,7 @@ class GitHubManager(ManagerBase):
                                                  'guide')
 
                 ret['repo_id'] = repo.id
+                LOG.info("Retrieved blueprint: %s#%s", repo.url, tag)
                 return ret
         return None
 
@@ -543,7 +544,7 @@ class GitHubManager(ManagerBase):
 
         if blueprint and tag and isinstance(blueprint, collections.Mapping):
             if "repo_id" not in blueprint:
-                LOG.warn("Deployment blueprint id missing in:\n%s", blueprint)
+                LOG.warn("Blueprint id missing in: %s", blueprint)
             else:
                 bp_id = "%s:%s" % (blueprint.get("repo_id"), tag)
                 del blueprint['repo_id']
