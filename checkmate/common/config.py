@@ -19,6 +19,17 @@ import os
 import sys
 
 LOG = logging.getLogger(__name__)
+ENV_MAP = {
+    'CHECKMATE_CONNECTION_STRING': 'connection_string',
+    'CHECKMATE_SIMULATOR_CONNECTION_STRING': 'simulatior_connection_string',
+    'CHECKMATE_CACHE_CONNECTION_STRING': 'cache_connection_string',
+    'CHECKMATE_BLUEPRINT_CACHE_EXPIRE': 'blueprint_cache_expiration',
+
+    # Chef Provder Options
+    'CHECKMATE_CHEF_LOCAL_PATH': 'deployments_path',
+    'CHECKMATE_CHEF_OMNIBUS_VERSION': 'omnibus_version',
+    'BERKSHELF_PATH': 'berkshelf_path',
+}
 
 
 class Config(object):
@@ -58,6 +69,9 @@ class Config(object):
     preview_tenants = None
     group_refs = {}
 
+    deployments_path = '/var/local/checkmate/deployments'
+    berkshelf_path = '/var/local/checkmate/cache'
+
     @property
     def bottle_parent(self):
         '''Detect if running as a bottle autoreload parent.'''
@@ -82,7 +96,7 @@ class Config(object):
 
     def initialize(self):
         '''Create a config from sys.args and environment variables'''
-        self.update(vars(parse_arguments()))
+        self.update(parse_environment(env=os.environ), vars(parse_arguments()))
 
 
 CURRENT_CONFIG = Config()
@@ -272,3 +286,20 @@ def parse_arguments(args=None):
         args = args[1:]
     parsed = parser.parse_args(args[1:])
     return parsed
+
+
+def parse_environment(env=None):
+    '''Parses an environment dict and returns config iterable.
+
+    Use ENV_MAP to map form environment variables to config entries
+    '''
+    result = {}
+    if not env:
+        return result
+    if not hasattr(env, '__iter__'):
+        raise ValueError("Config.parse_environment requires an iterables")
+    for key, value in env.items():
+        if key in ENV_MAP:
+            map_entry = ENV_MAP[key]
+            result[map_entry] = value
+    return result
