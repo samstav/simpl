@@ -9,7 +9,12 @@ import os
 
 from celery.canvas import chain
 from celery.task import task
-from novaclient.exceptions import NotFound, NoUniqueMatch, OverLimit
+from novaclient.exceptions import (
+    NotFound,
+    NoUniqueMatch,
+    OverLimit,
+    BadRequest,
+)
 # pylint: disable=C0103
 
 client = eventlet.import_patched('novaclient.v1_1.client')
@@ -847,6 +852,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
         instance_id = instance.get("id")
         if not instance_id:
             raise CheckmateDoesNotExist("Instance is blank or has no ID")
+        LOG.debug("About to query for server %s", instance_id)
         server = api.servers.get(instance_id)
         return {
             key: {
@@ -859,6 +865,11 @@ def sync_resource_task(context, resource, resource_key, api=None):
                 'status': 'DELETED'
             }
         }
+    except BadRequest as exc:
+        if exc.http_status == 400 and exc.message == 'n/a':
+            # This is a token expiration failure. Nova probably tried to
+            # re-auth and used our dummy data
+            raise CheckmateNoTokenError("Auth token expired")
 
 
 @task(default_retry_delay=30, max_retries=120)

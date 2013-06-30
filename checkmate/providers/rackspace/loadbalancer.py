@@ -850,8 +850,14 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
     if api is None:
         api = Provider.connect(context, resource.get("region"))
+
+    instance = resource.get("instance") or {}
+    instance_id = instance.get("id")
     try:
-        lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
+        if not instance_id:
+            raise CheckmateException("No instance id supplied for resource %s"
+                                     % key)
+        lb = api.loadbalancers.get(instance_id)
         # TODO(Nate): Update sync to use postback instead of resource postback
         #and also add in checkmate translated status to resource root
         #instance = {'port': resource['instance']['port'],
@@ -861,13 +867,16 @@ def sync_resource_task(context, resource, resource_key, api=None):
         #if hasattr(lb, 'port') and
         #   resource['instance']['protocol'] != lb.protocol:
         #    instance['protocol'] = lb.protocol
+        LOG.info("Marking load balancer instance %s as %s", instance_id,
+                 lb.status)
         return {
             key: {
                 'status': lb.status
                 #'instance': instance
             }
         }
-    except NotFound:
+    except (NotFound, CheckmateException):
+        LOG.info("Marking load balancer instance %s as DELETED", instance_id)
         return {
             key: {
                 'status': 'DELETED'

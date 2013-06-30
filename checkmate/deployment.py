@@ -262,6 +262,58 @@ class Deployment(ExtensibleDict):
                 errors.extend(Blueprint.inspect(obj['blueprint']))
         return errors
 
+    def get_statuses(self, context):
+        '''
+        Loops through all the resources and gets the latest status. Based on
+        the resource status calculates the status of the deployment and
+        operation
+        :param context:
+        :return:
+        '''
+        resources = {}
+        env = self.environment()
+
+        for key, resource in self.get('resources', {}).items():
+            if key.isdigit() and 'provider' in resource:
+                provider = env.get_provider(resource['provider'])
+                result = provider.get_resource_status(context, self.get('id'),
+                                                      resource, key)
+                if result:
+                    resources.update(result)
+        statuses = self._calculate_deployment_and_operation_status(resources)
+        statuses.update({'resources': resources})
+        return statuses
+
+    def _calculate_deployment_and_operation_status(self, resources):
+        '''
+
+        :param resources:
+        :return:
+        '''
+        statuses = []
+        deployment_status = self['status']
+        operation_status = self['operation']['status']
+
+        for value in resources.values():
+            statuses.append(value['status'])
+
+        if statuses:
+            if all(status == 'DELETED' for status in statuses):
+                deployment_status = 'DELETED'
+                operation_status = 'COMPLETE'
+            elif all(status == 'ACTIVE' for status in statuses):
+                deployment_status = 'UP'
+                operation_status = 'COMPLETE'
+            elif all(status == 'NEW' for status in statuses):
+                deployment_status = 'PLANNED'
+                operation_status = 'NEW'
+            # elif any(status == 'DELETED' for status in statuses):
+            #     deployment_status = "ALERT"
+            #     operation_status = 'ABORTED'
+
+        return {'deployment_status': deployment_status,
+                'operation_status': operation_status}
+
     def environment(self):
         """ Initialize environment from Deployment """
         if self._environment is None:
