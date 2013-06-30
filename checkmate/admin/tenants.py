@@ -19,7 +19,10 @@ class Manager(base.ManagerBase):
     def save_tenant(self, tenant_id, body):
         '''Save tenant (and overwrite).'''
         body['id'] = tenant_id
-        self.driver.save_tenant(body)
+        self.driver.save_tenant({
+            'id': tenant_id,
+            'tags': body.get('tags', []),
+        })
 
     def get_tenant(self, tenant_id):
         '''Get a single tenant.'''
