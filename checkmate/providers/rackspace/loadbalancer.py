@@ -419,7 +419,8 @@ class Provider(ProviderBase):
 
     def delete_resource_tasks(self, context, deployment_id, resource, key):
         self._verify_existing_resource(resource, key)
-        lb_id = resource.get("instance", {}).get("id")
+        instance = resource.get("instance") or {}
+        lb_id = instance.get("id")
         dom_id = resource.get("instance", {}).get("domain_id")
         rec_id = resource.get("instance", {}).get("record_id")
         region = resource.get("region")
@@ -776,7 +777,16 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                 nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
         LOG.info("Created load balancer %s for deployment %s", loadbalancer.id,
                  deployment_id)
+    except KeyError as exc:
+        if str(exc) == 'retry-after':
+            LOG.info("A limit 'may' have been reached creating a load "
+                     "balancer for deployment %s", deployment_id)
+            raise CheckmateRetriableException("API limit reached", "",
+                                              get_class_name(exc),
+                                              action_required=False)
     except RateLimit as exc:
+        LOG.info("API Limit reached creating a load balancer for deployment "
+                 "%s", deployment_id)
         raise CheckmateRetriableException(exc.reason, "", get_class_name(exc),
                                           action_required=False)
 
