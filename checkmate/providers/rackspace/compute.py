@@ -608,7 +608,8 @@ class Provider(RackspaceComputeProviderBase):
                 region = Provider.find_a_region(context.catalog) or 'DFW'
 
         os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
-        insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1','true']
+        insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1',
+                                                                    'true']
         api = client.Client('ignore', 'ignore', None, 'localhost',
                             insecure=insecure)
         api.client.auth_token = context.auth_token
@@ -622,7 +623,7 @@ class Provider(RackspaceComputeProviderBase):
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
 def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types.'''
-    insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1','true']
+    insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
     api = client.Client('ignore', 'ignore', None, 'localhost',
                         insecure=insecure)
     api.client.auth_token = auth_token
@@ -649,7 +650,7 @@ def _get_images_and_types(api_endpoint, auth_token):
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
     '''Ask Nova for Flavors (RAM, CPU, HDD) options.'''
-    insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1','true']
+    insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
     api = client.Client('ignore', 'ignore', None, 'localhost',
                         insecure=insecure)
     api.client.auth_token = auth_token
@@ -671,7 +672,7 @@ def _get_flavors(api_endpoint, auth_token):
 
 @caching.Cache(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
 def _get_limits(api_endpoint, auth_token):
-    insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1','true']
+    insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
     api = client.Client('ignore', 'ignore', None, 'localhost',
                         insecure=insecure)
     api.client.auth_token = auth_token
@@ -753,6 +754,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     """
 
+    deployment_id = context["deployment"]
     if context.get('simulation') is True:
         resource_key = context['resource']
         results = {
@@ -773,8 +775,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
-    reset_failed_resource_task.delay(context["deployment"],
-                                     context["resource"])
+    reset_failed_resource_task.delay(deployment_id, context["resource"])
     create_server.on_failure = on_failure
 
     if api_object is None:
@@ -809,8 +810,8 @@ def create_server(context, name, region, api_object=None, flavor="2",
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": server.id})
-    LOG.debug('Created server %s (%s).  Admin pass = %s', name, server.id,
-              server.adminPass)
+    LOG.info('Created server %s (%s) for deployment %s.', name, server.id,
+             deployment_id)
 
     results = {
         instance_key: {
@@ -919,6 +920,7 @@ def delete_server_task(context, api=None):
                     }
                 })
         server.delete()
+        LOG.info("Deleted server %s", inst_id)
         return ret
     else:
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'

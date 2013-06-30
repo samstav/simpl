@@ -6,6 +6,7 @@ import logging
 import sys
 
 from celery.canvas import chain, group
+from celery.task import task
 from cloudlb.errors import CloudlbException, NotFound, RateLimit
 from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
@@ -27,6 +28,7 @@ from checkmate.exceptions import (
 from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
+from checkmate.providers.rackspace.dns import parse_domain, delete_record
 from checkmate.utils import match_celery_logging, get_class_name
 from checkmate.workflow import wait_for
 
@@ -171,11 +173,11 @@ class Provider(ProviderBase):
         return reduce(lambda x, y: x | y, values)
 
     def _handle_dns(self, deployment, service, resource_type="load-balancer"):
-        dns = str(deployment.get_setting("create_dns",
-                                         resource_type=resource_type,
-                                         service_name=service,
-                                         default="false"))
-        return dns.lower() in ['true', '1', 'yes']
+        _dns = str(deployment.get_setting("create_dns",
+                                          resource_type=resource_type,
+                                          service_name=service,
+                                          default="false"))
+        return _dns.lower() in ['true', '1', 'yes']
 
     @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
     def _get_abs_limits(self, username, auth_token, api_endpoint, region):
@@ -675,20 +677,16 @@ def _get_protocols(api_endpoint, auth_token):
 
     return api.get_protocols()
 
-from celery.task import task
-
-from checkmate.providers.rackspace.dns import parse_domain, delete_record
 
 # Cloud Load Balancers needs an IP for all load balancers. To create one we
 # sometimes need a dummy node. This is the IP address we use for the dummy
 # node. Requests to manage this node are intentionally errored out.
 PLACEHOLDER_IP = '1.2.3.4'
 
+
 #
 # Celery tasks
 #
-
-
 @task
 def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
@@ -700,6 +698,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     assert 'deployment' in context, "Deployment not supplied in context"
     match_celery_logging(LOG)
 
+    deployment_id = context['deployment']
     if context.get('simulation') is True:
         resource_key = context['resource']
         vip = "4.4.4.20%s" % resource_key
@@ -719,14 +718,13 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             }
         }
         # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
+        resource_postback.delay(deployment_id, results)
         return results
 
     if api is None:
         api = Provider.connect(context, region)
 
-    reset_failed_resource_task.delay(context["deployment"],
-                                     context["resource"])
+    reset_failed_resource_task.delay(deployment_id, context["resource"])
 
     #FIXME: should pull default from lb api but thats not exposed via the
     #       client yet
@@ -776,6 +774,8 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             loadbalancer = api.loadbalancers.create(
                 name=name, port=port, protocol=protocol.upper(),
                 nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
+        LOG.info("Created load balancer %s for deployment %s", loadbalancer.id,
+                 deployment_id)
     except RateLimit as exc:
         raise CheckmateRetriableException(exc.reason, "", get_class_name(exc),
                                           action_required=False)
@@ -786,7 +786,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             'id': loadbalancer.id
         }
     }
-    resource_postback.delay(context['deployment'], instance_id)
+    resource_postback.delay(deployment_id, instance_id)
 
     # update our assigned vip
     for ip_data in loadbalancer.virtualIps:
@@ -812,7 +812,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     }
 
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(deployment_id, results)
     return results
 
 
@@ -924,7 +924,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     LOG.debug("Found load balancer %s [%s] to delete" % (dlb, dlb.status))
     if dlb.status != "DELETED":
         dlb.delete()
-    LOG.debug('Deleting Load balancer %s.', lbid)
+    LOG.info('Deleting Load balancer %s', lbid)
     return {
         instance_key: {
             'status': 'DELETING',
@@ -1032,8 +1032,8 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                 if node.condition != "ENABLED":
                     node.condition = "ENABLED"
                 node.update()
-                LOG.debug("Updated %s:%d from load balancer %d", node.address,
-                          node.port, lbid)
+                LOG.info("Updated %s:%d from load balancer %d", node.address,
+                         node.port, lbid)
                 # We return this at the end of the call
             results = {'id': node.id}
         elif node.address == PLACEHOLDER_IP:
@@ -1050,6 +1050,8 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
             lb_fresh = api.loadbalancers.get(lbid)
             if [n for n in lb_fresh.nodes if n.address == ipaddr]:
                 #OK!
+                LOG.info("Added node %s:%s to load balancer %s", ipaddr, port,
+                         lbid)
                 results = {'id': results[0].id}
             else:
                 LOG.warning("CloudLB says node %s (ID=%s) was added to LB %s, "
@@ -1107,8 +1109,8 @@ def delete_node(context, lbid, ipaddr, port, region, api=None):
     if node_to_delete:
         try:
             node_to_delete.delete()
-            LOG.debug('Removed %s:%s from load balancer %s', ipaddr, port,
-                      lbid)
+            LOG.info('Removed %s:%s from load balancer %s', ipaddr, port,
+                     lbid)
         except cloudlb.errors.ResponseError, exc:
             if exc.status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
