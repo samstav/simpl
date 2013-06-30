@@ -83,13 +83,14 @@ class Plan(ExtensibleDict):
             raise CheckmateValidationException("Environment not found. "
                                                "Nowhere to deploy to.")
 
-        # Quick validations
-        validate_blueprint_options(deployment)
-        validate_input_constraints(deployment)
-
     def plan(self, context):
         '''Perform plan analysis. Returns a reference to planned resources'''
         LOG.info("Planning deployment '%s'", self.deployment['id'])
+
+        # Quick validations
+        validate_blueprint_options(self.deployment)
+        validate_input_constraints(self.deployment)
+
         # Fill the list of services
         service_names = self.deployment['blueprint'].get('services', {}).keys()
         self['services'] = {name: {'component': {}} for name in service_names}
