@@ -28,7 +28,7 @@ def update_operation(deployment_id, driver=None, **kwargs):
         return _update_operation(deployment_id, **kwargs)
 
 
-@task(default_retry_delay=2, max_retries=60)
+@task(default_retry_delay=4, max_retries=30)
 def delete_deployment_task(dep_id, driver=None):
     '''DEPRECATED: for compatibility with pre v0.14'''
     if driver:
