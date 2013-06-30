@@ -33,6 +33,7 @@ from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
     CheckmateException,
+    CheckmateResumableException,
     CheckmateRetriableException,
     CheckmateServerBuildFailed,
 )
@@ -612,17 +613,48 @@ class Provider(RackspaceComputeProviderBase):
             if not region:
                 region = Provider.find_a_region(context.catalog) or 'DFW'
 
-        os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
         insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1',
                                                                     'true']
-        api = client.Client('ignore', 'ignore', None, 'localhost',
-                            insecure=insecure)
-        api.client.auth_token = context.auth_token
-
-        url = Provider.find_url(context.catalog, region)
-        api.client.management_url = url
-
+        api = client.Client(context.username, 'ignore', context.tenant,
+                            insecure=insecure, auth_system="rackspace",
+                            auth_plugin=AuthPlugin(context, region=region))
         return api
+
+
+class AuthPlugin(object):
+    '''Handles auth.'''
+    def __init__(self, context, region=None):
+        assert isinstance(context, RequestContext)
+        self.context = context
+        self.region = region
+        self.done = False
+
+    def get_auth_url(self):
+        '''Respond to novaclient auth_url call.'''
+        LOG.debug("Nova client called auth_url from plugin")
+        return self.context.auth_source
+
+    def authenticate(self, client, auth_url):
+        '''Respond to novaclient authenticate call.'''
+        if self.done:
+            LOG.debug("Called a second time from Nova. Assuming token expired")
+            raise CheckmateResumableException("Auth Token expired",
+                                              "Your authentication token "
+                                              "expired before work on your "
+                                              "deployment was completed. To "
+                                              "resume that work, you just "
+                                              "need to 'retry' the operation "
+                                              "to supply a fresh token that "
+                                              "we can use to continue working "
+                                              "with",
+                                              "CheckmateResumableException",
+                                              action_required=False)
+        else:
+            LOG.debug("Nova client called authenticate from plugin")
+            nova_url = Provider.find_url(self.context.catalog, self.region)
+            client.auth_token = self.context.auth_token
+            client.management_url = nova_url
+            self.done = True
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
