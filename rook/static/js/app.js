@@ -2320,6 +2320,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       tenant = cmTenant.get(tenant_id);
       $scope.__tenants[tenant_id] = tenant;
     }
+    tenant.id = tenant_id;
     return tenant;
   }
 
