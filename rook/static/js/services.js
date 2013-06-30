@@ -1627,9 +1627,9 @@ services.factory('webengage', function(config){
 angular.module('checkmate.services').factory('cmTenant', ['$resource', function($resource) {
   var scope = {};
 
-  var params = { tenant_id: '@id' };
-  var actions = { save: { method: 'PUT' } };
-  var Tenant = $resource('/admin/tenants/:tenant_id', params, actions);
+  var params = { id: '@id' };
+  var actions = { save: { method: 'PUT', params: params } };
+  var Tenant = $resource('/admin/tenants/:id', params, actions);
 
   var add_tag_error = function(response) {
     console.log('cmTenant: Error adding tag');
@@ -1678,7 +1678,7 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', function(
   };
 
   scope.get = function(id, callback, failure) {
-    return Tenant.get({tenant_id: id}, callback, failure);
+    return Tenant.get({id: id}, callback, failure);
   };
 
   return scope;
