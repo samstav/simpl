@@ -27,6 +27,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Random import atfork
 from eventlet.green import threading
 
+from checkmate.common import config
 from checkmate.exceptions import (  # noqa
     CheckmateException,
     CheckmateCalledProcessError,
@@ -39,6 +40,7 @@ from checkmate import ssh
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
+CONFIG = config.current()
 
 
 def register_scheme(scheme):
@@ -57,8 +59,7 @@ def _get_root_environments_path(dep_id, path=None):
 
     Use any environment variables or configuration settings
     '''
-    root = path or os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
-                                  "/var/local/checkmate/deployments")
+    root = path or CONFIG.deployments_path
     if not os.path.exists(root):
         msg = "Invalid root path: %s" % root
         raise CheckmateException(msg)
@@ -131,11 +132,12 @@ def _run_kitchen_command(dep_id, kitchen_path, params, lock=True):
     '''
     LOG.debug("Running: '%s' in path '%s'", ' '.join(params), kitchen_path)
     if '-c' not in params:
-        LOG.warning("Knife command called without a '-c' flag. The '-c' flag "
-                    "is a strong safeguard in case knife runs in the wrong "
-                    "directory. Consider adding it and pointing to solo.rb")
         config_file = os.path.join(kitchen_path, 'solo.rb')
         if os.path.exists(config_file):
+            LOG.warning("Knife command called without a '-c' flag. The '-c' "
+                        "flag is a strong safeguard in case knife runs in the "
+                        "wrong directory. Consider adding it and pointing to "
+                        "solo.rb")
             LOG.debug("Defaulting to config file '%s'", config_file)
             params.extend(['-c', config_file])
     result = _run_ruby_command(dep_id, kitchen_path, params[0], params[1:],
@@ -245,8 +247,7 @@ def _get_blueprints_cache_path(source_repo):
     '''Return the path of the blueprint cache directory.'''
     utils.match_celery_logging(LOG)
     LOG.debug("source_repo: %s", source_repo)
-    prefix = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
-                            "/var/local/checkmate/deployments")
+    prefix = CONFIG.deployments_path
     suffix = hashlib.md5(source_repo).hexdigest()
     return os.path.join(prefix, "cache", "blueprints", suffix)
 
@@ -755,22 +756,22 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
 
 def _ensure_berkshelf_environment():
     '''Checks the Berkshelf environment and sets it up if necessary.'''
-    berkshelf_path = os.environ.get("BERKSHELF_PATH")
-    utils.match_celery_logging(LOG)
+    berkshelf_path = CONFIG.berkshelf_path
     if not berkshelf_path:
-        local_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH")
+        local_path = CONFIG.deployments_path
         if not local_path:
-            local_path = "/var/checkmate/deployments"
+            local_path = "/var/local/checkmate/deployments"
             LOG.warning("CHECKMATE_CHEF_LOCAL_PATH not defined. Using "
                         "%s", local_path)
-        berkshelf_path = os.path.join(local_path, "cache")
+        berkshelf_path = os.path.join(os.path.dirname(local_path), "cache")
         LOG.warning("BERKSHELF_PATH variable not set. Defaulting "
                     "to %s", berkshelf_path)
+    if 'BERKSHELF_PATH' not in os.environ:
         # Berkshelf relies on this being set as an environent variable
         os.environ["BERKSHELF_PATH"] = berkshelf_path
     if not os.path.exists(berkshelf_path):
         os.makedirs(berkshelf_path)
-        LOG.debug("Created berkshelf_path: %s", berkshelf_path)
+        LOG.info("Created berkshelf_path: %s", berkshelf_path)
 
 
 #TODO: full search, fix module reference all below here!!
