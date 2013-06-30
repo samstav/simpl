@@ -2366,7 +2366,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
         var deferred = $q.defer();
         promises.push(deferred.promise);
-        $scope.__tenants[id] = cmTenant.get(id, function() { deferred.resolve(); });
+        $scope.__tenants[id] = cmTenant.get(id, deferred.resolve, deferred.reject);
       });
     }
 
