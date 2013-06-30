@@ -33,6 +33,7 @@ from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateNoMapping,
     CheckmateException,
+    CheckmateResumableException,
     CheckmateRetriableException,
     CheckmateServerBuildFailed,
 )
@@ -135,7 +136,7 @@ get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
 class RackspaceComputeProviderBase(ProviderBase):
-    """Generic functions for rackspace Compute providers."""
+    '''Generic functions for rackspace Compute providers.'''
     vendor = 'rackspace'
 
     def __init__(self, provider, key=None):
@@ -612,17 +613,48 @@ class Provider(RackspaceComputeProviderBase):
             if not region:
                 region = Provider.find_a_region(context.catalog) or 'DFW'
 
-        os.environ['NOVA_RAX_AUTH'] = "Yes Please!"
         insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1',
                                                                     'true']
-        api = client.Client('ignore', 'ignore', None, 'localhost',
-                            insecure=insecure)
-        api.client.auth_token = context.auth_token
-
-        url = Provider.find_url(context.catalog, region)
-        api.client.management_url = url
-
+        api = client.Client(context.username, 'ignore', context.tenant,
+                            insecure=insecure, auth_system="rackspace",
+                            auth_plugin=AuthPlugin(context, region=region))
         return api
+
+
+class AuthPlugin(object):
+    '''Handles auth.'''
+    def __init__(self, context, region=None):
+        assert isinstance(context, RequestContext)
+        self.context = context
+        self.region = region
+        self.done = False
+
+    def get_auth_url(self):
+        '''Respond to novaclient auth_url call.'''
+        LOG.debug("Nova client called auth_url from plugin")
+        return self.context.auth_source
+
+    def authenticate(self, novaclient, auth_url):  # pylint: disable=W0613
+        '''Respond to novaclient authenticate call.'''
+        if self.done:
+            LOG.debug("Called a second time from Nova. Assuming token expired")
+            raise CheckmateResumableException("Auth Token expired",
+                                              "Your authentication token "
+                                              "expired before work on your "
+                                              "deployment was completed. To "
+                                              "resume that work, you just "
+                                              "need to 'retry' the operation "
+                                              "to supply a fresh token that "
+                                              "we can use to continue working "
+                                              "with",
+                                              "CheckmateResumableException",
+                                              action_required=False)
+        else:
+            LOG.debug("Nova client called authenticate from plugin")
+            nova_url = Provider.find_url(self.context.catalog, self.region)
+            novaclient.auth_token = self.context.auth_token
+            novaclient.management_url = nova_url
+            self.done = True
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
@@ -677,6 +709,7 @@ def _get_flavors(api_endpoint, auth_token):
 
 @caching.Cache(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
 def _get_limits(api_endpoint, auth_token):
+    '''Retrieve account limits as a dict.'''
     insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
     api = client.Client('ignore', 'ignore', None, 'localhost',
                         insecure=insecure)
@@ -685,6 +718,7 @@ def _get_limits(api_endpoint, auth_token):
     api_limits = api.limits.get()
 
     def limits_dict(limits):
+        '''Convert limits to dict.'''
         d = {}
         for limit in limits:
             d[limit.name.encode('ascii')] = limit.value
@@ -725,7 +759,7 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
 @task
 def create_server(context, name, region, api_object=None, flavor="2",
                   files=None, image=UBUNTU_12_04_IMAGE_ID, tags=None):
-    """Create a Rackspace Cloud server using novaclient.
+    '''Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
     server is not available when thios call returns. A separate operation must
@@ -757,7 +791,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
       password: "secret"
     }
 
-    """
+    '''
 
     deployment_id = context["deployment"]
     if context.get('simulation') is True:
@@ -1004,14 +1038,14 @@ def wait_on_build(context, server_id, region, resource,
                   ip_address_type='public', verify_up=True, username='root',
                   timeout=10, password=None, identity_file=None, port=22,
                   api_object=None, private_key=None):
-    """Checks build is complete and. optionally, that SSH is working.
+    '''Checks build is complete and. optionally, that SSH is working.
 
     :param ip_adress_type: the type of IP addresss to return as 'ip' in the
         response
     :param prefix: a string to prepend to any results. Used by Spiff and
             Checkmate
     :returns: False when build not ready. Dict with ip addresses when done.
-    """
+    '''
     match_celery_logging(LOG)
 
     if context.get('simulation') is True:
