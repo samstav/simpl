@@ -200,10 +200,10 @@ class DbBase(object):  # pylint: disable=R0921
                     if 'status_msg' in instance:
                         instance['status-message'] = instance.pop('status_msg')
                     if ('errmessage' in instance and
-                          'error-message' not in instance):
+                            'error-message' not in instance):
                         instance['error-message'] = instance.pop('errmessage')
                     elif ('errmessage' in resource and
-                          'error-message' not in instance):
+                            'error-message' not in instance):
                         instance['error-message'] = resource.pop('errmessage')
 
                     remove_keys = ['errmessage', 'trace', 'error-traceback']

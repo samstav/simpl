@@ -12,13 +12,8 @@ import eventlet
 from SpiffWorkflow.storage import DictionarySerializer
 
 from .plan import Plan
-from checkmate import (
-    db,
-    utils,
-    operations,
-    orchestrator,
-)
 from checkmate import base
+from checkmate import db
 from checkmate.deployment import (
     Deployment,
     generate_keys,
@@ -28,16 +23,19 @@ from checkmate.exceptions import (
     CheckmateDoesNotExist,
     CheckmateValidationException,
 )
+from checkmate import operations
+from checkmate import orchestrator
+from checkmate import utils
 from checkmate.workflow import create_workflow_deploy, init_operation
 
 LOG = logging.getLogger(__name__)
 
 
 class Manager(base.ManagerBase):
-    '''Contains Deployments Model and Logic for Accessing Deployments'''
+    '''Contains Deployments Model and Logic for Accessing Deployments.'''
 
     def count(self, tenant_id=None, blueprint_id=None, status=None):
-        '''Return count of deployments filtered by passed in parameters'''
+        '''Return count of deployments filtered by passed in parameters.'''
         # TODO: This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
         deployments = self.driver.get_deployments(tenant_id=tenant_id,
@@ -63,8 +61,7 @@ class Manager(base.ManagerBase):
 
     def get_deployments(self, tenant_id=None, offset=None, limit=None,
                         with_deleted=False, status=None):
-        ''' Get existing deployments '''
-        return self.driver.get_deployments(
+        '''Get existing deployments..'''
         results = self.driver.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
@@ -121,7 +118,7 @@ class Manager(base.ManagerBase):
                                                           partial=partial)
 
     def deploy(self, deployment, context):
-        '''Deploys a deployment and returns the operation'''
+        '''Deploys a deployment and returns the operation.'''
         if deployment.get('status') != 'PLANNED':
             raise CheckmateBadState("Deployment '%s' is in '%s' status and "
                                     "must be in 'PLANNED' status to be "
@@ -230,7 +227,7 @@ class Manager(base.ManagerBase):
         return {'secrets': updates.get('display-outputs')}
 
     def get_resource_by_id(self, api_id, rid, tenant_id=None):
-        '''Attempt to retrieve a resource from a deployment'''
+        '''Attempt to retrieve a resource from a deployment.'''
         deployment = self.get_deployment(api_id, tenant_id=tenant_id)
         resources = deployment.get("resources")
         if rid in resources:
@@ -260,7 +257,7 @@ class Manager(base.ManagerBase):
         return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):
-        '''Launch a new deployment from a deleted one'''
+        '''Launch a new deployment from a deleted one.'''
         deployment = self.get_deployment(api_id, tenant_id=tenant_id)
 
         if deployment['status'] != 'DELETED':
@@ -289,7 +286,7 @@ class Manager(base.ManagerBase):
 
     @staticmethod
     def _get_dep_resources(deployment):
-        ''' Return the resources for the deployment or abort if not found '''
+        '''Return the resources for the deployment or abort if not found..'''
         if deployment and "resources" in deployment:
             return deployment.get("resources")
         raise CheckmateDoesNotExist("No resources found for deployment %s" %
@@ -342,7 +339,7 @@ class Manager(base.ManagerBase):
     # Operations - this should eventually move to operations.py
     #
     def create_deploy_operation(self, deployment, context, tenant_id=None):
-        '''Create Deploy Operation (Workflow)'''
+        '''Create Deploy Operation (Workflow).'''
         api_id = workflow_id = deployment['id']
         spiff_wf = create_workflow_deploy(deployment, context)
         spiff_wf.attributes['id'] = workflow_id
@@ -361,9 +358,9 @@ class Manager(base.ManagerBase):
         return operation
 
     def reset_failed_resource(self, deployment_id, resource_id):
-        '''
-        Creates a copy of a failed resource and appends it at the end of the
-        resources collection
+        ''' Creates a copy of a failed resource and appends it at the end of
+        the resources collection.
+
         :param deployment_id:
         :param resource_id:
         :return:
@@ -396,7 +393,7 @@ class Manager(base.ManagerBase):
                                  partial=True)
 
     def create_delete_operation(self, deployment, tenant_id=None):
-        '''Create Delete Operation (Canvas)'''
+        '''Create Delete Operation (Canvas).'''
         if tenant_id:
             link = "/%s/canvases/%s" % (tenant_id, deployment['id'])
         else:

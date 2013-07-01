@@ -43,7 +43,7 @@ os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
 
 class TestDeployments(unittest.TestCase):
     def test_key_generation_all(self):
-        """Test that key generation works"""
+        '''Test that key generation works.'''
         deployment = Deployment({
             'id': 'test',
             'name': 'test',
@@ -58,7 +58,7 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual(keys_resource['type'], 'key-pair')
 
     def test_key_generation_public(self):
-        """Test that key generation works if a private key is supplied"""
+        '''Test that key generation works if a private key is supplied.'''
         private, _ = keys.generate_key_pair()
         deployment = Deployment({
             'id': 'test',
@@ -79,7 +79,7 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual(keys_resource['type'], 'key-pair')
 
     def test_key_generation_and_settings_sync(self):
-        """Test that key generation refreshes settings"""
+        '''Test that key generation refreshes settings.'''
         private, _ = keys.generate_key_pair()
         deployment = Deployment({
             'id': 'test',
@@ -104,7 +104,7 @@ class TestDeployments(unittest.TestCase):
 
 class TestDeploymentParser(unittest.TestCase):
     def test_parser(self):
-        """Test the parser works on a minimal deployment"""
+        '''Test the parser works on a minimal deployment.'''
         deployment = {
             'id': 'test',
             'blueprint': {
@@ -182,7 +182,7 @@ class TestDeploymentDeployer(unittest.TestCase):
         self._mox.UnsetStubs()
 
     def test_deployer(self):
-        """Test the deployer works on a minimal deployment"""
+        '''Test the deployer works on a minimal deployment.'''
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
         db.save_workflow(IgnoreArg(), IgnoreArg(), IgnoreArg(),
@@ -224,7 +224,7 @@ class TestDeploymentDeployer(unittest.TestCase):
 
 class TestDeploymentResourceGenerator(unittest.TestCase):
     def test_component_resource_generator(self):
-        """Test the parser generates the right number of resources"""
+        '''Test the parser generates the right number of resources.'''
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
@@ -303,7 +303,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertEqual(resource_count, 8)
 
     def test_static_resource_generator(self):
-        """Test the parser generates the right number of static resources"""
+        '''Test the parser generates the right number of static resources.'''
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 name: test deplo yment\n
@@ -350,7 +350,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertDictEqual(resources['myResource'], expected)
 
     def test_providerless_static_resource_generator(self):
-        """Test the parser generates providerless static resources"""
+        '''Test the parser generates providerless static resources.'''
         private, _ = keys.generate_key_pair()
         deployment = Deployment(yaml_to_dict("""
                 id: test
@@ -403,7 +403,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
 class TestDeploymentRelationParser(unittest.TestCase):
     def test_blueprint_relation_parser(self):
-        """Test that parser handles relations listed in blueprints"""
+        '''Test that parser handles relations listed in blueprints.'''
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
@@ -463,7 +463,7 @@ class TestDeploymentRelationParser(unittest.TestCase):
 
 
 class TestComponentSearch(unittest.TestCase):
-    """ Test code that finds components """
+    '''Test code that finds components.'''
     def test_component_find_by_type(self):
         deployment = Deployment(yaml_to_dict("""
                 id: test
@@ -574,7 +574,7 @@ class TestComponentSearch(unittest.TestCase):
         self.assertIn('small_widget', components)
 
     def test_component_find_with_role(self):
-        """ Make sure roles match in component and provider """
+        '''Make sure roles match in component and provider.'''
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 blueprint:
@@ -617,7 +617,7 @@ class TestComponentSearch(unittest.TestCase):
 class TestDeploymentSettings(unittest.TestCase):
 
     def test_get_setting(self):
-        """Test the get_setting function"""
+        '''Test the get_setting function.'''
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 environment:
@@ -851,7 +851,7 @@ class TestDeploymentSettings(unittest.TestCase):
         self.assertIn('-----BEGIN RSA PRIVATE KEY-----\n', value, msg=msg)
 
     def test_get_setting_static(self):
-        """Test the get_setting function used with static resources"""
+        '''Test the get_setting function used with static resources.'''
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 inputs:
@@ -902,7 +902,7 @@ class TestDeploymentSettings(unittest.TestCase):
                          'bar')
 
     def test_get_false_settings(self):
-        """Test the get_setting function when the setting is false"""
+        '''Test the get_setting function when the setting is false.'''
         deployment = Deployment(yaml_to_dict("""
             id: '1'
             blueprint:
@@ -1097,7 +1097,7 @@ class TestDeploymentSettings(unittest.TestCase):
         self.assertGreater(len(value), 0)
 
     def test_handle_missing_options(self):
-        """Validate missing options handled correctly"""
+        '''Validate missing options handled correctly.'''
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 environment:
@@ -1156,7 +1156,7 @@ class TestDeploymentSettings(unittest.TestCase):
                           option_key="my_option")
 
     def test_handle_bad_call(self):
-        '''Validate missing options handled correctly'''
+        '''Validate missing options handled correctly.'''
         deployment = Deployment(yaml_to_dict("""
                 id: test
                 environment:
@@ -1187,13 +1187,13 @@ class TestDeploymentScenarios(unittest.TestCase):
 
     @staticmethod
     def plan_deployment(content):
-        """ Wrapper for deployment planning """
+        '''Wrapper for deployment planning.'''
         deployment = Deployment(yaml_to_dict(content))
         return Manager.plan(deployment, RequestContext())
 
 
 class TestCloneDeployments(unittest.TestCase):
-    """ Test clone_deployment """
+    '''Test clone_deployment.'''
 
     def setUp(self):
         self._mox = mox.Mox()
@@ -1212,8 +1212,8 @@ class TestCloneDeployments(unittest.TestCase):
         self._mox.UnsetStubs()
 
     def test_clone_deployment_failure_path(self):
-        """ Test when deployment status is not 'DELETED', clone
-        deployment operation would fail """
+        '''Test when deployment status is not 'DELETED', clone
+        deployment operation would fail.'''
 
         manager = Manager({})
         self._mox.StubOutWithMock(manager, "get_deployment")
@@ -1228,7 +1228,7 @@ class TestCloneDeployments(unittest.TestCase):
             pass
 
     def test_clone_deployment_happy_path(self):
-        """ clone deployment success """
+        '''clone deployment success.'''
         self._deployment['status'] = 'DELETED'
 
         manager = Manager({})
@@ -1247,7 +1247,7 @@ class TestCloneDeployments(unittest.TestCase):
         self._mox.VerifyAll()
 
     def test_clone_deployment_simulation(self):
-        """ clone deployment simulation """
+        '''clone deployment simulation.'''
         self._deployment['status'] = 'DELETED'
 
         manager = Manager({})
@@ -1268,7 +1268,7 @@ class TestCloneDeployments(unittest.TestCase):
 
 
 class TestDeleteDeployments(unittest.TestCase):
-    """ Test delete_deployment """
+    '''Test delete_deployment.'''
 
     def __init__(self, methodName="runTest"):
         self._mox = mox.Mox()
@@ -1295,7 +1295,7 @@ class TestDeleteDeployments(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_bad_status(self):
-        """ Test when deployment status is invalid for delete """
+        '''Test when deployment status is invalid for delete.'''
         manager = self._mox.CreateMockAnything()
         router = Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(self._deployment)
@@ -1313,7 +1313,7 @@ class TestDeleteDeployments(unittest.TestCase):
                           "PLANNED", exc.output)
 
     def test_not_found(self):
-        """ Test deployment not found """
+        '''Test deployment not found.'''
         manager = self._mox.CreateMockAnything()
         router = Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(None)
@@ -1326,7 +1326,7 @@ class TestDeleteDeployments(unittest.TestCase):
             self.assertEqual("No deployment with id 1234", str(exc))
 
     def test_no_tasks(self):
-        """ Test when there are no resource tasks for delete """
+        '''Test when there are no resource tasks for delete.'''
         self._deployment['status'] = 'UP'
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
@@ -1362,7 +1362,7 @@ class TestDeleteDeployments(unittest.TestCase):
         self.assertEqual(202, bottle.response.status_code)
 
     def test_happy_path(self):
-        """ When it all goes right """
+        '''When it all goes right.'''
         self._deployment['status'] = 'UP'
 
         mock_driver = self._mox.CreateMockAnything()
@@ -1412,7 +1412,7 @@ class TestDeleteDeployments(unittest.TestCase):
         self.assertEquals(202, bottle.response.status_code)
 
     def test_delete_deployment_task(self):
-        """ Test the final delete task itself """
+        '''Test the final delete task itself.'''
         self._deployment['tenantId'] = '4567'
         self._deployment['status'] = 'UP'
         mock_driver = self._mox.CreateMockAnything()
@@ -1429,7 +1429,7 @@ class TestDeleteDeployments(unittest.TestCase):
 
 
 class TestGetResourceStuff(unittest.TestCase):
-    """ Test resource and resource status endpoints """
+    '''Test resource and resource status endpoints.'''
 
     def setUp(self):
         self._mox = mox.Mox()
@@ -1460,7 +1460,7 @@ class TestGetResourceStuff(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_happy_resources(self):
-        """ When getting the resources should work """
+        '''When getting the resources should work.'''
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
         router = Router(bottle.default_app(), manager)
@@ -1471,7 +1471,7 @@ class TestGetResourceStuff(unittest.TestCase):
         self.assertDictEqual(self._deployment.get('resources'), ret)
 
     def test_happy_status(self):
-        """ When getting the resource statuses should work """
+        '''When getting the resource statuses should work.'''
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
         router = Router(bottle.default_app(), manager)
@@ -1486,7 +1486,7 @@ class TestGetResourceStuff(unittest.TestCase):
                           ret.get('2', {}).get('error-message'))
 
     def test_no_resources(self):
-        """ Test when no resources in deployment """
+        '''Test when no resources in deployment.'''
         del self._deployment['resources']
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
@@ -1500,7 +1500,7 @@ class TestGetResourceStuff(unittest.TestCase):
                                 router.get_deployment_resources, '1234')
 
     def test_no_res_status(self):
-        """ Test when no resources in deployment """
+        '''Test when no resources in deployment.'''
         del self._deployment['resources']
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
@@ -1514,7 +1514,7 @@ class TestGetResourceStuff(unittest.TestCase):
                                 router.get_resources_statuses, '1234')
 
     def test_dep_404(self):
-        """ Test when deployment not found """
+        '''Test when deployment not found.'''
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
         router = Router(bottle.default_app(), manager)
@@ -1529,7 +1529,7 @@ class TestGetResourceStuff(unittest.TestCase):
             self.assertIn("No deployment with id 1234", str(exc))
 
     def test_dep_404_status(self):
-        """ Test when deployment not found """
+        '''Test when deployment not found.'''
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
         router = Router(bottle.default_app(), manager)
@@ -1545,7 +1545,7 @@ class TestGetResourceStuff(unittest.TestCase):
 
 
 class TestPostbackHelpers(unittest.TestCase):
-    """ Test deployment update helpers """
+    '''Test deployment update helpers.'''
 
     def setUp(self):
         self._mox = mox.Mox()
@@ -1585,7 +1585,7 @@ class TestPostbackHelpers(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_provider_update(self):
-        """ Test mass provider resource updates """
+        '''Test mass provider resource updates.'''
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
         Router(bottle.default_app(), manager)
@@ -1640,7 +1640,7 @@ class TestDeploymentDisplayOutputs(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_generation(self):
-        """ Test Display Output Processing """
+        '''Test Display Output Processing.'''
         deployment = Deployment(yaml_to_dict("""
             blueprint:
               id: 0255a076c7cf4fd38c69b6727f0b37ea
