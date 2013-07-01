@@ -321,6 +321,7 @@ def main():
     # Load NewRelic inspection if requested
     if CONFIG.newrelic is True:
         try:
+            # pylint: disable=F0401
             import newrelic.agent
         except ImportError as exc:
             LOG.exception(exc)
@@ -431,6 +432,7 @@ def run_with_profiling():
     '''Start srver with yappi profiling and eventlet blocking detection on.'''
     LOG.warn("Profiling and blocking detection enabled")
     debug.hub_blocking_detection(state=True)
+    # pylint: disable=F0401
     import yappi
     try:
         yappi.start(True)
