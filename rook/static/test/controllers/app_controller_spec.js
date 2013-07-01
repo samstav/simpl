@@ -60,7 +60,6 @@ describe('AppController', function(){
       scope.select_endpoint(endpoint);
       expect(localStorage.setItem).toHaveBeenCalledWith('selected_endpoint', '{"uri":"fakeuri"}');
     });
-
   });
 
   describe('#get_selected_endpoint', function() {
@@ -614,6 +613,19 @@ describe('AppController', function(){
 
     it('should set tt_isOpen flags to false', function() {
       expect(inner_scope.tt_isOpen).toBe(false);
+    });
+  });
+
+  describe('#notify', function() {
+    it('should have access to a default empty notification queue', function() {
+      expect(scope.notifications).toEqual([]);
+    });
+
+    it('should push messages to notification queue', function() {
+      scope.notify('fake message 1');
+      scope.notify('fake message 2');
+      scope.notify('fake message 3');
+      expect(scope.notifications.length).toBe(3);
     });
   });
 });

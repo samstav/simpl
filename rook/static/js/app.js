@@ -338,13 +338,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     $location.path(url);
   };
 
+  $scope.notifications = [];
   $scope.notify = function(message) {
-    $('.bottom-right').notify({
-        message: { text: message }, fadeOut: {enabled: true, delay: 5000},
-        type: 'bangTidy'
-      }).show();
-    mixpanel.track("Notified", {'message': message});
-  };
+    $scope.notifications.push(message);
+  }
 
   //Call this with an http response for a generic error message
   $scope.show_error = function(response) {

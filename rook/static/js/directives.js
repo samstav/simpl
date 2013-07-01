@@ -315,6 +315,32 @@ directives.directive('cmTreeView', function() {
   };
 });
 
+angular.module('checkmate.directives').directive('cmNotifications', ['$rootScope', function($rootScope) {
+  var flush_notifications = function(new_messages, old_messages, scope) {
+    if (!new_messages) return;
+
+    var options = {
+      message: { text: null },
+      fadeOut: { enabled: true, delay: 5000 },
+      type: 'bangTidy'
+    };
+
+    while (new_messages.length > 0) {
+      var msg = new_messages.shift();
+      options.message.text = msg;
+      scope.element.notify(options).show();
+    }
+  }
+
+  return {
+    restrict: 'A',
+    scope: { cmNotifications: '=' },
+    link: function(scope, element, attrs) {
+      scope.element = element;
+      scope.$watch('cmNotifications', flush_notifications, true);
+    }
+  };
+}]);
 
 // Extend ui-bootstrap to use HTML popovers
 directives.directive( 'popoverHtmlUnsafePopup', function () {
