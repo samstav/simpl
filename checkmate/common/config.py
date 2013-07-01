@@ -21,7 +21,7 @@ import sys
 LOG = logging.getLogger(__name__)
 ENV_MAP = {
     'CHECKMATE_CONNECTION_STRING': 'connection_string',
-    'CHECKMATE_SIMULATOR_CONNECTION_STRING': 'simulatior_connection_string',
+    'CHECKMATE_SIMULATOR_CONNECTION_STRING': 'simulator_connection_string',
     'CHECKMATE_CACHE_CONNECTION_STRING': 'cache_connection_string',
     'CHECKMATE_BLUEPRINT_CACHE_EXPIRE': 'blueprint_cache_expiration',
 
@@ -71,6 +71,10 @@ class Config(object):
 
     deployments_path = '/var/local/checkmate/deployments'
     berkshelf_path = '/var/local/checkmate/cache'
+
+    simulator_connection_string = None
+    connection_string = None
+    cache_connection_string = None
 
     @property
     def bottle_parent(self):
@@ -297,7 +301,7 @@ def parse_environment(env=None):
     if not env:
         return result
     if not hasattr(env, '__iter__'):
-        raise ValueError("Config.parse_environment requires an iterables")
+        raise ValueError("Config.parse_environment requires an iterable")
     for key, value in env.items():
         if key in ENV_MAP:
             map_entry = ENV_MAP[key]
