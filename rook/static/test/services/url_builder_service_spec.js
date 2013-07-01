@@ -13,6 +13,13 @@ describe('urlBuilder', function(){
     tenantId = '123';
   }));
 
+  describe('novaStatsURL', function(){
+    it('should build a nova stats url', function(){
+      var expected = 'https://reports.ohthree.com/ord/instance/resource_id';
+      expect(this.urlBuilder.novaStatsURL(region, resource_id)).toEqual(expected);
+    });
+  });
+
   describe('myCloudURL', function(){
     var username;
     beforeEach(function(){

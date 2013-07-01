@@ -1723,6 +1723,12 @@ services.factory('urlBuilder', function(){
     return 'https://mycloud.rackspace.com/a/' + username + RESOURCE_PATHS[resource_type] + region + '/' + resource_id;
   }
 
+  function novaStatsURL(region, resource_id){
+    if(region)
+      return 'https://reports.ohthree.com/' + region.toLowerCase() + '/instance/' + resource_id;
+  }
+
   return { cloudControlURL: cloudControlURL,
-           myCloudURL: myCloudURL };
+           myCloudURL: myCloudURL,
+           novaStatsURL: novaStatsURL };
 });

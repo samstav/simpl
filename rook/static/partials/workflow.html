@@ -157,7 +157,7 @@
           <!-- Next Gen Server -->
           <alert type="'success'" close="$parent.hide_alert('server_success')" ng-show="$parent.was_server_created() && $parent.display_alert('server_success')">
             Server <a ng-cloak ng-show="resource(current_task).id.indexOf('-')" target="_blank" ng-href="{{urlBuilder.myCloudURL('server', auth.context.username, resource(current_task).region || current_task.attributes.region, resource(current_task).id)}}">{{resource(current_task).id}}</a> <a ng-hide="resource(current_task).id.indexOf('-')" target="_blank" href="{{urlBuilder.myCloudURL('legacy_server', auth.context.username, resource(current_task).region || current_task.attributes.region, resource(current_task).id)}}">{{resource(current_task).id}}</a> was created<span ng-switch on="resource(current_task).ip || true"><span ng-switch-when="true">.</span><span ng-switch-default> with IP address {{resource(current_task).ip}}. Connect to it over <a href="ssh://root@{{resource(current_task).ip}}">ssh</a></span></span>, view it in <a target="_blank" ng-href="{{urlBuilder.cloudControlURL('server', resource(current_task).id, resource(current_task).region || current_task.attributes.region, data.tenantId)}}"
-            >Cloud Control</a> or in <a target="_blank" ng-href="https://reports.ohthree.com/{{(resource(current_task).region || current_task.attributes.region) | lowercase}}/instance/{{resource(current_task).instance.id || resource(current_task).id}}"
+            >Cloud Control</a> or in <a target="_blank" ng-href="{{urlBuilder.novaStatsURL(resource(current_task).region || current_task.attributes.region, resource(current_task).instance.id || resource(current_task).id)}}"
             >NovaStats</a>.
           </alert>
 
