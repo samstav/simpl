@@ -293,7 +293,8 @@ class Manager(base.ManagerBase):
                                     deployment.get("id"))
 
     @staticmethod
-    def plan(deployment, context, check_limits=False, check_access=False):
+    def plan(deployment, context, check_limits=False, check_access=False,
+             parse_only=False):
         '''Process a new checkmate deployment and plan for execution.
 
         This creates templates for resources and connections that will be used
@@ -311,7 +312,7 @@ class Manager(base.ManagerBase):
                                                "instead.")
 
         # Analyze Deployment and Create plan
-        planner = Plan(deployment)
+        planner = Plan(deployment, parse_only=parse_only)
         resources = planner.plan(context)
         if resources:
             deployment['resources'] = resources
