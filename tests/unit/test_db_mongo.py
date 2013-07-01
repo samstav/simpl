@@ -36,6 +36,20 @@ class TestMongoDB(unittest.TestCase):
             mongodb.parse_comparison(['GREEN', 'BLUE', 'NO_YELLOW'])
         )
 
+    def test_parse_comparison_handles_single_status_in_list(self):
+        self.assertEqual(
+            {'$ne': 'KNOT'},
+            mongodb.parse_comparison(['!KNOT'])
+        )
+
+    def test_parse_comparison_fails_with_multiple_statuses_and_operator(self):
+        with self.assertRaises(Exception) as expected:
+            mongodb.parse_comparison(['UP', '!ACTIVE'])
+        self.assertEqual(
+            'Operators cannot be used when specifying multiple filters.',
+            str(expected.exception)
+        )
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

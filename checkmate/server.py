@@ -46,6 +46,7 @@ from checkmate.exceptions import (
     CheckmateDatabaseConnectionError,
     CheckmateDoesNotExist,
     CheckmateException,
+    CheckmateInvalidParameterError,
     CheckmateNoData,
     CheckmateNoMapping,
     CheckmateValidationException,
@@ -108,6 +109,9 @@ def error_formatter(error):
         error.apply(bottle.response)
 
     if isinstance(error.exception, CheckmateNoMapping):
+        error.status = 406
+        error.output = str(error.exception)
+    elif isinstance(error.exception, CheckmateInvalidParameterError):
         error.status = 406
         error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateDoesNotExist):

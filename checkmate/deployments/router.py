@@ -132,13 +132,13 @@ class Router(object):
     def get_deployments(self, tenant_id=None, offset=None, limit=None):
         '''Get existing deployments.'''
         show_deleted = request.query.get('show_deleted')
-        status = request.query.get('status')
+        statuses = request.query.getall('status')
         return self.manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
             with_deleted=show_deleted == '1',
-            status=status
+            status=statuses
         )
 
     @with_tenant

@@ -9,6 +9,7 @@ TODO:
 import copy
 import logging
 import pymongo
+import re
 import time
 import uuid
 
@@ -21,29 +22,41 @@ from checkmate.db import db_lock
 from checkmate.exceptions import (
     CheckmateDatabaseConnectionError,
     CheckmateDataIntegrityError,
+    CheckmateInvalidParameterError,
     CheckmateException,
 )
 from checkmate import utils as cmutils
 
 LOG = logging.getLogger(__name__)
+op_match = '(!|(>|<)[=]*)'
 
 
-def parse_comparison(field):
-    '''Return a MongoDB filter by looking for comparisons in `field`.'''
-    if isinstance(field, (list, tuple)):
-        return {'$in': list(field)}
-    if field.startswith('!'):
-        return {'$ne': field[1:]}
-    elif field.startswith('>='):
-        return {'$gte': field[2:]}
-    elif field.startswith('>'):
-        return {'$gt': field[1:]}
-    elif field.startswith('<='):
-        return {'$lte': field[2:]}
-    elif field.startswith('<'):
-        return {'$lt': field[1:]}
+def _build_filter(field):
+    op_map = {'!': '$ne', '>': '$gt', '<': '$lt', '>=': '$gte', '<=': '$lte'}
+    operator = re.search(op_match, field)
+    if operator:
+        return {op_map[operator.group(0)]: field[len(operator.group(0)):]}
     else:
         return field
+
+
+def _validate_no_operators(fields):
+    for field in fields:
+        if re.search(op_match, field):
+            raise CheckmateInvalidParameterError(
+                'Operators cannot be used when specifying multiple filters.')
+
+
+def parse_comparison(fields):
+    '''Return a MongoDB filter by looking for comparisons in `fields`.'''
+    if isinstance(fields, (list, tuple)):
+        if len(fields) > 1:
+            _validate_no_operators(fields)
+            return {'$in': list(fields)}
+        else:
+            return _build_filter(fields[0])
+    else:
+        return _build_filter(fields)
 
 
 class Driver(common.DbBase):

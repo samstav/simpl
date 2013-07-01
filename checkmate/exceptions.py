@@ -37,6 +37,11 @@ class CheckmateNoMapping(CheckmateException):
     pass
 
 
+class CheckmateInvalidParameterError(CheckmateException):
+    '''Parameters provided are not valid, not permitted or incongruous.'''
+    pass
+
+
 class CheckmateNoData(CheckmateException):
     '''No data found.'''
     pass
