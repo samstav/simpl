@@ -1624,7 +1624,7 @@ services.factory('webengage', function(config){
   return { init: init };
 });
 
-angular.module('checkmate.services').factory('cmTenant', ['$resource', function($resource) {
+angular.module('checkmate.services').factory('cmTenant', ['$resource', 'auth', function($resource, auth) {
   var scope = {};
 
   var params = { id: '@id' };
@@ -1678,6 +1678,8 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', function(
   };
 
   scope.get = function(id, callback, failure) {
+    if (!auth.is_admin()) return {};
+
     return Tenant.get({id: id}, callback, failure);
   };
 
