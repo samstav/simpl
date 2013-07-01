@@ -277,6 +277,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     return auth.is_admin();
   }
 
+  $scope.is_impersonating = function() {
+    return auth.is_impersonating();
+  }
+
   $scope.remove_popovers = function() {
     _.each(angular.element('.popover').siblings('i'), function(el){
       angular.element(el).scope().tt_isOpen = false;
