@@ -2226,7 +2226,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.showItemsBar = true;
   $scope.showStatus = true;
   $scope.name = "Deployments";
-  $scope.activeFilters = $location.search().status ? $location.search().status.split(',') : null
+  $scope.activeFilters = $location.search().status
   $scope.filter_list = _.map(STATUSES, function(status){
     var is_active = $scope.activeFilters === status || _.contains($scope.activeFilters, status);
     return { name: status, active: is_active };
@@ -2234,7 +2234,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.applyFilters = function(){
     var active_filters = _.where($scope.filter_list, { active: true });
-    var filter_names = _.map(active_filters, function(f){ return f.name }).join(',')
+    var filter_names = _.map(active_filters, function(f){ return f.name })
     $location.search({ status: filter_names });
   }
 
