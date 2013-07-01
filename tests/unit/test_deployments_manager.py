@@ -7,11 +7,10 @@ For tests, we don't care about:
     R0904 - Too many public methods
     W0212 - Access to protected member of a client class
     W0232 - Class has no __init__ method '''
+import copy
 import json
 import os
 import unittest2 as unittest
-import uuid
-from copy import deepcopy
 
 import mox
 
@@ -51,7 +50,7 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        expected_deployment = deepcopy(deployment)
+        expected_deployment = copy.deepcopy(deployment)
         expected_deployment.pop("resources")
         expected_deployment.update({"resources": {
             "0": {
@@ -156,31 +155,31 @@ class TestCount(unittest.TestCase):
 
     def test_get_count_tenant(self):
         # remove the deployments that dont belong to our tenant
-        deployments = self._deployments.copy()
-        deployments['results'].pop("3fgh")
-        deployments['results'].pop("4ijk")
-        deployments['collection-count'] = 2
+        deps = self._deployments.copy()
+        deps['results'].pop("3fgh")
+        deps['results'].pop("4ijk")
+        deps['collection-count'] = 2
         self.db.get_deployments(tenant_id="12345", with_count=True,
-                                status=None).AndReturn(deployments)
+                                status=None).AndReturn(deps)
         self._mox.ReplayAll()
         self.assertEqual(self.controller.count(tenant_id="12345"), 2)
 
     def test_get_count_blueprint(self):
-        self.db.get_deployments(status=None, tenant_id=None, with_count=True).AndReturn(
-            self._deployments)
+        self.db.get_deployments(status=None, tenant_id=None, with_count=True)\
+            .AndReturn(self._deployments)
         self._mox.ReplayAll()
         result = self.controller.count(blueprint_id="blp-123-aabc-efg")
         self.assertEqual(result, 2)
 
     def test_get_count_blueprint_and_tenant(self):
-        deployments = self._deployments.copy()
-        deployments['results'].pop("2def")
-        deployments['results'].pop("3fgh")
-        deployments['results'].pop("4ijk")
-        deployments['collection-count'] = 1
+        deps = self._deployments.copy()
+        deps['results'].pop("2def")
+        deps['results'].pop("3fgh")
+        deps['results'].pop("4ijk")
+        deps['collection-count'] = 1
 
         self.db.get_deployments(tenant_id="12345", with_count=True,
-                                status=None).AndReturn(deployments)
+                                status=None).AndReturn(deps)
         self._mox.ReplayAll()
         result = self.controller.count(blueprint_id="blp-123-aabc-efg",
                                        tenant_id="12345")
@@ -192,20 +191,13 @@ class TestSecrets(unittest.TestCase):
     def setUp(self):
         self.mox = mox.Mox()
         self.manager = self.mox.CreateMockAnything()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
-
-    def test_get_deployment_secrets_hidden(self):
-        '''Check that GET deployment responds without secrets'''
-        id1 = uuid.uuid4().hex[0:7]
         data = {
-            'id': id1,
+            'id': '1',
             'tenantId': 'T1000',
             'created-by': 'john',
             'blueprint': {
                 'display-outputs': {
-                    "Password": {
+                    "New Password": {
                         'is-secret': True,
                         'source': 'options://password',
                     },
@@ -214,59 +206,106 @@ class TestSecrets(unittest.TestCase):
                     },
                 },
             },
+            'display-outputs': {
+                'Locked Password': {
+                    'is-secret': True,
+                    'value': 'SHH!!',
+                    'status': 'LOCKED',
+                },
+                'Future Password': {
+                    'is-secret': True,
+                    'status': 'GENERATING',
+                },
+                'Public Key': {
+                    'value': 'Anyone can see this'
+                }
+            },
             'inputs': {
                 'password': "Keep Private",
                 'servers': 10,
             }
         }
         deployment = Deployment(data)
-        deployment['display-outputs'] = deployment.calculate_outputs()
-        driver = self.mox.CreateMockAnything()
-        driver.get_deployment(id1, with_secrets=False).AndReturn(deployment)
+        deployment['display-outputs'].update(deployment.calculate_outputs())
+        self.deployment = deployment
+        self.driver = self.mox.CreateMockAnything()
+        self.manager = deployments.Manager({'default': self.driver})
 
-        manager = deployments.Manager({'default': driver})
+    def tearDown(self):
+        self.mox.UnsetStubs()
 
+    def test_get_deployment_hides_secrets(self):
+        '''Check that GET deployment responds without secrets.'''
+        self.driver.get_deployment('1', with_secrets=False)\
+            .AndReturn(self.deployment)
         self.mox.ReplayAll()
-        dep = manager.get_a_deployment(id1, tenant_id="T1000",
-                                       with_secrets=False)
+        dep = self.manager.get_deployment('1', tenant_id="T1000",
+                                          with_secrets=False)
         self.mox.VerifyAll()
 
-        self.assertEqual(dep['id'], id1)
+        self.assertEqual(dep['id'], '1')
         self.assertIn('display-outputs', dep)
-        self.assertNotIn('value', dep['display-outputs']['Password'])
-        self.assertIn('value', dep['display-outputs']['Server Count'])
+        outputs = dep['display-outputs']
+        self.assertNotIn('value', outputs['Locked Password'])
+        self.assertNotIn('value', outputs['New Password'])
+        self.assertIn('value', outputs['Public Key'])
 
-        self.assertIn('secrets', dep)
-        self.assertEquals(dep['secrets'], 'AVAILABLE')
-
-    def test_get_deployment_secrets_blank(self):
-        '''Check that GET deployment responds without secrets'''
-        id1 = uuid.uuid4().hex[0:7]
-        data = {
-            'id': id1,
-            'tenantId': 'T1000',
-            'created-by': 'john',
-            'blueprint': {},
-            'inputs': {
-                'password': "Keep Private",
-                'servers': 10,
-            }
-        }
-        deployment = Deployment(data)
-        driver = self.mox.CreateMockAnything()
-        driver.get_deployment(id1, with_secrets=False).AndReturn(deployment)
-
-        manager = deployments.Manager({'default': driver})
+    def test_locked_secrets_not_returned(self):
+        '''Check that locked secrets are not returned'''
+        self.driver.get_deployment('1', with_secrets=True)\
+            .AndReturn(self.deployment)
 
         self.mox.ReplayAll()
-        dep = manager.get_a_deployment(id1, tenant_id="T1000",
-                                       with_secrets=False)
+        dep = self.manager.get_deployment_secrets('1', tenant_id="T1000")
         self.mox.VerifyAll()
 
-        self.assertEqual(dep['id'], id1)
+        secrets = dep['secrets']
+        self.assertIn('Locked Password', secrets)
+        locked_pass = secrets['Locked Password']
+        self.assertNotIn('value', locked_pass)
+        self.assertEqual('LOCKED', locked_pass['status'])
+
+    def test_status_generating_trumps_available(self):
+        self.driver.get_deployment('1', with_secrets=False)\
+            .AndReturn(self.deployment)
+        self.mox.ReplayAll()
+        dep = self.manager.get_deployment('1', tenant_id="T1000",
+                                          with_secrets=False)
+        self.mox.VerifyAll()
+
+        self.assertEqual(dep['id'], '1')
+        self.assertIn('secrets', dep)
+        self.assertEquals(dep['secrets'], 'GENERATING')
+
+    def test_get_secrets_works_when_blank(self):
+        '''Check that GET deployment secrets wotks if there are no secrets.'''
+        del self.deployment['display-outputs']
+        self.driver.get_deployment('1', with_secrets=False)\
+            .AndReturn(self.deployment)
+
+        self.mox.ReplayAll()
+        dep = self.manager.get_deployment('1', tenant_id="T1000",
+                                          with_secrets=False)
+        self.mox.VerifyAll()
+
+        self.assertEqual(dep['id'], '1')
 
         self.assertIn('secrets', dep)
         self.assertEquals(dep['secrets'], 'NO SECRETS')
+
+    def test_status_available_trumps_locked(self):
+        '''New secrets should be flagged as available.'''
+        del self.deployment['display-outputs']['Future Password']
+        self.driver.get_deployment('1', with_secrets=False)\
+            .AndReturn(self.deployment)
+        self.mox.ReplayAll()
+        dep = self.manager.get_deployment('1', tenant_id="T1000",
+                                          with_secrets=False)
+        self.mox.VerifyAll()
+
+        self.assertEqual(dep['id'], '1')
+        self.assertIn('secrets', dep)
+        self.assertEquals(dep['secrets'], 'AVAILABLE')
 
 
 if __name__ == '__main__':

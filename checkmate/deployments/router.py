@@ -214,11 +214,11 @@ class Router(object):
         '''Return deployment with given ID.'''
         try:
             if 'with_secrets' in request.query:  # TODO(any): verify admin-ness
-                entity = self.manager.get_a_deployment(api_id, tenant_id,
-                                                       with_secrets=True)
+                entity = self.manager.get_deployment(api_id, tenant_id,
+                                                     with_secrets=True)
             else:
-                entity = self.manager.get_a_deployment(api_id, tenant_id,
-                                                       with_secrets=False)
+                entity = self.manager.get_deployment(api_id, tenant_id,
+                                                     with_secrets=False)
 
         except CheckmateDoesNotExist:
             abort(404)
@@ -313,7 +313,7 @@ class Router(object):
             abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id, with_secrets=True)
         if not entity:
-             CheckmateDoesNotExist('No deployment with id %s' % api_id)
+            raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
         if entity.get('status', 'NEW') != 'NEW':
             raise CheckmateBadState("Deployment '%s' is in '%s' status and "
                                     "must be in 'NEW' to be planned" %
@@ -373,7 +373,7 @@ class Router(object):
     def get_deployment_secrets(self, api_id, tenant_id=None):
         '''Return deployment secrets.'''
         try:
-            entity = self.manager.get_a_deployment(api_id, tenant_id=tenant_id)
+            entity = self.manager.get_deployment(api_id, tenant_id=tenant_id)
         except CheckmateDoesNotExist:
             abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
@@ -388,8 +388,8 @@ class Router(object):
             abort(401, "You must be the creator of a deployment or an admin "
                   "to retrieve its secrets")
 
-        data = self.manager.get_a_deployments_secrets(api_id,
-                                                      tenant_id=tenant_id)
+        data = self.manager.get_deployments_secrets(api_id,
+                                                    tenant_id=tenant_id)
         return utils.write_body(data, request, response)
 
     @with_tenant
@@ -397,9 +397,9 @@ class Router(object):
         '''Update/Lock deployment secrets.'''
         partial = utils.read_body(request)
         try:
-            entity = self.manager.get_a_deployment(api_id,
-                                                   tenant_id=tenant_id,
-                                                   with_secrets=True)
+            entity = self.manager.get_deployment(api_id,
+                                                 tenant_id=tenant_id,
+                                                 with_secrets=False)
         except CheckmateDoesNotExist:
             abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
@@ -419,36 +419,19 @@ class Router(object):
         if 'secrets' not in partial:
             abort(406, "Must supply 'secrets' to be locked")
 
-        #FIXME: test this, move it to a separate call
-        updates = {}
-        for output, value in partial['secrets'].items():
-            if 'status' in value and value['status'] == 'LOCKED':
-                if output not in entity.get('display-outputs', {}):
-                    abort(406, "No secret called '%s'" % output)
-                if entity['display-outputs'][output].get('status') != 'LOCKED':
-                    if 'display-outputs' not in updates:
-                        updates['display-outputs'] = {}
-                    if output not in updates['display-outputs']:
-                        updates['display-outputs'][output] = {}
-                    updates['display-outputs'][output]['status'] = 'LOCKED'
-                    updates['display-outputs'][output]['last-locked'] = \
-                        utils.get_time_string()
-
-        if updates:
-            self.manager.save_deployment(updates, api_id=api_id,
-                                         tenant_id=tenant_id, partial=True)
-        return utils.write_body({'secrets': updates.get('display-outputs')},
-                                request, response)
+        results = self.manager.update_deployment_secrets(api_id, partial,
+                                                         tenant_id=tenant_id)
+        return utils.write_body(results, request, response)
 
     @with_tenant
     def get_deployment_resources(self, api_id, tenant_id=None):
         '''Return the resources for a deployment.'''
         if 'with_secrets' in request.query:  # TODO(any): verify admin-ness
-            deployment = self.manager.get_a_deployment(api_id, tenant_id,
-                                                       with_secrets=True)
+            deployment = self.manager.get_deployment(api_id, tenant_id,
+                                                     with_secrets=True)
         else:
-            deployment = self.manager.get_a_deployment(api_id, tenant_id,
-                                                       with_secrets=False)
+            deployment = self.manager.get_deployment(api_id, tenant_id,
+                                                     with_secrets=False)
 
         resources = self.manager._get_dep_resources(deployment)
         return utils.write_body(resources, request, response)
@@ -457,11 +440,11 @@ class Router(object):
     def get_resources_statuses(self, api_id, tenant_id=None):
         '''Get basic status of all deployment resources.'''
         if 'with_secrets' in request.query:  # TODO(any): verify admin-ness
-            deployment = self.manager.get_a_deployment(api_id, tenant_id,
-                                                       with_secrets=True)
+            deployment = self.manager.get_deployment(api_id, tenant_id,
+                                                     with_secrets=True)
         else:
-            deployment = self.manager.get_a_deployment(api_id, tenant_id,
-                                                       with_secrets=False)
+            deployment = self.manager.get_deployment(api_id, tenant_id,
+                                                     with_secrets=False)
         resources = self.manager._get_dep_resources(deployment)
         resp = {}
 

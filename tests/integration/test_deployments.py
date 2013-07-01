@@ -10,10 +10,9 @@ import bottle
 from bottle import HTTPError
 import mox
 from mox import IgnoreArg, ContainsKeyValue
-from webtest import TestApp
 
 import checkmate
-from checkmate import keys, test
+from checkmate import keys
 from checkmate.common import tasks as common_tasks
 from checkmate.deployment import (
     Deployment,
@@ -771,14 +770,14 @@ class TestDeploymentSettings(unittest.TestCase):
             'provider': "base",
             'type': "widget",
             'expected': "big",
-        },  {
+        }, {
             'case': "Provider setting is used even with service param",
             'name': "size",
             'provider': "base",
             'service': 'web',
             'type': "widget",
             'expected': "big",
-        },  {
+        }, {
             'case': "Set in blueprint/service as constraint",
             'name': "count",
             'type': 'compute',
@@ -819,14 +818,14 @@ class TestDeploymentSettings(unittest.TestCase):
             'provider': "base",
             'service': 'web',
             'expected': "fqdn",
-        },  {
+        }, {
             'case': "Relation setting is used when relation passed in",
             'name': "algorithm",
             'type': 'compute',
             'relation': 'web',
             'service': 'wordpress',
             'expected': "round-robin",
-        },  {
+        }, {
             'case': "Set in blueprint/providers",
             'name': "memory",
             'type': 'compute',
@@ -836,15 +835,15 @@ class TestDeploymentSettings(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
         parsed = Manager.plan(deployment, RequestContext())
-        for test in cases[:-1]:  # TODO: last case broken without env providers
-            value = parsed.get_setting(test['name'],
-                                       service_name=test.get('service'),
-                                       provider_key=test.get('provider'),
-                                       resource_type=test.get('type'),
-                                       relation=test.get('relation'))
-            self.assertEquals(value, test['expected'], msg=test['case'])
-            LOG.debug("Test '%s' success=%s", test['case'],
-                      value == test['expected'])
+        for case in cases[:-1]:  # TODO: last case broken without env providers
+            value = parsed.get_setting(case['name'],
+                                       service_name=case.get('service'),
+                                       provider_key=case.get('provider'),
+                                       resource_type=case.get('type'),
+                                       relation=case.get('relation'))
+            self.assertEquals(value, case['expected'], msg=case['case'])
+            LOG.debug("Test '%s' success=%s", case['case'],
+                      value == case['expected'])
 
         msg = "Coming from static resource constraint"
         value = parsed.get_setting("server_key", service_name="web",
@@ -1217,8 +1216,8 @@ class TestCloneDeployments(unittest.TestCase):
         deployment operation would fail """
 
         manager = Manager({})
-        self._mox.StubOutWithMock(manager, "get_a_deployment")
-        manager.get_a_deployment('1234', tenant_id='T1000')\
+        self._mox.StubOutWithMock(manager, "get_deployment")
+        manager.get_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
 
         self._mox.ReplayAll()
@@ -1233,15 +1232,15 @@ class TestCloneDeployments(unittest.TestCase):
         self._deployment['status'] = 'DELETED'
 
         manager = Manager({})
-        self._mox.StubOutWithMock(manager, "get_a_deployment")
-        manager.get_a_deployment('1234', tenant_id='T1000')\
+        self._mox.StubOutWithMock(manager, "get_deployment")
+        manager.get_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
 
         context = RequestContext(simulation=False)
         self._mox.StubOutWithMock(manager, "deploy")
         manager.deploy(IgnoreArg(), context)
 
-        manager.get_a_deployment(IgnoreArg(), tenant_id='T1000')\
+        manager.get_deployment(IgnoreArg(), tenant_id='T1000')\
             .AndReturn({'id': 'NEW'})
         self._mox.ReplayAll()
         manager.clone('1234', context, tenant_id='T1000')
@@ -1252,15 +1251,15 @@ class TestCloneDeployments(unittest.TestCase):
         self._deployment['status'] = 'DELETED'
 
         manager = Manager({})
-        self._mox.StubOutWithMock(manager, "get_a_deployment")
-        manager.get_a_deployment('1234', tenant_id='T1000')\
+        self._mox.StubOutWithMock(manager, "get_deployment")
+        manager.get_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
 
         context = RequestContext(simulation=True)
         self._mox.StubOutWithMock(manager, "deploy")
         manager.deploy(IgnoreArg(), context)
 
-        manager.get_a_deployment(IgnoreArg(), tenant_id='T1000')\
+        manager.get_deployment(IgnoreArg(), tenant_id='T1000')\
             .AndReturn(self._deployment)
 
         self._mox.ReplayAll()
@@ -1332,7 +1331,7 @@ class TestDeleteDeployments(unittest.TestCase):
         db = self._mox.CreateMockAnything()
         manager = Manager({'default': db})
         router = Router(bottle.default_app(), manager)
-        self._mox.StubOutWithMock(manager, "get_a_deployment")
+        self._mox.StubOutWithMock(manager, "get_deployment")
         manager.get_deployment('1234').AndReturn(self._deployment)
 
         self._mox.StubOutWithMock(checkmate.deployments.router, "Plan")
