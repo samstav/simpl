@@ -20,6 +20,13 @@ describe('urlBuilder', function(){
     });
   });
 
+  describe('sshTo', function(){
+    it('should build the ssh path to the given ip', function(){
+      var expected = 'ssh://root@0.0.0.0';
+      expect(this.urlBuilder.sshTo('0.0.0.0')).toEqual('ssh://root@0.0.0.0');
+    });
+  });
+
   describe('myCloudURL', function(){
     var username;
     beforeEach(function(){

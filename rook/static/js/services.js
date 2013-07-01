@@ -1728,7 +1728,12 @@ services.factory('urlBuilder', function(){
       return 'https://reports.ohthree.com/' + region.toLowerCase() + '/instance/' + resource_id;
   }
 
+  function sshTo(address){
+    return 'ssh://root@' + address;
+  }
+
   return { cloudControlURL: cloudControlURL,
            myCloudURL: myCloudURL,
-           novaStatsURL: novaStatsURL };
+           novaStatsURL: novaStatsURL,
+           sshTo: sshTo };
 });
