@@ -28,12 +28,13 @@ from checkmate.exceptions import (
 from checkmate import utils as cmutils
 
 LOG = logging.getLogger(__name__)
-op_match = '(!|(>|<)[=]*)'
+OP_MATCH = '(!|(>|<)[=]*)'
 
 
 def _build_filter(field):
+    '''Translate string with operator and status into mongodb filter.'''
     op_map = {'!': '$ne', '>': '$gt', '<': '$lt', '>=': '$gte', '<=': '$lte'}
-    operator = re.search(op_match, field)
+    operator = re.search(OP_MATCH, field)
     if operator:
         return {op_map[operator.group(0)]: field[len(operator.group(0)):]}
     else:
@@ -41,8 +42,9 @@ def _build_filter(field):
 
 
 def _validate_no_operators(fields):
+    '''Filtering on more than one field means no operators allowed!'''
     for field in fields:
-        if re.search(op_match, field):
+        if re.search(OP_MATCH, field):
             raise CheckmateInvalidParameterError(
                 'Operators cannot be used when specifying multiple filters.')
 
