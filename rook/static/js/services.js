@@ -1683,3 +1683,31 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', function(
 
   return scope;
 }]);
+
+services.factory('urlBuilder', function(){
+  function cloudControlURL(resource_type, resource_id, region, tenant_id){
+    if (!resource_id)
+      return null;
+
+    var host,
+        path,
+        RESOURCE_PATHS = {
+          'server': '/next_gen_servers/',
+          'load_balancer': '/load_balancers/',
+          'database': '/dbaas/instances/',
+          'legacy': '/first_gen_servers/'
+        };
+
+    if (region === 'LON') {
+      host = "https://lon.cloudcontrol.rackspacecloud.com";
+    } else {
+      host = "https://us.cloudcontrol.rackspacecloud.com";
+    }
+
+    path = '/customer/' + tenant_id + RESOURCE_PATHS[resource_type] + region + '/' + resource_id;
+
+    return host + path;
+  }
+
+  return { cloudControlURL: cloudControlURL };
+});

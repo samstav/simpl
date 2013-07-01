@@ -728,12 +728,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     }
     return '';
   };
-
-  $scope.CloudControlURL = function(region) {
-    if (region == 'LON')
-      return "https://lon.cloudcontrol.rackspacecloud.com";
-    return "https://us.cloudcontrol.rackspacecloud.com";
-  };
 }
 
 function NavBarController($scope, $location, $http) {
@@ -998,7 +992,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   });
 }
 
-function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q) {
+function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder) {
   //Scope variables
 
   $scope.showStatus = true;
@@ -1034,6 +1028,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.toggle_task_traceback = function(task_type) {
     $scope.hide_task_traceback[task_type] = !$scope.hide_task_traceback[task_type];
   };
+
+  $scope.cloudControlURL = urlBuilder.cloudControlURL;
 
   // Called by load to refresh the status page
   $scope.reload = function(original_url) {
@@ -2916,7 +2912,7 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http) {
+function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -2935,6 +2931,8 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         }
     }).open('/partials/secrets.html', 'SecretsController');
   };
+
+  $scope.cloudControlURL = urlBuilder.cloudControlURL;
 
   // Called by load to refresh the status page
   $scope.reload = function(original_url) {
