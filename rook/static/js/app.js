@@ -2932,7 +2932,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     }).open('/partials/secrets.html', 'SecretsController');
   };
 
-  $scope.cloudControlURL = urlBuilder.cloudControlURL;
+  $scope.urlBuilder = urlBuilder;
 
   // Called by load to refresh the status page
   $scope.reload = function(original_url) {

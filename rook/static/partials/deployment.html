@@ -178,10 +178,10 @@ Priv Key: {{formatted_data.private_key}}
           <tbody>
             <tr ng-repeat="resource in data.resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
               <td ng-switch="resource.provider">
-                <a ng-switch-when="nova" target="_blank" ng-href="{{cloudControlURL('server', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">{{resource['dns-name']}}</a>
-                <a ng-switch-when="legacy" target="_blank" ng-href="{{cloudControlURL('legacy', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">{{resource['dns-name']}}</a>
-                <a ng-switch-when="load-balancer" target="_blank" ng-href="{{cloudControlURL('load_balancer', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">{{resource['dns-name']}}</a>
-                <a ng-switch-when="databases" target="_blank" ng-href="{{cloudControlURL('database', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="nova" target="_blank" ng-href="{{urlBuilder.cloudControlURL('server', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="legacy" target="_blank" ng-href="{{urlBuilder.cloudControlURL('legacy', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="load-balancer" target="_blank" ng-href="{{urlBuilder.cloudControlURL('load_balancer', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="databases" target="_blank" ng-href="{{urlBuilder.cloudControlURL('database', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">{{resource['dns-name']}}</a>
                 <span ng-switch-default>{{resource['dns-name']}} ({{resource.provider}})</a>
               </td>
               <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
