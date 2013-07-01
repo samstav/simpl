@@ -2289,7 +2289,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.sync(deployment);
     };
 
-    if (auth.identity.loggedIn) {
+    if (auth.is_logged_in()) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
       thang.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, function(returned, getHeaders){

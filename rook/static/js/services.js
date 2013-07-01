@@ -880,6 +880,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return auth.identity.is_admin;
     },
 
+    is_logged_in: function() {
+      return auth.identity.loggedIn;
+    },
+
     generate_auth_data: function(token, tenant, apikey, pin_rsa, username, password, scheme) {
       var data = {};
       if (token) {
@@ -1134,6 +1138,21 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         auth.identity.tenants.pop();
     },
 
+    retrieve_context: function(username_or_tenant_id) {
+      if (!username_or_tenant_id) return false;
+      if (!auth.identity.tenants) return false;
+
+      var info = username_or_tenant_id;
+      for (idx in auth.identity.tenants) {
+        var context = auth.identity.tenants[idx];
+        if (context.username === info || context.tenantId === info) {
+          return context;
+        }
+      }
+
+      return false;
+    },
+
     exit_impersonation: function() {
       auth.context = _.clone(auth.identity.context);
       auth.check_state();
@@ -1157,8 +1176,8 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
               auth.context.tenantId = tenant_id;
               auth.context.catalog = re_auth_response.data.access.serviceCatalog;
               auth.context.regions = auth.get_regions(re_auth_response.data);
-              auth.store_context(auth.context);
               auth.context.impersonated = true;
+              auth.store_context(auth.context);
               auth.save();
               auth.check_state();
               deferred.resolve('Impersonation Successful!');
@@ -1184,6 +1203,14 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 
     impersonate: function(username) {
       var deferred = $q.defer();
+      var previous_context = auth.retrieve_context(username);
+      if (previous_context) {
+        auth.context = previous_context;
+        auth.check_state();
+        deferred.resolve("Impersonation Successful! (cached)");
+        return deferred.promise;
+      }
+
       var url = is_chrome_extension ? auth.identity.auth_url : "/authproxy";
       var data = auth.generate_impersonation_data(username, auth.identity.endpoint_type);
       var headers = {
