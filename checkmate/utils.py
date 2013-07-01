@@ -319,9 +319,8 @@ def formatted_response(uripath, with_pagination=False):
                 expected_tenant = kwargs.get(
                     'tenant_id', bottle.request.context.tenant)
                 if bottle.request.context.is_admin is True:
-                    LOG.warn('An Administrator performed a GET on deployments '
-                             'with Tenant ID %s.',
-                             expected_tenant)
+                    LOG.info('An Administrator performed a GET on deployments '
+                             'with Tenant ID %s.', expected_tenant)
                 elif expected_tenant:
                     for _, deployment in data['results'].items():
                         if (deployment.get('tenantId') and

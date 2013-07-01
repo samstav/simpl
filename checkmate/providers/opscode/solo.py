@@ -1378,7 +1378,8 @@ class ChefMap(object):
                 fxn = lambda setting_name: evaluate(
                     utils.escape_yaml_simple_string(
                         deployment.get_setting(
-                            setting_name, default=defaults.get(setting_name, '')
+                            setting_name, default=defaults.get(setting_name,
+                                                               '')
                         )
                     )
                 )

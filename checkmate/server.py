@@ -436,8 +436,8 @@ def run_with_profiling():
         stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
         print "tsub   ttot   count  function"
         for stat in stats.func_stats:
-            print str(stat[3]).ljust(6), stat[2].ljust(6), \
-                stat[1].ljust(6), stat[0]
+            print str(stat[3]).ljust(6), str(stat[2]).ljust(6), \
+                str(stat[1]).ljust(6), stat[0]
 
 
 #
