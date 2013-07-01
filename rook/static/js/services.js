@@ -1693,9 +1693,9 @@ services.factory('urlBuilder', function(){
         path,
         RESOURCE_PATHS = {
           'server': '/next_gen_servers/',
+          'legacy_server': '/first_gen_servers/',
           'load_balancer': '/load_balancers/',
-          'database': '/dbaas/instances/',
-          'legacy': '/first_gen_servers/'
+          'database': '/dbaas/instances/'
         };
 
     if (region === 'LON') {
@@ -1709,5 +1709,20 @@ services.factory('urlBuilder', function(){
     return host + path;
   }
 
-  return { cloudControlURL: cloudControlURL };
+  function myCloudURL(resource_type, username, region, resource_id){
+    if (!resource_id)
+      return null;
+
+    var RESOURCE_PATHS = {
+      'server': '/#compute%2CcloudServersOpenStack%2C',
+      'legacy_server': '/#compute%2CcloudServers%2C',
+      'load_balancer': '/load_balancers#rax%3Aload-balancer%2CcloudLoadBalancers%2C',
+      'database': '/database#rax%3Adatabase%2CcloudDatabases%2C'
+    };
+
+    return 'https://mycloud.rackspace.com/a/' + username + RESOURCE_PATHS[resource_type] + region + '/' + resource_id;
+  }
+
+  return { cloudControlURL: cloudControlURL,
+           myCloudURL: myCloudURL };
 });

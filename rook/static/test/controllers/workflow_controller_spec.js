@@ -28,7 +28,7 @@ describe('WorkflowController', function(){
     scroll = {};
     $timeout = {};
     $q = { defer: sinon.stub().returns({ resolve: emptyFunction, promise: {} }) };
-    urlBuilder = { cloudControlURL: emptyFunction };
+    urlBuilder = {};
     controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
   });
 

@@ -1029,7 +1029,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     $scope.hide_task_traceback[task_type] = !$scope.hide_task_traceback[task_type];
   };
 
-  $scope.cloudControlURL = urlBuilder.cloudControlURL;
+  $scope.urlBuilder = urlBuilder;
 
   // Called by load to refresh the status page
   $scope.reload = function(original_url) {

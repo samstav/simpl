@@ -17,7 +17,7 @@ describe('DeploymentController', function(){
     dialog = undefined;
     deploymentDataParser = { formatData: emptyFunction };
     $http = { post: sinon.spy() };
-    urlBuilder = { cloudControlURL: emptyFunction };
+    urlBuilder = {};
     controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder);
   });
 
