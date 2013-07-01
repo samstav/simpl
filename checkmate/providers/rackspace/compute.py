@@ -220,7 +220,7 @@ class Provider(RackspaceComputeProviderBase):
 
         if not isUUID(image):
             # Assume it is an OS name and find it
-            for key, value in catalog['lists']['types'].iteritems():
+            for key, value in catalog['lists'].get('types', {}).iteritems():
                 if image == value['name'] or image == value['os']:
                     LOG.debug("Mapping image from '%s' to '%s'", image, key)
                     image = key
@@ -231,7 +231,7 @@ class Provider(RackspaceComputeProviderBase):
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                                      image, self.name))
 
-        if image not in catalog['lists']['types']:
+        if image not in catalog['lists'].get('types', {}):
             raise CheckmateNoMapping("Image '%s' not found in '%s'" % (
                                      image, self.name))
 
@@ -471,17 +471,20 @@ class Provider(RackspaceComputeProviderBase):
     @staticmethod
     def _get_api_info(context):
         '''Get Flavors, Images and Types available in a given Region.'''
+        results = {}
         region = getattr(context, 'region', None)
         if not region:
             region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
-        jobs = eventlet.GreenPile(2)
-        jobs.spawn(_get_flavors, url, context.auth_token)
-        jobs.spawn(_get_images_and_types, url, context.auth_token)
-        vals = {}
-        for ret in jobs:
-            vals.update(ret)
-        return vals
+        if url:
+            jobs = eventlet.GreenPile(2)
+            jobs.spawn(_get_flavors, url, context.auth_token)
+            jobs.spawn(_get_images_and_types, url, context.auth_token)
+            for ret in jobs:
+                results.update(ret)
+        else:
+            LOG.info("Failed to find compute endpoint for %s", context.tenant)
+        return results
 
     def get_catalog(self, context, type_filter=None):
         '''Return stored/override catalog if it exists, else connect, build,
@@ -519,9 +522,9 @@ class Provider(RackspaceComputeProviderBase):
         for key in vals:
             if key == 'flavors':
                 flavors = vals['flavors']
-            if key == 'types':
+            elif key == 'types':
                 types = vals['types']
-            if key == 'images':
+            elif key == 'images':
                 images = vals['images']
 
         if type_filter is None or type_filter == 'compute':
