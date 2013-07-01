@@ -307,6 +307,20 @@ class TestSecrets(unittest.TestCase):
         self.assertIn('secrets', dep)
         self.assertEquals(dep['secrets'], 'AVAILABLE')
 
+    def test_get_deployments_strips_secrets(self):
+        self.driver.get_deployments(tenant_id="T1000", offset=None, limit=None,
+                                    with_deleted=False, status=None)\
+            .AndReturn({'results': {'1': self.deployment}})
+        self.mox.ReplayAll()
+        results = self.manager.get_deployments(tenant_id="T1000")
+        self.mox.VerifyAll()
+
+        out = results['results']['1']
+        self.assertIs(out, self.deployment)
+        outputs = out['display-outputs']
+        self.assertNotIn('value', outputs['Locked Password'])
+        self.assertNotIn('value', outputs['New Password'])
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

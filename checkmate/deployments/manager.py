@@ -65,12 +65,24 @@ class Manager(base.ManagerBase):
                         with_deleted=False, status=None):
         ''' Get existing deployments '''
         return self.driver.get_deployments(
+        results = self.driver.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
             with_deleted=with_deleted,
             status=status
         )
+        #FIXME: inefficient and not fail-safe. We need better secrets handling
+        for dep in results['results'].itervalues():
+            outputs = dep.get('display-outputs')
+            if outputs:
+                for output in outputs.itervalues():
+                    if ('value' in output and
+                            (output.get('status') == 'LOCKED' or
+                             output.get('is-secret') is True)):
+                        del output['value']
+
+        return results
 
     def save_deployment(self, deployment, api_id=None, tenant_id=None,
                         partial=False):
