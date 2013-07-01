@@ -70,7 +70,7 @@ class Config(object):
     group_refs = {}
 
     deployments_path = '/var/local/checkmate/deployments'
-    berkshelf_path = '/var/local/checkmate/cache'
+    berkshelf_path = None  # let consumer calculate it from deployments_path
 
     simulator_connection_string = None
     connection_string = None
