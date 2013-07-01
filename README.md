@@ -18,6 +18,16 @@ The Code
 Rook is built using AngularJS (which uses jQuery) and styled using Twitter
 Bootstrap.
 
+Tests
+-----
+
+1. Ensure you have node installed (http://nodejs.org/)
+2. Ensure you have karma installed (http://karma-runner.github.io/)
+3. In a separate window terminal, run <code>karma start rook/static/test/testacular.conf</code>
+4. Open chrome to http://localhost:9876
+
+Your tests should now run whenever a file change occurs and display the
+output in your terminal window
 
 Rackspace Features
 ------------------
