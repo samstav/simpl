@@ -826,6 +826,31 @@ class DBDriverTests(object):
         }
         self.assertDictEqual(expected, results['results']['1'])
 
+    def test_partial_save_deployment_all_secrets(self):
+        '''Partial where all the keys are secret.'''
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body={'id': '1234'},
+            secrets={'secret': 'SHHH!!!'}
+        )
+        self.driver.save_deployment(
+            '1234',
+            tenant_id='T3',
+            body=None,
+            secrets={'secret': 'NEWWWW!!!'},
+            partial=True,
+        )
+
+        self.assertEquals(
+            {'id': '1234', 'tenantId': 'T3', 'secret': 'NEWWWW!!!'},
+            self.driver.get_deployment('1234', with_secrets=True)
+        )
+        self.assertEquals(
+            {'id': '1234', 'tenantId': 'T3'},
+            self.driver.get_deployment('1234', with_secrets=False)
+        )
+
     #
     #  Blueprints
     #

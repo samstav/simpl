@@ -316,7 +316,9 @@ class Driver(common.DbBase):
             self._deployment_collection_name, api_id)
         is_legacy_resources_format = (
             self._has_legacy_resources(existing_deployment))
-        resources = body.get("resources", None)
+        if body is None:
+            body = {}
+        resources = body.get("resources")
         resource_secrets = {}
         deployment_secrets = None
         if secrets:
@@ -332,7 +334,7 @@ class Driver(common.DbBase):
 
         #If there is a partial update for a single resource don't update the
         # deployment
-        if (len(body) == 1 and body.get('resources', None) and
+        if (len(body) == 1 and body.get('resources') and
                 not is_legacy_resources_format) and not deployment_secrets:
             deployment = existing_deployment
         #Deployment is saved when its a full update or a partial update
@@ -345,12 +347,12 @@ class Driver(common.DbBase):
         if not partial and existing_deployment:
              # Deleting old/orphaned documents
             self._remove_all('resources',
-                             existing_deployment.get('resources', None))
+                             existing_deployment.get('resources'))
             self._remove_all('deployments_secrets', [deployment["id"]])
             self._remove_all('resources_secrets',
-                             existing_deployment.get('resources', None))
+                             existing_deployment.get('resources'))
 
-        if deployment.get('resources', None):
+        if deployment.get('resources'):
             deployment["resources"] = self._dereferenced_resources(deployment)
         return deployment
 
