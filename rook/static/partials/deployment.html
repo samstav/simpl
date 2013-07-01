@@ -142,14 +142,28 @@ Priv Key: {{formatted_data.private_key}}
             <div class="control-group">
               <label class="control-label" for="environment">Environment</label>
               <div class="controls">
-                <input type="text" class="input-xxlarge" readonly id="environment" value="{{data.environment.name}}">
+                <span class='deploy-value'>{{data.environment.name}}</span>
               </div>
             </div>
 
             <div class="control-group">
               <label class="control-label" for="environment">Blueprint</label>
               <div class="controls">
-                <input type="text" class="input-xxlarge" readonly id="blueprint" value="{{data.blueprint.name}}">
+                <span class='deploy-value'>{{data.blueprint.name}}</span>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="created">Created</label>
+              <div class="controls">
+                <span class='deploy-value'>{{data.created | formattedFullDate}}</span>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="created-by">Created By</label>
+              <div class="controls">
+                <span class='deploy-value'>{{data['created-by']}}</span>
               </div>
             </div>
           </fieldset>
