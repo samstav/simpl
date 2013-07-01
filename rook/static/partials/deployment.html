@@ -142,14 +142,28 @@ Priv Key: {{formatted_data.private_key}}
             <div class="control-group">
               <label class="control-label" for="environment">Environment</label>
               <div class="controls">
-                <input type="text" class="input-xxlarge" readonly id="environment" value="{{data.environment.name}}">
+                <span class='deploy-value'>{{data.environment.name}}</span>
               </div>
             </div>
 
             <div class="control-group">
               <label class="control-label" for="environment">Blueprint</label>
               <div class="controls">
-                <input type="text" class="input-xxlarge" readonly id="blueprint" value="{{data.blueprint.name}}">
+                <span class='deploy-value'>{{data.blueprint.name}}</span>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="created">Created</label>
+              <div class="controls">
+                <span class='deploy-value'>{{data.created | formattedFullDate}}</span>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label" for="created-by">Created By</label>
+              <div class="controls">
+                <span class='deploy-value'>{{data['created-by']}}</span>
               </div>
             </div>
           </fieldset>
@@ -164,7 +178,7 @@ Priv Key: {{formatted_data.private_key}}
           <tbody>
             <tr ng-repeat="resource in data.resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
               <td ng-switch="resource.provider">
-                <a ng-switch-when="nova" target="_blank" ng-href="{{CloudControlURL(rresource.region || resource.instance.region)}}/customer/{{data.tenantId}}/next_gen_servers/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-switch-when="nova" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{data.tenantId}}/next_gen_servers/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
                 <a ng-switch-when="legacy" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{data.tenantId}}/first_gen_servers/{{resource.instance.id}}">{{resource['dns-name']}}</a>
                 <a ng-switch-when="load-balancer" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{data.tenantId}}/load_balancers/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
                 <a ng-switch-when="databases" target="_blank" ng-href="{{CloudControlURL(resource.region || resource.instance.region)}}/customer/{{data.tenantId}}/dbaas/instances/{{resource.region || resource.instance.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a>
