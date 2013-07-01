@@ -532,8 +532,11 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     var current_path = $location.path();
     var next_path = current_path;
     var account_number = /^\/[0-9]+/;
+    var admin = /^\/admin/;
     if (current_path.match(account_number)) {
       next_path = current_path.replace(account_number, "/" + auth.context.tenantId);
+    } else if (current_path.match(admin)) {
+      next_path = current_path.replace(admin, "/" + auth.context.tenantId);
     }
     if (current_path == next_path)
       $route.reload();
