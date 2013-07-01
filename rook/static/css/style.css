@@ -547,3 +547,37 @@ a:hover {
   display: block;
   margin-bottom: 5px;
 }
+
+.sidebar-left {
+  margin-top: 35px;
+  margin-left: 0;
+  background-color: #F9F9F9;
+  border: 1px solid #dddddd;
+  height: 100%;
+}
+
+.checkbox-filter {
+  margin-left: 10px;
+}
+
+.checkbox-filter input {
+  margin: 0;
+}
+
+.checkbox-filter-name {
+  vertical-align: middle;
+  padding-left: 5px;
+  font-size: 13px;
+}
+
+.sidebar-heading {
+  text-align: center;
+}
+
+.sidebar-heading h5 {
+  text-transform: uppercase;
+  margin: 0 0 0 10px;
+  padding: 10px 0;
+  text-align: left;
+  font-size: 12px;
+}

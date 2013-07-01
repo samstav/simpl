@@ -91,7 +91,7 @@ filters.filter('capitalize',
   function() {
     return function(input) {
       if(angular.isString(input) && input.length){
-        return input.charAt(0).toUpperCase() + input.slice(1);
+        return input.charAt(0).toUpperCase() + input.slice(1).toLowerCase();
       }
       return input;
     };
