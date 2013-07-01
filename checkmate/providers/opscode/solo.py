@@ -36,10 +36,10 @@ class CompilerCache(BytecodeCache):
 
     def load_bytecode(self, bucket):
         if bucket.key in CODE_CACHE:
-            bucket.code = CODE_CACHE[bucket.key]
+            bucket.bytecode_from_string(CODE_CACHE[bucket.key])
 
     def dump_bytecode(self, bucket):
-        CODE_CACHE[bucket.key] = bucket.code
+        CODE_CACHE[bucket.key] = bucket.bytecode_to_string()
 
 
 def register_scheme(scheme):
