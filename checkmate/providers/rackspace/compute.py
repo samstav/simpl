@@ -612,27 +612,29 @@ class Provider(RackspaceComputeProviderBase):
             region = getattr(context, 'region', None)
             if not region:
                 region = Provider.find_a_region(context.catalog) or 'DFW'
-
+        url = Provider.find_url(context.catalog, region)
+        plugin = AuthPlugin(context.auth_token, url,
+                            auth_source=context.auth_source)
         insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1',
                                                                     'true']
         api = client.Client(context.username, 'ignore', context.tenant,
                             insecure=insecure, auth_system="rackspace",
-                            auth_plugin=AuthPlugin(context, region=region))
+                            auth_plugin=plugin)
         return api
 
 
 class AuthPlugin(object):
     '''Handles auth.'''
-    def __init__(self, context, region=None):
-        assert isinstance(context, RequestContext)
-        self.context = context
-        self.region = region
+    def __init__(self, auth_token, nova_url, auth_source=None):
+        self.token = auth_token
+        self.nova_url = nova_url
+        self.auth_source = auth_source or "http://localhost:35357/v2.0/tokens"
         self.done = False
 
     def get_auth_url(self):
         '''Respond to novaclient auth_url call.'''
         LOG.debug("Nova client called auth_url from plugin")
-        return self.context.auth_source
+        return self.auth_source
 
     def authenticate(self, novaclient, auth_url):  # pylint: disable=W0613
         '''Respond to novaclient authenticate call.'''
@@ -651,23 +653,21 @@ class AuthPlugin(object):
                                               action_required=False)
         else:
             LOG.debug("Nova client called authenticate from plugin")
-            nova_url = Provider.find_url(self.context.catalog, self.region)
-            novaclient.auth_token = self.context.auth_token
-            novaclient.management_url = nova_url
+            novaclient.auth_token = self.token
+            novaclient.management_url = self.nova_url
             self.done = True
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
 def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types.'''
+    plugin = AuthPlugin(auth_token, api_endpoint)
     insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
-    api = client.Client('ignore', 'ignore', None, 'localhost',
-                        insecure=insecure)
-    api.client.auth_token = auth_token
-    api.client.management_url = api_endpoint
-
+    api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
+                        insecure=insecure, auth_system="rackspace",
+                        auth_plugin=plugin)
     ret = {'images': {}, 'types': {}}
-    LOG.info("Calling Nova to get images for %s", api.client.management_url)
+    LOG.info("Calling Nova to get images for %s", api_endpoint)
     images = api.images.list()
     for i in images:
         if 'LAMP' in i.name:
@@ -687,13 +687,12 @@ def _get_images_and_types(api_endpoint, auth_token):
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
     '''Ask Nova for Flavors (RAM, CPU, HDD) options.'''
+    plugin = AuthPlugin(auth_token, api_endpoint)
     insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
-    api = client.Client('ignore', 'ignore', None, 'localhost',
-                        insecure=insecure)
-    api.client.auth_token = auth_token
-    api.client.management_url = api_endpoint
-
-    LOG.info("Calling Nova to get flavors for %s", api.client.management_url)
+    api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
+                        insecure=insecure, auth_system="rackspace",
+                        auth_plugin=plugin)
+    LOG.info("Calling Nova to get flavors for %s", api_endpoint)
     flavors = api.flavors.list()
     return {
         'flavors': {
@@ -710,11 +709,12 @@ def _get_flavors(api_endpoint, auth_token):
 @caching.Cache(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
 def _get_limits(api_endpoint, auth_token):
     '''Retrieve account limits as a dict.'''
+    plugin = AuthPlugin(auth_token, api_endpoint)
     insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
-    api = client.Client('ignore', 'ignore', None, 'localhost',
-                        insecure=insecure)
-    api.client.auth_token = auth_token
-    api.client.management_url = api_endpoint
+    api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
+                        insecure=insecure, auth_system="rackspace",
+                        auth_plugin=plugin)
+    LOG.info("Calling Nova to get limits for %s", api_endpoint)
     api_limits = api.limits.get()
 
     def limits_dict(limits):
