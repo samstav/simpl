@@ -5,7 +5,7 @@ import logging
 import os
 import urlparse
 
-from jinja2 import DictLoader, TemplateError
+from jinja2 import DictLoader, TemplateError, BytecodeCache
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, SafeTransMerge
@@ -28,6 +28,18 @@ from checkmate.utils import merge_dictionary  # Spiff version used by transform
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
                                  "10.24.0")
+CODE_CACHE = {}
+
+
+class CompilerCache(BytecodeCache):
+    '''Cache for compiled template code.'''
+
+    def load_bytecode(self, bucket):
+        if bucket.key in CODE_CACHE:
+            bucket.code = CODE_CACHE[bucket.key]
+
+    def dump_bytecode(self, bucket):
+        CODE_CACHE[bucket.key] = bucket.code
 
 
 def register_scheme(scheme):
@@ -1297,7 +1309,8 @@ class ChefMap(object):
 
         """
         template_map = {'template': template}
-        env = ImmutableSandboxedEnvironment(loader=DictLoader(template_map))
+        env = ImmutableSandboxedEnvironment(loader=DictLoader(template_map),
+                                            bytecode_cache=CompilerCache())
 
         def do_prepend(value, param='/'):
             """
