@@ -1367,7 +1367,6 @@ class TestDeleteDeployments(unittest.TestCase):
         chain.__init__([1, 2, 3, 4])
         self._mox.StubOutWithMock(chain, "apply_async")
         chain.apply_async()
-
         self._mox.ReplayAll()
         router.delete_deployment('1234')
         self._mox.VerifyAll()
