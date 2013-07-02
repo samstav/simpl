@@ -784,6 +784,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             raise CheckmateRetriableException("API limit reached", "",
                                               get_class_name(exc),
                                               action_required=False)
+        raise
     except RateLimit as exc:
         LOG.info("API Limit reached creating a load balancer for deployment "
                  "%s", deployment_id)
