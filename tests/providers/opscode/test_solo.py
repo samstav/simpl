@@ -17,7 +17,6 @@ from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
 from SpiffWorkflow.util import merge_dictionary  # HACK: used by transform
 
 import checkmate
-from checkmate.common import config
 from checkmate.deployment import Deployment
 from checkmate import deployments
 from checkmate.middleware import RequestContext
@@ -25,7 +24,7 @@ from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
 from checkmate import test
 from checkmate import utils
-from checkmate.workflow import create_workflow_deploy
+from checkmate.workflow import create_workflow, create_workflow_spec_deploy
 
 
 LOG = logging.getLogger(__name__)
@@ -328,7 +327,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         '''Verify workflow task creation'''
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        workflow = create_workflow_deploy(self.deployment, context)
+        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow = create_workflow(workflow_spec, self.deployment, context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
@@ -539,7 +539,8 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                                  username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
 
-        workflow = create_workflow_deploy(self.deployment, context)
+        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow = create_workflow(workflow_spec, self.deployment, context)
 
         task_list = workflow.spec.task_specs.keys()
         self.assertNotIn('Collect Chef Data for 0', task_list,
@@ -671,7 +672,8 @@ interfaces/mysql/host
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow = create_workflow_deploy(self.deployment, context)
+        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow = create_workflow(workflow_spec, self.deployment, context)
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',
@@ -991,7 +993,8 @@ interfaces/mysql/database_name
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow = create_workflow_deploy(self.deployment, context)
+        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow = create_workflow(workflow_spec, self.deployment, context)
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
         host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']

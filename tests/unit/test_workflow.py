@@ -8,6 +8,8 @@ For tests, we don't care about:
     W0212 - Access to protected member of a client class
     W0232 - Class has no __init__ method
 '''
+import re
+
 import mox
 import unittest2 as unittest
 
@@ -15,11 +17,18 @@ from SpiffWorkflow.specs import WorkflowSpec, Simple
 from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.Workflow import Workflow
 
-from checkmate import workflow
+from checkmate import workflow, deployments, test
+from checkmate import utils
+from checkmate.deployment import Deployment
+from checkmate.middleware import RequestContext
+from checkmate.providers import base, register_providers
+from checkmate.providers.rackspace import loadbalancer
 from checkmate.workflow import (
     get_errors,
     is_failed_task,
     update_workflow,
+    create_delete_deployment_workflow_spec,
+    create_workflow,
 )
 
 
@@ -31,6 +40,8 @@ class TestWorkflow(unittest.TestCase):
         self.task_without_error = self.mox.CreateMockAnything()
         self.tenant_id = "tenant_id"
         self.task_with_error.id = "task_id"
+        base.PROVIDER_CLASSES = {}
+        register_providers([loadbalancer.Provider, test.TestProvider])
 
     def tearDown(self):
         self.mox.VerifyAll()
@@ -219,6 +230,71 @@ class TestWorkflow(unittest.TestCase):
 
         update_workflow(d_wf, tenant_id=tenant_id, status="PAUSED",
                         driver=mock_driver, workflow_id=w_id)
+
+    def test_create_delete_workflow_with_complete_operation(self):
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        deployment_with_lb_provider = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                tenantId: '1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: http
+                        constraints:
+                          - region: North
+                      relations:
+                        server: http
+                    server:
+                      component:
+                        resource_type: compute
+                operation:
+                  status: COMPLETE
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: http
+                            requires:
+                            - application: http
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            provides:
+                            - application: http
+                            - compute: linux
+            """))
+        deployments.Manager.plan(deployment_with_lb_provider, context)
+        deployment_with_lb_provider['resources']['0']['instance'] = {
+            'id': 'lbid'}
+        workflow_spec = create_delete_deployment_workflow_spec(
+            deployment_with_lb_provider, context)
+        workflow = create_workflow(workflow_spec, deployment_with_lb_provider,
+                                   context)
+        workflow_dump = re.sub("\s", "", workflow.get_dump())
+        expected_dump = """
+1/0: Task of Root State: COMPLETED Children: 1
+  2/0: Task of Start State: READY Children: 1
+    3/0: Task of Delete Loadbalancer (0) State: FUTURE Children: 1
+      4/0: Task of Wait for Loadbalancer (0) delete State: FUTURE
+      Children: 0"""
+        expected_dump = re.sub("\s", "", expected_dump)
+
+        self.assertEqual(expected_dump.strip(), workflow_dump.strip())
 
     def tearDown(self):
         self.mox.VerifyAll()

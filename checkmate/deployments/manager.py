@@ -14,6 +14,9 @@ from SpiffWorkflow.storage import DictionarySerializer
 from .plan import Plan
 from checkmate import base
 from checkmate import db
+from checkmate import operations
+from checkmate import orchestrator
+from checkmate import utils
 from checkmate.deployment import (
     Deployment,
     generate_keys,
@@ -23,10 +26,10 @@ from checkmate.exceptions import (
     CheckmateDoesNotExist,
     CheckmateValidationException,
 )
-from checkmate import operations
-from checkmate import orchestrator
-from checkmate import utils
-from checkmate.workflow import create_workflow_deploy, init_operation
+from checkmate.workflow import (
+    create_workflow,
+    create_workflow_spec_deploy,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -342,13 +345,14 @@ class Manager(base.ManagerBase):
     def create_deploy_operation(self, deployment, context, tenant_id=None):
         '''Create Deploy Operation (Workflow).'''
         api_id = workflow_id = deployment['id']
-        spiff_wf = create_workflow_deploy(deployment, context)
+        spiff_wf_spec = create_workflow_spec_deploy(deployment, context)
+        spiff_wf = create_workflow(spiff_wf_spec, deployment, context)
         spiff_wf.attributes['id'] = workflow_id
         serializer = DictionarySerializer()
         workflow = spiff_wf.serialize(serializer)
-        workflow['id'] = workflow_id  # TODO: need to support multi workflows
+        workflow['id'] = workflow_id
         deployment['workflow'] = workflow_id
-        wf_data = init_operation(spiff_wf, tenant_id=tenant_id)
+        wf_data = operations.init_operation(spiff_wf, tenant_id=tenant_id)
         operation = operations.add_operation(deployment, 'BUILD', **wf_data)
 
         body, secrets = utils.extract_sensitive_data(workflow)
@@ -392,19 +396,6 @@ class Manager(base.ManagerBase):
             }
             self.save_deployment(deployment_body, api_id=deployment_id,
                                  partial=True)
-
-    def create_delete_operation(self, deployment, tenant_id=None):
-        '''Create Delete Operation (Canvas).'''
-        if tenant_id:
-            link = "/%s/canvases/%s" % (tenant_id, deployment['id'])
-        else:
-            link = "/canvases/%s" % deployment['id']
-        task_count = len(deployment.get('resources', {}))
-        operation = operations.add_operation(deployment, 'DELETE', link=link,
-                                             status='NEW',
-                                             tasks=task_count,
-                                             complete=0)
-        return operation
 
     def postback(self, deployment_id, contents):
         #FIXME: we need to receive a context and check access?

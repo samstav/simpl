@@ -495,7 +495,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         return default
 
     # pylint: disable=W0613
-    def delete_resource_tasks(self, context, deployment_id, resource, key):
+    def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
+                              key):
         """Return a celery task/canvas for deleting the resource"""
         LOG.debug("%s.%s.delete_resource_tasks called, "
                   "but was not implemented", self.vendor, self.name)

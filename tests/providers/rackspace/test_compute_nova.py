@@ -404,6 +404,8 @@ class TestNovaCompute(test.ProviderTester):
         mock_server.status = 'ACTIVE'
         mock_server.delete().AndReturn(True)
         mock_servers.get('abcdef-ghig-1234').AndReturn(mock_server)
+        self.mox.StubOutWithMock(compute.resource_postback, 'delay')
+        compute.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
         ret = delete_server_task(context, api=api)
         self.assertDictEqual(expect, ret)
@@ -441,6 +443,8 @@ class TestNovaCompute(test.ProviderTester):
         mock_server = self.mox.CreateMockAnything()
         mock_server.status = 'DELETED'
         mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
+        self.mox.StubOutWithMock(compute.resource_postback, 'delay')
+        compute.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
         ret = wait_on_delete_server(context, api=api)
         self.assertDictEqual(expect, ret)
