@@ -24,10 +24,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session, relationship
 from sqlalchemy.pool import StaticPool
 
-from SpiffWorkflow.util import merge_dictionary as collate
+from SpiffWorkflow import util as swfutil
 import sqlite3
 
-from checkmate.classes import ExtensibleDict
+from checkmate import classes
 from checkmate.db.common import (
     DbBase,
     DEFAULT_RETRIES,
@@ -74,7 +74,6 @@ def _match_operator(compound_value, value_format):
         # enclose single value in single quotes
     value = value_format % compound_value[len(operator):]
     return operator, value
-
 
 
 def _parse_comparison(field, values):
@@ -326,7 +325,7 @@ class Driver(DbBase):
         return self._get_object(Environment, id, with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
-        '''Retrieve all environment records for a given tenant id'''
+        '''Retrieve all environment records for a given tenant id.'''
         return self._get_objects(
             Environment,
             tenant_id,
@@ -391,7 +390,7 @@ class Driver(DbBase):
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       offset=None, limit=None):
-        '''Retrieve all workflows for a given tenant id'''
+        '''Retrieve all workflows for a given tenant id.'''
         return self._get_objects(
             Workflow,
             tenant_id,
@@ -493,7 +492,7 @@ class Driver(DbBase):
         '''
         if body is None:
             body = {}
-        elif isinstance(body, ExtensibleDict):
+        elif isinstance(body, classes.ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by sqlalchemy backend"
 
@@ -555,7 +554,7 @@ class Driver(DbBase):
 
             if merge_existing:
                 saved_body = copy.deepcopy(e.body)
-                collate(saved_body, body)
+                swfutil.merge_dictionary(saved_body, body)
                 e.body = saved_body
             else:  # Merge not specified, so replace
                 e.body = body
@@ -577,7 +576,8 @@ class Driver(DbBase):
                     if not e.secrets:
                         e.secrets = {}
                     new_secrets = copy.deepcopy(e.secrets)
-                    collate(new_secrets, secrets, extend_lists=False)
+                    swfutil.merge_dictionary(
+                        new_secrets, secrets, extend_lists=False)
                     e.secrets = new_secrets
 
         else:
@@ -597,8 +597,9 @@ class Driver(DbBase):
         return body
 
     def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        '''
-        :param klass: the class of the object to unlock.
+        '''Lock an object in the database, returning the object and key.
+
+        :param klass: the class of the object to lock.
         :param api_id: the object's API ID.
         :param with_secrets: true if secrets should be merged into the results.
         :param key: if the object has already been locked, the key used must be
@@ -612,8 +613,7 @@ class Driver(DbBase):
         return self._lock_find_object(klass, api_id, key=key)
 
     def unlock_object(self, klass, api_id, key):
-        '''
-        Unlocks a locked object if the key is correct.
+        '''Unlocks a locked object if the key is correct.
 
         :param klass: the class of the object to unlock.
         :param api_id: the object's API ID.
@@ -636,8 +636,7 @@ class Driver(DbBase):
                                   "not exist." % api_id)
 
     def _lock_find_object(self, klass, api_id, key=None):
-        '''
-        Finds, attempts to lock, and returns an object by id.
+        '''Finds, attempts to lock, and returns an object by id.
 
         :param klass: the class of the object unlock.
         :param api_id: the object's API ID.
@@ -653,7 +652,7 @@ class Driver(DbBase):
         lock_timestamp = time.time()
         if key:
             # The object has already been locked
-            # TODO: see if we can merge the existing key logic into below
+            # TODO(any): see if we can merge the existing key logic into below
             query = self.session.query(klass).filter_by(
                 id=api_id,
                 lock=key
