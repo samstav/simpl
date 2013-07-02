@@ -4,6 +4,7 @@ Driver for SQL ALchemy
 import copy
 import json
 import logging
+import re
 import time
 import uuid
 
@@ -36,7 +37,10 @@ from checkmate.db.common import (
     ObjectLockedError,
     InvalidKeyError
 )
-from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateInvalidParameterError,
+)
 from checkmate import utils
 
 
@@ -44,26 +48,49 @@ __all__ = ['Environment', 'Blueprint', 'Deployment', 'Workflow']
 
 LOG = logging.getLogger(__name__)
 BASE = declarative_base()
+OP_MATCH = '(!|(>|<)[=]*|\(\))'
 
 
-def filter_custom_comparison(query_obj, field, value):
-    '''Return a sqlalchemy filter based on `value`
+def _build_filter(field, op_key, value):
+    '''Translate string with operator and status into mongodb filter.'''
+    op_map = {'!': '!=', '>': '>', '<': '<', '>=': '>=',
+              '<=': '<=', '': '==', '()': 'in'}
+    return "%s %s %s" % (field, op_map[op_key], value)
 
-    The following are accepted forms of filtering:
-        VALUE, !VALUE, >=VALUE, >VALUE, <=VALUE, <VALUE
-    '''
-    if value.startswith('!'):
-        return query_obj.filter("%s != '%s'" % (field, value[1:]))
-    elif field.startswith('>='):
-        return query_obj.filter("%s >= '%s'" % (field, value[2:]))
-    elif field.startswith('>'):
-        return query_obj.filter("%s > '%s'" % (field, value[1:]))
-    elif field.startswith('<='):
-        return query_obj.filter("%s <= '%s'" % (field, value[2:]))
-    elif field.startswith('<'):
-        return query_obj.filter("%s < '%s'" % (field, value[1:]))
+
+def _validate_no_operators(values):
+    '''Filtering on more than one value means no operators allowed!'''
+    for value in values:
+        if re.search(OP_MATCH, value):
+            raise CheckmateInvalidParameterError(
+                'Operators cannot be used when specifying multiple filters.')
+
+
+def _match_operator(compound_value, value_format):
+    op_match = re.search(OP_MATCH, compound_value)
+    operator = ''
+    if op_match:
+        operator = op_match.group(0)
+        # enclose single value in single quotes
+    value = value_format % compound_value[len(operator):]
+    return operator, value
+
+
+
+def _parse_comparison(field, values):
+    '''Return a sqlalchemy filter based on `values`.'''
+    encl_quotes = "'%s'"
+    encl_parens = "(%s)"
+    if isinstance(values, (list, tuple)):
+        if len(values) > 1:
+            _validate_no_operators(values)
+            operator, value = _match_operator(
+                "()'%s'" % "', '".join(values), encl_parens)
+        else:
+            operator, value = _match_operator(values[0], encl_quotes)
     else:
-        return query_obj.filter("%s == '%s'" % (field, value))
+        operator, value = _match_operator(values, encl_quotes)
+    return _build_filter(field, operator, value)
 
 
 class TextPickleType(PickleType):
@@ -446,8 +473,8 @@ class Driver(DbBase):
         if klass is Deployment and (not with_deleted or status):
             if not status:
                 status = "!DELETED"
-            query = filter_custom_comparison(query, 'deployments_status',
-                                             status)
+            query = query_obj.filter(
+                _parse_comparison('deployments_status', status))
         return query
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None):
