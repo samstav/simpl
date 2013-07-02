@@ -24,18 +24,6 @@ describe('AppController', function(){
     mixpanel = { track: sinon.spy() }; // TODO: We are dependent on this being a global var
   });
 
-  describe('#is_admin', function() {
-    it('should return true if auth#is_admin is true', function() {
-      auth.is_admin = sinon.stub().returns(true);
-      expect(scope.is_admin()).toBe(true);
-    });
-
-    it('should return false if auth#is_admin is false', function() {
-      auth.is_admin = sinon.stub().returns(false);
-      expect(scope.is_admin()).toBe(false);
-    });
-  });
-
   it('should display the header', function(){
     expect(scope.showHeader).toBe(true);
   });
@@ -60,7 +48,6 @@ describe('AppController', function(){
       scope.select_endpoint(endpoint);
       expect(localStorage.setItem).toHaveBeenCalledWith('selected_endpoint', '{"uri":"fakeuri"}');
     });
-
   });
 
   describe('#get_selected_endpoint', function() {
@@ -603,7 +590,7 @@ describe('AppController', function(){
     var popover_element, inner_scope;
     beforeEach(function() {
       inner_scope = {tt_isOpen: "somevalue"};
-      popover_element = { remove: sinon.spy(), siblings: sinon.stub().returns([{}]), scope: sinon.stub().returns(inner_scope) }
+      popover_element = { remove: sinon.spy(), siblings: sinon.stub().returns([{}]), scope: sinon.stub().returns(inner_scope) };
       spyOn(angular, 'element').andReturn(popover_element);
       scope.remove_popovers();
     });
@@ -614,6 +601,19 @@ describe('AppController', function(){
 
     it('should set tt_isOpen flags to false', function() {
       expect(inner_scope.tt_isOpen).toBe(false);
+    });
+  });
+
+  describe('#notify', function() {
+    it('should have access to a default empty notification queue', function() {
+      expect(scope.notifications).toEqual([]);
+    });
+
+    it('should push messages to notification queue', function() {
+      scope.notify('fake message 1');
+      scope.notify('fake message 2');
+      scope.notify('fake message 3');
+      expect(scope.notifications.length).toBe(3);
     });
   });
 });

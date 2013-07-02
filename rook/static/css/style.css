@@ -549,3 +549,10 @@ a:hover {
 .tenant_tag .icon.managed { background-image: url("/img/icons/managed_cloud.png"); }
 .tenant_tag .icon.internal { background-image: url("/img/icons/internal_plan.png"); }
 .tenant_tag .icon.rackconnect { background-image: url("/img/icons/rack_connect.png"); }
+
+.deploy-value {
+  padding-top: 5px;
+  line-height: 20px;
+  display: block;
+  margin-bottom: 5px;
+}

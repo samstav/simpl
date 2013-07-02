@@ -12,7 +12,8 @@ describe('WorkflowController', function(){
       scroll,
       deploymentDataParser,
       $timeout,
-      $q;
+      $q,
+      urlBuilder;
 
   beforeEach(function(){
     $scope = { loginPrompt: sinon.stub().returns({ then: emptyFunction }), '$watch': emptyFunction, '$on': sinon.spy() };
@@ -27,7 +28,8 @@ describe('WorkflowController', function(){
     scroll = {};
     $timeout = {};
     $q = { defer: sinon.stub().returns({ resolve: emptyFunction, promise: {} }) };
-    controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser);
+    urlBuilder = {};
+    controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
   });
 
   it('should show status', function(){
@@ -58,19 +60,19 @@ describe('WorkflowController', function(){
 
       it('should return true if status is in progress', function(){
         $scope.$parent.data.operation.status = 'IN PROGRESS';
-        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser);
+        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
         expect($scope.shouldDisplayWorkflowStatus()).toBe(true);
       });
 
       it('should return true if status is paused', function(){
         $scope.$parent.data.operation.status = 'PAUSED';
-        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser);
+        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
         expect($scope.shouldDisplayWorkflowStatus()).toBe(true);
       });
 
       it('should return false if status is not in progress or paused', function(){
         $scope.$parent.data.operation.status = 'DELETED';
-        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser);
+        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
         expect($scope.shouldDisplayWorkflowStatus()).toBe(false);
       });
     });
@@ -82,7 +84,7 @@ describe('WorkflowController', function(){
             { link: '/111/canvases/some_id' }
           }
         };
-        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser);
+        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
         expect($scope.shouldDisplayWorkflowStatus()).toBe(false);
       });
     });
@@ -103,7 +105,7 @@ describe('WorkflowController', function(){
       var data = { wf_spec: ['cat'] };
       var get_spy = sinon.spy();
       $resource = sinon.stub().returns({ get: get_spy });
-      controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q);
+      controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
       var callback = get_spy.getCall(0).args[1];
       callback(data, emptyFunction);
     });
