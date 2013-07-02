@@ -473,7 +473,7 @@ class Driver(DbBase):
         if klass is Deployment and (not with_deleted or status):
             if not status:
                 status = "!DELETED"
-            query = query_obj.filter(
+            query = query.filter(
                 _parse_comparison('deployments_status', status))
         return query
 

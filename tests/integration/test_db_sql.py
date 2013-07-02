@@ -26,20 +26,6 @@ class TestDBSQL(base.DBDriverTests, unittest.TestCase):
          .delete())
         self.driver.session.commit()
 
-    def test_not_depleted_deployment_count_filter(self):
-        query = self.driver.session.query(Deployment)
-        query = checkmate.db.sql.filter_custom_comparison(query,
-                                                          'deployments_status',
-                                                          '!DELETED')
-        self.assertIn("deployments_status != 'DELETED'", str(query))
-
-    def test_active_deployment_count_filter(self):
-        query = self.driver.session.query(Deployment)
-        query = checkmate.db.sql.filter_custom_comparison(query,
-                                                          'deployments_status',
-                                                          'ACTIVE')
-        self.assertIn("deployments_status == 'ACTIVE'", str(query))
-
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
