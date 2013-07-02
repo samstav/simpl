@@ -389,8 +389,7 @@ class Router(object):
             abort(401, "You must be the creator of a deployment or an admin "
                   "to retrieve its secrets")
 
-        data = self.manager.get_deployments_secrets(api_id,
-                                                    tenant_id=tenant_id)
+        data = self.manager.get_deployment_secrets(api_id, tenant_id=tenant_id)
         return utils.write_body(data, request, response)
 
     @with_tenant
