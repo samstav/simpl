@@ -24,18 +24,6 @@ describe('AppController', function(){
     mixpanel = { track: sinon.spy() }; // TODO: We are dependent on this being a global var
   });
 
-  describe('#is_admin', function() {
-    it('should return true if auth#is_admin is true', function() {
-      auth.is_admin = sinon.stub().returns(true);
-      expect(scope.is_admin()).toBe(true);
-    });
-
-    it('should return false if auth#is_admin is false', function() {
-      auth.is_admin = sinon.stub().returns(false);
-      expect(scope.is_admin()).toBe(false);
-    });
-  });
-
   it('should display the header', function(){
     expect(scope.showHeader).toBe(true);
   });
@@ -602,7 +590,7 @@ describe('AppController', function(){
     var popover_element, inner_scope;
     beforeEach(function() {
       inner_scope = {tt_isOpen: "somevalue"};
-      popover_element = { remove: sinon.spy(), siblings: sinon.stub().returns([{}]), scope: sinon.stub().returns(inner_scope) }
+      popover_element = { remove: sinon.spy(), siblings: sinon.stub().returns([{}]), scope: sinon.stub().returns(inner_scope) };
       spyOn(angular, 'element').andReturn(popover_element);
       scope.remove_popovers();
     });

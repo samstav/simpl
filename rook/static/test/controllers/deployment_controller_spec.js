@@ -6,6 +6,7 @@ describe('DeploymentController', function(){
       dialog,
       deploymentDataParser,
       $http,
+      urlBuilder,
       controller;
 
   beforeEach(function(){
@@ -16,7 +17,8 @@ describe('DeploymentController', function(){
     dialog = undefined;
     deploymentDataParser = { formatData: emptyFunction };
     $http = { post: sinon.spy() };
-    controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http);
+    urlBuilder = {};
+    controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder);
   });
 
   it('should show summaries', function(){

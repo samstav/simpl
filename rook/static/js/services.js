@@ -1688,3 +1688,57 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', 'auth', f
 
   return scope;
 }]);
+
+services.factory('urlBuilder', function(){
+  function cloudControlURL(resource_type, resource_id, region, tenant_id){
+    if (!resource_id)
+      return null;
+
+    var host,
+        path,
+        RESOURCE_PATHS = {
+          'server': '/next_gen_servers/',
+          'legacy_server': '/first_gen_servers/',
+          'load_balancer': '/load_balancers/',
+          'database': '/dbaas/instances/'
+        };
+
+    if (region === 'LON') {
+      host = "https://lon.cloudcontrol.rackspacecloud.com";
+    } else {
+      host = "https://us.cloudcontrol.rackspacecloud.com";
+    }
+
+    path = '/customer/' + tenant_id + RESOURCE_PATHS[resource_type] + region + '/' + resource_id;
+
+    return host + path;
+  }
+
+  function myCloudURL(resource_type, username, region, resource_id){
+    if (!resource_id)
+      return null;
+
+    var RESOURCE_PATHS = {
+      'server': '/#compute%2CcloudServersOpenStack%2C',
+      'legacy_server': '/#compute%2CcloudServers%2C',
+      'load_balancer': '/load_balancers#rax%3Aload-balancer%2CcloudLoadBalancers%2C',
+      'database': '/database#rax%3Adatabase%2CcloudDatabases%2C'
+    };
+
+    return 'https://mycloud.rackspace.com/a/' + username + RESOURCE_PATHS[resource_type] + region + '/' + resource_id;
+  }
+
+  function novaStatsURL(region, resource_id){
+    if(region)
+      return 'https://reports.ohthree.com/' + region.toLowerCase() + '/instance/' + resource_id;
+  }
+
+  function sshTo(address){
+    return 'ssh://root@' + address;
+  }
+
+  return { cloudControlURL: cloudControlURL,
+           myCloudURL: myCloudURL,
+           novaStatsURL: novaStatsURL,
+           sshTo: sshTo };
+});
