@@ -137,6 +137,49 @@ class TestAPICalls(unittest.TestCase):
         self.assertEqual(res.status, '202 Accepted')
         self.assertEqual(res.content_type, 'application/json')
 
+    def test_get_deployment_secrets_ok(self):
+        deployment = {
+            'id': '1234',
+            'tenantId': 'T1000',
+        }
+        self.manager.get_deployment('1234', tenant_id="T1000")\
+            .AndReturn(deployment)
+
+        context = self.mox.CreateMockAnything()
+        context.is_admin = True
+        self.mox.StubOutWithMock(bottle.request, "context")
+        bottle.request.context = context
+        data = {'foo': 1}
+        self.manager.get_deployment_secrets('1234', tenant_id="T1000")\
+            .AndReturn(data)
+        self.mox.StubOutWithMock(deployments.router.utils, "write_body")
+        utils.write_body(data, bottle.request, bottle.response).AndReturn(42)
+
+        self.mox.ReplayAll()
+        result = self.router.get_deployment_secrets('1234', tenant_id="T1000")
+        self.assertEqual(42, result)
+
+    def test_get_deployment_secrets_not_admin(self):
+        deployment = {
+            'id': '1234',
+            'tenantId': 'T1000',
+        }
+        self.manager.get_deployment('1234', tenant_id="T1000")\
+            .AndReturn(deployment)
+
+        context = self.mox.CreateMockAnything()
+        context.is_admin = False
+        self.mox.StubOutWithMock(bottle.request, "context")
+        bottle.request.context = context
+        data = {'foo': 1}
+        self.manager.get_deployment_secrets('1234', tenant_id="T1000")\
+            .AndReturn(data)
+        self.mox.StubOutWithMock(deployments.router.utils, "write_body")
+        utils.write_body(data, bottle.request, bottle.response).AndReturn(42)
+
+        self.mox.ReplayAll()
+        with self.assertRaises(bottle.HTTPError):
+            self.router.get_deployment_secrets('1234', tenant_id="T1000")
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
