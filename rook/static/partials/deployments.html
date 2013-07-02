@@ -5,7 +5,7 @@
         <th>ID</th>
         <th>Name</th>
         <th>Blueprint</th>
-        <th ng-cloak ng-show="is_admin()">Tenant</th>
+        <th ng-cloak ng-show="is_admin() && !is_impersonating()">Tenant</th>
         <th>Status</th>
         <th>Created</th>
       </tr>
@@ -15,7 +15,7 @@
         <td><a ng-href="/{{deployment.tenantId}}/deployments/{{deployment.id}}"><i class="icon-picture"></i> {{deployment.id | truncate:10}}</a></td>
         <td>{{deployment.name}}</td>
         <td>{{deployment.blueprint.name}}</td>
-        <td class="tags-row" ng-cloak ng-show="is_admin()">
+        <td class="tags-row" ng-cloak ng-show="is_admin() && !is_impersonating()">
           <span class="dropdown tag-settings">
             <button class="btn btn-mini dropdown-toggle">
               <i class="icon-tags"></i>

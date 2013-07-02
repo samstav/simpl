@@ -1678,7 +1678,10 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', 'auth', f
   };
 
   scope.get = function(id, callback, failure) {
-    if (!auth.is_admin()) return {};
+    if (!auth.is_admin() || auth.is_impersonating()) {
+      failure();
+      return {};
+    }
 
     return Tenant.get({id: id}, callback, failure);
   };
