@@ -5,7 +5,7 @@
         <th>ID</th>
         <th>Name</th>
         <th>Blueprint</th>
-        <th ng-cloak ng-show="is_admin() && !is_impersonating()">Tenant</th>
+        <th ng-show="is_admin() && !is_impersonating()">Tenant</th>
         <th>Status</th>
         <th>Created</th>
       </tr>
@@ -18,7 +18,7 @@
         </td>
         <td>{{deployment.name}}</td>
         <td>{{deployment.blueprint.name}}</td>
-        <td>
+        <td ng-show="is_admin() && !is_impersonating()">
           {{deployment.tenantId}}
           <span class="tenant_tag" ng-repeat="tag in tenant_tags(deployment.tenantId)" ng-show="!is_impersonating()">
             <i class="icon {{tag | lowercase}}" tooltip="{{tag}}"></i>

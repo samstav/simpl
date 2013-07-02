@@ -130,6 +130,43 @@ describe('DeploymentListController', function(){
     });
   });
 
+  describe('#all_tags', function() {
+    beforeEach(function() {
+      scope.default_tags = ['a', 'b', 'c'];
+      scope.__tenants = {
+        123: { tags: ['x', 'y'] },
+        456: { tags: ['x', 'z'] },
+        789: { tags: ['y', 'z'] }
+      };
+    });
+
+    it('should return the default tags if no tenants have been retrieved', function() {
+      scope.__tenants = {};
+      expect(scope.all_tags()).toEqual(['a', 'b', 'c']);
+    });
+
+    it('should return the default tags if tenants have no tags', function() {
+      scope.__tenants[123].tags = [];
+      scope.__tenants[456].tags = [];
+      scope.__tenants[789].tags = [];
+      expect(scope.all_tags()).toEqual(['a', 'b', 'c']);
+    });
+
+    it('should return all current tags', function() {
+      expect(scope.all_tags()).toEqual(['a', 'b', 'c', 'x', 'y', 'z']);
+    });
+
+    it('should return default tags first', function() {
+      var tags = scope.all_tags();
+      expect(tags.splice(0, 3)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('should return custom tags last', function() {
+      var tags = scope.all_tags();
+      expect(tags.splice(3, 3)).toEqual(['x', 'y', 'z']);
+    });
+  });
+
   describe('#get_tenant', function() {
     it('should return cached tenant if one exists', function() {
       scope.__tenants['123'] = { id: 123 };

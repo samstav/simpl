@@ -3,20 +3,25 @@
     <i class="icon-wrench"></i>
   </button>
   <ul class="dropdown-menu">
+
     <li class="nav-header">
-      Deployment
+      <i class="icon-picture"></i> Deployment
     </li>
     <li><a ng-click="sync(deployment)">Update</a></li>
 
-    <li class="divider" ng-hide="is_impersonating()"></li>
-    <li class="nav-header" ng-hide="is_impersonating()">
-      <i class="icon-tags"></i>
-      Tenant Tags
+    <li class="divider" ng-show="is_admin() && !is_impersonating()"></li>
+    <li class="nav-header" ng-show="is_admin() && !is_impersonating()">
+      <i class="icon-tags"></i> Tenant Tags
     </li>
-    <li ng-repeat="tag in default_tags" ng-hide="is_impersonating()">
-      <a ng-click="toggle_tag(deployment.tenantId, tag)">
+    <li ng-repeat="tag in all_tags()" ng-show="is_admin() && !is_impersonating()">
+      <a ng-click="toggle_tag(deployment.tenantId, tag)" cm-stop-click-propagation>
         {{tag}}<i class="icon-remove pull-right" ng-show="has_tag(deployment.tenantId, tag)"></i>
       </a>
+    </li>
+    <li ng-show="is_admin() && !is_impersonating()">
+      <form ng-submit="toggle_tag(deployment.tenantId, tenant.new_tag); tenant.new_tag = ''">
+        <input ng-model="tenant.new_tag" type="text" placeholder="Custom tag..." class="new_tag" cm-stop-click-propagation />
+      </form>
     </li>
 
   </ul>
