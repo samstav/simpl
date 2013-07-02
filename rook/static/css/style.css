@@ -515,16 +515,6 @@ a:hover {
 }
 
 /* Deployment List */
-.tags-row { min-width: 80px; }
-.deployment .tag-settings { display: none; }
-.deployment:hover .tag-settings { display: inline; }
-.deployment .tag-settings:hover { display: inline; }
-.tag-settings {
-  margin-left: -30px;
-}
-.tag-settings .new-tag {
-  margin: 0 20px 0;
-}
 .tenant_tag {
   margin-right: 5px;
 }

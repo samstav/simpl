@@ -12,24 +12,15 @@
     </thead>
     <tbody>
       <tr ng-repeat="deployment in items | orderBy:'-created'" class="deployment">
-        <td><a ng-href="/{{deployment.tenantId}}/deployments/{{deployment.id}}"><i class="icon-picture"></i> {{deployment.id | truncate:10}}</a></td>
+        <td>
+          <ng-include src="'/partials/deployment_settings.html'"></ng-include>
+          <a ng-href="/{{deployment.tenantId}}/deployments/{{deployment.id}}">{{deployment.id | truncate:15}}</a>
+        </td>
         <td>{{deployment.name}}</td>
         <td>{{deployment.blueprint.name}}</td>
-        <td class="tags-row" ng-cloak ng-show="is_admin() && !is_impersonating()">
-          <span class="dropdown tag-settings">
-            <button class="btn btn-mini dropdown-toggle">
-              <i class="icon-tags"></i>
-            </button>
-            <ul class="dropdown-menu">
-              <li ng-repeat="tag in default_tags">
-                <a ng-click="toggle_tag(deployment.tenantId, tag)">
-                  {{tag}}<i class="icon-remove pull-right" ng-show="has_tag(deployment.tenantId, tag)"></i>
-                </a>
-              </li>
-            </ul>
-          </span>
+        <td>
           {{deployment.tenantId}}
-          <span class="tenant_tag" ng-repeat="tag in tenant_tags(deployment.tenantId)">
+          <span class="tenant_tag" ng-repeat="tag in tenant_tags(deployment.tenantId)" ng-show="!is_impersonating()">
             <i class="icon {{tag | lowercase}}" tooltip="{{tag}}"></i>
             <span class="label {{tag | lowercase}}">{{tag}}</span>
           </span>
@@ -42,7 +33,9 @@
             <span>{{deployment.display_status}}</span>
           </div>
         </td>
-        <td>{{deployment.created | formattedFullDate}}<span ng-cloak ng-show="deployment.created_by"> by {{deployment.created_by}}</span> <button ng-cloak ng-show="is_admin()" class="btn btn-mini btn-info pull-right" type="button" ng-click="sync(deployment)">sync</button></td>
+        <td>
+          {{deployment.created | formattedFullDate}}<span ng-cloak ng-show="deployment.created_by"> by {{deployment.created_by}}</span>
+        </td>
       </tr>
     </tbody>
   </table>

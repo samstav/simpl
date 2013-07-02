@@ -1,0 +1,23 @@
+<span class="dropdown">
+  <button class="btn btn-mini dropdown-toggle">
+    <i class="icon-wrench"></i>
+  </button>
+  <ul class="dropdown-menu">
+    <li class="nav-header">
+      Deployment
+    </li>
+    <li><a ng-click="sync(deployment)">Update</a></li>
+
+    <li class="divider" ng-hide="is_impersonating()"></li>
+    <li class="nav-header" ng-hide="is_impersonating()">
+      <i class="icon-tags"></i>
+      Tenant Tags
+    </li>
+    <li ng-repeat="tag in default_tags" ng-hide="is_impersonating()">
+      <a ng-click="toggle_tag(deployment.tenantId, tag)">
+        {{tag}}<i class="icon-remove pull-right" ng-show="has_tag(deployment.tenantId, tag)"></i>
+      </a>
+    </li>
+
+  </ul>
+</span>
