@@ -49,7 +49,7 @@ def _validate_no_operators(fields):
                 'Operators cannot be used when specifying multiple filters.')
 
 
-def parse_comparison(fields):
+def _parse_comparison(fields):
     '''Return a MongoDB filter by looking for comparisons in `fields`.'''
     if isinstance(fields, (list, tuple)):
         if len(fields) > 1:
@@ -818,7 +818,7 @@ class Driver(common.DbBase):
                 not with_deleted or status):
             if not status:
                 status = "!DELETED"
-            filters['status'] = parse_comparison(status)
+            filters['status'] = _parse_comparison(status)
         return filters
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
