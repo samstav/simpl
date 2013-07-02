@@ -2208,7 +2208,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
  * Deployment controllers
  */
 //Deployment list
-function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -2266,7 +2266,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, created_by: item['created-by'], tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment, operation: item.operation,
-                status: item.status};
+                status: item.status, display_status: Deployment.status(item)};
       });
       $scope.count = items.count;
       $scope.items = items.all;
@@ -2913,7 +2913,7 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder) {
+function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder, Deployment) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -2956,8 +2956,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
     this.klass.get($routeParams, function(data, getResponseHeaders){
-      $scope.data = data;
       $scope.data_json = JSON.stringify(data, null, 2);
+
+      data.display_status = Deployment.status(data);
+      $scope.data = data;
       $scope.formatted_data = deploymentDataParser.formatData(data);
       $scope.abs_url = $location.absUrl();
       $scope.clippy_element = "#deployment_summary_clipping";
@@ -2987,22 +2989,6 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     }
 
     return percentage;
-  };
-
-  $scope.operation_status = function() {
-    return $scope.data.operation && $scope.data.operation.status;
-  };
-
-  $scope.deployment_status = function() {
-    var status = $scope.data.status;
-    var stop_statuses = ['COMPLETE', 'ERROR'];
-
-    // if there's an operation running, override status:
-    if ($scope.data.operation && stop_statuses.indexOf($scope.operation_status()) === -1) {
-      status = $scope.data.operation.type;
-    }
-
-    return status;
   };
 
   $scope.is_resumable = function() {

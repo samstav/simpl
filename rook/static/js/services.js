@@ -1742,3 +1742,18 @@ services.factory('urlBuilder', function(){
            novaStatsURL: novaStatsURL,
            sshTo: sshTo };
 });
+
+angular.module('checkmate.services').factory('Deployment', function(){
+  function status(deployment) {
+    var status = deployment.status;
+    var stop_statuses = ['COMPLETE', 'ERROR'];
+
+    // if there's an operation running, override status:
+    if (deployment.operation && stop_statuses.indexOf(deployment.operation.status) === -1) {
+      status = deployment.operation.type;
+    }
+
+    return status;
+  }
+  return { status: status };
+});

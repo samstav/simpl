@@ -18,7 +18,8 @@ describe('DeploymentController', function(){
     deploymentDataParser = { formatData: emptyFunction };
     $http = { post: sinon.spy() };
     urlBuilder = {};
-    controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder);
+    Deployment = { status: emptyFunction };
+    controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment);
   });
 
   it('should show summaries', function(){
@@ -107,47 +108,6 @@ describe('DeploymentController', function(){
       it('should return 100 if all tasks are complete', function() {
         $scope.data.operation.complete = 78;
         expect($scope.operation_progress()).toBe(100);
-      });
-    });
-  });
-
-  describe('#operation_status', function() {
-    it('should return undefined if no operation exists', function() {
-      expect($scope.operation_status()).toBe(undefined);
-    });
-
-    it('should return operation status if an operation exists', function() {
-      $scope.data.operation = { status: 'fakestatus' };
-      expect($scope.operation_status()).toBe('fakestatus');
-    });
-  });
-
-  describe('#deployment_status', function() {
-    it('should return deployment status', function() {
-      $scope.data.status = 'deployment_fakestatus';
-      expect($scope.deployment_status()).toBe('deployment_fakestatus');
-    });
-
-    describe('when operation exists', function() {
-      beforeEach(function() {
-        $scope.data.status = 'deployment_fakestatus';
-        $scope.data.operation = { type: 'operation_faketype', status: 'operation_fakestatus' };
-        $scope.operation_status = sinon.stub();
-      });
-
-      it('should return deployment status if operation is COMPLETE', function() {
-        $scope.operation_status.returns('COMPLETE');
-        expect($scope.deployment_status()).toBe('deployment_fakestatus');
-      });
-
-      it('should return deployment status if operation is ERROR', function() {
-        $scope.operation_status.returns('ERROR');
-        expect($scope.deployment_status()).toBe('deployment_fakestatus');
-      });
-
-      it('should return the operation type if operation is running', function() {
-        $scope.operation_status.returns('fakestatus_running');
-        expect($scope.deployment_status()).toBe('operation_faketype');
       });
     });
   });
