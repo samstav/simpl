@@ -48,7 +48,7 @@ __all__ = ['Environment', 'Blueprint', 'Deployment', 'Workflow']
 
 LOG = logging.getLogger(__name__)
 BASE = declarative_base()
-OP_MATCH = '(!|(>|<)[=]*|\(\))'
+OP_MATCH = r'(!|(>|<)[=]*|\(\))'
 
 
 def _build_filter(field, op_key, value):
@@ -67,6 +67,7 @@ def _validate_no_operators(values):
 
 
 def _match_operator(compound_value, value_format):
+    '''Look for an operator and split it out in a string.'''
     op_match = re.search(OP_MATCH, compound_value)
     operator = ''
     if op_match:
@@ -280,7 +281,8 @@ class Driver(DbBase):
             ret.update({tenant.id: self._fix_tenant(tenant)})
         return ret
 
-    def _fix_tenant(self, tenant):
+    @staticmethod
+    def _fix_tenant(tenant):
         '''Rearrange tag information in tenant record.'''
         if tenant:
             tags = [tag.tag for tag in tenant.tags or []]
@@ -320,9 +322,9 @@ class Driver(DbBase):
             raise CheckmateException("Must provide a tenant with a tenant id")
 
     # ENVIRONMENTS
-    def get_environment(self, id, with_secrets=None):
+    def get_environment(self, api_id, with_secrets=None):
         '''Retrieve an environment by environment id.'''
-        return self._get_object(Environment, id, with_secrets=with_secrets)
+        return self._get_object(Environment, api_id, with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
         '''Retrieve all environment records for a given tenant id.'''
@@ -332,14 +334,14 @@ class Driver(DbBase):
             with_secrets=with_secrets
         )
 
-    def save_environment(self, id, body, secrets=None, tenant_id=None):
+    def save_environment(self, api_id, body, secrets=None, tenant_id=None):
         '''Save an environment to the database.'''
-        return self._save_object(Environment, id, body, secrets, tenant_id)
+        return self._save_object(Environment, api_id, body, secrets, tenant_id)
 
     # DEPLOYMENTS
-    def get_deployment(self, id, with_secrets=None):
+    def get_deployment(self, api_id, with_secrets=None):
         '''Retrieve a deployment by deployment id.'''
-        return self._get_object(Deployment, id, with_secrets=with_secrets)
+        return self._get_object(Deployment, api_id, with_secrets=with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None, offset=None,
                         limit=None, with_count=True, with_deleted=False,
@@ -356,12 +358,12 @@ class Driver(DbBase):
             status=status
         )
 
-    def save_deployment(self, id, body, secrets=None, tenant_id=None,
+    def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=False):
         '''Save a deployment to the database.'''
         return self._save_object(
             Deployment,
-            id,
+            api_id,
             body,
             secrets,
             tenant_id,
@@ -369,9 +371,9 @@ class Driver(DbBase):
         )
 
     #BLUEPRINTS
-    def get_blueprint(self, id, with_secrets=None):
+    def get_blueprint(self, api_id, with_secrets=None):
         '''Retrieve a blueprint by blueprint id.'''
-        return self._get_object(Blueprint, id, with_secrets=with_secrets)
+        return self._get_object(Blueprint, api_id, with_secrets=with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None, limit=None,
                        offset=None, with_count=True):
@@ -384,9 +386,9 @@ class Driver(DbBase):
         return self._save_object(Blueprint, api_id, body, secrets, tenant_id)
 
     # WORKFLOWS
-    def get_workflow(self, id, with_secrets=None):
+    def get_workflow(self, api_id, with_secrets=None):
         '''Retrieve a workflow by workflow id.'''
-        return self._get_object(Workflow, id, with_secrets=with_secrets)
+        return self._get_object(Workflow, api_id, with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       offset=None, limit=None):
@@ -398,9 +400,9 @@ class Driver(DbBase):
             offset=offset, limit=limit
         )
 
-    def save_workflow(self, id, body, secrets=None, tenant_id=None):
+    def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
         '''Save a workflow to the database.'''
-        return self._save_object(Workflow, id, body, secrets, tenant_id)
+        return self._save_object(Workflow, api_id, body, secrets, tenant_id)
 
     def unlock_workflow(self, api_id, key):
         '''Remove a lock from a workflow.'''
@@ -412,9 +414,9 @@ class Driver(DbBase):
                                 key=key)
 
     # GENERIC
-    def _get_object(self, klass, id, with_secrets=None):
+    def _get_object(self, klass, api_id, with_secrets=None):
         '''Retrieve a record by id from a given table.'''
-        results = self.session.query(klass).filter_by(id=id)
+        results = self.session.query(klass).filter_by(id=api_id)
         if results and results.count() > 0:
             first = results.first()
             body = first.body
@@ -466,7 +468,9 @@ class Driver(DbBase):
                 klass, tenant_id, with_deleted, status)
         return response
 
-    def _add_filters(self, klass, query, tenant_id, with_deleted, status=None):
+    @staticmethod
+    def _add_filters(klass, query, tenant_id, with_deleted, status=None):
+        '''Apply status filters to query.'''
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
         if klass is Deployment and (not with_deleted or status):
@@ -477,6 +481,7 @@ class Driver(DbBase):
         return query
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None):
+        '''Determine how many items based on filter and return the count.'''
         return self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted,
             status).count()
@@ -549,50 +554,50 @@ class Driver(DbBase):
                 tries += 1
 
         if results and results.count() > 0:
-            e = results.first()
-            e.locked = 0
+            entry = results.first()
+            entry.locked = 0
 
             if merge_existing:
-                saved_body = copy.deepcopy(e.body)
+                saved_body = copy.deepcopy(entry.body)
                 swfutil.merge_dictionary(saved_body, body)
-                e.body = saved_body
+                entry.body = saved_body
             else:  # Merge not specified, so replace
-                e.body = body
+                entry.body = body
 
             if tenant_id:
-                e.tenant_id = tenant_id
+                entry.tenant_id = tenant_id
             elif "tenantId" in body:
-                e.tenant_id = body.get("tenantId")
+                entry.tenant_id = body.get("tenantId")
 
-            assert klass is Blueprint or tenant_id or e.tenant_id,\
+            assert klass is Blueprint or tenant_id or entry.tenant_id, \
                 "tenantId must be specified"
 
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s", klass.__name__,
                                 api_id)
-                    e.secrets = None
+                    entry.secrets = None
                 else:
-                    if not e.secrets:
-                        e.secrets = {}
-                    new_secrets = copy.deepcopy(e.secrets)
+                    if not entry.secrets:
+                        entry.secrets = {}
+                    new_secrets = copy.deepcopy(entry.secrets)
                     swfutil.merge_dictionary(
                         new_secrets, secrets, extend_lists=False)
-                    e.secrets = new_secrets
+                    entry.secrets = new_secrets
 
         else:
             assert klass is Blueprint or tenant_id or 'tenantId' in body, \
                 "tenantId must be specified"
             #new item
-            e = klass(id=api_id, body=body, tenant_id=tenant_id,
+            entry = klass(id=api_id, body=body, tenant_id=tenant_id,
                       secrets=secrets, locked=0)
 
         # As of v0.13, status is saved in Deployment object
         if klass is Deployment:
-            e.status = body.get('status')
-            e.created = body.get('created')
+            entry.status = body.get('status')
+            entry.created = body.get('created')
 
-        self.session.add(e)
+        self.session.add(entry)
         self.session.commit()
         return body
 
