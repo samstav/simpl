@@ -2,7 +2,7 @@
 '''
 Test Tenant Manager
 '''
-import unittest2 as unittest
+import unittest
 
 import mox
 

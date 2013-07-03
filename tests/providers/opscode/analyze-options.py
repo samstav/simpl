@@ -4,7 +4,7 @@ import logging
 import os
 from string import Template
 import sys
-import unittest2 as unittest
+import unittest
 
 from prettytable import PrettyTable
 from SpiffWorkflow.specs import Transform, TransMerge

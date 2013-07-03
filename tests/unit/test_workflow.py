@@ -11,7 +11,7 @@ For tests, we don't care about:
 import re
 
 import mox
-import unittest2 as unittest
+import unittest
 
 from SpiffWorkflow.specs import WorkflowSpec, Simple
 from SpiffWorkflow.storage import DictionarySerializer

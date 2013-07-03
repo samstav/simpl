@@ -3,7 +3,7 @@ import copy
 import json
 import logging
 import os
-import unittest2 as unittest
+import unittest
 
 import bottle
 from bottle import HTTPError

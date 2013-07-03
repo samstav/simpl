@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 import mock
 import statsd as py_statsd
-import unittest2 as unittest
+import unittest
 
 from checkmate.common import config
 from checkmate.common import statsd

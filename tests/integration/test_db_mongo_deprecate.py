@@ -3,7 +3,7 @@ import copy
 import logging
 import uuid
 import time
-import unittest2 as unittest
+import unittest
 
 try:
     from mongobox import MongoBox

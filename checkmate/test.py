@@ -3,7 +3,7 @@
 import json
 import logging
 import os
-import unittest2 as unittest
+import unittest
 import uuid
 
 import bottle
@@ -178,7 +178,7 @@ def run_with_params(args):
     this logic so it can be used in any test.
 
     '''
-    import unittest2 as unittest
+    import unittest
 
     # Our --debug means --verbose for unitest
     if '--debug' in args:

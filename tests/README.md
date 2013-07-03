@@ -3,7 +3,7 @@
 There are many reasons for keeping tests well categorized, but these are some we value.
 
 ### Unit Tests
-Even though all of the tests in this directory are written using unittest2, there are tests that embody the term Unit Test. They have the following characteristics:
+Even though all of the tests in this directory are written using unittest, there are tests that embody the term Unit Test. They have the following characteristics:
 
 - They're fast! An individual unit test test case will likely run in a sub-millisecond timeframe on today's hardware. The entire Unit Test test suite (likely thousands of individual test cases) should run in less than 8 seconds. It's like a test rodeo!
 - They're small. You won't see a lot of mocking (though there may be a very light, often hand-rolled mock or two) and you won't see a lot of setup or imports. The tests are concise and highly focused.

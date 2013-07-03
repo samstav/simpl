@@ -3,7 +3,7 @@ import copy
 import re
 import string
 import time
-import unittest2 as unittest
+import unittest
 import uuid
 import mox
 

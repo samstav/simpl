@@ -1,5 +1,5 @@
 import mox
-import unittest2 as unittest
+import unittest
 
 from checkmate.db.db_lock import DbLock
 

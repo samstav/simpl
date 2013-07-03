@@ -9,7 +9,7 @@ For tests, we don't care about:
     W0232 - Class has no __init__ method
 '''
 
-import unittest2 as unittest
+import unittest
 
 import mox
 

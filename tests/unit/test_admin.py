@@ -1,7 +1,7 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,E1101,E1103
 import json
 import logging
-import unittest2 as unittest
+import unittest
 
 import bottle
 import mox
