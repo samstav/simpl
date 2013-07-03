@@ -34,7 +34,14 @@
             <span class="label {{tag | lowercase}}">{{tag}}</span>
           </span>
         </td>
-        <td><span class="label" ng-class="{'label-success': deployment.status == 'UP', 'label-important': deployment.status == 'FAILED', 'label-inverse': deployment.status == 'DELETED'}">{{deployment.status}}</span></td>
+        <td>
+          <div class="progress deploy_progress">
+            <div class="bar" ng-style="{width: ((deployment.operation.complete/deployment.operation.tasks) * 100 || '0') + '%'}"
+              ng-class="{'bar-success': deployment.status == 'UP'}">
+            </div>
+            <span>{{deployment.display_status}}</span>
+          </div>
+        </td>
         <td>{{deployment.created | formattedFullDate}}<span ng-cloak ng-show="deployment.created_by"> by {{deployment.created_by}}</span> <button ng-cloak ng-show="is_admin()" class="btn btn-mini btn-info pull-right" type="button" ng-click="sync(deployment)">sync</button></td>
       </tr>
     </tbody>
