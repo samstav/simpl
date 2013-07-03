@@ -703,4 +703,55 @@ describe('auth Service', function(){
       expect($rootScope.$broadcast).not.toHaveBeenCalled();
     });
   });
+
+  describe('cache', function() {
+    it('should default to an emtpy object', function() {
+      expect(this.auth.cache).toEqual({});
+    });
+  });
+
+  describe('#cache_context', function() {
+    it('should do nothing if context is empty', function() {
+      this.auth.cache_context();
+      expect(this.auth.cache).toEqual({});
+    });
+
+    it('should initialize cache contexts', function() {
+      this.auth.cache_context({});
+      expect(this.auth.cache.contexts).toEqual({});
+    });
+
+    it('should store context in cache under tenantId key', function() {
+      this.auth.cache_context({ tenantId: 666 });
+      expect(this.auth.cache.contexts[666]).toEqual({ tenantId: 666 });
+    });
+
+    it('should store context in cache under username key', function() {
+      this.auth.cache_context({ username: 'fakeusername' });
+      expect(this.auth.cache.contexts['fakeusername']).toEqual({ username: 'fakeusername' });
+    });
+
+    it('should return the cached context', function() {
+      var context = this.auth.cache_context({ username: 'fakeusername' });
+      expect(context).toEqual({ username: 'fakeusername' });
+    });
+  });
+
+  describe('#get_cached_context', function() {
+    it('should return undefined if username or tenantId are not in cache', function() {
+      expect(this.auth.get_cached_context('fakeusername')).toEqual(undefined);
+      expect(this.auth.get_cached_context(666)).toEqual(undefined);
+    });
+
+    it('should return the context by tenantId', function() {
+      this.auth.cache.contexts = { 'fakeusername': { username: 'fakeusername' } };
+      expect(this.auth.get_cached_context('fakeusername')).toEqual({username: 'fakeusername'});
+    });
+
+    it('should return the context by username', function() {
+      this.auth.cache.contexts = { 666: { tenantId: 666 } };
+      expect(this.auth.get_cached_context(666)).toEqual({tenantId: 666});
+    });
+
+  });
 });

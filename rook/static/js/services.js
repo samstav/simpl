@@ -1157,6 +1157,23 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return false;
     },
 
+    cache_context: function(context) {
+      if (!context) return;
+
+      if (!auth.cache.contexts)
+        auth.cache.contexts = {};
+
+      if (context.username) auth.cache.contexts[context.username] = context;
+      if (context.tenantId) auth.cache.contexts[context.tenantId] = context;
+
+      return context;
+    },
+
+    get_cached_context: function(username_or_tenant_id) {
+      if (!auth.cache.contexts) return;
+      return auth.cache.contexts[username_or_tenant_id];
+    },
+
     exit_impersonation: function() {
       auth.context = _.clone(auth.identity.context);
       auth.check_state();
@@ -1182,6 +1199,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
               auth.context.regions = auth.get_regions(re_auth_response.data);
               auth.context.impersonated = true;
               auth.cache_tenant(auth.context);
+              auth.cache_context(auth.context);
               auth.save();
               auth.check_state();
               deferred.resolve('Impersonation Successful!');
