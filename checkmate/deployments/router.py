@@ -10,23 +10,22 @@ import os
 import uuid
 
 #pylint: disable=E0611
-from bottle import abort, request, response
-from celery import chord
+import bottle
+import celery
 from SpiffWorkflow.storage import DictionarySerializer
 
-from .plan import Plan
-from checkmate import utils
-from checkmate import db
 from checkmate.common import tasks as common_tasks
-from checkmate.deployment import Deployment
+from checkmate import db
+from checkmate import deployment as cmdeploy
+from checkmate.deployments import plan
 from checkmate.deployments import tasks
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,
     CheckmateValidationException,
 )
-from checkmate.utils import with_tenant, formatted_response
-from checkmate.workflow import create_workflow_spec_deploy
+from checkmate import utils
+from checkmate import workflow
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -53,7 +52,7 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
         entity['id'] = deployment_id or uuid.uuid4().hex
     if db.any_id_problems(entity['id']):
         raise CheckmateValidationException(db.any_id_problems(entity['id']))
-    deployment = Deployment(entity)  # Also validates syntax
+    deployment = cmdeploy.Deployment(entity)  # Also validates syntax
     if 'includes' in deployment:
         del deployment['includes']
     if 'tenantId' in deployment and tenant_id:
@@ -71,15 +70,17 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
 def write_deploy_headers(deployment_id, tenant_id=None):
     '''Write new resource location and link headers.'''
     if tenant_id:
-        response.add_header('Location', "/%s/deployments/%s" % (tenant_id,
-                                                                deployment_id))
-        response.add_header('Link', '</%s/workflows/%s>; '
-                            'rel="workflow"; title="Deploy"' % (tenant_id,
-                                                                deployment_id))
+        bottle.response.add_header('Location', "/%s/deployments/%s" %
+                                   (tenant_id, deployment_id))
+        bottle.response.add_header('Link', '</%s/workflows/%s>; '
+                                   'rel="workflow"; title="Deploy"' %
+                                   (tenant_id, deployment_id))
     else:
-        response.add_header('Location', "/deployments/%s" % deployment_id)
-        response.add_header('Link', '</workflows/%s>; '
-                            'rel="workflow"; title="Deploy"' % deployment_id)
+        bottle.response.add_header(
+            'Location', "/deployments/%s" % deployment_id)
+        bottle.response.add_header('Link', '</workflows/%s>; '
+                                   'rel="workflow"; title="Deploy"' %
+                                   deployment_id)
 
 
 class Router(object):
@@ -127,78 +128,83 @@ class Router(object):
         app.route('/deployments/<api_id>/resources/<rid>', 'GET',
                   self.get_resource)
 
-    @with_tenant
-    @formatted_response('deployments', with_pagination=True)
+    @utils.with_tenant
+    @utils.formatted_response('deployments', with_pagination=True)
     def get_deployments(self, tenant_id=None, offset=None, limit=None):
         '''Get existing deployments.'''
-        show_deleted = request.query.get('show_deleted')
-        status = request.query.get('status')
+        show_deleted = bottle.request.query.get('show_deleted')
+        statuses = bottle.request.query.getall('status')
         return self.manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
             with_deleted=show_deleted == '1',
-            status=status
+            status=statuses
         )
 
-    @with_tenant
+    @utils.with_tenant
     def post_deployment(self, tenant_id=None):
         '''Creates deployment and workflow based on sent information
         and triggers workflow execution.
         '''
-        deployment = _content_to_deployment(request, tenant_id=tenant_id)
-        if request.context.simulation is True:
+        deployment = _content_to_deployment(
+            bottle.request, tenant_id=tenant_id)
+        if bottle.request.context.simulation is True:
             deployment['id'] = 'simulate%s' % uuid.uuid4().hex[0:12]
         api_id = str(deployment['id'])
-        if request.query.get('asynchronous') == '1':
+        if bottle.request.query.get('asynchronous') == '1':
             self.manager.save_deployment(deployment, api_id=api_id,
                                          tenant_id=tenant_id)
-            request_context = copy.deepcopy(request.context)
+            request_context = copy.deepcopy(bottle.request.context)
             tasks.process_post_deployment.delay(deployment, request_context)
         else:
-            tasks.process_post_deployment(deployment, request.context,
+            tasks.process_post_deployment(deployment, bottle.request.context,
                                           driver=self.manager
                                           .select_driver(api_id))
-        response.status = 202
+        bottle.response.status = 202
         write_deploy_headers(api_id, tenant_id=tenant_id)
-        return utils.write_body(deployment, request, response)
+        return utils.write_body(deployment, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def simulate(self, tenant_id=None):
         '''Run a simulation.'''
-        request.context.simulation = True
+        bottle.request.context.simulation = True
         return self.post_deployment(tenant_id=tenant_id)
 
-    @with_tenant
+    @utils.with_tenant
     def get_count(self, tenant_id=None):
         '''Get existing deployment count.'''
         result = self.manager.count(tenant_id=tenant_id)
-        return utils.write_body({'count': result}, request, response)
+        return utils.write_body(
+            {'count': result}, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def parse_deployment(self, tenant_id=None):
         '''Parse a deployment and return the parsed response.'''
-        if request.query.get('check_limits') == "0":
+        if bottle.request.query.get('check_limits') == "0":
             check_limits = False
         else:
             check_limits = True
-        if request.query.get('check_access') == "0":
+        if bottle.request.query.get('check_access') == "0":
             check_access = False
         else:
             check_access = True
-        deployment = _content_to_deployment(request, tenant_id=tenant_id)
-        results = self.manager.plan(deployment, request.context,
+        deployment = _content_to_deployment(
+            bottle.request, tenant_id=tenant_id)
+        results = self.manager.plan(deployment, bottle.request.context,
                                     check_limits=check_limits,
                                     check_access=check_access,
                                     parse_only=True)
-        return utils.write_body(results, request, response)
+        return utils.write_body(results, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def preview_deployment(self, tenant_id=None):
         '''Parse and preview a deployment and its workflow.'''
-        deployment = _content_to_deployment(request, tenant_id=tenant_id)
-        results = self.manager.plan(deployment, request.context)
-        spec = create_workflow_spec_deploy(results, request.context)
+        deployment = _content_to_deployment(
+            bottle.request, tenant_id=tenant_id)
+        results = self.manager.plan(deployment, bottle.request.context)
+        spec = workflow.create_workflow_spec_deploy(
+            results, bottle.request.context)
         serializer = DictionarySerializer()
         serialized_spec = spec.serialize(serializer)
         results['workflow'] = dict(wf_spec=serialized_spec)
@@ -208,13 +214,14 @@ class Router(object):
         if errors:
             results['messages'] = errors
 
-        return utils.write_body(results, request, response)
+        return utils.write_body(results, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def get_deployment(self, api_id, tenant_id=None):
         '''Return deployment with given ID.'''
         try:
-            if 'with_secrets' in request.query:  # TODO(any): verify admin-ness
+            # TODO(any): verify admin-ness
+            if 'with_secrets' in bottle.request.query:
                 entity = self.manager.get_deployment(api_id, tenant_id,
                                                      with_secrets=True)
             else:
@@ -222,19 +229,20 @@ class Router(object):
                                                      with_secrets=False)
 
         except CheckmateDoesNotExist:
-            abort(404)
+            bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
-                        "by %s", api_id, tenant_id, request.context.username)
-            abort(404)
+                        "by %s", api_id,
+                        tenant_id, bottle.request.context.username)
+            bottle.abort(404)
 
-        return utils.write_body(entity, request, response)
+        return utils.write_body(entity, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def update_deployment(self, api_id, tenant_id=None):
         '''Store a deployment on this server'''
-        deployment = _content_to_deployment(request, deployment_id=api_id,
-                                            tenant_id=tenant_id)
+        deployment = _content_to_deployment(
+            bottle.request, deployment_id=api_id, tenant_id=tenant_id)
         try:
             entity = self.manager.get_deployment(api_id)
         except CheckmateDoesNotExist:
@@ -244,39 +252,41 @@ class Router(object):
                                                tenant_id=tenant_id)
         # Return response (with new resource location in header)
         if entity:
-            response.status = 200  # OK - updated
+            bottle.response.status = 200  # OK - updated
         else:
-            response.status = 201  # Created
+            bottle.response.status = 201  # Created
             if tenant_id:
-                response.add_header('Location', "/%s/deployments/%s" %
-                                    (tenant_id, api_id))
+                bottle.response.add_header('Location', "/%s/deployments/%s" %
+                                           (tenant_id, api_id))
             else:
-                response.add_header('Location', "/deployments/%s" % api_id)
-        return utils.write_body(results, request, response)
+                bottle.response.add_header(
+                    'Location', "/deployments/%s" % api_id)
+        return utils.write_body(results, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def delete_deployment(self, api_id, tenant_id=None):
         '''Delete the specified deployment.'''
         if utils.is_simulation(api_id):
-            request.context.simulation = True
+            bottle.request.context.simulation = True
         deployment = self.manager.get_deployment(api_id)
         if not deployment:
             raise CheckmateDoesNotExist("No deployment with id %s" % api_id)
-        deployment = Deployment(deployment)
-        if request.query.get('force') != '1':
+        deployment = cmdeploy.Deployment(deployment)
+        if bottle.request.query.get('force') != '1':
             if not deployment.fsm.permitted('DELETED'):
-                abort(400, "Deployment %s cannot be deleted while in status "
-                      "%s." % (api_id, deployment.get('status', 'UNKNOWN')))
+                bottle.abort(400, "Deployment %s cannot be deleted while in "
+                             "status %s." %
+                             (api_id, deployment.get('status', 'UNKNOWN')))
 
-        planner = Plan(deployment)
-        planned_tasks = planner.plan_delete(request.context)
+        planner = plan.Plan(deployment)
+        planned_tasks = planner.plan_delete(bottle.request.context)
         self.manager.create_delete_operation(deployment, tenant_id=tenant_id)
         self.manager.save_deployment(deployment, api_id=api_id,
                                      tenant_id=tenant_id)
         if planned_tasks:
             common_tasks.update_operation.s(api_id, status="IN PROGRESS")\
                 .delay()
-            async_task = chord(planned_tasks)(
+            async_task = celery.chord(planned_tasks)(
                 tasks.delete_deployment_task.si(api_id,),
                 interval=2, max_retries=120)
         else:
@@ -289,29 +299,32 @@ class Router(object):
         if tenant_id:
             location = "/%s%s" % (tenant_id, location)
             link = "/%s%s" % (tenant_id, link)
-        response.set_header("Location", location)
-        response.set_header("Link", '<%s>; rel="canvas"; '
-                            'title="Delete Deployment"' % link)
+        bottle.response.set_header("Location", location)
+        bottle.response.set_header("Link", '<%s>; rel="canvas"; '
+                                   'title="Delete Deployment"' % link)
 
-        response.status = 202  # Accepted (i.e. not done yet)
-        return utils.write_body(deployment, request, response)
+        bottle.response.status = 202  # Accepted (i.e. not done yet)
+        return utils.write_body(deployment, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def clone_deployment(self, api_id, tenant_id=None):
         '''Creates deployment and wokflow based on deleted/active
         deployment information.
         '''
         assert api_id, "Deployment ID cannot be empty"
-        deployment = self.manager.clone(api_id, request.context,
-                                        tenant_id=tenant_id,
-                                        simulate=request.context.simulation)
-        return utils.write_body(deployment, request, response)
+        deployment = self.manager.clone(
+            api_id,
+            bottle.request.context,
+            tenant_id=tenant_id,
+            simulate=bottle.request.context.simulation
+        )
+        return utils.write_body(deployment, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def plan_deployment(self, api_id, tenant_id=None):
         '''Plan a NEW deployment and save it as PLANNED.'''
         if db.any_id_problems(api_id):
-            abort(406, db.any_id_problems(api_id))
+            bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id, with_secrets=True)
         if not entity:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
@@ -319,32 +332,34 @@ class Router(object):
             raise CheckmateBadState("Deployment '%s' is in '%s' status and "
                                     "must be in 'NEW' to be planned" %
                                     (api_id, entity.get('status')))
-        deployment = Deployment(entity)  # Also validates syntax
-        planned_deployment = self.manager.plan(deployment, request.context)
+        deployment = cmdeploy.Deployment(entity)  # Also validates syntax
+        planned_deployment = self.manager.plan(
+            deployment, bottle.request.context)
         results = self.manager.save_deployment(planned_deployment,
                                                deployment_id=api_id,
                                                tenant_id=tenant_id)
-        return utils.write_body(results, request, response)
+        return utils.write_body(results, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def sync_deployment(self, api_id, tenant_id=None):
         '''Sync existing deployment objects with current cloud status.'''
         if db.any_id_problems(api_id):
-            abort(406, db.any_id_problems(api_id))
+            bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id)
         if not entity:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
-        deployment = Deployment(entity)
-        statuses = deployment.get_statuses(request.context)
+        deployment = cmdeploy.Deployment(entity)
+        statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})
         common_tasks.update_operation(api_id,
                                       deployment_status=statuses[
                                           'deployment_status'],
                                       status=statuses['operation_status'])
-        return utils.write_body(statuses.get('resources'), request, response)
+        return utils.write_body(
+            statuses.get('resources'), bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def deploy_deployment(self, api_id, tenant_id=None):
         '''Deploy a NEW or PLANNED deployment and save it as DEPLOYED.'''
         if db.any_id_problems(api_id):
@@ -352,9 +367,9 @@ class Router(object):
         entity = self.manager.get_deployment(api_id, with_secrets=True)
         if not entity:
             CheckmateDoesNotExist('No deployment with id %s' % api_id)
-        deployment = Deployment(entity)  # Also validates syntax
+        deployment = cmdeploy.Deployment(entity)  # Also validates syntax
         if entity.get('status', 'NEW') == 'NEW':
-            deployment = self.manager.plan(deployment, request.context)
+            deployment = self.manager.plan(deployment, bottle.request.context)
         if entity.get('status') != 'PLANNED':
             raise CheckmateBadState("Deployment '%s' is in '%s' status and "
                                     "must be in 'PLANNED' or 'NEW' status to "
@@ -362,71 +377,74 @@ class Router(object):
                                     entity.get('status')))
 
         # Create a 'new deployment' workflow
-        self.manager.deploy(deployment, request.context)
+        self.manager.deploy(deployment, bottle.request.context)
 
         #Trigger the workflow
         async_task = self.manager.execute(api_id)
         LOG.debug("Triggered workflow (task='%s')", async_task)
 
-        return utils.write_body(deployment, request, response)
+        return utils.write_body(deployment, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def get_deployment_secrets(self, api_id, tenant_id=None):
         '''Return deployment secrets.'''
         try:
             entity = self.manager.get_deployment(api_id, tenant_id=tenant_id)
         except CheckmateDoesNotExist:
-            abort(404)
+            bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
-                        "by %s", api_id, tenant_id, request.context.username)
-            abort(404)
+                        "by %s", api_id, tenant_id,
+                        bottle.request.context.username)
+            bottle.abort(404)
 
-        if not (request.context.is_admin is True or
+        if not (bottle.request.context.is_admin is True or
                 ('created-by' in entity and
                  entity['created-by'] is not None and
-                 request.context.username == entity.get('created-by'))):
-            abort(401, "You must be the creator of a deployment or an admin "
-                  "to retrieve its secrets")
+                 bottle.request.context.username == entity.get('created-by'))):
+            bottle.abort(401, "You must be the creator of a deployment or an "
+                         "admin to retrieve its secrets")
 
         data = self.manager.get_deployment_secrets(api_id, tenant_id=tenant_id)
-        return utils.write_body(data, request, response)
+        return utils.write_body(data, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def update_deployment_secrets(self, api_id, tenant_id=None):
         '''Update/Lock deployment secrets.'''
-        partial = utils.read_body(request)
+        partial = utils.read_body(bottle.request)
         try:
             entity = self.manager.get_deployment(api_id,
                                                  tenant_id=tenant_id,
                                                  with_secrets=False)
         except CheckmateDoesNotExist:
-            abort(404)
+            bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
-                        "by %s", api_id, tenant_id, request.context.username)
-            abort(404)
+                        "by %s", api_id, tenant_id,
+                        bottle.request.context.username)
+            bottle.abort(404)
 
-        if not (request.context.is_admin is True or
+        if not (bottle.request.context.is_admin is True or
                 ('created-by' in entity and
                  entity['created-by'] is not None and
-                 request.context.username == entity.get('created-by'))):
-            abort(401, "You must be the creator of a deployment or an admin "
-                  "to retrieve its secrets")
+                 bottle.request.context.username == entity.get('created-by'))):
+            bottle.abort(401, "You must be the creator of a deployment or an "
+                         "admin to retrieve its secrets")
 
         if not partial:
-            abort(400, "No data provided")
+            bottle.abort(400, "No data provided")
         if 'secrets' not in partial:
-            abort(406, "Must supply 'secrets' to be locked")
+            bottle.abort(406, "Must supply 'secrets' to be locked")
 
         results = self.manager.update_deployment_secrets(api_id, partial,
                                                          tenant_id=tenant_id)
-        return utils.write_body(results, request, response)
+        return utils.write_body(results, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def get_deployment_resources(self, api_id, tenant_id=None):
         '''Return the resources for a deployment.'''
-        if 'with_secrets' in request.query:  # TODO(any): verify admin-ness
+        # TODO(any): verify admin-ness
+        if 'with_secrets' in bottle.request.query:
             deployment = self.manager.get_deployment(api_id, tenant_id,
                                                      with_secrets=True)
         else:
@@ -434,12 +452,13 @@ class Router(object):
                                                      with_secrets=False)
 
         resources = self.manager._get_dep_resources(deployment)
-        return utils.write_body(resources, request, response)
+        return utils.write_body(resources, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def get_resources_statuses(self, api_id, tenant_id=None):
         '''Get basic status of all deployment resources.'''
-        if 'with_secrets' in request.query:  # TODO(any): verify admin-ness
+        # TODO(any): verify admin-ness
+        if 'with_secrets' in bottle.request.query:
             deployment = self.manager.get_deployment(api_id, tenant_id,
                                                      with_secrets=True)
         else:
@@ -467,13 +486,13 @@ class Router(object):
                 val['status'] = 'UNKNOWN'
             if 'message' in val and not val.get('message'):
                 del val['message']
-        return utils.write_body(resp, request, response)
+        return utils.write_body(resp, bottle.request, bottle.response)
 
-    @with_tenant
+    @utils.with_tenant
     def get_resource(self, api_id, rid, tenant_id=None):
         '''Get a specific resource from a deployment.'''
         try:
             result = self.manager.get_resource_by_id(api_id, rid, tenant_id)
-            return utils.write_body(result, request, response)
+            return utils.write_body(result, bottle.request, bottle.response)
         except ValueError as not_found:
-            abort(404, not_found.value)
+            bottle.abort(404, not_found.value)

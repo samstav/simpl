@@ -4,6 +4,7 @@ Driver for SQL ALchemy
 import copy
 import json
 import logging
+import re
 import time
 import uuid
 
@@ -23,10 +24,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session, relationship
 from sqlalchemy.pool import StaticPool
 
-from SpiffWorkflow.util import merge_dictionary as collate
+from SpiffWorkflow import util as swfutil
 import sqlite3
 
-from checkmate.classes import ExtensibleDict
+from checkmate import classes
 from checkmate.db.common import (
     DbBase,
     DEFAULT_RETRIES,
@@ -36,7 +37,10 @@ from checkmate.db.common import (
     ObjectLockedError,
     InvalidKeyError
 )
-from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateInvalidParameterError,
+)
 from checkmate import utils
 
 
@@ -44,26 +48,49 @@ __all__ = ['Environment', 'Blueprint', 'Deployment', 'Workflow']
 
 LOG = logging.getLogger(__name__)
 BASE = declarative_base()
+OP_MATCH = r'(!|(>|<)[=]*|\(\))'
 
 
-def filter_custom_comparison(query_obj, field, value):
-    '''Return a sqlalchemy filter based on `value`
+def _build_filter(field, op_key, value):
+    '''Translate string with operator and status into mongodb filter.'''
+    op_map = {'!': '!=', '>': '>', '<': '<', '>=': '>=',
+              '<=': '<=', '': '==', '()': 'in'}
+    return "%s %s %s" % (field, op_map[op_key], value)
 
-    The following are accepted forms of filtering:
-        VALUE, !VALUE, >=VALUE, >VALUE, <=VALUE, <VALUE
-    '''
-    if value.startswith('!'):
-        return query_obj.filter("%s != '%s'" % (field, value[1:]))
-    elif field.startswith('>='):
-        return query_obj.filter("%s >= '%s'" % (field, value[2:]))
-    elif field.startswith('>'):
-        return query_obj.filter("%s > '%s'" % (field, value[1:]))
-    elif field.startswith('<='):
-        return query_obj.filter("%s <= '%s'" % (field, value[2:]))
-    elif field.startswith('<'):
-        return query_obj.filter("%s < '%s'" % (field, value[1:]))
+
+def _validate_no_operators(values):
+    '''Filtering on more than one value means no operators allowed!'''
+    for value in values:
+        if re.search(OP_MATCH, value):
+            raise CheckmateInvalidParameterError(
+                'Operators cannot be used when specifying multiple filters.')
+
+
+def _match_operator(compound_value, value_format):
+    '''Look for an operator and split it out in a string.'''
+    op_match = re.search(OP_MATCH, compound_value)
+    operator = ''
+    if op_match:
+        operator = op_match.group(0)
+        # enclose single value in single quotes
+    value = value_format % compound_value[len(operator):]
+    return operator, value
+
+
+def _parse_comparison(field, values):
+    '''Return a sqlalchemy filter based on `values`.'''
+    encl_quotes = "'%s'"
+    encl_parens = "(%s)"
+    if isinstance(values, (list, tuple)):
+        if len(values) > 1:
+            _validate_no_operators(values)
+            operator, value = _match_operator(
+                "()'%s'" % "', '".join(values), encl_parens)
+        else:
+            operator, value = _match_operator(values[0], encl_quotes)
     else:
-        return query_obj.filter("%s == '%s'" % (field, value))
+        operator, value = _match_operator(values, encl_quotes)
+    return _build_filter(field, operator, value)
 
 
 class TextPickleType(PickleType):
@@ -254,7 +281,8 @@ class Driver(DbBase):
             ret.update({tenant.id: self._fix_tenant(tenant)})
         return ret
 
-    def _fix_tenant(self, tenant):
+    @staticmethod
+    def _fix_tenant(tenant):
         '''Rearrange tag information in tenant record.'''
         if tenant:
             tags = [tag.tag for tag in tenant.tags or []]
@@ -294,26 +322,26 @@ class Driver(DbBase):
             raise CheckmateException("Must provide a tenant with a tenant id")
 
     # ENVIRONMENTS
-    def get_environment(self, id, with_secrets=None):
+    def get_environment(self, api_id, with_secrets=None):
         '''Retrieve an environment by environment id.'''
-        return self._get_object(Environment, id, with_secrets=with_secrets)
+        return self._get_object(Environment, api_id, with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
-        '''Retrieve all environment records for a given tenant id'''
+        '''Retrieve all environment records for a given tenant id.'''
         return self._get_objects(
             Environment,
             tenant_id,
             with_secrets=with_secrets
         )
 
-    def save_environment(self, id, body, secrets=None, tenant_id=None):
+    def save_environment(self, api_id, body, secrets=None, tenant_id=None):
         '''Save an environment to the database.'''
-        return self._save_object(Environment, id, body, secrets, tenant_id)
+        return self._save_object(Environment, api_id, body, secrets, tenant_id)
 
     # DEPLOYMENTS
-    def get_deployment(self, id, with_secrets=None):
+    def get_deployment(self, api_id, with_secrets=None):
         '''Retrieve a deployment by deployment id.'''
-        return self._get_object(Deployment, id, with_secrets=with_secrets)
+        return self._get_object(Deployment, api_id, with_secrets=with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None, offset=None,
                         limit=None, with_count=True, with_deleted=False,
@@ -330,12 +358,12 @@ class Driver(DbBase):
             status=status
         )
 
-    def save_deployment(self, id, body, secrets=None, tenant_id=None,
+    def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=False):
         '''Save a deployment to the database.'''
         return self._save_object(
             Deployment,
-            id,
+            api_id,
             body,
             secrets,
             tenant_id,
@@ -343,9 +371,9 @@ class Driver(DbBase):
         )
 
     #BLUEPRINTS
-    def get_blueprint(self, id, with_secrets=None):
+    def get_blueprint(self, api_id, with_secrets=None):
         '''Retrieve a blueprint by blueprint id.'''
-        return self._get_object(Blueprint, id, with_secrets=with_secrets)
+        return self._get_object(Blueprint, api_id, with_secrets=with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None, limit=None,
                        offset=None, with_count=True):
@@ -358,13 +386,13 @@ class Driver(DbBase):
         return self._save_object(Blueprint, api_id, body, secrets, tenant_id)
 
     # WORKFLOWS
-    def get_workflow(self, id, with_secrets=None):
+    def get_workflow(self, api_id, with_secrets=None):
         '''Retrieve a workflow by workflow id.'''
-        return self._get_object(Workflow, id, with_secrets=with_secrets)
+        return self._get_object(Workflow, api_id, with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       offset=None, limit=None):
-        '''Retrieve all workflows for a given tenant id'''
+        '''Retrieve all workflows for a given tenant id.'''
         return self._get_objects(
             Workflow,
             tenant_id,
@@ -372,9 +400,9 @@ class Driver(DbBase):
             offset=offset, limit=limit
         )
 
-    def save_workflow(self, id, body, secrets=None, tenant_id=None):
+    def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
         '''Save a workflow to the database.'''
-        return self._save_object(Workflow, id, body, secrets, tenant_id)
+        return self._save_object(Workflow, api_id, body, secrets, tenant_id)
 
     def unlock_workflow(self, api_id, key):
         '''Remove a lock from a workflow.'''
@@ -386,9 +414,9 @@ class Driver(DbBase):
                                 key=key)
 
     # GENERIC
-    def _get_object(self, klass, id, with_secrets=None):
+    def _get_object(self, klass, api_id, with_secrets=None):
         '''Retrieve a record by id from a given table.'''
-        results = self.session.query(klass).filter_by(id=id)
+        results = self.session.query(klass).filter_by(id=api_id)
         if results and results.count() > 0:
             first = results.first()
             body = first.body
@@ -440,17 +468,20 @@ class Driver(DbBase):
                 klass, tenant_id, with_deleted, status)
         return response
 
-    def _add_filters(self, klass, query, tenant_id, with_deleted, status=None):
+    @staticmethod
+    def _add_filters(klass, query, tenant_id, with_deleted, status=None):
+        '''Apply status filters to query.'''
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
         if klass is Deployment and (not with_deleted or status):
             if not status:
                 status = "!DELETED"
-            query = filter_custom_comparison(query, 'deployments_status',
-                                             status)
+            query = query.filter(
+                _parse_comparison('deployments_status', status))
         return query
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None):
+        '''Determine how many items based on filter and return the count.'''
         return self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted,
             status).count()
@@ -466,7 +497,7 @@ class Driver(DbBase):
         '''
         if body is None:
             body = {}
-        elif isinstance(body, ExtensibleDict):
+        elif isinstance(body, classes.ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by sqlalchemy backend"
 
@@ -523,55 +554,57 @@ class Driver(DbBase):
                 tries += 1
 
         if results and results.count() > 0:
-            e = results.first()
-            e.locked = 0
+            entry = results.first()
+            entry.locked = 0
 
             if merge_existing:
-                saved_body = copy.deepcopy(e.body)
-                collate(saved_body, body)
-                e.body = saved_body
+                saved_body = copy.deepcopy(entry.body)
+                swfutil.merge_dictionary(saved_body, body)
+                entry.body = saved_body
             else:  # Merge not specified, so replace
-                e.body = body
+                entry.body = body
 
             if tenant_id:
-                e.tenant_id = tenant_id
+                entry.tenant_id = tenant_id
             elif "tenantId" in body:
-                e.tenant_id = body.get("tenantId")
+                entry.tenant_id = body.get("tenantId")
 
-            assert klass is Blueprint or tenant_id or e.tenant_id,\
+            assert klass is Blueprint or tenant_id or entry.tenant_id, \
                 "tenantId must be specified"
 
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s", klass.__name__,
                                 api_id)
-                    e.secrets = None
+                    entry.secrets = None
                 else:
-                    if not e.secrets:
-                        e.secrets = {}
-                    new_secrets = copy.deepcopy(e.secrets)
-                    collate(new_secrets, secrets, extend_lists=False)
-                    e.secrets = new_secrets
+                    if not entry.secrets:
+                        entry.secrets = {}
+                    new_secrets = copy.deepcopy(entry.secrets)
+                    swfutil.merge_dictionary(
+                        new_secrets, secrets, extend_lists=False)
+                    entry.secrets = new_secrets
 
         else:
             assert klass is Blueprint or tenant_id or 'tenantId' in body, \
                 "tenantId must be specified"
             #new item
-            e = klass(id=api_id, body=body, tenant_id=tenant_id,
+            entry = klass(id=api_id, body=body, tenant_id=tenant_id,
                       secrets=secrets, locked=0)
 
         # As of v0.13, status is saved in Deployment object
         if klass is Deployment:
-            e.status = body.get('status')
-            e.created = body.get('created')
+            entry.status = body.get('status')
+            entry.created = body.get('created')
 
-        self.session.add(e)
+        self.session.add(entry)
         self.session.commit()
         return body
 
     def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        '''
-        :param klass: the class of the object to unlock.
+        '''Lock an object in the database, returning the object and key.
+
+        :param klass: the class of the object to lock.
         :param api_id: the object's API ID.
         :param with_secrets: true if secrets should be merged into the results.
         :param key: if the object has already been locked, the key used must be
@@ -585,8 +618,7 @@ class Driver(DbBase):
         return self._lock_find_object(klass, api_id, key=key)
 
     def unlock_object(self, klass, api_id, key):
-        '''
-        Unlocks a locked object if the key is correct.
+        '''Unlocks a locked object if the key is correct.
 
         :param klass: the class of the object to unlock.
         :param api_id: the object's API ID.
@@ -609,8 +641,7 @@ class Driver(DbBase):
                                   "not exist." % api_id)
 
     def _lock_find_object(self, klass, api_id, key=None):
-        '''
-        Finds, attempts to lock, and returns an object by id.
+        '''Finds, attempts to lock, and returns an object by id.
 
         :param klass: the class of the object unlock.
         :param api_id: the object's API ID.
@@ -626,7 +657,7 @@ class Driver(DbBase):
         lock_timestamp = time.time()
         if key:
             # The object has already been locked
-            # TODO: see if we can merge the existing key logic into below
+            # TODO(any): see if we can merge the existing key logic into below
             query = self.session.query(klass).filter_by(
                 id=api_id,
                 lock=key

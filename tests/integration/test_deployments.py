@@ -1334,10 +1334,10 @@ class TestDeleteDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(manager, "get_deployment")
         manager.get_deployment('1234').AndReturn(self._deployment)
 
-        self._mox.StubOutWithMock(checkmate.deployments.router, "Plan")
+        self._mox.StubOutWithMock(checkmate.deployments.router.plan, "Plan")
         checkmate.deployments.router.Plan = self._mox.CreateMockAnything()
         mock_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.router.Plan.__call__(
+        checkmate.deployments.router.plan.Plan.__call__(
             IgnoreArg()).AndReturn(mock_plan)
         mock_plan.plan_delete(IgnoreArg()).AndReturn([])
         self._mox.StubOutWithMock(checkmate.deployments.tasks.
@@ -1371,10 +1371,10 @@ class TestDeleteDeployments(unittest.TestCase):
 
         mock_driver.get_deployment(
             '1234', with_secrets=False).AndReturn(self._deployment)
-        self._mox.StubOutWithMock(checkmate.deployments, "Plan")
+        self._mox.StubOutWithMock(checkmate.deployments.router.plan, "Plan")
         checkmate.deployments.router.Plan = self._mox.CreateMockAnything()
         mock_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.router.Plan.__call__(
+        checkmate.deployments.router.plan.Plan.__call__(
             IgnoreArg()).AndReturn(mock_plan)
         mock_delete_step1 = self._mox.CreateMockAnything()
         mock_delete_step2 = self._mox.CreateMockAnything()
@@ -1385,8 +1385,8 @@ class TestDeleteDeployments(unittest.TestCase):
         common_tasks.update_operation.s('1234', status='IN PROGRESS')\
             .AndReturn(mock_subtask)
         mock_subtask.delay().AndReturn(True)
-        self._mox.StubOutClassWithMocks(checkmate.deployments.router, "chord")
-        mock_chord = checkmate.deployments.router.chord(mock_steps)
+        self._mox.StubOutClassWithMocks(checkmate.deployments.router.celery, "chord")
+        mock_chord = checkmate.deployments.router.celery.chord(mock_steps)
         mock_delete_dep = self._mox.CreateMockAnything()
         delete_op = {
             'link': '/canvases/1234',
