@@ -982,9 +982,6 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       var is_admin = headers('X-AuthZ-Admin') || 'False';
       identity.is_admin = (is_admin === 'True');
 
-      if (identity.is_admin)
-        identity.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
-
       return identity;
     },
 
@@ -1130,25 +1127,28 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return impersonation_url;
     },
 
-    store_context: function(context) {
-      if (!auth.identity.tenants)
-        auth.identity.tenants = [];
+    cache: {},
 
-      auth.identity.tenants = _.reject(auth.identity.tenants, function(tenant) {
+    cache_tenant: function(context) {
+      if (!auth.cache.tenants)
+        auth.cache.tenants = [];
+
+      auth.cache.tenants = _.reject(auth.cache.tenants, function(tenant) {
         return tenant.username == context.username;
       });
-      auth.identity.tenants.unshift(_.clone(context));
-      if (auth.identity.tenants.length > 10)
-        auth.identity.tenants.pop();
+
+      auth.cache.tenants.unshift(_.clone(context));
+      if (auth.cache.tenants.length > 10)
+        auth.cache.tenants.pop();
     },
 
-    retrieve_context: function(username_or_tenant_id) {
+    get_cached_tenant: function(username_or_tenant_id) {
       if (!username_or_tenant_id) return false;
-      if (!auth.identity.tenants) return false;
+      if (!auth.cache.tenants) return false;
 
       var info = username_or_tenant_id;
-      for (idx in auth.identity.tenants) {
-        var context = auth.identity.tenants[idx];
+      for (idx in auth.cache.tenants) {
+        var context = auth.cache.tenants[idx];
         if (context.username === info || context.tenantId === info) {
           return context;
         }
@@ -1181,7 +1181,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
               auth.context.catalog = re_auth_response.data.access.serviceCatalog;
               auth.context.regions = auth.get_regions(re_auth_response.data);
               auth.context.impersonated = true;
-              auth.store_context(auth.context);
+              auth.cache_tenant(auth.context);
               auth.save();
               auth.check_state();
               deferred.resolve('Impersonation Successful!');
@@ -1207,7 +1207,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 
     impersonate: function(username) {
       var deferred = $q.defer();
-      var previous_context = auth.retrieve_context(username);
+      var previous_context = auth.get_cached_tenant(username);
       if (previous_context) {
         auth.context = previous_context;
         auth.check_state();
@@ -1255,14 +1255,16 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     clear: function() {
       auth.identity = {};
       auth.context = {};
+      auth.endpoints = {};
+      auth.cache = {};
     },
 
     //Save to local storage
     save: function() {
-      var data = {auth: {identity: auth.identity, context: auth.context, endpoints: auth.endpoints}};
+      var data = {auth: {identity: auth.identity, context: auth.context, endpoints: auth.endpoints, cache: auth.cache}};
       localStorage.setItem('auth', JSON.stringify(data));
 
-      var previous_tenants = _.map(auth.identity.tenants, function(tenant) {
+      var previous_tenants = _.map(auth.cache.tenants, function(tenant) {
         return _.pick(tenant, 'username', 'tenantId'); // remove sensitive information
       });
       localStorage.setItem('previous_tenants', JSON.stringify(previous_tenants || "[]"));
@@ -1281,6 +1283,8 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           auth.identity = data.auth.identity;
           auth.context = data.auth.context;
           auth.endpoints = data.auth.endpoints;
+          auth.cache = data.auth.cache || {};
+          auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
           auth.check_state();
         }
       }

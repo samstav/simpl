@@ -236,12 +236,6 @@ describe('auth Service', function(){
       localStorage.previous_tenants = "[{}, {}, {}]";
     });
 
-    it('should load previous tenants from localStorage if user is admin', function() {
-      params.headers.returns('True');
-      var identity = this.auth.create_identity(response, params);
-      expect(identity.tenants.length).toBe(3);
-    });
-
     it('should not load previous tenants from localStorage if user is not admin', function() {
       params.headers.returns('Truish');
       var identity = this.auth.create_identity(response, params);
@@ -249,87 +243,87 @@ describe('auth Service', function(){
     });
   });
 
-  describe('#store_context', function() {
+  describe('#cache_tenant', function() {
     beforeEach(function() {
       context1 = { username: 'user1', id: 1 };
       context2 = { username: 'user2', id: 2 };
     });
 
     it('should save context after impersonating user', function() {
-      this.auth.store_context(context1);
-      expect(this.auth.identity.tenants).not.toBe(null);
-      expect(this.auth.identity.tenants.length).toBe(1);
+      this.auth.cache_tenant(context1);
+      expect(this.auth.cache.tenants).not.toBe(null);
+      expect(this.auth.cache.tenants.length).toBe(1);
     });
 
     it('should save two or more contexts after impersonating users', function() {
-      this.auth.store_context(context1);
-      this.auth.store_context(context2);
-      expect(this.auth.identity.tenants.length).toBe(2);
+      this.auth.cache_tenant(context1);
+      this.auth.cache_tenant(context2);
+      expect(this.auth.cache.tenants.length).toBe(2);
     });
 
     it('should save contexts to the beginning of the array', function() {
-      this.auth.store_context(context1);
-      this.auth.store_context(context2);
-      expect(this.auth.identity.tenants[0].username).toBe('user2');
+      this.auth.cache_tenant(context1);
+      this.auth.cache_tenant(context2);
+      expect(this.auth.cache.tenants[0].username).toBe('user2');
     });
 
     it('should not save the same context twice', function() {
-      this.auth.store_context(context1);
-      this.auth.store_context(context1);
-      expect(this.auth.identity.tenants.length).toBe(1);
+      this.auth.cache_tenant(context1);
+      this.auth.cache_tenant(context1);
+      expect(this.auth.cache.tenants.length).toBe(1);
     });
 
     it('should save a new instace of contexts, to prevent outside changes', function() {
-      this.auth.store_context(context1);
+      this.auth.cache_tenant(context1);
       context1.username = 'userX';
-      this.auth.store_context(context1);
-      expect(this.auth.identity.tenants.length).toBe(2);
+      this.auth.cache_tenant(context1);
+      expect(this.auth.cache.tenants.length).toBe(2);
     });
 
     it('should not store more than 10 contexts', function() {
       for(var num=1 ; num<=11 ; num++) {
         context1.username = 'user' + num;
-        this.auth.store_context(context1);
+        this.auth.cache_tenant(context1);
       }
-      expect(this.auth.identity.tenants.length).toBe(10);
+      expect(this.auth.cache.tenants.length).toBe(10);
     });
   });
 
-  describe('#retrieve_context', function() {
+  describe('#get_cached_tenant', function() {
     it('should return false if no username or tenant ID is passed', function() {
-      expect(this.auth.retrieve_context()).toBe(false);
+      expect(this.auth.get_cached_tenant()).toBe(false);
     });
 
     it('should return false if identity does not have any tenants', function() {
       this.auth.identity = {};
-      expect(this.auth.retrieve_context()).toBe(false);
+      expect(this.auth.get_cached_tenant()).toBe(false);
     });
 
     describe('when context does not exist', function() {
       it('should return false', function() {
         this.auth.identity = { tenants: [] };
-        expect(this.auth.retrieve_context('fakeinfo')).toBe(false);
+        expect(this.auth.get_cached_tenant('fakeinfo')).toBe(false);
       });
     });
 
     describe('when context exists', function() {
       beforeEach(function() {
-        this.auth.identity.tenants = [
+        this.auth.cache.tenants = [
           { username: 'notvalidname', tenantId: 'someID', info: 'otherinfo' },
           { username: 'fakeusername', tenantId: 'fakeID', info: 'fakeinfo' }
         ];
       });
 
       it('should return context if passing a username', function() {
-        expect(this.auth.retrieve_context('fakeusername').info).toEqual('fakeinfo');
+        expect(this.auth.get_cached_tenant('fakeusername').info).toEqual('fakeinfo');
       });
 
       it('should return context if passing a tenant ID', function() {
-        expect(this.auth.retrieve_context('fakeID').info).toEqual('fakeinfo');
+        expect(this.auth.get_cached_tenant('fakeID').info).toEqual('fakeinfo');
       });
 
       it('should return false if no username or tenant ID is found', function() {
-        expect(this.auth.retrieve_context('batman')).toBe(false);
+        expect(this.auth.get_cached_tenant('batman')).toBe(false);
       });
     });
   });
@@ -476,7 +470,7 @@ describe('auth Service', function(){
 
     describe('when context is cached', function() {
       beforeEach(function() {
-        spyOn(this.auth, 'retrieve_context').andReturn({ info: 'fakeinfo' });
+        spyOn(this.auth, 'get_cached_tenant').andReturn({ info: 'fakeinfo' });
         spyOn(this.auth, 'check_state');
         this.auth.impersonate('batman');
       });
@@ -492,7 +486,7 @@ describe('auth Service', function(){
 
     describe('when tenant_id was retrieved', function() {
       beforeEach(function() {
-        spyOn(this.auth, 'store_context');
+        spyOn(this.auth, 'cache_tenant');
         spyOn(this.auth, 'save');
         spyOn(this.auth, 'check_state');
         spyOn(this.auth, 're_authenticate').andReturn({ then: emptyFunction });
@@ -539,7 +533,7 @@ describe('auth Service', function(){
         });
 
         it('should store context for future use', function() {
-          expect(this.auth.store_context).toHaveBeenCalled();
+          expect(this.auth.cache_tenant).toHaveBeenCalled();
         });
 
         it('should save auth for future use', function() {
@@ -633,7 +627,7 @@ describe('auth Service', function(){
   describe('#save', function() {
     var previous_tenants;
     beforeEach(function() {
-      this.auth.identity.tenants = [
+      this.auth.cache.tenants = [
         { username: "fakeusername1", tenantId: "fakeid1", sensitive1: "sensitiveinformation1" },
         { username: "fakeusername2", tenantId: "fakeid2", sensitive2: "sensitiveinformation2" },
         { username: "fakeusername3", tenantId: "fakeid3", sensitive3: "sensitiveinformation3" },
