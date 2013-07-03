@@ -1184,7 +1184,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return auth.identity.username != auth.context.username;
     },
 
-    impersonate_success: function(username, response, deferred) {
+    impersonate_success: function(username, response, deferred, temporarily) {
       this.get_tenant_id(username, response.data.access.token.id).then(
         // Success
         function(tenant_id) {
@@ -1198,8 +1198,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
               auth.context.catalog = re_auth_response.data.access.serviceCatalog;
               auth.context.regions = auth.get_regions(re_auth_response.data);
               auth.context.impersonated = true;
-              auth.cache_tenant(auth.context);
               auth.cache_context(auth.context);
+              if (!temporarily) {
+                auth.cache_tenant(auth.context);
+              }
               auth.save();
               auth.check_state();
               deferred.resolve('Impersonation Successful!');
@@ -1223,9 +1225,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return deferred.reject(response);
     },
 
-    impersonate: function(username) {
+    impersonate: function(username, temporarily) {
       var deferred = $q.defer();
-      var previous_context = auth.get_cached_tenant(username);
+      var previous_context = auth.get_cached_context(username);
       if (previous_context) {
         auth.context = previous_context;
         auth.check_state();
@@ -1243,7 +1245,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       $http.post(url, data, config).then(
         // Success
         function(response) {
-          auth.impersonate_success(username, response, deferred);
+          auth.impersonate_success(username, response, deferred, temporarily);
         },
         // Error
         function(response) {

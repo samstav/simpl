@@ -226,23 +226,6 @@ describe('auth Service', function(){
 
   });
 
-  describe('#create_identity', function() {
-    var response, params;
-    beforeEach(function() {
-      params = {};
-      params.headers = sinon.stub();
-      params.endpoint = {};
-      response = { access: { user: {}, token: {} } };
-      localStorage.previous_tenants = "[{}, {}, {}]";
-    });
-
-    it('should not load previous tenants from localStorage if user is not admin', function() {
-      params.headers.returns('Truish');
-      var identity = this.auth.create_identity(response, params);
-      expect(identity.tenants).toBe(undefined);
-    });
-  });
-
   describe('#cache_tenant', function() {
     beforeEach(function() {
       context1 = { username: 'user1', id: 1 };
@@ -752,6 +735,5 @@ describe('auth Service', function(){
       this.auth.cache.contexts = { 666: { tenantId: 666 } };
       expect(this.auth.get_cached_context(666)).toEqual({tenantId: 666});
     });
-
   });
 });
