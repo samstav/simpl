@@ -3,7 +3,7 @@ import os
 import shutil
 import subprocess
 import sys
-import unittest2 as unittest
+import unittest
 import uuid
 
 import git

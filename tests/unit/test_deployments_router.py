@@ -10,7 +10,7 @@ For tests, we don't care about:
 '''
 import json
 import os
-import unittest2 as unittest
+import unittest
 
 import bottle
 import mox

@@ -8,7 +8,7 @@ For tests, we don't care about:
     W0212 - Access to protected member of a client class
     W0232 - Class has no __init__ method '''
 
-import unittest2 as unittest
+import unittest
 
 from checkmate import constraints
 from checkmate.constraints import Constraint

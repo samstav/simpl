@@ -1,7 +1,7 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 '''Tests the Cache and CacheMethod decorators'''
 import time
-import unittest2 as unittest
+import unittest
 
 try:
     import fakeredis

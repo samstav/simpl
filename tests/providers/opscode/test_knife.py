@@ -5,7 +5,7 @@ import logging
 import os
 import shutil
 import subprocess
-import unittest2 as unittest
+import unittest
 import uuid
 
 import mox

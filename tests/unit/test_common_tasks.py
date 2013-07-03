@@ -10,7 +10,7 @@ For tests, we don't care about:
 import logging
 from checkmate.db.mongodb import Driver
 import mox
-import unittest2 as unittest
+import unittest
 
 try:
     from mongobox import MongoBox

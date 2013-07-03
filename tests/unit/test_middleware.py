@@ -1,5 +1,5 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-import unittest2 as unittest
+import unittest
 import os
 
 from checkmate.middleware import (TenantMiddleware,

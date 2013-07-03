@@ -2,7 +2,7 @@
 import json
 import logging
 import os
-import unittest2 as unittest
+import unittest
 
 from mox import IgnoreArg
 

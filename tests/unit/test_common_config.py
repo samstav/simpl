@@ -2,7 +2,7 @@
 '''
 Test cpheckmate.common.config
 '''
-import unittest2 as unittest
+import unittest
 
 from checkmate.common import config
 

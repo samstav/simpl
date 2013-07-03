@@ -4,7 +4,7 @@ Test MongoDB using MongoBox
 '''
 import logging
 import sys
-import unittest2 as unittest
+import unittest
 import base  # pylint: disable=W0403
 
 LOG = logging.getLogger(__name__)

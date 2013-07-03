@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import shutil
-import unittest2 as unittest
+import unittest
 from urlparse import urlunparse
 import uuid
 import yaml

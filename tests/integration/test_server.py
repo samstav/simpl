@@ -2,7 +2,7 @@
 import json
 import os
 import sys
-import unittest2 as unittest
+import unittest
 import uuid
 
 from bottle import default_app

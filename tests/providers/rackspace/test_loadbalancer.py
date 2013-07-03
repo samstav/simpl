@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import logging
-import unittest2 as unittest
+import unittest
 
 import cloudlb
 import mox
