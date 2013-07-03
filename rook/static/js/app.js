@@ -273,8 +273,8 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
-  $scope.is_admin = function() {
-    return auth.is_admin();
+  $scope.is_admin = function(strict) {
+    return auth.is_admin(strict);
   }
 
   $scope.is_impersonating = function() {

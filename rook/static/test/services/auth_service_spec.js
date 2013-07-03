@@ -21,18 +21,34 @@ describe('auth Service', function(){
   }));
 
   describe('#is_admin', function() {
-    it('should default to false', function() {
-      expect(this.auth.is_admin()).toBeFalsy();
+    beforeEach(function() {
+      this.auth.identity.is_admin = true;
     });
 
-    it('should return true when current identity is an admin', function() {
-      this.auth.identity.is_admin = true;
-      expect(this.auth.is_admin()).toBeTruthy();
+    it('should default to false', function() {
+      delete this.auth.identity.is_admin;
+      expect(this.auth.is_admin()).toBeFalsy();
     });
 
     it('should return false when current identity is not an admin', function() {
       this.auth.identity.is_admin = false;
       expect(this.auth.is_admin()).toBeFalsy();
+    });
+
+    it('should return true when current identity is an admin', function() {
+      expect(this.auth.is_admin()).toBeTruthy();
+    });
+
+    it('should return true even if admin is impersonating', function() {
+      this.auth.is_impersonating = sinon.stub().returns(true);
+      expect(this.auth.is_admin()).toBeTruthy();
+    });
+
+    describe('when in strict mode', function() {
+      it('should return false if admin is impersonating', function() {
+        this.auth.is_impersonating = sinon.stub().returns(true);
+        expect(this.auth.is_admin(true)).toBeFalsy();
+      });
     });
   });
 

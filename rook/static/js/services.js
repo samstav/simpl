@@ -876,8 +876,12 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     error_message: "",
     selected_endpoint: null,
 
-    is_admin: function() {
-      return auth.identity.is_admin;
+    is_admin: function(strict) {
+      var is_admin = auth.identity.is_admin;
+      if (strict) {
+        is_admin = is_admin && !auth.is_impersonating();
+      }
+      return is_admin;
     },
 
     is_logged_in: function() {
