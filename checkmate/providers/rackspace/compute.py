@@ -23,10 +23,7 @@ from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.common import caching
-from checkmate.deployments import (
-    resource_postback,
-    alt_resource_postback,
-)
+from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateDoesNotExist,
@@ -446,7 +443,8 @@ class Provider(RackspaceComputeProviderBase):
             result[i_key]['instance'] = {'status-message': ''}
         return result
 
-    def delete_resource_tasks(self, context, deployment_id, resource, key):
+    def delete_resource_tasks(self, wf_spec,  context, deployment_id, resource,
+                              key):
         self._verify_existing_resource(resource, key)
         inst_id = resource.get("instance", {}).get("id")
         region = (resource.get("region") or
@@ -463,10 +461,27 @@ class Provider(RackspaceComputeProviderBase):
             context['resource'] = resource
             context['region'] = region
             context['instance_id'] = inst_id
-        return chain(delete_server_task.s(context),
-                     alt_resource_postback.s(deployment_id),
-                     wait_on_delete_server.si(context),
-                     alt_resource_postback.s(deployment_id))
+
+        delete_server = Celery(
+            wf_spec,
+            'Delete Server (%s)' % key,
+            'checkmate.providers.rackspace.compute.delete_server_task',
+            call_args=[context],
+            properties={
+                'estimated_duration': 5,
+            },
+        )
+        wait_on_delete = Celery(
+            wf_spec,
+            'Wait on Delete Server (%s)' % key,
+            'checkmate.providers.rackspace.compute.wait_on_delete_server',
+            call_args=[context],
+            properties={
+                'estimated_duration': 10,
+            },
+        )
+        delete_server.connect(wait_on_delete)
+        return {'root': delete_server}
 
     @staticmethod
     def _get_api_info(context):
@@ -917,7 +932,6 @@ def delete_server_task(context, api=None):
     assert "deployment_id" in context, "No deployment id in context"
     assert "resource_key" in context, "No resource key in context"
     assert "region" in context, "No region provided"
-    assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -929,11 +943,29 @@ def delete_server_task(context, api=None):
 
     key = context.get("resource_key")
     inst_key = "instance:%s" % key
+
     if api is None and context.get('simulation') is not True:
         api = Provider.connect(context, region=context.get("region"))
     server = None
     inst_id = context.get("instance_id")
     resource = context.get('resource')
+    resource_key = context.get('resource_key')
+    deployment_id = context.get('deployment_id')
+
+    if inst_id is None:
+        msg = ("Instance ID is not available for Compute Instance, skipping "
+               "delete_server_task for resource %s in deployment %s" %
+               (resource_key, deployment_id))
+        LOG.info(msg)
+        results = {
+            inst_key: {
+                'status': 'DELETED',
+                'status-message': msg
+            }
+        }
+        resource_postback.delay(deployment_id, results)
+        return
+    ret = {}
     try:
         if context.get('simulation') is not True:
             server = api.servers.get(inst_id)
@@ -950,8 +982,7 @@ def delete_server_task(context, api=None):
             for comp_key in resource.get('hosts', []):
                 ret.update({'instance:%s' % comp_key: {'status': 'DELETED',
                             'status-message': ''}})
-        return ret
-    if server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
+    elif server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
         ret = {}
         ret.update({
             inst_key: {
@@ -968,8 +999,6 @@ def delete_server_task(context, api=None):
                     }
                 })
         server.delete()
-        LOG.info("Deleted server %s", inst_id)
-        return ret
     else:
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
                % server.status)
@@ -977,6 +1006,8 @@ def delete_server_task(context, api=None):
                                 {inst_key: {'status': 'DELETING',
                                             'status-message': msg}})
         delete_server_task.retry(exc=CheckmateException(msg))
+    resource_postback.delay(context.get("deployment_id"), ret)
+    return ret
 
 
 @task(default_retry_delay=30, max_retries=120)
@@ -986,7 +1017,6 @@ def wait_on_delete_server(context, api=None):
     assert "deployment_id" in context, "No deployment id in context"
     assert "resource_key" in context, "No resource key in context"
     assert "region" in context, "No region provided"
-    assert "instance_id" in context, "No server id provided"
     assert 'resource' in context, "No resource definition provided"
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -1003,6 +1033,25 @@ def wait_on_delete_server(context, api=None):
         api = Provider.connect(context, region=context.get("region"))
     server = None
     inst_id = context.get("instance_id")
+
+    resource_key = context.get('resource_key')
+    deployment_id = context.get('deployment_id')
+
+    if inst_id is None:
+        msg = ("Instance ID is not available for Compute Instance, "
+               "skipping wait_on_delete_task for resource %s in deployment %s"
+               % (resource_key, deployment_id))
+        LOG.info(msg)
+        results = {
+            inst_key: {
+                'status': 'DELETED',
+                'status-message': msg
+            }
+        }
+        resource_postback.delay(deployment_id, results)
+        return
+
+    ret = {}
     try:
         if context.get('simulation') is not True:
             server = api.servers.find(id=inst_id)
@@ -1023,7 +1072,6 @@ def wait_on_delete_server(context, api=None):
                         'status-message': ''
                     }
                 })
-        return ret
     else:
         msg = ('Instance is in state %s. Waiting on DELETED resource.'
                % server.status)
@@ -1031,6 +1079,8 @@ def wait_on_delete_server(context, api=None):
                                 {inst_key: {'status': 'DELETING',
                                             'status-message': msg}})
         wait_on_delete_server.retry(exc=CheckmateException(msg))
+    resource_postback.delay(context.get("deployment_id"), ret)
+    return ret
 
 
 # max 60 minute wait
@@ -1089,7 +1139,6 @@ def wait_on_build(context, server_id, region, resource,
 
     assert server_id, "ID must be provided"
     LOG.debug("Getting server %s", server_id)
-    server = None
     try:
         server = api_object.servers.find(id=server_id)
     except (NotFound, NoUniqueMatch):
@@ -1110,12 +1159,9 @@ def wait_on_build(context, server_id, region, resource,
                    'status-message': "Server %s build failed" % server_id}
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
-        Provider({}).delete_resource_tasks(context,
-                                           context['deployment'],
-                                           get_resource_by_id(
-                                               context['deployment'],
-                                               context['resource']),
-                                           context['resource']).apply_async()
+        chain(delete_server_task.si(context), wait_on_delete_server.si(
+            context)).apply_async()
+
         raise CheckmateRetriableException("Server %s build failed" % server_id,
                                           "",
                                           get_class_name(

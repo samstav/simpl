@@ -4,16 +4,45 @@ Common code, utilities, and classes for managing the 'operation' object
 import itertools
 import logging
 import os
+import time
 
+from celery.task import task
+
+from checkmate import celeryglobal as celery
 from checkmate import db
 from checkmate.deployment import Deployment
-from checkmate import utils
+from checkmate.utils import (
+    get_time_string,
+    is_simulation,
+)
+
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
 SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_SIMULATOR_CONNECTION_STRING',
     os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
+LOCK_DB = db.get_driver(connection_string=os.environ.get(
+    'CHECKMATE_LOCK_CONNECTION_STRING',
+    os.environ.get('CHECKMATE_CONNECTION_STRING')))
+
+
+@task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
+      lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=2)
+def create_delete_operation(workflow_id, dep_id, tenant_id=None):
+    deployment = DB.get_deployment(dep_id, with_secrets=False)
+    operation_status = deployment.get("operation")["status"]
+    if operation_status not in ("PAUSED", "COMPLETE"):
+        LOG.debug("Deferring create_delete_operation for deployment %s until "
+                  "the current operation status moves to PAUSED or COMPLETE",
+                  dep_id)
+        create_delete_operation.retry()
+    link = "/%s/workflows/%s" % (tenant_id, workflow_id)
+    kwargs = {"status": "NEW", "link": link, "workflow-id": workflow_id}
+    add_operation(deployment, 'DELETE', **kwargs)
+    DB.save_deployment(dep_id, deployment, secrets=None, tenant_id=tenant_id,
+                       partial=True)
+    return workflow_id
 
 
 def add_operation(deployment, type_name, **kwargs):
@@ -48,7 +77,7 @@ def update_operation(deployment_id, driver=None, deployment_status=None,
     Note: exposed in common.tasks as a celery task
     '''
     if kwargs:
-        if utils.is_simulation(deployment_id):
+        if is_simulation(deployment_id):
             driver = SIMULATOR_DB
         if not driver:
             driver = DB
@@ -102,6 +131,95 @@ def get_status_info(errors, tenant_id, workflow_id):
         status_info.update({'resume-link': resume_link, 'resumable': True})
 
     return status_info
+
+
+def init_operation(workflow, tenant_id=None):
+    '''Create a new operation dictionary for a given workflow.
+
+    Example:
+
+    'operation': {
+        'type': 'deploy',
+        'status': 'IN PROGRESS',
+        'estimated-duration': 2400,
+        'tasks': 175,
+        'complete': 100,
+        'link': '/v1/{tenant_id}/workflows/982h3f28937h4f23847'
+    }
+    '''
+    operation = {}
+
+    _update_operation(operation, workflow)
+
+    # Operation link
+    workflow_id = (workflow.attributes.get('id') or
+                   workflow.attributes.get('deploymentId'))
+    operation['link'] = "/%s/workflows/%s" % (tenant_id, workflow_id)
+
+    return operation
+
+
+def _update_operation(operation, workflow):
+    '''Update an operation dictionary for a given workflow.
+
+    Example:
+
+    'operation': {
+        'type': 'deploy',
+        'status': 'IN PROGRESS',
+        'estimated-duration': 2400,
+        'tasks': 175,
+        'complete': 100,
+        'link': '/v1/{tenant_id}/workflows/982h3f28937h4f23847'
+    }
+
+    :param operation: a deployment operation dict
+    :param workflow: SpiffWorkflow
+    '''
+
+    tasks = workflow.task_tree.children
+
+    # Loop through tasks and calculate statistics
+    spiff_status = {
+        1: "FUTURE",
+        2: "LIKELY",
+        4: "MAYBE",
+        8: "WAITING",
+        16: "READY",
+        32: "CANCELLED",
+        64: "COMPLETED",
+        128: "TRIGGERED"
+    }
+    duration = 0
+    complete = 0
+    failure = 0
+    total = 0
+    last_change = 0
+    while tasks:
+        current = tasks.pop(0)
+        tasks.extend(current.children)
+        status = spiff_status[current._state]
+        if status == "COMPLETED":
+            complete += 1
+        elif status == "FAILURE":
+            failure += 1
+        duration += current._get_internal_attribute('estimated_completed_in')
+        if current.last_state_change > last_change:
+            last_change = current.last_state_change
+        total += 1
+    operation['tasks'] = total
+    operation['complete'] = complete
+    operation['estimated-duration'] = duration
+    operation['last-change'] = get_time_string(time_gmt=time.gmtime(
+        last_change))
+    if failure > 0:
+        operation['status'] = "ERROR"
+    elif total > complete:
+        operation['status'] = "IN PROGRESS"
+    elif total == complete:
+        operation['status'] = "COMPLETE"
+    else:
+        operation['status'] = "UNKNOWN"
 
 
 def _get_distinct_errors(errors):

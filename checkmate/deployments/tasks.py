@@ -93,13 +93,10 @@ def delete_deployment_task(dep_id, driver=DB):
                         'but was in %s.' % resource.get('status')
                     )
                     updates['status'] = 'ERROR'
-                else:
-                    updates['status'] = 'DELETED'
-                    updates['instance'] = None
-                contents = {
-                    'instance:%s' % resource['index']: updates,
-                }
-                resource_postback.delay(dep_id, contents, driver=driver)
+                    contents = {
+                        'instance:%s' % resource['index']: updates,
+                    }
+                    resource_postback.delay(dep_id, contents, driver=driver)
 
     common_tasks.update_operation.delay(dep_id, status="COMPLETE",
                                         deployment_status="DELETED",

@@ -38,7 +38,7 @@ def update_operation(deployment_id, driver=None, deployment_status=None,
     :param kwargs: Additional parameters
     :return:
 
-    Notes: has a high retry rate tto make sure the status gets updated.
+    Notes: has a high retry rate to make sure the status gets updated.
     Otherwise the deployment will appear to never complete.
     '''
     operations.update_operation(deployment_id, driver=driver,

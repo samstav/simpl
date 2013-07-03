@@ -897,6 +897,13 @@ def is_simulation(api_id):
     return str(api_id).startswith('simulate')
 
 
+def get_id(is_simulation):
+    if is_simulation:
+        return 'simulate%s' % uuid.uuid4().hex[0:12]
+    else:
+        return uuid.uuid4().hex
+
+
 def git_clone(repo_dir, url, branch="master"):
     '''Do a git checkout of `head' in `repo_dir'.'''
     return subprocess.check_output(

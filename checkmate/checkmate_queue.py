@@ -24,6 +24,7 @@ def main_func():
             'checkmate.providers.opscode',
             'checkmate.celeryapp',
             'checkmate.common.tasks',
+            'checkmate.workflows_new',
         ]
 
         params.extend([

@@ -5,14 +5,20 @@ import logging
 import os
 import unittest2 as unittest
 
-from celery.app.task import Context
 import bottle
 from bottle import HTTPError
+from celery.app.task import Context
+from celery.canvas import chain
 import mox
 from mox import IgnoreArg, ContainsKeyValue
 
 import checkmate
-from checkmate import keys
+from checkmate import (
+    keys,
+    operations,
+    orchestrator,
+)
+from checkmate import workflows_new as workflow_tasks
 from checkmate.common import tasks as common_tasks
 from checkmate.deployment import (
     Deployment,
@@ -35,7 +41,7 @@ from checkmate.inputs import Input
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext
-from checkmate.utils import yaml_to_dict
+from checkmate.utils import yaml_to_dict, get_time_string
 
 LOG = logging.getLogger(__name__)
 os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
@@ -1325,91 +1331,46 @@ class TestDeleteDeployments(unittest.TestCase):
         except CheckmateDoesNotExist as exc:
             self.assertEqual("No deployment with id 1234", str(exc))
 
-    def test_no_tasks(self):
-        '''Test when there are no resource tasks for delete.'''
-        self._deployment['status'] = 'UP'
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        router = Router(bottle.default_app(), manager)
-        self._mox.StubOutWithMock(manager, "get_deployment")
-        manager.get_deployment('1234').AndReturn(self._deployment)
-
-        self._mox.StubOutWithMock(checkmate.deployments.router.plan, "Plan")
-        checkmate.deployments.router.Plan = self._mox.CreateMockAnything()
-        mock_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.router.plan.Plan.__call__(
-            IgnoreArg()).AndReturn(mock_plan)
-        mock_plan.plan_delete(IgnoreArg()).AndReturn([])
-        self._mox.StubOutWithMock(checkmate.deployments.tasks.
-                                  delete_deployment_task, "delay")
-        checkmate.deployments.tasks.delete_deployment_task.delay('1234')\
-            .AndReturn(True)
-        delete_op = {
-            'link': '/canvases/1234',
-            'type': 'DELETE',
-            'status': 'NEW',
-            'tasks': 0,
-            'complete': 0,
-        }
-        self._mox.StubOutWithMock(manager, 'save_deployment')
-        manager.save_deployment(
-            ContainsKeyValue('operation', delete_op),
-            api_id='1234',
-            tenant_id=None).AndReturn(None)
-        self._mox.ReplayAll()
-        router.delete_deployment('1234')
-        self._mox.VerifyAll()
-        self.assertEqual(202, bottle.response.status_code)
-
     def test_happy_path(self):
-        '''When it all goes right.'''
         self._deployment['status'] = 'UP'
-
+        self._deployment['created'] = get_time_string()
+        self._deployment['operation'] = {'status': 'IN PROGRESS'}
         mock_driver = self._mox.CreateMockAnything()
-        manager = Manager({'default': mock_driver})
+        manager = self._mox.CreateMock(Manager)
         router = Router(bottle.default_app(), manager)
+        manager.get_deployment('1234').AndReturn(self._deployment)
+        manager.select_driver('1234').AndReturn(mock_driver)
 
-        mock_driver.get_deployment(
-            '1234', with_secrets=False).AndReturn(self._deployment)
-        self._mox.StubOutWithMock(checkmate.deployments.router.plan, "Plan")
-        checkmate.deployments.router.Plan = self._mox.CreateMockAnything()
-        mock_plan = self._mox.CreateMockAnything()
-        checkmate.deployments.router.plan.Plan.__call__(
-            IgnoreArg()).AndReturn(mock_plan)
-        mock_delete_step1 = self._mox.CreateMockAnything()
-        mock_delete_step2 = self._mox.CreateMockAnything()
-        mock_steps = [mock_delete_step1, mock_delete_step2]
-        mock_plan.plan_delete(IgnoreArg()).AndReturn(mock_steps)
-        self._mox.StubOutWithMock(common_tasks.update_operation, "s")
-        mock_subtask = self._mox.CreateMockAnything()
-        common_tasks.update_operation.s('1234', status='IN PROGRESS')\
-            .AndReturn(mock_subtask)
-        mock_subtask.delay().AndReturn(True)
-        self._mox.StubOutClassWithMocks(checkmate.deployments.router.celery, "chord")
-        mock_chord = checkmate.deployments.router.celery.chord(mock_steps)
-        mock_delete_dep = self._mox.CreateMockAnything()
-        delete_op = {
-            'link': '/canvases/1234',
-            'type': 'DELETE',
-            'status': 'NEW',
-            'tasks': 0,
-            'complete': 0,
-        }
-        self._mox.StubOutWithMock(manager, "save_deployment")
-        manager.save_deployment(ContainsKeyValue('operation', delete_op),
-                                api_id='1234',
-                                tenant_id=None).AndReturn(None)
-        self._mox.StubOutWithMock(
-            checkmate.deployments.tasks.delete_deployment_task, "si"
-        )
-        checkmate.deployments.tasks.delete_deployment_task.si(IgnoreArg())\
-            .AndReturn(mock_delete_dep)
-        mock_chord.__call__(IgnoreArg(), interval=IgnoreArg(),
-                            max_retries=IgnoreArg()).AndReturn(True)
+        self._mox.StubOutWithMock(common_tasks, "update_operation")
+        common_tasks.update_operation.delay('1234', action='PAUSE',
+                                            driver=mock_driver)
+        self._mox.StubOutWithMock(workflow_tasks, "pause_workflow")
+        workflow_tasks.pause_workflow.si('1234',
+                                         driver=mock_driver).AndReturn(1)
+
+        self._mox.StubOutWithMock(workflow_tasks,
+                                  "create_delete_deployment_workflow")
+        workflow_tasks.create_delete_deployment_workflow.si('1234',
+                                                            bottle.request
+                                                            .context,
+                                                            driver=mock_driver
+                                                            ).AndReturn(2)
+
+        self._mox.StubOutWithMock(operations, "create_delete_operation")
+        operations.create_delete_operation.s('1234',
+                                             tenant_id=None).AndReturn(3)
+
+        self._mox.StubOutWithMock(orchestrator, "run_workflow")
+        orchestrator.run_workflow.s(driver=mock_driver).AndReturn(4)
+
+        self._mox.StubOutWithMock(chain, "__init__")
+        chain.__init__([1, 2, 3, 4])
+        self._mox.StubOutWithMock(chain, "apply_async")
+        chain.apply_async()
+
         self._mox.ReplayAll()
         router.delete_deployment('1234')
         self._mox.VerifyAll()
-        self.assertEquals(202, bottle.response.status_code)
 
     def test_delete_deployment_task(self):
         '''Test the final delete task itself.'''

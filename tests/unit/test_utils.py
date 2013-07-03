@@ -38,6 +38,10 @@ class TestUtils(unittest.TestCase):
         self.assertDictEqual(utils.flatten(list_of_dict),
                              {'foo': 'bar1', 'a': 'b'})
 
+    def test_get_id_for_simulate(self):
+        self.assertTrue(utils.get_id(True).startswith("simulate"))
+        self.assertFalse(utils.get_id(False).startswith("simulate"))
+
     def test_extract_data_expression_as_sensitive(self):
         data = {
             "employee": {

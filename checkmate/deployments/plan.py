@@ -212,36 +212,6 @@ class Plan(ExtensibleDict):
                 results.append(result)
         return results
 
-    def plan_delete(self, context):
-        '''
-        Collect delete resource tasks from the deployment
-
-        :param context: a RequestContext
-        :return: a celery.canvas.group of the delete tasks
-        '''
-        assert isinstance(context, RequestContext)
-        del_tasks = []
-        dep_id = self.deployment.get("id")
-        for res_key, resource in (
-                self.deployment.get("resources", {}).iteritems()):
-            prov_key = resource.get('provider')
-            if not prov_key:
-                LOG.warn("Deployment %s resource %s does not specify a "
-                         "provider", dep_id, res_key)
-                continue
-            provider = self.environment.get_provider(resource.get("provider"))
-            if not provider:
-                LOG.warn("Deployment %s resource %s has an unknown provider:"
-                         " %s", dep_id, res_key, resource.get("provider"))
-                continue
-            new_tasks = provider.delete_resource_tasks(context, dep_id,
-                                                       resource, res_key)
-            if new_tasks:
-                del_tasks.append(new_tasks)
-        if not del_tasks:
-            LOG.warn("No delete resource tasks for deployment %s", dep_id)
-        return del_tasks
-
     def evaluate_defaults(self):
         '''
 

@@ -372,7 +372,7 @@ def create_record(context, domain, name, dnstype, data,
 
 
 @task(default_retry_delay=5, max_retries=12)
-def delete_record(context, domain_id, record_id):
+def delete_record_task(context, domain_id, record_id):
     """ Delete the specified record """
     match_celery_logging(LOG)
     api = _get_dns_object(context)
@@ -395,13 +395,13 @@ def delete_record(context, domain_id, record_id):
     except ResponseError as res_err:
         LOG.debug('Error deleting DNS record %s. Error %s %s. Retrying.' % (
                   record_id, res_err.status, res_err.reason))
-        delete_record.retry(exc=res_err)
+        delete_record_task.retry(exc=res_err)
     except Exception as exc:
         if "Not found" in exc.args[0]:
             return
         LOG.debug('Error deleting DNS record %s. Retrying.' % record_id,
                   exc_info=True)
-        delete_record.retry(exc=exc)
+        delete_record_task.retry(exc=exc)
 
 
 @task(default_retry_delay=20, max_retries=10)
@@ -417,7 +417,7 @@ def delete_record_by_name(context, domain, name):
     except Exception, exc:
         LOG.debug('Error finding domain %s.  Wanting to delete record %s. '
                   'Error %s. Retrying.' % (domain, name, str(exc)))
-        delete_record.retry(exc=exc)
+        delete_record_task.retry(exc=exc)
 
     try:
         record = domain.get_record(name=name)
@@ -426,8 +426,8 @@ def delete_record_by_name(context, domain, name):
     except ResponseError, r:
         LOG.debug('Error deleting DNS record %s. Error %s %s. Retrying.' % (
                   name, r.status, r.reason))
-        delete_record.retry(exc=r)
+        delete_record_task.retry(exc=r)
     except Exception, exc:
         LOG.debug('Error deleting DNS record %s. Error %s. Retrying.' % (
                   name, str(exc)))
-        delete_record.retry(exc=exc)
+        delete_record_task.retry(exc=exc)

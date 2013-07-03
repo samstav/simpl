@@ -13,6 +13,9 @@ import uuid
 from SpiffWorkflow import Workflow as SpiffWorkflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate import orchestrator
+from checkmate import workflow as wf_import  # TODO: rename
+from checkmate import workflows_new as workflow_tasks
 from checkmate.common.tasks import update_operation
 from checkmate.db import (
     get_driver,
@@ -20,7 +23,6 @@ from checkmate.db import (
     InvalidKeyError,
     ObjectLockedError,
 )
-from checkmate import orchestrator
 from checkmate.utils import (
     extract_sensitive_data,
     formatted_response,
@@ -30,7 +32,6 @@ from checkmate.utils import (
     with_tenant,
     write_body,
 )
-from checkmate import workflow as wf_import  # TODO: rename
 
 DB = get_driver()
 SIMULATOR_DB = get_driver(connection_string=os.environ.get(
@@ -224,9 +225,9 @@ def pause_workflow(id, tenant_id=None, driver=DB):
     operation = deployment.get("operation")
 
     if (operation and operation.get('action') != 'PAUSE' and
-            operation['status'] != 'PAUSED'):
+            operation['status'] not in ('PAUSED', 'COMPLETE')):
         update_operation.delay(dep_id, driver=driver, action='PAUSE')
-        orchestrator.pause_workflow.delay(id, driver)
+        workflow_tasks.pause_workflow.delay(id, driver)
     return write_body(workflow, request, response)
 
 

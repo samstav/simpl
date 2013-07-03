@@ -9,7 +9,6 @@ import checkmate.workflow as cm_workflow
 from celery.task import task
 from celery.exceptions import MaxRetriesExceededError
 from SpiffWorkflow import Workflow, Task
-from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common.tasks import update_operation
@@ -33,66 +32,6 @@ def count_seconds(seconds):
                                    meta={'complete': elapsed,
                                          'total': seconds})
     return seconds
-
-
-@task(default_retry_delay=10, max_retries=300)
-def pause_workflow(w_id, driver):
-    '''
-    Waits for all the waiting celery tasks to move to ready and then marks the
-    operation as paused
-    :param w_id: Wolkflow id
-    :param driver: DB driver
-    :return:
-    '''
-    number_of_waiting_celery_tasks = 0
-    try:
-        workflow, key = driver.lock_workflow(w_id, with_secrets=True)
-    except ObjectLockedError:
-        pause_workflow.retry()
-
-    deployment_id = workflow["attributes"].get("deploymentId") or w_id
-    deployment = driver.get_deployment(deployment_id)
-    operation = deployment["operation"]
-    action = operation.get("action")
-
-    if action and action == "PAUSE":
-        kwargs = {"action-response": "ACK"}
-        update_operation.delay(deployment_id, driver=driver, **kwargs)
-    else:
-        LOG.warn("Pause Workflow called when operation's action is not PAUSE")
-        driver.unlock_workflow(w_id, key)
-        pause_workflow.retry()
-
-    serializer = DictionarySerializer()
-    d_wf = Workflow.deserialize(serializer, workflow)
-
-    for task in Task.Iterator(d_wf.task_tree, Task.WAITING):
-        if (isinstance(task.task_spec, Celery) and
-                not cm_workflow.is_failed_task(task)):
-            task.task_spec._update_state(task)
-            if task._has_state(Task.WAITING):
-                number_of_waiting_celery_tasks += 1
-
-    LOG.debug("Workflow %s has %s waiting celery tasks", w_id,
-              number_of_waiting_celery_tasks)
-    kwargs = {"action-completes-after": number_of_waiting_celery_tasks}
-
-    if number_of_waiting_celery_tasks == 0:
-        LOG.debug("No waiting celery tasks for workflow %s", w_id)
-        kwargs.update({'status': 'PAUSED', 'action-response': None,
-                       'action': None})
-        update_operation.delay(deployment_id, driver=driver, **kwargs)
-        cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
-                                    status="PAUSED", driver=driver,
-                                    workflow_id=w_id)
-        driver.unlock_workflow(w_id, key)
-        return True
-    else:
-        update_operation.delay(deployment_id, driver=driver, **kwargs)
-        cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
-                                    driver=driver, workflow_id=w_id)
-        driver.unlock_workflow(w_id, key)
-        return pause_workflow.retry()
 
 
 @task(default_retry_delay=10, max_retries=300)
@@ -147,15 +86,13 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
 
     run_workflow.on_failure = _on_failure_handler
 
-    dep_id = workflow["attributes"]["deploymentId"] or w_id
+    dep_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(dep_id)
-    operation_type = deployment["operation"].get("type")
+    operation = deployment["operation"]
+    operation_type = operation.get("type")
+    action = operation.get("action")
 
-    assert operation_type == "BUILD", \
-        "Orchestrator is getting called for %s operation type" % operation_type
-    action = deployment["operation"].get("action")
-
-    if action and action == "PAUSE":
+    if action and action == "PAUSE" and operation_type == "BUILD":
         driver.unlock_workflow(w_id, key)
         return False
 
@@ -217,7 +154,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
                 status_info = get_status_info(errors, tenant_id, w_id)
 
             if total == completed:
-                deployment_status = "UP"
+                deployment_status = ("DELETED" if operation_type == "DELETE"
+                                     else "UP")
 
             operation_kwargs = {'status': operation_status,
                                 'tasks': total,
