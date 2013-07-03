@@ -135,3 +135,16 @@ filters.filter('cm_validation_rules', function() {
     return html;
   };
 });
+
+filters.filter('barClass', function(){
+  return function(status){
+    if(status === 'UP') {
+      return 'bar-success';
+    } else if(status === 'FAILED') {
+      return 'bar-danger';
+    } else {
+      return '';
+    }
+  };
+});
+

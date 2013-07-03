@@ -20,7 +20,7 @@
             <th>Name</th>
             <th>Blueprint</th>
             <th ng-show="is_admin(true)">Tenant</th>
-            <th>Status</th>
+            <th class='text-center'>Status</th>
             <th>Created</th>
           </tr>
         </thead>
@@ -40,9 +40,8 @@
               </span>
             </td>
             <td>
-              <div class="progress deploy_progress">
-                <div class="bar" ng-style="{width: ((deployment.operation.complete/deployment.operation.tasks) * 100 || '0') + '%'}"
-                  ng-class="{'bar-success': deployment.status == 'UP'}">
+              <div class="progress deploy_progress" ng-class="{'deploy-complete': deployment.progress != 100}">
+                <div class="bar {{ deployment.display_status | barClass }}" ng-style="{width: deployment.progress + '%'}">
                 </div>
                 <span>{{deployment.display_status}}</span>
               </div>

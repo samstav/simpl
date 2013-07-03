@@ -381,6 +381,8 @@ body {
   background-image: none;
   background-color: #AAA;
   margin-bottom: 0px;
+  width: 67px;
+  margin: auto;
 }
 .deploy_progress .bar {
   position: absolute;
@@ -391,6 +393,10 @@ body {
   width: 100%;
   color: #FFF;
   font-size: 12px;
+}
+
+.deploy_progress.deploy-complete {
+  width: 150px;
 }
 
 /* NavBar Loading Indicator */
@@ -580,4 +586,8 @@ a:hover {
   padding: 10px 0;
   text-align: left;
   font-size: 12px;
+}
+
+table th.text-center {
+  text-align: center;
 }
