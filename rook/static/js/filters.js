@@ -98,7 +98,7 @@ filters.filter('capitalize',
   }
 );
 
-filters.filter('capitalize_all',
+filters.filter('capitalizeAll',
   function() {
     return function(input) {
       if(angular.isString(input) && input.length){

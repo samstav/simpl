@@ -1,9 +1,10 @@
-describe('capitalize_all filter', function(){
-  beforeEach(function(){
-    module('checkmate.filters');
-  });
+describe('capitalizeAll filter', function(){
+  beforeEach(module('checkmate.filters'));
+  beforeEach(inject(['capitalizeAllFilter', function(filter){
+    capitalizeAllFilter = filter;
+  }]));
 
-  it('should capitalize each word in the line', inject(function(capitalize_allFilter){
-    expect(capitalize_allFilter('this is a test')).toEqual('This Is A Test');
-  }));
+  it('should capitalize each word in the line', function(){
+    expect(capitalizeAllFilter('this is a test')).toEqual('This Is A Test');
+  });
 });
