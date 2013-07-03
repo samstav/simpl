@@ -2306,6 +2306,15 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     }
   };
 
+  $scope.admin_sync = function(deployment) {
+    var tenant_id = deployment.tenantId;
+    var username = "rackcloudtech"; // TODO: get username from tenant_id
+    auth.impersonate(username).then(function() {
+      $scope.sync(deployment);
+      auth.exit_impersonation();
+    });
+  }
+
   $scope.__tenants = {};
   $scope.__content_loaded = false;
   $scope.default_tags = ['RackConnect', 'Managed', 'Racker', 'Internal'];
