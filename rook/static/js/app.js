@@ -2311,6 +2311,14 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     return (tags || []);
   };
 
+  $scope.all_tags = function() {
+    var tenants = _.values($scope.__tenants);
+    var all_tags = _.flatten(_.map(tenants, function(tenant) { return tenant.tags }));
+    var unique_tags = _.uniq(all_tags);
+    var custom_tags = _.filter(unique_tags, function(tag) { return $scope.default_tags.indexOf(tag) === -1 })
+    return $scope.default_tags.concat(custom_tags);
+  }
+
   $scope.get_tenant = function(tenant_id) {
     var tenant = $scope.__tenants[tenant_id];
     if (!tenant) {
@@ -3304,12 +3312,6 @@ if (Modernizr.localstorage) {
 } else {
   alert("This browser application requires an HTML5 browser with support for local storage");
 }
-$(function() {
-  // Don't close feedback form on click
-  $('.dropdown input, .dropdown label, .dropdown textarea').click(function(e) {
-    e.stopPropagation();
-  });
-});
 
 var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 

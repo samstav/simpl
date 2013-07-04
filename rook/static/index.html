@@ -100,7 +100,7 @@
                   <li ng-show="auth.identity.is_admin" class="nav-header">TENANTS</li>
                   <li ng-show="auth.identity.is_admin">
                     <form id="impersonate" ng-submit="impersonate(username)">
-                      <input ng-model="username" type="text" placeholder="Username" />
+                      <input ng-model="username" type="text" placeholder="Username" cm-stop-click-propagation />
                     </form>
                   </li>
                   <li role="presentation" ng-repeat="tenant in auth.identity.tenants">
