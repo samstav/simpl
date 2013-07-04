@@ -28,8 +28,7 @@ def create_delete_deployment_workflow(dep_id, context, driver=DB):
     deployment = driver.get_deployment(dep_id)
     deployment = Deployment(deployment)
     workflow_id = utils.get_id(context.simulation)
-    delete_wf_spec = create_delete_deployment_workflow_spec(
-        deployment, context, workflow_id)
+    delete_wf_spec = create_delete_deployment_workflow_spec(deployment, context)
     delete_wf = create_workflow(delete_wf_spec, deployment, context)
     LOG.debug("Workflow %s created for deleting deployment %s", workflow_id,
               deployment["id"])
@@ -208,8 +207,7 @@ def get_SpiffWorkflow_status(workflow):
     return result
 
 
-def create_delete_deployment_workflow_spec(deployment, context,
-                                           delete_workflow_id):
+def create_delete_deployment_workflow_spec(deployment, context):
     """Creates a SpiffWorkflow spec for deleting a deployment
 
     :returns: SpiffWorkflow.WorkflowSpec"""
@@ -225,18 +223,11 @@ def create_delete_deployment_workflow_spec(deployment, context,
     wf_spec = WorkflowSpec(name="Delete deployment %s(%s)" %
                                 (dep_id, blueprint['name']))
 
-    # delete_task = Celery(wf_spec, "Create Delete Operation",
-    #                      'checkmate.operations.create_delete_operation',
-    #                      call_args=[dep_id, delete_workflow_id,
-    #                                 deployment['tenantId']],
-    #                      properties={'estimated_duration': 10})
-    # wf_spec.start.connect(delete_task)
-
     if operation['status'] in ('COMPLETE', 'PAUSED'):
         root_task = wf_spec.start
     else:
         root_task = Celery(wf_spec, 'Pause %s Workflow %s' %
-                                    (existing_workflow_id,  operation['type']),
+                                    (operation['type'], existing_workflow_id),
                            'checkmate.workflows_new.tasks.pause_workflow',
                            call_args=[dep_id],
                            properties={'estimated_duration': 10})

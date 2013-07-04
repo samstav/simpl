@@ -331,6 +331,15 @@ class Deployment(ExtensibleDict):
         return None
 
     def get_operation(self, workflow_id):
+        '''
+        Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
+        blocks for an operation that has a field workflow-id with value as
+        that of the parameter workflow_id. If such an operation is found,
+        the method returns that operation.
+
+        :param workflow_id:
+        :return:
+        '''
         operation = self.get("operation", None)
         if self.current_workflow_id() == workflow_id:
             return {'operation': operation}
@@ -342,6 +351,27 @@ class Deployment(ExtensibleDict):
                 return {'history': ret}
             else:
                 ret.append({})
+
+    def get_current_operation(self, workflow_id):
+        '''
+        Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
+        blocks for an operation that has a field workflow-id with value as
+        that of the parameter workflow_id. If such an operation is found,
+        the method returns that operation.
+
+        The return value would contain only the operation that matched the
+        workflow, and it would not indicate whether the operation was from
+        the OPERATION block or the OPERATIONS-HISTORY
+
+        :param workflow_id:
+        :return:
+        '''
+        operation_result = self.get_operation(workflow_id)
+        if operation_result:
+            if "history" in operation_result:
+                return operation_result.values()[0][-1]
+            else:
+                return operation_result.values()[0]
 
     def inputs(self):
         """ return inputs of deployment """

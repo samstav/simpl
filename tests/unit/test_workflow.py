@@ -283,14 +283,15 @@ class TestWorkflow(unittest.TestCase):
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
         workflow_spec = create_delete_deployment_workflow_spec(
-            deployment_with_lb_provider, context, 'ID')
+            deployment_with_lb_provider, context)
         workflow = create_workflow(workflow_spec, deployment_with_lb_provider,
                                    context)
         workflow_dump = re.sub("\s", "", workflow.get_dump())
         expected_dump = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1
-      3/0: Task of Pause DEP-ID-1000 Workflow BUILD State: FUTURE Children: 1
+      3/0: Task of Pause BUILD Workflow DEP-ID-1000 State: FUTURE
+      Children: 1
         4/0: Task of Delete Loadbalancer (0) State: FUTURE Children: 1
           5/0: Task of Wait for Loadbalancer (0) delete State: FUTURE
       Children: 0"""
@@ -350,7 +351,7 @@ class TestWorkflow(unittest.TestCase):
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
         workflow_spec = create_delete_deployment_workflow_spec(
-            deployment_with_lb_provider, context, "ID")
+            deployment_with_lb_provider, context)
         workflow = create_workflow(workflow_spec, deployment_with_lb_provider,
                                    context)
         workflow_dump = re.sub("\s", "", workflow.get_dump())

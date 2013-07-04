@@ -45,12 +45,7 @@ def pause_workflow(w_id, driver=None):
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(deployment_id)
-    operation_result = Deployment(deployment).get_operation(w_id)
-
-    if "history" in operation_result:
-        operation = operation_result.values()[0][-1]
-    else:
-        operation = operation_result.values()[0]
+    operation = Deployment(deployment).get_current_operation(w_id)
 
     action = operation.get("action")
 

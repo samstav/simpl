@@ -90,17 +90,12 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
 
     dep_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(dep_id)
-    operation_result = Deployment(deployment).get_operation(w_id)
-    if not operation_result:
+    operation = Deployment(deployment).get_current_operation(w_id)
+    if not operation:
         driver.unlock_workflow(w_id, key)
         LOG.debug("RunWorkflow for workflow %s cannot proceed, as operation "
                   "could not be found. Deployment Id: %s", w_id, dep_id)
         run_workflow.retry()
-
-    if "history" in operation_result:
-        operation = operation_result.values()[0][-1]
-    else:
-        operation = operation_result.values()[0]
 
     operation_type = operation.get("type")
     action = operation.get("action")
