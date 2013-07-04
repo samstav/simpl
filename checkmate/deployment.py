@@ -324,6 +324,25 @@ class Deployment(ExtensibleDict):
                 return Environment({})
         return self._environment
 
+    def current_workflow_id(self):
+        operation = self.get('operation')
+        if operation:
+            return operation.get('workflow-id', self.get('id'))
+        return None
+
+    def get_operation(self, workflow_id):
+        operation = self.get("operation", None)
+        if self.current_workflow_id() == workflow_id:
+            return {'operation': operation}
+        operations_history = self.get("operations-history", [])
+        ret = []
+        for history in operations_history:
+            if history.get("workflow-id", self.get('id')) == workflow_id:
+                ret.append(history)
+                return {'history': ret}
+            else:
+                ret.append({})
+
     def inputs(self):
         """ return inputs of deployment """
         return self.get('inputs', {})

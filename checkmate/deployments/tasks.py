@@ -62,11 +62,11 @@ def process_post_deployment(deployment, request_context, driver=DB):
 
 @task
 @statsd.collect
-def update_operation(deployment_id, driver=DB, **kwargs):
+def update_operation(deployment_id, workflow_id, driver=DB, **kwargs):
     '''Wrapper for common_tasks.update_operation.'''
     # TODO(any): Deprecate this
-    return common_tasks.update_operation(deployment_id, driver=driver,
-                                         **kwargs)
+    return common_tasks.update_operation(deployment_id, workflow_id,
+                                         driver=driver, **kwargs)
 
 
 @task(default_retry_delay=2, max_retries=60)
@@ -98,11 +98,14 @@ def delete_deployment_task(dep_id, driver=DB):
                     }
                     resource_postback.delay(dep_id, contents, driver=driver)
 
-    common_tasks.update_operation.delay(dep_id, status="COMPLETE",
+    common_tasks.update_operation.delay(dep_id,
+                                        deployment.current_workflow_id(),
+                                        status="COMPLETE",
+                                        driver=driver,
                                         deployment_status="DELETED",
                                         complete=len(deployment.get(
-                                                     'resources', {})),
-                                        driver=driver)
+                                                     'resources', {}))
+                                        )
 
 
 @task(default_retry_delay=0.25, max_retries=4)

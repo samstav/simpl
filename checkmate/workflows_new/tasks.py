@@ -50,7 +50,7 @@ def pause_workflow(w_id, driver=None):
 
     if action and action == "PAUSE":
         kwargs = {"action-response": "ACK"}
-        common_tasks.update_operation.delay(deployment_id, driver=driver,
+        common_tasks.update_operation.delay(deployment_id, w_id, driver=driver,
                                             **kwargs)
     elif operation["status"] == "COMPLETE":
         LOG.warn("Received a pause workflow request for a completed "
@@ -82,40 +82,16 @@ def pause_workflow(w_id, driver=None):
         kwargs.update({'status': 'PAUSED', 'action-response': None,
                        'action': None})
 
-        result = common_tasks.update_operation.delay(deployment_id,
-                                                     driver=driver, **kwargs)
-        while not result.ready():
-            pass
+        common_tasks.update_operation.delay(deployment_id, w_id, driver=driver,
+                                            **kwargs)
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                     status="PAUSED", workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
         return True
     else:
-        common_tasks.update_operation.delay(deployment_id, driver=driver,
+        common_tasks.update_operation.delay(deployment_id, w_id, driver=driver,
                                             **kwargs)
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                     workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
         return pause_workflow.retry()
-
-
-@task(default_retry_delay=10, max_retries=300)
-def create_delete_deployment_workflow(dep_id, context, driver=DB):
-    deployment = driver.get_deployment(dep_id)
-    deployment = Deployment(deployment)
-    workflow_id = utils.get_id(context.simulation)
-    delete_wf_spec = cm_workflow.create_delete_deployment_workflow_spec(
-        deployment, context)
-    delete_wf = cm_workflow.create_workflow(delete_wf_spec, deployment,
-                                            context)
-    LOG.debug("Workflow %s created for deleting deployment %s", workflow_id,
-              deployment["id"])
-
-    delete_wf.attributes['id'] = workflow_id
-    serializer = DictionarySerializer()
-    workflow = delete_wf.serialize(serializer)
-    workflow['id'] = workflow_id
-    body, secrets = utils.extract_sensitive_data(workflow)
-    driver.save_workflow(workflow_id, body, secrets, tenant_id=deployment[
-        'tenantId'])
-    return workflow_id

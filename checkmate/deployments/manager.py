@@ -354,6 +354,7 @@ class Manager(base.ManagerBase):
         deployment['workflow'] = workflow_id
         wf_data = operations.init_operation(spiff_wf, tenant_id=tenant_id)
         operation = operations.add_operation(deployment, 'BUILD', **wf_data)
+        operation['workflow-id'] = workflow_id
 
         body, secrets = utils.extract_sensitive_data(workflow)
         driver = self.select_driver(api_id)

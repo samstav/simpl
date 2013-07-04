@@ -134,6 +134,50 @@ class TestDeployments(unittest.TestCase):
         self.deployment.environment().AndReturn(environment)
         environment.get_provider('test').AndReturn(self.provider)
 
+    def test_get_current_workflow_id_when_w_id_not_in_operation(self):
+        workflow_id = self.deployment.current_workflow_id()
+        self.assertEqual(workflow_id, self.deployment['id'])
+
+    def test_get_current_workflow_id_when_w_id_in_operation(self):
+        self.deployment['operation']['workflow-id'] = "w_id"
+        workflow_id = self.deployment.current_workflow_id()
+        self.assertEqual(workflow_id, "w_id")
+
+    def test_get_operation_for_workflow(self):
+        self.deployment["operation"]["workflow-id"] = "w_id"
+        expected_operation = {'operation': self.deployment["operation"]}
+        self.assertEqual(self.deployment.get_operation("w_id"),
+                         expected_operation)
+
+    def test_get_operation_for_workflow_when_w_id_is_not_in_operation(self):
+        expected_operation = {'operation': self.deployment["operation"]}
+        self.assertEqual(self.deployment.get_operation("test"),
+                         expected_operation)
+
+    def test_get_operation_from_operation_histories(self):
+        self.deployment["operations-history"] = [{'status': 'PAUSED',
+                                                  'workflow-id': 'w_id'}]
+        expected_operation = {'history': [self.deployment[
+            "operations-history"][0]]}
+        self.assertEqual(self.deployment.get_operation('w_id'),
+                         expected_operation)
+
+    def test_get_operation_from_operation_histories_with_positional_elements(
+            self):
+        self.deployment["operations-history"] = [{'status': 'PAUSED',
+                                                  'workflow-id': 'w_id'},
+                                                 {'status': 'NEW',
+                                                  'workflow-id': 'w_id2'}]
+        expected_operation = {'history': [{}, self.deployment[
+            "operations-history"][1]]}
+        self.assertEqual(self.deployment.get_operation('w_id2'),
+                         expected_operation)
+
+    def test_get_operation_for_w_id_not_associated_with_deployment(self):
+        self.deployment["operations-history"] = [
+            {'status': 'PAUSED', 'workflow-id': 'w_id'}]
+        self.assertIsNone(self.deployment.get_operation("foobar_w_id"))
+
     def test_get_statuses_for_deleted_resources(self):
         resource_status = {'instance:0': {'status': 'DELETED'}}
         self.provider.get_resource_status(self.context, 'test',

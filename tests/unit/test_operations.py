@@ -25,32 +25,48 @@ class TestOperations(unittest.TestCase):
 
     def test_update_operation(self):
         db = self.mox.CreateMockAnything()
-        db.get_deployment('1234', with_secrets=True).AndReturn({'operation': {
+        db.get_deployment('1234', with_secrets=True).AndReturn({
+            'id': '1234', 'operation': {
             'status': 'NEW'}})
         db.save_deployment('1234', {'operation': {'status': 'NEW'}},
                            partial=True).AndReturn(None)
         self.mox.ReplayAll()
-        operations.update_operation('1234', status='NEW', driver=db)
+        operations.update_operation('1234', '1234', status='NEW', driver=db)
+        self.mox.VerifyAll()
+
+    def test_update_operation_when_operation_in_operations_history(self):
+        db = self.mox.CreateMockAnything()
+        db.get_deployment('1234', with_secrets=True).AndReturn({
+            'id': '1234', 'operation': {
+            'status': 'NEW'},
+            'operations-history': [{'workflow-id': 'w_id', 'status': 'BUILD'}]
+        })
+        db.save_deployment('1234', {'operations-history': [{'status':
+                                                            'PAUSE'}],
+                                    'display-outputs': {}},
+                           partial=True).AndReturn(None)
+        self.mox.ReplayAll()
+        operations.update_operation('1234', 'w_id', status='PAUSE', driver=db)
         self.mox.VerifyAll()
 
     def test_update_operation_with_deployment_status(self):
         db = self.mox.CreateMockAnything()
-        db.get_deployment('1234', with_secrets=True).AndReturn({'operation': {
-            'status': 'NEW'}})
+        db.get_deployment('1234', with_secrets=True).AndReturn(
+            {'id': '1234', 'operation': {'status': 'NEW'}})
         db.save_deployment('1234', {'operation': {'status': 'NEW'},
                                     'status': "PLANNED"},
                            partial=True).AndReturn(None)
         self.mox.ReplayAll()
-        operations.update_operation('1234', status='NEW',
+        operations.update_operation('1234', '1234', status='NEW',
                                     deployment_status="PLANNED", driver=db)
         self.mox.VerifyAll()
 
     def test_update_operation_with_operation_marked_complete(self):
         db = self.mox.CreateMockAnything()
-        db.get_deployment('1234', with_secrets=True).AndReturn({'operation': {
-            'status': 'COMPLETE'}})
+        db.get_deployment('1234', with_secrets=True).AndReturn(
+            {'id': '1234', 'operation': {'status': 'COMPLETE'}})
         self.mox.ReplayAll()
-        operations.update_operation('1234', status='NEW',
+        operations.update_operation('1234', '1234', status='NEW',
                                     deployment_status="PLANNED", driver=db)
         self.mox.VerifyAll()
 

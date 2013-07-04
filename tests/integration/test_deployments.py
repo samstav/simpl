@@ -8,7 +8,6 @@ import unittest
 import bottle
 from bottle import HTTPError
 from celery.app.task import Context
-from celery.canvas import chain
 import mox
 from mox import IgnoreArg, ContainsKeyValue
 
@@ -17,8 +16,8 @@ from checkmate import (
     keys,
     operations,
     orchestrator,
+    workflow,
 )
-from checkmate import workflows_new as workflow_tasks
 from checkmate.common import tasks as common_tasks
 from checkmate.deployment import (
     Deployment,
@@ -221,6 +220,7 @@ class TestDeploymentDeployer(unittest.TestCase):
             'link': '/T1000/workflows/test',
             'last-change': None,
             'type': 'BUILD',
+            'workflow-id': 'test'
         }
         operation['last-change'] = None  # skip comparing/mocking times
 
@@ -1341,45 +1341,34 @@ class TestDeleteDeployments(unittest.TestCase):
         manager.get_deployment('1234').AndReturn(self._deployment)
         manager.select_driver('1234').AndReturn(mock_driver)
 
+        self._mox.StubOutWithMock(workflow, "create_delete_deployment_workflow")
+        workflow.create_delete_deployment_workflow('1234',
+                                                   bottle.request.context,
+                                                   driver=mock_driver)\
+            .AndReturn({'id': 'w_id'})
         self._mox.StubOutWithMock(common_tasks, "update_operation")
-        common_tasks.update_operation.delay('1234', action='PAUSE',
+        common_tasks.update_operation.delay('1234', '1234', action='PAUSE',
                                             driver=mock_driver)
-        self._mox.StubOutWithMock(workflow_tasks, "pause_workflow")
-        workflow_tasks.pause_workflow.si('1234',
-                                         driver=mock_driver).AndReturn(1)
-
-        self._mox.StubOutWithMock(workflow_tasks,
-                                  "create_delete_deployment_workflow")
-        workflow_tasks.create_delete_deployment_workflow.si('1234',
-                                                            bottle.request
-                                                            .context,
-                                                            driver=mock_driver
-                                                            ).AndReturn(2)
-
         self._mox.StubOutWithMock(operations, "create_delete_operation")
-        operations.create_delete_operation.s('1234',
-                                             tenant_id=None).AndReturn(3)
-
+        operations.create_delete_operation.delay('1234', 'w_id', 'T1000')
         self._mox.StubOutWithMock(orchestrator, "run_workflow")
-        orchestrator.run_workflow.s(driver=mock_driver).AndReturn(4)
+        orchestrator.run_workflow.delay('w_id', timeout=3600,
+                                        driver=mock_driver).AndReturn(4)
 
-        self._mox.StubOutWithMock(chain, "__init__")
-        chain.__init__([1, 2, 3, 4])
-        self._mox.StubOutWithMock(chain, "apply_async")
-        chain.apply_async()
         self._mox.ReplayAll()
-        router.delete_deployment('1234')
+        router.delete_deployment('1234', tenant_id="T1000")
         self._mox.VerifyAll()
 
     def test_delete_deployment_task(self):
         '''Test the final delete task itself.'''
         self._deployment['tenantId'] = '4567'
         self._deployment['status'] = 'UP'
+        self._deployment['operation'] = {'workflow-id': "w_id"}
         mock_driver = self._mox.CreateMockAnything()
         mock_driver.get_deployment('1234').AndReturn(self._deployment)
 
         self._mox.StubOutWithMock(common_tasks.update_operation, "delay")
-        common_tasks.update_operation.delay('1234', status="COMPLETE",
+        common_tasks.update_operation.delay('1234', 'w_id', status="COMPLETE",
                                             deployment_status="DELETED",
                                             complete=0, driver=mock_driver
                                             ).AndReturn(True)
