@@ -273,8 +273,8 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
-  $scope.is_admin = function() {
-    return auth.is_admin();
+  $scope.is_admin = function(strict) {
+    return auth.is_admin(strict);
   }
 
   $scope.is_impersonating = function() {
@@ -532,8 +532,11 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     var current_path = $location.path();
     var next_path = current_path;
     var account_number = /^\/[0-9]+/;
+    var admin = /^\/admin/;
     if (current_path.match(account_number)) {
       next_path = current_path.replace(account_number, "/" + auth.context.tenantId);
+    } else if (current_path.match(admin)) {
+      next_path = current_path.replace(admin, "/" + auth.context.tenantId);
     }
     if (current_path == next_path)
       $route.reload();
@@ -2286,7 +2289,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.sync(deployment);
     };
 
-    if (auth.identity.loggedIn) {
+    if (auth.is_logged_in()) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
       thang.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, function(returned, getHeaders){
@@ -2302,6 +2305,15 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.loginPrompt().then(retry);
     }
   };
+
+  $scope.admin_sync = function(deployment) {
+    var tenant_id = deployment.tenantId;
+    var username = "rackcloudtech"; // TODO: get username from tenant_id
+    auth.impersonate(username).then(function() {
+      $scope.sync(deployment);
+      auth.exit_impersonation();
+    });
+  }
 
   $scope.__tenants = {};
   $scope.__content_loaded = false;

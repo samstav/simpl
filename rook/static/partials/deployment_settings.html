@@ -7,18 +7,21 @@
     <li class="nav-header">
       <i class="icon-picture"></i> Deployment
     </li>
-    <li><a ng-click="sync(deployment)">Update</a></li>
+    <li>
+      <a ng-click="sync(deployment)" ng-hide="is_admin(true)">Sync</a>
+      <a ng-click="admin_sync(deployment)" ng-show="is_admin(true)">Sync</a>
+    </li>
 
-    <li class="divider" ng-show="is_admin() && !is_impersonating()"></li>
-    <li class="nav-header" ng-show="is_admin() && !is_impersonating()">
+    <li class="divider" ng-show="is_admin(true)"></li>
+    <li class="nav-header" ng-show="is_admin(true)">
       <i class="icon-tags"></i> Tenant Tags
     </li>
-    <li ng-repeat="tag in all_tags()" ng-show="is_admin() && !is_impersonating()">
+    <li ng-repeat="tag in all_tags()" ng-show="is_admin(true)">
       <a ng-click="toggle_tag(deployment.tenantId, tag)" cm-stop-click-propagation>
         {{tag}}<i class="icon-remove pull-right" ng-show="has_tag(deployment.tenantId, tag)"></i>
       </a>
     </li>
-    <li ng-show="is_admin() && !is_impersonating()">
+    <li ng-show="is_admin(true)">
       <form ng-submit="toggle_tag(deployment.tenantId, tenant.new_tag); tenant.new_tag = ''">
         <input ng-model="tenant.new_tag" type="text" placeholder="Custom tag..." class="new_tag" cm-stop-click-propagation />
       </form>

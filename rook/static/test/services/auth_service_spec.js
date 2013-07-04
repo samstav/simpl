@@ -21,18 +21,51 @@ describe('auth Service', function(){
   }));
 
   describe('#is_admin', function() {
-    it('should default to false', function() {
-      expect(this.auth.is_admin()).toBeFalsy();
+    beforeEach(function() {
+      this.auth.identity.is_admin = true;
     });
 
-    it('should return true when current identity is an admin', function() {
-      this.auth.identity.is_admin = true;
-      expect(this.auth.is_admin()).toBeTruthy();
+    it('should default to false', function() {
+      delete this.auth.identity.is_admin;
+      expect(this.auth.is_admin()).toBeFalsy();
     });
 
     it('should return false when current identity is not an admin', function() {
       this.auth.identity.is_admin = false;
       expect(this.auth.is_admin()).toBeFalsy();
+    });
+
+    it('should return true when current identity is an admin', function() {
+      expect(this.auth.is_admin()).toBeTruthy();
+    });
+
+    it('should return true even if admin is impersonating', function() {
+      this.auth.is_impersonating = sinon.stub().returns(true);
+      expect(this.auth.is_admin()).toBeTruthy();
+    });
+
+    describe('when in strict mode', function() {
+      it('should return false if admin is impersonating', function() {
+        this.auth.is_impersonating = sinon.stub().returns(true);
+        expect(this.auth.is_admin(true)).toBeFalsy();
+      });
+    });
+  });
+
+  describe('#is_logged_in', function() {
+    it('should return true if identity has loggedIn attribute', function() {
+      this.auth.identity = { loggedIn: true };
+      expect(this.auth.is_logged_in()).toBe(true);
+    });
+
+    it('should return false if identity does not have loggedIn attribute', function() {
+      this.auth.identity = { loggedIn: false };
+      expect(this.auth.is_logged_in()).toBe(false);
+    });
+
+    it('should return false if identity has not been set yet', function() {
+      this.auth.identity = {};
+      expect(this.auth.is_logged_in()).toBeFalsy();
     });
   });
 
@@ -262,6 +295,45 @@ describe('auth Service', function(){
     });
   });
 
+  describe('#retrieve_context', function() {
+    it('should return false if no username or tenant ID is passed', function() {
+      expect(this.auth.retrieve_context()).toBe(false);
+    });
+
+    it('should return false if identity does not have any tenants', function() {
+      this.auth.identity = {};
+      expect(this.auth.retrieve_context()).toBe(false);
+    });
+
+    describe('when context does not exist', function() {
+      it('should return false', function() {
+        this.auth.identity = { tenants: [] };
+        expect(this.auth.retrieve_context('fakeinfo')).toBe(false);
+      });
+    });
+
+    describe('when context exists', function() {
+      beforeEach(function() {
+        this.auth.identity.tenants = [
+          { username: 'notvalidname', tenantId: 'someID', info: 'otherinfo' },
+          { username: 'fakeusername', tenantId: 'fakeID', info: 'fakeinfo' }
+        ];
+      });
+
+      it('should return context if passing a username', function() {
+        expect(this.auth.retrieve_context('fakeusername').info).toEqual('fakeinfo');
+      });
+
+      it('should return context if passing a tenant ID', function() {
+        expect(this.auth.retrieve_context('fakeID').info).toEqual('fakeinfo');
+      });
+
+      it('should return false if no username or tenant ID is found', function() {
+        expect(this.auth.retrieve_context('batman')).toBe(false);
+      });
+    });
+  });
+
   describe('parseWWWAuthenticateHeaders', function(){
     it('should parse a header with a valid uri realm, scheme, and priority', function(){
       var headers = 'Keystone uri="https://identity.api.rackspacecloud.com/v2.0/tokens" realm="US Cloud" priority="42"';
@@ -401,6 +473,22 @@ describe('auth Service', function(){
       response.data = { access: { token: { id: "faketoken" } } };
       username = "fakeusername";
     }));
+
+    describe('when context is cached', function() {
+      beforeEach(function() {
+        spyOn(this.auth, 'retrieve_context').andReturn({ info: 'fakeinfo' });
+        spyOn(this.auth, 'check_state');
+        this.auth.impersonate('batman');
+      });
+
+      it('should restore previous context', function() {
+        expect(this.auth.context.info).toBe('fakeinfo');
+      });
+
+      it('should check token state after restoring context', function() {
+        expect(this.auth.check_state).toHaveBeenCalled();
+      });
+    });
 
     describe('when tenant_id was retrieved', function() {
       beforeEach(function() {
