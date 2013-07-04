@@ -285,9 +285,8 @@ class Router(object):
         driver = self.manager.select_driver(api_id)
         if (operation and operation.get('action') != 'PAUSE' and
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
-            common_tasks.update_operation.delay(
-                api_id, deployment.current_workflow_id(), driver=driver,
-                action='PAUSE')
+            common_tasks.update_operation.delay(api_id, api_id, driver=driver,
+                                                action='PAUSE')
         delete_workflow = workflow.create_delete_deployment_workflow(
             api_id, bottle.request.context, driver=driver)
         operations.create_delete_operation.delay(api_id, delete_workflow['id'],

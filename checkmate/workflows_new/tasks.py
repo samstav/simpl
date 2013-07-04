@@ -45,13 +45,20 @@ def pause_workflow(w_id, driver=None):
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(deployment_id)
-    operation = deployment["operation"]
+    operation_result = Deployment(deployment).get_operation(w_id)
+
+    if "history" in operation_result:
+        operation = operation_result.values()[0][-1]
+    else:
+        operation = operation_result.values()[0]
+
     action = operation.get("action")
 
     if action and action == "PAUSE":
-        kwargs = {"action-response": "ACK"}
-        common_tasks.update_operation.delay(deployment_id, w_id, driver=driver,
-                                            **kwargs)
+        if operation.get("action-response") != "ACK":
+            kwargs = {"action-response": "ACK"}
+            common_tasks.update_operation.delay(deployment_id, w_id,
+                                                driver=driver, **kwargs)
     elif operation["status"] == "COMPLETE":
         LOG.warn("Received a pause workflow request for a completed "
                  "operation for deployment %s. Ignoring the request",

@@ -35,7 +35,7 @@ def create_delete_operation(dep_id, workflow_id, tenant_id=None):
     kwargs = {"status": "NEW", "link": link, "workflow-id": workflow_id}
     operation = add_operation(deployment, 'DELETE', **kwargs)
     DB.save_deployment(dep_id, deployment, secrets=None, tenant_id=tenant_id,
-                       partial=True)
+                       partial=False)
     return operation
 
 
