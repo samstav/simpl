@@ -342,6 +342,14 @@ angular.module('checkmate.directives').directive('cmNotifications', ['$rootScope
   };
 }]);
 
+angular.module('checkmate.directives').directive('cmStopClickPropagation', ['$rootScope', function($rootScope) {
+  return {
+    link: function(scope, element, attrs) {
+      element.click(function(e) { e.stopPropagation(); });
+    }
+  };
+}]);
+
 // Extend ui-bootstrap to use HTML popovers
 directives.directive( 'popoverHtmlUnsafePopup', function () {
   return {

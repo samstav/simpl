@@ -89,7 +89,7 @@ Priv Key: {{formatted_data.private_key}}
                   'label-important': data.status == 'FAILED' || data.status == 'UNREACHABLE' || data.status == 'DOWN',
                   'label-inverse': data.status == 'DELETED'
                 }">
-                  {{deployment_status()}}
+                  {{data.display_status}}
                 </span>
 
                 <span ng-show="is_resumable()"><a href="#" ng-click="resume()">Resume</a></span>

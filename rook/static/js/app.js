@@ -273,8 +273,8 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
-  $scope.is_admin = function() {
-    return auth.is_admin();
+  $scope.is_admin = function(strict) {
+    return auth.is_admin(strict);
   }
 
   $scope.is_impersonating = function() {
@@ -532,8 +532,11 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     var current_path = $location.path();
     var next_path = current_path;
     var account_number = /^\/[0-9]+/;
+    var admin = /^\/admin/;
     if (current_path.match(account_number)) {
       next_path = current_path.replace(account_number, "/" + auth.context.tenantId);
+    } else if (current_path.match(admin)) {
+      next_path = current_path.replace(admin, "/" + auth.context.tenantId);
     }
     if (current_path == next_path)
       $route.reload();
@@ -2208,7 +2211,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
  * Deployment controllers
  */
 //Deployment list
-function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment) {
   //Model: UI
   $scope.showItemsBar = true;
   $scope.showStatus = true;
@@ -2266,7 +2269,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, created_by: item['created-by'], tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment, operation: item.operation,
-                status: item.status};
+                status: item.status, display_status: Deployment.status(item)};
       });
       $scope.count = items.count;
       $scope.items = items.all;
@@ -2286,7 +2289,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.sync(deployment);
     };
 
-    if (auth.identity.loggedIn) {
+    if (auth.is_logged_in()) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
       thang.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, function(returned, getHeaders){
@@ -2303,6 +2306,15 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     }
   };
 
+  $scope.admin_sync = function(deployment) {
+    var tenant_id = deployment.tenantId;
+    var username = "rackcloudtech"; // TODO: get username from tenant_id
+    auth.impersonate(username).then(function() {
+      $scope.sync(deployment);
+      auth.exit_impersonation();
+    });
+  }
+
   $scope.__tenants = {};
   $scope.__content_loaded = false;
   $scope.default_tags = ['RackConnect', 'Managed', 'Racker', 'Internal'];
@@ -2310,6 +2322,14 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     var tags = $scope.__tenants[tenant_id] && $scope.__tenants[tenant_id].tags;
     return (tags || []);
   };
+
+  $scope.all_tags = function() {
+    var tenants = _.values($scope.__tenants);
+    var all_tags = _.flatten(_.map(tenants, function(tenant) { return tenant.tags }));
+    var unique_tags = _.uniq(all_tags);
+    var custom_tags = _.filter(unique_tags, function(tag) { return $scope.default_tags.indexOf(tag) === -1 })
+    return $scope.default_tags.concat(custom_tags);
+  }
 
   $scope.get_tenant = function(tenant_id) {
     var tenant = $scope.__tenants[tenant_id];
@@ -2913,7 +2933,7 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder) {
+function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder, Deployment) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -2956,8 +2976,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
     this.klass.get($routeParams, function(data, getResponseHeaders){
-      $scope.data = data;
       $scope.data_json = JSON.stringify(data, null, 2);
+
+      data.display_status = Deployment.status(data);
+      $scope.data = data;
       $scope.formatted_data = deploymentDataParser.formatData(data);
       $scope.abs_url = $location.absUrl();
       $scope.clippy_element = "#deployment_summary_clipping";
@@ -2987,22 +3009,6 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     }
 
     return percentage;
-  };
-
-  $scope.operation_status = function() {
-    return $scope.data.operation && $scope.data.operation.status;
-  };
-
-  $scope.deployment_status = function() {
-    var status = $scope.data.status;
-    var stop_statuses = ['COMPLETE', 'ERROR'];
-
-    // if there's an operation running, override status:
-    if ($scope.data.operation && stop_statuses.indexOf($scope.operation_status()) === -1) {
-      status = $scope.data.operation.type;
-    }
-
-    return status;
   };
 
   $scope.is_resumable = function() {
@@ -3318,12 +3324,6 @@ if (Modernizr.localstorage) {
 } else {
   alert("This browser application requires an HTML5 browser with support for local storage");
 }
-$(function() {
-  // Don't close feedback form on click
-  $('.dropdown input, .dropdown label, .dropdown textarea').click(function(e) {
-    e.stopPropagation();
-  });
-});
 
 var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
 
