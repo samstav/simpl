@@ -61,7 +61,8 @@ def pause_workflow(w_id, driver=None):
         driver.unlock_workflow(w_id, key)
         return True
     else:
-        LOG.warn("Pause Workflow called when operation's action is not PAUSE")
+        LOG.warn("Pause request for workflow %s received but operation's action"
+                 "is not PAUSE", w_id)
         driver.unlock_workflow(w_id, key)
         pause_workflow.retry()
 
