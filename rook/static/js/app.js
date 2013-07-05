@@ -275,11 +275,36 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
 
   $scope.is_admin = function(strict) {
     return auth.is_admin(strict);
-  }
+  };
+
+  /* This method temporarily impersonates a user to allow submission of
+     ATOMIC REQUESTS (i.e. requests that do not depend on other assynchronous
+     requests to finish) under that user's credentials (only if current user
+     is an admin and is not impersonating anybody).
+     If you must submit requests that are chained to other requests,
+     please refactor them to use the same headers as the initiating
+     request. Since the admin can temporarily impersonate several
+     different users in a short period of time, you cannot assume the
+     the user's context will still be available at the time of subsequent
+     requests. */
+  $scope.wrap_admin_call = function(/* username, callback, args */) {
+    var args = Array.prototype.slice.call(arguments);
+    var username = args.shift();
+    var callback = args.shift();
+    if (auth.is_admin(true)) {
+      auth.impersonate(username, true).then(function() {
+        var result = callback.apply($scope, args);
+        auth.exit_impersonation();
+        return result;
+      });
+    } else {
+      return callback.apply($scope, args);
+    }
+  };
 
   $scope.is_impersonating = function() {
     return auth.is_impersonating();
-  }
+  };
 
   $scope.remove_popovers = function() {
     _.each(angular.element('.popover').siblings('i'), function(el){
