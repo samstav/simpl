@@ -10,6 +10,7 @@ TODO:
 
 '''
 #pylint: disable=W0611
+from functools import partial
 import logging
 import os
 
@@ -17,8 +18,13 @@ from celery import Task
 from celery.exceptions import RetryTaskError
 from celery.signals import worker_process_init
 
+import checkmate.utils as utils
 from checkmate.common import config
 from checkmate.db.common import InvalidKeyError, ObjectLockedError
+from checkmate.exceptions import (
+    CheckmateValidationException,
+    CheckmateResumableException
+)
 
 LOG = logging.getLogger(__name__)
 CONFIG = config.current()
@@ -68,3 +74,48 @@ class SingleTask(Task):  # pylint: disable=R0904,W0223
             raise
         except Exception as exc:
             return self.retry(exc=exc)
+
+
+class ProviderTask(Task):
+    '''Celery Task for providers.'''
+    abstract = True
+
+    def __init__(self, *args, **kwargs):
+        self.__provider = self.provider
+        self.provider = None
+
+    def __call__(self, context, *args, **kwargs):
+        try:
+            utils.match_celery_logging(LOG)
+            try:
+                self.api = kwargs.get('api') or self.__provider.connect(
+                    context, context['region'])
+            # TODO(Nate): Generalize exception raised in providers connect
+            except CheckmateValidationException:
+                raise
+            except StandardError as exc:
+                return self.retry(exc=exc)
+            self.partial = partial(self.callback, context)
+            data = self.run(context, *args, **kwargs)
+            self.callback(context, data)
+            return data
+        except RetryTaskError:
+            raise  # task is already being retried.
+        except CheckmateResumableException as exc:
+            return self.retry(exc=exc)
+
+    def callback(self, context, data):
+        '''Calls postback with instance.id to ensure posted to resource.'''
+        from checkmate.deployments import tasks
+        results = {
+            'resources': {
+                context['resource']: {
+                    'instance': data
+                }
+            }
+        }
+        if 'status' in data:
+            results['resources'][context['resource']]['status'] = \
+                self.__provider.translate_status(data['status'])
+
+        tasks.postback(context['deployment'], results)
