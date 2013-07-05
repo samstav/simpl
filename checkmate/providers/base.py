@@ -1,5 +1,9 @@
 '''Base Classes and functions for Providers'''
+from functools import partial
 import logging
+
+from celery import Task
+from celery.exceptions import RetryTaskError
 
 from checkmate import utils
 from checkmate.common import schema
@@ -8,6 +12,7 @@ from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
     CheckmateValidationException,
+    CheckmateResumableException,
 )
 from checkmate.providers.provider_base_planning_mixin import (
     ProviderBasePlanningMixIn,
@@ -576,3 +581,52 @@ def user_has_access(context, roles):
         if role in context.roles:
             return True
     return False
+
+
+class ProviderTask(Task):
+    '''Celery Task for providers.'''
+    abstract = True
+
+    def __init__(self, *args, **kwargs):
+        self.__provider = self.provider
+        self.provider = None
+
+    def __call__(self, context, *args, **kwargs):
+        try:
+            utils.match_celery_logging(LOG)
+            try:
+                self.api = kwargs.get('api') or self.__provider.connect(
+                    context, context['region'])
+            # TODO(Nate): Generalize exception raised in providers connect
+            except CheckmateValidationException:
+                raise
+            except StandardError as exc:
+                return self.retry(exc=exc)
+            self.partial = partial(self.callback, context)
+            data = self.run(context, *args, **kwargs)
+            self.callback(context, data)
+            return data
+        except RetryTaskError:
+            raise  # task is already being retried.
+        except CheckmateResumableException as exc:
+            return self.retry(exc=exc)
+
+    def callback(self, context, data):
+        '''Calls postback with instance.id to ensure posted to resource.'''
+        from checkmate.deployments import tasks as deployment_tasks
+        # TODO(Paul/Nate): Added here to get around circular dep issue.
+        # Appears to be related to relative imports in deployments init and 
+        # providers init.  
+        results = {
+            'resources': {
+                context['resource']: {
+                    'instance': data
+                }
+            }
+        }
+        if 'status' in data:
+            results['resources'][context['resource']]['status'] = \
+                self.__provider.translate_status(data['status'])
+
+        deployment_tasks.postback(context['deployment'], results)
+

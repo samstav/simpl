@@ -12,12 +12,9 @@ import logging
 import unittest2 as unittest
 
 from celery.task import task
-import mock
 
 from checkmate.db.common import ObjectLockedError
 from checkmate.db.mongodb import Driver
-from checkmate.exceptions import CheckmateResumableException
-from checkmate.providers.rackspace import database
 
 try:
     from mongobox import MongoBox
@@ -76,73 +73,6 @@ class TestSingleTask(unittest.TestCase):
       lock_db=None, lock_key="async_dep_writer:{args[0]}", lock_timeout=50)
 def do_nothing(key):
     pass
-
-
-class TestProviderTask(unittest.TestCase):
-    '''Tests ProviderTask functionality.'''
-
-    def test_provider_task_success(self):
-        '''Tests success run.'''
-        context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
-        expected = {
-            'api1': 'test_api',
-            'name': 'test',
-            'api2': 'test_api',
-            'status': 'BLOCKED'
-        }
-        do_something.callback = mock.MagicMock(return_value=True)
-        results = do_something(context, 'test', api='test_api')
-
-        do_something.callback.assert_called_with(context, expected)
-        self.assertEqual(results, expected)
-        assert do_something.partial, 'Partial attr should be set'
-
-    def test_provider_task_retry(self):
-        '''Tests retry is called.'''
-        context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
-        do_something.callback = mock.Mock()
-        do_something.callback.side_effect = CheckmateResumableException(1,
-                                                                        2, 3)
-        do_something.retry = mock.MagicMock()
-
-        do_something(context, 'test', api='test_api')
-
-        do_something.retry.assert_called_with(
-            exc=do_something.callback.side_effect)
-
-    @mock.patch('checkmate.deployments.tasks')
-    def test_provider_task_callback(self, mocked_lib):
-        '''Validates postback data in callback.'''
-        context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
-
-        expected_postback = {
-            'resources': {
-                1: {
-                    'status': 'ERROR',
-                    'instance': {
-                        'status': 'BLOCKED',
-                        'api1': 'test_api',
-                        'api2': 'test_api',
-                        'name': 'test'
-                    }
-                }
-            }
-        }
-        mocked_lib.postback = mock.MagicMock()
-
-        do_something(context, 'test', api='test_api')
-
-        mocked_lib.postback.assert_called_with({}, expected_postback)
-
-
-@task(base=celery.ProviderTask, provider=database.Provider)
-def do_something(context, name, api):
-    return {
-        'api1': do_something.api,
-        'name': name,
-        'api2': api,
-        'status': 'BLOCKED'
-    }
 
 
 if __name__ == '__main__':
