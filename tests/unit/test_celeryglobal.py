@@ -37,7 +37,7 @@ LOG = logging.getLogger(__name__)
 class TestSingleTask(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        '''Fire up a sandboxed mongodb instance'''
+        '''Fire up a sandboxed mongodb instance.'''
         try:
             cls.box = MongoBox()
             cls.box.start()
@@ -54,7 +54,7 @@ class TestSingleTask(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        '''Stop the sanboxed mongodb instance'''
+        '''Stop the sanboxed mongodb instance.'''
         if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
             if cls.box.running() is True:
                 cls.box.stop()
@@ -77,6 +77,7 @@ class TestSingleTask(unittest.TestCase):
 def do_nothing(key):
     pass
 
+
 class TestProviderTask(unittest.TestCase):
     '''Tests ProviderTask functionality.'''
 
@@ -91,7 +92,7 @@ class TestProviderTask(unittest.TestCase):
         }
         do_something.callback = mock.MagicMock(return_value=True)
         results = do_something(context, 'test', api='test_api')
-        
+
         do_something.callback.assert_called_with(context, expected)
         self.assertEqual(results, expected)
         assert do_something.partial, 'Partial attr should be set'
@@ -100,11 +101,12 @@ class TestProviderTask(unittest.TestCase):
         '''Tests retry is called.'''
         context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
         do_something.callback = mock.Mock()
-        do_something.callback.side_effect = CheckmateResumableException(1,2,3)
+        do_something.callback.side_effect = CheckmateResumableException(1,
+                                                                        2, 3)
         do_something.retry = mock.MagicMock()
-        
+
         do_something(context, 'test', api='test_api')
-        
+
         do_something.retry.assert_called_with(
             exc=do_something.callback.side_effect)
 
@@ -127,10 +129,11 @@ class TestProviderTask(unittest.TestCase):
             }
         }
         mocked_lib.postback = mock.MagicMock()
-        
+
         do_something(context, 'test', api='test_api')
-        
+
         mocked_lib.postback.assert_called_with({}, expected_postback)
+
 
 @task(base=celery.ProviderTask, provider=database.Provider)
 def do_something(context, name, api):
