@@ -3,6 +3,7 @@ Workflows Asynchronous tasks
 '''
 import logging
 import os
+from celery import current_task
 
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
@@ -27,7 +28,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
 
 
 @task(default_retry_delay=10, max_retries=300)
-def pause_workflow(w_id, driver=None):
+def pause_workflow(w_id, driver=None, pause_action_update_retry_counter=0):
     '''
     Waits for all the waiting celery tasks to move to ready and then marks the
     operation as paused
@@ -60,11 +61,21 @@ def pause_workflow(w_id, driver=None):
                  deployment_id)
         driver.unlock_workflow(w_id, key)
         return True
+    elif pause_action_update_retry_counter >= 10:
+        LOG.debug("Skipping waitiing for Operation Action to turn to PAUSE - "
+                  "pause_workflow for workflow %s has already been retried %s "
+                  "times", w_id, pause_action_update_retry_counter)
+        pass
     else:
         LOG.warn("Pause request for workflow %s received but operation's action"
-                 "is not PAUSE", w_id)
+                 "is not PAUSE. Retry-Count waiting for action to turn to "
+                 "PAUSE: %s  ", w_id, pause_action_update_retry_counter)
         driver.unlock_workflow(w_id, key)
-        pause_workflow.retry()
+        pause_action_update_retry_counter += 1
+        pause_workflow.retry([w_id], kwargs={
+            'pause_action_update_retry_counter': pause_action_update_retry_counter,
+            'driver': driver
+        })
 
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
@@ -97,4 +108,7 @@ def pause_workflow(w_id, driver=None):
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                     workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
-        return pause_workflow.retry()
+        pause_workflow.retry([w_id], kwargs={
+            'pause_action_update_retry_counter': pause_action_update_retry_counter,
+            'driver': driver
+        })
