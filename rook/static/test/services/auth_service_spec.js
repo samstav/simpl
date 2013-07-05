@@ -453,7 +453,7 @@ describe('auth Service', function(){
 
     describe('when context is cached', function() {
       beforeEach(function() {
-        spyOn(this.auth, 'get_cached_tenant').andReturn({ info: 'fakeinfo' });
+        spyOn(this.auth, 'get_cached_context').andReturn({ info: 'fakeinfo' });
         spyOn(this.auth, 'check_state');
         this.auth.impersonate('batman');
       });
