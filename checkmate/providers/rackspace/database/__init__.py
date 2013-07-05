@@ -11,7 +11,10 @@ from clouddb.errors import ResponseError
 
 from .manager import Manager
 from .provider import Provider
-from .tasks import wait_on_build2
+from .tasks import (
+    wait_on_build2,
+    sync_resource_task2,
+)
 
 from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
@@ -157,7 +160,12 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
 def wait_on_build(context, instance_id, region, api=None):
     '''Redirects to checkmate.providers.rackspace.database.tasks task.'''
-    wait_on_build2(context, instance_id, context['region'], api)
+    wait_on_build2(context, instance_id, region, api)
+
+
+def sync_resource_task(context, resource, resource_key, api=None):
+    '''Redirects to checkmate.providers.rackspace.database.tasks task.'''
+    sync_resource_task2(context, resource, resource_key, api)
 
 
 @task(default_retry_delay=15, max_retries=40)  # max 10 minute wait

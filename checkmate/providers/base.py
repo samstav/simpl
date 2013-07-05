@@ -595,8 +595,9 @@ class ProviderTask(Task):
         try:
             utils.match_celery_logging(LOG)
             try:
+                region = kwargs.get('region') or context.get('region')
                 self.api = kwargs.get('api') or self.__provider.connect(
-                    context, context['region'])
+                    context, region)
             # TODO(Nate): Generalize exception raised in providers connect
             except CheckmateValidationException:
                 raise
