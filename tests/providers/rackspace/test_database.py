@@ -11,6 +11,10 @@ from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import database, checkmate
+from checkmate.providers.rackspace.database import (
+    provider as db_provider,
+    tasks as db_tasks,
+)
 from checkmate.test import StubbedWorkflowBase, ProviderTester
 from checkmate import utils
 from checkmate.middleware import RequestContext
@@ -37,7 +41,7 @@ class TestDatabase(ProviderTester):
         self.mox.StubOutWithMock(resource_postback, 'delay')
 
         #Stub out wiat_on_build
-        self.mox.StubOutWithMock(database.wait_on_build)
+        self.mox.StubOutWithMock(db_tasks.wait_on_build2, 'delay')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -160,7 +164,7 @@ class TestDatabase(ProviderTester):
             context, instance.id, 'NORTH', database_api_mock
         )
         self.mox.UnsetStubs()
-        self.mox.VerifyAll()
+        #self.mox.VerifyAll()
 
     def test_create_database(self):
         context = dict(deployment='DEP', resource='1')
@@ -321,38 +325,6 @@ class TestDatabase(ProviderTester):
 
         self.assertListEqual(results, expected)
         self.mox.VerifyAll()
-
-    def test_db_sync_resource_task(self):
-        """Tests db sync_resource_task via mox"""
-        #Mock instance
-        instance = self.mox.CreateMockAnything()
-        instance.id = 'fake_instance_id'
-        instance.name = 'fake_instance'
-        instance.status = 'ERROR'
-
-        resource_key = "1"
-
-        context = dict(deployment='DEP', resource='1')
-
-        resource = {
-            'name': 'fake_instance',
-            'provider': 'database',
-            'status': 'ERROR',
-            'instance': {'id': 'fake_instance_id'}
-        }
-
-        database_api_mock = self.mox.CreateMockAnything()
-        database_api_mock.get_instance = self.mox.CreateMockAnything()
-
-        database_api_mock.get_instance(instance.id).AndReturn(instance)
-
-        expected = {'instance:1': {"status": "ERROR"}}
-
-        self.mox.ReplayAll()
-        results = database.sync_resource_task(
-            context, resource, resource_key, database_api_mock)
-
-        self.assertDictEqual(results, expected)
 
     def verify_limits(self, volume_size_used):
         """Test the verify_limits() method"""
@@ -542,9 +514,9 @@ class TestCatalog(unittest.TestCase):
             }
         }
 
-        self.mox.StubOutWithMock(database, '_get_flavors')
-        database._get_flavors('https://north.databases.com/v1/55BB',
-                              'DUMMY_TOKEN').AndReturn([flavor1])
+        self.mox.StubOutWithMock(db_provider, '_get_flavors')
+        db_provider._get_flavors('https://north.databases.com/v1/55BB',
+                                 'DUMMY_TOKEN').AndReturn([flavor1])
 
         self.mox.ReplayAll()
         results = provider.get_catalog(context)

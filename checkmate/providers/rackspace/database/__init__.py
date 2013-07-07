@@ -165,7 +165,7 @@ def wait_on_build(context, instance_id, region, api=None):
 
 def sync_resource_task(context, resource, resource_key, api=None):
     '''Redirects to checkmate.providers.rackspace.database.tasks task.'''
-    sync_resource_task2(context, resource, resource_key, api)
+    sync_resource_task2(context, resource, resource_key, api=api)
 
 
 @task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
