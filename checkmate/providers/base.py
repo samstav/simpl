@@ -11,8 +11,8 @@ from checkmate.component import Component
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
-    CheckmateValidationException,
     CheckmateResumableException,
+    CheckmateValidationException,
 )
 from checkmate.providers.provider_base_planning_mixin import (
     ProviderBasePlanningMixIn,
