@@ -362,7 +362,7 @@ class Provider(ProviderBase):
             return {'root': delete_instance}
 
     def _delete_db_res_tasks(self, wf_spec, context, key):
-        ''' Return delete tasks for the specified database instance '''
+        '''Return delete tasks for the specified database instance.'''
         delete_db = Celery(
             wf_spec, 'Delete DB Resource tasks (%s)' % key,
             'checkmate.providers.rackspace.database.delete_database',
@@ -504,6 +504,7 @@ class Provider(ProviderBase):
 
         return api
 
+
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
 def _get_flavors(api_endpoint, auth_token):
     '''Ask DBaaS for Flavors (RAM, CPU, HDD) options.'''
@@ -515,7 +516,3 @@ def _get_flavors(api_endpoint, auth_token):
     LOG.info("Calling Cloud Databases to get flavors for %s",
              api.client.region_account_url)
     return api.flavors.list_flavors()
-    
-
-def sync_resource_task():
-    pass

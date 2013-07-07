@@ -35,8 +35,10 @@ def wait_on_build2(context, instance_id, region, api=None, callback=None):
     finally:
         return data
 
+
 @task(base=ProviderTask, provider=Provider)
-def sync_resource_task2(context, resource, resource_key, api=None, callback=None):
+def sync_resource_task2(context, resource, resource_key, api=None,
+                        callback=None):
     results = MANAGER.sync_resource_pop(resource, resource_key,
                                         sync_resource_task2.api,
                                         context.get('simulation', False))
