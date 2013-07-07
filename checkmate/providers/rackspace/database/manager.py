@@ -43,9 +43,9 @@ class Manager(object):
 
     def sync_resource_pop(self, resource, resource_key, api, callback,
                           simulate=False):
-        '''Syncronizes provider status with checkmate resource status'''
+        '''Syncronizes provider status with checkmate resource status.'''
         if simulate:
-            results = type("myobj", (object,), dict(status='ACTIVE'))
+            results = {'status': 'ACTIVE'}
         else:
             instance = resource.get("instance") or {}
             instance_id = instance.get("id")
@@ -58,9 +58,7 @@ class Manager(object):
                          database.status)
                 results = {'status': database.status}
             except (cdb_errors.ResponseError, CheckmateDoesNotExist):
-                LOG.info("Marking database instance %s as DELETED", instance_id)
+                LOG.info("Marking database instance %s as DELETED",
+                         instance_id)
                 results = {'status': 'DELETED'}
         return results
-            
-            
-        
