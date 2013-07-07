@@ -279,7 +279,9 @@ class Deployment(ExtensibleDict):
                 result = provider.get_resource_status(context, self.get('id'),
                                                       resource, key)
                 if result:
-                    resources.update(result)
+                    for key, value in result.items():
+                        if key.startswith('instance'):
+                            resources.update(result)
         statuses = self._calculate_deployment_and_operation_status(resources)
         statuses.update({'resources': resources})
         return statuses
