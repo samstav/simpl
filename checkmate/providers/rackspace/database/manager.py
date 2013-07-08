@@ -26,19 +26,19 @@ class Manager(object):
 
         try:
             if simulate:
-                instance = type("myobj", (object,), dict(status='ACTIVE'))
+                status = 'ACTIVE'
             else:
-                instance = api.get_instance(instance_id)
+                status = api.get_instance(instance_id).status
         except cdb_errors.ResponseError as exc:
             raise CheckmateResumableException(exc.reason, str(exc.status),
                                               'RS_DB_ResponseError')
 
-        callback({'status': instance.status})
+        callback({'status': status})
 
-        if instance.status == 'ERROR':
+        if status == 'ERROR':
             raise CheckmateException('Resource in ERROR state')
 
-        return instance.status == 'ACTIVE'
+        return status == 'ACTIVE'
 
     def sync_resource_pop(self, resource, resource_key, api, callback,
                           simulate=False):
