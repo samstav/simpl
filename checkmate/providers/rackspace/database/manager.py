@@ -1,4 +1,7 @@
 # encoding: utf-8
+'''
+Rackspace Cloud Databases provider manager.
+'''
 import logging
 
 from clouddb import errors as cdb_errors
@@ -10,10 +13,6 @@ from checkmate.exceptions import (
 )
 
 LOG = logging.getLogger(__name__)
-
-'''
-Rackspace Cloud Databases provider manager.
-'''
 
 
 class Manager(object):
