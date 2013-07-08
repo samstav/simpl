@@ -41,7 +41,7 @@ class TestDatabase(ProviderTester):
         self.mox.StubOutWithMock(resource_postback, 'delay')
 
         #Stub out wiat_on_build
-        self.mox.StubOutWithMock(db_tasks.wait_on_build2, 'delay')
+        self.mox.StubOutWithMock(db_tasks.wait_on_build, 'delay')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
