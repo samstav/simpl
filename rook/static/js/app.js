@@ -554,6 +554,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   };
 
   $scope.on_impersonate_success = function(response) {
+    $scope.impersonation = { username: "" };
     var current_path = $location.path();
     var next_path = current_path;
     var account_number = /^\/[0-9]+/;
@@ -580,10 +581,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     $scope.open_modal('error');
   }
 
-  $scope.username = "";
+  $scope.impersonation = { username: "" };
   $scope.impersonate = function(username) {
     mixpanel.track("Impersonation", { user: auth.identity.username, tenant: username });
-    $scope.username = "";
+    $scope.impersonation.username = "";
     return auth.impersonate(username)
       .then($scope.on_impersonate_success, $scope.on_impersonate_error);
   };
