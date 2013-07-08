@@ -592,8 +592,8 @@ class ProviderTask(Task):
         self.provider = None
 
     def __call__(self, context, *args, **kwargs):
+        utils.match_celery_logging(LOG)
         try:
-            utils.match_celery_logging(LOG)
             try:
                 region = kwargs.get('region') or context.get('region')
                 self.api = kwargs.get('api') or self.__provider.connect(
@@ -616,8 +616,6 @@ class ProviderTask(Task):
         '''Calls postback with instance.id to ensure posted to resource.'''
         from checkmate.deployments import tasks as deployment_tasks
         # TODO(Paul/Nate): Added here to get around circular dep issue.
-        # Appears to be related to relative imports in deployments init and 
-        # providers init.  
         results = {
             'resources': {
                 context['resource']: {
