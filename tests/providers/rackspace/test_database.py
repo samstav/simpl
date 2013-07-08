@@ -122,49 +122,6 @@ class TestDatabase(ProviderTester):
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
 
-    def test_create_database_error_delete(self):
-        context = dict(deployment='DEP', resource='1')
-
-        #Mock instance
-        instance = self.mox.CreateMockAnything()
-        instance.id = 'fake_instance_id'
-        instance.name = 'fake_instance'
-        instance.status = 'ERROR'
-        instance.hostname = 'fake.cloud.local'
-
-        expected = {
-            'instance:1': {
-                'status': 'ERROR',
-                'status-message': 'Instance fake_instance_id build failed'
-            }
-        }
-
-        expected_resource = {'0': {'status': 'ERROR'}}
-        instance_key = "instance:%s" % context['resource']
-
-        #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
-
-        database_api_mock = self.mox.CreateMockAnything()
-        database_api_mock.get_instance(instance.id).AndReturn(instance)
-
-        #expect resource postback to be called
-        resource_postback.delay(context['deployment'], expected)
-
-        self.mox.StubOutWithMock(database, 'get_resource_by_id')
-        database.get_resource_by_id(
-            context['deployment'], context['resource']
-        ).AndReturn(expected_resource)
-
-        self.mox.StubOutWithMock(database.Provider, 'delete_resource_tasks')
-        self.mox.ReplayAll()
-
-        self.assertRaises(
-            CheckmateException, database.wait_on_build,
-            context, instance.id, 'NORTH', database_api_mock
-        )
-        self.mox.UnsetStubs()
-        #self.mox.VerifyAll()
 
     def test_create_database(self):
         context = dict(deployment='DEP', resource='1')
