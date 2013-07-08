@@ -49,6 +49,7 @@ class Manager(object):
         else:
             instance = resource.get("instance") or {}
             instance_id = instance.get("id")
+            LOG.debug('instance id %s', instance_id)
             try:
                 if not instance_id:
                     raise CheckmateDoesNotExist("Instance is blank or has no "
@@ -56,6 +57,7 @@ class Manager(object):
                 database = api.get_instance(instance_id)
                 LOG.info("Marking database instance %s as %s", instance_id,
                          database.status)
+                LOG.debug('database status %s', database.status)
                 results = {'status': database.status}
             except (cdb_errors.ResponseError, CheckmateDoesNotExist):
                 LOG.info("Marking database instance %s as DELETED",
