@@ -5,6 +5,7 @@ import collections
 import copy
 import logging
 import os
+import re
 import urlparse
 
 from bottle import abort
@@ -1319,6 +1320,74 @@ class Deployment(MorpheusDict):
                         value = schema.translate(value)
                     raise NotImplementedError("Global post-back values not "
                                               "yet supported: %s" % key)
+
+    def get_next_resource_index(self):
+        return (str(len([res for res in self.get("resources").keys()
+                         if res.isdigit()])))
+
+    def _get_number_of_resources(self, provider, service_name):
+        count = 0
+        for key, resource in  self.get("resources").iteritems():
+            if (resource.get("service") == service_name and resource.get(
+                    "provider") == provider):
+                count += 1
+        return count
+
+    def _clone_and_sanitize(self, resource):
+        new_resource = copy.deepcopy(resource)
+        next_resource_index = self.get_next_resource_index()
+        new_resource["index"] = next_resource_index
+        new_resource["status"] = "PLANNED"
+        new_resource.pop("instance")
+        if 'dns-name'in new_resource:
+            dns_name = new_resource['dns-name']
+            split_domain_name = dns_name.split('.', 1)
+            if re.findall('\d', split_domain_name[0]):
+                next_index_for_dns_name = self._get_number_of_resources(
+                    new_resource["provider"], new_resource["service"]) + 1
+                new_resource['dns-name'] = "%s%02d.%s" % (
+                    ''.join(re.findall('\D', split_domain_name[0])),
+                    next_index_for_dns_name,
+                    split_domain_name[1])
+        return new_resource
+
+    def add_node(self, service_name, count):
+        matched_resource_key = None
+        for resource_key, resource_value in self.get("resources").iteritems():
+            if resource_value.get("service") == service_name:
+                matched_resource_key = resource_key
+                break
+
+        for _ in range(count):
+            sanitized_resource = self._clone_and_sanitize(self.get('resources')[
+                matched_resource_key])
+            self["resources"].update({
+                sanitized_resource['index']: sanitized_resource
+            })
+
+            if "hosted_on" in sanitized_resource:
+                hosted_on_resource = self._clone_and_sanitize(
+                    self["resources"][sanitized_resource["hosted_on"]])
+                hosted_on_resource["hosts"] = [sanitized_resource['index']]
+                sanitized_resource["hosted_on"] = hosted_on_resource["index"]
+                self["resources"].update({
+                    hosted_on_resource['index']: hosted_on_resource
+                })
+
+            new_hosts = []
+            if "hosts" in sanitized_resource:
+                for index in sanitized_resource['hosts']:
+                    host_resource = self._clone_and_sanitize(
+                        self["resources"][index])
+                    host_resource["hosted_on"] = sanitized_resource['index']
+                    host_resource["relations"]["host"]["target"] = \
+                        sanitized_resource['index']
+
+                    self["resources"].update({
+                        host_resource['index']: host_resource
+                    })
+                    new_hosts.append(host_resource['index'])
+                sanitized_resource["hosts"] = new_hosts
 
 
 @task(default_retry_delay=0.3, max_retries=2)
