@@ -183,16 +183,29 @@ class Driver(common.DbBase):
     def unlock(self, key):
         return self.release_lock(key)
 
+    def _find_existing_lock(self, key):
+        return self.database()['locks'].find_one({'_id': key})
+
     def acquire_lock(self, key, timeout):
-        existing_lock = self.database()['locks'].find_one({'_id': key})
-        if not existing_lock or existing_lock["expires_at"] < time.time():
-            self.database()['locks'].update({'_id': key}, {
-                '_id': key,
-                'expires_at': (time.time() + timeout)
-            }, upsert=True, multi=False, check_keys=False)
+        existing_lock = self._find_existing_lock(key)
+        if not existing_lock:
+            try:
+                self.database()['locks'].insert(
+                    {
+                        '_id': key,
+                        'expires_at': (time.time() + timeout)
+                    })
+            except pymongo.errors.DuplicateKeyError:
+                raise common.ObjectLockedError("Can't lock %s as it is "
+                                               "already locked!" % key)
         else:
-            raise common.ObjectLockedError(
-                "Can't lock %s as it is already locked!" % key)
+            result = self.database()['locks'].update(
+                {'_id': key, 'expires_at': {'$lt': time.time()}},
+                {'_id': key, 'expires_at': (time.time() + timeout)},
+                multi=False, check_keys=False)
+            if not result['updatedExisting']:
+                raise common.ObjectLockedError("Can't lock %s as it is "
+                                               "already locked!" % key)
 
     def release_lock(self, key):
         result = self.database()['locks'].remove({'_id': key}, True)

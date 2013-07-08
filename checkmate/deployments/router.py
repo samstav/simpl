@@ -11,26 +11,21 @@ import uuid
 
 #pylint: disable=E0611
 import bottle
-import celery
-from celery import canvas
+
 from SpiffWorkflow.storage import DictionarySerializer
 from checkmate import db
+from checkmate import deployment as cmdeploy
 from checkmate import operations
 from checkmate import orchestrator
 from checkmate import utils
 from checkmate import workflow
-from checkmate import workflows_new as workflow_tasks
 from checkmate.common import tasks as common_tasks
-from checkmate import db
-from checkmate import deployment as cmdeploy
-from checkmate.deployments import plan
 from checkmate.deployments import tasks
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,
     CheckmateValidationException,
 )
-from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -152,8 +147,9 @@ class Router(object):
         '''Creates deployment and workflow based on sent information
         and triggers workflow execution.
         '''
-        deployment = _content_to_deployment(
-            bottle.request, tenant_id=tenant_id)
+        deployment = _content_to_deployment(bottle.request,
+                                            tenant_id=tenant_id)
+
         is_simulation = bottle.request.context.simulation
         if is_simulation:
             deployment['id'] = utils.get_id(is_simulation)
@@ -281,31 +277,31 @@ class Router(object):
         if bottle.request.query.get('force') != '1':
             if not deployment.fsm.permitted('DELETED'):
                 bottle.abort(400, "Deployment %s cannot be deleted while in "
-                             "status %s." %
-                             (api_id, deployment.get('status', 'UNKNOWN')))
-
+                                  "status %s." %
+                                  (api_id, deployment.get('status', 'UNKNOWN')))
         operation = deployment.get('operation')
+
         #TODO: driver will come from workflow manager once we create that
         driver = self.manager.select_driver(api_id)
-        tasks = []
         if (operation and operation.get('action') != 'PAUSE' and
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
-            common_tasks.update_operation.delay(api_id, driver=driver,
+            common_tasks.update_operation.delay(api_id, api_id, driver=driver,
                                                 action='PAUSE')
-            tasks.append(
-                workflow_tasks.pause_workflow.si(api_id, driver=driver))
-
-        tasks.extend(
-            [workflow_tasks.create_delete_deployment_workflow.si(
-                api_id, bottle.request.context, driver=driver),
-             operations.create_delete_operation.s(api_id, tenant_id=tenant_id),
-             orchestrator.run_workflow.s(driver=driver)])
-        canvas.chain(tasks).apply_async()
-
+        delete_workflow = workflow.create_delete_deployment_workflow(
+            api_id, bottle.request.context, driver=driver)
+        operations.create_delete_operation.delay(api_id, delete_workflow['id'],
+                                                 tenant_id)
+        orchestrator.run_workflow.delay(delete_workflow['id'], timeout=3600,
+                                        driver=driver)
         # Set headers
         location = "/deployments/%s" % api_id
+        link = "/workflows/%s" % delete_workflow['id']
         if tenant_id:
             location = "/%s%s" % (tenant_id, location)
+            link = "/%s%s" % (tenant_id, link)
+        bottle.response.set_header("Location", location)
+        bottle.response.set_header("Link", '<%s>; rel="workflow"; '
+                                   'title="Delete Deployment"' % link)
         bottle.response.set_header("Location", location)
 
         bottle.response.status = 202  # Accepted (i.e. not done yet)
@@ -357,7 +353,7 @@ class Router(object):
         statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})
-        common_tasks.update_operation(api_id,
+        common_tasks.update_operation(api_id, deployment.current_workflow_id(),
                                       deployment_status=statuses[
                                           'deployment_status'],
                                       status=statuses['operation_status'])

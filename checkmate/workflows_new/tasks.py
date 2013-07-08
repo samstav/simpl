@@ -3,6 +3,7 @@ Workflows Asynchronous tasks
 '''
 import logging
 import os
+from celery import current_task
 
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
@@ -27,7 +28,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
 
 
 @task(default_retry_delay=10, max_retries=300)
-def pause_workflow(w_id, driver=None):
+def pause_workflow(w_id, driver=None, pause_action_update_retry_counter=0):
     '''
     Waits for all the waiting celery tasks to move to ready and then marks the
     operation as paused
@@ -45,23 +46,36 @@ def pause_workflow(w_id, driver=None):
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(deployment_id)
-    operation = deployment["operation"]
+    operation = Deployment(deployment).get_current_operation(w_id)
+
     action = operation.get("action")
 
     if action and action == "PAUSE":
-        kwargs = {"action-response": "ACK"}
-        common_tasks.update_operation.delay(deployment_id, driver=driver,
-                                            **kwargs)
+        if operation.get("action-response") != "ACK":
+            kwargs = {"action-response": "ACK"}
+            common_tasks.update_operation.delay(deployment_id, w_id,
+                                                driver=driver, **kwargs)
     elif operation["status"] == "COMPLETE":
         LOG.warn("Received a pause workflow request for a completed "
                  "operation for deployment %s. Ignoring the request",
                  deployment_id)
         driver.unlock_workflow(w_id, key)
         return True
+    elif pause_action_update_retry_counter >= 10:
+        LOG.debug("Skipping waitiing for Operation Action to turn to PAUSE - "
+                  "pause_workflow for workflow %s has already been retried %s "
+                  "times", w_id, pause_action_update_retry_counter)
+        pass
     else:
-        LOG.warn("Pause Workflow called when operation's action is not PAUSE")
+        LOG.warn("Pause request for workflow %s received but operation's action"
+                 "is not PAUSE. Retry-Count waiting for action to turn to "
+                 "PAUSE: %s  ", w_id, pause_action_update_retry_counter)
         driver.unlock_workflow(w_id, key)
-        pause_workflow.retry()
+        pause_action_update_retry_counter += 1
+        pause_workflow.retry([w_id], kwargs={
+            'pause_action_update_retry_counter': pause_action_update_retry_counter,
+            'driver': driver
+        })
 
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
@@ -82,40 +96,19 @@ def pause_workflow(w_id, driver=None):
         kwargs.update({'status': 'PAUSED', 'action-response': None,
                        'action': None})
 
-        result = common_tasks.update_operation.delay(deployment_id,
-                                                     driver=driver, **kwargs)
-        while not result.ready():
-            pass
+        common_tasks.update_operation.delay(deployment_id, w_id, driver=driver,
+                                            **kwargs)
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                     status="PAUSED", workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
         return True
     else:
-        common_tasks.update_operation.delay(deployment_id, driver=driver,
+        common_tasks.update_operation.delay(deployment_id, w_id, driver=driver,
                                             **kwargs)
         cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                     workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
-        return pause_workflow.retry()
-
-
-@task(default_retry_delay=10, max_retries=300)
-def create_delete_deployment_workflow(dep_id, context, driver=DB):
-    deployment = driver.get_deployment(dep_id)
-    deployment = Deployment(deployment)
-    workflow_id = utils.get_id(context.simulation)
-    delete_wf_spec = cm_workflow.create_delete_deployment_workflow_spec(
-        deployment, context)
-    delete_wf = cm_workflow.create_workflow(delete_wf_spec, deployment,
-                                            context)
-    LOG.debug("Workflow %s created for deleting deployment %s", workflow_id,
-              deployment["id"])
-
-    delete_wf.attributes['id'] = workflow_id
-    serializer = DictionarySerializer()
-    workflow = delete_wf.serialize(serializer)
-    workflow['id'] = workflow_id
-    body, secrets = utils.extract_sensitive_data(workflow)
-    driver.save_workflow(workflow_id, body, secrets, tenant_id=deployment[
-        'tenantId'])
-    return workflow_id
+        pause_workflow.retry([w_id], kwargs={
+            'pause_action_update_retry_counter': pause_action_update_retry_counter,
+            'driver': driver
+        })

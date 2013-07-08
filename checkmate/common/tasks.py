@@ -27,7 +27,8 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
 
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=2)
-def update_operation(deployment_id, driver=None, deployment_status=None,
+def update_operation(deployment_id, workflow_id, driver=None,
+                     deployment_status=None,
                      **kwargs):
     '''
     Exposes operations.update_operation as a task
@@ -41,7 +42,7 @@ def update_operation(deployment_id, driver=None, deployment_status=None,
     Notes: has a high retry rate to make sure the status gets updated.
     Otherwise the deployment will appear to never complete.
     '''
-    operations.update_operation(deployment_id, driver=driver,
+    operations.update_operation(deployment_id, workflow_id, driver=driver,
                                 deployment_status=deployment_status, **kwargs)
 
 

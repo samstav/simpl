@@ -29,20 +29,13 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
 
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=2)
-def create_delete_operation(workflow_id, dep_id, tenant_id=None):
+def create_delete_operation(dep_id, workflow_id, tenant_id=None):
     deployment = DB.get_deployment(dep_id, with_secrets=False)
-    operation_status = deployment.get("operation")["status"]
-    if operation_status not in ("PAUSED", "COMPLETE"):
-        LOG.debug("Deferring create_delete_operation for deployment %s until "
-                  "the current operation status moves to PAUSED or COMPLETE",
-                  dep_id)
-        create_delete_operation.retry()
     link = "/%s/workflows/%s" % (tenant_id, workflow_id)
     kwargs = {"status": "NEW", "link": link, "workflow-id": workflow_id}
     add_operation(deployment, 'DELETE', **kwargs)
     DB.save_deployment(dep_id, deployment, secrets=None, tenant_id=tenant_id,
-                       partial=True)
-    return workflow_id
+                       partial=False)
 
 
 def add_operation(deployment, type_name, **kwargs):
@@ -66,7 +59,8 @@ def add_operation(deployment, type_name, **kwargs):
     return operation
 
 
-def update_operation(deployment_id, driver=None, deployment_status=None,
+def update_operation(deployment_id, workflow_id, driver=None,
+                     deployment_status=None,
                      **kwargs):
     '''Update the the operation in the deployment
 
@@ -82,7 +76,13 @@ def update_operation(deployment_id, driver=None, deployment_status=None,
         if not driver:
             driver = DB
         deployment = driver.get_deployment(deployment_id, with_secrets=True)
-        operation_status = deployment['operation']['status']
+        deployment = Deployment(deployment)
+        operation = deployment.get_operation(workflow_id)
+        operation_value = operation.values()[0]
+        if isinstance(operation_value, list):
+            operation_status = operation_value[-1]['status']
+        else:
+            operation_status = operation_value['status']
 
         #Do not update anything if the operation is already complete. The
         #operation gets marked as complete for both build and delete operation.
@@ -90,14 +90,18 @@ def update_operation(deployment_id, driver=None, deployment_status=None,
             LOG.warn("Ignoring the update operation call as the operation is "
                      "already COMPLETE")
             return
-
-        delta = {'operation': dict(kwargs)}
+        if "history" in operation.keys():
+            padded_list = []
+            padded_list.extend(itertools.repeat({}, len(operation_value) - 1))
+            padded_list.append(dict(kwargs))
+            delta = {'operations-history': padded_list}
+        else:
+            delta = {'operation': dict(kwargs)}
         if deployment_status:
             delta.update({'status': deployment_status})
         try:
             if 'status' in kwargs:
                 if kwargs['status'] != operation_status:
-                    deployment = Deployment(deployment)
                     delta['display-outputs'] = deployment.calculate_outputs()
         except KeyError:
             LOG.warn("Cannot update deployment outputs: %s", deployment_id)

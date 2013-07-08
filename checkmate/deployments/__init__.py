@@ -20,12 +20,13 @@ from .tasks import (
 
 
 @task
-def update_operation(deployment_id, driver=None, **kwargs):
+def update_operation(deployment_id, workflow_id, driver=None, **kwargs):
     '''DEPRECATED: for compatibility with pre v0.14'''
     if driver:
-        return _update_operation(deployment_id, driver=driver, **kwargs)
+        return _update_operation(deployment_id, workflow_id, driver=driver,
+                                 **kwargs)
     else:
-        return _update_operation(deployment_id, **kwargs)
+        return _update_operation(deployment_id, workflow_id, **kwargs)
 
 
 @task(default_retry_delay=4, max_retries=30)

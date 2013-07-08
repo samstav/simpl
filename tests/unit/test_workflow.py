@@ -231,7 +231,7 @@ class TestWorkflow(unittest.TestCase):
         update_workflow(d_wf, tenant_id=tenant_id, status="PAUSED",
                         driver=mock_driver, workflow_id=w_id)
 
-    def test_create_delete_workflow_with_complete_operation(self):
+    def test_create_delete_workflow_with_incomplete_operation(self):
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
         deployment_with_lb_provider = Deployment(utils.yaml_to_dict("""
@@ -252,7 +252,8 @@ class TestWorkflow(unittest.TestCase):
                       component:
                         resource_type: compute
                 operation:
-                  status: COMPLETE
+                  status: IN PROGRESS
+                  type: BUILD
                 environment:
                   name: test
                   providers:
@@ -289,11 +290,80 @@ class TestWorkflow(unittest.TestCase):
         expected_dump = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1
+      3/0: Task of Pause BUILD Workflow DEP-ID-1000 State: FUTURE
+      Children: 1
+        4/0: Task of Delete Loadbalancer (0) State: FUTURE Children: 1
+          5/0: Task of Wait for Loadbalancer (0) delete State: FUTURE
+      Children: 0"""
+
+        expected_dump = re.sub("\s", "", expected_dump)
+        self.assertEqual(expected_dump.strip(), workflow_dump.strip())
+
+    def test_create_delete_workflow_with_complete_operation(self):
+        context = RequestContext(auth_token='MOCK_TOKEN',
+                                 username='MOCK_USER')
+        deployment_with_lb_provider = Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                tenantId: '1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: http
+                        constraints:
+                          - region: North
+                      relations:
+                        server: http
+                    server:
+                      component:
+                        resource_type: compute
+                operation:
+                  status: COMPLETE
+                  type: BUILD
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: http
+                            requires:
+                            - application: http
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            provides:
+                            - application: http
+                            - compute: linux
+            """))
+        deployments.Manager.plan(deployment_with_lb_provider, context)
+        deployment_with_lb_provider['resources']['0']['instance'] = {
+            'id': 'lbid'}
+        workflow_spec = create_delete_deployment_workflow_spec(
+            deployment_with_lb_provider, context)
+        workflow = create_workflow(workflow_spec, deployment_with_lb_provider,
+                                   context)
+        workflow_dump = re.sub("\s", "", workflow.get_dump())
+        print workflow.get_dump()
+        expected_dump = """
+1/0: Task of Root State: COMPLETED Children: 1
+  2/0: Task of Start State: READY Children: 1
     3/0: Task of Delete Loadbalancer (0) State: FUTURE Children: 1
       4/0: Task of Wait for Loadbalancer (0) delete State: FUTURE
       Children: 0"""
-        expected_dump = re.sub("\s", "", expected_dump)
 
+        expected_dump = re.sub("\s", "", expected_dump)
         self.assertEqual(expected_dump.strip(), workflow_dump.strip())
 
     def tearDown(self):

@@ -13,6 +13,7 @@ import uuid
 from SpiffWorkflow import Workflow as SpiffWorkflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate import deployment as cmdeploy
 from checkmate import orchestrator
 from checkmate import workflow as wf_import  # TODO: rename
 from checkmate import workflows_new as workflow_tasks
@@ -222,11 +223,14 @@ def pause_workflow(id, tenant_id=None, driver=DB):
 
     dep_id = workflow["attributes"]["deploymentId"] or id
     deployment = driver.get_deployment(dep_id)
+    deployment = cmdeploy.Deployment(deployment)
+
     operation = deployment.get("operation")
 
     if (operation and operation.get('action') != 'PAUSE' and
             operation['status'] not in ('PAUSED', 'COMPLETE')):
-        update_operation.delay(dep_id, driver=driver, action='PAUSE')
+        update_operation.delay(dep_id, deployment.current_workflow_id(),
+                               driver=driver, action='PAUSE')
         workflow_tasks.pause_workflow.delay(id, driver)
     return write_body(workflow, request, response)
 

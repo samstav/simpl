@@ -13,16 +13,34 @@ from checkmate import utils
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
-from checkmate.deployment import get_status
+from checkmate.deployment import get_status, Deployment
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateRetriableException,
     CheckmateResumableException,
 )
 
-
 DB = get_driver()
 LOG = logging.getLogger(__name__)
+
+
+def create_delete_deployment_workflow(dep_id, context, driver=DB):
+    deployment = driver.get_deployment(dep_id)
+    deployment = Deployment(deployment)
+    workflow_id = utils.get_id(context.simulation)
+    delete_wf_spec = create_delete_deployment_workflow_spec(deployment, context)
+    delete_wf = create_workflow(delete_wf_spec, deployment, context)
+    LOG.debug("Workflow %s created for deleting deployment %s", workflow_id,
+              deployment["id"])
+
+    delete_wf.attributes['id'] = workflow_id
+    serializer = DictionarySerializer()
+    workflow = delete_wf.serialize(serializer)
+    workflow['id'] = workflow_id
+    body, secrets = utils.extract_sensitive_data(workflow)
+    driver.save_workflow(workflow_id, body, secrets, tenant_id=deployment[
+        'tenantId'])
+    return workflow
 
 
 def update_workflow_status(workflow, workflow_id=None):
@@ -198,9 +216,22 @@ def create_delete_deployment_workflow_spec(deployment, context):
     blueprint = deployment['blueprint']
     environment = deployment.environment()
     dep_id = deployment["id"]
+    operation = deployment['operation']
+    existing_workflow_id = operation.get('workflow-id', dep_id)
 
     # Build a workflow spec (the spec is the design of the workflow)
-    wf_spec = WorkflowSpec(name="Delete '%s' Workflow" % blueprint['name'])
+    wf_spec = WorkflowSpec(name="Delete deployment %s(%s)" %
+                                (dep_id, blueprint['name']))
+
+    if operation['status'] in ('COMPLETE', 'PAUSED'):
+        root_task = wf_spec.start
+    else:
+        root_task = Celery(wf_spec, 'Pause %s Workflow %s' %
+                                    (operation['type'], existing_workflow_id),
+                           'checkmate.workflows_new.tasks.pause_workflow',
+                           call_args=[dep_id],
+                           properties={'estimated_duration': 10})
+        wf_spec.start.connect(root_task)
 
     for key, resource in deployment.get('resources', {}).iteritems():
         if key not in ['connections', 'keys'] and 'provider' in resource:
@@ -215,9 +246,9 @@ def create_delete_deployment_workflow_spec(deployment, context):
                 tasks = del_tasks.get('root')
                 if isinstance(tasks, list):
                     for task in tasks:
-                        wf_spec.start.connect(task)
+                        root_task.connect(task)
                 else:
-                    wf_spec.start.connect(tasks)
+                    root_task.connect(tasks)
 
     # Check that we have a at least one task. Workflow fails otherwise.
     if not wf_spec.start.outputs:

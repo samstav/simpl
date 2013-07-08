@@ -13,9 +13,11 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common.tasks import update_operation
 from checkmate.db.common import ObjectLockedError
+from checkmate.deployment import Deployment
 from checkmate.middleware import RequestContext
 from checkmate.operations import get_status_info
 from checkmate.utils import extract_sensitive_data, match_celery_logging
+
 
 LOG = logging.getLogger(__name__)
 
@@ -73,7 +75,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         else:
             kwargs.update({"errors": [{'error-message': exc.args[0]}]})
 
-        update_operation.delay(dep_id, driver=driver, **kwargs)
+        update_operation.delay(dep_id, w_id, driver=driver, **kwargs)
 
     match_celery_logging(LOG)
     assert driver, "No driver supplied to orchestrator"
@@ -88,7 +90,13 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
 
     dep_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(dep_id)
-    operation = deployment["operation"]
+    operation = Deployment(deployment).get_current_operation(w_id)
+    if not operation:
+        driver.unlock_workflow(w_id, key)
+        LOG.debug("RunWorkflow for workflow %s cannot proceed, as operation "
+                  "could not be found. Deployment Id: %s", w_id, dep_id)
+        run_workflow.retry()
+
     operation_type = operation.get("type")
     action = operation.get("action")
 
@@ -108,7 +116,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         if d_wf.get_attribute('status') != "COMPLETE":
             cm_workflow.update_workflow(d_wf, tenant_id,
                                         driver=driver, workflow_id=w_id)
-            update_operation.delay(dep_id, driver=driver,
+            update_operation.delay(dep_id, w_id, driver=driver,
                                    deployment_status="UP",
                                    status=d_wf.get_attribute('status'),
                                    tasks=d_wf.get_attribute('total'),
@@ -163,7 +171,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
                                 'errors': errors}
             operation_kwargs.update(status_info)
 
-            update_operation.delay(dep_id, driver=driver,
+            update_operation.delay(dep_id, w_id, driver=driver,
                                    deployment_status=deployment_status,
                                    **operation_kwargs)
 
