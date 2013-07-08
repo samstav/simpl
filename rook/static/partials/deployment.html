@@ -66,11 +66,11 @@ Priv Key: {{formatted_data.private_key}}
           <li class="nav-header">
             Workflows
           </li>
-          <li>
-            <a href="{{data.operation.link}}">{{data.operation.type | capitalize}}</a>
-          </li>
           <li ng-repeat="operation in data['operations-history'] | filter:{ link: '!canvas' }">
             <a href="{{operation.link}}">{{operation.type}}</a>
+          </li>
+          <li>
+            <a href="{{data.operation.link}}">{{data.operation.type | capitalize}}</a>
           </li>
         </ul>
       </div>
