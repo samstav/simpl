@@ -142,6 +142,8 @@ filters.filter('barClass', function(){
       return 'bar-success';
     } else if(status === 'FAILED') {
       return 'bar-danger';
+    } else if(status === 'DELETED') {
+      return 'bar-inverse';
     } else {
       return '';
     }

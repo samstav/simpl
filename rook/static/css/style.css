@@ -393,10 +393,16 @@ body {
   width: 100%;
   color: #FFF;
   font-size: 12px;
+  font-weight: bold;
 }
 
 .deploy_progress.deploy-complete {
   width: 150px;
+}
+
+.progress .bar.bar-inverse {
+  background-color: #333333;
+  background-image: none;
 }
 
 /* NavBar Loading Indicator */

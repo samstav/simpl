@@ -12,4 +12,12 @@ describe('barClass filter', function(){
   it('should classify FAILED as a danger', function(){
     expect(barClassFilter('FAILED')).toEqual('bar-danger');
   });
+
+  it('should classify DELETED as inverse', function(){
+    expect(barClassFilter('DELETED')).toEqual('bar-inverse');
+  });
+
+  it('should not classify anything else', function(){
+    expect(barClassFilter('BATMAN')).toEqual('');
+  });
 });
