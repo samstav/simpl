@@ -1230,6 +1230,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       var previous_context = auth.get_cached_context(username);
       if (previous_context) {
         auth.context = previous_context;
+        if (!temporarily) {
+          auth.cache_tenant(auth.context);
+        }
         auth.check_state();
         deferred.resolve("Impersonation Successful! (cached)");
         return deferred.promise;
@@ -1275,7 +1278,6 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     clear: function() {
       auth.identity = {};
       auth.context = {};
-      auth.endpoints = {};
       auth.cache = {};
     },
 
