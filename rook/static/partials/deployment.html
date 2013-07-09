@@ -106,10 +106,10 @@ Priv Key: {{formatted_data.private_key}}
             </div>
 
             <div ng-cloak ng-show="shouldDisplayWorkflowStatus()">
-              <div class="control-group" ng-cloak ng-show="timeRemaining" ng-controller="WorkflowController">
+              <div class="control-group" ng-cloak ng-show="timeRemaining">
                 <label class="control-label">Progress:</label>
                 <div class="controls progress">
-                  <div class="bar" style="width: {{percentComplete()}}%;"></div>
+                  <div class="bar" style="width: {{percentComplete}}%;"></div>
                 </div>
                 <div class="controls">
                   <p><span class="label label-info">{{count}}</span> tasks total:</p>
