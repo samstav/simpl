@@ -13,14 +13,15 @@ import uuid
 import bottle
 
 from SpiffWorkflow.storage import DictionarySerializer
+
+from checkmate.common import tasks as common_tasks
 from checkmate import db
 from checkmate import deployment as cmdeploy
+from checkmate.deployments import tasks
 from checkmate import operations
 from checkmate import orchestrator
 from checkmate import utils
 from checkmate import workflow
-from checkmate.common import tasks as common_tasks
-from checkmate.deployments import tasks
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,
@@ -144,8 +145,9 @@ class Router(object):
 
     @utils.with_tenant
     def post_deployment(self, tenant_id=None):
-        '''Creates deployment and workflow based on sent information
-        and triggers workflow execution.
+        '''Creates deployment and workflow.
+
+        Triggers workflow execution.
         '''
         deployment = _content_to_deployment(bottle.request,
                                             tenant_id=tenant_id)
@@ -276,9 +278,10 @@ class Router(object):
         deployment = cmdeploy.Deployment(deployment)
         if bottle.request.query.get('force') != '1':
             if not deployment.fsm.permitted('DELETED'):
-                bottle.abort(400, "Deployment %s cannot be deleted while in "
-                                  "status %s." %
-                                  (api_id, deployment.get('status', 'UNKNOWN')))
+                bottle.abort(
+                    400,
+                    "Deployment %s cannot be deleted while in status %s." % (
+                        api_id, deployment.get('status', 'UNKNOWN')))
         operation = deployment.get('operation')
 
         #TODO: driver will come from workflow manager once we create that
@@ -309,9 +312,7 @@ class Router(object):
 
     @utils.with_tenant
     def clone_deployment(self, api_id, tenant_id=None):
-        '''Creates deployment and wokflow based on deleted/active
-        deployment information.
-        '''
+        '''Creates deployment and wokflow from a deleted deployment.'''
         assert api_id, "Deployment ID cannot be empty"
         deployment = self.manager.clone(
             api_id,
@@ -375,12 +376,12 @@ class Router(object):
             raise CheckmateBadState("Deployment '%s' is in '%s' status and "
                                     "must be in 'PLANNED' or 'NEW' status to "
                                     "be deployed" % (api_id,
-                                    entity.get('status')))
+                                                     entity.get('status')))
 
         # Create a 'new deployment' workflow
         self.manager.deploy(deployment, bottle.request.context)
 
-        #Trigger the workflow
+        # Trigger the workflow
         async_task = self.manager.execute(api_id)
         LOG.debug("Triggered workflow (task='%s')", async_task)
 
@@ -404,8 +405,7 @@ class Router(object):
                  entity['created-by'] is not None and
                  bottle.request.context.username == entity.get('created-by'))):
             bottle.abort(401, "You must be the creator of a deployment or an "
-                         "admin to retrieve its secrets")
-
+                              "admin to retrieve its secrets")
         data = self.manager.get_deployment_secrets(api_id, tenant_id=tenant_id)
         return utils.write_body(data, bottle.request, bottle.response)
 
