@@ -1,33 +1,38 @@
+'''Rackspace Cloud DNS provider'''
 import logging
-
-import tldextract
-from SpiffWorkflow.operators import Attrib
-from SpiffWorkflow.specs import Celery
-
-from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
-from checkmate.providers import ProviderBase
-from checkmate.utils import match_celery_logging
 import os
-from checkmate.providers.base import user_has_access
-from checkmate.common import caching
 import sys
-from eventlet.greenpool import GreenPile
-from clouddns.domain import Domain
+
+import SpiffWorkflow.operators
+from SpiffWorkflow.specs import Celery
+import tldextract
+
+from checkmate.common import caching
+from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
+import checkmate.middleware
+import checkmate.providers
+import checkmate.providers.base
+import checkmate.utils
+import clouddns
+import eventlet.greenpool
 
 LOG = logging.getLogger(__name__)
 DNS_API_CACHE = {}
 
 
-class Provider(ProviderBase):
+class Provider(checkmate.providers.ProviderBase):
+    '''Rackspace Cloud DNS provider.'''
     name = 'dns'
     vendor = 'rackspace'
 
     @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=DNS_API_CACHE)
     def _get_limits(self, url, token):
+        '''Returns the Cloud DNS API limits.'''
         api = self.connect(token=token, url=url)
         return api.get_limits()
 
     def _is_new_domain(self, domain, context):
+        '''Returns True if domain does not already exist on this account.'''
         if domain and context:
             api = self.connect(context)
             dom = self._my_list_domains_info(api, domain)
@@ -36,27 +41,29 @@ class Provider(ProviderBase):
 
     @staticmethod
     def _my_list_domains_info(api, dom_name):
+        '''Fetch information for specified domain name.'''
         try:
             return api.list_domains_info(filter_by_name=dom_name)
-        except ResponseError as respe:
-            if respe.status != 404:
+        except ResponseError as resp_error:
+            if resp_error.status != 404:
                 LOG.warn("Error checking record limits for %s", dom_name,
                          exc_info=True)
 
     def _check_record_limits(self, context, dom_name, max_records,
                              num_new_recs):
+        '''Raise API error if adding domain records will violate limits.'''
         if num_new_recs > 0:
             api = self.connect(context)
             if dom_name:
                 num_recs = 0
                 doms = self._my_list_domains_info(api, dom_name)
                 if doms:
-                    dom = Domain(api, doms[0])
+                    dom = clouddns.domain.Domain(api, doms[0])
                     try:
                         num_recs = len(dom.list_records_info())
-                    except ResponseError as respe:
+                    except ResponseError as resp_error:
                         num_recs = 0
-                        if 404 != respe.status:
+                        if resp_error.status != 404:
                             LOG.warn("Error getting records for %s", dom_name,
                                      exc_info=True)
                 if num_recs + num_new_recs > max_records:
@@ -84,7 +91,7 @@ class Provider(ProviderBase):
         domain_names = set(map(lambda x: parse_domain(x.get('dns-name')),
                                resources))
         # find the ones that are new
-        pile = GreenPile()
+        pile = eventlet.greenpool.GreenPile()
         for dom in domain_names:
             pile.spawn(self._is_new_domain, dom, context)
         num_new = len([val for val in pile if val])
@@ -100,8 +107,8 @@ class Provider(ProviderBase):
                 'severity': "CRITICAL"
             })
 
-        # make sure we're not exceeding the record count
         def _count_filter_records(resources):
+            '''Make sure we're not exceeding the record count.'''
             handled = {}
             for resource in resources:
                 dom = parse_domain(resource.get('dns-name'))
@@ -118,7 +125,7 @@ class Provider(ProviderBase):
 
     def verify_access(self, context):
         roles = ['identity:user-admin', 'dnsaas:admin', 'dnsaas:creator']
-        if user_has_access(context, roles):
+        if checkmate.providers.base.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
                 'message': "You have access to create Cloud DNS records",
@@ -139,18 +146,25 @@ class Provider(ProviderBase):
         inputs = deployment.get('inputs', {})
         hostname = resource.get('dns-name')
 
-        create_dns_task = Celery(wfspec,
-                                 'Create DNS Record',
-                                 'checkmate.providers.rackspace.dns.'
-                                 'create_record',
-                                 call_args=[Attrib('context'),
-                                 inputs.get('domain', 'localhost'),
-                                 hostname,
-                                 'A',
-                                 Attrib('vip')],
-                                 defines=dict(resource=key, provider=self.key,
-                                 task_tags=['final', 'root', 'create']),
-                                 properties={'estimated_duration': 30})
+        create_dns_task = Celery(
+            wfspec,
+            'Create DNS Record',
+            'checkmate.providers.rackspace.dns.'
+            'create_record',
+            call_args=[
+                SpiffWorkflow.operators.Attrib('context'),
+                inputs.get('domain', 'localhost'),
+                hostname,
+                'A',
+                SpiffWorkflow.operators.Attrib('vip')
+            ],
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['final', 'root', 'create']
+            ),
+            properties={'estimated_duration': 30}
+        )
         return dict(root=create_dns_task, final=create_dns_task)
 
     def get_catalog(self, context, type_filter=None):
@@ -189,6 +203,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def _find_url(catalog):
+        '''Find the public endpoint for the DNS service.'''
         for service in catalog:
             if service['name'] == 'cloudDNS':
                 endpoints = service['endpoints']
@@ -197,7 +212,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def connect(context=None, token=None, url=None):
-        """Use context info to connect to API and return api object"""
+        """Use context info to connect to API and return api object."""
 
         if (not context) and not (token and url):
             raise ValueError("Must pass either a context or a token and url")
@@ -205,25 +220,23 @@ class Provider(ProviderBase):
         if context:
             #FIXME: figure out better serialization/deserialization scheme
             if isinstance(context, dict):
-                from checkmate.middleware import RequestContext
-                context = RequestContext(**context)
+                context = checkmate.middleware.RequestContext(**context)
             if not context.auth_token:
                 raise CheckmateNoTokenError()
             token = context.auth_token
             url = Provider._find_url(context.catalog)
 
-        class CloudDNS_Auth_Proxy(object):
-            """We pass this class to clouddns for it to use instead of its own
-            auth mechanism"""
+        class CloudDNSAuthProxy(object):
+            '''We pass this class to clouddns to bypass its auth mechanism.'''
             def __init__(self, url, token):
                 self.url = url
                 self.token = token
 
             def authenticate(self):
-                """Called by clouddns. Expects back a url and token"""
+                '''Called by clouddns. Expects back a url and token.'''
                 return (self.url, self.token)
 
-        proxy = CloudDNS_Auth_Proxy(url=url, token=token)
+        proxy = CloudDNSAuthProxy(url=url, token=token)
         api = clouddns.connection.Connection(auth=proxy)
         LOG.debug("Connected to cloud DNS using token of length %s "
                   "and url of %s", len(token), url)
@@ -234,16 +247,16 @@ class Provider(ProviderBase):
   Celery tasks to manipulate Rackspace Cloud DNS
 """
 from celery.task import task
-import clouddns
 from clouddns.errors import UnknownDomain, ResponseError, InvalidDomainName
 
 
 def _get_dns_object(context):
+    '''Returns a handle to an API object.'''
     return Provider.connect(context)
 
 
 def parse_domain(domain_str):
-    """Return 'domain.com' for 'sub2.sub1.domain.com' """
+    '''Return "domain.com" for "sub2.sub1.domain.com".'''
     if not domain_str:
         return ""
     extractor = tldextract.TLDExtract(
@@ -256,7 +269,8 @@ def parse_domain(domain_str):
 
 @task(default_retry_delay=10, max_retries=10)
 def get_domains(context, limit=None, offset=None):
-    match_celery_logging(LOG)
+    '''Returns list of domains for an account.'''
+    checkmate.utils.match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         domains = api.list_domains_info(limit=limit, offset=offset)
@@ -270,13 +284,14 @@ def get_domains(context, limit=None, offset=None):
 @task(default_retry_delay=3, max_retries=20)
 def create_domain(context, domain, email=None,
                   dom_ttl=300):
-    match_celery_logging(LOG)
+    '''Create zone.'''
+    checkmate.utils.match_celery_logging(LOG)
     api = _get_dns_object(context)
     if not email:
         email = "admin@%s" % domain
     try:
         doms = api.create_domain(name=domain, ttl=dom_ttl, emailAddress=email)
-        LOG.debug('Domain %s created.' % domain)
+        LOG.debug('Domain %s created.', domain)
         if hasattr(doms, "append"):
             doms = doms[0]
         ser_dom = doms.__dict__
@@ -284,43 +299,44 @@ def create_domain(context, domain, email=None,
             del ser_dom["connection"]
         return ser_dom
     except InvalidDomainName as exc:
-        LOG.debug('Domain %s is invalid.  Refusing to retry.' % domain)
+        LOG.debug('Domain %s is invalid.  Refusing to retry.', domain)
         raise exc
-    except ResponseError as r:
-        LOG.debug('Error creating domain %s.(%s) %s. Retrying.' % (
-            domain, r.status, r.reason))
-        create_domain.retry(exc=r)
+    except ResponseError as resp_error:
+        LOG.debug('Error creating domain %s.(%s) %s. Retrying.', domain,
+                  resp_error.status, resp_error.reason)
+        create_domain.retry(exc=resp_error)
     except Exception as exc:
-        LOG.debug('Unknown error creating domain %s. Error: %s. Retrying.' % (
-                  domain, str(exc)))
+        LOG.debug('Unknown error creating domain %s. Error: %s. Retrying.',
+                  domain, str(exc))
         create_domain.retry(exc=exc)
 
 
 @task
 def delete_domain(context, name):
-    match_celery_logging(LOG)
+    '''Find and delete the specified domain name.'''
+    checkmate.utils.match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         domain = api.get_domain(name=name)
     except UnknownDomain, exc:
         LOG.debug('Cannot deleted domain %s because it does not exist. '
-                  'Refusing to retry.' % name)
+                  'Refusing to retry.', name)
         return
     except Exception, exc:
         LOG.debug('Exception getting domain %s. Was hoping to delete it. '
-                  'Error %s. Retrying.' % (name, str(exc)))
+                  'Error %s. Retrying.', name, str(exc))
         delete_domain.retry(exc=exc)
 
     try:
         api.delete_domain(domain.id)
-        LOG.debug('Domain %s deleted.' % name)
-    except ResponseError, r:
-        LOG.debug('Error deleting domain %s (%s) %s. Retrying.' % (
-                  name, r.status, r.reason))
-        delete_domain.retry(exc=r)
+        LOG.debug('Domain %s deleted.', name)
+    except ResponseError, resp_error:
+        LOG.debug('Error deleting domain %s (%s) %s. Retrying.', name,
+                  resp_error.status, resp_error.reason)
+        delete_domain.retry(exc=resp_error)
     except Exception, exc:
-        LOG.debug('Error deleting domain %s. Error %s. Retrying.' % (
-                  name, str(exc)))
+        LOG.debug('Error deleting domain %s. Error %s. Retrying.', name,
+                  str(exc))
         delete_domain.retry(exc=exc)
 
 
@@ -328,17 +344,16 @@ def delete_domain(context, name):
 def create_record(context, domain, name, dnstype, data,
                   rec_ttl=1800, makedomain=False,
                   email=None):
-    """ Create a DNS record of the specified type for the specified domain """
-
-    match_celery_logging(LOG)
+    '''Create a DNS record of the specified type for the specified domain.'''
+    checkmate.utils.match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         domain_object = api.get_domain(name=domain)
     except UnknownDomain:
         if makedomain:
             LOG.debug('Cannot create %s record (%s->%s) because domain "%s" '
-                      'does not exist. Creating domain "%s".' % (
-                      dnstype, name, data, domain, domain))
+                      'does not exist. Creating domain "%s".', dnstype, name,
+                      data, domain, domain)
             if not email:
                 email = "admin@%s" % domain
             domain_object = api.create_domain(domain, 300, emailAddress=email)
@@ -353,14 +368,14 @@ def create_record(context, domain, name, dnstype, data,
 
     try:
         rec = domain_object.create_record(name, data, dnstype, ttl=rec_ttl)
-        LOG.debug('Created DNS %s record %s -> %s. TTL: %s' % (
-            dnstype, name, data, rec_ttl))
-    except ResponseError as res_err:
-        if "duplicate of" not in res_err.reason:
-            create_record.retry(exc=res_err)
+        LOG.debug('Created DNS %s record %s -> %s. TTL: %s', dnstype, name,
+                  data, rec_ttl)
+    except ResponseError as resp_error:
+        if "duplicate of" not in resp_error.reason:
+            create_record.retry(exc=resp_error)
         else:
-            LOG.warn('DNS record "%s" already exists for domain "%s"'
-                     % (name, domain))
+            LOG.warn('DNS record "%s" already exists for domain "%s"', name,
+                     domain)
             rec = domain_object.get_record(name=name)
 
     ser_rec = rec.__dict__
@@ -373,14 +388,14 @@ def create_record(context, domain, name, dnstype, data,
 
 @task(default_retry_delay=5, max_retries=12)
 def delete_record_task(context, domain_id, record_id):
-    """ Delete the specified record """
-    match_celery_logging(LOG)
+    '''Delete the specified record.'''
+    checkmate.utils.match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         domain = api.get_domain_details(id=domain_id)
     except UnknownDomain, exc:
         LOG.debug('Cannot delete record %s because %s does not exist. '
-                  'Refusing to retry.' % (record_id, domain_id))
+                  'Refusing to retry.', record_id, domain_id)
         return
     except Exception as exc:
         msg = ('Error finding domain %s. Cannot delete record %s.'
@@ -390,44 +405,45 @@ def delete_record_task(context, domain_id, record_id):
     try:
         record = domain.get_record(id=record_id)
         domain.delete_record(record.id)
-        LOG.debug('Deleted DNS record %s.' % record_id)
+        LOG.debug('Deleted DNS record %s.', record_id)
         return True
-    except ResponseError as res_err:
-        LOG.debug('Error deleting DNS record %s. Error %s %s. Retrying.' % (
-                  record_id, res_err.status, res_err.reason))
-        delete_record_task.retry(exc=res_err)
+    except ResponseError as resp_error:
+        LOG.debug('Error deleting DNS record %s. Error %s %s. Retrying.',
+                  record_id, resp_error.status, resp_error.reason)
+        delete_record_task.retry(exc=resp_error)
     except Exception as exc:
         if "Not found" in exc.args[0]:
             return
-        LOG.debug('Error deleting DNS record %s. Retrying.' % record_id,
+        LOG.debug('Error deleting DNS record %s. Retrying.', record_id,
                   exc_info=True)
         delete_record_task.retry(exc=exc)
 
 
 @task(default_retry_delay=20, max_retries=10)
 def delete_record_by_name(context, domain, name):
-    match_celery_logging(LOG)
+    '''Find the DNS record by name and delete it.'''
+    checkmate.utils.match_celery_logging(LOG)
     api = _get_dns_object(context)
     try:
         domain = api.get_domain(name=domain)
     except UnknownDomain, exc:
         LOG.debug('Cannot delete record %s because %s does not exist. '
-                  'Refusing to retry.' % (name, domain))
+                  'Refusing to retry.', name, domain)
         return
     except Exception, exc:
         LOG.debug('Error finding domain %s.  Wanting to delete record %s. '
-                  'Error %s. Retrying.' % (domain, name, str(exc)))
+                  'Error %s. Retrying.', domain, name, str(exc))
         delete_record_task.retry(exc=exc)
 
     try:
         record = domain.get_record(name=name)
         domain.delete_record(record.id)
-        LOG.debug('Deleted DNS record %s.' % name)
-    except ResponseError, r:
-        LOG.debug('Error deleting DNS record %s. Error %s %s. Retrying.' % (
-                  name, r.status, r.reason))
-        delete_record_task.retry(exc=r)
+        LOG.debug('Deleted DNS record %s.', name)
+    except ResponseError, resp_error:
+        LOG.debug('Error deleting DNS record %s. Error %s %s. Retrying.',
+                  name, resp_error.status, resp_error.reason)
+        delete_record_task.retry(exc=resp_error)
     except Exception, exc:
-        LOG.debug('Error deleting DNS record %s. Error %s. Retrying.' % (
-                  name, str(exc)))
+        LOG.debug('Error deleting DNS record %s. Error %s. Retrying.', name,
+                  str(exc))
         delete_record_task.retry(exc=exc)
