@@ -587,30 +587,29 @@ class ProviderTask(Task):
     '''Celery Task for providers.'''
     abstract = True
 
-    def __init__(self, *args, **kwargs):
-        self.__provider = self.provider
-        self.provider = None
-
     def __call__(self, context, *args, **kwargs):
         utils.match_celery_logging(LOG)
+        region = kwargs.get('region') or context.get('region')
         try:
-            try:
-                region = kwargs.get('region') or context.get('region')
-                self.api = kwargs.get('api') or self.__provider.connect(
-                    context, region)
-            # TODO(Nate): Generalize exception raised in providers connect
-            except CheckmateValidationException:
-                raise
-            except StandardError as exc:
-                return self.retry(exc=exc)
-            self.partial = partial(self.callback, context)
+            self.api = kwargs.get('api') or self.provider.connect(context,
+                                                                  region)
+        # TODO(Nate): Generalize exception raised in providers connect
+        except CheckmateValidationException:
+            raise
+        except StandardError as exc:
+            return self.retry(exc=exc)
+
+        self.partial = partial(self.callback, context)
+
+        try:
             data = self.run(context, *args, **kwargs)
-            self.callback(context, data)
-            return data
         except RetryTaskError:
             raise  # task is already being retried.
         except CheckmateResumableException as exc:
             return self.retry(exc=exc)
+        
+        self.callback(context, data)
+        return data
 
     def callback(self, context, data):
         '''Calls postback with instance.id to ensure posted to resource.'''
@@ -625,7 +624,7 @@ class ProviderTask(Task):
         }
         if 'status' in data:
             results['resources'][context['resource']]['status'] = \
-                self.__provider.translate_status(data['status'])
+                self.provider.translate_status(data['status'])
 
         deployment_tasks.postback(context['deployment'], results)
 

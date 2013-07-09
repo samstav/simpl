@@ -73,6 +73,16 @@ class TestProviderBase(unittest.TestCase):
 class TestProviderTask(unittest.TestCase):
     '''Tests ProviderTask functionality.'''
 
+    def setUp(self):
+        self._run = do_something.run
+        self._retry = do_something.retry
+        self._callback = do_something.callback
+
+    def tearDown(self):
+        do_something.run = self._run
+        do_something.retry = self._retry
+        do_something.callback = self._callback
+        
     def test_provider_task_success(self):
         '''Tests success run.'''
         context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
@@ -92,15 +102,14 @@ class TestProviderTask(unittest.TestCase):
     def test_provider_task_retry(self):
         '''Tests retry is called.'''
         context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
-        do_something.callback = mock.Mock()
-        do_something.callback.side_effect = CheckmateResumableException(1,
-                                                                        2, 3)
+        do_something.run = mock.Mock()
         do_something.retry = mock.MagicMock()
-
+        do_something.run.side_effect = CheckmateResumableException(1, 2, 3)
+        
         do_something(context, 'test', api='test_api')
 
         do_something.retry.assert_called_with(
-            exc=do_something.callback.side_effect)
+            exc=do_something.run.side_effect)
 
     @mock.patch('checkmate.deployments.tasks')
     def test_provider_task_callback(self, mocked_lib):
