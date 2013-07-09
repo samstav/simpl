@@ -56,7 +56,7 @@ describe('WorkflowController', function(){
       $location = { path: sinon.stub().returns('/status') };
       workflow = { flattenTasks: sinon.stub().returns([]),
                    parseTasks: sinon.stub().returns([]),
-                   calculateStatistics: emptyFunction };
+                   calculateStatistics: sinon.stub().returns({ taskStates: {} }) };
     });
 
     it('setup all data', function(){

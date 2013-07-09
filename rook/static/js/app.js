@@ -1078,7 +1078,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       items.tasks = workflow.flattenTasks({}, object.task_tree);
       items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
       $scope.count = items.all.length;
-      workflow.calculateStatistics($scope, items.all);
+      var statistics = workflow.calculateStatistics(items.all);
+      $scope.totalTime = statistics.totalTime;
+      $scope.timeRemaining = statistics.timeRemaining;
+      $scope.taskStates = statistics.taskStates;
       var path_parts = $location.path().split('/');
       if (path_parts.slice(-1)[0] == 'status' || path_parts.slice(2,3) == 'deployments') {
         if ($scope.taskStates.completed < $scope.count) {
@@ -1203,7 +1206,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         items.tasks = workflow.flattenTasks({}, object.task_tree);
         items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
         $scope.count = items.all.length;
-        workflow.calculateStatistics($scope, items.all);
+        var statistics = workflow.calculateStatistics(items.all);
+        $scope.totalTime = statistics.totalTime;
+        $scope.timeRemaining = statistics.timeRemaining;
+        $scope.taskStates = statistics.taskStates;
       } else {
         items.clear();
       }
