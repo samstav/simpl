@@ -58,35 +58,34 @@ services.factory('workflow', [function() {
         },
 
         // Display the workflow
-        renderWorkflow: function(container_selector, template_selector, tasks, $scope) {
-          var template = $(template_selector).html();
-          var container = $(container_selector);
+    renderWorkflow: function(container_selector, template_selector, tasks, $scope) {
+      var template = $(template_selector).html();
+      var container = $(container_selector);
 
-          //Clear old data
-          d3.selectAll('#rendering').remove();
+      //Clear old data
+      d3.selectAll('#rendering').remove();
 
-          for(var i = 0; i < Math.floor(tasks.length/4); i++) {
-      var div = $('<div id="rendering" class="row">');
-      var row = tasks.slice(i*4, (i+1)*4);
-      _.each(row, function(task) {
-              div.append(Mustache.render(template, task));
+      for(var i = 0; i < Math.floor(tasks.length/4); i++) {
+        var div = $('<div id="rendering" class="row">');
+        var row = tasks.slice(i*4, (i+1)*4);
+        _.each(row, function(task) {
+                div.append(Mustache.render(template, task));
         });
 
-      container.append(div);
-          }
+        container.append(div);
+      }
 
-          $('.task').hover(
-      function() {
-              //hover-in
-              $(this).addClass('hovering');
-              $scope.showConnections($(this));
+      $('.task').hover(function() {
+          //hover-in
+          $(this).addClass('hovering');
+          $scope.showConnections($(this));
         },
         function() {
-              $(this).removeClass('hovering');
-              jsPlumb.detachEveryConnection();
+          $(this).removeClass('hovering');
+          jsPlumb.detachEveryConnection();
         }
-          );
-        },
+      );
+    },
 
     calculateStatistics: function(tasks){
       totalTime = 0;
