@@ -11,10 +11,12 @@ Install [Vagrant](http://vagrantup.com/) (make sure you have version >= v1.1)
 and [VirtualBox](https://www.virtualbox.org/), then execute these commands:
 
     $ gem install berkshelf
-    $ vagrant plugin install vagrant-berkshelf
+    $ vagrant plugin install vagrant-berkshelf 
     $ vagrant plugin install vagrant-omnibus
     $ git clone git://github.rackspace.com/checkmate/checkmate.git
     $ vagrant up
+
+Make sure you have ```vagrant-berkshelf``` greater than 1.2.0 and ```vagrant-omnibus``` greater than 1.0.2.
 
 ## Upgrade from librarian-chef
 
