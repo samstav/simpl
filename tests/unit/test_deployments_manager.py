@@ -11,7 +11,6 @@ import copy
 import json
 import os
 import unittest
-
 import mox
 
 from checkmate.deployment import Deployment

@@ -111,20 +111,15 @@ class Planner(ExtensibleDict):
     The resources attribute will contain the planned resources as well.
 
     '''
-
     def __init__(self, deployment, parse_only=False, *args, **kwargs):
         '''
 
         :param parse_only: optimize for parsing. Uses dummy keys
         '''
         ExtensibleDict.__init__(self, *args, **kwargs)
-        if not isinstance(deployment, Deployment):
-            self.deployment = Deployment(deployment)
-        else:
-            self.deployment = deployment
-        self.resources = {}
-        self.deployment['resources'] = self.resources
-        self.connections = {}
+        self.deployment = deployment
+        self.resources = self.deployment.get('resources', {})
+        self.connections = self.deployment.get('connections', {})
         self.parse_only = parse_only
 
         # Find blueprint and environment. Otherwise, there's nothing to plan!
@@ -136,6 +131,29 @@ class Planner(ExtensibleDict):
         if not self.environment:
             raise CheckmateValidationException("Environment not found. "
                                                "Nowhere to deploy to.")
+
+    def plan_additional_nodes(self, context, service_name, count):
+        '''
+        This method would add 'count' number of resource nodes of
+        service-type 'service_name' to a deployment that has already been
+        PLANNED.
+
+        :param context: Request context
+        :param service_name: The service to add additional nodes for
+        :param count: The number of nodes to add
+        :return:
+        '''
+        LOG.info("Planning %s additional nodes for service %s in deployment "
+                 "'%s'", count, service_name, self.deployment['id'])
+        service_analysis = self['services'][service_name]
+        definition = service_analysis['component']
+
+        # Get main component for this service
+        provider_key = definition['provider-key']
+
+        seed = self._get_number_of_resources(provider_key, service_name) + 1
+        for service_index in range(seed, seed + count):
+            self.add_resource_for_service(context, service_name, service_index)
 
     def plan(self, context):
         '''Perform plan analysis. Returns a reference to planned resources'''
@@ -162,7 +180,7 @@ class Planner(ExtensibleDict):
         self.resolve_relations()
         self.resolve_remaining_requirements(context)
         self.resolve_recursive_requirements(context, history=[])
-        self.add_resources(self.deployment, context)
+        self.add_resources(context)
         self.connect_resources()
         self.add_static_resources(self.deployment, context)
 
@@ -232,7 +250,7 @@ class Planner(ExtensibleDict):
                         default.startswith('=generate')):
                     option['default'] = utils.evaluate(default[1:])
 
-    def add_resources(self, deployment, context):
+    def add_resources(self, context):
         '''
         This is a container for the original plan() function. It contains
         code that is not yet fully refactored. This will go away over time.
@@ -241,9 +259,7 @@ class Planner(ExtensibleDict):
         environment = self.environment
         services = blueprint.get('services', {})
 
-        #
         # Prepare resources and connections to create
-        #
         LOG.debug("Add resources")
         for service_name, _ in services.iteritems():
             LOG.debug("  For service '%s'", service_name)
@@ -255,53 +271,70 @@ class Planner(ExtensibleDict):
             provider = environment.get_provider(provider_key)
             component = provider.get_component(context, definition['id'])
             resource_type = component.get('is')
-            count = deployment.get_setting('count',
-                                           provider_key=provider_key,
-                                           resource_type=resource_type,
-                                           service_name=service_name,
-                                           default=1)
+            count = self.deployment.get_setting('count',
+                                                provider_key=provider_key,
+                                                resource_type=resource_type,
+                                                service_name=service_name,
+                                                default=1)
 
             # Create as many as we have been asked to create
             for service_index in range(1, count + 1):
                 # Create the main resource template
-                resources = deployment.create_resource_template(service_index,
-                                                                definition,
-                                                                service_name,
-                                                                context)
-                for resource in resources:
-                    resource['status'] = 'PLANNED'
-                    # Add it to resources
-                    self.add_resource(resource, definition, service_name)
+                self.add_resource_for_service(context, service_name,
+                                              service_index)
 
-                    # Add host and other requirements that exist in the service
-                    extra_components = service_analysis.get(
-                        'extra-components', {})
-                    for key, extra_def in extra_components.iteritems():
-                        LOG.debug("    Processing extra component '%s' for "
-                                  "'%s'", key, service_name)
-                        extra_resources = deployment.create_resource_template(
-                            service_index,
-                            extra_def,
-                            service_name,
-                            context)
-                        for extra_resource in extra_resources:
-                            self.add_resource(extra_resource, extra_def)
+    def add_resource_for_service(self, context, service_name, service_index):
+        '''
+        Adds a new 'resource' block to the deployment, based on the
+        service name
+        :param service_name: Name of the service
+        :param context: Request context
+        :param service_index:
+        :return:
+        '''
+        LOG.debug("  For service '%s'", service_name)
+        service_analysis = self['services'][service_name]
+        definition = service_analysis['component']
 
-                            # Connnect extra components
+        # Create as many as we have been asked to create
+            # Create the main resource template
+        resources = self.deployment.create_resource_template(service_index,
+                                                             definition,
+                                                             service_name,
+                                                             context)
+        for resource in resources:
+            resource['status'] = 'PLANNED'
+            # Add it to resources
+            self.add_resource(resource, definition, service_name)
 
-                            if key in definition.get('host-keys', []):
-                                # connect hosts
-                                connections = definition.get('connections', {})
-                                if key not in connections:
-                                    continue
-                                connection = connections[key]
-                                if connection.get('relation') == 'reference':
-                                    continue
-                                if connection['direction'] == 'inbound':
-                                    continue
-                                self.connect_instances(resource,
-                                                       extra_resource,
-                                                       connection, key)
+            # Add host and other requirements that exist in the service
+            extra_components = service_analysis.get(
+                'extra-components', {})
+            for key, extra_def in extra_components.iteritems():
+                LOG.debug("    Processing extra component '%s' for "
+                          "'%s'", key, service_name)
+                extra_resources = self.deployment.create_resource_template(
+                    service_index,
+                    extra_def,
+                    service_name,
+                    context)
+                for extra_resource in extra_resources:
+                    self.add_resource(extra_resource, extra_def)
+
+                    # Connnect extra components
+                    if key in definition.get('host-keys', []):
+                        # connect hosts
+                        connections = definition.get('connections', {})
+                        if key not in connections:
+                            continue
+                        connection = connections[key]
+                        if connection.get('relation') == 'reference':
+                            continue
+                        if connection['direction'] == 'inbound':
+                            continue
+                        self.connect_instances(resource,
+                                               extra_resource,
+                                               connection, key)
 
     def connect_resources(self):
         '''Wire up resource connections within a Plan'''
@@ -423,7 +456,7 @@ class Planner(ExtensibleDict):
 
     def add_resource(self, resource, definition, service_name=None):
         '''Add a resource to the list of resources to be created'''
-        resource['index'] = self.deployment.get_next_resource_index()
+        resource['index'] = self._get_next_resource_index()
 
         LOG.debug("  Adding a '%s' resource with resource key '%s'",
                   resource.get('type'), resource['index'])
@@ -870,6 +903,28 @@ class Planner(ExtensibleDict):
                          requirement_key, relation_type=relation)
         if stack:
             self.resolve_recursive_requirements(context, history)
+
+    def _get_next_resource_index(self):
+        '''
+        Calculates the next resource index based on the current resources
+        :return:
+        '''
+        return (str(len([res for res in self.resources.keys()
+                         if res.isdigit()])))
+
+    def _get_number_of_resources(self, provider_key, service_name):
+        '''
+        Gets the number of resources for a specific service and provider
+        :param provider_key:
+        :param service_name:
+        :return:
+        '''
+        count = 0
+        for key, resource in self.resources.iteritems():
+            if (resource.get("service") == service_name and resource.get(
+                    "provider") == provider_key):
+                count += 1
+        return count
 
     def _satisfy_requirement(self, requirement, requirement_key, component,
                              component_service, relation_key=None, name=None):
