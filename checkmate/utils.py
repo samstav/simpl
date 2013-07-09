@@ -708,7 +708,6 @@ def only_admins(fxn):
     return wrapped
 
 
-
 def get_time_string(time_gmt=None):
     '''The Checkmate canonical time string format.
 
