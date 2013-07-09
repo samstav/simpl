@@ -23,7 +23,6 @@ from checkmate import operations
 from checkmate import orchestrator
 from checkmate import utils
 from checkmate import workflow
-import checkmate.workflow
 
 
 LOG = logging.getLogger(__name__)
