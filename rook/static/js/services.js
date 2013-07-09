@@ -1813,5 +1813,15 @@ angular.module('checkmate.services').factory('Deployment', function(){
 
     return status;
   }
-  return { status: status };
+
+  function progress(deployment){
+    if(status(deployment) === 'FAILED')
+      return 100;
+    if(!deployment.operation)
+      return 0;
+    return (deployment.operation.complete / deployment.operation.tasks) * 100;
+  }
+
+  return { status: status,
+           progress: progress };
 });

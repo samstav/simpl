@@ -2239,9 +2239,31 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
 //Deployment list
 function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment) {
   //Model: UI
+  var STATUSES = [
+    "ALERT",
+    "DELETED",
+    "DOWN",
+    "FAILED",
+    "NEW",
+    "PLANNED",
+    "UNREACHABLE",
+    "UP"
+  ]
   $scope.showItemsBar = true;
   $scope.showStatus = true;
   $scope.name = "Deployments";
+  $scope.activeFilters = $location.search().status
+  $scope.filter_list = _.map(STATUSES, function(status){
+    var is_active = $scope.activeFilters === status || _.contains($scope.activeFilters, status);
+    return { name: status, active: is_active };
+  })
+
+  $scope.applyFilters = function(){
+    var active_filters = _.where($scope.filter_list, { active: true });
+    var filter_names = _.map(active_filters, function(f){ return f.name })
+    $location.search({ status: filter_names });
+  }
+
   navbar.highlight("deployments");
 
   //Model: data
@@ -2295,7 +2317,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, created_by: item['created-by'], tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment, operation: item.operation,
-                status: item.status, display_status: Deployment.status(item)};
+                status: item.status, display_status: Deployment.status(item),
+                progress: Deployment.progress(item)};
       });
       $scope.count = items.count;
       $scope.items = items.all;

@@ -1,43 +1,58 @@
 <div class="entries container-fluid" ng-init="load()" ng-show="is_content_loaded()">
-  <table class="table table-striped">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Blueprint</th>
-        <th ng-show="is_admin(true)">Tenant</th>
-        <th>Status</th>
-        <th>Created</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr ng-repeat="deployment in items | orderBy:'-created'" class="deployment">
-        <td>
-          <ng-include src="'/partials/deployment_settings.html'"></ng-include>
-          <a ng-href="/{{deployment.tenantId}}/deployments/{{deployment.id}}">{{deployment.id | truncate:15}}</a>
-        </td>
-        <td>{{deployment.name}}</td>
-        <td>{{deployment.blueprint.name}}</td>
-        <td ng-show="is_admin(true)">
-          {{deployment.tenantId}}
-          <span class="tenant_tag" ng-repeat="tag in tenant_tags(deployment.tenantId)" ng-show="!is_impersonating()">
-            <i class="icon {{tag | lowercase}}" tooltip="{{tag}}"></i>
-            <span class="label {{tag | lowercase}}">{{tag}}</span>
-          </span>
-        </td>
-        <td>
-          <div class="progress deploy_progress">
-            <div class="bar" ng-style="{width: ((deployment.operation.complete/deployment.operation.tasks) * 100 || '0') + '%'}"
-              ng-class="{'bar-success': deployment.status == 'UP'}">
-            </div>
-            <span>{{deployment.display_status}}</span>
-          </div>
-        </td>
-        <td>
-          {{deployment.created | formattedFullDate}}<span ng-cloak ng-show="deployment.created_by"> by {{deployment.created_by}}</span>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-  <div data-ng-include data-src="'/partials/shared/pagination.html'"></div>
+  <div class='row-fluid'>
+    <div class='span2 sidebar-left'>
+      <div class='sidebar-heading'>
+        <h5>Status</h5>
+      </div>
+      <label ng-repeat="filter in filter_list">
+        <div class='checkbox-filter'>
+          <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
+          <span class='checkbox-filter-name'>{{filter.name | capitalize}}</span>
+        </div>
+      </label>
+    </div>
+
+    <div class='span10'>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Blueprint</th>
+            <th ng-show="is_admin(true)">Tenant</th>
+            <th class='text-center'>Status</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="deployment in items | orderBy:'-created'" class="deployment">
+            <td>
+              <ng-include src="'/partials/deployment_settings.html'"></ng-include>
+              <a ng-href="/{{deployment.tenantId}}/deployments/{{deployment.id}}">{{deployment.id | truncate:15}}</a>
+            </td>
+            <td>{{deployment.name}}</td>
+            <td>{{deployment.blueprint.name}}</td>
+            <td ng-show="is_admin(true)">
+              {{deployment.tenantId}}
+              <span class="tenant_tag" ng-repeat="tag in tenant_tags(deployment.tenantId)" ng-show="!is_impersonating()">
+                <i class="icon {{tag | lowercase}}" tooltip="{{tag}}"></i>
+                <span class="label {{tag | lowercase}}">{{tag}}</span>
+              </span>
+            </td>
+            <td>
+              <div class="progress deploy_progress" ng-class="{'deploy-complete': deployment.progress != 100}">
+                <div class="bar {{ deployment.display_status | barClass }}" ng-style="{width: deployment.progress + '%'}">
+                </div>
+                <span>{{deployment.display_status}}</span>
+              </div>
+            </td>
+            <td>
+              {{deployment.created | formattedFullDate}}<span ng-cloak ng-show="deployment.created_by"> by {{deployment.created_by}}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div data-ng-include data-src="'/partials/shared/pagination.html'"></div>
+    </div>
+  </div>
 </div>

@@ -91,14 +91,14 @@ filters.filter('capitalize',
   function() {
     return function(input) {
       if(angular.isString(input) && input.length){
-        return input.charAt(0).toUpperCase() + input.slice(1);
+        return input.charAt(0).toUpperCase() + input.slice(1).toLowerCase();
       }
       return input;
     };
   }
 );
 
-filters.filter('capitalize_all',
+filters.filter('capitalizeAll',
   function() {
     return function(input) {
       if(angular.isString(input) && input.length){
@@ -135,3 +135,18 @@ filters.filter('cm_validation_rules', function() {
     return html;
   };
 });
+
+filters.filter('barClass', function(){
+  return function(status){
+    if(status === 'UP') {
+      return 'bar-success';
+    } else if(status === 'FAILED') {
+      return 'bar-danger';
+    } else if(status === 'DELETED') {
+      return 'bar-inverse';
+    } else {
+      return '';
+    }
+  };
+});
+

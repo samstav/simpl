@@ -381,6 +381,8 @@ body {
   background-image: none;
   background-color: #AAA;
   margin-bottom: 0px;
+  width: 67px;
+  margin: auto;
 }
 .deploy_progress .bar {
   position: absolute;
@@ -391,6 +393,16 @@ body {
   width: 100%;
   color: #FFF;
   font-size: 12px;
+  font-weight: bold;
+}
+
+.deploy_progress.deploy-complete {
+  width: 150px;
+}
+
+.progress .bar.bar-inverse {
+  background-color: #333333;
+  background-image: none;
 }
 
 /* NavBar Loading Indicator */
@@ -546,4 +558,42 @@ a:hover {
   line-height: 20px;
   display: block;
   margin-bottom: 5px;
+}
+
+.sidebar-left {
+  margin-top: 35px;
+  margin-left: 0;
+  background-color: #F9F9F9;
+  border: 1px solid #dddddd;
+  height: 100%;
+}
+
+.checkbox-filter {
+  margin-left: 10px;
+}
+
+.checkbox-filter input {
+  margin: 0;
+}
+
+.checkbox-filter-name {
+  vertical-align: middle;
+  padding-left: 5px;
+  font-size: 13px;
+}
+
+.sidebar-heading {
+  text-align: center;
+}
+
+.sidebar-heading h5 {
+  text-transform: uppercase;
+  margin: 0 0 0 10px;
+  padding: 10px 0;
+  text-align: left;
+  font-size: 12px;
+}
+
+table th.text-center {
+  text-align: center;
 }
