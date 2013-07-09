@@ -18,12 +18,15 @@ from checkmate.common import tasks as common_tasks
 from checkmate import db
 from checkmate import deployment as cmdeploy
 from checkmate.deployments import tasks
-import checkmate.exceptions
 from checkmate import operations
 from checkmate import orchestrator
 from checkmate import utils
 from checkmate import workflow
-
+from checkmate.exceptions import (
+    CheckmateBadState,
+    CheckmateDoesNotExist,
+    CheckmateValidationException,
+)
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -49,14 +52,14 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
     if db.any_id_problems(entity['id']):
-        raise checkmate.exceptions.CheckmateValidationException(
+        raise CheckmateValidationException(
             db.any_id_problems(entity['id']))
     deployment = cmdeploy.Deployment(entity)  # Also validates syntax
     if 'includes' in deployment:
         del deployment['includes']
     if 'tenantId' in deployment and tenant_id:
         if deployment['tenantId'] != tenant_id:
-            raise checkmate.exceptions.CheckmateValidationException(
+            raise CheckmateValidationException(
                 "tenantId must match with current tenant ID")
     else:
         assert tenant_id, "Tenant ID must be specified in deployment "
@@ -230,7 +233,7 @@ class Router(object):
                 entity = self.manager.get_deployment(api_id, tenant_id,
                                                      with_secrets=False)
 
-        except checkmate.exceptions.CheckmateDoesNotExist:
+        except CheckmateDoesNotExist:
             bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
@@ -247,7 +250,7 @@ class Router(object):
             bottle.request, deployment_id=api_id, tenant_id=tenant_id)
         try:
             entity = self.manager.get_deployment(api_id)
-        except checkmate.exceptions.CheckmateDoesNotExist:
+        except CheckmateDoesNotExist:
             entity = None
         results = self.manager.save_deployment(deployment,
                                                api_id=api_id,
@@ -272,7 +275,7 @@ class Router(object):
             bottle.request.context.simulation = True
         deployment = self.manager.get_deployment(api_id)
         if not deployment:
-            raise checkmate.exceptions.CheckmateDoesNotExist(
+            raise CheckmateDoesNotExist(
                 "No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
         if bottle.request.query.get('force') != '1':
@@ -328,10 +331,9 @@ class Router(object):
             bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id, with_secrets=True)
         if not entity:
-            raise checkmate.exceptions.CheckmateDoesNotExist(
-                'No deployment with id %s' % api_id)
+            raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
         if entity.get('status', 'NEW') != 'NEW':
-            raise checkmate.exceptions.CheckmateBadState(
+            raise CheckmateBadState(
                 "Deployment '%s' is in '%s' status and must be in 'NEW' to "
                 "be planned" % (api_id, entity.get('status')))
         deployment = cmdeploy.Deployment(entity)  # Also validates syntax
@@ -349,7 +351,7 @@ class Router(object):
             bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id)
         if not entity:
-            raise checkmate.exceptions.CheckmateDoesNotExist(
+            raise CheckmateDoesNotExist(
                 'No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)
 
@@ -367,17 +369,15 @@ class Router(object):
     def deploy_deployment(self, api_id, tenant_id=None):
         '''Deploy a NEW or PLANNED deployment and save it as DEPLOYED.'''
         if db.any_id_problems(api_id):
-            raise checkmate.exceptions.CheckmateValidationException(
-                db.any_id_problems(api_id))
+            raise CheckmateValidationException(db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id, with_secrets=True)
         if not entity:
-            checkmate.exceptions.CheckmateDoesNotExist(
-                'No deployment with id %s' % api_id)
+            CheckmateDoesNotExist('No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)  # Also validates syntax
         if entity.get('status', 'NEW') == 'NEW':
             deployment = self.manager.plan(deployment, bottle.request.context)
         if entity.get('status') != 'PLANNED':
-            raise checkmate.exceptions.CheckmateBadState(
+            raise CheckmateBadState(
                 "Deployment '%s' is in '%s' status and must be in 'PLANNED' "
                 "or 'NEW' status to be deployed" % (api_id,
                                                     entity.get('status')))
@@ -396,7 +396,7 @@ class Router(object):
         '''Return deployment secrets.'''
         try:
             entity = self.manager.get_deployment(api_id, tenant_id=tenant_id)
-        except checkmate.exceptions.CheckmateDoesNotExist:
+        except CheckmateDoesNotExist:
             bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
@@ -421,7 +421,7 @@ class Router(object):
             entity = self.manager.get_deployment(api_id,
                                                  tenant_id=tenant_id,
                                                  with_secrets=False)
-        except checkmate.exceptions.CheckmateDoesNotExist:
+        except CheckmateDoesNotExist:
             bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
