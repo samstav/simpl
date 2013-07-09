@@ -131,7 +131,8 @@ class TestDeploymentParser(unittest.TestCase):
                               RequestContext())
         del parsed['status']  # we expect this to get added
         del parsed['created']  # we expect this to get added
-        self.assertDictEqual(original, parsed)
+        del parsed['resources'] # blank resource tag, can be removed
+        self.assertDictEqual(original, parsed._data)
 
     def test_constrain_format_handling(self):
         cases = {

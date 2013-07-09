@@ -344,6 +344,16 @@ class TestDeployments(unittest.TestCase):
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)
 
+    def test_should_get_next_resource_index(self):
+        self.deployment["resources"] = {}
+        self.assertEqual(self.deployment.get_next_resource_index(), '0')
+
+        self.deployment["resources"] = {'0': {}, '1': {}}
+        self.assertEqual(self.deployment.get_next_resource_index(), '2')
+
+        self.deployment["resources"] = {'0': {}, 'foo': {}, '1': {}}
+        self.assertEqual(self.deployment.get_next_resource_index(), '2')
+
     def test_get_statuses_for_active_resources(self):
         resource_status = {'instance:0': {'status': 'ACTIVE'}}
         self.provider.get_resource_status(self.context, 'test',

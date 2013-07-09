@@ -13,7 +13,7 @@ import checkmate.common.tracer  # @UnusedImport # module runs on import
 LOG = logging.getLogger(__name__)
 
 from checkmate.deployment import Deployment
-from checkmate.deployments import plan
+from checkmate.deployments import planner
 from checkmate.providers.base import PROVIDER_CLASSES
 from checkmate.middleware import RequestContext, TokenAuthMiddleware
 from checkmate.test import StubbedWorkflowBase, TestProvider
@@ -107,7 +107,7 @@ class AnalyzeOptionsLogic(StubbedWorkflowBase):
 
     def skip_test_options_parsing(self):
         try:
-            parsed = plan(self.deployment, self.context)
+            parsed = planner(self.deployment, self.context)
         except Exception as exc:
             print "Deployment error: %s" % exc
             return
@@ -173,7 +173,7 @@ class AnalyzeOptionsLogic(StubbedWorkflowBase):
 
     def skip_test_options_processing(self):
         try:
-            parsed = plan(Deployment(self.deployment), RequestContext())
+            parsed = planner(Deployment(self.deployment), RequestContext())
         except Exception as exc:
             print "Deployment error: %s" % exc
             return

@@ -1322,7 +1322,7 @@ class Deployment(MorpheusDict):
                                               "yet supported: %s" % key)
 
     def get_next_resource_index(self):
-        return (str(len([res for res in self.get("resources").keys()
+        return (str(len([res for res in self.get("resources", {}).keys()
                          if res.isdigit()])))
 
     def _get_number_of_resources(self, provider, service_name):

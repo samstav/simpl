@@ -1,12 +1,12 @@
 from checkmate.deployment import Deployment
 import unittest
 
-from checkmate.deployments import Plan
+from checkmate.deployments import Planner
 
 
 class TestPlan(unittest.TestCase):
     def test_add_resource(self):
-        plan = Plan(Deployment({'blueprint': {'services': {}}}))
+        plan = Planner(Deployment({'blueprint': {'services': {}}}))
         plan.resource_index = 0
         resource = {}
         definition = {}
@@ -18,7 +18,7 @@ class TestPlan(unittest.TestCase):
         self.assertEqual(plan.resources['0'], resource)
 
     def test_add_resource_and_update_connections_for_vip(self):
-        plan = Plan(Deployment({'blueprint': {
+        plan = Planner(Deployment({'blueprint': {
             'services': {'lb': {'component': {'interface': 'vip'}}}}}))
         plan.resource_index = 0
         resource = {}

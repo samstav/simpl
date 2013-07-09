@@ -11,6 +11,7 @@ from checkmate.classes import ExtensibleDict
 from checkmate.deployment import (
     validate_blueprint_options,
     validate_input_constraints,
+    Deployment,
 )
 from checkmate.exceptions import (
     CheckmateException,
@@ -67,7 +68,7 @@ CQgY86P4n6fXSJTU+fU+hCZYwh/N/H74n2gJYE4lzjJH08L7HByjncueo1WOqyV1pifT3HC/MKryV6\
 mfCNuJ71hzS3"""
 
 
-class Plan(ExtensibleDict):
+class Planner(ExtensibleDict):
     '''Analyzes a Checkmate deployment and persists the analysis results
 
     This class will do the following:
@@ -117,14 +118,17 @@ class Plan(ExtensibleDict):
         :param parse_only: optimize for parsing. Uses dummy keys
         '''
         ExtensibleDict.__init__(self, *args, **kwargs)
-
-        self.deployment = deployment
+        if not isinstance(deployment, Deployment):
+            self.deployment = Deployment(deployment)
+        else:
+            self.deployment = deployment
         self.resources = {}
+        self.deployment['resources'] = self.resources
         self.connections = {}
         self.parse_only = parse_only
 
         # Find blueprint and environment. Otherwise, there's nothing to plan!
-        self.blueprint = deployment.get('blueprint')
+        self.blueprint = self.deployment.get('blueprint')
         if not self.blueprint:
             raise CheckmateValidationException("Blueprint not found. Nothing "
                                                "to do.")
@@ -230,15 +234,12 @@ class Plan(ExtensibleDict):
 
     def add_resources(self, deployment, context):
         '''
-        This is a container for the origninal plan() function. It contains
+        This is a container for the original plan() function. It contains
         code that is not yet fully refactored. This will go away over time.
         '''
         blueprint = self.blueprint
         environment = self.environment
         services = blueprint.get('services', {})
-
-        # counter we increment and use as a new resource key
-        self.resource_index = 0
 
         #
         # Prepare resources and connections to create
@@ -422,9 +423,8 @@ class Plan(ExtensibleDict):
 
     def add_resource(self, resource, definition, service_name=None):
         '''Add a resource to the list of resources to be created'''
-        resource['index'] = str(self.resource_index)
+        resource['index'] = self.deployment.get_next_resource_index()
 
-        self.resource_index += 1
         LOG.debug("  Adding a '%s' resource with resource key '%s'",
                   resource.get('type'), resource['index'])
         self.resources[resource['index']] = resource

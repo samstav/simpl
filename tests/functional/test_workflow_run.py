@@ -38,7 +38,6 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
 
         workflow.complete_all()
         self.assertTrue(workflow.is_completed())
-        self.assertNotIn('resources', self.deployment)
 
 
 class TestWorkflowLogic(StubbedWorkflowBase):

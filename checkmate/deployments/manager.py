@@ -11,7 +11,7 @@ import uuid
 import eventlet
 from SpiffWorkflow.storage import DictionarySerializer
 
-from .plan import Plan
+from .planner import Planner
 from checkmate import base
 from checkmate import db
 from checkmate import operations
@@ -315,7 +315,7 @@ class Manager(base.ManagerBase):
                                                "instead.")
 
         # Analyze Deployment and Create plan
-        planner = Plan(deployment, parse_only=parse_only)
+        planner = Planner(deployment, parse_only=parse_only)
         resources = planner.plan(context)
         if resources:
             deployment['resources'] = resources
