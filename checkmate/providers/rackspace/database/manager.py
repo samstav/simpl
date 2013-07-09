@@ -7,8 +7,8 @@ import logging
 from clouddb import errors as cdb_errors
 
 from checkmate.exceptions import (
-    CheckmateException,
     CheckmateResumableException,
+    CheckmateRetriableException,
     CheckmateDoesNotExist,
 )
 
@@ -18,29 +18,41 @@ LOG = logging.getLogger(__name__)
 class Manager(object):
     '''Contains database provider model and logic for interaction.'''
 
-    def wait_on_build(self, instance_id, api, callback, simulate=False):
+    @staticmethod
+    def wait_on_build(instance_id, api, callback, simulate=False):
         '''Checks provider resource.  Returns True when built otherwise False.
         If resource goes into error state, raises exception.
         '''
         assert api, "API is required in wait_on_build_pop"
-
+        data = {}
         try:
             if simulate:
-                status = 'ACTIVE'
+                data['status'] = 'ACTIVE'
             else:
-                status = api.get_instance(instance_id).status
+                data['status'] = api.get_instance(instance_id).status
         except cdb_errors.ResponseError as exc:
-            raise CheckmateResumableException(exc.reason, str(exc.status),
-                                              'RS_DB_ResponseError')
+            raise CheckmateResumableException(str(exc), 'Error occurred in db '
+                                              'provider', type(exc).__name__)
+        except StandardError as exc:
+            data['status'] = 'ERROR'
+            data['status-message'] = 'Error waiting on resource to build'
+            data['error-message'] = exc.message
+            callback(data)
+            raise exc
 
-        callback({'status': status})
+        if data['status'] == 'ERROR':
+            data['status-message'] = 'Instance went into status ERROR'
+            callback(data)
+            raise CheckmateRetriableException(data['status-message'],
+                                              'Workflow is retriable',
+                                              'Provider Error', True)
+        elif data['status'] in ['ACTIVE', 'DELETED']:
+            data['status-message'] = ''
 
-        if status == 'ERROR':
-            raise CheckmateException('Resource in ERROR state')
+        return data
 
-        return status == 'ACTIVE'
-
-    def sync_resource(self, resource, api, simulate=False):
+    @staticmethod
+    def sync_resource(resource, api, simulate=False):
         '''Syncronizes provider status with checkmate resource status.'''
         if simulate:
             results = {'status': 'ACTIVE'}

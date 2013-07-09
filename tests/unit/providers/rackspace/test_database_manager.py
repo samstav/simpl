@@ -6,8 +6,8 @@ import unittest
 from clouddb import errors as cdb_errors
 
 from checkmate.exceptions import (
-    CheckmateException,
     CheckmateResumableException,
+    CheckmateRetriableException,
 )
 from checkmate.providers.rackspace.database import Manager
 
@@ -15,76 +15,80 @@ from checkmate.providers.rackspace.database import Manager
 class test_database(unittest.TestCase):
     '''Test Rackspace Database Manager functions.'''
 
-    def setUp(self):
-        self.MANAGER = Manager()
-
-    def test_wait_on_build_true(self):
-        '''Verifies method calls and returns True.'''
+    def test_wait_on_build_success(self):
+        '''Verifies method calls and returns instance data.'''
         instance_id = 1234
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'ACTIVE'
-
+        expected = {
+            'status': 'ACTIVE',
+            'status-message': ''
+        }
         #Mock methods
         api.get_instance = mock.MagicMock(return_value=instance)
         callback = mock.MagicMock(return_value=True)
 
-        results = self.MANAGER.wait_on_build(instance_id, api, callback)
+        results = Manager.wait_on_build(instance_id, api, callback)
 
         api.get_instance.assert_called_with(instance_id)
-        callback.assert_called_with({'status': 'ACTIVE'})
+        #callback.assert_called_with({'status': 'ACTIVE'})
 
-        self.assertEqual(results, True)
-
-    def test_wait_on_build_false(self):
-        '''Verifies method calls and returns False.'''
-        instance_id = 1234
-        api = mock.Mock()
-        instance = mock.Mock()
-        instance.status = 'BUILDING'
-
-        #Mock methods
-        api.get_instance = mock.MagicMock(return_value=instance)
-        callback = mock.MagicMock(return_value=True)
-
-        results = self.MANAGER.wait_on_build(instance_id, api, callback)
-
-        api.get_instance.assert_called_with(instance_id)
-        callback.assert_called_with({'status': 'BUILDING'})
-
-        self.assertEqual(results, False)
+        self.assertEqual(results, expected)
 
     def test_wait_on_build_resumable(self):
-        '''Verifies method calls and returns True.'''
+        '''Verifies method calls and raises CheckmateResumableException.'''
         instance_id = 1234
         api = mock.Mock()
-        instance = mock.Mock()
-        instance.status = 'ERROR'
 
         #Mock methods
         api.get_instance = mock.MagicMock(side_effect=cdb_errors.ResponseError(
-                                          "test", "message"))
+                                          123, "message"))
         callback = mock.MagicMock(return_value=True)
         try:
-            self.MANAGER.wait_on_build(instance_id, api, callback)
+            Manager.wait_on_build(instance_id, api, callback)
         except CheckmateResumableException as exc:
-            self.assertEqual(exc.message, 'message')
-            self.assertEqual(exc.error_help, 'test')
-            self.assertEqual(exc.error_type, 'RS_DB_ResponseError')
+            self.assertEqual(exc.message, '123: message')
+            self.assertEqual(exc.error_help, 'Error occurred in db provider')
+            self.assertEqual(exc.error_type, 'ResponseError')
 
     def test_wait_on_build_error(self):
-        '''Verifies method calls and returns False.'''
+        '''Verifies method calls and raises StandardError after callback.'''
+        instance_id = 1234
+        api = mock.Mock()
+        expected = {
+            'status': 'ERROR',
+            'status-message': 'Error waiting on resource to build',
+            'error-message': ''
+        }
+        #Mock methods
+        api.get_instance = mock.MagicMock(side_effect=StandardError())
+        callback = mock.MagicMock()
+        try:
+            Manager.wait_on_build(instance_id, api, callback)
+        except StandardError:
+            callback.assert_called_with(expected)
+
+    def test_wait_on_build_retriable(self):
+        '''Verifies method calls and raises CheckmateRetriableException.'''
         instance_id = 1234
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'ERROR'
+        expected = {
+            'status': 'ERROR',
+            'status-message': 'Instance went into status ERROR'
+        }
 
         #Mock methods
         api.get_instance = mock.MagicMock(return_value=instance)
-        callback = mock.MagicMock(return_value=True)
+        callback = mock.MagicMock()
 
-        self.assertRaises(CheckmateException, self.MANAGER.wait_on_build,
+        self.assertRaises(CheckmateRetriableException, Manager.wait_on_build,
                           instance_id, api, callback)
+        
+        api.get_instance.assert_called_with(instance_id)
+        callback.assert_called_with(expected)
 
     def test_sync_resource_success(self):
         '''Verifies method calls and returns success results.'''
@@ -99,7 +103,7 @@ class test_database(unittest.TestCase):
         expected = {'status': 'ACTIVE'}
         api.get_instance = mock.MagicMock(return_value=database)
         
-        results = self.MANAGER.sync_resource(resource, api)
+        results = Manager.sync_resource(resource, api)
         api.get_instance.assert_called_with('123')
         self.assertEqual(results, expected)
 
@@ -114,7 +118,7 @@ class test_database(unittest.TestCase):
         expected = {'status': 'DELETED'}
         api.get_instance = mock.MagicMock(side_effect=cdb_errors.ResponseError(
                                           "test", "message"))        
-        results = self.MANAGER.sync_resource(resource, api)
+        results = Manager.sync_resource(resource, api)
         api.get_instance.assert_called_with('123')
         self.assertEqual(results, expected)
 
@@ -125,7 +129,7 @@ class test_database(unittest.TestCase):
         }
         api = mock.Mock()
         expected = {'status': 'DELETED'}
-        results = self.MANAGER.sync_resource(resource, api)
+        results = Manager.sync_resource(resource, api)
         self.assertEqual(results, expected)
 
 
