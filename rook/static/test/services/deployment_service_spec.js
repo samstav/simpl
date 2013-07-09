@@ -37,4 +37,31 @@ describe('deployment', function(){
       });
     });
   });
+
+  describe('progress', function(){
+    it('should return 100 if all operation tasks are complete', function(){
+      deployment = { operation: { complete: 50, tasks: 50 } };
+      expect(Deployment.progress(deployment)).toBe(100);
+    });
+
+    it('should return 0 if no operation tasks are complete', function(){
+      deployment = { operation: { complete: 0, tasks: 50 } };
+      expect(Deployment.progress(deployment)).toBe(0);
+    });
+
+    it('should return the percent of tasks that are complete', function(){
+      deployment = { operation: { complete: 10, tasks: 50 } };
+      expect(Deployment.progress(deployment)).toBe(20);
+    });
+
+    it('should return 0 if no operation exists', function(){
+      deployment = {};
+      expect(Deployment.progress(deployment)).toBe(0);
+    });
+
+    it('should return 100 if the deployment failed', function(){
+      deployment = { status: 'FAILED' };
+      expect(Deployment.progress(deployment)).toBe(100);
+    });
+  });
 });

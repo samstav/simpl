@@ -275,11 +275,36 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
 
   $scope.is_admin = function(strict) {
     return auth.is_admin(strict);
-  }
+  };
+
+  /* This method temporarily impersonates a user to allow submission of
+     ATOMIC REQUESTS (i.e. requests that do not depend on other assynchronous
+     requests to finish) under that user's credentials (only if current user
+     is an admin and is not impersonating anybody).
+     If you must submit requests that are chained to other requests,
+     please refactor them to use the same headers as the initiating
+     request. Since the admin can temporarily impersonate several
+     different users in a short period of time, you cannot assume the
+     the user's context will still be available at the time of subsequent
+     requests. */
+  $scope.wrap_admin_call = function(/* username, callback, args */) {
+    var args = Array.prototype.slice.call(arguments);
+    var username = args.shift();
+    var callback = args.shift();
+    if (auth.is_admin(true)) {
+      auth.impersonate(username, true).then(function() {
+        var result = callback.apply($scope, args);
+        auth.exit_impersonation();
+        return result;
+      });
+    } else {
+      return callback.apply($scope, args);
+    }
+  };
 
   $scope.is_impersonating = function() {
     return auth.is_impersonating();
-  }
+  };
 
   $scope.remove_popovers = function() {
     _.each(angular.element('.popover').siblings('i'), function(el){
@@ -529,6 +554,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   };
 
   $scope.on_impersonate_success = function(response) {
+    $scope.impersonation = { username: "" };
     var current_path = $location.path();
     var next_path = current_path;
     var account_number = /^\/[0-9]+/;
@@ -555,10 +581,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     $scope.open_modal('error');
   }
 
-  $scope.username = "";
+  $scope.impersonation = { username: "" };
   $scope.impersonate = function(username) {
     mixpanel.track("Impersonation", { user: auth.identity.username, tenant: username });
-    $scope.username = "";
+    $scope.impersonation.username = "";
     return auth.impersonate(username)
       .then($scope.on_impersonate_success, $scope.on_impersonate_error);
   };
@@ -2213,9 +2239,31 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
 //Deployment list
 function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment) {
   //Model: UI
+  var STATUSES = [
+    "ALERT",
+    "DELETED",
+    "DOWN",
+    "FAILED",
+    "NEW",
+    "PLANNED",
+    "UNREACHABLE",
+    "UP"
+  ]
   $scope.showItemsBar = true;
   $scope.showStatus = true;
   $scope.name = "Deployments";
+  $scope.activeFilters = $location.search().status
+  $scope.filter_list = _.map(STATUSES, function(status){
+    var is_active = $scope.activeFilters === status || _.contains($scope.activeFilters, status);
+    return { name: status, active: is_active };
+  })
+
+  $scope.applyFilters = function(){
+    var active_filters = _.where($scope.filter_list, { active: true });
+    var filter_names = _.map(active_filters, function(f){ return f.name })
+    $location.search({ status: filter_names });
+  }
+
   navbar.highlight("deployments");
 
   //Model: data
@@ -2269,7 +2317,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, created_by: item['created-by'], tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment, operation: item.operation,
-                status: item.status, display_status: Deployment.status(item)};
+                status: item.status, display_status: Deployment.status(item),
+                progress: Deployment.progress(item)};
       });
       $scope.count = items.count;
       $scope.items = items.all;

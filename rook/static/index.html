@@ -99,16 +99,16 @@
                 <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
                   <li ng-show="auth.identity.is_admin" class="nav-header">TENANTS</li>
                   <li ng-show="auth.identity.is_admin">
-                    <form id="impersonate" ng-submit="impersonate(username)">
-                      <input ng-model="username" type="text" placeholder="Username" cm-stop-click-propagation />
+                    <form id="impersonate" ng-submit="impersonate(impersonation.username)">
+                      <input ng-model="impersonation.username" type="text" placeholder="Username" cm-stop-click-propagation />
                     </form>
                   </li>
-                  <li role="presentation" ng-repeat="tenant in auth.identity.tenants">
+                  <li role="presentation" ng-repeat="tenant in auth.cache.tenants">
                       <a role="menutitem" ng-click="impersonate(tenant.username)">{{tenant.username}} ({{tenant.tenantId}})</a>
                   </li>
                   <li ng-show="is_impersonating()" class="divider"></li>
                   <li><a ng-show="is_impersonating()" ng-click="exit_impersonation()">Exit Impersonation</a></li>
-                  <li ng-show="auth.identity.tenants" class="divider"></li>
+                  <li ng-show="auth.cache.tenants" class="divider"></li>
                   <li><a ng-click="logOut()">Log Out</a></li>
                 </ul>
               </li>
@@ -302,10 +302,10 @@
   <script src="/libs/strapdown-0.2/marked.min.js"></script>
 
   <!-- Angular -->
-  <script src="/libs/angular-1.0.5/angular.js" type="text/javascript"></script>
-  <script src="/libs/angular-1.0.5/angular-cookies.js" type="text/javascript"></script>
-  <script src="/libs/angular-1.0.5/angular-resource.js" type="text/javascript"></script>
-  <script src="/libs/angular-1.0.5/angular-sanitize.js" type="text/javascript"></script>
+  <script src="/libs/angular-1.0.7/angular.monkey-patched.js" type="text/javascript"></script>
+  <script src="/libs/angular-1.0.7/angular-cookies.js" type="text/javascript"></script>
+  <script src="/libs/angular-1.0.7/angular-resource.monkey-patched.js" type="text/javascript"></script>
+  <script src="/libs/angular-1.0.7/angular-sanitize.js" type="text/javascript"></script>
 
   <!-- Angular enhancements/extensions -->
   <script src="/libs/angular-ui-0.4.0/js/angular-ui.min.js" type="text/javascript"></script>

@@ -616,4 +616,75 @@ describe('AppController', function(){
       expect(scope.notifications.length).toBe(3);
     });
   });
+
+  describe('#wrap_admin_call', function() {
+    var username, callback, arg1, arg2;
+    beforeEach(function() {
+      username = 'batman';
+      callback = sinon.spy();
+      arg1 = 'foo';
+      arg2 = 'bar';
+      auth.is_admin = sinon.stub().returns(false);
+    });
+
+    it('should test if user is strictly an admin', function() {
+      scope.wrap_admin_call(username, callback, arg1, arg2);
+      expect(auth.is_admin).toHaveBeenCalledWith(true);
+    });
+
+    it('should call callbacks with any number of parameters', function() {
+      scope.wrap_admin_call(username, callback, arg1);
+      expect(callback).toHaveBeenCalledWith(arg1);
+      scope.wrap_admin_call(username, callback, arg1, arg2);
+      expect(callback).toHaveBeenCalledWith(arg1, arg2);
+    });
+
+    it('should call callback with parameters if not an admin', function() {
+      scope.wrap_admin_call(username, callback, arg1, arg2);
+      expect(callback).toHaveBeenCalledWith(arg1, arg2);
+    });
+
+    it('should call callback with parameters if impersonating', function() {
+      scope.wrap_admin_call(username, callback, arg1, arg2);
+      expect(callback).toHaveBeenCalledWith(arg1, arg2);
+    });
+
+    describe('when admin', function() {
+      var deferred, $rootScope;
+      beforeEach(function() {
+        angular.mock.inject(['$rootScope', '$q', function($rootScope_, $q_) {
+          $rootScope = $rootScope_;
+          $q = $q_;
+        }]);
+        deferred = $q.defer();
+        auth.impersonate = sinon.stub().returns(deferred.promise);
+        auth.is_admin.returns(true);
+        scope.wrap_admin_call(username, callback, arg1, arg2);
+      });
+
+      it('should impersonate user', function() {
+        expect(auth.impersonate).toHaveBeenCalled();
+      });
+
+      it('should not call callback yet', function() {
+        expect(callback).not.toHaveBeenCalled();
+      });
+
+      describe('and promise gets resolved', function() {
+        beforeEach(function() {
+          auth.exit_impersonation = sinon.spy();
+          deferred.resolve('impersonation worked!');
+          $rootScope.$apply();
+        });
+
+        it('should call callback with parameters', function() {
+          expect(callback).toHaveBeenCalledWith(arg1, arg2);
+        });
+
+        it('should exit impersonationg', function() {
+          expect(auth.exit_impersonation).toHaveBeenCalled();
+        });
+      });
+    });
+  });
 });
