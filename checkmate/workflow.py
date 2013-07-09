@@ -3,30 +3,44 @@ Workflow Class and Helper Functions
 '''
 import copy
 import logging
-import time
 import uuid
 
 from SpiffWorkflow import Workflow as SpiffWorkflow, Task
 from SpiffWorkflow.specs import WorkflowSpec, Simple, Join, Merge, Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate import utils
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
-from checkmate.deployment import get_status
+from checkmate.deployment import get_status, Deployment
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateRetriableException,
     CheckmateResumableException,
 )
-from checkmate.utils import (
-    get_time_string,
-    extract_sensitive_data,
-    get_class_name,
-)
 
 DB = get_driver()
 LOG = logging.getLogger(__name__)
+
+
+def create_delete_deployment_workflow(dep_id, context, driver=DB):
+    deployment = driver.get_deployment(dep_id)
+    deployment = Deployment(deployment)
+    workflow_id = utils.get_id(context.simulation)
+    delete_wf_spec = create_delete_deployment_workflow_spec(deployment, context)
+    delete_wf = create_workflow(delete_wf_spec, deployment, context)
+    LOG.debug("Workflow %s created for deleting deployment %s", workflow_id,
+              deployment["id"])
+
+    delete_wf.attributes['id'] = workflow_id
+    serializer = DictionarySerializer()
+    workflow = delete_wf.serialize(serializer)
+    workflow['id'] = workflow_id
+    body, secrets = utils.extract_sensitive_data(workflow)
+    driver.save_workflow(workflow_id, body, secrets, tenant_id=deployment[
+        'tenantId'])
+    return workflow
 
 
 def update_workflow_status(workflow, workflow_id=None):
@@ -96,7 +110,7 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
 
     serializer = DictionarySerializer()
     updated = d_wf.serialize(serializer)
-    body, secrets = extract_sensitive_data(updated)
+    body, secrets = utils.extract_sensitive_data(updated)
     body['tenantId'] = tenant_id
     body['id'] = workflow_id
     driver.save_workflow(workflow_id, body, secrets=secrets)
@@ -146,7 +160,7 @@ def get_errors(wf_dict, tenant_id):
                     })
                 elif isinstance(exception, Exception):
                     results.append({
-                        "error-type": get_class_name(exception),
+                        "error-type": utils.get_class_name(exception),
                         "error-message": exception.args[0]})
             except Exception:
                 results.append({"error-message": info})
@@ -193,21 +207,70 @@ def get_SpiffWorkflow_status(workflow):
     return result
 
 
-def create_workflow_deploy(deployment, context):
+def create_delete_deployment_workflow_spec(deployment, context):
+    """Creates a SpiffWorkflow spec for deleting a deployment
+
+    :returns: SpiffWorkflow.WorkflowSpec"""
+    LOG.info("Building workflow spec for deleting deployment '%s'"
+             % deployment['id'])
+    blueprint = deployment['blueprint']
+    environment = deployment.environment()
+    dep_id = deployment["id"]
+    operation = deployment['operation']
+    existing_workflow_id = operation.get('workflow-id', dep_id)
+
+    # Build a workflow spec (the spec is the design of the workflow)
+    wf_spec = WorkflowSpec(name="Delete deployment %s(%s)" %
+                                (dep_id, blueprint['name']))
+
+    if operation['status'] in ('COMPLETE', 'PAUSED'):
+        root_task = wf_spec.start
+    else:
+        root_task = Celery(wf_spec, 'Pause %s Workflow %s' %
+                                    (operation['type'], existing_workflow_id),
+                           'checkmate.workflows_new.tasks.pause_workflow',
+                           call_args=[dep_id],
+                           properties={'estimated_duration': 10})
+        wf_spec.start.connect(root_task)
+
+    for key, resource in deployment.get('resources', {}).iteritems():
+        if key not in ['connections', 'keys'] and 'provider' in resource:
+            provider = environment.get_provider(resource.get('provider'))
+            if not provider:
+                LOG.warn("Deployment %s resource %s has an unknown provider:"
+                         " %s", dep_id, key, resource.get("provider"))
+                continue
+            del_tasks = provider.delete_resource_tasks(wf_spec, context,
+                                                       dep_id, resource, key)
+            if del_tasks:
+                tasks = del_tasks.get('root')
+                if isinstance(tasks, list):
+                    for task in tasks:
+                        root_task.connect(task)
+                else:
+                    root_task.connect(tasks)
+
+    # Check that we have a at least one task. Workflow fails otherwise.
+    if not wf_spec.start.outputs:
+        noop = Simple(wf_spec, "end")
+        wf_spec.start.connect(noop)
+    return wf_spec
+
+
+def create_workflow(spiff_wf_spec, deployment, context):
     """Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
 
     :returns: SpiffWorkflow.Workflow"""
     LOG.info("Creating workflow for deployment '%s'", deployment['id'])
-    wfspec = create_workflow_spec_deploy(deployment, context)
-    results = wfspec.validate()
+    results = spiff_wf_spec.validate()
     if results:
         serializer = DictionarySerializer()
-        serialized_spec = wfspec.serialize(serializer)
+        serialized_spec = spiff_wf_spec.serialize(serializer)
         LOG.debug("Errors in Workflow: %s", '\n'.join(results),
                   extra=dict(data=serialized_spec))
         raise CheckmateException('. '.join(results))
 
-    workflow = SpiffWorkflow(wfspec)
+    workflow = SpiffWorkflow(spiff_wf_spec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
     runtime_context['token'] = context.auth_token
@@ -430,94 +493,6 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
             return wait_set[0]
     else:
         return task
-
-
-def init_operation(workflow, tenant_id=None):
-    '''Create a new operation dictionary for a given workflow.
-
-    Example:
-
-    'operation': {
-        'type': 'deploy',
-        'status': 'IN PROGRESS',
-        'estimated-duration': 2400,
-        'tasks': 175,
-        'complete': 100,
-        'link': '/v1/{tenant_id}/workflows/982h3f28937h4f23847'
-    }
-    '''
-    operation = {}
-
-    _update_operation(operation, workflow)
-
-    # Operation link
-    workflow_id = (workflow.attributes.get('id') or
-                   workflow.attributes.get('deploymentId'))
-    operation['link'] = "/%s/workflows/%s" % (tenant_id, workflow_id)
-
-    return operation
-
-
-def _update_operation(operation, workflow):
-    '''Update an operation dictionary for a given workflow.
-
-    Example:
-
-    'operation': {
-        'type': 'deploy',
-        'status': 'IN PROGRESS',
-        'estimated-duration': 2400,
-        'tasks': 175,
-        'complete': 100,
-        'link': '/v1/{tenant_id}/workflows/982h3f28937h4f23847'
-    }
-
-    :param operation: a deployment operation dict
-    :param workflow: SpiffWorkflow
-    '''
-
-    tasks = workflow.task_tree.children
-
-    # Loop through tasks and calculate statistics
-    spiff_status = {
-        1: "FUTURE",
-        2: "LIKELY",
-        4: "MAYBE",
-        8: "WAITING",
-        16: "READY",
-        32: "CANCELLED",
-        64: "COMPLETED",
-        128: "TRIGGERED"
-    }
-    duration = 0
-    complete = 0
-    failure = 0
-    total = 0
-    last_change = 0
-    while tasks:
-        current = tasks.pop(0)
-        tasks.extend(current.children)
-        status = spiff_status[current._state]
-        if status == "COMPLETED":
-            complete += 1
-        elif status == "FAILURE":
-            failure += 1
-        duration += current._get_internal_attribute('estimated_completed_in')
-        if current.last_state_change > last_change:
-            last_change = current.last_state_change
-        total += 1
-    operation['tasks'] = total
-    operation['complete'] = complete
-    operation['estimated-duration'] = duration
-    operation['last-change'] = get_time_string(time=time.gmtime(last_change))
-    if failure > 0:
-        operation['status'] = "ERROR"
-    elif total > complete:
-        operation['status'] = "IN PROGRESS"
-    elif total == complete:
-        operation['status'] = "COMPLETE"
-    else:
-        operation['status'] = "UNKNOWN"
 
 
 class Workflow(ExtensibleDict):

@@ -2,7 +2,7 @@ import logging
 from checkmate.deployment import Deployment
 from checkmate.middleware import RequestContext
 import mox
-import unittest2 as unittest
+import unittest
 from checkmate.providers.provider_base_planning_mixin \
     import ProviderBasePlanningMixIn
 

@@ -1,8 +1,10 @@
 '''
 Driver for SQL ALchemy
 '''
+import copy
 import json
 import logging
+import re
 import time
 import uuid
 
@@ -16,23 +18,16 @@ from sqlalchemy import (
     Float,
     event
 )
+from sqlalchemy import create_engine
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.pool import StaticPool
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session, relationship
-from copy import deepcopy
+from sqlalchemy.pool import StaticPool
+
+from SpiffWorkflow import util as swfutil
 import sqlite3
-from checkmate.utils import merge_dictionary
 
-try:
-    # pylint: disable=E0611
-    from migrate.versioning import exceptions as versioning_exceptions
-except ImportError:
-    from migrate import exceptions as versioning_exceptions
-
-from checkmate.classes import ExtensibleDict
-from checkmate.db import migration
+from checkmate import classes
 from checkmate.db.common import (
     DbBase,
     DEFAULT_RETRIES,
@@ -43,39 +38,84 @@ from checkmate.db.common import (
     InvalidKeyError
 )
 from checkmate.exceptions import (
-    CheckmateDatabaseMigrationError,
-    CheckmateException
+    CheckmateException,
+    CheckmateInvalidParameterError,
 )
-from SpiffWorkflow.util import merge_dictionary as collate
+from checkmate import utils
 
 
 __all__ = ['Environment', 'Blueprint', 'Deployment', 'Workflow']
 
 LOG = logging.getLogger(__name__)
 BASE = declarative_base()
+OP_MATCH = r'(!|(>|<)[=]*|\(\))'
+
+
+def _build_filter(field, op_key, value):
+    '''Translate string with operator and status into mongodb filter.'''
+    op_map = {'!': '!=', '>': '>', '<': '<', '>=': '>=',
+              '<=': '<=', '': '==', '()': 'in'}
+    return "%s %s %s" % (field, op_map[op_key], value)
+
+
+def _validate_no_operators(values):
+    '''Filtering on more than one value means no operators allowed!'''
+    for value in values:
+        if re.search(OP_MATCH, value):
+            raise CheckmateInvalidParameterError(
+                'Operators cannot be used when specifying multiple filters.')
+
+
+def _match_operator(compound_value, value_format):
+    '''Look for an operator and split it out in a string.'''
+    op_match = re.search(OP_MATCH, compound_value)
+    operator = ''
+    if op_match:
+        operator = op_match.group(0)
+        # enclose single value in single quotes
+    value = value_format % compound_value[len(operator):]
+    return operator, value
+
+
+def _parse_comparison(field, values):
+    '''Return a sqlalchemy filter based on `values`.'''
+    encl_quotes = "'%s'"
+    encl_parens = "(%s)"
+    if isinstance(values, (list, tuple)):
+        if len(values) > 1:
+            _validate_no_operators(values)
+            operator, value = _match_operator(
+                "()'%s'" % "', '".join(values), encl_parens)
+        else:
+            operator, value = _match_operator(values[0], encl_quotes)
+    else:
+        operator, value = _match_operator(values, encl_quotes)
+    return _build_filter(field, operator, value)
 
 
 class TextPickleType(PickleType):
-    """Type that can be set to dict and stored in the database as Text.
-    This allows us to read and write the 'body' attribute as dicts"""
+    '''Type that can be set to dict and stored in the database as Text.
+
+    This allows us to read and write the 'body' attribute as dicts
+    '''
     impl = Text
 
 
 class Tenant(BASE):
-    '''Class to encapsulate tenants table'''
+    '''Class to encapsulate tenants table.'''
     __tablename__ = "tenants"
-    tenant_id = Column(String(255), primary_key=True)
+    id = Column(String(255), primary_key=True)
     tags = relationship("TenantTag", cascade="all, delete, delete-orphan")
 
 
 class TenantTag(BASE):
-    '''Class to encapsulate tenant_tags table'''
+    '''Class to encapsulate tenant_tags table.'''
     __tablename__ = "tenant_tags"
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant = Column(
         String(255),
         ForeignKey(
-            'tenants.tenant_id',
+            'tenants.id',
             ondelete="CASCADE",
             onupdate="RESTRICT"
         )
@@ -84,7 +124,7 @@ class TenantTag(BASE):
 
 
 class Environment(BASE):
-    '''Class to encapsulate environments table'''
+    '''Class to encapsulate environments table.'''
     __tablename__ = 'environments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -97,7 +137,7 @@ class Environment(BASE):
 
 
 class Deployment(BASE):
-    '''Class to encapsulate deployments table'''
+    '''Class to encapsulate deployments table.'''
     __tablename__ = 'deployments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -112,7 +152,7 @@ class Deployment(BASE):
 
 
 class Blueprint(BASE):
-    '''Class to encapsulate blueprints table'''
+    '''Class to encapsulate blueprints table.'''
     __tablename__ = 'blueprints'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -125,7 +165,7 @@ class Blueprint(BASE):
 
 
 class Workflow(BASE):
-    '''Class to encapsulate workflows table'''
+    '''Class to encapsulate workflows table.'''
     __tablename__ = 'workflows'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -139,7 +179,7 @@ class Workflow(BASE):
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    """ Turn on fk for sqlite """
+    '''Turn on fk for sqlite.'''
     if isinstance(dbapi_connection, sqlite3.Connection):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
@@ -147,7 +187,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 
 class Driver(DbBase):
-    '''Driver class for SQL database abstraction'''
+    '''Driver class for SQL database abstraction.'''
     def __init__(self, connection_string, driver=None, *args, **kwargs):
         '''Initializes globals for this driver'''
         DbBase.__init__(self, connection_string, driver=driver, *args,
@@ -168,35 +208,11 @@ class Driver(DbBase):
         else:
             self.engine = create_engine(connection_string)
             LOG.info("Connected to '%s'", connection_string)
-        self._init_version_control()
         self.session = scoped_session(sessionmaker(self.engine))
         BASE.metadata.create_all(self.engine)
 
-    def _init_version_control(self):
-        """Verify the state of the database"""
-        if self.connection_string == "sqlite://":
-            return
-        repo_path = migration.get_migrate_repo_path()
-
-        try:
-            repo_version = migration.get_repo_version(repo_path)
-            db_version = migration.get_db_version(self.engine, repo_path)
-
-            if repo_version != db_version:
-                msg = ("Database (%s) is not up to date (current=%s, "
-                       "latest=%s); run `checkmate-database upgrade` or '"
-                       "override your migrate version manually (see docs)")
-                LOG.warning(msg, self.connection_string, db_version,
-                            repo_version)
-                raise CheckmateDatabaseMigrationError(msg)
-        except versioning_exceptions.DatabaseNotControlledError:
-            msg = ("Database (%s) is not version controlled; "
-                   "run `checkmate-database version_control` or "
-                   "override your migrate version manually (see docs)")
-            LOG.warning(msg, self.connection_string)
-
     def __setstate__(self, dict):  # pylint: disable=W0622
-        '''Support deserializing from connection string'''
+        '''Support deserializing from connection string.'''
         DbBase.__setstate__(self, dict)
         #FIXME: make DRY
         if self.connection_string == 'sqlite://':
@@ -219,7 +235,7 @@ class Driver(DbBase):
         BASE.metadata.create_all(self.engine)
 
     def dump(self):
-        '''Get all the things'''
+        '''Get all the things.'''
         response = {}
         response['environments'] = self.get_environments()
         response['deployments'] = self.get_deployments()
@@ -229,16 +245,16 @@ class Driver(DbBase):
 
     # TENANTS
     def save_tenant(self, tenant):
-        '''Save a tenant in the tenants table'''
-        if tenant and tenant.get('tenant_id'):
-            tenant_id = tenant.get('tenant_id')
+        '''Save a tenant in the tenants table.'''
+        if tenant and tenant.get('id'):
+            tenant_id = tenant.get('id')
             current = (
                 self.session.query(Tenant).filter(
-                    Tenant.tenant_id == tenant_id).first()
+                    Tenant.id == tenant_id).first()
             )
             if not current:
                 current = Tenant(
-                    tenant_id=tenant_id,
+                    id=tenant_id,
                     tags=[
                         TenantTag(tag=tag) for tag in tenant.get('tags', [])
                     ] or None
@@ -254,7 +270,7 @@ class Driver(DbBase):
             raise CheckmateException("Must provide a tenant id")
 
     def list_tenants(self, *args):
-        '''Retrieve all tenants from the tenants table'''
+        '''Retrieve all tenants from the tenants table.'''
         query = self.session.query(Tenant)
         if args:
             for arg in args:
@@ -262,34 +278,35 @@ class Driver(DbBase):
         tenants = query.all()
         ret = {}
         for tenant in tenants:
-            ret.update({tenant.tenant_id: self._fix_tenant(tenant)})
+            ret.update({tenant.id: self._fix_tenant(tenant)})
         return ret
 
-    def _fix_tenant(self, tenant):
-        '''Rearrange tag information in tenant record'''
+    @staticmethod
+    def _fix_tenant(tenant):
+        '''Rearrange tag information in tenant record.'''
         if tenant:
             tags = [tag.tag for tag in tenant.tags or []]
-            ret = {'tenant_id': tenant.tenant_id}
+            ret = {'id': tenant.id}
             if tags:
                 ret['tags'] = tags
             return ret
         return None
 
     def get_tenant(self, tenant_id):
-        '''Retrieve a tenant by tenant_id'''
-        tenant = (self.session.query(Tenant).filter_by(tenant_id=tenant_id)
+        '''Retrieve a tenant by tenant_id.'''
+        tenant = (self.session.query(Tenant).filter_by(id=tenant_id)
                   .first())
         return self._fix_tenant(tenant)
 
     def add_tenant_tags(self, tenant_id, *args):
-        '''Add tags to an existing tenant'''
+        '''Add tags to an existing tenant.'''
         if tenant_id:
             tenant = (self.session.query(Tenant)
-                      .filter(Tenant.tenant_id == tenant_id)
+                      .filter(Tenant.id == tenant_id)
                       .first())
             new_tags = set(args or [])
             if not tenant:
-                tenant = Tenant(tenant_id=tenant_id,
+                tenant = Tenant(id=tenant_id,
                                 tags=[TenantTag(tag=tag) for tag in new_tags]
                                 or None)
                 self.session.add(tenant)
@@ -305,30 +322,31 @@ class Driver(DbBase):
             raise CheckmateException("Must provide a tenant with a tenant id")
 
     # ENVIRONMENTS
-    def get_environment(self, id, with_secrets=None):
-        '''Retrieve an environment by environment id'''
-        return self._get_object(Environment, id, with_secrets=with_secrets)
+    def get_environment(self, api_id, with_secrets=None):
+        '''Retrieve an environment by environment id.'''
+        return self._get_object(Environment, api_id, with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
-        '''Retrieve all environment records for a given tenant id'''
+        '''Retrieve all environment records for a given tenant id.'''
         return self._get_objects(
             Environment,
             tenant_id,
             with_secrets=with_secrets
         )
 
-    def save_environment(self, id, body, secrets=None, tenant_id=None):
-        '''Save an environment to the database'''
-        return self._save_object(Environment, id, body, secrets, tenant_id)
+    def save_environment(self, api_id, body, secrets=None, tenant_id=None):
+        '''Save an environment to the database.'''
+        return self._save_object(Environment, api_id, body, secrets, tenant_id)
 
     # DEPLOYMENTS
-    def get_deployment(self, id, with_secrets=None):
-        '''Retrieve a deployment by deployment id'''
-        return self._get_object(Deployment, id, with_secrets=with_secrets)
+    def get_deployment(self, api_id, with_secrets=None):
+        '''Retrieve a deployment by deployment id.'''
+        return self._get_object(Deployment, api_id, with_secrets=with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None, offset=None,
-                        limit=None, with_count=True, with_deleted=False):
-        '''Retrieve all deployments for a given tenant id'''
+                        limit=None, with_count=True, with_deleted=False,
+                        status=None):
+        '''Retrieve all deployments for a given tenant id.'''
         return self._get_objects(
             Deployment,
             tenant_id,
@@ -336,15 +354,16 @@ class Driver(DbBase):
             offset=offset,
             limit=limit,
             with_count=with_count,
-            with_deleted=with_deleted
+            with_deleted=with_deleted,
+            status=status
         )
 
-    def save_deployment(self, id, body, secrets=None, tenant_id=None,
+    def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=False):
-        '''Save a deployment to the database'''
+        '''Save a deployment to the database.'''
         return self._save_object(
             Deployment,
-            id,
+            api_id,
             body,
             secrets,
             tenant_id,
@@ -352,9 +371,9 @@ class Driver(DbBase):
         )
 
     #BLUEPRINTS
-    def get_blueprint(self, id, with_secrets=None):
-        '''Retrieve a blueprint by blueprint id'''
-        return self._get_object(Blueprint, id, with_secrets=with_secrets)
+    def get_blueprint(self, api_id, with_secrets=None):
+        '''Retrieve a blueprint by blueprint id.'''
+        return self._get_object(Blueprint, api_id, with_secrets=with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None, limit=None,
                        offset=None, with_count=True):
@@ -363,17 +382,17 @@ class Driver(DbBase):
                                  offset=offset, with_count=with_count)
 
     def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
-        '''Save a blueprint to the database'''
+        '''Save a blueprint to the database.'''
         return self._save_object(Blueprint, api_id, body, secrets, tenant_id)
 
     # WORKFLOWS
-    def get_workflow(self, id, with_secrets=None):
-        '''Retrieve a workflow by workflow id'''
-        return self._get_object(Workflow, id, with_secrets=with_secrets)
+    def get_workflow(self, api_id, with_secrets=None):
+        '''Retrieve a workflow by workflow id.'''
+        return self._get_object(Workflow, api_id, with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       offset=None, limit=None):
-        '''Retrieve all workflows for a given tenant id'''
+        '''Retrieve all workflows for a given tenant id.'''
         return self._get_objects(
             Workflow,
             tenant_id,
@@ -381,23 +400,23 @@ class Driver(DbBase):
             offset=offset, limit=limit
         )
 
-    def save_workflow(self, id, body, secrets=None, tenant_id=None):
-        '''Save a workflow to the database'''
-        return self._save_object(Workflow, id, body, secrets, tenant_id)
+    def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
+        '''Save a workflow to the database.'''
+        return self._save_object(Workflow, api_id, body, secrets, tenant_id)
 
     def unlock_workflow(self, api_id, key):
-        '''Remove a lock from a workflow'''
+        '''Remove a lock from a workflow.'''
         return self.unlock_object(Workflow, api_id, key)
 
     def lock_workflow(self, api_id, with_secrets=None, key=None):
-        '''Add a lock to a workflow'''
+        '''Add a lock to a workflow.'''
         return self.lock_object(Workflow, api_id, with_secrets=with_secrets,
                                 key=key)
 
     # GENERIC
-    def _get_object(self, klass, id, with_secrets=None):
-        '''Retrieve a record by id from a given table'''
-        results = self.session.query(klass).filter_by(id=id)
+    def _get_object(self, klass, api_id, with_secrets=None):
+        '''Retrieve a record by id from a given table.'''
+        results = self.session.query(klass).filter_by(id=api_id)
         if results and results.count() > 0:
             first = results.first()
             body = first.body
@@ -408,7 +427,7 @@ class Driver(DbBase):
                 body['tenantId'] = first.tenant_id
             if with_secrets is True:
                 if first.secrets:
-                    return merge_dictionary(body, first.secrets)
+                    return utils.merge_dictionary(body, first.secrets)
                 else:
                     return body
             else:
@@ -416,13 +435,13 @@ class Driver(DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
                      offset=None, limit=None, with_count=True,
-                     with_deleted=False):
-        '''Retrieve all recrods from a given table for a given tenant id'''
+                     with_deleted=False, status=None):
+        '''Retrieve all recrods from a given table for a given tenant id.'''
         response = {}
         response['_links'] = {}  # To be populated soon!
         response['results'] = {}
         results = self._add_filters(
-            klass, self.session.query(klass), tenant_id, with_deleted)
+            klass, self.session.query(klass), tenant_id, with_deleted, status)
         if klass is Deployment:
             results = results.order_by(Deployment.created.desc())
         elif klass is Workflow:
@@ -434,7 +453,7 @@ class Driver(DbBase):
                 self.convert_data(klass.__tablename__, entry.body)
                 if with_secrets is True:
                     if entry.secrets:
-                        response['results'][entry.id] = merge_dictionary(
+                        response['results'][entry.id] = utils.merge_dictionary(
                             entry.body,
                             entry.secrets
                         )
@@ -446,28 +465,39 @@ class Driver(DbBase):
                     response['results'][entry.id]['tenantId'] = entry.tenant_id
         if with_count:
             response['collection-count'] = self._get_count(
-                klass, tenant_id, with_deleted)
+                klass, tenant_id, with_deleted, status)
         return response
 
-    def _add_filters(self, klass, query, tenant_id, with_deleted):
+    @staticmethod
+    def _add_filters(klass, query, tenant_id, with_deleted, status=None):
+        '''Apply status filters to query.'''
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
-        if klass is Deployment and not with_deleted:
-            query = query.filter(Deployment.status != 'DELETED')
+        if klass is Deployment and (not with_deleted or status):
+            if not status:
+                status = "!DELETED"
+            query = query.filter(
+                _parse_comparison('deployments_status', status))
         return query
 
-    def _get_count(self, klass, tenant_id, with_deleted):
+    def _get_count(self, klass, tenant_id, with_deleted, status=None):
+        '''Determine how many items based on filter and return the count.'''
         return self._add_filters(
-            klass, self.session.query(klass), tenant_id, with_deleted).count()
+            klass, self.session.query(klass), tenant_id, with_deleted,
+            status).count()
 
     def _save_object(self, klass, api_id, body, secrets=None,
                      tenant_id=None, merge_existing=False):
-        """Clients that wish to save the body but do/did not have access to
+        '''Save any object to the database.
+
+        Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None
         dict needs to be passed in: ex. {}
-        """
-        if isinstance(body, ExtensibleDict):
+        '''
+        if body is None:
+            body = {}
+        elif isinstance(body, classes.ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by sqlalchemy backend"
 
@@ -524,77 +554,78 @@ class Driver(DbBase):
                 tries += 1
 
         if results and results.count() > 0:
-            e = results.first()
-            e.locked = 0
+            entry = results.first()
+            entry.locked = 0
 
             if merge_existing:
-                saved_body = deepcopy(e.body)
-                collate(saved_body, body)
-                e.body = saved_body
+                saved_body = copy.deepcopy(entry.body)
+                swfutil.merge_dictionary(saved_body, body)
+                entry.body = saved_body
             else:  # Merge not specified, so replace
-                e.body = body
+                entry.body = body
 
             if tenant_id:
-                e.tenant_id = tenant_id
+                entry.tenant_id = tenant_id
             elif "tenantId" in body:
-                e.tenant_id = body.get("tenantId")
+                entry.tenant_id = body.get("tenantId")
 
-            assert klass is Blueprint or tenant_id or e.tenant_id,\
+            assert klass is Blueprint or tenant_id or entry.tenant_id, \
                 "tenantId must be specified"
 
             if secrets is not None:
                 if not secrets:
                     LOG.warning("Clearing secrets for %s:%s", klass.__name__,
                                 api_id)
-                    e.secrets = None
+                    entry.secrets = None
                 else:
-                    if not e.secrets:
-                        e.secrets = {}
-                    new_secrets = deepcopy(e.secrets)
-                    collate(new_secrets, secrets, extend_lists=False)
-                    e.secrets = new_secrets
+                    if not entry.secrets:
+                        entry.secrets = {}
+                    new_secrets = copy.deepcopy(entry.secrets)
+                    swfutil.merge_dictionary(
+                        new_secrets, secrets, extend_lists=False)
+                    entry.secrets = new_secrets
 
         else:
             assert klass is Blueprint or tenant_id or 'tenantId' in body, \
                 "tenantId must be specified"
             #new item
-            e = klass(id=api_id, body=body, tenant_id=tenant_id,
+            entry = klass(id=api_id, body=body, tenant_id=tenant_id,
                       secrets=secrets, locked=0)
 
         # As of v0.13, status is saved in Deployment object
         if klass is Deployment:
-            e.status = body.get('status')
-            e.created = body.get('created')
+            entry.status = body.get('status')
+            entry.created = body.get('created')
 
-        self.session.add(e)
+        self.session.add(entry)
         self.session.commit()
         return body
 
     def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        """
-        :param klass: the class of the object to unlock.
+        '''Lock an object in the database, returning the object and key.
+
+        :param klass: the class of the object to lock.
         :param api_id: the object's API ID.
         :param with_secrets: true if secrets should be merged into the results.
         :param key: if the object has already been locked, the key used must be
             passed in
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
-        """
+        '''
         if with_secrets:
             locked_object, key = self._lock_find_object(klass, api_id, key=key)
             return (self.merge_secrets(klass, api_id, locked_object), key)
         return self._lock_find_object(klass, api_id, key=key)
 
     def unlock_object(self, klass, api_id, key):
-        """
-        Unlocks a locked object if the key is correct.
+        '''Unlocks a locked object if the key is correct.
 
         :param klass: the class of the object to unlock.
         :param api_id: the object's API ID.
         :param key: the key used to lock the object (see lock_object()).
         :raises ValueError: If the unlocked object does not exist or the lock
             was incorrect.
-        """
+        '''
         query = self.session.query(klass).filter_by(
             id=api_id,
             lock=key
@@ -610,8 +641,7 @@ class Driver(DbBase):
                                   "not exist." % api_id)
 
     def _lock_find_object(self, klass, api_id, key=None):
-        """
-        Finds, attempts to lock, and returns an object by id.
+        '''Finds, attempts to lock, and returns an object by id.
 
         :param klass: the class of the object unlock.
         :param api_id: the object's API ID.
@@ -620,14 +650,14 @@ class Driver(DbBase):
         :raises ValueError: if the api_id is of a non-existent object
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
-        """
+        '''
         assert klass, "klass must not be None."
         assert api_id, "api_id must not be None"
 
         lock_timestamp = time.time()
         if key:
             # The object has already been locked
-            # TODO: see if we can merge the existing key logic into below
+            # TODO(any): see if we can merge the existing key logic into below
             query = self.session.query(klass).filter_by(
                 id=api_id,
                 lock=key
@@ -708,13 +738,13 @@ class Driver(DbBase):
             if 'environment' in body and 'providers' in body['environment']:
                 del body['environment']['providers']
             if 'inputs' in body:
-                    del body['inputs']
+                del body['inputs']
             if 'plan' in body:
-                    del body['plan']
+                del body['plan']
             if 'display-outputs' in body:
-                    del body['display-outputs']
+                del body['display-outputs']
             if 'resources' in body:
-                    del body['resources']
+                del body['resources']
         elif klass == "workflows":
             if 'wf_spec' in body:
                 if 'specs' in body['wf_spec']:

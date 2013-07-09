@@ -2,7 +2,7 @@
 '''Tests the Cache and CacheMethod decorators'''
 
 import time
-import unittest2 as unittest
+import unittest
 
 import mox
 

@@ -2,7 +2,7 @@
 import json
 import logging
 import os
-import unittest2 as unittest
+import unittest
 
 from mox import IgnoreArg
 
@@ -134,7 +134,6 @@ class TestNovaCompute(test.ProviderTester):
                 }]
         kwargs = {}
         einfo = self.mox.CreateMockAnything()
-        einfo.traceback = "some traceback"
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
@@ -147,7 +146,6 @@ class TestNovaCompute(test.ProviderTester):
                     "instance 0"
                 ),
                 'error-message': 'some message',
-                'error-traceback': 'Task 1234: some traceback'
             }
         }
 
@@ -406,6 +404,8 @@ class TestNovaCompute(test.ProviderTester):
         mock_server.status = 'ACTIVE'
         mock_server.delete().AndReturn(True)
         mock_servers.get('abcdef-ghig-1234').AndReturn(mock_server)
+        self.mox.StubOutWithMock(compute.resource_postback, 'delay')
+        compute.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
         ret = delete_server_task(context, api=api)
         self.assertDictEqual(expect, ret)
@@ -443,6 +443,8 @@ class TestNovaCompute(test.ProviderTester):
         mock_server = self.mox.CreateMockAnything()
         mock_server.status = 'DELETED'
         mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
+        self.mox.StubOutWithMock(compute.resource_postback, 'delay')
+        compute.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
         ret = wait_on_delete_server(context, api=api)
         self.assertDictEqual(expect, ret)

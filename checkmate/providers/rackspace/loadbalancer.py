@@ -5,7 +5,8 @@ import copy
 import logging
 import sys
 
-from celery.canvas import chain, group
+from celery.task import task
+from celery.canvas import chain
 from cloudlb.errors import CloudlbException, NotFound, RateLimit
 from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
@@ -27,6 +28,7 @@ from checkmate.exceptions import (
 from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
+from checkmate.providers.rackspace.dns import parse_domain
 from checkmate.utils import match_celery_logging, get_class_name
 from checkmate.workflow import wait_for
 
@@ -171,11 +173,11 @@ class Provider(ProviderBase):
         return reduce(lambda x, y: x | y, values)
 
     def _handle_dns(self, deployment, service, resource_type="load-balancer"):
-        dns = str(deployment.get_setting("create_dns",
-                                         resource_type=resource_type,
-                                         service_name=service,
-                                         default="false"))
-        return dns.lower() in ['true', '1', 'yes']
+        _dns = str(deployment.get_setting("create_dns",
+                                          resource_type=resource_type,
+                                          service_name=service,
+                                          default="false"))
+        return _dns.lower() in ['true', '1', 'yes']
 
     @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
     def _get_abs_limits(self, username, auth_token, api_endpoint, region):
@@ -415,9 +417,11 @@ class Provider(ProviderBase):
             alt_resource_postback.s(deployment_id)
         )()
 
-    def delete_resource_tasks(self, context, deployment_id, resource, key):
+    def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
+                              key):
         self._verify_existing_resource(resource, key)
-        lb_id = resource.get("instance", {}).get("id")
+        instance = resource.get("instance") or {}
+        lb_id = instance.get("id")
         dom_id = resource.get("instance", {}).get("domain_id")
         rec_id = resource.get("instance", {}).get("record_id")
         region = resource.get("region")
@@ -428,18 +432,41 @@ class Provider(ProviderBase):
             context['deployment'] = deployment_id
             context['resource'] = key
 
-        del_task = chain(delete_lb_task.s(context, key, lb_id, region),
-                         alt_resource_postback.s(deployment_id),
-                         wait_on_lb_delete.si(context, key, deployment_id,
-                                              lb_id, region),
-                         alt_resource_postback.s(deployment_id))
+        delete_lb = Celery(
+            wf_spec,
+            'Delete Loadbalancer (%s)' % key,
+            'checkmate.providers.rackspace.loadbalancer.delete_lb_task',
+            call_args=[context, key, lb_id, region],
+            properties={
+                'estimated_duration': 5,
+            },
+        )
 
-        delete_stuff = del_task
+        wait_on_lb_delete = Celery(
+            wf_spec,
+            'Wait for Loadbalancer (%s) delete' % key,
+            'checkmate.providers.rackspace.loadbalancer.'
+            'wait_on_lb_delete_task',
+            call_args=[context, key, lb_id, region],
+            properties={
+                'estimated_duration': 20,
+            },
+        )
+
+        delete_lb.connect(wait_on_lb_delete)
+        task_dict = {'root': [delete_lb]}
         if dom_id and rec_id:
-            delete_stuff = group(del_task,
-                                 delete_record.s(context, dom_id,
-                                                 rec_id))
-        return delete_stuff
+            delete_record = Celery(
+                wf_spec,
+                'Delete DNS record for %s' % dom_id,
+                'checkmate.providers.rackspace.dns.delete_record_task',
+                call_args=[context, dom_id, rec_id],
+                properties={
+                    'estimated_duration': 5,
+                },
+            )
+            task_dict["root"].append(delete_record)
+        return task_dict
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
@@ -509,7 +536,7 @@ class Provider(ProviderBase):
 
     def get_catalog(self, context, type_filter=None):
         '''Return stored/override catalog if it exists, else connect, build,
-        and return one
+        and return one.
         '''
 
         # TODO: maybe implement this an on_get_catalog so we don't have to do
@@ -602,7 +629,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def find_url(catalog, region):
-        '''Find endpoint URL for region'''
+        '''Find endpoint URL for region.'''
         for service in catalog:
             if service['type'] == 'rax:load-balancer':
                 endpoints = service['endpoints']
@@ -612,7 +639,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def find_a_region(catalog):
-        '''Any region'''
+        '''Any region.'''
         for service in catalog:
             if service['type'] == 'rax:load-balancer':
                 endpoints = service['endpoints']
@@ -621,7 +648,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def connect(context, region=None):
-        '''Use context info to connect to API and return api object'''
+        '''Use context info to connect to API and return api object.'''
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
             context = RequestContext(**context)
@@ -654,7 +681,7 @@ class Provider(ProviderBase):
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
 def _get_algorithms(api_endpoint, auth_token):
-    '''Ask CLB for Algorithms'''
+    '''Ask CLB for Algorithms.'''
     # the region must be supplied but is not used
     api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
     api.client.auth_token = auth_token
@@ -665,7 +692,7 @@ def _get_algorithms(api_endpoint, auth_token):
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
 def _get_protocols(api_endpoint, auth_token):
-    '''Ask CLB for Protocols'''
+    '''Ask CLB for Protocols.'''
     # the region must be supplied but is not used
     api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
     api.client.auth_token = auth_token
@@ -675,20 +702,16 @@ def _get_protocols(api_endpoint, auth_token):
 
     return api.get_protocols()
 
-from celery.task import task
-
-from checkmate.providers.rackspace.dns import parse_domain, delete_record
 
 # Cloud Load Balancers needs an IP for all load balancers. To create one we
 # sometimes need a dummy node. This is the IP address we use for the dummy
 # node. Requests to manage this node are intentionally errored out.
 PLACEHOLDER_IP = '1.2.3.4'
 
+
 #
 # Celery tasks
 #
-
-
 @task
 def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
@@ -696,10 +719,11 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
-    '''Celery task to create Cloud Load Balancer'''
+    '''Celery task to create Cloud Load Balancer.'''
     assert 'deployment' in context, "Deployment not supplied in context"
     match_celery_logging(LOG)
 
+    deployment_id = context['deployment']
     if context.get('simulation') is True:
         resource_key = context['resource']
         vip = "4.4.4.20%s" % resource_key
@@ -719,14 +743,13 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             }
         }
         # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
+        resource_postback.delay(deployment_id, results)
         return results
 
     if api is None:
         api = Provider.connect(context, region)
 
-    reset_failed_resource_task.delay(context["deployment"],
-                                     context["resource"])
+    reset_failed_resource_task.delay(deployment_id, context["resource"])
 
     #FIXME: should pull default from lb api but thats not exposed via the
     #       client yet
@@ -776,7 +799,19 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             loadbalancer = api.loadbalancers.create(
                 name=name, port=port, protocol=protocol.upper(),
                 nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
+        LOG.info("Created load balancer %s for deployment %s", loadbalancer.id,
+                 deployment_id)
+    except KeyError as exc:
+        if str(exc) == 'retry-after':
+            LOG.info("A limit 'may' have been reached creating a load "
+                     "balancer for deployment %s", deployment_id)
+            raise CheckmateRetriableException("API limit reached", "",
+                                              get_class_name(exc),
+                                              action_required=False)
+        raise
     except RateLimit as exc:
+        LOG.info("API Limit reached creating a load balancer for deployment "
+                 "%s", deployment_id)
         raise CheckmateRetriableException(exc.reason, "", get_class_name(exc),
                                           action_required=False)
 
@@ -786,7 +821,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             'id': loadbalancer.id
         }
     }
-    resource_postback.delay(context['deployment'], instance_id)
+    resource_postback.delay(deployment_id, instance_id)
 
     # update our assigned vip
     for ip_data in loadbalancer.virtualIps:
@@ -812,7 +847,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     }
 
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(deployment_id, results)
     return results
 
 
@@ -850,8 +885,14 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
     if api is None:
         api = Provider.connect(context, resource.get("region"))
+
+    instance = resource.get("instance") or {}
+    instance_id = instance.get("id")
     try:
-        lb = api.loadbalancers.get(resource.get("instance", {}).get("id"))
+        if not instance_id:
+            raise CheckmateException("No instance id supplied for resource %s"
+                                     % key)
+        lb = api.loadbalancers.get(instance_id)
         # TODO(Nate): Update sync to use postback instead of resource postback
         #and also add in checkmate translated status to resource root
         #instance = {'port': resource['instance']['port'],
@@ -861,13 +902,16 @@ def sync_resource_task(context, resource, resource_key, api=None):
         #if hasattr(lb, 'port') and
         #   resource['instance']['protocol'] != lb.protocol:
         #    instance['protocol'] = lb.protocol
+        LOG.info("Marking load balancer instance %s as %s", instance_id,
+                 lb.status)
         return {
             key: {
                 'status': lb.status
                 #'instance': instance
             }
         }
-    except NotFound:
+    except (NotFound, CheckmateException):
+        LOG.info("Marking load balancer instance %s as DELETED", instance_id)
         return {
             key: {
                 'status': 'DELETED'
@@ -888,28 +932,40 @@ def delete_lb_task(context, key, lbid, region, api=None):
                 "status-message": "Waiting on resource deletion"
             }
         }
+        resource_postback.delay(context['deployment'], results)
         return results
 
     def on_failure(exc, task_id, args, kwargs, einfo):
+        dep_id = args[0].get('deployment')
         results = {
             "instance:%s" % args[1]: {
                 'status': 'ERROR',
                 'status-message': ('Unexpected error deleting loadbalancer'
                                    ' %s' % key),
-                'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
+                'error-message': str(exc)
             }
         }
-        resource_postback.delay(args[2], results)
+        resource_postback.delay(dep_id, results)
 
     delete_lb_task.on_failure = on_failure
+    instance_key = "instance:%s" % key
 
     if not lbid:
-        LOG.error("Must provide a load balancer id")
+        msg = ("Instance ID is not available for Loadbalancer, skipping "
+               "delete_lb_task for resource %s in deployment %s" %
+               (context["resource"], context["deployment"]))
+        LOG.info(msg)
+        results = {
+            instance_key: {
+                'status': 'DELETED',
+                'status-message': msg
+            }
+        }
+        resource_postback.delay(context['deployment'], results)
         return
     if api is None:
         api = Provider.connect(context, region)
 
-    instance_key = "instance:%s" % key
     try:
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
@@ -920,68 +976,90 @@ def delete_lb_task(context, key, lbid, region, api=None):
                 'status-message': ''
             }
         }
-        return results
-    LOG.debug("Found load balancer %s [%s] to delete" % (dlb, dlb.status))
-    if dlb.status != "DELETED":
-        dlb.delete()
-    LOG.debug('Deleting Load balancer %s.', lbid)
-    return {
-        instance_key: {
-            'status': 'DELETING',
-            'status-message': 'Waiting on resource deletion'
+
+    if dlb:
+        LOG.debug("Found load balancer %s [%s] to delete" % (dlb, dlb.status))
+        if dlb.status in ("ACTIVE", "ERROR", "SUSPENDED"):
+            LOG.debug('Deleting Load balancer %s.', lbid)
+            dlb.delete()
+            status_message = 'Waiting on resource deletion'
+        else:
+            status_message = ("Cannot delete LoadBalancer %s, as it currently "
+                              "is in %s state. Waiting for load-balancer "
+                              "status to move to ACTIVE, ERROR or SUSPENDED" %
+                              (lbid, dlb.status))
+            LOG.debug(status_message)
+        results = {
+            instance_key: {
+                'status': 'DELETING',
+                'status-message': status_message
+            }
         }
-    }
+    resource_postback.delay(context['deployment'], results)
+    return results
 
 
 @task(default_retry_delay=2, max_retries=60)
-def wait_on_lb_delete(context, key, dep_id, lbid, region, api=None):
+def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
     match_celery_logging(LOG)
     inst_key = "instance:%s" % key
+    results = {}
 
     if context.get('simulation') is True:
         results = {inst_key: {'status': 'DELETED'}}
+        resource_postback.delay(context['deployment'], results)
         return results
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         """ Handle task failure """
+        dep_id = args[0].get('deployment')
         results = {
             "instance:%s" % args[1]: {
                 'status': 'ERROR',
                 'status-message': ('Unexpected error waiting on loadbalancer'
                                    ' %s delete' % key),
-                'error-traceback': 'Task %s: %s' % (task_id, einfo.traceback)
+                'error-message': str(exc)
             }
         }
-        resource_postback.delay(args[2], results)
+        resource_postback.delay(dep_id, results)
 
-    wait_on_lb_delete.on_failure = on_failure
+    wait_on_lb_delete_task.on_failure = on_failure
+
+    if lb_id is None:
+        msg = ("Instance ID is not available for Loadbalancer, skipping "
+               "wait_on_delete_lb_task for resource %s in deployment %s" %
+               (context["resource"], context["deployment"]))
+        LOG.info(msg)
+        results = {
+            inst_key: {
+                'status': 'DELETED',
+                'status-message': msg
+            }
+        }
+        resource_postback.delay(context['deployment'], results)
+        return
 
     if api is None:
         api = Provider.connect(context, region)
     dlb = None
-    LOG.debug("Checking on loadbalancer %s delete status", lbid)
+    LOG.debug("Checking on loadbalancer %s delete status", lb_id)
     try:
-        dlb = api.loadbalancers.get(lbid)
+        dlb = api.loadbalancers.get(lb_id)
     except cloudlb.errors.NotFound:
         pass
     if (not dlb) or "DELETED" == dlb.status:
-        return {
+        results = {
             inst_key: {
                 'status': 'DELETED',
                 'status-message': ''
             }
         }
+        resource_postback.delay(context["deployment"], results)
     else:
         msg = ("Waiting on state DELETED. Load balancer is in state %s"
                % dlb.status)
-        results = {
-            inst_key: {
-                'status': 'DELETING',
-                "status-message": msg
-            }
-        }
-        resource_postback.delay(dep_id, results)
-        wait_on_lb_delete.retry(exc=CheckmateException(msg))
+        wait_on_lb_delete_task.retry(exc=CheckmateException(msg))
+    return results
 
 
 @task(default_retry_delay=10, max_retries=10)
@@ -1032,8 +1110,8 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                 if node.condition != "ENABLED":
                     node.condition = "ENABLED"
                 node.update()
-                LOG.debug("Updated %s:%d from load balancer %d", node.address,
-                          node.port, lbid)
+                LOG.info("Updated %s:%d from load balancer %d", node.address,
+                         node.port, lbid)
                 # We return this at the end of the call
             results = {'id': node.id}
         elif node.address == PLACEHOLDER_IP:
@@ -1050,6 +1128,8 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
             lb_fresh = api.loadbalancers.get(lbid)
             if [n for n in lb_fresh.nodes if n.address == ipaddr]:
                 #OK!
+                LOG.info("Added node %s:%s to load balancer %s", ipaddr, port,
+                         lbid)
                 results = {'id': results[0].id}
             else:
                 LOG.warning("CloudLB says node %s (ID=%s) was added to LB %s, "
@@ -1107,8 +1187,8 @@ def delete_node(context, lbid, ipaddr, port, region, api=None):
     if node_to_delete:
         try:
             node_to_delete.delete()
-            LOG.debug('Removed %s:%s from load balancer %s', ipaddr, port,
-                      lbid)
+            LOG.info('Removed %s:%s from load balancer %s', ipaddr, port,
+                     lbid)
         except cloudlb.errors.ResponseError, exc:
             if exc.status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
@@ -1211,12 +1291,10 @@ def wait_on_build(context, lbid, region, api=None):
         resource_postback.delay(context['deployment'], results)
 
         # Delete the loadbalancer if it failed building
-        Provider({}).delete_resource_tasks(context,
-                                           context['deployment'],
-                                           get_resource_by_id(
-                                               context['deployment'],
-                                               context['resource']),
-                                           instance_key).apply_async()
+        chain(
+            delete_lb_task.si(context, context["resource"], lbid, region, api),
+            wait_on_lb_delete_task.si(context, context["resource"], lbid,
+                                      region, api)).apply_async()
         raise CheckmateRetriableException(msg, "", get_class_name(
             CheckmateLoadbalancerBuildFailed()), action_required=True)
     elif loadbalancer.status == "ACTIVE":

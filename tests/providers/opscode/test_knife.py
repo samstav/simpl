@@ -5,7 +5,7 @@ import logging
 import os
 import shutil
 import subprocess
-import unittest2 as unittest
+import unittest
 import uuid
 
 import mox
@@ -23,10 +23,11 @@ class TestKnife(unittest.TestCase):
         self.mox = mox.Mox()
         self.orignal_dir = os.getcwd()  # our knife calls will change it
         self.deploymentId = uuid.uuid4().hex
-        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = TEST_PATH
+        knife.CONFIG = self.mox.CreateMockAnything()
+        knife.CONFIG.deployments_path = TEST_PATH
         if not os.path.exists(TEST_PATH):
             shutil.os.makedirs(TEST_PATH)
-            LOG.info("Created '%s'" % TEST_PATH)
+            LOG.info("Created '%s'", TEST_PATH)
 
         # Fake a call to create_environment
         url = 'https://example.com/checkmate/app.git'
@@ -38,7 +39,7 @@ class TestKnife(unittest.TestCase):
             os.makedirs(kitchen_path)
             knife._create_kitchen(
                 self.deploymentId, 'kitchen', environment_path)
-            LOG.info("Created kitchen '%s'" % kitchen_path)
+            LOG.info("Created kitchen '%s'", kitchen_path)
 
         databag_path = os.path.join(kitchen_path, "data_bags")
         if not os.path.exists(databag_path):

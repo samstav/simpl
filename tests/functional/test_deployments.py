@@ -7,7 +7,7 @@ For tests, we don't care about:
     R0904 - Too many public methods
     W0212 - Access to protected member of a client class
     W0232 - Class has no __init__ method '''
-import unittest2 as unittest
+import unittest
 
 import mox
 from mox import IgnoreArg

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import logging
-import unittest2 as unittest
+import unittest
 
 import mox
 
@@ -10,7 +10,7 @@ from checkmate.deployment import Deployment
 from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.providers import base, register_providers
-from checkmate.providers.rackspace import database
+from checkmate.providers.rackspace import database, checkmate
 from checkmate.test import StubbedWorkflowBase, ProviderTester
 from checkmate import utils
 from checkmate.middleware import RequestContext
@@ -152,16 +152,7 @@ class TestDatabase(ProviderTester):
             context['deployment'], context['resource']
         ).AndReturn(expected_resource)
 
-        class FakeTask(object):
-            def apply_async(self):
-                pass
-
         self.mox.StubOutWithMock(database.Provider, 'delete_resource_tasks')
-        database.Provider({}).delete_resource_tasks(
-            context, context['deployment'],
-            expected_resource, instance_key
-        ).AndReturn(FakeTask())
-
         self.mox.ReplayAll()
 
         self.assertRaises(

@@ -262,6 +262,58 @@ class Deployment(ExtensibleDict):
                 errors.extend(Blueprint.inspect(obj['blueprint']))
         return errors
 
+    def get_statuses(self, context):
+        '''
+        Loops through all the resources and gets the latest status. Based on
+        the resource status calculates the status of the deployment and
+        operation
+        :param context:
+        :return:
+        '''
+        resources = {}
+        env = self.environment()
+
+        for key, resource in self.get('resources', {}).items():
+            if key.isdigit() and 'provider' in resource:
+                provider = env.get_provider(resource['provider'])
+                result = provider.get_resource_status(context, self.get('id'),
+                                                      resource, key)
+                if result:
+                    resources.update(result)
+        statuses = self._calculate_deployment_and_operation_status(resources)
+        statuses.update({'resources': resources})
+        return statuses
+
+    def _calculate_deployment_and_operation_status(self, resources):
+        '''
+
+        :param resources:
+        :return:
+        '''
+        statuses = []
+        deployment_status = self['status']
+        operation_status = self['operation']['status']
+
+        for value in resources.values():
+            statuses.append(value['status'])
+
+        if statuses:
+            if all(status == 'DELETED' for status in statuses):
+                deployment_status = 'DELETED'
+                operation_status = 'COMPLETE'
+            elif all(status == 'ACTIVE' for status in statuses):
+                deployment_status = 'UP'
+                operation_status = 'COMPLETE'
+            elif all(status == 'NEW' for status in statuses):
+                deployment_status = 'PLANNED'
+                operation_status = 'NEW'
+            # elif any(status == 'DELETED' for status in statuses):
+            #     deployment_status = "ALERT"
+            #     operation_status = 'ABORTED'
+
+        return {'deployment_status': deployment_status,
+                'operation_status': operation_status}
+
     def environment(self):
         """ Initialize environment from Deployment """
         if self._environment is None:
@@ -271,6 +323,55 @@ class Deployment(ExtensibleDict):
             else:
                 return Environment({})
         return self._environment
+
+    def current_workflow_id(self):
+        operation = self.get('operation')
+        if operation:
+            return operation.get('workflow-id', self.get('id'))
+        return None
+
+    def get_operation(self, workflow_id):
+        '''
+        Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
+        blocks for an operation that has a field workflow-id with value as
+        that of the parameter workflow_id. If such an operation is found,
+        the method returns that operation.
+
+        :param workflow_id:
+        :return:
+        '''
+        operation = self.get("operation", None)
+        if self.current_workflow_id() == workflow_id:
+            return {'operation': operation}
+        operations_history = self.get("operations-history", [])
+        ret = []
+        for history in operations_history:
+            if history.get("workflow-id", self.get('id')) == workflow_id:
+                ret.append(history)
+                return {'history': ret}
+            else:
+                ret.append({})
+
+    def get_current_operation(self, workflow_id):
+        '''
+        Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
+        blocks for an operation that has a field workflow-id with value as
+        that of the parameter workflow_id. If such an operation is found,
+        the method returns that operation.
+
+        The return value would contain only the operation that matched the
+        workflow, and it would not indicate whether the operation was from
+        the OPERATION block or the OPERATIONS-HISTORY
+
+        :param workflow_id:
+        :return:
+        '''
+        operation_result = self.get_operation(workflow_id)
+        if operation_result:
+            if "history" in operation_result:
+                return operation_result.values()[0][-1]
+            else:
+                return operation_result.values()[0]
 
     def inputs(self):
         """ return inputs of deployment """

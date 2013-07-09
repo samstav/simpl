@@ -1,5 +1,5 @@
 from checkmate.deployment import Deployment
-import unittest2 as unittest
+import unittest
 
 from checkmate.deployments import Plan
 

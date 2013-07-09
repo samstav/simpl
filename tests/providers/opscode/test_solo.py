@@ -7,23 +7,24 @@ import json
 import logging
 import os
 import shutil
-import uuid
-import unittest2 as unittest
+import unittest
 from urlparse import urlunparse
+import uuid
 import yaml
 
 import mox
 from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
-from SpiffWorkflow.util import merge_dictionary
+from SpiffWorkflow.util import merge_dictionary  # HACK: used by transform
 
 import checkmate
-from checkmate import test, utils
 from checkmate.deployment import Deployment
 from checkmate import deployments
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
-from checkmate.workflow import create_workflow_deploy
+from checkmate import test
+from checkmate import utils
+from checkmate.workflow import create_workflow, create_workflow_spec_deploy
 
 
 LOG = logging.getLogger(__name__)
@@ -326,7 +327,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         '''Verify workflow task creation'''
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
-        workflow = create_workflow_deploy(self.deployment, context)
+        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow = create_workflow(workflow_spec, self.deployment, context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
@@ -537,7 +539,8 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                                  username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
 
-        workflow = create_workflow_deploy(self.deployment, context)
+        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow = create_workflow(workflow_spec, self.deployment, context)
 
         task_list = workflow.spec.task_specs.keys()
         self.assertNotIn('Collect Chef Data for 0', task_list,
@@ -669,7 +672,8 @@ interfaces/mysql/host
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow = create_workflow_deploy(self.deployment, context)
+        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow = create_workflow(workflow_spec, self.deployment, context)
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',
@@ -821,7 +825,8 @@ interfaces/mysql/host
         # We make the call hit our deployment directly
         transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
         transmerge.set_property(deployment=self.deployment)
-        transmerge.function_name="tests.providers.opscode.test_solo.do_nothing"
+        transmerge.function_name = "tests.providers.opscode.test_solo."\
+                                   "do_nothing"
 
         self.mox.ReplayAll()
         workflow.complete_all()
@@ -860,8 +865,8 @@ def do_nothing(self, my_task):
     tabbed_code = '\n    '.join(source.split('\n'))
     func_name = "trans_%s" % uuid.uuid4().hex[0:8]
     exec("def %s(self, my_task):\n    %s"
-                     "\n%s(self, my_task)" %
-                     (func_name, tabbed_code, func_name))
+         "\n%s(self, my_task)" %
+         (func_name, tabbed_code, func_name))
 
 
 class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
@@ -988,7 +993,8 @@ interfaces/mysql/database_name
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow = create_workflow_deploy(self.deployment, context)
+        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow = create_workflow(workflow_spec, self.deployment, context)
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
         host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']
@@ -1316,7 +1322,6 @@ interfaces/mysql/database_name
         # Hack to hijack postback in Transform which is called as a string in
         # exec(), so cannot be easily mocked.
         # We make the call hit our deployment directly
-        call_me = 'dep.on_resource_postback(output_template) #'
         for task_name in [
             'Collect Chef Data for 0',
             'Collect Chef Data for 2',
@@ -1324,8 +1329,8 @@ interfaces/mysql/database_name
         ]:
             transmerge = workflow.spec.task_specs[task_name]
             transmerge.set_property(deployment=self.deployment)
-            transmerge.function_name="tests.providers.opscode.test_solo." \
-                                     "do_nothing"
+            transmerge.function_name = "tests.providers.opscode.test_solo." \
+                                       "do_nothing"
 
         self.mox.ReplayAll()
         workflow.complete_all()
@@ -1370,8 +1375,8 @@ class TestChefMap(unittest.TestCase):
 
     def setUp(self):
         self.mox = mox.Mox()
-        self.original_local_path = os.environ.get('CHECKMATE_CHEF_LOCAL_PATH')
-        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/tmp/checkmate-chefmap'
+        knife.CONFIG = self.mox.CreateMockAnything()
+        knife.CONFIG.deployments_path = '/tmp/checkmate-chefmap'
         self.local_path = '/tmp/checkmate-chefmap'
         self.url = 'https://github.com/checkmate/app.git'
         self.cache_path = self.local_path + "/cache/blueprints/" + \
@@ -1389,7 +1394,6 @@ class TestChefMap(unittest.TestCase):
         self.mox.UnsetStubs()
         if os.path.exists(self.local_path):
             shutil.rmtree('/tmp/checkmate-chefmap')
-        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
 
     def test_get_map_file_hit_cache(self):
         '''Test remote map file retrieval (cache hit)'''

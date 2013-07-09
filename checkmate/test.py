@@ -3,7 +3,7 @@
 import json
 import logging
 import os
-import unittest2 as unittest
+import unittest
 import uuid
 
 import bottle
@@ -29,7 +29,11 @@ from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext  # also enables logging
 from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary, \
     yaml_to_dict
-from checkmate.workflow import create_workflow_deploy, wait_for
+from checkmate.workflow import (
+    create_workflow,
+    create_workflow_spec_deploy,
+    wait_for,
+)
 
 # Environment variables and safe alternatives
 ENV_VARS = {
@@ -174,7 +178,7 @@ def run_with_params(args):
     this logic so it can be used in any test.
 
     '''
-    import unittest2 as unittest
+    import unittest
 
     # Our --debug means --verbose for unitest
     if '--debug' in args:
@@ -249,8 +253,8 @@ class StubbedWorkflowBase(unittest.TestCase):
         if self.deployment.get('status') == 'NEW':
             deployments.Manager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
-
-        workflow = create_workflow_deploy(self.deployment, context)
+        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow = create_workflow(workflow_spec, self.deployment, context)
 
         if not expected_calls:
             expected_calls = self._get_expected_calls()

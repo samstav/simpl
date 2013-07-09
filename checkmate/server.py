@@ -26,8 +26,6 @@ import logging
 import os
 
 import bottle
-from bottle import request
-from bottle import response
 import celery
 import eventlet
 from eventlet import debug
@@ -35,7 +33,7 @@ from eventlet.green import threading
 from eventlet import wsgi
 
 import checkmate
-from checkmate.api import admin
+from checkmate import admin
 from checkmate import blueprints
 from checkmate import celeryconfig
 from checkmate.common import config
@@ -44,13 +42,14 @@ from checkmate.common import gzip_middleware
 from checkmate import db
 from checkmate import deployments
 from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateNoMapping,
-    CheckmateValidationException,
-    CheckmateNoData,
-    CheckmateDoesNotExist,
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
+    CheckmateDoesNotExist,
+    CheckmateException,
+    CheckmateInvalidParameterError,
+    CheckmateNoData,
+    CheckmateNoMapping,
+    CheckmateValidationException,
 )
 from checkmate.git import middleware as git_middleware
 from checkmate import middleware
@@ -100,48 +99,59 @@ DEFAULT_AUTH_ENDPOINTS = [{
 def error_formatter(error):
     '''Catch errors and output them in the correct format/media-type.'''
     output = {}
-    accept = request.get_header("Accept") or ""
+    accept = bottle.request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
         error.headers = bottle.HeaderDict(
             {"content-type": "application/x-yaml"})
-        error.apply(response)
+        error.apply(bottle.response)
     else:  # default to JSON
         error.headers = bottle.HeaderDict({"content-type": "application/json"})
-        error.apply(response)
+        error.apply(bottle.response)
 
     if isinstance(error.exception, CheckmateNoMapping):
         error.status = 406
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
+    elif isinstance(error.exception, CheckmateInvalidParameterError):
+        error.status = 406
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateDoesNotExist):
         error.status = 404
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateValidationException):
         error.status = 400
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateNoData):
         error.status = 400
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateBadState):
         error.status = 409
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateDatabaseConnectionError):
         error.status = 500
         error.output = "Database connection error on server."
-        output['message'] = error.exception.__str__()
+        output['message'] = str(error.exception)
     elif isinstance(error.exception, CheckmateException):
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
+        LOG.exception(error.exception)
     elif isinstance(error.exception, AssertionError):
         error.status = 400
-        error.output = error.exception.__str__()
+        error.output = str(error.exception)
+        LOG.exception(error.exception)
     else:
         # For other 500's, provide underlying cause
         if error.exception:
-            output['message'] = error.exception.__str__()
+            output['message'] = str(error.exception)
+            LOG.exception(error.exception)
+
+    if hasattr(error.exception, 'args'):
+        if len(error.exception.args) > 1:
+            LOG.warning('HTTPError: %s', error.exception.args)
 
     output['description'] = error.output
     output['code'] = error.status
-    response.status = error.status
-    return utils.write_body(dict(error=output), request, response)
+    bottle.response.status = error.status
+    return utils.write_body(
+        dict(error=output), bottle.request, bottle.response)
 
 
 def config_statsd():
@@ -151,11 +161,11 @@ def config_statsd():
         raise CheckmateException('statsd config required in format '
                                  'server:port')
     elif len(user_values) == 1:
-        CONFIG.STATSD_PORT = 8125
+        CONFIG.statsd_port = 8125
     else:
-        CONFIG.STATSD_PORT = user_values[1]
+        CONFIG.statsd_port = user_values[1]
 
-    CONFIG.STATSD_HOST = user_values[0]
+    CONFIG.statsd_host = user_values[0]
 
 
 def main():
@@ -164,6 +174,9 @@ def main():
     CONFIG.initialize()
     resources = ['version']
     anonymous_paths = ['version']
+    if CONFIG.webhook:
+        resources.append('webhooks')
+        anonymous_paths.append('webhooks')
 
     # Init logging before we load the database, 3rd party, and 'noisy' modules
     utils.init_logging(CONFIG,
@@ -175,6 +188,13 @@ def main():
 
     if CONFIG.eventlet is True:
         eventlet.monkey_patch()
+    else:
+        LOG.warn(">>> Loading single-threaded dev server <<<")
+        print ("You've loaded Checkmate as a single-threaded WSGIRef server. "
+               "The advantage is that it will autoreload when you edit any "
+               "files. However, it will block when performing background "
+               "operations or responding to requests. To run a multi-threaded "
+               "server start Checkmate with the '--eventlet' switch")
 
     if CONFIG.statsd:
         config_statsd()
@@ -182,16 +202,15 @@ def main():
     check_celery_config()
 
     # Register built-in providers
-    from checkmate.providers import (
-        rackspace,
-        opscode,
-    )
+    from checkmate.providers import rackspace
     rackspace.register()
+    from checkmate.providers import opscode
     opscode.register()
 
     # Load routes from other modules
     LOG.info("Loading Checkmate API")
     bottle.load("checkmate.api")
+
     # Build WSGI Chain:
     next_app = root_app = bottle.default_app()  # the main checkmate app
     root_app.error_handler = {
@@ -244,7 +263,9 @@ def main():
     # Load admin routes if requested
     if CONFIG.with_admin is True:
         LOG.info("Loading Admin API")
-        ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'])
+        MANAGERS['tenants'] = admin.TenantManager(DRIVERS)
+        ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'],
+                                        MANAGERS['tenants'])
         resources.append('admin')
 
     next_app = middleware.AuthorizationMiddleware(
@@ -300,6 +321,7 @@ def main():
     # Load NewRelic inspection if requested
     if CONFIG.newrelic is True:
         try:
+            # pylint: disable=F0401
             import newrelic.agent
         except ImportError as exc:
             LOG.exception(exc)
@@ -316,8 +338,8 @@ def main():
     # Load request/response dumping if debugging enabled
     if CONFIG.debug is True:
         next_app = middleware.DebugMiddleware(next_app)
-        LOG.debug("Routes: %s", ['\n%s %s' % (r.method, r.rule) for r in
-                                 bottle.app().routes])
+        LOG.debug("Routes: %s", ''.join(['\n    %s %s' % (r.method, r.rule)
+                                         for r in bottle.app().routes]))
 
     next_app = gzip_middleware.Gzipper(next_app, compresslevel=8)
 
@@ -392,10 +414,10 @@ class CustomEventletServer(bottle.ServerAdapter):
 
 
 class EventletLogFilter(object):
-    '''Receives eventlet log.write() calls and routes them'''
+    '''Receives eventlet log.write() calls and routes them.'''
     @staticmethod
     def write(text):
-        '''Write to appropriate target'''
+        '''Write to appropriate target.'''
         if text:
             if text[0] in '(w':
                 # write thread and wsgi messages to debug only
@@ -410,6 +432,7 @@ def run_with_profiling():
     '''Start srver with yappi profiling and eventlet blocking detection on.'''
     LOG.warn("Profiling and blocking detection enabled")
     debug.hub_blocking_detection(state=True)
+    # pylint: disable=F0401
     import yappi
     try:
         yappi.start(True)
@@ -419,8 +442,8 @@ def run_with_profiling():
         stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
         print "tsub   ttot   count  function"
         for stat in stats.func_stats:
-            print str(stat[3]).ljust(6), stat[2].ljust(6), \
-                stat[1].ljust(6), stat[0]
+            print str(stat[3]).ljust(6), str(stat[2]).ljust(6), \
+                str(stat[1]).ljust(6), stat[0]
 
 
 #

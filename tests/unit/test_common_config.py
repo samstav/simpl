@@ -2,7 +2,7 @@
 '''
 Test cpheckmate.common.config
 '''
-import unittest2 as unittest
+import unittest
 
 from checkmate.common import config
 
@@ -19,7 +19,7 @@ class TestConfig(unittest.TestCase):
         self.assertIsNone(default.access_log)
 
         self.assertFalse(default.newrelic)
-        self.assertFalse(default.statsd)
+        self.assertIsNone(default.statsd)
         self.assertIsNone(default.statsd_host)
         self.assertEqual(default.statsd_port, 8125)
 
@@ -40,6 +40,9 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(default.preview_ref, 'master')
         self.assertIsNone(default.preview_tenants)
         self.assertEqual(default.group_refs, {})
+
+        self.assertEqual(default.deployments_path,
+                         '/var/local/checkmate/deployments')
 
     def test_update_iterable(self):
         current = config.Config()
@@ -101,6 +104,34 @@ class TestArgParser(unittest.TestCase):
     def test_port(self):
         parsed = config.parse_arguments(['/prog', '10.1.1.1:10000'])
         self.assertEqual(parsed.address, '10.1.1.1:10000')
+
+
+class TestEnvParser(unittest.TestCase):
+    def test_blank(self):
+        parsed = config.parse_environment({})
+        self.assertIsInstance(parsed, dict)
+        self.assertEqual(parsed, {})
+
+    def test_one_value(self):
+        parsed = config.parse_environment({
+            'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
+        self.assertIn('deployments_path', parsed)
+        self.assertEqual(parsed['deployments_path'], '/tmp/not_default')
+
+    def test_applying_config(self):
+        '''Check that we can take an env and apply it as a config.'''
+        current = config.current()
+        self.assertEqual(current.deployments_path,
+                         '/var/local/checkmate/deployments')
+        parsed = config.parse_environment({
+            'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
+        current.update(parsed)
+        self.assertEqual(current.deployments_path, '/tmp/not_default')
+
+    @unittest.skip('No conflicts yet')
+    def test_argument_wins(self):
+        '''Check that command-line arguments win over environemnt variables.'''
+        pass  # TODO: write this test whn we start the first conflict
 
 
 if __name__ == '__main__':

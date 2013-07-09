@@ -24,7 +24,7 @@ LOG = logging.getLogger()
 
 
 class DbBase(object):  # pylint: disable=R0921
-    '''Interface for all database drivers'''
+    '''Interface for all database drivers.'''
 
     def __init__(self, connection_string, driver=None, *args, **kwargs):
         '''Initialize database driver
@@ -45,24 +45,24 @@ class DbBase(object):  # pylint: disable=R0921
         self.driver = driver
 
     def __getstate__(self):
-        '''Support serializing to connection string'''
+        '''Support serializing to connection string.'''
         return {'connection_string': self.connection_string}
 
     def __setstate__(self, dict):  # pylint: disable=W0622
-        '''Support deserializing from connection string'''
+        '''Support deserializing from connection string.'''
         self.connection_string = dict['connection_string']
 
     def __str__(self):
-        '''Support serializing to connection string'''
+        '''Support serializing to connection string.'''
         return self.connection_string
 
     def __repr__(self):
-        '''Support displaying connection string'''
+        '''Support displaying connection string.'''
         return ("<%s.%s connection_string='%s'>" % (self.__class__.__module__,
                 self.__class__.__name__, self.connection_string))
 
     def dump(self):
-        '''Dump all data n the database'''
+        '''Dump all data n the database.'''
         raise NotImplementedError()
 
     # ENVIRONMENTS
@@ -120,7 +120,8 @@ class DbBase(object):  # pylint: disable=R0921
         raise NotImplementedError()
 
     def get_deployments(self, tenant_id=None, with_secrets=None,
-                        limit=None, offset=None, with_deleted=False):
+                        limit=None, offset=None, with_deleted=False,
+                        status=None):
         raise NotImplementedError()
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
@@ -165,7 +166,7 @@ class DbBase(object):  # pylint: disable=R0921
     # Data conversion helper
     # TODO(zns): remove this when we're done
     #
-    legacy_statuses = {  # TODO: remove these when old data is clean
+    legacy_statuses = {
         "BUILD": 'UP',
         "CONFIGURE": 'UP',
         "ACTIVE": 'UP',
@@ -199,25 +200,18 @@ class DbBase(object):  # pylint: disable=R0921
                     if 'status_msg' in instance:
                         instance['status-message'] = instance.pop('status_msg')
                     if ('errmessage' in instance and
-                          'error-message' not in instance):
+                            'error-message' not in instance):
                         instance['error-message'] = instance.pop('errmessage')
                     elif ('errmessage' in resource and
-                          'error-message' not in instance):
+                            'error-message' not in instance):
                         instance['error-message'] = resource.pop('errmessage')
-                    if ('trace' in instance and
-                          'error-traceback' not in instance):
-                        instance['error-traceback'] = instance.pop('trace')
-                    elif ('trace' in resource and
-                          'error-traceback' not in instance):
-                        instance['error-traceback'] = resource.pop('trace')
-                    if 'errmessage' in instance:
-                        del instance['errmessage']
-                    if 'errmessage' in resource:
-                        del resource['errmessage']
-                    if 'trace' in instance:
-                        del instance['trace']
-                    if 'trace' in resource:
-                        del resource['trace']
+
+                    remove_keys = ['errmessage', 'trace', 'error-traceback']
+                    for key in remove_keys:
+                        if key in instance:
+                            del instance[key]
+                        if key in resource:
+                            del resource[key]
 
     def lock(self, key, timeout):
         raise NotImplementedError()

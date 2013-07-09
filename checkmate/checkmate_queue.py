@@ -24,6 +24,7 @@ def main_func():
             'checkmate.providers.opscode',
             'checkmate.celeryapp',
             'checkmate.common.tasks',
+            'checkmate.workflows_new',
         ]
 
         params.extend([
@@ -37,6 +38,9 @@ def main_func():
             # convert our --verbose into celery's -l debug
             sys.argv.pop(sys.argv.index('--verbose'))
             params.extend(['-l', 'debug'])
+        elif '-l' not in sys.argv:
+            # Info by default if not overriden (otherwise celery is too quiet)
+            params.extend(['-l', 'info'])
 
         # Append extra parameters
         if len(sys.argv) > 2:

@@ -9,7 +9,7 @@ For tests, we don't care about:
     W0232 - Class has no __init__ method
 '''
 
-import unittest2 as unittest
+import unittest
 
 import mox
 
@@ -113,6 +113,154 @@ class TestDeploymentStateTransitions(unittest.TestCase):
 
 
 class TestDeployments(unittest.TestCase):
+    def setUp(self):
+        deployment_dict = {
+            'id': 'test',
+            'name': 'test',
+            'resources': {
+                '0': {'provider': 'test'}
+            },
+            'status': 'NEW',
+            'operation': {
+                'status': 'NEW',
+            },
+        }
+        self.deployment = Deployment(deployment_dict)
+        self.mock = mox.Mox()
+        self.deployment.environment = self.mock.CreateMockAnything()
+        self.context = self.mock.CreateMockAnything()
+        environment = self.mock.CreateMockAnything()
+        self.provider = self.mock.CreateMockAnything()
+        self.deployment.environment().AndReturn(environment)
+        environment.get_provider('test').AndReturn(self.provider)
+
+    def test_get_workflow_id_when_w_id_not_in_operation(self):
+        workflow_id = self.deployment.current_workflow_id()
+        self.assertEqual(workflow_id, self.deployment['id'])
+
+    def test_get_workflow_id_when_w_id_in_operation(self):
+        self.deployment['operation']['workflow-id'] = "w_id"
+        workflow_id = self.deployment.current_workflow_id()
+        self.assertEqual(workflow_id, "w_id")
+
+    def test_get_operation_for_workflow(self):
+        self.deployment["operation"]["workflow-id"] = "w_id"
+        expected_operation = {'operation': self.deployment["operation"]}
+        self.assertEqual(self.deployment.get_operation("w_id"),
+                         expected_operation)
+
+    def test_get_operation_for_workflow_when_w_id_is_not_in_operation(self):
+        expected_operation = {'operation': self.deployment["operation"]}
+        self.assertEqual(self.deployment.get_operation("test"),
+                         expected_operation)
+
+    def test_get_operation_from_operation_histories(self):
+        self.deployment["operations-history"] = [{'status': 'PAUSED',
+                                                  'workflow-id': 'w_id'}]
+        expected_operation = {'history': [self.deployment[
+            "operations-history"][0]]}
+        self.assertEqual(self.deployment.get_operation('w_id'),
+                         expected_operation)
+
+    def test_get_current_operation_for_workflow(self):
+        self.deployment["operation"]["workflow-id"] = "w_id"
+        expected_operation = self.deployment["operation"]
+        self.assertEqual(self.deployment.get_current_operation("w_id"),
+                         expected_operation)
+
+    def test_get_current_operation_for_workflow_when_w_id_is_not_in_operation(
+            self):
+        expected_operation = self.deployment["operation"]
+        self.assertEqual(self.deployment.get_current_operation("test"),
+                         expected_operation)
+
+    def test_get_current_operation_from_operation_histories(self):
+        self.deployment["operations-history"] = [{'status': 'PAUSED',
+                                                  'workflow-id': 'w_id'}]
+        expected_operation = self.deployment["operations-history"][0]
+        self.assertEqual(self.deployment.get_current_operation('w_id'),
+                         expected_operation)
+
+    def test_get_current_operation_for_w_id_not_associated_with_dep(self):
+        self.deployment["operations-history"] = [
+            {'status': 'PAUSED', 'workflow-id': 'w_id'}]
+        self.assertIsNone(self.deployment.get_current_operation("foobar_w_id"))
+
+    def test_get_operation_from_operation_histories_with_positional_elements(
+            self):
+        self.deployment["operations-history"] = [{'status': 'PAUSED',
+                                                  'workflow-id': 'w_id'},
+                                                 {'status': 'NEW',
+                                                  'workflow-id': 'w_id2'}]
+        expected_operation = {'history': [{}, self.deployment[
+            "operations-history"][1]]}
+        self.assertEqual(self.deployment.get_operation('w_id2'),
+                         expected_operation)
+
+    def test_get_operation_for_w_id_not_associated_with_deployment(self):
+        self.deployment["operations-history"] = [
+            {'status': 'PAUSED', 'workflow-id': 'w_id'}]
+        self.assertIsNone(self.deployment.get_operation("foobar_w_id"))
+
+    def test_get_statuses_for_deleted_resources(self):
+        resource_status = {'instance:0': {'status': 'DELETED'}}
+        self.provider.get_resource_status(self.context, 'test',
+                                          {'provider': 'test'}, '0').\
+            AndReturn(resource_status)
+        self.mock.ReplayAll()
+
+        expected = {
+            'resources': resource_status,
+            'deployment_status': 'DELETED',
+            'operation_status': 'COMPLETE',
+        }
+        self.assertDictEqual(self.deployment.get_statuses(self.context),
+                             expected)
+
+    def test_get_statuses_for_active_resources(self):
+        resource_status = {'instance:0': {'status': 'ACTIVE'}}
+        self.provider.get_resource_status(self.context, 'test',
+                                          {'provider': 'test'}, '0').\
+            AndReturn(resource_status)
+        self.mock.ReplayAll()
+
+        expected = {
+            'resources': resource_status,
+            'deployment_status': 'UP',
+            'operation_status': 'COMPLETE',
+        }
+        self.assertDictEqual(self.deployment.get_statuses(self.context),
+                             expected)
+
+    def test_get_statuses_for_new_resources(self):
+        resource_status = {'instance:0': {'status': 'NEW'}}
+        self.provider.get_resource_status(self.context, 'test',
+                                          {'provider': 'test'}, '0').\
+            AndReturn(resource_status)
+        self.mock.ReplayAll()
+
+        expected = {
+            'resources': resource_status,
+            'deployment_status': 'PLANNED',
+            'operation_status': 'NEW',
+        }
+        self.assertDictEqual(self.deployment.get_statuses(self.context),
+                             expected)
+
+    def test_get_statuses_for_no_resources(self):
+        self.provider.get_resource_status(self.context, 'test',
+                                          {'provider': 'test'}, '0').\
+            AndReturn({})
+        self.mock.ReplayAll()
+
+        expected = {
+            'resources': {},
+            'deployment_status': 'NEW',
+            'operation_status': 'NEW',
+        }
+        self.assertDictEqual(self.deployment.get_statuses(self.context),
+                             expected)
+
     def test_schema(self):
         """Test the schema validates a deployment with all possible fields"""
         deployment = {

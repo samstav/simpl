@@ -3,7 +3,7 @@ import copy
 import re
 import string
 import time
-import unittest2 as unittest
+import unittest
 import uuid
 import mox
 
@@ -37,6 +37,10 @@ class TestUtils(unittest.TestCase):
         list_of_dict = [{'foo': 'bar'}, {'a': 'b'}, {'foo': 'bar1'}]
         self.assertDictEqual(utils.flatten(list_of_dict),
                              {'foo': 'bar1', 'a': 'b'})
+
+    def test_get_id_for_simulate(self):
+        self.assertTrue(utils.get_id(True).startswith("simulate"))
+        self.assertFalse(utils.get_id(False).startswith("simulate"))
 
     def test_extract_data_expression_as_sensitive(self):
         data = {
@@ -386,8 +390,8 @@ class TestUtils(unittest.TestCase):
     def test_get_formatted_time_string(self):
         mock = mox.Mox()
         mock_time = time.gmtime(0)
-        mock.StubOutWithMock(utils, 'gmtime')
-        utils.gmtime().AndReturn(mock_time)
+        mock.StubOutWithMock(utils.time, 'gmtime')
+        utils.time.gmtime().AndReturn(mock_time)
         mock.ReplayAll()
         result = utils.get_time_string()
         mock.VerifyAll()
@@ -395,7 +399,7 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
     def test_get_formatted_time_string_with_input(self):
-        result = utils.get_time_string(time.gmtime(0))
+        result = utils.get_time_string(time_gmt=time.gmtime(0))
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
     #

@@ -1,9 +1,10 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 import copy
 import logging
-import uuid
+import mox
 import time
-import unittest2 as unittest
+import unittest
+import uuid
 
 try:
     from mongobox import MongoBox
@@ -786,6 +787,20 @@ class TestDatabase(unittest.TestCase):
             raised = True
         self.assertTrue(raised)
 
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_lock_for_existing_lock(self):
+        key = uuid.uuid4()
+        self.driver.database()['locks'].insert(
+            {"_id": key, "expires_at": time.time() + 20})
+        try:
+            with self.driver.lock(key, 200):
+                pass
+        except ObjectLockedError:
+            raised = True
+        self.assertTrue(raised)
+
+
     @unittest.skipIf(SKIP, REASON)
     def test_create_new_lock_for_expired_locks(self):
         key = uuid.uuid4()
@@ -796,6 +811,32 @@ class TestDatabase(unittest.TestCase):
             lock_entry = self.driver.database()['locks'].find_one({"_id": key})
             self.assertIsNotNone(lock_entry)
             self.assertGreater(lock_entry["expires_at"], current_time)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_acquire_lock_for_two_sequential_calls_with_existing_lock(self):
+        key = uuid.uuid4()
+        current_time = time.time()
+        self.driver.database()['locks'].insert(
+            {"_id": key, "expires_at": current_time - 20})
+        self.driver.acquire_lock(key, 20)
+        self.assertRaises(ObjectLockedError, self.driver.acquire_lock, key, 20)
+        self.driver.release_lock(key)
+
+    @unittest.skipIf(SKIP, REASON)
+    def test_acquire_lock_for_two_sequential_calls_without_existing_lock(self):
+        key = uuid.uuid4()
+        _mox = mox.Mox()
+        _mox.StubOutWithMock(self.driver, '_find_existing_lock')
+        self.driver._find_existing_lock(key).AndReturn(False)
+        self.driver._find_existing_lock(key).AndReturn(False)
+
+        _mox.ReplayAll()
+
+        self.driver.acquire_lock(key, 20)
+        self.assertRaises(ObjectLockedError, self.driver.acquire_lock, key, 20)
+        self.driver.release_lock(key)
+
+        _mox.VerifyAll()
 
     @unittest.skipIf(SKIP, REASON)
     def test_unlock(self):

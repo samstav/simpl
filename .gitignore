@@ -23,6 +23,7 @@ checkmate/openstack
 /tests/data/simulator.json
 /checkmate/providers/opscode/chef-stockton
 tmp
+checkmate/blueprints/.blueprint_cache
 
 # possible locations of chef-stockton repo
 checkmate/providers/opscode/chef-stockton

@@ -9,7 +9,7 @@ For tests, we don't care about:
     W0232 - Class has no __init__ method '''
 
 import os
-import unittest2 as unittest
+import unittest
 
 from checkmate import test
 from checkmate.exceptions import CheckmateException

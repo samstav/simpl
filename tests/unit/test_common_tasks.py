@@ -10,7 +10,7 @@ For tests, we don't care about:
 import logging
 from checkmate.db.mongodb import Driver
 import mox
-import unittest2 as unittest
+import unittest
 
 try:
     from mongobox import MongoBox
@@ -62,26 +62,27 @@ class TestCommonTasks(unittest.TestCase):
 
     def test_update_operation(self):
         self.mox.StubOutWithMock(tasks.operations, "update_operation")
-        tasks.operations.update_operation("DEP1", driver=self,
+        tasks.operations.update_operation("DEP1", "WID", driver=self,
                                           deployment_status=None, x=1) \
             .AndReturn(True)
 
         self.mox.ReplayAll()
 
         tasks.update_operation.lock_db = self.driver
-        tasks.update_operation('DEP1', driver=self, x=1)
+        tasks.update_operation('DEP1', "WID", driver=self, x=1)
         self.mox.VerifyAll()
 
     def test_update_operation_with_deployment_status(self):
         self.mox.StubOutWithMock(tasks.operations, "update_operation")
-        tasks.operations.update_operation("DEP1", driver=self,
+        tasks.operations.update_operation("DEP1", "WID", driver=self,
                                           deployment_status="UP", x=1) \
             .AndReturn(True)
 
         self.mox.ReplayAll()
 
         tasks.update_operation.lock_db = self.driver
-        tasks.update_operation('DEP1', driver=self, deployment_status="UP",
+        tasks.update_operation('DEP1', "WID", driver=self,
+                               deployment_status="UP",
                                x=1)
         self.mox.VerifyAll()
 

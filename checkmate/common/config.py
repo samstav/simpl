@@ -14,10 +14,22 @@ To load config from sys.args and environment variables:
 
 '''
 import argparse
-import sys
 import logging
+import os
+import sys
 
 LOG = logging.getLogger(__name__)
+ENV_MAP = {
+    'CHECKMATE_CONNECTION_STRING': 'connection_string',
+    'CHECKMATE_SIMULATOR_CONNECTION_STRING': 'simulator_connection_string',
+    'CHECKMATE_CACHE_CONNECTION_STRING': 'cache_connection_string',
+    'CHECKMATE_BLUEPRINT_CACHE_EXPIRE': 'blueprint_cache_expiration',
+
+    # Chef Provder Options
+    'CHECKMATE_CHEF_LOCAL_PATH': 'deployments_path',
+    'CHECKMATE_CHEF_OMNIBUS_VERSION': 'omnibus_version',
+    'BERKSHELF_PATH': 'berkshelf_path',
+}
 
 
 class Config(object):
@@ -34,7 +46,7 @@ class Config(object):
     access_log = None
 
     newrelic = False
-    statsd = False
+    statsd = None
     statsd_port = 8125
     statsd_host = None
 
@@ -57,6 +69,18 @@ class Config(object):
     preview_tenants = None
     group_refs = {}
 
+    deployments_path = '/var/local/checkmate/deployments'
+    berkshelf_path = None  # let consumer calculate it from deployments_path
+
+    simulator_connection_string = None
+    connection_string = None
+    cache_connection_string = None
+
+    @property
+    def bottle_parent(self):
+        '''Detect if running as a bottle autoreload parent.'''
+        return self.eventlet is False and 'BOTTLE_CHILD' not in os.environ
+
     def __init__(self, values=None):
         if values:
             self.update(values)
@@ -76,7 +100,7 @@ class Config(object):
 
     def initialize(self):
         '''Create a config from sys.args and environment variables'''
-        self.update(vars(parse_arguments()))
+        self.update(parse_environment(env=os.environ), vars(parse_arguments()))
 
 
 CURRENT_CONFIG = Config()
@@ -167,7 +191,7 @@ def parse_arguments(args=None):
                         help="enable statsd server with [address[:port]]",
                         )
     parser.add_argument("--access-log",
-                        type=argparse.FileType('a'),
+                        type=argparse.FileType('a', 0),
                         help="File to store access HTTP logs in (only works "
                         "with eventlet server)"
                         )
@@ -266,3 +290,20 @@ def parse_arguments(args=None):
         args = args[1:]
     parsed = parser.parse_args(args[1:])
     return parsed
+
+
+def parse_environment(env=None):
+    '''Parses an environment dict and returns config iterable.
+
+    Use ENV_MAP to map form environment variables to config entries
+    '''
+    result = {}
+    if not env:
+        return result
+    if not hasattr(env, '__iter__'):
+        raise ValueError("Config.parse_environment requires an iterable")
+    for key, value in env.items():
+        if key in ENV_MAP:
+            map_entry = ENV_MAP[key]
+            result[map_entry] = value
+    return result

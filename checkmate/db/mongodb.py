@@ -9,31 +9,66 @@ TODO:
 import copy
 import logging
 import pymongo
+import re
 import time
 import uuid
 
-from SpiffWorkflow.util import merge_dictionary as collate
+from SpiffWorkflow import util as swutil
 
-from checkmate.classes import ExtensibleDict
-from checkmate.db.common import DbBase, ObjectLockedError, InvalidKeyError
+from checkmate import classes
+from checkmate.db import common
+from checkmate.db.common import InvalidKeyError
+from checkmate.db import db_lock
 from checkmate.exceptions import (
     CheckmateDatabaseConnectionError,
+    CheckmateDataIntegrityError,
+    CheckmateInvalidParameterError,
     CheckmateException,
 )
-from checkmate.db.db_lock import DbLock
-from checkmate.utils import flatten
-from checkmate.utils import merge_dictionary
+from checkmate import utils as cmutils
 
 LOG = logging.getLogger(__name__)
+OP_MATCH = '(!|(>|<)[=]*)'
 
 
-class Driver(DbBase):
+def _build_filter(field):
+    '''Translate string with operator and status into mongodb filter.'''
+    op_map = {'!': '$ne', '>': '$gt', '<': '$lt', '>=': '$gte', '<=': '$lte'}
+    operator = re.search(OP_MATCH, field)
+    if operator:
+        return {op_map[operator.group(0)]: field[len(operator.group(0)):]}
+    else:
+        return field
+
+
+def _validate_no_operators(fields):
+    '''Filtering on more than one field means no operators allowed!'''
+    for field in fields:
+        if re.search(OP_MATCH, field):
+            raise CheckmateInvalidParameterError(
+                'Operators cannot be used when specifying multiple filters.')
+
+
+def _parse_comparison(fields):
+    '''Return a MongoDB filter by looking for comparisons in `fields`.'''
+    if isinstance(fields, (list, tuple)):
+        if len(fields) > 1:
+            _validate_no_operators(fields)
+            return {'$in': list(fields)}
+        else:
+            return _build_filter(fields[0])
+    else:
+        return _build_filter(fields)
+
+
+class Driver(common.DbBase):
     '''MongoDB Database Driver'''
     _workflow_collection_name = "workflows"
     _blueprint_collection_name = "blueprints"
     _deployment_collection_name = "deployments"
     _resource_collection_name = "resources"
     _environment_collection_name = "environments"
+    _tenant_collection_name = "tenants"
 
     #db fields we do not want returned to the client
     _object_projection = {'_lock': 0, '_lock_timestamp': 0, '_id': 0}
@@ -55,8 +90,8 @@ class Driver(DbBase):
 
     def __init__(self, connection_string, driver=None, *args, **kwargs):
         '''Initializes globals for this driver'''
-        DbBase.__init__(self, connection_string, driver=driver, *args,
-                        **kwargs)
+        common.DbBase.__init__(
+            self, connection_string, driver=driver, *args, **kwargs)
 
         self.db_name = pymongo.uri_parser.parse_uri(
             self.connection_string).get('database', 'checkmate')
@@ -69,7 +104,7 @@ class Driver(DbBase):
             LOG.warn("Error tuning mongodb database: %s", exc)
 
     def tune(self):
-        '''Documenting & Automating Index Creation'''
+        '''Documenting & Automating Index Creation.'''
         LOG.debug("Tuning database")
         self.database()[self._deployment_collection_name].create_index(
             [("created", pymongo.DESCENDING)],
@@ -91,23 +126,33 @@ class Driver(DbBase):
             background=True,
             name='workflows_id',
         )
+        self.database()[self._tenant_collection_name].create_index(
+            [('id', pymongo.ASCENDING)],
+            background=True,
+            name='tenant_id',
+        )
+        self.database()[self._tenant_collection_name].create_index(
+            [('tags', pymongo.ASCENDING)],
+            background=True,
+            name='tenant_tags',
+        )
 
     def __getstate__(self):
-        '''Support serializing to connection string'''
-        data = DbBase.__getstate__(self)
+        '''Support serializing to connection string.'''
+        data = common.DbBase.__getstate__(self)
         data['db_name'] = self.db_name
         return data
 
     def __setstate__(self, dict):  # pylint: disable=W0622
-        '''Support deserializing from connection string'''
-        DbBase.__setstate__(self, dict)
+        '''Support deserializing from connection string.'''
+        common.DbBase.__setstate__(self, dict)
         self.db_name = dict['db_name']
         self._database = None
         self._connection = None
         self._client = None
 
     def _get_client(self):
-        '''Get pymongo client (connect is not already connected)'''
+        '''Get pymongo client (connect is not already connected).'''
         if self._client is None:
             try:
                 self._client = (pymongo.MongoClient(
@@ -117,7 +162,7 @@ class Driver(DbBase):
         return self._client
 
     def database(self):
-        ''' Connects to and returns mongodb database object '''
+        '''Connects to and returns mongodb database object.'''
         if self._database is None:
             self._database = self._get_client()[self.db_name]
             LOG.info("Connected to mongodb on %s (database=%s)",
@@ -133,21 +178,34 @@ class Driver(DbBase):
         return response
 
     def lock(self, key, timeout):
-        return DbLock(self, key, timeout)
+        return db_lock.DbLock(self, key, timeout)
 
     def unlock(self, key):
         return self.release_lock(key)
 
+    def _find_existing_lock(self, key):
+        return self.database()['locks'].find_one({'_id': key})
+
     def acquire_lock(self, key, timeout):
-        existing_lock = self.database()['locks'].find_one({'_id': key})
-        if not existing_lock or existing_lock["expires_at"] < time.time():
-            self.database()['locks'].update({'_id': key}, {
-                '_id': key,
-                'expires_at': (time.time() + timeout)
-            }, upsert=True, multi=False, check_keys=False)
+        existing_lock = self._find_existing_lock(key)
+        if not existing_lock:
+            try:
+                self.database()['locks'].insert(
+                    {
+                        '_id': key,
+                        'expires_at': (time.time() + timeout)
+                    })
+            except pymongo.errors.DuplicateKeyError:
+                raise common.ObjectLockedError("Can't lock %s as it is "
+                                               "already locked!" % key)
         else:
-            raise ObjectLockedError(
-                "Can't lock %s as it is already locked!" % key)
+            result = self.database()['locks'].update(
+                {'_id': key, 'expires_at': {'$lt': time.time()}},
+                {'_id': key, 'expires_at': (time.time() + timeout)},
+                multi=False, check_keys=False)
+            if not result['updatedExisting']:
+                raise common.ObjectLockedError("Can't lock %s as it is "
+                                               "already locked!" % key)
 
     def release_lock(self, key):
         result = self.database()['locks'].remove({'_id': key}, True)
@@ -157,17 +215,18 @@ class Driver(DbBase):
 
     # TENANTS
     def save_tenant(self, tenant):
-        if tenant and tenant.get('tenant_id'):
-            tenant_id = tenant.get("tenant_id")
-            ten = {"tenant_id": tenant_id}
+        if tenant and tenant.get('id'):
+            tenant_id = tenant.get("id")
+            ten = {"id": tenant_id}
             if tenant.get('tags'):
                 ten['tags'] = tenant.get('tags')
-            resp = self.database()['tenants'].find_and_modify(
-                query={'tenant_id': tenant_id},
-                update=ten,
-                upsert=True,
-                new=True
-            )
+            resp = self.database()[self._tenant_collection_name]\
+                .find_and_modify(
+                    query={'id': tenant_id},
+                    update=ten,
+                    upsert=True,
+                    new=True
+                )
             LOG.debug("Saved tenant: %s", resp)
         else:
             raise CheckmateException("Must provide a tenant id")
@@ -177,28 +236,31 @@ class Driver(DbBase):
         find = {}
         if args:
             find = {"tags": {"$all": args}}
-        results = self.database()['tenants'].find(find, {"_id": 0})
+        results = self.database()[self._tenant_collection_name].find(
+            find, {"_id": 0})
         for result in results:
-            ret.update({result['tenant_id']: result})
+            if 'id' not in result and 'tenant_id' in result:
+                result['id'] = result.pop('tenant_id')
+            ret.update({result['id']: result})
         return ret
 
     def get_tenant(self, tenant_id):
         LOG.debug("Looking for tenant %s", tenant_id)
-        return self.database()['tenants'].find_one({"tenant_id": tenant_id},
-                                                   {"_id": 0})
+        return self.database()[self._tenant_collection_name].find_one(
+            {"id": tenant_id}, {"_id": 0})
 
     def add_tenant_tags(self, tenant_id, *args):
         if tenant_id:
-            tenant = (self.database()['tenants']
-                      .find_one({"tenant_id": tenant_id}))
+            tenant = (self.database()[self._tenant_collection_name]
+                      .find_one({"id": tenant_id}))
             if not tenant:
-                tenant = {"tenant_id": tenant_id}
+                tenant = {"id": tenant_id}
             if args and tenant:
                 if 'tags' not in tenant:
                     tenant['tags'] = []
                 tags = tenant['tags']
                 tags.extend([t for t in args if t not in tags])
-                self.database()['tenants'].save(tenant)
+                self.database()[self._tenant_collection_name].save(tenant)
         else:
             raise CheckmateException("Must provide a tenant with a tenant id")
 
@@ -220,9 +282,7 @@ class Driver(DbBase):
 
     # DEPLOYMENTS
     def _dereferenced_resources(self, deployment, with_secrets=False):
-        '''
-        Replaces the resource ids within a deployment with actual resource
-        defintions
+        '''Replaces referenced resources with actual resource data.
 
         :param deployment: Deployment with resource_id references
         :param with_secrets: defines whether to get the resources with secrets
@@ -232,7 +292,7 @@ class Driver(DbBase):
         resources = self._get_resources(deployment.get("resources", None),
                                         with_ids=False,
                                         with_secrets=with_secrets)
-        flat = flatten(resources)
+        flat = cmutils.flatten(resources)
         if flat:
             self.convert_data('resources', flat)
         return flat
@@ -249,22 +309,25 @@ class Driver(DbBase):
         return deployment
 
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=None,
-                        offset=None, with_count=True, with_deleted=False):
+                        offset=None, with_count=True, with_deleted=False,
+                        status=None):
         deployments = self._get_objects(self._deployment_collection_name,
                                         tenant_id, with_secrets=with_secrets,
                                         offset=offset,
                                         limit=limit, with_count=with_count,
-                                        with_deleted=with_deleted)
+                                        with_deleted=with_deleted,
+                                        status=status)
         return deployments
 
     def _remove_all(self, collection_name, ids):
-        '''Remove all objects with the ids in the ids list supplied'''
+        '''Remove all objects with the ids in the ids list supplied.'''
         if ids:
             self.database()[collection_name].remove({"_id": {'$in': ids}})
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=True):
-        '''
+        '''Save a deployment.
+
         Saves the deployment by splitting the body into deployment and
         resources. Resources and deployment are saved in separate
         collections. Secrets are also split into deployment and resource
@@ -281,7 +344,9 @@ class Driver(DbBase):
             self._deployment_collection_name, api_id)
         is_legacy_resources_format = (
             self._has_legacy_resources(existing_deployment))
-        resources = body.get("resources", None)
+        if body is None:
+            body = {}
+        resources = body.get("resources")
         resource_secrets = {}
         deployment_secrets = None
         if secrets:
@@ -297,7 +362,7 @@ class Driver(DbBase):
 
         #If there is a partial update for a single resource don't update the
         # deployment
-        if (len(body) == 1 and body.get('resources', None) and
+        if (len(body) == 1 and body.get('resources') and
                 not is_legacy_resources_format) and not deployment_secrets:
             deployment = existing_deployment
         #Deployment is saved when its a full update or a partial update
@@ -310,27 +375,31 @@ class Driver(DbBase):
         if not partial and existing_deployment:
              # Deleting old/orphaned documents
             self._remove_all('resources',
-                             existing_deployment.get('resources', None))
+                             existing_deployment.get('resources'))
             self._remove_all('deployments_secrets', [deployment["id"]])
             self._remove_all('resources_secrets',
-                             existing_deployment.get('resources', None))
+                             existing_deployment.get('resources'))
 
-        if deployment.get('resources', None):
+        if deployment.get('resources'):
             deployment["resources"] = self._dereferenced_resources(deployment)
         return deployment
 
     def _save_resources(self, incoming_resources, deployment, tenant_id,
                         partial, secrets):
+        '''Save resources into a deployment.'''
         resource_ids = []
         resource_secret = None
         if partial and deployment:
             if self._has_legacy_resources(deployment):
                 deployment_secrets = self._get_object('deployments_secrets',
                                                       deployment["id"])
-                deployment["resources"] = self. \
-                    _save_resources(deployment["resources"],
-                                    deployment, tenant_id, False,
-                                    deployment_secrets)
+                deployment["resources"] = self._save_resources(
+                    deployment["resources"],
+                    deployment,
+                    tenant_id,
+                    False,
+                    deployment_secrets
+                )
                 self._remove_all('deployments_secrets', [deployment["id"]])
 
             resource_ids = deployment["resources"]
@@ -357,9 +426,7 @@ class Driver(DbBase):
 
     @staticmethod
     def _has_legacy_resources(deployment):
-        '''
-        Checks whether a deployment has resources with definition inside the
-        deployment and not just references for resources
+        '''Checks whether or not resources are just references
 
         :param deployment: deployment to check
         :return: (True of False)
@@ -368,7 +435,15 @@ class Driver(DbBase):
             return isinstance(deployment.get("resources", None), dict)
         return False
 
-    def _relate_resources(self, existing, incoming, secrets=None):
+    @staticmethod
+    def _relate_resources(existing, incoming, secrets=None):
+        '''Perform an inclusive merge of existing and incoming.
+
+        If a resource exists in both existing and incoming, existing's data is
+        merged with incoming's data. Any resources in incoming that were not
+        in existing are added to the merged data before returning the new
+        collection.
+        '''
         incoming_copy = copy.deepcopy(incoming)
         resources = []
         resource_secret = None
@@ -394,6 +469,7 @@ class Driver(DbBase):
         return resources
 
     def _get_resources(self, resource_ids, with_ids=True, with_secrets=False):
+        '''Return all resources requested by ID.'''
         resources = []
         if resource_ids:
             resources_cursor = self.database()[self._resource_collection_name]\
@@ -409,6 +485,15 @@ class Driver(DbBase):
 
     def _save_resource(self, resource_id, body, tenant_id=None, partial=True,
                        secrets=None):
+        '''Save a given resource (body) by resource_id.
+
+        :param resource_id: the unique ID for the resource being saved
+        :param body: the resource data to save
+        :param tenant_id: the tenant to which this resource data belongs
+        :param partial: True if the data should be merged with existing data
+        :param secrets: the secret data belonging to this resource
+        :return: the resource that was saved
+        '''
         resource = self._save_object(self._resource_collection_name,
                                      resource_id, body, tenant_id=tenant_id,
                                      merge_existing=partial,
@@ -452,7 +537,8 @@ class Driver(DbBase):
                                  secrets, tenant_id)
 
     def lock_workflow(self, api_id, with_secrets=None, key=None):
-        '''
+        '''Attempts to lock a workflow
+
         :param api_id: the object's API id.
         :param with_secrets: true if secrets should be merged into the results.
         :param key: if the object has already been locked, the key used must be
@@ -464,7 +550,8 @@ class Driver(DbBase):
                                 with_secrets=with_secrets, key=key)
 
     def unlock_workflow(self, api_id, key):
-        '''
+        '''Attempts to unlock a workflow
+
         :param api_id: the object's API ID.
         :param key: the key used to lock the object (see lock_object()).
         '''
@@ -472,7 +559,8 @@ class Driver(DbBase):
                                   key=key)
 
     def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        '''
+        '''Attempts to lock an object
+
         :param klass: the class of the object to unlock.
         :param api_id: the object's API ID.
         :param with_secrets: true if secrets should be merged into the results.
@@ -487,8 +575,7 @@ class Driver(DbBase):
         return self._lock_find_object(klass, api_id, key=key)
 
     def unlock_object(self, klass, api_id, key):
-        '''
-        Unlocks a locked object if the key is correct.
+        '''Unlocks a locked object if the key is correct.
 
         :param klass: the class of the object to unlock.
         :param api_id: the object's API ID.
@@ -516,8 +603,7 @@ class Driver(DbBase):
                                   "not exist." % api_id)
 
     def _lock_find_object(self, klass, api_id, key=None):
-        '''
-        Finds, attempts to lock, and returns an object by id.
+        '''Finds, attempts to lock, and returns an object by id.
 
         :param klass: the class of the object unlock.
         :param api_id: the object's API ID.
@@ -533,7 +619,7 @@ class Driver(DbBase):
         lock_timestamp = time.time()
         if key:
             # The object has already been locked
-            # TODO: see if we can merge the existing key logic into below
+            # TODO(Paul): see if we can merge the existing key logic into below
             locked_object = self.database()[klass].find_and_modify(
                 query={
                     '_id': api_id,
@@ -597,8 +683,8 @@ class Driver(DbBase):
                         return (locked_object, key)
                     else:
                         # Lock is not stale
-                        raise ObjectLockedError("%s(%s) was already locked!" %
-                                                (klass, api_id))
+                        raise common.ObjectLockedError(
+                            "%s(%s) was already locked!" % (klass, api_id))
 
                 else:
                     # Object has no _lock field
@@ -618,8 +704,9 @@ class Driver(DbBase):
                                  "been saved" % api_id)
 
     def _get_object(self, klass, api_id, with_secrets=None, projection=None):
-        '''
-        Get an object by klass and api_id. We are filtering out the
+        '''Get an object by klass and api_id.
+
+        We are filtering out the
         mongo _id field with a projection on all db queries.
 
         :param klass: The klass to query from
@@ -640,14 +727,27 @@ class Driver(DbBase):
         return results
 
     def merge_secrets(self, klass, api_id, body):
+        '''Retrieve secret data and merge into body.'''
         secrets = (self.database()['%s_secrets' % klass].find_one(
             {'_id': api_id}, {'_id': 0}))
         if secrets:
-            merge_dictionary(body, secrets)
+            cmutils.merge_dictionary(body, secrets)
         return body
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
-                     limit=0, with_count=True, with_deleted=False):
+                     limit=0, with_count=True, with_deleted=False,
+                     status=None):
+        '''Returns a list of objects for the given Tenant ID.
+
+        :param klass: The klass to query from
+        :param tenant_id: Tenant ID
+        :param with_secrets: True if secret information should be included
+        :param offset: how many records to skip
+        :param limit: how many records to return
+        :param with_count: include a count of records being returned
+        :param with_deleted: include deleted records
+        :param status: limit results to those containing the specified status
+        '''
         if klass == self._deployment_collection_name:
             projection = self._deployment_projection
             sort_key = 'created'
@@ -666,7 +766,7 @@ class Driver(DbBase):
             limit = 0
         with self._get_client().start_request():
             results = self.database()[klass].find(self._build_filters(
-                klass, tenant_id, with_deleted), projection)
+                klass, tenant_id, with_deleted, status), projection)
             if sort_key:
                 results.sort(sort_key, sort_direction)
             results = results.skip(offset).limit(limit)
@@ -675,6 +775,17 @@ class Driver(DbBase):
             response['results'] = {}
 
             for entry in results:
+                if tenant_id and entry.get('tenantId') != tenant_id:
+                    LOG.warn(
+                        'Cross-Tenant Violation in _get_objects: requested '
+                        'tenant %s does not match tenant %s in response.'
+                        '\nLocals:\n %s\nGlobals:\n%s',
+                        tenant_id, entry.get('tenandId'), locals(), globals()
+                    )
+                    raise CheckmateDataIntegrityError(
+                        'A Tenant ID in the results does not match %s.',
+                        tenant_id
+                    )
                 if with_secrets is True:
                     entry = self.merge_secrets(klass, entry['id'], entry)
                 self.convert_data(klass, entry)
@@ -682,22 +793,45 @@ class Driver(DbBase):
 
             if with_count:
                 response['collection-count'] = self._get_count(
-                    klass, tenant_id, with_deleted)
+                    klass, tenant_id, with_deleted, status)
         return response
 
-    def _get_count(self, klass, tenant_id, with_deleted):
+    def _get_count(self, klass, tenant_id, with_deleted, status=None):
+        '''Returns a record count for the given tenant.
+
+        :param klass: the collection to query
+        :param tenant_id: The requested Tenant ID
+        :param with_deleted: if True, include deleted records in teh count
+        :param status: Used to restrict to a specific status
+        :return: An integer indicating how many records were found
+        '''
         return self.database()[klass].find(
-            self._build_filters(klass, tenant_id, with_deleted),
+            self._build_filters(klass, tenant_id, with_deleted, status),
             self._object_projection
         ).count()
 
     @staticmethod
-    def _build_filters(klass, tenant_id, with_deleted):
+    def _build_filters(klass, tenant_id, with_deleted, status=None):
+        '''Build MongoDB filters.
+
+        `with_deleted` is a handy shortcut for including/excluding deleted
+        deployments. For more complicated status filtering set `status`. The
+        default comparison is equality. To reverse it, prepend the status with
+        an exclamation mark. If `status` is set, `with_deleted` will be
+        ignored.
+
+        Examples:
+          - status = "UP" to find deployments in the "UP" state
+          - status = "!UP" to find deployments that are not in the "UP" state
+        '''
         filters = {}
         if tenant_id:
             filters['tenantId'] = tenant_id
-        if klass == Driver._deployment_collection_name and not with_deleted:
-            filters['status'] = {'$ne': 'DELETED'}
+        if klass == Driver._deployment_collection_name and (
+                not with_deleted or status):
+            if not status:
+                status = "!DELETED"
+            filters['status'] = _parse_comparison(status)
         return filters
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
@@ -707,7 +841,7 @@ class Driver(DbBase):
         overwrite the secrets. To clear the secrets for an object, a non-None
         dict needs to be passed in: ex. {}.
         '''
-        if isinstance(body, ExtensibleDict):
+        if isinstance(body, classes.ExtensibleDict):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by backend"
         assert 'id' in body or merge_existing is True, ("id required to be in "
@@ -717,7 +851,7 @@ class Driver(DbBase):
                 current = self._get_object(klass, api_id)
 
                 if current:
-                    merge_dictionary(current, body)
+                    cmutils.merge_dictionary(current, body)
                     body = current
                 else:
                     merge_existing = False  # so we can create a new one
@@ -730,7 +864,8 @@ class Driver(DbBase):
                     cur_secrets = self.database()['%s_secrets' % klass]. \
                         find_one({'_id': api_id}, {'_id': 0})
                     if cur_secrets:
-                        collate(cur_secrets, secrets, extend_lists=False)
+                        swutil.merge_dictionary(
+                            cur_secrets, secrets, extend_lists=False)
                         secrets = cur_secrets
             if tenant_id is not None:
                 body['tenantId'] = tenant_id

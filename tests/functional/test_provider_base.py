@@ -4,7 +4,7 @@ import uuid
 
 import mox
 from mox import IsA
-import unittest2 as unittest
+import unittest
 
 from checkmate.deployment import Deployment
 from checkmate.exceptions import CheckmateException

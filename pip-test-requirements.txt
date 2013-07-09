@@ -16,7 +16,6 @@ pylint
 nose
 nosexcover
 webtest
-unittest2
 mongobox
 
 # pymox

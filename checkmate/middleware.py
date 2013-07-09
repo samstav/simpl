@@ -258,6 +258,7 @@ class TokenAuthMiddleware(object):
                 LOG.error("Unable to authenticate as a service. Endpoint '%s' "
                           "will be auth using client token",
                           endpoint.get('kwargs', {}).get('realm'))
+        LOG.info("Listening for Keystone auth for %s", self.endpoint['uri'])
 
     def __call__(self, environ, start_response):
         '''Authenticate calls with X-Auth-Token to the source auth service'''
@@ -377,7 +378,7 @@ class TokenAuthMiddleware(object):
             'Accept': 'application/json',
         }
         LOG.debug('Validating token with %s', self.endpoint['uri'])
-        http = http_class(host, port)
+        http = http_class(host, port, timeout=10)
         try:
             http.request('GET', path, headers=headers)
             resp = http.getresponse()
@@ -629,7 +630,7 @@ class RequestContext(object):
         return (tenant_id or self.tenant) in (self.user_tenants or [])
 
     def set_context(self, content):
-        '''Updates context with current auth data'''
+        '''Updates context with current auth data.'''
         catalog = self.get_service_catalog(content)
         self.catalog = catalog
         user_tenants = self.get_user_tenants(content)
@@ -641,7 +642,7 @@ class RequestContext(object):
 
     @staticmethod
     def get_service_catalog(content):
-        '''Returns Service Catalog'''
+        '''Returns Service Catalog.'''
         return content['access'].get('serviceCatalog')
 
     @staticmethod
@@ -683,14 +684,14 @@ class RequestContext(object):
 
     @staticmethod
     def get_username(content):
-        '''Returns username'''
+        '''Returns username.'''
         # FIXME: when Global Auth implements name, remove the logic for 'id'
         user = content['access']['user']
         return user.get('name') or user.get('id')
 
     @staticmethod
     def get_roles(content):
-        '''Returns roles for a given user'''
+        '''Returns roles for a given user.'''
         user = content['access']['user']
         return [role['name'] for role in user.get('roles', [])]
 

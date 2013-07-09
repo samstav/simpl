@@ -9,7 +9,7 @@ For tests, we don't care about:
     W0232 - Class has no __init__ method '''
 
 import logging
-import unittest2 as unittest
+import unittest
 
 from celery.task import task
 

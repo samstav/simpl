@@ -1,144 +1,184 @@
 {
-	"1abc": { 
-	    "id": "1abc",
-	    "tenant_id":"12345",
-		"name": "test deployment 1",
-		"environment": "env-123-aa-bcdse",
-		"blueprint": "blp-123-aabc-efg",
-		"inputs":{
-			"blueprint":{
-				"option1":"foo",
-				"option2":"bar"
-			},
-			"providers":{
-				"provider_one":{
-					"prov_opt1": "baz",
-					"prov_opt2": "biff"
-				}
-			},
-			"services":{
-				"serv1": {
-					"database":{
-						"type":"MySQL",
-						"memory": "1G"
-					},
-					"compute":{
-						"memory": "512M",
-						"color": "blue"
-					}
-				},
-			 	"serv2":{
-					"app":{
-						"count": 5
-					}
-				}
-  			}
-  		}
-	},
-	"2def": { 
-	    "id": "2def",
-	    "tenant_id":"12345",
-		"name": "test deployment 2",
-		"environment": "env-123-aa-bcdse",
-		"blueprint": {
-		    "id":"blp123avc",
-		    "name":"Embedded Blueprint 1",
-		    "description":"Blueprint embedded in deployment",
-		    "services":{
-		        "lb":{
-		            "component":{
-		                "type":"loadbalancer",
-		                "interface":"http"
-		            },
-		            "relations":{
-		                "web":"http",
-		                "master":"http"
-		            }
-		        },
-		        "web":{
-		            "component":{
-		                "type":"wordpress",
-		                "interface":"http"
-		            },
-		            "relations":{
-		             	"master":"http"   
-		            }
-		        },
-		        "master":{
-		            "component":{
-		                "type":"wordpress-master",
-		                "inferface":"http"
-		            },
-		            "relations":{
-		             	"web":"http"   
-		            }
-		        }
-		    }
-		},
-		"inputs":{
-			"blueprint":{
-				"option3":"foo",
-				"option4":"bar"
-			},
-			"providers":{
-				"provider_one":{
-					"prov_opt1":"boff",
-					"prov_opt2":"bam"
-				}
-			},
-			"services":{
-				"serv1": {
-					"database":{
-						"type":"MySQL",
-						"memory": "1G"
-					},
-					"compute":{
-						"memory": "512M",
-						"color": "blue"
-					}
-				},
-			 	"serv2":{
-					"app":{
-						"count": 5
-					}
-				}
-  			}
-  		}
-	},
-	"3fgh": { 
-	    "id": "3fgh",
-		"name": "test deployment 3",
-		"tenant_id":"854673",
-		"environment": "env-456-bb-bsdsa",
-		"blueprint": "blp-123-aabc-efg",
-		"inputs":{
-			"blueprint":{
-				"option1":"foo",
-				"option2":"bar"
-			},
-			"providers":{
-				"provider_one":{
-					"prov_opt1": "baz",
-					"prov_opt2": "biff"
-				}
-			},
-			"services":{
-				"serv1": {
-					"database":{
-						"type":"MySQL",
-						"memory": "1G"
-					},
-					"compute":{
-						"memory": "512M",
-						"color": "blue"
-					}
-				},
-			 	"serv2":{
-					"app":{
-						"count": 5
-					}
-				}
-  			}
-  		}
-	}
+    "_links": {},
+    "collection-count": 4,
+    "results": {
+    	"1abc": { 
+    	    "id": "1abc",
+    	    "tenant_id":"12345",
+    		"name": "test deployment 1",
+    		"environment": "env-123-aa-bcdse",
+    		"blueprint": "blp-123-aabc-efg",
+    		"inputs":{
+    			"blueprint":{
+    				"option1":"foo",
+    				"option2":"bar"
+    			},
+    			"providers":{
+    				"provider_one":{
+    					"prov_opt1": "baz",
+    					"prov_opt2": "biff"
+    				}
+    			},
+    			"services":{
+    				"serv1": {
+    					"database":{
+    						"type":"MySQL",
+    						"memory": "1G"
+    					},
+    					"compute":{
+    						"memory": "512M",
+    						"color": "blue"
+    					}
+    				},
+    			 	"serv2":{
+    					"app":{
+    						"count": 5
+    					}
+    				}
+      			}
+      		}
+    	},
+    	"2def": { 
+    	    "id": "2def",
+    	    "tenant_id":"12345",
+    		"name": "test deployment 2",
+    		"environment": "env-123-aa-bcdse",
+    		"blueprint": {
+    		    "id":"blp123avc",
+    		    "name":"Embedded Blueprint 1",
+    		    "description":"Blueprint embedded in deployment",
+    		    "services":{
+    		        "lb":{
+    		            "component":{
+    		                "type":"loadbalancer",
+    		                "interface":"http"
+    		            },
+    		            "relations":{
+    		                "web":"http",
+    		                "master":"http"
+    		            }
+    		        },
+    		        "web":{
+    		            "component":{
+    		                "type":"wordpress",
+    		                "interface":"http"
+    		            },
+    		            "relations":{
+    		             	"master":"http"   
+    		            }
+    		        },
+    		        "master":{
+    		            "component":{
+    		                "type":"wordpress-master",
+    		                "inferface":"http"
+    		            },
+    		            "relations":{
+    		             	"web":"http"   
+    		            }
+    		        }
+    		    }
+    		},
+    		"inputs":{
+    			"blueprint":{
+    				"option3":"foo",
+    				"option4":"bar"
+    			},
+    			"providers":{
+    				"provider_one":{
+    					"prov_opt1":"boff",
+    					"prov_opt2":"bam"
+    				}
+    			},
+    			"services":{
+    				"serv1": {
+    					"database":{
+    						"type":"MySQL",
+    						"memory": "1G"
+    					},
+    					"compute":{
+    						"memory": "512M",
+    						"color": "blue"
+    					}
+    				},
+    			 	"serv2":{
+    					"app":{
+    						"count": 5
+    					}
+    				}
+      			}
+      		}
+    	},
+    	"3fgh": { 
+    	    "id": "3fgh",
+    		"name": "test deployment 3",
+    		"tenant_id":"854673",
+    		"environment": "env-456-bb-bsdsa",
+    		"blueprint": "blp-123-aabc-efg",
+    		"inputs":{
+    			"blueprint":{
+    				"option1":"foo",
+    				"option2":"bar"
+    			},
+    			"providers":{
+    				"provider_one":{
+    					"prov_opt1": "baz",
+    					"prov_opt2": "biff"
+    				}
+    			},
+    			"services":{
+    				"serv1": {
+    					"database":{
+    						"type":"MySQL",
+    						"memory": "1G"
+    					},
+    					"compute":{
+    						"memory": "512M",
+    						"color": "blue"
+    					}
+    				},
+    			 	"serv2":{
+    					"app":{
+    						"count": 5
+    					}
+    				}
+      			}
+      		}
+    	},
+        "4ijk": { 
+    	    "id": "4ijk",
+    	    "tenant_id":"987654",
+    		"name": "test deployment 1",
+    		"environment": "env-123-aa-bcdse",
+    		"blueprint": "blp-123-hijk-lmn",
+    		"inputs":{
+    			"blueprint":{
+    				"option1":"foo",
+    				"option2":"bar"
+    			},
+    			"providers":{
+    				"provider_one":{
+    					"prov_opt1": "baz",
+    					"prov_opt2": "biff"
+    				}
+    			},
+    			"services":{
+    				"serv1": {
+    					"database":{
+    						"type":"MySQL",
+    						"memory": "1G"
+    					},
+    					"compute":{
+    						"memory": "512M",
+    						"color": "blue"
+    					}
+    				},
+    			 	"serv2":{
+    					"app":{
+    						"count": 5
+    					}
+    				}
+      			}
+      		}
+    	}
+    }
 }
