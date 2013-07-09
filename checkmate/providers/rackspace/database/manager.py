@@ -18,7 +18,7 @@ LOG = logging.getLogger(__name__)
 class Manager(object):
     '''Contains database provider model and logic for interaction.'''
 
-    def wait_on_build_pop(self, instance_id, api, callback, simulate=False):
+    def wait_on_build(self, instance_id, api, callback, simulate=False):
         '''Checks provider resource.  Returns True when built otherwise False.
         If resource goes into error state, raises exception.
         '''
@@ -40,7 +40,7 @@ class Manager(object):
 
         return status == 'ACTIVE'
 
-    def sync_resource_pop(self, resource, resource_key, api, callback,
+    def sync_resource(self, resource, resource_key, api, callback,
                           simulate=False):
         '''Syncronizes provider status with checkmate resource status.'''
         if simulate:

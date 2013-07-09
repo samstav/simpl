@@ -18,7 +18,7 @@ class test_database(unittest.TestCase):
     def setUp(self):
         self.MANAGER = Manager()
 
-    def test_wait_on_build_pop_true(self):
+    def test_wait_on_build_true(self):
         '''Verifies method calls and returns True.'''
         instance_id = 1234
         api = mock.Mock()
@@ -29,14 +29,14 @@ class test_database(unittest.TestCase):
         api.get_instance = mock.MagicMock(return_value=instance)
         callback = mock.MagicMock(return_value=True)
 
-        results = self.MANAGER.wait_on_build_pop(instance_id, api, callback)
+        results = self.MANAGER.wait_on_build(instance_id, api, callback)
 
         api.get_instance.assert_called_with(instance_id)
         callback.assert_called_with({'status': 'ACTIVE'})
 
         self.assertEqual(results, True)
 
-    def test_wait_on_build_pop_false(self):
+    def test_wait_on_build_false(self):
         '''Verifies method calls and returns False.'''
         instance_id = 1234
         api = mock.Mock()
@@ -47,14 +47,14 @@ class test_database(unittest.TestCase):
         api.get_instance = mock.MagicMock(return_value=instance)
         callback = mock.MagicMock(return_value=True)
 
-        results = self.MANAGER.wait_on_build_pop(instance_id, api, callback)
+        results = self.MANAGER.wait_on_build(instance_id, api, callback)
 
         api.get_instance.assert_called_with(instance_id)
         callback.assert_called_with({'status': 'BUILDING'})
 
         self.assertEqual(results, False)
 
-    def test_wait_on_build_pop_resumable(self):
+    def test_wait_on_build_resumable(self):
         '''Verifies method calls and returns True.'''
         instance_id = 1234
         api = mock.Mock()
@@ -66,13 +66,13 @@ class test_database(unittest.TestCase):
                                           "test", "message"))
         callback = mock.MagicMock(return_value=True)
         try:
-            self.MANAGER.wait_on_build_pop(instance_id, api, callback)
+            self.MANAGER.wait_on_build(instance_id, api, callback)
         except CheckmateResumableException as exc:
             self.assertEqual(exc.message, 'message')
             self.assertEqual(exc.error_help, 'test')
             self.assertEqual(exc.error_type, 'RS_DB_ResponseError')
 
-    def test_wait_on_build_pop_error(self):
+    def test_wait_on_build_error(self):
         '''Verifies method calls and returns False.'''
         instance_id = 1234
         api = mock.Mock()
@@ -83,10 +83,10 @@ class test_database(unittest.TestCase):
         api.get_instance = mock.MagicMock(return_value=instance)
         callback = mock.MagicMock(return_value=True)
 
-        self.assertRaises(CheckmateException, self.MANAGER.wait_on_build_pop,
+        self.assertRaises(CheckmateException, self.MANAGER.wait_on_build,
                           instance_id, api, callback)
 
-    def test_sync_resource_pop_success(self):
+    def test_sync_resource_success(self):
         '''Verifies method calls and returns success results.'''
         resource = {
             'instance': {
@@ -101,12 +101,12 @@ class test_database(unittest.TestCase):
         expected = {'status': 'ACTIVE'}
         api.get_instance = mock.MagicMock(return_value=database)
         
-        results = self.MANAGER.sync_resource_pop(resource, resource_key, api,
-                                                 callback)
+        results = self.MANAGER.sync_resource(resource, resource_key, api,
+                                             callback)
         api.get_instance.assert_called_with(str(resource_key))
         self.assertEqual(results, expected)
 
-    def test_sync_resource_pop_not_found(self):
+    def test_sync_resource_not_found(self):
         '''Verifies method calls and returns deleted results.'''
         resource = {
             'instance': {
@@ -119,12 +119,12 @@ class test_database(unittest.TestCase):
         expected = {'status': 'DELETED'}
         api.get_instance = mock.MagicMock(side_effect=cdb_errors.ResponseError(
                                           "test", "message"))        
-        results = self.MANAGER.sync_resource_pop(resource, resource_key, api,
-                                                 callback)
+        results = self.MANAGER.sync_resource(resource, resource_key, api,
+                                             callback)
         api.get_instance.assert_called_with(str(resource_key))
         self.assertEqual(results, expected)
 
-    def test_sync_resource_pop_missing_id(self):
+    def test_sync_resource_missing_id(self):
         '''Verifies method calls and returns deleted results for missing id.'''
         resource = {
             'instance': {}
@@ -133,8 +133,8 @@ class test_database(unittest.TestCase):
         api = mock.Mock()
         callback = mock.Mock()
         expected = {'status': 'DELETED'}
-        results = self.MANAGER.sync_resource_pop(resource, resource_key, api,
-                                                 callback)
+        results = self.MANAGER.sync_resource(resource, resource_key, api,
+                                             callback)
         self.assertEqual(results, expected)
 
 
