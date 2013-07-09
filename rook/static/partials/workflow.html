@@ -4,7 +4,7 @@
       <button ng-click="workflow_action(data.id, 'execute')" class="btn" tooltip="Run workflow" tooltip-placement="right" ng-hide="is_paused()"><i class="icon-play"></i></button>
       <button ng-click="workflow_action(data.id, 'pause')" class="btn" tooltip="Pause Workflow" tooltip-placement="right" ng-hide="is_paused()"><i class="icon-pause"></i></button>
       <button ng-click="workflow_action(data.id, 'resume')" class="btn" tooltip="Resume Workflow" tooltip-placement="right" ng-show="is_paused()"><i class="icon-play"></i></button>
-      <button ng-click="navigate(data.tenantId + '/workflows/' + data.id + '/status')" class="btn" tooltip="Check status" tooltip-placement="right"><i class="icon-heart"></i></button>
+      <button ng-click="navigate(data.tenantId + '/workflows/' + data.attributes.deploymentId + '/status')" class="btn" tooltip="Check status" tooltip-placement="right"><i class="icon-heart"></i></button>
     </div>
     <div class="bottom" ng-cloak ng-show="data">
       <button ng-click="load()" class="btn" tooltip="Refresh" tooltip-placement="right"><i class="icon-repeat"></i></button>
