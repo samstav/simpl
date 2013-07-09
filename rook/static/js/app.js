@@ -1072,7 +1072,11 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
       var deployments = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json');
-      $scope.deployment = deployments.get($routeParams, function () { $scope.start_tree_preview('#workflow_tree') });
+      var params = angular.extend({}, $routeParams);
+      if(object.attributes)
+        params['id'] = object.attributes.deploymentId;
+
+      $scope.deployment = deployments.get(params, function () { $scope.start_tree_preview('#workflow_tree') });
 
       $scope.data = object;
       items.tasks = workflow.flattenTasks({}, object.task_tree);
