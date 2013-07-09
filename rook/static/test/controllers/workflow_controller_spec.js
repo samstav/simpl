@@ -48,48 +48,6 @@ describe('WorkflowController', function(){
     expect($scope.showControls).toBe(true);
   });
 
-  describe('shouldDisplayWorkflowStatus', function(){
-    describe('operation is a workflow operation', function(){
-      beforeEach(function(){
-        $scope.$parent = { data:
-          { operation:
-            { link: '/111/workflows/some_id' }
-          }
-        };
-      });
-
-      it('should return true if status is in progress', function(){
-        $scope.$parent.data.operation.status = 'IN PROGRESS';
-        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
-        expect($scope.shouldDisplayWorkflowStatus()).toBe(true);
-      });
-
-      it('should return true if status is paused', function(){
-        $scope.$parent.data.operation.status = 'PAUSED';
-        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
-        expect($scope.shouldDisplayWorkflowStatus()).toBe(true);
-      });
-
-      it('should return false if status is not in progress or paused', function(){
-        $scope.$parent.data.operation.status = 'DELETED';
-        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
-        expect($scope.shouldDisplayWorkflowStatus()).toBe(false);
-      });
-    });
-
-    describe('operation is not a workflow operation', function(){
-      it('should return false', function(){
-        $scope.$parent = { data:
-          { operation:
-            { link: '/111/canvases/some_id' }
-          }
-        };
-        controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
-        expect($scope.shouldDisplayWorkflowStatus()).toBe(false);
-      });
-    });
-  });
-
   describe('logged in, resource.get callback in #load', function(){
     beforeEach(function(){
       items = {};

@@ -1045,16 +1045,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     retry: true
   };
 
-  $scope.shouldDisplayWorkflowStatus = function() {
-    var operation = $scope.$parent.data.operation;
-    if(operation){
-      var is_workflow_operation = operation.link.split('/').indexOf('workflows') !== -1;
-      return (operation.status == 'IN PROGRESS' || operation.status == 'PAUSED') && is_workflow_operation;
-    } else {
-      return false;
-    }
-  }
-
   $scope.toggle_task_traceback = function(task_type) {
     $scope.hide_task_traceback[task_type] = !$scope.hide_task_traceback[task_type];
   };
@@ -3001,6 +2991,16 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         }
     }).open('/partials/secrets.html', 'SecretsController');
   };
+
+  $scope.shouldDisplayWorkflowStatus = function() {
+    var operation = $scope.data.operation;
+    if(operation){
+      var is_workflow_operation = operation.link.split('/').indexOf('workflows') !== -1;
+      return (operation.status == 'IN PROGRESS' || operation.status == 'PAUSED') && is_workflow_operation;
+    } else {
+      return false;
+    }
+  }
 
   $scope.urlBuilder = urlBuilder;
 

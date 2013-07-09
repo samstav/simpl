@@ -266,4 +266,38 @@ describe('DeploymentController', function(){
       });
     });
   });
+
+  describe('shouldDisplayWorkflowStatus', function(){
+    describe('operation is a workflow operation', function(){
+      beforeEach(function(){
+        $scope.data = { operation: { link: '/111/workflows/some_id' } };
+      });
+
+      it('should return true if status is in progress', function(){
+        controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment);
+        $scope.data = { operation: { link: '/111/workflows/some_id', status: 'IN PROGRESS' } };
+        expect($scope.shouldDisplayWorkflowStatus()).toBe(true);
+      });
+
+      it('should return true if status is paused', function(){
+        controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment);
+        $scope.data = { operation: { link: '/111/workflows/some_id', status: 'PAUSED' } };
+        expect($scope.shouldDisplayWorkflowStatus()).toBe(true);
+      });
+
+      it('should return false if status is not in progress or paused', function(){
+        controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment);
+        $scope.data = { operation: { link: '/111/workflows/some_id', status: 'DELETED' } };
+        expect($scope.shouldDisplayWorkflowStatus()).toBe(false);
+      });
+    });
+
+    describe('operation is not a workflow operation', function(){
+      it('should return false', function(){
+        controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment);
+        $scope.data = { operation: { link: '/111/canvases/some_id' } };
+        expect($scope.shouldDisplayWorkflowStatus()).toBe(false);
+      });
+    });
+  });
 });
