@@ -52,15 +52,14 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
     if db.any_id_problems(entity['id']):
-        raise CheckmateValidationException(
-            db.any_id_problems(entity['id']))
+        raise CheckmateValidationException(db.any_id_problems(entity['id']))
     deployment = cmdeploy.Deployment(entity)  # Also validates syntax
     if 'includes' in deployment:
         del deployment['includes']
     if 'tenantId' in deployment and tenant_id:
         if deployment['tenantId'] != tenant_id:
-            raise CheckmateValidationException(
-                "tenantId must match with current tenant ID")
+            raise CheckmateValidationException("tenantId must match "
+                                               "with current tenant ID")
     else:
         assert tenant_id, "Tenant ID must be specified in deployment "
         deployment['tenantId'] = tenant_id
@@ -150,9 +149,9 @@ class Router(object):
 
         Triggers workflow execution.
         '''
-
         deployment = _content_to_deployment(bottle.request,
                                             tenant_id=tenant_id)
+
         is_simulation = bottle.request.context.simulation
         if is_simulation:
             deployment['id'] = utils.get_id(is_simulation)
@@ -237,8 +236,8 @@ class Router(object):
             bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
-                        "by %s", api_id, tenant_id,
-                        bottle.request.context.username)
+                        "by %s", api_id,
+                        tenant_id, bottle.request.context.username)
             bottle.abort(404)
 
         return utils.write_body(entity, bottle.request, bottle.response)
@@ -275,8 +274,7 @@ class Router(object):
             bottle.request.context.simulation = True
         deployment = self.manager.get_deployment(api_id)
         if not deployment:
-            raise CheckmateDoesNotExist(
-                "No deployment with id %s" % api_id)
+            raise CheckmateDoesNotExist("No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
         if bottle.request.query.get('force') != '1':
             if not deployment.fsm.permitted('DELETED'):
@@ -333,9 +331,9 @@ class Router(object):
         if not entity:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
         if entity.get('status', 'NEW') != 'NEW':
-            raise CheckmateBadState(
-                "Deployment '%s' is in '%s' status and must be in 'NEW' to "
-                "be planned" % (api_id, entity.get('status')))
+            raise CheckmateBadState("Deployment '%s' is in '%s' status and "
+                                    "must be in 'NEW' to be planned" %
+                                    (api_id, entity.get('status')))
         deployment = cmdeploy.Deployment(entity)  # Also validates syntax
         planned_deployment = self.manager.plan(
             deployment, bottle.request.context)
@@ -351,10 +349,8 @@ class Router(object):
             bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id)
         if not entity:
-            raise CheckmateDoesNotExist(
-                'No deployment with id %s' % api_id)
+            raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)
-
         statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})
@@ -377,10 +373,10 @@ class Router(object):
         if entity.get('status', 'NEW') == 'NEW':
             deployment = self.manager.plan(deployment, bottle.request.context)
         if entity.get('status') != 'PLANNED':
-            raise CheckmateBadState(
-                "Deployment '%s' is in '%s' status and must be in 'PLANNED' "
-                "or 'NEW' status to be deployed" % (api_id,
-                                                    entity.get('status')))
+            raise CheckmateBadState("Deployment '%s' is in '%s' status and "
+                                    "must be in 'PLANNED' or 'NEW' status to "
+                                    "be deployed" % (api_id,
+                                                     entity.get('status')))
 
         # Create a 'new deployment' workflow
         self.manager.deploy(deployment, bottle.request.context)
