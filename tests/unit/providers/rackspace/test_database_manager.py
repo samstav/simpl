@@ -93,17 +93,14 @@ class test_database(unittest.TestCase):
                 'id': '123'
             }
         }
-        resource_key = 123
         api = mock.Mock()
         database = mock.Mock()
         database.status = 'ACTIVE'
-        callback = mock.Mock()
         expected = {'status': 'ACTIVE'}
         api.get_instance = mock.MagicMock(return_value=database)
         
-        results = self.MANAGER.sync_resource(resource, resource_key, api,
-                                             callback)
-        api.get_instance.assert_called_with(str(resource_key))
+        results = self.MANAGER.sync_resource(resource, api)
+        api.get_instance.assert_called_with('123')
         self.assertEqual(results, expected)
 
     def test_sync_resource_not_found(self):
@@ -113,15 +110,12 @@ class test_database(unittest.TestCase):
                 'id': '123'
             }
         }
-        resource_key = 123
         api = mock.Mock()
-        callback = mock.Mock()
         expected = {'status': 'DELETED'}
         api.get_instance = mock.MagicMock(side_effect=cdb_errors.ResponseError(
                                           "test", "message"))        
-        results = self.MANAGER.sync_resource(resource, resource_key, api,
-                                             callback)
-        api.get_instance.assert_called_with(str(resource_key))
+        results = self.MANAGER.sync_resource(resource, api)
+        api.get_instance.assert_called_with('123')
         self.assertEqual(results, expected)
 
     def test_sync_resource_missing_id(self):
@@ -129,12 +123,9 @@ class test_database(unittest.TestCase):
         resource = {
             'instance': {}
         }
-        resource_key = 123
         api = mock.Mock()
-        callback = mock.Mock()
         expected = {'status': 'DELETED'}
-        results = self.MANAGER.sync_resource(resource, resource_key, api,
-                                             callback)
+        results = self.MANAGER.sync_resource(resource, api)
         self.assertEqual(results, expected)
 
 

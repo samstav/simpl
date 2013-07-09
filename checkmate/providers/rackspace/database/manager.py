@@ -40,8 +40,7 @@ class Manager(object):
 
         return status == 'ACTIVE'
 
-    def sync_resource(self, resource, resource_key, api, callback,
-                          simulate=False):
+    def sync_resource(self, resource, api, simulate=False):
         '''Syncronizes provider status with checkmate resource status.'''
         if simulate:
             results = {'status': 'ACTIVE'}
