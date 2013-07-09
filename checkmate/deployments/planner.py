@@ -11,13 +11,11 @@ from checkmate.classes import ExtensibleDict
 from checkmate.deployment import (
     validate_blueprint_options,
     validate_input_constraints,
-    Deployment,
 )
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException
 )
-from checkmate.middleware import RequestContext
 from checkmate.resource import Resource
 
 LOG = logging.getLogger(__name__)

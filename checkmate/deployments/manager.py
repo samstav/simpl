@@ -445,3 +445,31 @@ class Manager(base.ManagerBase):
 
         LOG.debug("Updated deployment %s with postback", deployment_id,
                   extra=dict(data=contents))
+
+    def add_nodes(self, deployment, context, service_name, count,
+                  parse_only=False):
+        '''Process a new checkmate deployment and plan for execution.
+
+        This creates templates for resources and connections that will be used
+        for the actual creation of resources.
+
+        :param deployment: checkmate deployment instance (dict)
+        :param context: RequestContext (auth data, etc) for making API calls
+        '''
+        assert context.__class__.__name__ == 'RequestContext'
+        assert isinstance(deployment, Deployment)
+
+        # Analyze Deployment and Create plan
+        planner = Planner(deployment, parse_only, deployment.get('plan', {}))
+        resources = planner.plan_additional_nodes(context, service_name, count)
+        if resources:
+            deployment['resources'] = resources
+
+        # Save plan details for future rehydration/use
+        deployment['plan'] = planner._data  # get dict so we can serialize it
+
+        # Mark deployment as planned and return it (nothing has been saved yet)
+        deployment['status'] = 'PLANNED'
+        LOG.info("Deployment '%s' planning complete and status changed to %s",
+                 deployment['id'], deployment['status'])
+        return deployment
