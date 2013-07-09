@@ -1050,7 +1050,8 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
             auth.context = auth.create_context(response.data, params);
             auth.identity = auth.create_identity(response.data, params);
             auth.identity.context = _.clone(auth.context);
-            auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
+            if (auth.is_admin())
+              auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
             auth.save();
             auth.check_state();
 
