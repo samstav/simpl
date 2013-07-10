@@ -8,7 +8,6 @@ describe('WorkflowController', function(){
       $window,
       auth,
       workflow,
-      items,
       scroll,
       deploymentDataParser,
       $timeout,
@@ -24,12 +23,11 @@ describe('WorkflowController', function(){
     $window = {};
     auth = { identity: {} };
     workflow = { flattenTasks: emptyFunction };
-    items = {};
     scroll = {};
     $timeout = {};
     $q = { defer: sinon.stub().returns({ resolve: emptyFunction, promise: {} }) };
     urlBuilder = {};
-    controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
+    controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
   });
 
   it('should show status', function(){
@@ -50,7 +48,6 @@ describe('WorkflowController', function(){
 
   describe('logged in, resource.get callback in #load', function(){
     beforeEach(function(){
-      items = {};
       auth.identity = { loggedIn: true };
       $resource = sinon.stub().returns({ get: emptyFunction });
       $location = { path: sinon.stub().returns('/status') };
@@ -63,7 +60,7 @@ describe('WorkflowController', function(){
       var data = { wf_spec: ['cat'] };
       var get_spy = sinon.spy();
       $resource = sinon.stub().returns({ get: get_spy });
-      controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
+      controller = new WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, scroll, deploymentDataParser, $timeout, $q, urlBuilder);
       var callback = get_spy.getCall(0).args[1];
       callback(data, emptyFunction);
     });

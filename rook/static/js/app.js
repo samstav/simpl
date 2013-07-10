@@ -984,7 +984,7 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
   };
 }
 
-function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder) {
+function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, scroll, deploymentDataParser, $timeout, $q, urlBuilder) {
   //Scope variables
 
   $scope.showStatus = true;
@@ -1041,10 +1041,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       $scope.deployment = deployments.get(params, function () { $scope.start_tree_preview('#workflow_tree') });
 
       $scope.data = object;
-      items.tasks = workflow.flattenTasks({}, object.task_tree);
-      items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
-      $scope.count = items.all.length;
-      var statistics = workflow.calculateStatistics(items.all);
+      $scope.tasks = workflow.flattenTasks({}, object.task_tree);
+      var all_tasks = workflow.parseTasks($scope.tasks, object.wf_spec.task_specs);
+      $scope.count = all_tasks.length;
+      var statistics = workflow.calculateStatistics(all_tasks);
       $scope.totalTime = statistics.totalTime;
       $scope.timeRemaining = statistics.timeRemaining;
       $scope.taskStates = statistics.taskStates;
@@ -1170,16 +1170,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.parse = function(object) {
       $scope.data = object;
       if (typeof object == 'object' && 'task_tree' in object) {
-        items.tasks = workflow.flattenTasks({}, object.task_tree);
-        items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
-        $scope.count = items.all.length;
-        var statistics = workflow.calculateStatistics(items.all);
+        $scope.tasks = workflow.flattenTasks({}, object.task_tree);
+        var all_tasks = workflow.parseTasks($scope.tasks, object.wf_spec.task_specs);
+        $scope.count = all_tasks.length;
+        var statistics = workflow.calculateStatistics(all_tasks);
         $scope.totalTime = statistics.totalTime;
         $scope.timeRemaining = statistics.timeRemaining;
         $scope.taskStates = statistics.taskStates;
         $scope.percentComplete = (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
-      } else {
-        items.clear();
       }
   };
 
@@ -1188,7 +1186,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     $scope.current_spec = $scope.data.wf_spec.task_specs[$scope.current_spec_index];
     $scope.current_spec_json = JSON.stringify($scope.current_spec, null, 2);
 
-    var alltasks = items.tasks;
+    var alltasks = $scope.tasks;
     var tasks = _.filter(alltasks, function(task, key) {
         return task.task_spec == spec_id;
       });
@@ -1293,7 +1291,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   //Return all tasks for a spec
   $scope.spec_tasks = function(spec_id) {
-    return _.filter(items.tasks || [], function(task, key) {
+    return _.filter($scope.tasks || [], function(task, key) {
         return task.task_spec == spec_id;
       });
   };
