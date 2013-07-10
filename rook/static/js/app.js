@@ -3004,7 +3004,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     var operation = $scope.data.operation;
     if(operation){
       var is_workflow_operation = operation.link.split('/').indexOf('workflows') !== -1;
-      return (operation.status == 'IN PROGRESS' || operation.status == 'PAUSED') && is_workflow_operation;
+      return (operation.status == 'NEW' || operation.status == 'IN PROGRESS' || operation.status == 'PAUSED') && is_workflow_operation;
     } else {
       return false;
     }
