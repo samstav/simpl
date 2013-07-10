@@ -22,7 +22,7 @@
       <p>Select one of the blueprints below:</p>
     </div>
   </div>
-  <div id="mcspec_list" class="summaries" ng-cloak ng-show="showSummaries">
+  <div id="mcspec_list" class="summaries" ng-cloak ng-show="showSummaries" ng-init="loadWordpressBlueprints()">
     <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item.selected}">
       <div class="row-fluid">
         <div class="span1"><input type="radio" name="sbp" value="{{item.key + ''}}" ng-model="$parent.selected_key"></input></div>

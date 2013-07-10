@@ -2462,12 +2462,13 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
         data.blueprint.options.region.choice = $scope.auth.context.regions;
       }
       WPBP[remote.url] = data.blueprint;
-      var new_blueprints = {};
-      new_blueprints[remote.url] = data.blueprint;
-      items.receive(new_blueprints, function(item, key) {
-        return {key: remote.url, id: item.id, name: item.name, description: item.description, remote: remote, selected: false};});
-      $scope.count = items.count;
-      $scope.items = items.all;
+      var new_blueprint = {};
+      new_blueprint[remote.url] = data.blueprint;
+      var received_items = items.receive(new_blueprint, function(item, key) {
+        return {key: remote.url, id: item.id, name: item.name, description: item.description, remote: remote, selected: false};
+      });
+      $scope.items.push(received_items.all[0]);
+      $scope.count = $scope.items.length;
     }
   };
 
@@ -2608,12 +2609,15 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
   //Load the latest supported blueprints (tagged as stable) from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#stable');
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#stable');
+  $scope.loadWordpressBlueprints = function(){
+    $scope.items = [];
+    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#stable');
+    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#stable');
 
-  //Load the latest master from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#master');
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#master');
+    //Load the latest master from github
+    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#master');
+    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#master');
+  }
 
   $('#mcspec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
 }

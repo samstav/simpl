@@ -36,7 +36,7 @@ describe('items', function(){
                 { name: 'dog' }];
         var received = items.receive(data);
         items.all.push({ name: 'bear' });
-        expect(received.all.length).not.toEqual(3);
+        expect(received.all.length).toEqual(2);
       });
     });
 

@@ -307,18 +307,26 @@ services.factory('items', [ 'filterFilter', function($resource, filter) {
 
     receive: function(list, transform) {
       console.log("Receiving");
+      var all_items = [],
+          data = {},
+          transformed;
       if (transform === null || transform === undefined)
           transform = function(item) {return item;};
-      for (var attrname in list) { items.data[attrname] = list[attrname]; }
+      for (var attrname in list) {
+        items.data[attrname] = list[attrname];
+        data[attrname] = list[attrname];
+      }
       angular.forEach(list, function(value, key) {
-        this.push(transform(value, key));
-      }, items.all);
+        transformed = transform(value, key);
+        all_items.push(transformed);
+        items.all.push(transformed);
+      });
       items.count = items.all.length;
       items.filtered = items.all;
       console.log('Done receiving ' + items.count + ' entries');
-      return { count: items.all.length,
-               all:   angular.copy(items.all),
-               data:  angular.copy(items.data) };
+      return { count: all_items.length,
+               all:   all_items,
+               data:  data };
     },
 
     clear: function() {
