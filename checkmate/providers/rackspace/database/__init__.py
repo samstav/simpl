@@ -21,6 +21,7 @@ from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateBadState,
+    CheckmateResumableException,
 )
 from checkmate.utils import (
     match_celery_logging,
@@ -52,7 +53,10 @@ get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, instance_id, region, api=None):
     '''Celery task registration for backwards comp.'''
-    _wait_on_build(context, instance_id, api=api)
+    try:
+        return _wait_on_build(context, instance_id, api=api)
+    except CheckmateResumableException as exc:
+        return wait_on_build.retry(exc=exc)
 
 
 @task

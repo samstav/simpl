@@ -673,17 +673,10 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'resource': key,
                 }, {  # wait_on_build
                     'call': 'checkmate.providers.rackspace.database.'
-                            'wait_on_build',
+                            'tasks.wait_on_build',
                     'args': [
                         Func(is_good_context),
                         IgnoreArg(),
-                        self.deployment.get_setting(
-                            'region',
-                            resource_type='compute',
-                            service_name=resource['service'],
-                            provider_key=resource['provider'],
-                            default='testonia'
-                        )
                     ],
                     'kwargs': IgnoreArg(),
                     'result': {

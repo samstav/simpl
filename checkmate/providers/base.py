@@ -604,7 +604,7 @@ class ProviderTask(Task):
         try:
             data = self.run(context, *args, **kwargs)
         except RetryTaskError:
-            raise  # task is already being retried.
+            return self.retry(exc=exc)
         except CheckmateResumableException as exc:
             return self.retry(exc=exc)
         

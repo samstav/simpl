@@ -50,8 +50,10 @@ class Manager(object):
             data['status-message'] = ''
         else:
             callback(data)
-            raise CheckmateResumableException('Not Active', 'Waiting on '
-                                               'ACTIVE status', 'Resumable')
+            msg = 'DB instance in status %s' % data['status']
+            help = 'DB status is not ACTIVE'
+            raise CheckmateResumableException(msg, help, 'Retriable')
+
         return data
 
     @staticmethod
