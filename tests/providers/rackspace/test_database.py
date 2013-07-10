@@ -13,7 +13,6 @@ from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import database, checkmate
 from checkmate.providers.rackspace.database import (
     provider as db_provider,
-    tasks as db_tasks,
 )
 from checkmate.test import StubbedWorkflowBase, ProviderTester
 from checkmate import utils
@@ -40,8 +39,8 @@ class TestDatabase(ProviderTester):
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
 
-        #Stub out wiat_on_build
-        self.mox.StubOutWithMock(db_tasks.wait_on_build, 'delay')
+        #Stub out wait_on_build
+        self.mox.StubOutWithMock(database.wait_on_build, 'delay')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()

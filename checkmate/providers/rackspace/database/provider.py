@@ -296,7 +296,7 @@ class Provider(ProviderBase):
             wait_task = Celery(wfspec,
                                'Wait on Database Instance %s' % key,
                                'checkmate.providers.rackspace.database.'
-                               'tasks.wait_on_build',
+                               'wait_on_build',
                                call_args=[
                                    context.get_queued_task_dict(
                                        deployment=deployment['id'],
