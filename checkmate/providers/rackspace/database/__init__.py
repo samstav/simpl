@@ -12,8 +12,8 @@ from clouddb.errors import ResponseError
 from .manager import Manager
 from .provider import Provider
 from .tasks import (
-    wait_on_build,
-    sync_resource_task,
+    wait_on_build as _wait_on_build,
+    sync_resource_task as _sync_resource_task,
 )
 
 from checkmate.deployments import resource_postback
@@ -49,6 +49,16 @@ get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 #
 # Celery tasks
 #
+@task(default_retry_delay=30, max_retries=120, acks_late=True)
+def wait_on_build(context, instance_id, region, api=None):
+    '''Celery task registration for backwards comp.'''
+    _wait_on_build(context, instance_id, api=api)
+
+@task
+def sync_resource_task(context, resource, resource_key, api=None):
+    '''Celery task registration for backwards comp.'''
+    _sync_resource_task(context, resource, api=api)
+
 @task(default_retry_delay=10, max_retries=2)
 def create_instance(context, instance_name, flavor, size, databases, region,
                     api=None):
