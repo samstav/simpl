@@ -34,10 +34,6 @@ describe('WorkflowController', function(){
     expect($scope.showStatus).toBe(true);
   });
 
-  it('should show header', function(){
-    expect($scope.showHeader).toBe(true);
-  });
-
   it('should show search', function(){
     expect($scope.showSearch).toBe(true);
   });

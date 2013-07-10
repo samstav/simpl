@@ -148,7 +148,6 @@ Scope variables that control the Checkmate UI:
 //Loads static content into body
 function StaticController($scope, $location) {
   console.log("Loading static file " + $location.path());
-  $scope.showHeader = false;
   $scope.showStatus = false;
 
   $scope.carousel_interval = -1; // Stopped
@@ -220,8 +219,6 @@ function ExternalController($window, $location) {
 //Loads raw content
 function RawController($scope, $location, $http) {
   console.log("Loading raw content from URL " + $location.absUrl());
-  $scope.showHeader = false;
-  $scope.showStatus = false;
   $http({method: 'GET', url: $location.absUrl()}).
     success(function(data, status, headers, config) {
       console.log(status);
@@ -988,7 +985,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   //Scope variables
 
   $scope.showStatus = true;
-  $scope.showHeader = true;
   $scope.showSearch = true;
   $scope.showControls = true;
   $scope.taskStates = {
