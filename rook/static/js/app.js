@@ -935,38 +935,7 @@ function TestController($scope, $location, $routeParams, $resource, $http, items
 //Workflow controllers
 function WorkflowListController($scope, $location, $resource, workflow, items, navbar, scroll, pagination) {
   //Model: UI
-  $scope.showItemsBar = true;
-  $scope.showStatus = true;
-  $scope.name = "Workflows";
   navbar.highlight("workflows");
-
-  //Model: data
-  $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
-
-  $scope.selectedObject = function() {
-    if (items.selected)
-      return items.data[items.selected.id];
-    return null;
-  };
-
-  $scope.selectItem = function(index) {
-    items.selectItem(index);
-    $scope.selected = items.selected;
-
-    // Prepare tasks
-    var wf = items.data[items.selected.id];
-    $scope.task_specs = wf.wf_spec.task_specs;
-    $scope.tasks = workflow.flattenTasks({}, wf.task_tree);
-    $scope.jit = workflow.jitTasks($scope.tasks);
-
-    // Render tasks
-    workflow.renderWorkflow('#content', '#task', $scope.jit, $scope);
-    prettyPrint();
-  };
-
-  $scope.selected = items.selected;
 
   $scope.showPagination = function(){
     return $scope.links && $scope.totalPages > 1;
@@ -1002,23 +971,17 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
       paging_info = paginator.getPagingInformation(data['collection-count'], workflows_url);
 
-      items.all = [];
-      items.receive(data.results, function(item, key) {
+      var received_items = items.receive(data.results, function(item, key) {
         return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};
       });
-      $scope.count = items.count;
-      $scope.items = items.all;
+      $scope.count = received_items.count;
+      $scope.items = received_items.all;
       $scope.currentPage = paging_info.currentPage;
       $scope.totalPages = paging_info.totalPages;
       $scope.links = paging_info.links;
       console.log("Done loading");
     });
   };
-
-  //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
 }
 
 function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder) {
