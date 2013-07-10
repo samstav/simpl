@@ -3263,28 +3263,21 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   $scope.showStatus = false;
 
   $scope.name = 'Environments';
-  $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
 
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/environments/.json');
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
-      items.receive(list, function(item, key) {
+      var received_items = items.receive(list, function(item, key) {
         return {id: key, name: item.name, vendor: item.vendor, providers: item.providers};});
-      $scope.count = items.count;
-      $scope.items = items.all;
+      $scope.count = received_items.count;
+      $scope.items = received_items.all;
       console.log("Done loading");
     });
   };
 
   //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
-
   $scope.load();
 
   //Return text describing providers in the environment
