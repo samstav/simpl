@@ -51,7 +51,7 @@ class Manager(object):
         else:
             callback(data)
             raise CheckmateResumableException('Not Active', 'Waiting on '
-                                               'ACTIVE statis', 'Resumable')
+                                               'ACTIVE status', 'Resumable')
         return data
 
     @staticmethod
