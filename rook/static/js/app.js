@@ -2239,8 +2239,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     "UNREACHABLE",
     "UP"
   ]
-  $scope.showItemsBar = true;
-  $scope.showStatus = true;
   $scope.name = "Deployments";
   $scope.activeFilters = $location.search().status
   $scope.filter_list = _.map(STATUSES, function(status){
@@ -2258,21 +2256,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   //Model: data
   $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
-
-  $scope.selectedObject = function() {
-    if (items.selected)
-      return items.data[items.selected.id];
-    return null;
-  };
-
-  $scope.selectItem = function(index) {
-    items.selectItem(index);
-    $scope.selected = items.selected;
-  };
-
-  $scope.selected = items.selected;
 
   $scope.showPagination = function(){
     return $scope.links && $scope.totalPages > 1;
@@ -2303,15 +2286,14 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
       paging_info = paginator.getPagingInformation(data['collection-count'], deployments_url);
 
-      items.all = [];
-      items.receive(data.results, function(item) {
+      var received_items = items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, created_by: item['created-by'], tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment, operation: item.operation,
                 status: item.status, display_status: Deployment.status(item),
                 progress: Deployment.progress(item)};
       });
-      $scope.count = items.count;
-      $scope.items = items.all;
+      $scope.count = received_items.count;
+      $scope.items = received_items.all;
       $scope.currentPage = paging_info.currentPage;
       $scope.totalPages = paging_info.totalPages;
       $scope.links = paging_info.links;
@@ -2437,11 +2419,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.is_content_loaded = function() {
     return $scope.__content_loaded;
   };
-
-  //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
 }
 
 //Hard-coded for Managed Cloud Wordpress
