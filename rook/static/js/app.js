@@ -1971,35 +1971,28 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
 
   $scope.environments = environments;
   $scope.environment = (typeof environments == "object" && Object.keys(environments).length >= 0) ? environments[initial_environment || Object.keys(environments)[0]] : null;
-  items.receive(blueprints, function(item, key) {
+  var received_items = items.receive(blueprints, function(item, key) {
     return {key: key, id: item.id, name: item.name, description: item.description, selected: false};});
-  $scope.count = items.count;
-  $scope.items = items.all;
+  $scope.items = received_items.all;
+  $scope.count = received_items.count;
 
   $scope.selectItem = function(index) {
-    if($scope.selected){
-      $scope.selected.selected = false;
-    }
-
     $scope.selected = $scope.items[index];
-    $scope.selected.selected = true;
 
     $scope.selected_key = $scope.selected.key;
     mixpanel.track("Blueprint Selected", {'blueprint': $scope.selected.key});
   };
 
-  for (var i=0;i<items.count;i++) {
-    if (items.all[i].key == initial_blueprint) {
+  for (var i=0;i<$scope.count;i++) {
+    if ($scope.items[i].key == initial_blueprint) {
       console.log('Found and selecting initial blueprint');
-      items.selectItem(i);
-      $scope.selected = items.selected;
+      $scope.selectItem(i);
       break;
     }
   }
-  if (typeof items.selected != 'object' && $scope.count > 0) {
+  if (typeof $scope.selected != 'object' && $scope.count > 0) {
     console.log('Selecting first blueprint');
-    items.selectItem(index);
-    $scope.selected = items.selected;
+    $scope.selectItem(index);
   }
 
   //Inherit from Deployment Initializer

@@ -23,7 +23,7 @@
     </div>
   </div>
   <div id="mcspec_list" class="summaries" ng-cloak ng-show="showSummaries" ng-init="loadWordpressBlueprints()">
-    <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item.selected}">
+    <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item==selected}">
       <div class="row-fluid">
         <div class="span1"><input type="radio" name="sbp" value="{{item.key + ''}}" ng-model="$parent.selected_key"></input></div>
         <div class="span11"><h6><span ng-cloak ng-show="item.remote.branch.name == 'stable'" class="label label-success">stable &amp; tested</span>
