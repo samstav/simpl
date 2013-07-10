@@ -2103,8 +2103,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       });
     }
 
-    items.clear();
-    items.receive(data, function(item, key) {
+    var received_items = items.receive(data, function(item, key) {
       if (!('documentation' in item))
         item.documentation = {abstract: item.description};
       return { key: item.id,
@@ -2117,12 +2116,12 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
                is_blueprint_repo: false };
     });
 
-    $scope.count = items.count;
+    $scope.count = received_items.count;
     $scope.loading_remote_blueprints = false;
     $('#spec_list').css('top', $('.summaryHeader').outerHeight());
     $scope.remember_repo_url($scope.remote.url);
 
-    sorted_items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
+    sorted_items = _.sortBy(received_items.all, function(item){ return item.name.toUpperCase(); });
 
     _.each(cached_blueprints, function(blueprint){
       if(_.findWhere(sorted_items, { id: blueprint.id }) === undefined){

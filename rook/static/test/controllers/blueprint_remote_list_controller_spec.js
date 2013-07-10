@@ -18,7 +18,7 @@ describe('BlueprintRemoteListController', function(){
     routeParams = {};
     resource = {};
     http = {};
-    items = { receive: emptyFunction };
+    items = { receive: sinon.stub().returns({}) };
     navbar = { highlight: emptyFunction };
     options = {};
     workflow = {};
@@ -41,8 +41,10 @@ describe('BlueprintRemoteListController', function(){
   });
 
   describe('receive_blueprints', function(){
+    var data;
     beforeEach(function(){
       items.clear = emptyFunction;
+      data = undefined;
     });
 
     it('should remove the loading gif from display', function(){
@@ -53,10 +55,11 @@ describe('BlueprintRemoteListController', function(){
     });
 
     it('should get the checkmate.yaml to check if its a blueprint repo', function(){
-      items.all = [{ api_url: 'https://underpressure.com',
-                     is_blueprint_repo: false,
-                     name: 'a'
-                  }];
+      data = { all: [{ api_url: 'https://underpressure.com',
+               is_blueprint_repo: false,
+               name: 'a'
+            }]};
+      items = { receive: sinon.stub().returns(data) };
 
       github = { get_contents: sinon.spy() };
       controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
@@ -70,7 +73,8 @@ describe('BlueprintRemoteListController', function(){
       var abba = { name: 'Abba' };
       var alpha = { name: 'alpha' };
       var arkansas = { name: 'Arkansas' };
-      items.all = [ alpha, abba, arkansas];
+      data = { all: [alpha, abba, arkansas]};
+      items = { receive: sinon.stub().returns(data) };
       github = { get_contents: sinon.stub().returns(
           { then: sinon.stub().returns( {then: emptyFunction}) }
       ) };
@@ -87,6 +91,8 @@ describe('BlueprintRemoteListController', function(){
           alpha_promise = { then: sinon.stub().returns(bravo_promise) };
 
       items.all = [ alpha, bravo, charlie];
+      data = { all: [ alpha, bravo, charlie] };
+      items = { receive: sinon.stub().returns(data) };
       github = { get_contents: sinon.stub().returns(alpha_promise) };
       controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
       scope.receive_blueprints();
@@ -100,6 +106,8 @@ describe('BlueprintRemoteListController', function(){
       beforeEach(function(){
         item = { api_url: 'https://underpressure.com', is_blueprint_repo: false, name: 'a' };
         items.all = [item];
+        data = { all: [item] };
+        items = { receive: sinon.stub().returns(data) };
         github = { get_contents: sinon.spy() };
         controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
         scope.receive_blueprints();
