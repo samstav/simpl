@@ -1321,6 +1321,13 @@ class Deployment(MorpheusDict):
                     raise NotImplementedError("Global post-back values not "
                                               "yet supported: %s" % key)
 
+    def get_new_and_planned_resources(self):
+        planned_resources = {}
+        for resource_key, resource_value in self.get(
+                "resources", {}).iteritems():
+            if resource_value.get("status", None) in ("PLANNED", "NEW"):
+                planned_resources.update({resource_key: resource_value})
+        return planned_resources
 
 @task(default_retry_delay=0.3, max_retries=2)
 def update_operation(deployment_id, driver=DB, **kwargs):

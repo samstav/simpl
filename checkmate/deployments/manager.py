@@ -17,6 +17,7 @@ from checkmate import db
 from checkmate import operations
 from checkmate import orchestrator
 from checkmate import utils
+from checkmate import workflow
 from checkmate.deployment import (
     Deployment,
     generate_keys,
@@ -25,10 +26,6 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,
     CheckmateValidationException,
-)
-from checkmate.workflow import (
-    create_workflow,
-    create_workflow_spec_deploy,
 )
 
 LOG = logging.getLogger(__name__)
@@ -345,12 +342,13 @@ class Manager(base.ManagerBase):
     def create_deploy_operation(self, deployment, context, tenant_id=None):
         '''Create Deploy Operation (Workflow).'''
         api_id = workflow_id = deployment['id']
-        spiff_wf_spec = create_workflow_spec_deploy(deployment, context)
-        spiff_wf = create_workflow(spiff_wf_spec, deployment, context)
+        spiff_wf_spec = workflow.create_workflow_spec_deploy(deployment,
+                                                             context)
+        spiff_wf = workflow.create_workflow(spiff_wf_spec, deployment, context)
         spiff_wf.attributes['id'] = workflow_id
         serializer = DictionarySerializer()
-        workflow = spiff_wf.serialize(serializer)
-        workflow['id'] = workflow_id
+        s_wf = spiff_wf.serialize(serializer)
+        s_wf['id'] = workflow_id
         deployment['workflow'] = workflow_id
         wf_data = operations.init_operation(spiff_wf, tenant_id=tenant_id)
         operation = operations.add_operation(deployment, 'BUILD', **wf_data)
@@ -446,8 +444,8 @@ class Manager(base.ManagerBase):
         LOG.debug("Updated deployment %s with postback", deployment_id,
                   extra=dict(data=contents))
 
-    def add_nodes(self, deployment, context, service_name, count,
-                  parse_only=False):
+    def plan_add_nodes(self, deployment, context, service_name, count,
+                       parse_only=False):
         '''Process a new checkmate deployment and plan for execution.
 
         This creates templates for resources and connections that will be used
@@ -463,7 +461,7 @@ class Manager(base.ManagerBase):
         planner = Planner(deployment, parse_only, deployment.get('plan', {}))
         resources = planner.plan_additional_nodes(context, service_name, count)
         if resources:
-            deployment['resources'] = resources
+            deployment.get('resources', {}).update(resources)
 
         # Save plan details for future rehydration/use
         deployment['plan'] = planner._data  # get dict so we can serialize it
@@ -473,3 +471,10 @@ class Manager(base.ManagerBase):
         LOG.info("Deployment '%s' planning complete and status changed to %s",
                  deployment['id'], deployment['status'])
         return deployment
+
+    def deploy_add_nodes(self, deployment, context, tenant_id):
+        add_node_workflow = workflow.create_add_nodes_workflow(
+            deployment, context, driver=self.driver)
+        operations.create_add_nodes(deployment, add_node_workflow,
+                                    "ADD_NODES", tenant_id)
+

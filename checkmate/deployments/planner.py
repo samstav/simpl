@@ -152,6 +152,7 @@ class Planner(ExtensibleDict):
         seed = self._get_number_of_resources(provider_key, service_name) + 1
         for service_index in range(seed, seed + count):
             self.add_resource_for_service(context, service_name, service_index)
+        return self.resources
 
     def plan(self, context):
         '''Perform plan analysis. Returns a reference to planned resources'''

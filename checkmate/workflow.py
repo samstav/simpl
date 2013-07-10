@@ -43,6 +43,23 @@ def create_delete_deployment_workflow(dep_id, context, driver=DB):
     return workflow
 
 
+def create_add_nodes_workflow(deployment, context, driver=DB):
+    workflow_id = utils.get_id(context.simulation)
+    add_node_wf_spec = create_workflow_spec_deploy(deployment, context)
+    add_node_wf = create_workflow(add_node_wf_spec, deployment, context)
+    LOG.debug("Workflow %s created for adding nodes to deployment %s",
+              workflow_id, deployment["id"])
+
+    add_node_wf.attributes['id'] = workflow_id
+    serializer = DictionarySerializer()
+    workflow = add_node_wf.serialize(serializer)
+    workflow['id'] = workflow_id
+    body, secrets = utils.extract_sensitive_data(workflow)
+    driver.save_workflow(workflow_id, body, secrets, tenant_id=deployment[
+        'tenantId'])
+    return add_node_wf
+
+
 def update_workflow_status(workflow, workflow_id=None):
     total = len(workflow.get_tasks(state=Task.ANY_MASK))
     completed = len(workflow.get_tasks(state=Task.COMPLETED))
@@ -320,7 +337,7 @@ def create_workflow_spec_deploy(deployment, context):
     providers = {}  # Unique providers used in this deployment
 
     provider_keys = set()
-    for key, resource in deployment.get('resources', {}).iteritems():
+    for key, resource in deployment.get_new_and_planned_resources().iteritems():
         if key not in ['connections', 'keys'] and 'provider' in resource and\
                 resource['provider'] not in provider_keys:
             provider_keys.add(resource['provider'])
@@ -354,9 +371,10 @@ def create_workflow_spec_deploy(deployment, context):
         if resource_key not in sorted_list:
             sorted_list.append(resource_key)
 
-    for key, resource in deployment.get('resources', {}).iteritems():
+    for key, resource in deployment.get_new_and_planned_resources().iteritems():
         if key not in ['connections', 'keys'] and 'provider' in resource:
-            recursive_add_host(sorted_resources, key, deployment['resources'],
+            recursive_add_host(sorted_resources, key,
+                               deployment.get_new_and_planned_resources(),
                                [])
     LOG.debug("Ordered resources: %s" % '->'.join(sorted_resources))
 
@@ -397,7 +415,7 @@ def create_workflow_spec_deploy(deployment, context):
                     wfspec.start.connect(provider_result['root'])
 
     # Do relations
-    for key, resource in deployment.get('resources', {}).iteritems():
+    for key, resource in deployment.get_new_and_planned_resources().iteritems():
         if 'relations' in resource:
             for name, relation in resource['relations'].iteritems():
                 # Process where this is a source (host relations done above)

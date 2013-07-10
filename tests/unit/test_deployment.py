@@ -133,6 +133,19 @@ class TestDeployments(unittest.TestCase):
         self.deployment.environment().AndReturn(environment)
         environment.get_provider('test').AndReturn(self.provider)
 
+    def test_get_planned_resources(self):
+        self.deployment["resources"] = {"1": {"status": "PLANNED",
+                                              "provider": "load-balancer"},
+                                        "2": {"status": "BUILD",
+                                              "provider": "something"},
+                                        "3": {"status": "NEW",
+                                              "provider": "something else"}}
+        resources = self.deployment.get_new_and_planned_resources()
+        self.assertDictEqual(resources, {"1": {"status": "PLANNED",
+                                               "provider": "load-balancer"},
+                                         "3": {"status": "NEW",
+                                               "provider": "something else"}})
+
     def test_get_workflow_id_when_w_id_not_in_operation(self):
         workflow_id = self.deployment.current_workflow_id()
         self.assertEqual(workflow_id, self.deployment['id'])
