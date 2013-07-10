@@ -3208,22 +3208,19 @@ function FeedbackListController($scope, $location, $resource, items, scroll) {
   $scope.showStatus = false;
 
   $scope.name = 'Feedback';
-  $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
 
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/admin/feedback/.json');
     this.klass.get({}, function(list, getResponseHeaders){
       console.log("Load returned");
-      items.receive(list, function(item, key) {
+      var received_items = items.receive(list, function(item, key) {
         item.id = key;
         if ('feedback' in item)
           item.received = item.feedback.received;
         return item;});
-      $scope.count = items.count;
-      $scope.items = items.all;
+      $scope.count = received_items.count;
+      $scope.items = received_items.all;
       console.log("Done loading");
     },
     function(response) {
