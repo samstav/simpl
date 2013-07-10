@@ -287,6 +287,12 @@ describe('DeploymentController', function(){
         expect($scope.shouldDisplayWorkflowStatus()).toBe(true);
       });
 
+      it('should return true if status is new', function(){
+        controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow);
+        $scope.data = { operation: { link: '/111/workflows/some_id', status: 'NEW' } };
+        expect($scope.shouldDisplayWorkflowStatus()).toBe(true);
+      });
+
       it('should return false if status is not in progress or paused', function(){
         controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow);
         $scope.data = { operation: { link: '/111/workflows/some_id', status: 'DELETED' } };
