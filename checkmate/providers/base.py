@@ -2,8 +2,8 @@
 from functools import partial
 import logging
 
+from celery import exceptions as celery_exceptions
 from celery import Task
-from celery.exceptions import RetryTaskError
 
 from checkmate import utils
 from checkmate.common import schema
@@ -23,12 +23,12 @@ PROVIDER_CLASSES = {}
 
 
 class CheckmateProviderConflict(Exception):
-    '''Exception Class for Provider Conflicts'''
+    '''Exception Class for Provider Conflicts.'''
     pass
 
 
 class CheckmateInvalidProvider(Exception):
-    '''Exception Class for Invalid Provider'''
+    '''Exception Class for Invalid Provider.'''
     pass
 
 
@@ -73,8 +73,9 @@ class ProviderBaseWorkflowMixIn(object):
 
     def _add_resource_tasks_helper(self, resource, key, wfspec, deployment,
                                    context, wait_on):
-        """Common algoprithm for all providers. Gets service_name, finds
-        component, and adds any hosting wait tasks"""
+        '''Common algoprithm for all providers. Gets service_name, finds
+        component, and adds any hosting wait tasks.
+        '''
         if wait_on is None:
             wait_on = []
         # 1 - Wait on host to be ready
@@ -102,7 +103,7 @@ class ProviderBaseWorkflowMixIn(object):
     # pylint: disable=R0913
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
-        """Add tasks needed to create a connection between rersources
+        '''Add tasks needed to create a connection between rersources
 
         :param resource: the resource we are connecting from
         :param key: the ID of resource we are connecting from
@@ -116,13 +117,13 @@ class ProviderBaseWorkflowMixIn(object):
               impacted, the provider who owns the task, and the position or
               role of the task (ex. final, root, etc). This allows for other
               providers top look this task up and connect to it if needed
-        """
+        '''
         LOG.debug("%s.%s.add_connection_tasks called, "
                   "but was not implemented", self.vendor, self.name)
 
     @staticmethod
     def find_tasks(wfspec, **kwargs):
-        """Find tasks in the workflow with matching properties.
+        '''Find tasks in the workflow with matching properties.
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
         :param kwargs: properties to match (all must match)
@@ -136,7 +137,7 @@ class ProviderBaseWorkflowMixIn(object):
             resource: the ID of the resource we are looking for
             provider: the key of the provider we are looking for
             tag: the tag for the task (root, final, create, etc..)
-        """
+        '''
         tasks = []
         for task in wfspec.task_specs.values():
             match = True
@@ -165,10 +166,10 @@ class ProviderBaseWorkflowMixIn(object):
         return tasks
 
     def get_host_ready_tasks(self, resource, wfspec, deployment):
-        """Get tasks to wait on host if this is hosted on another resource
+        '''Get tasks to wait on host if this is hosted on another resource
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
-        """
+        '''
         if 'hosted_on' in resource:
             host_key = resource['hosted_on']
             host_resource = deployment['resources'][host_key]
@@ -179,10 +180,10 @@ class ProviderBaseWorkflowMixIn(object):
             return host_final
 
     def get_host_relation_final_tasks(self, wfspec, resource_key):
-        """Get tasks to wait on for completion of hosting relationship
+        '''Get tasks to wait on for completion of hosting relationship
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
-        """
+        '''
         relation_final = self.find_tasks(wfspec, resource=resource_key,
                                          relation='host',
                                          provider=self.key,
@@ -190,11 +191,11 @@ class ProviderBaseWorkflowMixIn(object):
         return relation_final
 
     def get_relation_final_tasks(self, wfspec, resource):
-        """Get all 'final' tasks  for relations where this resource is a source
+        '''Get all 'final' tasks  for relations where this resource is a source
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
         :param resource: the resource dict from the deployment
-        """
+        '''
         tasks = []
         for key, relation in resource.get('relations', {}).iteritems():
             if 'target' in relation:
@@ -207,10 +208,9 @@ class ProviderBaseWorkflowMixIn(object):
         return tasks
 
     def get_host_complete_task(self, wfspec, resource):
-        """
-        Get the task tagged as 'complete' (if any) for the resource's
-        host
-        """
+        '''Get the task tagged as 'complete' (if any) for the resource's
+        host.
+        '''
         tasks = self.find_tasks(wfspec,
                                 resource=resource.get('hosted_on', None),
                                 tag='complete')
@@ -219,17 +219,17 @@ class ProviderBaseWorkflowMixIn(object):
 
 
 class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
-    """Base class the providers inherit from.
+    '''Base class the providers inherit from.
 
     It includes mixins for deployment planning and workflow generation. The
     calls ion this base class operate on the provider (they don't need a
     deployment or workflow)
-    """
+    '''
     name = 'base'
     vendor = 'checkmate'
 
     def __init__(self, provider, key=None):
-        """Initialize provider
+        '''Initialize provider
 
         :param provider: an initialization dict (usually from the environment)
             includes:
@@ -239,7 +239,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
         :param key: optional key used for environment to mark which provider
                 this is
-        """
+        '''
         self.key = key or "%s.%s" % (self.vendor, self.name)
         if 'vendor' in provider and provider['vendor'] != self.vendor:
             LOG.debug("Vendor value being overwridden "
@@ -261,7 +261,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         self._dict = provider or {}
 
     def provides(self, context, resource_type=None, interface=None):
-        """Returns a list of resources that this provider can provide or
+        '''Returns a list of resources that this provider can provide or
         validates that a specific type of resource or interface is provided.
 
         :param resource_type: a string used to filter the list returned by
@@ -275,7 +275,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         or
             if provider.provides(resources_type='database'):
                 print "We have databases!"
-        """
+        '''
         results = []
         if 'provides' in self._dict:
             results = self._dict['provides']
@@ -302,13 +302,14 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
     # pylint: disable=W0613
     def get_catalog(self, context, type_filter=None):
-        """Returns catalog (filterable by type) for this provider.
+        '''Returns catalog (filterable by type) for this provider.
 
         Catalogs display the types of resources that can be created by this
         provider
         :param context: a RequestContext that has a security information
         :param type_filter: which type of resource to filter by
-        :return_type: dict"""
+        :return_type: dict
+        '''
         result = {}
         if 'catalog' in self._dict:
             catalog = self._dict['catalog']
@@ -320,16 +321,17 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
     @staticmethod
     def validate_catalog(catalog):
-        '''Catalog Validation'''
+        '''Catalog Validation.'''
         errors = schema.validate_catalog(catalog)
         if errors:
             raise CheckmateValidationException("Invalid catalog: %s" %
                                                '\n'.join(errors))
 
     def get_component(self, context, component_id):
-        """Get component by ID. Default implementation gets full catalog and
+        '''Get component by ID. Default implementation gets full catalog and
         searches for ID. Override with a more efficient implementation in your
-        provider code."""
+        provider code.
+        '''
         LOG.debug("Default get_component implementation being used for '%s'. "
                   "Override with more efficient implementation.", self.key)
         catalog = self.get_catalog(context)
@@ -343,12 +345,12 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 return Component(result, id=component_id, provider=self)
 
     def find_components(self, context, **kwargs):
-        """Finds the components that matches the supplied key/value arguments
+        '''Finds the components that matches the supplied key/value arguments
         returns: list of matching components
 
         Note: resource type is usually called 'type' in serialized objects, but
               called resource_type in much of the code. Combine the two params.
-        """
+        '''
         component_id = kwargs.pop('id', None)
         resource_type = kwargs.pop('resource_type', kwargs.pop('type',
                                    kwargs.pop('resource', None)))
@@ -437,22 +439,23 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
     @staticmethod
     def evaluate(function_string):
-        """Evaluate an option value"""
+        '''Evaluate an option value.'''
         return utils.evaluate(function_string)
 
     # pylint: disable=W0613
     @staticmethod
     def proxy(path, request, tenant_id=None):
-        """Proxy request through to provider"""
+        '''Proxy request through to provider.'''
         raise CheckmateException("Provider does not support call")
 
     @staticmethod
     def parse_memory_setting(text):
-        """Parses a string and extracts a number in megabytes.
+        '''Parses a string and extracts a number in megabytes.
 
         Unit default is megabyte if not provided.
         Supported names are megabyte, gigabyte, terabyte with their
-        abbreviations"""
+        abbreviations.
+        '''
 
         if not text or (isinstance(text, basestring) and text.strip()) == "":
             raise CheckmateException("No memory privided")
@@ -480,16 +483,14 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         return result
 
     def get_setting(self, name, default=None):
-        """
-        Returns a provider-specific setting.
+        '''Returns a provider-specific setting.
 
         Currently detects settings coming from the provider constraints.
 
         :param name: the name of the setting
         :param default: optional default alue to return if the setting is not
                         found
-
-        """
+        '''
         constraints = self._dict.get('constraints')
         if not constraints:
             return default
@@ -502,20 +503,21 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
     # pylint: disable=W0613
     def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):
-        """Return a celery task/canvas for deleting the resource"""
+        '''Return a celery task/canvas for deleting the resource.'''
         LOG.debug("%s.%s.delete_resource_tasks called, "
                   "but was not implemented", self.vendor, self.name)
 
     def sync_resource_status(self, request_context,
                              deployment_id, resource, key):
-        """ Update the status of the supplied resource based on the
-        actual deployed item """
+        '''Update the status of the supplied resource based on the
+        actual deployed item.
+        '''
         LOG.debug("%s.%s.sync_resource_status called, "
                   "but was not implemented", self.vendor, self.name)
 
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
-        """Return remote status for resource.  Call from provider"""
+        '''Return remote status for resource.  Call from provider.'''
 
         if sync_callable:
             ctx = context.get_queued_task_dict(deployment=deployment_id,
@@ -527,7 +529,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
     @classmethod
     def translate_status(cls, status):
-        '''Return checkmate status for resource based on schema'''
+        '''Return checkmate status for resource based on schema.'''
         if (hasattr(cls, '__status_mapping__') and
               status in cls.__status_mapping__):
             return cls.__status_mapping__[status]
@@ -538,7 +540,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             return "UNDEFINED"
 
     def _verify_existing_resource(self, resource, key):
-        '''Private method for Resource verification'''
+        '''Private method for Resource verification.'''
         msg = None
         if (resource.get('status') != "DELETED" and
                 resource.get("provider") != self.name):
@@ -548,7 +550,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
 
 def register_providers(providers):
-    """Add provider classes to list of available providers"""
+    """Add provider classes to list of available providers."""
     for provider in providers:
         name = '%s.%s' % (provider.vendor, provider.name)
         if name in PROVIDER_CLASSES:
@@ -557,7 +559,7 @@ def register_providers(providers):
 
 
 def get_provider_class(vendor, key):
-    """Given a vendor name, and provider key, return the provider class"""
+    """Given a vendor name, and provider key, return the provider class."""
     name = "%s.%s" % (vendor, key)
     if name in PROVIDER_CLASSES:
         return PROVIDER_CLASSES[name]
@@ -576,7 +578,7 @@ def get_provider_class(vendor, key):
 
 
 def user_has_access(context, roles):
-    """Return True if user has permissions to create resources"""
+    """Return True if user has permissions to create resources."""
     for role in roles:
         if role in context.roles:
             return True
@@ -603,11 +605,11 @@ class ProviderTask(Task):
 
         try:
             data = self.run(context, *args, **kwargs)
-        except RetryTaskError:
+        except celery_exceptions.RetryTaskError as exc:
             return self.retry(exc=exc)
         except CheckmateResumableException as exc:
             return self.retry(exc=exc)
-        
+
         self.callback(context, data)
         return data
 
@@ -627,4 +629,3 @@ class ProviderTask(Task):
                 self.provider.translate_status(data['status'])
 
         deployment_tasks.postback(context['deployment'], results)
-
