@@ -1198,6 +1198,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           auth.re_authenticate(response.data.access.token.id, tenant_id).then(
             // Success
             function(re_auth_response) {
+              auth.impersonation_in_progress = false;
               auth.context.username = username;
               auth.context.token = response.data.access.token;
               auth.context.auth_url = auth.identity.auth_url.replace('-internal', '');
@@ -1229,8 +1230,11 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 
     impersonate_error: function(response, deferred) {
       console.log("Impersonation error: " + response);
+      auth.impersonation_in_progress = false;
       return deferred.reject(response);
     },
+
+    impersonation_in_progress: false,
 
     impersonate: function(username, temporarily) {
       var deferred = $q.defer();
@@ -1244,6 +1248,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         deferred.resolve("Impersonation Successful! (cached)");
         return deferred.promise;
       }
+      auth.impersonation_in_progress = true;
 
       var url = is_chrome_extension ? auth.identity.auth_url : "/authproxy";
       var data = auth.generate_impersonation_data(username, auth.identity.endpoint_type);
