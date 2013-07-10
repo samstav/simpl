@@ -870,10 +870,9 @@ function ActivityFeedController($scope, $http, items) {
     var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events';
     $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
-        items.clear();
-        items.receive(data, $scope.parse_event);
-        $scope.count = items.count;
-        $scope.items = items.all;
+        var received_items = items.receive(data, $scope.parse_event);
+        $scope.count = received_items.count;
+        $scope.items = received_items.all;
         $scope.loading = false;
       }).
       error(function(data, status, headers, config) {
