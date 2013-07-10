@@ -50,7 +50,7 @@ class TestAPICalls(unittest.TestCase):
         self.mox.StubOutWithMock(utils, 'read_body')
         utils.read_body(req).AndReturn({})
         self.mox.ReplayAll()
-        result = deployments.router._content_to_deployment(req,
+        result = deployments.router._content_to_deployment(request=req,
                                                            deployment_id="1",
                                                            tenant_id="A")
         self.mox.VerifyAll()
@@ -71,7 +71,7 @@ class TestAPICalls(unittest.TestCase):
         self.mox.StubOutWithMock(utils, 'read_body')
         utils.read_body(req).AndReturn({'created-by': 'tom'})
         self.mox.ReplayAll()
-        result = deployments.router._content_to_deployment(req,
+        result = deployments.router._content_to_deployment(request=req,
                                                            deployment_id="1",
                                                            tenant_id="A")
         self.mox.VerifyAll()
