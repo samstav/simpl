@@ -30,14 +30,6 @@ describe('items', function(){
           return { bat: value.name };
         }).all).toEqual([{ bat: 'cat' }, { bat: 'dog' }]);
       });
-
-      it('should not be shared globally', function(){
-        data = [{ name: 'cat' },
-                { name: 'dog' }];
-        var received = items.receive(data);
-        items.all.push({ name: 'bear' });
-        expect(received.all.length).toEqual(2);
-      });
     });
 
     describe('data', function(){

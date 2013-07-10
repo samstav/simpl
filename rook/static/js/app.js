@@ -2028,15 +2028,15 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       list[index_to_replace] = blueprint;
     }
 
-    function updateBlueprintCache(items, should_delete){
+    function updateBlueprintCache(blueprint_list, should_delete){
       blueprints = JSON.parse(localStorage.getItem(cache_key) || "[]");
 
       if(should_delete){
         blueprints = _.reject(blueprints, function(blueprint){
-          return _.findWhere(items, { id: blueprint.id });
+          return _.findWhere(blueprint_list, { id: blueprint.id });
         })
       } else {
-        _.map(items, function(item){ updateListWithBlueprint(blueprints, item)})
+        _.map(blueprint_list, function(item){ updateListWithBlueprint(blueprints, item)})
       }
 
       localStorage.setItem(cache_key, JSON.stringify(blueprints));
@@ -2111,7 +2111,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.reload_blueprints = function() {
     console.log('reload_blueprints', $scope.remote);
     $scope.items = [];
-    items.clear();
     $scope.parse_org_url($scope.remote.url);
   };
 
@@ -2495,7 +2494,6 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   }
 
   //Show list of supported Managed Cloud blueprints
-  items.clear();
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow,
                           WPBP, null, ENVIRONMENTS, 'next-gen');
 
@@ -2529,7 +2527,6 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     $scope.setAllBlueprintRegions();
   });
 
-   items.clear();
   $scope.$watch('selected', function(newVal, oldVal, scope) {
     if (typeof newVal == 'object') {
       $scope.remote = $scope.selected.remote;
