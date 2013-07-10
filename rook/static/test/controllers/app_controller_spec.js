@@ -463,6 +463,32 @@ describe('AppController', function(){
     });
   });
 
+  describe('#clear_login_form', function() {
+    beforeEach(function() {
+      auth.error_message = 'fakeerror';
+      scope.bound_creds.username = 'asdf';
+      scope.bound_creds.password = 'qwer';
+      scope.bound_creds.apikey   = 'zxcv';
+      scope.clear_login_form();
+    });
+
+    it('should clear username form field', function() {
+      expect(scope.bound_creds.username).toEqual(null);
+    });
+
+    it('should clear password form field', function() {
+      expect(scope.bound_creds.username).toEqual(null);
+    });
+
+    it('should clear API Key form field', function() {
+      expect(scope.bound_creds.username).toEqual(null);
+    });
+
+    it('should clear error messages', function() {
+      expect(auth.error_message).toEqual(null);
+    });
+  });
+
   describe('#close_login_prompt', function() {
     it('should set display_login_prompt to false', function() {
       scope.close_login_prompt();
