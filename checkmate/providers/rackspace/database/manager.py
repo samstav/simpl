@@ -48,7 +48,10 @@ class Manager(object):
                                               'Provider Error', True)
         elif data['status'] in ['ACTIVE', 'DELETED']:
             data['status-message'] = ''
-
+        else:
+            callback(data)
+            raise CheckmateResumableException('Not Active', 'Waiting on '
+                                               'ACTIVE statis', 'Resumable')
         return data
 
     @staticmethod
