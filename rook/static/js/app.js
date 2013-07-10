@@ -1045,16 +1045,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     retry: true
   };
 
-  $scope.shouldDisplayWorkflowStatus = function() {
-    var operation = $scope.$parent.data.operation;
-    if(operation){
-      var is_workflow_operation = operation.link.split('/').indexOf('workflows') !== -1;
-      return (operation.status == 'IN PROGRESS' || operation.status == 'PAUSED') && is_workflow_operation;
-    } else {
-      return false;
-    }
-  }
-
   $scope.toggle_task_traceback = function(task_type) {
     $scope.hide_task_traceback[task_type] = !$scope.hide_task_traceback[task_type];
   };
@@ -1082,13 +1072,21 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     this.klass.get($routeParams,
                    function(object, getResponseHeaders){
       var deployments = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json');
-      $scope.deployment = deployments.get($routeParams, function () { $scope.start_tree_preview('#workflow_tree') });
+      var params = angular.extend({}, $routeParams);
+      if(object.attributes)
+        params['id'] = object.attributes.deploymentId;
+
+      $scope.deployment = deployments.get(params, function () { $scope.start_tree_preview('#workflow_tree') });
 
       $scope.data = object;
       items.tasks = workflow.flattenTasks({}, object.task_tree);
       items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
       $scope.count = items.all.length;
-      workflow.calculateStatistics($scope, items.all);
+      var statistics = workflow.calculateStatistics(items.all);
+      $scope.totalTime = statistics.totalTime;
+      $scope.timeRemaining = statistics.timeRemaining;
+      $scope.taskStates = statistics.taskStates;
+      $scope.percentComplete = (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
       var path_parts = $location.path().split('/');
       if (path_parts.slice(-1)[0] == 'status' || path_parts.slice(2,3) == 'deployments') {
         if ($scope.taskStates.completed < $scope.count) {
@@ -1213,14 +1211,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         items.tasks = workflow.flattenTasks({}, object.task_tree);
         items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
         $scope.count = items.all.length;
-        workflow.calculateStatistics($scope, items.all);
+        var statistics = workflow.calculateStatistics(items.all);
+        $scope.totalTime = statistics.totalTime;
+        $scope.timeRemaining = statistics.timeRemaining;
+        $scope.taskStates = statistics.taskStates;
+        $scope.percentComplete = (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
       } else {
         items.clear();
       }
-  };
-
-  $scope.percentComplete = function() {
-    return (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
   };
 
   $scope.selectSpec = function(spec_id) {
@@ -2982,7 +2980,7 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder, Deployment) {
+function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -3001,6 +2999,16 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         }
     }).open('/partials/secrets.html', 'SecretsController');
   };
+
+  $scope.shouldDisplayWorkflowStatus = function() {
+    var operation = $scope.data.operation;
+    if(operation){
+      var is_workflow_operation = operation.link.split('/').indexOf('workflows') !== -1;
+      return (operation.status == 'IN PROGRESS' || operation.status == 'PAUSED') && is_workflow_operation;
+    } else {
+      return false;
+    }
+  }
 
   $scope.urlBuilder = urlBuilder;
 
@@ -3021,12 +3029,30 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     $scope.delayed_refresh();
   };
 
+  $scope.load_workflow_stats = function(operation){
+    if(!operation || (operation.link && !(operation.link.indexOf('canvases') === -1)))
+      return null;
+
+    var workflows = $resource((checkmate_server_base || '') + operation.link + '.json')
+    workflows.get({}, function(data, getResponseHeaders){
+      var tasks = workflow.flattenTasks({}, data.task_tree);
+      var all_items = workflow.parseTasks(tasks, data.wf_spec.task_specs);
+      $scope.count = all_items.length;
+      var statistics = workflow.calculateStatistics(all_items);
+      $scope.totalTime = statistics.totalTime;
+      $scope.timeRemaining = statistics.timeRemaining;
+      $scope.taskStates = statistics.taskStates;
+      $scope.percentComplete = (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
+    })
+  };
+
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
     this.klass.get($routeParams, function(data, getResponseHeaders){
       $scope.data_json = JSON.stringify(data, null, 2);
 
+      $scope.load_workflow_stats(data.operation);
       data.display_status = Deployment.status(data);
       $scope.data = data;
       $scope.formatted_data = deploymentDataParser.formatData(data);

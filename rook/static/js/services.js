@@ -58,40 +58,39 @@ services.factory('workflow', [function() {
         },
 
         // Display the workflow
-        renderWorkflow: function(container_selector, template_selector, tasks, $scope) {
-          var template = $(template_selector).html();
-          var container = $(container_selector);
+    renderWorkflow: function(container_selector, template_selector, tasks, $scope) {
+      var template = $(template_selector).html();
+      var container = $(container_selector);
 
-          //Clear old data
-          d3.selectAll('#rendering').remove();
+      //Clear old data
+      d3.selectAll('#rendering').remove();
 
-          for(var i = 0; i < Math.floor(tasks.length/4); i++) {
-      var div = $('<div id="rendering" class="row">');
-      var row = tasks.slice(i*4, (i+1)*4);
-      _.each(row, function(task) {
-              div.append(Mustache.render(template, task));
+      for(var i = 0; i < Math.floor(tasks.length/4); i++) {
+        var div = $('<div id="rendering" class="row">');
+        var row = tasks.slice(i*4, (i+1)*4);
+        _.each(row, function(task) {
+                div.append(Mustache.render(template, task));
         });
 
-      container.append(div);
-          }
+        container.append(div);
+      }
 
-          $('.task').hover(
-      function() {
-              //hover-in
-              $(this).addClass('hovering');
-              $scope.showConnections($(this));
+      $('.task').hover(function() {
+          //hover-in
+          $(this).addClass('hovering');
+          $scope.showConnections($(this));
         },
         function() {
-              $(this).removeClass('hovering');
-              jsPlumb.detachEveryConnection();
+          $(this).removeClass('hovering');
+          jsPlumb.detachEveryConnection();
         }
-          );
-        },
+      );
+    },
 
-    calculateStatistics: function($scope, tasks) {
-      $scope.totalTime = 0;
-      $scope.timeRemaining  = 0;
-      $scope.taskStates = {
+    calculateStatistics: function(tasks){
+      totalTime = 0;
+      timeRemaining  = 0;
+      taskStates = {
         future: 0,
         likely: 0,
         maybe: 0,
@@ -101,57 +100,62 @@ services.factory('workflow', [function() {
         completed: 0,
         triggered: 0,
         error: 0
-       };
+      };
       _.each(tasks, function(task) {
-      if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
-        $scope.totalTime += parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
-      } else {
-        $scope.totalTime += 10;
-      }
-      switch(parseInt(task.state, 0)) {
-        case -1:
-          $scope.taskStates["error"] += 1;
-          break;
-        case 1:
-          $scope.taskStates["future"] += 1;
-          break;
-        case 2:
-          $scope.taskStates["likely"] += 1;
-          break;
-        case 4:
-          $scope.taskStates["maybe"] += 1;
-          break;
-        case 8:
-          if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
-              $scope.taskStates["error"] += 1;
-          else
-              $scope.taskStates["waiting"] += 1;
-          break;
-        case 16:
-          $scope.taskStates["ready"] += 1;
-          break;
-        case 128:
-          $scope.taskStates["triggered"] += 1;
-          break;
-        case 32:
-          $scope.taskStates["cancelled"] += 1;
-          break;
-        case 64:
-          $scope.taskStates["completed"] += 1;
-          if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
-            $scope.timeRemaining -= parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
-          } else {
-            $scope.timeRemaining -= 10;
-          }
-          break;
-        default:
-          console.log("Invalid state '" + task.state + "'.");
+        if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
+          totalTime += parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
+        } else {
+          totalTime += 10;
         }
-        });
-      $scope.timeRemaining += $scope.totalTime;
+        switch(parseInt(task.state, 0)) {
+          case -1:
+            taskStates["error"] += 1;
+            break;
+          case 1:
+            taskStates["future"] += 1;
+            break;
+          case 2:
+            taskStates["likely"] += 1;
+            break;
+          case 4:
+            taskStates["maybe"] += 1;
+            break;
+          case 8:
+            if ('internal_attributes' in  task && 'task_state' in task.internal_attributes && task.internal_attributes.task_state.state == 'FAILURE')
+                taskStates["error"] += 1;
+            else
+                taskStates["waiting"] += 1;
+            break;
+          case 16:
+            taskStates["ready"] += 1;
+            break;
+          case 128:
+            taskStates["triggered"] += 1;
+            break;
+          case 32:
+            taskStates["cancelled"] += 1;
+            break;
+          case 64:
+            taskStates["completed"] += 1;
+            if ("internal_attributes" in task && "estimated_completed_in" in task["internal_attributes"]) {
+              timeRemaining -= parseInt(task["internal_attributes"]["estimated_completed_in"], 10);
+            } else {
+              timeRemaining -= 10;
+            }
+            break;
+          default:
+            console.log("Invalid state '" + task.state + "'.");
+        }
+      });
+      timeRemaining += totalTime;
+
+      return { totalTime: totalTime,
+               timeRemaining: timeRemaining,
+               taskStates: taskStates
+             };
     },
 
-    /**
+   /**
      *  FUTURE    =   1
      *  LIKELY    =   2
      *  MAYBE     =   4
@@ -164,6 +168,7 @@ services.factory('workflow', [function() {
      *  TODO: This will be fixed in the API, see:
      *    https://github.rackspace.com/checkmate/checkmate/issues/45
      */
+
     iconify: function(task) {
       switch(parseInt(task.state, 0)) {
         case 1: //FUTURE
