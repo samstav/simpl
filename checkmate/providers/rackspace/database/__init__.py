@@ -54,10 +54,12 @@ def wait_on_build(context, instance_id, region, api=None):
     '''Celery task registration for backwards comp.'''
     _wait_on_build(context, instance_id, api=api)
 
+
 @task
 def sync_resource_task(context, resource, resource_key, api=None):
     '''Celery task registration for backwards comp.'''
     _sync_resource_task(context, resource, api=api)
+
 
 @task(default_retry_delay=10, max_retries=2)
 def create_instance(context, instance_name, flavor, size, databases, region,
