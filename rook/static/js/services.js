@@ -316,6 +316,9 @@ services.factory('items', [ 'filterFilter', function($resource, filter) {
       items.count = items.all.length;
       items.filtered = items.all;
       console.log('Done receiving ' + items.count + ' entries');
+      return { count: items.all.length,
+               all:   angular.copy(items.all),
+               data:  angular.copy(items.data) };
     },
 
     clear: function() {
