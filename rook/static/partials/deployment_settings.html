@@ -8,8 +8,7 @@
       <i class="icon-picture"></i> Deployment
     </li>
     <li>
-      <a ng-click="sync(deployment)" ng-hide="is_admin(true)">Sync</a>
-      <a ng-click="admin_sync(deployment)" ng-show="is_admin(true)">Sync</a>
+      <a ng-click="wrap_admin_call(deployment.created_by, sync, deployment)">Sync</a>
     </li>
 
     <li class="divider" ng-show="is_admin(true)"></li>
