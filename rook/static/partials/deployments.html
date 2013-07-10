@@ -36,7 +36,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="deployment in items | orderBy:'-created'" class="deployment" ng-click="select_toggle(deployment)">
+          <tr ng-repeat="deployment in items | orderBy:'-created'" class="deployment" ng-click="select_toggle(deployment)" ng-class="{info: selected_deployments[deployment.id].selected}">
             <td>
               <input name="{{deployment.id}}" type="checkbox" ng-model="selected_deployments[deployment.id].selected" ng-click="select_toggle(deployment)">
               <ng-include src="'/partials/deployment_settings.html'"></ng-include>
