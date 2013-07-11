@@ -447,22 +447,24 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     return $scope.deferred_login.promise;
   };
   $scope.close_login_prompt = function() {
+    $scope.clear_login_form();
     $scope.display_login_prompt = false;
     if ($scope.deferred_login !== null) {
       $scope.deferred_login.reject({ logged_in: false, reason: 'dismissed' });
     }
   };
 
-  $scope.on_auth_success = function() {
-    //reset controls
-    $scope.bound_creds.username = '';
-    $scope.bound_creds.password = '';
-    $scope.bound_creds.apikey   = '';
+  $scope.clear_login_form = function() {
+    $scope.bound_creds.username = null;
+    $scope.bound_creds.password = null;
+    $scope.bound_creds.apikey   = null;
     auth.error_message = null;
+  }
 
+  $scope.on_auth_success = function() {
+    $scope.close_login_prompt();
     $scope.deferred_login.resolve({ logged_in: true });
     $scope.deferred_login = null;
-    $scope.close_login_prompt();
 
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
   };
@@ -516,6 +518,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
     var pin_rsa = $scope.bound_creds.pin_rsa;
+    auth.error_message = null;
 
     //Handle auto_complete sync issues (1Pass, LastPass do not update scope)
     try {

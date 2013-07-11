@@ -983,11 +983,13 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 
             $rootScope.$broadcast('logIn');
             $rootScope.$broadcast('contextChanged');
+            return response;
           },
           // Error
           function(response) {
             console.log("Authentication Error:");
             console.log(response.data);
+            return $q.reject(response);
           }
         );
     },
@@ -1016,6 +1018,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           // Error
           function(response) {
             console.log("Error fetching tenant ID:\n" + response);
+            return $q.reject(response);
           });
     },
 
@@ -1142,13 +1145,13 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
             },
             // Error
             function(catalog_response) {
-              auth.impersonate_error(catalog_response, deferred);
+              return auth.impersonate_error(catalog_response, deferred);
             }
           );
         },
         // Error
         function(tenant_response) {
-          auth.impersonate_error(tenant_response, deferred);
+          return auth.impersonate_error(tenant_response, deferred);
         }
       );
       return deferred;
@@ -1186,11 +1189,11 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       $http.post(url, data, config).then(
         // Success
         function(response) {
-          auth.impersonate_success(username, response, deferred, temporarily);
+          return auth.impersonate_success(username, response, deferred, temporarily);
         },
         // Error
         function(response) {
-          auth.impersonate_error(response, deferred);
+          return auth.impersonate_error(response, deferred);
         });
 
       return deferred.promise;
