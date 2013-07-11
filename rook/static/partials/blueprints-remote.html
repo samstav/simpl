@@ -57,7 +57,7 @@
   <div id="spec_list" class="summaries">
     <div class="top">
       <div ng-hide="!loading_remote_blueprints" class="well summary"><img src="/img/ajax-loader-bar.gif" alt="Loading..."/></div>
-      <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item.selected}" ng-show="item.is_blueprint_repo">
+      <div ng-repeat="item in items" class="well summary" ng-click="selectItem($index)" ng-class="{active: item==selected}" ng-show="item.is_blueprint_repo">
         <div class="row-fluid">
           <div class="span1">
             <input type="radio" name="sbp" value="{{item.key + ''}}" ng-model="$parent.selected_key"></input>

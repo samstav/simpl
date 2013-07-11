@@ -148,7 +148,6 @@ Scope variables that control the Checkmate UI:
 //Loads static content into body
 function StaticController($scope, $location) {
   console.log("Loading static file " + $location.path());
-  $scope.showHeader = false;
   $scope.showStatus = false;
 
   $scope.carousel_interval = -1; // Stopped
@@ -220,8 +219,6 @@ function ExternalController($window, $location) {
 //Loads raw content
 function RawController($scope, $location, $http) {
   console.log("Loading raw content from URL " + $location.absUrl());
-  $scope.showHeader = false;
-  $scope.showStatus = false;
   $http({method: 'GET', url: $location.absUrl()}).
     success(function(data, status, headers, config) {
       console.log(status);
@@ -870,10 +867,9 @@ function ActivityFeedController($scope, $http, items) {
     var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events';
     $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
-        items.clear();
-        items.receive(data, $scope.parse_event);
-        $scope.count = items.count;
-        $scope.items = items.all;
+        var received_items = items.receive(data, $scope.parse_event);
+        $scope.count = received_items.count;
+        $scope.items = received_items.all;
         $scope.loading = false;
       }).
       error(function(data, status, headers, config) {
@@ -936,38 +932,7 @@ function TestController($scope, $location, $routeParams, $resource, $http, items
 //Workflow controllers
 function WorkflowListController($scope, $location, $resource, workflow, items, navbar, scroll, pagination) {
   //Model: UI
-  $scope.showItemsBar = true;
-  $scope.showStatus = true;
-  $scope.name = "Workflows";
   navbar.highlight("workflows");
-
-  //Model: data
-  $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
-
-  $scope.selectedObject = function() {
-    if (items.selected)
-      return items.data[items.selected.id];
-    return null;
-  };
-
-  $scope.selectItem = function(index) {
-    items.selectItem(index);
-    $scope.selected = items.selected;
-
-    // Prepare tasks
-    var wf = items.data[items.selected.id];
-    $scope.task_specs = wf.wf_spec.task_specs;
-    $scope.tasks = workflow.flattenTasks({}, wf.task_tree);
-    $scope.jit = workflow.jitTasks($scope.tasks);
-
-    // Render tasks
-    workflow.renderWorkflow('#content', '#task', $scope.jit, $scope);
-    prettyPrint();
-  };
-
-  $scope.selected = items.selected;
 
   $scope.showPagination = function(){
     return $scope.links && $scope.totalPages > 1;
@@ -1003,30 +968,23 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
       paging_info = paginator.getPagingInformation(data['collection-count'], workflows_url);
 
-      items.all = [];
-      items.receive(data.results, function(item, key) {
+      var received_items = items.receive(data.results, function(item, key) {
         return {id: key, name: item.wf_spec.name, status: item.attributes.status, progress: item.attributes.progress, tenantId: item.tenantId};
       });
-      $scope.count = items.count;
-      $scope.items = items.all;
+      $scope.count = received_items.count;
+      $scope.items = received_items.all;
       $scope.currentPage = paging_info.currentPage;
       $scope.totalPages = paging_info.totalPages;
       $scope.links = paging_info.links;
       console.log("Done loading");
     });
   };
-
-  //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
 }
 
-function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, items, scroll, deploymentDataParser, $timeout, $q, urlBuilder) {
+function WorkflowController($scope, $resource, $http, $routeParams, $location, $window, auth, workflow, scroll, deploymentDataParser, $timeout, $q, urlBuilder) {
   //Scope variables
 
   $scope.showStatus = true;
-  $scope.showHeader = true;
   $scope.showSearch = true;
   $scope.showControls = true;
   $scope.taskStates = {
@@ -1079,10 +1037,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       $scope.deployment = deployments.get(params, function () { $scope.start_tree_preview('#workflow_tree') });
 
       $scope.data = object;
-      items.tasks = workflow.flattenTasks({}, object.task_tree);
-      items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
-      $scope.count = items.all.length;
-      var statistics = workflow.calculateStatistics(items.all);
+      $scope.tasks = workflow.flattenTasks({}, object.task_tree);
+      var all_tasks = workflow.parseTasks($scope.tasks, object.wf_spec.task_specs);
+      $scope.count = all_tasks.length;
+      var statistics = workflow.calculateStatistics(all_tasks);
       $scope.totalTime = statistics.totalTime;
       $scope.timeRemaining = statistics.timeRemaining;
       $scope.taskStates = statistics.taskStates;
@@ -1208,16 +1166,14 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.parse = function(object) {
       $scope.data = object;
       if (typeof object == 'object' && 'task_tree' in object) {
-        items.tasks = workflow.flattenTasks({}, object.task_tree);
-        items.all = workflow.parseTasks(items.tasks, object.wf_spec.task_specs);
-        $scope.count = items.all.length;
-        var statistics = workflow.calculateStatistics(items.all);
+        $scope.tasks = workflow.flattenTasks({}, object.task_tree);
+        var all_tasks = workflow.parseTasks($scope.tasks, object.wf_spec.task_specs);
+        $scope.count = all_tasks.length;
+        var statistics = workflow.calculateStatistics(all_tasks);
         $scope.totalTime = statistics.totalTime;
         $scope.timeRemaining = statistics.timeRemaining;
         $scope.taskStates = statistics.taskStates;
         $scope.percentComplete = (($scope.totalTime - $scope.timeRemaining) / $scope.totalTime) * 100;
-      } else {
-        items.clear();
       }
   };
 
@@ -1226,7 +1182,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     $scope.current_spec = $scope.data.wf_spec.task_specs[$scope.current_spec_index];
     $scope.current_spec_json = JSON.stringify($scope.current_spec, null, 2);
 
-    var alltasks = items.tasks;
+    var alltasks = $scope.tasks;
     var tasks = _.filter(alltasks, function(task, key) {
         return task.task_spec == spec_id;
       });
@@ -1331,7 +1287,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   //Return all tasks for a spec
   $scope.spec_tasks = function(spec_id) {
-    return _.filter(items.tasks || [], function(task, key) {
+    return _.filter($scope.tasks || [], function(task, key) {
         return task.task_spec == spec_id;
       });
   };
@@ -1971,35 +1927,28 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
 
   $scope.environments = environments;
   $scope.environment = (typeof environments == "object" && Object.keys(environments).length >= 0) ? environments[initial_environment || Object.keys(environments)[0]] : null;
-  items.receive(blueprints, function(item, key) {
+  var received_items = items.receive(blueprints, function(item, key) {
     return {key: key, id: item.id, name: item.name, description: item.description, selected: false};});
-  $scope.count = items.count;
-  $scope.items = items.all;
+  $scope.items = received_items.all;
+  $scope.count = received_items.count;
 
   $scope.selectItem = function(index) {
-    if($scope.selected){
-      $scope.selected.selected = false;
-    }
-
     $scope.selected = $scope.items[index];
-    $scope.selected.selected = true;
 
     $scope.selected_key = $scope.selected.key;
     mixpanel.track("Blueprint Selected", {'blueprint': $scope.selected.key});
   };
 
-  for (var i=0;i<items.count;i++) {
-    if (items.all[i].key == initial_blueprint) {
+  for (var i=0;i<$scope.count;i++) {
+    if ($scope.items[i].key == initial_blueprint) {
       console.log('Found and selecting initial blueprint');
-      items.selectItem(i);
-      $scope.selected = items.selected;
+      $scope.selectItem(i);
       break;
     }
   }
-  if (typeof items.selected != 'object' && $scope.count > 0) {
+  if (typeof $scope.selected != 'object' && $scope.count > 0) {
     console.log('Selecting first blueprint');
-    items.selectItem(index);
-    $scope.selected = items.selected;
+    $scope.selectItem(index);
   }
 
   //Inherit from Deployment Initializer
@@ -2075,15 +2024,15 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       list[index_to_replace] = blueprint;
     }
 
-    function updateBlueprintCache(items, should_delete){
+    function updateBlueprintCache(blueprint_list, should_delete){
       blueprints = JSON.parse(localStorage.getItem(cache_key) || "[]");
 
       if(should_delete){
         blueprints = _.reject(blueprints, function(blueprint){
-          return _.findWhere(items, { id: blueprint.id });
+          return _.findWhere(blueprint_list, { id: blueprint.id });
         })
       } else {
-        _.map(items, function(item){ updateListWithBlueprint(blueprints, item)})
+        _.map(blueprint_list, function(item){ updateListWithBlueprint(blueprints, item)})
       }
 
       localStorage.setItem(cache_key, JSON.stringify(blueprints));
@@ -2103,8 +2052,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       });
     }
 
-    items.clear();
-    items.receive(data, function(item, key) {
+    var received_items = items.receive(data, function(item, key) {
       if (!('documentation' in item))
         item.documentation = {abstract: item.description};
       return { key: item.id,
@@ -2117,12 +2065,12 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
                is_blueprint_repo: false };
     });
 
-    $scope.count = items.count;
+    $scope.count = received_items.count;
     $scope.loading_remote_blueprints = false;
     $('#spec_list').css('top', $('.summaryHeader').outerHeight());
     $scope.remember_repo_url($scope.remote.url);
 
-    sorted_items = _.sortBy(items.all, function(item){ return item.name.toUpperCase(); });
+    sorted_items = _.sortBy(received_items.all, function(item){ return item.name.toUpperCase(); });
 
     _.each(cached_blueprints, function(blueprint){
       if(_.findWhere(sorted_items, { id: blueprint.id }) === undefined){
@@ -2159,7 +2107,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.reload_blueprints = function() {
     console.log('reload_blueprints', $scope.remote);
     $scope.items = [];
-    items.clear();
     $scope.parse_org_url($scope.remote.url);
   };
 
@@ -2247,8 +2194,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     "UNREACHABLE",
     "UP"
   ]
-  $scope.showItemsBar = true;
-  $scope.showStatus = true;
   $scope.name = "Deployments";
   $scope.activeFilters = $location.search().status
   $scope.filter_list = _.map(STATUSES, function(status){
@@ -2266,21 +2211,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   //Model: data
   $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
-
-  $scope.selectedObject = function() {
-    if (items.selected)
-      return items.data[items.selected.id];
-    return null;
-  };
-
-  $scope.selectItem = function(index) {
-    items.selectItem(index);
-    $scope.selected = items.selected;
-  };
-
-  $scope.selected = items.selected;
 
   $scope.showPagination = function(){
     return $scope.links && $scope.totalPages > 1;
@@ -2311,15 +2241,14 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
       paging_info = paginator.getPagingInformation(data['collection-count'], deployments_url);
 
-      items.all = [];
-      items.receive(data.results, function(item) {
+      var received_items = items.receive(data.results, function(item) {
         return {id: item.id, name: item.name, created: item.created, created_by: item['created-by'], tenantId: item.tenantId,
                 blueprint: item.blueprint, environment: item.environment, operation: item.operation,
                 status: item.status, display_status: Deployment.status(item),
                 progress: Deployment.progress(item)};
       });
-      $scope.count = items.count;
-      $scope.items = items.all;
+      $scope.count = received_items.count;
+      $scope.items = received_items.all;
       $scope.currentPage = paging_info.currentPage;
       $scope.totalPages = paging_info.totalPages;
       $scope.links = paging_info.links;
@@ -2445,11 +2374,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.is_content_loaded = function() {
     return $scope.__content_loaded;
   };
-
-  //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
 }
 
 //Hard-coded for Managed Cloud Wordpress
@@ -2462,12 +2386,13 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
         data.blueprint.options.region.choice = $scope.auth.context.regions;
       }
       WPBP[remote.url] = data.blueprint;
-      var new_blueprints = {};
-      new_blueprints[remote.url] = data.blueprint;
-      items.receive(new_blueprints, function(item, key) {
-        return {key: remote.url, id: item.id, name: item.name, description: item.description, remote: remote, selected: false};});
-      $scope.count = items.count;
-      $scope.items = items.all;
+      var new_blueprint = {};
+      new_blueprint[remote.url] = data.blueprint;
+      var received_items = items.receive(new_blueprint, function(item, key) {
+        return {key: remote.url, id: item.id, name: item.name, description: item.description, remote: remote, selected: false};
+      });
+      $scope.items.push(received_items.all[0]);
+      $scope.count = $scope.items.length;
     }
   };
 
@@ -2565,7 +2490,6 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   }
 
   //Show list of supported Managed Cloud blueprints
-  items.clear();
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow,
                           WPBP, null, ENVIRONMENTS, 'next-gen');
 
@@ -2599,7 +2523,6 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
     $scope.setAllBlueprintRegions();
   });
 
-   items.clear();
   $scope.$watch('selected', function(newVal, oldVal, scope) {
     if (typeof newVal == 'object') {
       $scope.remote = $scope.selected.remote;
@@ -2608,12 +2531,15 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   });
 
   //Load the latest supported blueprints (tagged as stable) from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#stable');
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#stable');
+  $scope.loadWordpressBlueprints = function(){
+    $scope.items = [];
+    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#stable');
+    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#stable');
 
-  //Load the latest master from github
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#master');
-  $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#master');
+    //Load the latest master from github
+    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#master');
+    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#master');
+  }
 
   $('#mcspec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
 }
@@ -3275,22 +3201,19 @@ function FeedbackListController($scope, $location, $resource, items, scroll) {
   $scope.showStatus = false;
 
   $scope.name = 'Feedback';
-  $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
 
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/admin/feedback/.json');
     this.klass.get({}, function(list, getResponseHeaders){
       console.log("Load returned");
-      items.receive(list, function(item, key) {
+      var received_items = items.receive(list, function(item, key) {
         item.id = key;
         if ('feedback' in item)
           item.received = item.feedback.received;
         return item;});
-      $scope.count = items.count;
-      $scope.items = items.all;
+      $scope.count = received_items.count;
+      $scope.items = received_items.all;
       console.log("Done loading");
     },
     function(response) {
@@ -3307,31 +3230,19 @@ function FeedbackListController($scope, $location, $resource, items, scroll) {
  */
 function ProviderListController($scope, $location, $resource, items, scroll) {
   //Model: UI
-  $scope.showSummaries = true;
-  $scope.showStatus = false;
-
   $scope.name = 'Providers';
-  $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
-
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/providers/.json');
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
-      items.receive(list, function(item, key) {
+      var received_items = items.receive(list, function(item, key) {
         return {id: key, name: item.name, vendor: item.vendor};});
-      $scope.count = items.count;
-      $scope.items = items.all;
+      $scope.count = received_items.count;
+      $scope.items = received_items.all;
       console.log("Done loading");
     });
   };
-
-  //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
 
   $scope.load();
 }
@@ -3345,28 +3256,21 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   $scope.showStatus = false;
 
   $scope.name = 'Environments';
-  $scope.count = 0;
-  items.all = [];
-  $scope.items = items.all;  // bind only to shrunken array
 
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + '/:tenantId/environments/.json');
     this.klass.get({tenantId: $scope.auth.context.tenantId}, function(list, getResponseHeaders){
       console.log("Load returned");
-      items.receive(list, function(item, key) {
+      var received_items = items.receive(list, function(item, key) {
         return {id: key, name: item.name, vendor: item.vendor, providers: item.providers};});
-      $scope.count = items.count;
-      $scope.items = items.all;
+      $scope.count = received_items.count;
+      $scope.items = received_items.all;
       console.log("Done loading");
     });
   };
 
   //Setup
-  $scope.$watch('items.selectedIdx', function(newVal, oldVal, scope) {
-    if (newVal !== null) scroll.toCurrent();
-  });
-
   $scope.load();
 
   //Return text describing providers in the environment

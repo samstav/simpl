@@ -298,98 +298,24 @@ services.factory('workflow', [function() {
 **/
 services.factory('items', [ 'filterFilter', function($resource, filter) {
   var items = {
-    data: {},  //original json
-    all: [],  //array of items
-    filtered: [],
-    selected: null,  //selected item
-    selectedIdx: null,  //array index of selected items
-    count: 0,
-
     receive: function(list, transform) {
       console.log("Receiving");
+
+      var all_items = [],
+          data = {};
+
       if (transform === null || transform === undefined)
           transform = function(item) {return item;};
-      for (var attrname in list) { items.data[attrname] = list[attrname]; }
+      for (var attrname in list) {
+        data[attrname] = list[attrname];
+      }
       angular.forEach(list, function(value, key) {
-        this.push(transform(value, key));
-      }, items.all);
-      items.count = items.all.length;
-      items.filtered = items.all;
-      console.log('Done receiving ' + items.count + ' entries');
-    },
-
-    clear: function() {
-      items.data = {};
-      items.all = [];
-      items.filtered = [];
-      items.selected = null;
-      items.selectedIdx = null;
-      items.count = 0;
-    },
-
-    prev: function() {
-      if (items.hasPrev()) {
-          items.selectItem(items.selected ? items.selectedIdx - 1 : 0);
-      }
-    },
-
-    next: function() {
-      if (items.hasNext()) {
-          items.selectItem(items.selected ? items.selectedIdx + 1 : 0);
-      }
-    },
-
-    hasPrev: function() {
-      if (!items.selected) {
-        return true;
-      }
-      return items.selectedIdx > 0;
-    },
-
-    hasNext: function() {
-      if (!items.selected) {
-        return true;
-      }
-      return items.selectedIdx < items.filtered.length - 1;
-    },
-
-    selectItem: function(idx) {
-      // Unselect previous selection.
-      if (items.selected) {
-        items.selected.selected = false;
-      }
-
-      items.selected = items.filtered[idx];
-      items.selectedIdx = idx;
-      items.selected.selected = true;
-
-    },
-
-    filterBy: function(key, value) {
-      console.log('Filtering');
-      items.filtered = filter(items.all, function(item) {
-        return item[key] === value;
+        all_items.push(transform(value, key));
       });
-      items.reindexSelectedItem();
-    },
-
-    clearFilter: function() {
-      items.filtered = items.all;
-      items.reindexSelectedItem();
-    },
-
-    reindexSelectedItem: function() {
-      if (items.selected) {
-        var idx = items.filtered.indexOf(items.selected);
-
-        if (idx === -1) {
-            if (items.selected) items.selected.selected = false;
-            items.selected = null;
-            items.selectedIdx = null;
-        } else {
-            items.selectedIdx = idx;
-        }
-      }
+      console.log('Done receiving ' + all_items.length + ' entries');
+      return { count: all_items.length,
+               all:   all_items,
+               data:  data };
     }
   };
 
