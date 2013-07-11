@@ -2210,6 +2210,31 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     $location.search({ status: filter_names });
   }
 
+  $scope.selected_deployments = {};
+
+  $scope.is_selected = function() {
+    var keys = Object.keys($scope.selected_deployments);
+    return keys.length != 0;
+  }
+
+  $scope.select_toggle = function(deployment) {
+    if ($scope.selected_deployments[deployment.id]) {
+      delete $scope.selected_deployments[deployment.id];
+    } else {
+      $scope.selected_deployments[deployment.id] = {selected: true, deployment: deployment};
+    }
+  }
+
+  $scope.sync_deployments = function() {
+    for (var id in $scope.selected_deployments) {
+      var object = $scope.selected_deployments[id];
+      if (object) {
+        var deployment = object.deployment;
+        $scope.wrap_admin_call(deployment.created_by, $scope.sync, deployment);
+      }
+    }
+  }
+
   navbar.highlight("deployments");
 
   //Model: data

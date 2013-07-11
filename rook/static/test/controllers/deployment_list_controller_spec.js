@@ -323,4 +323,78 @@ describe('DeploymentListController', function(){
       expect(scope.is_content_loaded()).toBe(false);
     });
   });
+
+  describe('selected_deployments', function() {
+    it('should default to empty object', function() {
+      expect(scope.selected_deployments).toEqual({});
+    });
+  });
+
+  describe('#is_selected', function() {
+    it('should return true if any deployment has been selected', function() {
+      scope.selected_deployments = { 123: 'somedeployment' };
+      expect(scope.is_selected()).toBeTruthy();
+    });
+
+    it('should return false if no deployment has been selected', function() {
+      scope.selected_deployments = {};
+      expect(scope.is_selected()).toBeFalsy();
+    });
+  });
+
+  describe('#select_toggle', function() {
+    var deployment;
+    beforeEach(function() {
+      deployment = { id: 123, content: 'somecontent' };
+    });
+
+    it('should remove deployment from selected list if deployment was there', function() {
+      scope.selected_deployments = { 123: deployment };
+      scope.select_toggle(deployment);
+      expect(scope.is_selected[123]).toBe(undefined);
+    });
+
+    describe('if deployment was not in selected list', function() {
+      beforeEach(function() {
+        scope.selected_deployments = {};
+        scope.select_toggle(deployment);
+      });
+
+      it('should add deployment to selected list', function() {
+        expect(scope.selected_deployments[123]).not.toBe(undefined);
+      });
+
+      it('should set selected flag to true', function() {
+        expect(scope.selected_deployments[123].selected).toBe(true);
+      });
+
+      it('should add deployment object to list', function() {
+        expect(scope.selected_deployments[123].deployment).toEqual({ id: 123, content: 'somecontent' });
+      });
+    });
+  });
+
+  describe('#sync_deployments', function() {
+    beforeEach(function() {
+      scope.wrap_admin_call = sinon.spy();
+    });
+
+    it('should sync all selected deployments', function() {
+      var d1 = {id: 123, created_by: 'asdf'};
+      var d2 = {id: 456, created_by: 'qwer'};
+      scope.selected_deployments = {
+        123: { selected: true, deployment: d1 },
+        456: { selected: true, deployment: d2 },
+      }
+      scope.sync_deployments();
+      expect(scope.wrap_admin_call).toHaveBeenCalledWith('asdf', scope.sync, d1);
+      expect(scope.wrap_admin_call).toHaveBeenCalledWith('qwer', scope.sync, d2);
+    });
+
+    it('should should not sync empty list', function() {
+      scope.selected_deployments = {};
+      scope.sync_deployments();
+      expect(scope.wrap_admin_call).not.toHaveBeenCalled();
+    });
+  });
 });
