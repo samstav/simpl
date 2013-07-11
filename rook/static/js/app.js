@@ -2211,6 +2211,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   }
 
   $scope.selected_deployments = {};
+  $scope.deployment_map = {};
 
   $scope.is_selected = function() {
     var keys = Object.keys($scope.selected_deployments);
@@ -2220,16 +2221,17 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.select_toggle = function(deployment) {
     if ($scope.selected_deployments[deployment.id]) {
       delete $scope.selected_deployments[deployment.id];
+      delete $scope.deployment_map[deployment.id];
     } else {
-      $scope.selected_deployments[deployment.id] = {selected: true, deployment: deployment};
+      $scope.selected_deployments[deployment.id] = true;
+      $scope.deployment_map[deployment.id] = deployment;
     }
   }
 
   $scope.sync_deployments = function() {
     for (var id in $scope.selected_deployments) {
-      var object = $scope.selected_deployments[id];
-      if (object) {
-        var deployment = object.deployment;
+      var deployment = $scope.deployment_map[id];
+      if (deployment) {
         $scope.wrap_admin_call(deployment.created_by, $scope.sync, deployment);
       }
     }
