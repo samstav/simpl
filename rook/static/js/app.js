@@ -2211,10 +2211,12 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   }
 
   $scope.selected_deployments = {};
+
   $scope.is_selected = function() {
     var keys = Object.keys($scope.selected_deployments);
     return keys.length != 0;
   }
+
   $scope.select_toggle = function(deployment) {
     if ($scope.selected_deployments[deployment.id]) {
       delete $scope.selected_deployments[deployment.id];
@@ -2222,6 +2224,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $scope.selected_deployments[deployment.id] = {selected: true, deployment: deployment};
     }
   }
+
   $scope.sync_deployments = function() {
     for (var id in $scope.selected_deployments) {
       var object = $scope.selected_deployments[id];
