@@ -62,7 +62,7 @@ class TestAPICalls(unittest.TestCase):
             'id': '1',
             'created': result['created'],
         }
-        self.assertDictEqual(result._data, expected)
+        self.assertDictEqual(result, expected)
 
     def test_created_not_overwritten(self):
         req = self.mox.CreateMockAnything()

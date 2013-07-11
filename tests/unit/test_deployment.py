@@ -293,7 +293,7 @@ class TestDeployments(unittest.TestCase):
             'meta-data': {},
         }
         valid = Deployment(deployment)
-        self.assertDictEqual(valid._data, deployment)
+        self.assertDictEqual(valid, deployment)
 
     def test_schema_negative(self):
         """Test the schema validates a deployment with bad fields"""
@@ -410,7 +410,7 @@ class TestDeployments(unittest.TestCase):
         valid = Deployment(deployment)
         deployment['status'] = 'UP'  # should be converted
         deployment['created'] = valid['created']  # gets added
-        self.assertDictEqual(valid._data, deployment)
+        self.assertDictEqual(valid, deployment)
 
 
 class TestGenerateServices(unittest.TestCase):

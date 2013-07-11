@@ -9,12 +9,12 @@ import urlparse
 
 from bottle import abort
 from celery.task import task
+from morpheus import MorpheusDict
 from simplefsm import SimpleFSM
 from simplefsm.exceptions import InvalidStateError, InconsistentModelError
 
 from checkmate import keys
 from checkmate.blueprints import Blueprint
-from checkmate.classes import ExtensibleDict
 from checkmate.constraints import Constraint
 from checkmate.common import schema
 from checkmate.db import any_id_problems, get_driver
@@ -186,7 +186,7 @@ def generate_keys(deployment):
     return copy.copy(dep_keys)
 
 
-class Deployment(ExtensibleDict):
+class Deployment(MorpheusDict):
     """A checkmate deployment.
 
     Acts like a dict. Includes validation, setting logic and other useful
@@ -194,6 +194,15 @@ class Deployment(ExtensibleDict):
     Holds the Environment and providers during the processing of a deployment
     and creation of a workflow
     """
+    __schema__ = [
+        'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
+        'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
+        'error-messages', 'live', 'plan', 'operations-history', 'created-by',
+        'secrets',
+        'meta-data',  # Used to store, display miscellaneous data on the deploymnt
+        'error-message',  # to be deprecated
+        'includes',  # used to place YAML-referenced parts but then removed
+    ]
 
     FSM_TRANSITIONS = {
         'NEW': {'PLANNED', 'FAILED'},
@@ -216,7 +225,7 @@ class Deployment(ExtensibleDict):
     }
 
     def __init__(self, *args, **kwargs):
-        ExtensibleDict.__init__(self, *args, **kwargs)
+        super(Deployment, self).__init__(*args, **kwargs)
         self._environment = None
         self.fsm = SimpleFSM({
             'initial': None,
@@ -247,11 +256,11 @@ class Deployment(ExtensibleDict):
                     self.fsm.change_to(value)
                 except InvalidStateError as error:
                     raise CheckmateBadState(str(error))
-        ExtensibleDict.__setitem__(self, key, value)
+        super(Deployment, self).__setitem__(key, value)
 
     @classmethod
-    def inspect(cls, obj):
-        errors = schema.validate(obj, schema.DEPLOYMENT_SCHEMA)
+    def inspect(cls, obj, fail_fast=False):
+        errors = super(Deployment, cls).inspect(obj)
         if 'id' in obj:
             error = any_id_problems(obj['id'])
             if error:
@@ -582,7 +591,7 @@ class Deployment(ExtensibleDict):
     def _get_setting_value(self, name):
         """Get a value from the deployment hierarchy with support for paths"""
         if name:
-            node = self._data
+            node = self
             for key in name.split("/"):
                 if key in node:
                     try:
@@ -740,9 +749,7 @@ class Deployment(ExtensibleDict):
 
     @staticmethod
     def parse_constraints(constraints):
-        """
-
-        Ensure constraint syntax is valid
+        """Ensure constraint syntax is valid
 
         If it is key/values, convert it to a list.
         If the list has key/values, convert them to the expected format with

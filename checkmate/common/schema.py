@@ -182,16 +182,6 @@ BLUEPRINT_SCHEMA = [
     'description', 'display-outputs', 'documentation', 'version',
 ]
 
-DEPLOYMENT_SCHEMA = [
-    'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
-    'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
-    'error-messages', 'live', 'plan', 'operations-history', 'created-by',
-    'secrets',
-    'meta-data',  # Used to store, display miscellaneous data on the deploymnt
-    'error-message',  # to be deprecated
-    'includes',  # used to place YAML-referenced parts but then removed
-]
-
 COMPONENT_SCHEMA = [
     'id', 'options', 'requires', 'provides', 'summary', 'dependencies',
     'version', 'is', 'role', 'roles', 'source_name',
