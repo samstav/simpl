@@ -5,6 +5,7 @@
       <div class='group'>
         <h5><i class="icon-picture"></i> Deployments</h5>
         <a ng-class="{disabled: !is_selected()}" ng-click="sync_deployments()">Sync</a>
+        <i ng-class="{disabled: !is_selected()}" class="icon-question-sign pull-right" ng-hide="is_selected()" tooltip="Select a deployment"></i>
       </div>
 
       <div class='group'>
