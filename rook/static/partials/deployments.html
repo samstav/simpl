@@ -1,25 +1,19 @@
 <div class="entries container-fluid" ng-init="load()" ng-show="is_content_loaded()">
   <div class='row-fluid'>
     <div class='span2 sidebar-left'>
-      <div class='sidebar-heading'>
-        <h5>Status</h5>
-      </div>
-      <label ng-repeat="filter in filter_list">
-        <div class='checkbox-filter'>
-          <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
-          <span class='checkbox-filter-name'>{{filter.name | capitalize}}</span>
-        </div>
-      </label>
 
-      <div class='sidebar-heading'>
-        <h5>Operations</h5>
+      <div class='group'>
+        <h5><i class="icon-picture"></i> Deployments</h5>
+        <a ng-class="{disabled: !is_selected()}" ng-click="sync_deployments()">Sync</a>
       </div>
-      <label>
-        <div class='checkbox-filter'>
-          <span ng-hide="is_selected()">Sync</span>
-          <a ng-show="is_selected()" ng-click="sync_deployments()">Sync</a>
-        </div>
-      </label>
+
+      <div class='group'>
+        <h5><i class="icon-filter"></i> Filter</h5>
+        <label class="filter" ng-repeat="filter in filter_list">
+          <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
+          <span>{{filter.name | capitalize}}</span>
+        </label>
+      </div>
 
     </div>
 
@@ -27,7 +21,7 @@
       <table class="table table-striped">
         <thead>
           <tr>
-            <th>ID</th>
+            <th class="id">ID</th>
             <th>Name</th>
             <th>Blueprint</th>
             <th ng-show="is_admin(true)">Tenant</th>
@@ -36,7 +30,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="deployment in items | orderBy:'-created'" class="deployment" ng-click="select_toggle(deployment)" ng-class="{info: selected_deployments[deployment.id].selected}">
+          <tr ng-repeat="deployment in items | orderBy:'-created'" ng-click="select_toggle(deployment)" ng-class="{info: selected_deployments[deployment.id].selected}">
             <td>
               <input name="{{deployment.id}}" type="checkbox" ng-model="selected_deployments[deployment.id].selected" ng-click="select_toggle(deployment)">
               <ng-include src="'/partials/deployment_settings.html'"></ng-include>
