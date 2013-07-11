@@ -11,6 +11,9 @@ from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import database, checkmate
+from checkmate.providers.rackspace.database import (
+    provider as db_provider,
+)
 from checkmate.test import StubbedWorkflowBase, ProviderTester
 from checkmate import utils
 from checkmate.middleware import RequestContext
@@ -36,7 +39,7 @@ class TestDatabase(ProviderTester):
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')
 
-        #Stub out wiat_on_build
+        #Stub out wait_on_build
         self.mox.StubOutWithMock(database.wait_on_build, 'delay')
 
         #Create clouddb mock
@@ -118,49 +121,6 @@ class TestDatabase(ProviderTester):
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
 
-    def test_create_database_error_delete(self):
-        context = dict(deployment='DEP', resource='1')
-
-        #Mock instance
-        instance = self.mox.CreateMockAnything()
-        instance.id = 'fake_instance_id'
-        instance.name = 'fake_instance'
-        instance.status = 'ERROR'
-        instance.hostname = 'fake.cloud.local'
-
-        expected = {
-            'instance:1': {
-                'status': 'ERROR',
-                'status-message': 'Instance fake_instance_id build failed'
-            }
-        }
-
-        expected_resource = {'0': {'status': 'ERROR'}}
-        instance_key = "instance:%s" % context['resource']
-
-        #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
-
-        database_api_mock = self.mox.CreateMockAnything()
-        database_api_mock.get_instance(instance.id).AndReturn(instance)
-
-        #expect resource postback to be called
-        resource_postback.delay(context['deployment'], expected)
-
-        self.mox.StubOutWithMock(database, 'get_resource_by_id')
-        database.get_resource_by_id(
-            context['deployment'], context['resource']
-        ).AndReturn(expected_resource)
-
-        self.mox.StubOutWithMock(database.Provider, 'delete_resource_tasks')
-        self.mox.ReplayAll()
-
-        self.assertRaises(
-            CheckmateException, database.wait_on_build,
-            context, instance.id, 'NORTH', database_api_mock
-        )
-        self.mox.UnsetStubs()
-        self.mox.VerifyAll()
 
     def test_create_database(self):
         context = dict(deployment='DEP', resource='1')
@@ -321,38 +281,6 @@ class TestDatabase(ProviderTester):
 
         self.assertListEqual(results, expected)
         self.mox.VerifyAll()
-
-    def test_db_sync_resource_task(self):
-        """Tests db sync_resource_task via mox"""
-        #Mock instance
-        instance = self.mox.CreateMockAnything()
-        instance.id = 'fake_instance_id'
-        instance.name = 'fake_instance'
-        instance.status = 'ERROR'
-
-        resource_key = "1"
-
-        context = dict(deployment='DEP', resource='1')
-
-        resource = {
-            'name': 'fake_instance',
-            'provider': 'database',
-            'status': 'ERROR',
-            'instance': {'id': 'fake_instance_id'}
-        }
-
-        database_api_mock = self.mox.CreateMockAnything()
-        database_api_mock.get_instance = self.mox.CreateMockAnything()
-
-        database_api_mock.get_instance(instance.id).AndReturn(instance)
-
-        expected = {'instance:1': {"status": "ERROR"}}
-
-        self.mox.ReplayAll()
-        results = database.sync_resource_task(
-            context, resource, resource_key, database_api_mock)
-
-        self.assertDictEqual(results, expected)
 
     def verify_limits(self, volume_size_used):
         """Test the verify_limits() method"""
@@ -542,9 +470,9 @@ class TestCatalog(unittest.TestCase):
             }
         }
 
-        self.mox.StubOutWithMock(database, '_get_flavors')
-        database._get_flavors('https://north.databases.com/v1/55BB',
-                              'DUMMY_TOKEN').AndReturn([flavor1])
+        self.mox.StubOutWithMock(db_provider, '_get_flavors')
+        db_provider._get_flavors('https://north.databases.com/v1/55BB',
+                                 'DUMMY_TOKEN').AndReturn([flavor1])
 
         self.mox.ReplayAll()
         results = provider.get_catalog(context)

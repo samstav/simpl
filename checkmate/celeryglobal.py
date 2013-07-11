@@ -20,6 +20,7 @@ from celery.signals import worker_process_init
 from checkmate.common import config
 from checkmate.db.common import InvalidKeyError, ObjectLockedError
 
+
 LOG = logging.getLogger(__name__)
 CONFIG = config.current()
 

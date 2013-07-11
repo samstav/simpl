@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 class TestSingleTask(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        '''Fire up a sandboxed mongodb instance'''
+        '''Fire up a sandboxed mongodb instance.'''
         try:
             cls.box = MongoBox()
             cls.box.start()
@@ -51,7 +51,7 @@ class TestSingleTask(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        '''Stop the sanboxed mongodb instance'''
+        '''Stop the sanboxed mongodb instance.'''
         if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
             if cls.box.running() is True:
                 cls.box.stop()
