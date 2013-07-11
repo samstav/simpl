@@ -24,7 +24,7 @@ from checkmate.providers import base, register_providers
 from checkmate.providers.opscode import solo, knife
 from checkmate import test
 from checkmate import utils
-from checkmate.workflow import create_workflow, create_workflow_spec_deploy
+from checkmate.workflow import init_spiff_workflow, create_workflow_spec_deploy
 
 
 LOG = logging.getLogger(__name__)
@@ -328,7 +328,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         context = RequestContext(auth_token='MOCK_TOKEN',
                                  username='MOCK_USER')
         workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = create_workflow(workflow_spec, self.deployment, context)
+        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
@@ -540,7 +540,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
         deployments.Manager.plan(self.deployment, context)
 
         workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = create_workflow(workflow_spec, self.deployment, context)
+        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
 
         task_list = workflow.spec.task_specs.keys()
         self.assertNotIn('Collect Chef Data for 0', task_list,
@@ -673,7 +673,7 @@ interfaces/mysql/host
                                  username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
         workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = create_workflow(workflow_spec, self.deployment, context)
+        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',
@@ -994,7 +994,7 @@ interfaces/mysql/database_name
                                  username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
         workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = create_workflow(workflow_spec, self.deployment, context)
+        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
         host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']

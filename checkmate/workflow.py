@@ -13,7 +13,7 @@ from checkmate import utils
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
-from checkmate.deployment import get_status, Deployment
+from checkmate.deployment import get_status
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateRetriableException,
@@ -24,40 +24,18 @@ DB = get_driver()
 LOG = logging.getLogger(__name__)
 
 
-def create_delete_deployment_workflow(dep_id, context, driver=DB):
-    deployment = driver.get_deployment(dep_id)
-    deployment = Deployment(deployment)
-    workflow_id = utils.get_id(context.simulation)
-    delete_wf_spec = create_delete_deployment_workflow_spec(deployment, context)
-    delete_wf = create_workflow(delete_wf_spec, deployment, context)
-    LOG.debug("Workflow %s created for deleting deployment %s", workflow_id,
-              deployment["id"])
-
-    delete_wf.attributes['id'] = workflow_id
+def create_workflow(spec, deployment, context, driver=DB, workflow_id=None):
+    if not workflow_id:
+        workflow_id = utils.get_id(context.simulation)
+    spiff_wf = init_spiff_workflow(spec, deployment, context)
+    spiff_wf.attributes['id'] = workflow_id
     serializer = DictionarySerializer()
-    workflow = delete_wf.serialize(serializer)
+    workflow = spiff_wf.serialize(serializer)
     workflow['id'] = workflow_id
     body, secrets = utils.extract_sensitive_data(workflow)
     driver.save_workflow(workflow_id, body, secrets, tenant_id=deployment[
         'tenantId'])
-    return workflow
-
-
-def create_add_nodes_workflow(deployment, context, driver=DB):
-    workflow_id = utils.get_id(context.simulation)
-    add_node_wf_spec = create_workflow_spec_deploy(deployment, context)
-    add_node_wf = create_workflow(add_node_wf_spec, deployment, context)
-    LOG.debug("Workflow %s created for adding nodes to deployment %s",
-              workflow_id, deployment["id"])
-
-    add_node_wf.attributes['id'] = workflow_id
-    serializer = DictionarySerializer()
-    workflow = add_node_wf.serialize(serializer)
-    workflow['id'] = workflow_id
-    body, secrets = utils.extract_sensitive_data(workflow)
-    driver.save_workflow(workflow_id, body, secrets, tenant_id=deployment[
-        'tenantId'])
-    return add_node_wf
+    return spiff_wf
 
 
 def update_workflow_status(workflow, workflow_id=None):
@@ -274,7 +252,7 @@ def create_delete_deployment_workflow_spec(deployment, context):
     return wf_spec
 
 
-def create_workflow(spiff_wf_spec, deployment, context):
+def init_spiff_workflow(spiff_wf_spec, deployment, context):
     """Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
 
     :returns: SpiffWorkflow.Workflow"""

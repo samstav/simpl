@@ -46,11 +46,15 @@ class TestManager(unittest.TestCase):
     def test_deploy_add_nodes(self):
         deployment = {}
         mock_context = self._mox.CreateMockAnything()
+        mock_spec = self._mox.CreateMockAnything()
         mock_wf = self._mox.CreateMockAnything()
-        self._mox.StubOutWithMock(workflow, "create_add_nodes_workflow")
-        workflow.create_add_nodes_workflow(
-            deployment, mock_context,
-            driver=self.controller.driver).AndReturn(mock_wf)
+        self._mox.StubOutWithMock(workflow, "create_workflow_spec_deploy")
+        workflow.create_workflow_spec_deploy(deployment, mock_context)\
+            .AndReturn(mock_spec)
+        self._mox.StubOutWithMock(workflow, "create_workflow")
+        workflow.create_workflow(
+            mock_spec, deployment, mock_context, driver=self.controller.driver
+        ).AndReturn(mock_wf)
         self._mox.StubOutWithMock(operations, "create_add_nodes")
         operations.create_add_nodes(deployment, mock_wf, "ADD_NODES", "T_ID")
         self._mox.ReplayAll()

@@ -337,15 +337,18 @@ class Router(object):
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
             common_tasks.update_operation.delay(api_id, api_id, driver=driver,
                                                 action='PAUSE')
-        delete_workflow = workflow.create_delete_deployment_workflow(
-            api_id, bottle.request.context, driver=driver)
-        operations.create.delay(api_id, delete_workflow['id'], "DELETE",
-                                tenant_id)
-        orchestrator.run_workflow.delay(delete_workflow['id'], timeout=3600,
+        delete_workflow_spec = workflow.create_delete_deployment_workflow_spec(
+            deployment, bottle.request.context)
+        spiff_workflow = workflow.create_workflow(
+            delete_workflow_spec, deployment, bottle.request.context,
+            driver=driver)
+        workflow_id = spiff_workflow.attributes.get('id')
+        operations.create.delay(api_id, workflow_id, "DELETE", tenant_id)
+        orchestrator.run_workflow.delay(workflow_id, timeout=3600,
                                         driver=driver)
         # Set headers
         location = "/deployments/%s" % api_id
-        link = "/workflows/%s" % delete_workflow['id']
+        link = "/workflows/%s" % workflow_id
         if tenant_id:
             location = "/%s%s" % (tenant_id, location)
             link = "/%s%s" % (tenant_id, link)

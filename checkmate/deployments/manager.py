@@ -336,29 +336,14 @@ class Manager(base.ManagerBase):
                  deployment['id'], deployment['status'])
         return deployment
 
-    #
-    # Operations - this should eventually move to operations.py
-    #
     def create_deploy_operation(self, deployment, context, tenant_id=None):
-        '''Create Deploy Operation (Workflow).'''
-        api_id = workflow_id = deployment['id']
-        spiff_wf_spec = workflow.create_workflow_spec_deploy(deployment,
-                                                             context)
-        spiff_wf = workflow.create_workflow(spiff_wf_spec, deployment, context)
-        spiff_wf.attributes['id'] = workflow_id
-        serializer = DictionarySerializer()
-        s_wf = spiff_wf.serialize(serializer)
-        s_wf['id'] = workflow_id
-        deployment['workflow'] = workflow_id
+        deploy_spec = workflow.create_workflow_spec_deploy(deployment, context)
+        spiff_wf = workflow.create_workflow(
+            deploy_spec, deployment, context, driver=self.select_driver(
+                deployment['id']), workflow_id=deployment['id'])
+        deployment['workflow'] = spiff_wf.attributes['id']
         wf_data = operations.init_operation(spiff_wf, tenant_id=tenant_id)
         operation = operations.add_operation(deployment, 'BUILD', **wf_data)
-        operation['workflow-id'] = workflow_id
-
-        body, secrets = utils.extract_sensitive_data(workflow)
-        driver = self.select_driver(api_id)
-        driver.save_workflow(workflow_id, body, secrets,
-                             tenant_id=deployment['tenantId'])
-
         return operation
 
     def reset_failed_resource(self, deployment_id, resource_id):
@@ -473,8 +458,10 @@ class Manager(base.ManagerBase):
         return deployment
 
     def deploy_add_nodes(self, deployment, context, tenant_id):
-        add_node_workflow = workflow.create_add_nodes_workflow(
-            deployment, context, driver=self.driver)
+        add_node_workflow_spec = workflow.create_workflow_spec_deploy(
+            deployment, context)
+        add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
+                                                     deployment, context,
+                                                     driver=self.driver)
         operations.create_add_nodes(deployment, add_node_workflow,
                                     "ADD_NODES", tenant_id)
-

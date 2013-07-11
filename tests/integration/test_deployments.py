@@ -11,6 +11,7 @@ import mox
 
 from celery.app.task import Context
 from mox import IgnoreArg, ContainsKeyValue
+from SpiffWorkflow import Workflow
 
 import checkmate
 from checkmate import (
@@ -1338,16 +1339,23 @@ class TestDeleteDeployments(unittest.TestCase):
         self._deployment['created'] = get_time_string()
         self._deployment['operation'] = {'status': 'IN PROGRESS'}
         mock_driver = self._mox.CreateMockAnything()
+        mock_spec = self._mox.CreateMock(Workflow)
+        mock_spiff_wf = self._mox.CreateMockAnything()
+        mock_spiff_wf.attributes = {"id": "w_id"}
         manager = self._mox.CreateMock(Manager)
         router = Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(self._deployment)
         manager.select_driver('1234').AndReturn(mock_driver)
 
-        self._mox.StubOutWithMock(workflow, "create_delete_deployment_workflow")
-        workflow.create_delete_deployment_workflow('1234',
-                                                   bottle.request.context,
-                                                   driver=mock_driver)\
-            .AndReturn({'id': 'w_id'})
+        self._mox.StubOutWithMock(workflow,
+                                  "create_delete_deployment_workflow_spec")
+        workflow.create_delete_deployment_workflow_spec(
+            self._deployment, bottle.request.context).AndReturn(mock_spec)
+        self._mox.StubOutWithMock(workflow,
+                                  "create_workflow")
+        workflow.create_workflow(mock_spec, self._deployment,
+                                 bottle.request.context, driver=mock_driver)\
+            .AndReturn(mock_spiff_wf)
         self._mox.StubOutWithMock(common_tasks, "update_operation")
         common_tasks.update_operation.delay('1234', '1234', action='PAUSE',
                                             driver=mock_driver)

@@ -20,7 +20,7 @@ from checkmate.providers.rackspace.loadbalancer import (
     wait_on_lb_delete_task,
 )
 from checkmate.workflow import (
-    create_workflow,
+    init_spiff_workflow,
     create_workflow_spec_deploy,
 )
 
@@ -513,7 +513,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         deployments.Manager.plan(vip_deployment, self.context)
         workflow_spec = create_workflow_spec_deploy(vip_deployment,
                                                     self.context)
-        workflow = create_workflow(workflow_spec, vip_deployment, self.context)
+        workflow = init_spiff_workflow(workflow_spec, vip_deployment, self.context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root', 'Start',
@@ -596,7 +596,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             deployment_with_allow_unencrypted, self.context)
         workflow_spec = create_workflow_spec_deploy(
             deployment_with_allow_unencrypted, self.context)
-        workflow = create_workflow(workflow_spec,
+        workflow = init_spiff_workflow(workflow_spec,
                                    deployment_with_allow_unencrypted,
                                    self.context)
 
@@ -629,7 +629,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         """Verify workflow task creation"""
         workflow_spec = create_workflow_spec_deploy(self.deployment,
                                                     self.context)
-        workflow = create_workflow(workflow_spec, self.deployment,
+        workflow = init_spiff_workflow(workflow_spec, self.deployment,
                                    self.context)
 
         task_list = workflow.spec.task_specs.keys()

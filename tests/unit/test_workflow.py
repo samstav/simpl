@@ -28,7 +28,7 @@ from checkmate.workflow import (
     is_failed_task,
     update_workflow,
     create_delete_deployment_workflow_spec,
-    create_workflow,
+    init_spiff_workflow,
 )
 
 
@@ -284,7 +284,7 @@ class TestWorkflow(unittest.TestCase):
             'id': 'lbid'}
         workflow_spec = create_delete_deployment_workflow_spec(
             deployment_with_lb_provider, context)
-        workflow = create_workflow(workflow_spec, deployment_with_lb_provider,
+        workflow = init_spiff_workflow(workflow_spec, deployment_with_lb_provider,
                                    context)
         workflow_dump = re.sub("\s", "", workflow.get_dump())
         expected_dump = """
@@ -352,7 +352,7 @@ class TestWorkflow(unittest.TestCase):
             'id': 'lbid'}
         workflow_spec = create_delete_deployment_workflow_spec(
             deployment_with_lb_provider, context)
-        workflow = create_workflow(workflow_spec, deployment_with_lb_provider,
+        workflow = init_spiff_workflow(workflow_spec, deployment_with_lb_provider,
                                    context)
         workflow_dump = re.sub("\s", "", workflow.get_dump())
         print workflow.get_dump()
