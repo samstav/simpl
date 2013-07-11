@@ -55,8 +55,8 @@ class TestManager(unittest.TestCase):
         workflow.create_workflow(
             mock_spec, deployment, mock_context, driver=self.controller.driver
         ).AndReturn(mock_wf)
-        self._mox.StubOutWithMock(operations, "create_add_nodes")
-        operations.create_add_nodes(deployment, mock_wf, "ADD_NODES", "T_ID")
+        self._mox.StubOutWithMock(operations, "add")
+        operations.add(deployment, mock_wf, "ADD_NODES", "T_ID")
         self._mox.ReplayAll()
         self.controller.deploy_add_nodes(deployment, mock_context, "T_ID")
 

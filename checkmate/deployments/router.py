@@ -115,7 +115,7 @@ class Router(object):
                   self.sync_deployment)
         app.route('/deployments/<api_id>/+deploy', ['POST', 'GET'],
                   self.deploy_deployment)
-        app.route('/deployments/<api_id>/+add-node', ['POST', 'GET'],
+        app.route('/deployments/<api_id>/+add-nodes', ['POST', 'GET'],
                   self.add_nodes)
 
         # Secrets
@@ -279,8 +279,8 @@ class Router(object):
         body = utils.read_body(bottle.request)
         if 'service_name' in body:
             service_name = body['service_name']
-        if 'count' in body :
-            count = body['count']
+        if 'count' in body:
+            count = int(body['count'])
 
         LOG.debug("[AddNodes] Service-Name: %s, Count: %s", service_name,
                   count)
@@ -298,7 +298,8 @@ class Router(object):
         self.manager.save_deployment(deployment, api_id=api_id,
                                      tenant_id=tenant_id)
         add_nodes_wf_id = deployment['operation']['workflow-id']
-        orchestrator.run_workflow.delay(add_nodes_wf_id)
+        orchestrator.run_workflow.delay(
+            add_nodes_wf_id, driver=self.manager.select_driver(api_id))
 
         # Set headers
         location = "/deployments/%s" % api_id

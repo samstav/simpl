@@ -125,16 +125,16 @@ class Manager(base.ManagerBase):
                                     "deployed" % (deployment['id'],
                                     deployment.get('status')))
         generate_keys(deployment)
-
         deployment['display-outputs'] = deployment.calculate_outputs()
 
-        operation = self.create_deploy_operation(deployment, context,
-                                                 tenant_id=
-                                                 deployment['tenantId'])
-
+        deploy_spec = workflow.create_workflow_spec_deploy(deployment, context)
+        spiff_wf = workflow.create_workflow(
+            deploy_spec, deployment, context, driver=self.select_driver(
+                deployment['id']), workflow_id=deployment['id'])
+        deployment['workflow'] = spiff_wf.attributes['id']
+        operations.add(deployment, spiff_wf, "BUILD",
+                       tenant_id=deployment['tenantId'])
         self.save_deployment(deployment)
-
-        return operation
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
         '''
@@ -336,16 +336,6 @@ class Manager(base.ManagerBase):
                  deployment['id'], deployment['status'])
         return deployment
 
-    def create_deploy_operation(self, deployment, context, tenant_id=None):
-        deploy_spec = workflow.create_workflow_spec_deploy(deployment, context)
-        spiff_wf = workflow.create_workflow(
-            deploy_spec, deployment, context, driver=self.select_driver(
-                deployment['id']), workflow_id=deployment['id'])
-        deployment['workflow'] = spiff_wf.attributes['id']
-        wf_data = operations.init_operation(spiff_wf, tenant_id=tenant_id)
-        operation = operations.add_operation(deployment, 'BUILD', **wf_data)
-        return operation
-
     def reset_failed_resource(self, deployment_id, resource_id):
         ''' Creates a copy of a failed resource and appends it at the end of
         the resources collection.
@@ -463,5 +453,4 @@ class Manager(base.ManagerBase):
         add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
                                                      deployment, context,
                                                      driver=self.driver)
-        operations.create_add_nodes(deployment, add_node_workflow,
-                                    "ADD_NODES", tenant_id)
+        operations.add(deployment, add_node_workflow, "ADD_NODES", tenant_id)

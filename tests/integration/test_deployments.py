@@ -212,8 +212,9 @@ class TestDeploymentDeployer(unittest.TestCase):
             },
         }
         self._mox.ReplayAll()
-        parsed = manager.plan(Deployment(deployment), RequestContext())
-        operation = manager.deploy(parsed, RequestContext())
+        d = Deployment(deployment)
+        parsed = manager.plan(d, RequestContext())
+        manager.deploy(parsed, RequestContext())
         self._mox.VerifyAll()
         expected = {
             'status': 'IN PROGRESS',
@@ -225,6 +226,7 @@ class TestDeploymentDeployer(unittest.TestCase):
             'type': 'BUILD',
             'workflow-id': 'test'
         }
+        operation = d["operation"]
         operation['last-change'] = None  # skip comparing/mocking times
 
         self.assertDictEqual(expected, operation)
@@ -1589,6 +1591,7 @@ class TestDeploymentAddNodes(unittest.TestCase):
 
     def test_happy_path(self):
         manager = self._mox.CreateMock(Manager)
+        mock_driver = self._mox.CreateMockAnything()
         router = Router(bottle.default_app(), manager)
 
         manager.get_deployment('1234', tenant_id="T1000").AndReturn(
@@ -1601,15 +1604,15 @@ class TestDeploymentAddNodes(unittest.TestCase):
         })
 
         manager.plan_add_nodes(self._deployment, bottle.request.context,
-                               "service_name", "2").AndReturn(self._deployment)
+                               "service_name", 2).AndReturn(self._deployment)
         manager.deploy_add_nodes(self._deployment, bottle.request.context,
                                  "T1000")
         self._deployment["operation"].update({'workflow-id': 'w_id'})
         manager.save_deployment(self._deployment, api_id='1234',
                                 tenant_id='T1000')
-
+        manager.select_driver('1234').AndReturn(mock_driver)
         self._mox.StubOutWithMock(orchestrator, "run_workflow")
-        orchestrator.run_workflow.delay('w_id')
+        orchestrator.run_workflow.delay('w_id', driver=mock_driver)
 
         self._mox.ReplayAll()
         router.add_nodes("1234", tenant_id="T1000")

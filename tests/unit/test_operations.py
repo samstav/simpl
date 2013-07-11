@@ -35,7 +35,7 @@ class TestOperations(unittest.TestCase):
         operations.init_operation(wf, tenant_id="TENANT_ID").AndReturn(
             {"foo": "bar"})
         self.mox.ReplayAll()
-        operations.create_add_nodes(deployment, wf, "ADD_NODES", "TENANT_ID")
+        operations.add(deployment, wf, "ADD_NODES", "TENANT_ID")
         self.assertDictEqual(deployment['operation'], expected_operation)
 
     def test_update_operation(self):
