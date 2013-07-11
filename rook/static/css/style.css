@@ -376,18 +376,17 @@ body {
     color: inherit;
 }
 
-.deploy_progress {
+.progress-container {
   position: relative;
   background-image: none;
   background-color: #AAA;
   margin-bottom: 0px;
-  width: 67px;
   margin: auto;
 }
-.deploy_progress .bar {
+.progress-container .bar {
   position: absolute;
 }
-.deploy_progress span {
+.progress-container span {
   position: absolute;
   text-align: center;
   width: 100%;
@@ -396,13 +395,17 @@ body {
   font-weight: bold;
 }
 
-.deploy_progress.deploy-complete {
+.progress-container.deploy-complete {
   width: 150px;
 }
 
 .progress .bar.bar-inverse {
   background-color: #333333;
   background-image: none;
+}
+
+.progress-container.deploy-progress {
+  width: 67px;
 }
 
 /* NavBar Loading Indicator */

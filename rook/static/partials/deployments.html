@@ -52,7 +52,7 @@
               </span>
             </td>
             <td>
-              <div class="progress deploy_progress" ng-class="{'deploy-complete': deployment.progress != 100}">
+              <div class="progress progress-container deploy-progress" ng-class="{'deploy-complete': deployment.progress != 100}">
                 <div class="bar {{ deployment.display_status | barClass }}" ng-style="{width: deployment.progress + '%'}">
                 </div>
                 <span>{{deployment.display_status}}</span>
