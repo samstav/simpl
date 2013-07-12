@@ -1,10 +1,13 @@
+'Tests to exercise database celery tasks.'
 import mock
 import unittest
 
 from checkmate.providers.rackspace import database
 
+
 class TestDatabaseTasks(unittest.TestCase):
-    def test_create_instance_simulation_with_no_databases(self):
+    'Class to test rackspace.database celery tasks.'
+    def test_create_instance_sim_no_dbs(self):
         'Create instance with simulation and no databases.'
         database.resource_postback.delay = mock.Mock()
         context = {'simulation': True, 'resource': 0, 'deployment': 0}
@@ -24,7 +27,7 @@ class TestDatabaseTasks(unittest.TestCase):
         database.resource_postback.delay.assert_called_with(0, expected_result)
         self.assertEqual(2, database.resource_postback.delay.call_count)
 
-    def test_create_instance_simulation_with_databases(self):
+    def test_create_instance_sim_with_dbs(self):
         'Create instance with simulation and databases.'
         database.resource_postback.delay = mock.Mock()
         context = {'simulation': True, 'resource': '0', 'deployment': 0}
@@ -64,7 +67,7 @@ class TestDatabaseTasks(unittest.TestCase):
         database.resource_postback.delay.assert_called_with(0, expected_result)
         self.assertEqual(2, database.resource_postback.delay.call_count)
 
-    def test_create_instance_no_simulation_no_databases(self):
+    def test_create_instance_no_sim_no_dbs(self):
         'Create instance no databases.'
         context = {'resource': '0', 'deployment': 0}
         api = mock.Mock()
@@ -102,7 +105,7 @@ class TestDatabaseTasks(unittest.TestCase):
         database.resource_postback.delay.assert_called_with(0, expected)
         self.assertEqual(results, expected)
 
-    def test_create_instance_no_simulation_with_databases(self):
+    def test_create_instance_no_sim_with_dbs(self):
         'Create instance with databases.'
         context = {'resource': '0', 'deployment': 0}
         api = mock.Mock()
