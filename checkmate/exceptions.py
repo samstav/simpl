@@ -8,7 +8,7 @@ class CheckmateCustomException(Exception):
         super(CheckmateCustomException, self).__init__(something_custom)
         self.something_custom = something_custom
 
-This is important to allow exceptioons to flow back from the message queue
+This is important to allow exceptions to flow back from the message queue
 tasks.
 '''
 
