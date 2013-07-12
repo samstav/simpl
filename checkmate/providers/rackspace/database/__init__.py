@@ -101,7 +101,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
             }
         }
         if databases:
-            db_results = results[resource_key]['databases']
+            db_results = results['instance:%s' % resource_key]['databases']
             for database in databases:
                 data = copy.copy(database)
                 data['interfaces'] = {
