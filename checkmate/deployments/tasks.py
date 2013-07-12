@@ -35,7 +35,7 @@ MANAGERS = {'deployments': Manager(DRIVERS)}
 
 
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=10,
-    lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
+      lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
 def reset_failed_resource_task(deployment_id, resource_id):
     MANAGERS['deployments'].reset_failed_resource(deployment_id, resource_id)
 

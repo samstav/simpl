@@ -14,21 +14,21 @@ import json
 import logging
 import os
 import time
-from urlparse import urlparse, unquote
+import urlparse
 import yaml
 
 #pylint: disable=E0611
 from bottle import abort, request
 import eventlet
-from eventlet.green import threading
 from eventlet.green import socket
-from eventlet.greenpool import GreenPile
+from eventlet.green import threading
+from eventlet import greenpool
 github = eventlet.import_patched('github')  # pylint: disable=C0103
 from github import GithubException
 import redis
 from redis.exceptions import ConnectionError
 
-from checkmate.base import ManagerBase
+from checkmate import base
 from checkmate.common import caching
 from checkmate.common import config
 
@@ -46,12 +46,12 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
 
 
 def _handle_ghe(ghe, msg="Unexpected Github error"):
-    ''' Ignore a 404 response from github but log other errors '''
+    '''Ignore a 404 response from github but log other errors.'''
     if ghe.status != 404:
         LOG.warn(msg or "", exc_info=True)
 
 
-class GitHubManager(ManagerBase):
+class GitHubManager(base.ManagerBase):
     '''Manage the catalog of "known good" blueprints.'''
 
     def __init__(self, drivers, config):
@@ -65,11 +65,11 @@ class GitHubManager(ManagerBase):
         :repo_org: the organization owning the blueprint repositories
         :cache_dir: directory to write cached blueprint data to
         '''
-        ManagerBase.__init__(self, drivers)
+        base.ManagerBase.__init__(self, drivers)
         self._github_api_base = config.github_api
         if self._github_api_base:
             self._github = github.Github(base_url=self._github_api_base)
-            self._api_host = urlparse(self._github_api_base).netloc
+            self._api_host = urlparse.urlparse(self._github_api_base).netloc
         self._repo_org = config.organization
         self._ref = config.ref
         self._cache_root = config.cache_dir or os.path.dirname(__file__)
@@ -284,7 +284,8 @@ class GitHubManager(ManagerBase):
 
     def load_cache(self):
         '''pre-seed with existing cache if any in case we can't connect to the
-        repo.'''
+        repo.
+        '''
         if self._load_redis_cache():
             return
 
@@ -336,7 +337,7 @@ class GitHubManager(ManagerBase):
         refs = list(set([ref for ref in refs if ref]))
         repos = org.get_repos()
 
-        pool = GreenPile()
+        pool = greenpool.GreenPile()
         for ref in refs:
             for repo in repos:
                 pool.spawn(self._get_blueprint, repo, ref)
@@ -379,7 +380,7 @@ class GitHubManager(ManagerBase):
 
         if not os.path.exists(self._cache_root):
             try:
-                os.makedirs(self._cache_root, 0766)
+                os.makedirs(self._cache_root, 0o766)
             except (OSError, IOError):
                 LOG.warn("Could not create cache directory", exc_info=True)
                 return
@@ -440,9 +441,8 @@ class GitHubManager(ManagerBase):
         return False
 
     def _get_blueprint(self, repo, tag):
-        '''
-        Get the deployment blueprint from the specified repo if any; format
-        and correct as needed
+        '''Get the deployment blueprint from the specified repo if any; format
+        and correct as needed.
 
         :param repo: the repo containing the blueprint
         '''
@@ -461,8 +461,8 @@ class GitHubManager(ManagerBase):
             if dep_file and dep_file.content:
                 dep_content = base64.b64decode(dep_file.content)
                 dep_content = dep_content.replace("%repo_url%",
-                                                  "%s#%s" % (
-                                                  str(repo.clone_url), tag))
+                                                  "%s#%s" %
+                                                  (str(repo.clone_url), tag))
                 try:
                     ret = yaml.safe_load(dep_content)
                 except (yaml.scanner.ScannerError, yaml.parser.ParserError):
@@ -501,9 +501,10 @@ class GitHubManager(ManagerBase):
         return None
 
     def _inline_documentation_field(self, blueprint, repo, doc_field):
-        '''
-        Set documentation field (documentaion.abstract/instructions/guide
-        etc... field if they are not present in the blueprint and respective
+        '''Set documentation field.
+
+        'documentation.abstract/instructions/guide' etc... field if they are
+        not present in the blueprint and respective
         abstract.md/instructions.md/guide.md files exists in repo
 
         :param blueprint: the blueprint blueprint
@@ -531,8 +532,7 @@ class GitHubManager(ManagerBase):
 
     @staticmethod
     def _get_repo_file_contents(repo, filename):
-        '''
-        Get contents of the given file from the repository
+        '''Get contents of the given file from the repository.
 
         :param repo: the repo containing the blueprint
         :param filename: file name
@@ -547,8 +547,7 @@ class GitHubManager(ManagerBase):
 
     @staticmethod
     def _store(blueprint, tag, target):
-        '''
-        Store the blueprint in the target memory
+        '''Store the blueprint in the target memory.
 
         :param blueprint: the deployment blueprint to store
         '''
@@ -578,13 +577,13 @@ class WebhookRouter(object):
         app.route('/webhooks/blueprints', 'POST', self.on_post)
 
     def on_post(self):
-        """
-        Handle a web-hook post from github
+        '''Handle a web-hook post from github.
+
         :throws 500: if the request body could not
                 be parsed
         :throws 403: if the request comes from
                 an unknown Github service
-        """
+        '''
 
         self._logger.info("Received repo update notification: %s %s",
                           request.method, request.url)
@@ -599,7 +598,7 @@ class WebhookRouter(object):
             abort(403, "Unauthorized")
         try:
             raw_json = request.body.read()
-            self._logger.debug("Update data: %s", unquote(raw_json))
+            self._logger.debug("Update data: %s", urlparse.unquote(raw_json))
         except StandardError:
             self._logger.error("Error reading repo update post body",
                                exc_info=True)
@@ -611,7 +610,7 @@ class WebhookRouter(object):
             self._logger.warn("No update data from request")
             return
         try:
-            updated = json.loads(unquote(raw_json))
+            updated = json.loads(urlparse.unquote(raw_json))
         except ValueError:
             self._logger.error("Could not parse update payload %s",
                                raw_json, exc_info=True)
@@ -633,11 +632,12 @@ class WebhookRouter(object):
             abort(403)
 
     def _is_from_our_repo(self, request):
-        """
+        '''Check if the call came from a trusted repo.
+
         :param request: the http request
         :returns: True if the request comes from the manager's configured
                   source api host; False otherwise
-        """
+        '''
         source = (request.get_header("X-Forwarded-Host") or
                   request.get_header("X-Remote-Host") or
                   request.get_header("X-Forwarded-For") or
@@ -660,7 +660,7 @@ class WebhookRouter(object):
             src = self._resolved.get(source)
             if hasattr(src, "append"):
                 src = self._resolved[src[0]]
-            src = urlparse(src)
+            src = urlparse.urlparse(src)
             if src.scheme:
                 return self._manager.api_host == src.netloc
             else:

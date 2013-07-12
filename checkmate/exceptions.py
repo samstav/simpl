@@ -98,7 +98,7 @@ class CheckmateRetriableException(CheckmateException):
     '''Retriable Exception.'''
 
     def __init__(self, message, error_help, error_type, action_required=False):
-        self.error_help = error_help
+        self.error_help = error_help  # kb article
         self.message = message
         self.error_type = error_type
         self.action_required = action_required

@@ -25,7 +25,7 @@ ENV_MAP = {
     'CHECKMATE_CACHE_CONNECTION_STRING': 'cache_connection_string',
     'CHECKMATE_BLUEPRINT_CACHE_EXPIRE': 'blueprint_cache_expiration',
 
-    # Chef Provder Options
+    # Chef Provider Options
     'CHECKMATE_CHEF_LOCAL_PATH': 'deployments_path',
     'CHECKMATE_CHEF_OMNIBUS_VERSION': 'omnibus_version',
     'BERKSHELF_PATH': 'berkshelf_path',
@@ -269,7 +269,7 @@ def parse_arguments(args=None):
                         "blueprints to use.",
                         default="master")
     parser.add_argument("--cache-dir",
-                        help="cache directory")
+                        help="blueprint cache directory")
     parser.add_argument("--preview-ref",
                         help="version of deployment templates for preview",
                         default=None)
