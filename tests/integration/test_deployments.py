@@ -131,7 +131,7 @@ class TestDeploymentParser(unittest.TestCase):
                               RequestContext())
         del parsed['status']  # we expect this to get added
         del parsed['created']  # we expect this to get added
-        self.assertDictEqual(original, parsed._data)
+        self.assertDictEqual(original, parsed)
 
     def test_constrain_format_handling(self):
         cases = {
@@ -711,7 +711,7 @@ class TestDeploymentSettings(unittest.TestCase):
                         memory: 2 Gb
                         number-only-test: 512
             """))
-        deployment._data.update(yaml_to_dict("""
+        deployment.update(yaml_to_dict("""
                     keys:
                         environment:
                             private: "this is a private key"

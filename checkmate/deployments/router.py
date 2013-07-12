@@ -38,7 +38,7 @@ SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
 #
 # Shared Functions
 #
-def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
+def _content_to_deployment(request=bottle.request, deployment_id=None, tenant_id=None):
     '''Receives request content and puts it in a deployment
 
     :param bottle_request: the bottlepy request object
@@ -46,7 +46,7 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
     :param tenant_id: the tenant ID in the request
 
     '''
-    entity = utils.read_body(bottle_request)
+    entity = utils.read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']  # Unwrap if wrapped
     if 'id' not in entity:
@@ -64,7 +64,7 @@ def _content_to_deployment(bottle_request, deployment_id=None, tenant_id=None):
         assert tenant_id, "Tenant ID must be specified in deployment "
         deployment['tenantId'] = tenant_id
     if 'created-by' not in deployment:
-        deployment['created-by'] = bottle_request.context.username
+        deployment['created-by'] = request.context.username
     return deployment
 
 
@@ -149,8 +149,7 @@ class Router(object):
 
         Triggers workflow execution.
         '''
-        deployment = _content_to_deployment(bottle.request,
-                                            tenant_id=tenant_id)
+        deployment = _content_to_deployment(tenant_id=tenant_id)
 
         is_simulation = bottle.request.context.simulation
         if is_simulation:
@@ -193,8 +192,7 @@ class Router(object):
             check_access = False
         else:
             check_access = True
-        deployment = _content_to_deployment(
-            bottle.request, tenant_id=tenant_id)
+        deployment = _content_to_deployment(tenant_id=tenant_id)
         results = self.manager.plan(deployment, bottle.request.context,
                                     check_limits=check_limits,
                                     check_access=check_access,
@@ -204,8 +202,7 @@ class Router(object):
     @utils.with_tenant
     def preview_deployment(self, tenant_id=None):
         '''Parse and preview a deployment and its workflow.'''
-        deployment = _content_to_deployment(
-            bottle.request, tenant_id=tenant_id)
+        deployment = _content_to_deployment(tenant_id=tenant_id)
         results = self.manager.plan(deployment, bottle.request.context)
         spec = workflow.create_workflow_spec_deploy(
             results, bottle.request.context)
@@ -246,7 +243,7 @@ class Router(object):
     def update_deployment(self, api_id, tenant_id=None):
         '''Store a deployment on this server'''
         deployment = _content_to_deployment(
-            bottle.request, deployment_id=api_id, tenant_id=tenant_id)
+            deployment_id=api_id, tenant_id=tenant_id)
         try:
             entity = self.manager.get_deployment(api_id)
         except CheckmateDoesNotExist:
