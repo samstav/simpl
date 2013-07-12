@@ -301,7 +301,7 @@ class Deployment(MorpheusDict):
         '''
         statuses = []
         deployment_status = self['status']
-        operation_status = self['operation']['status']
+        operation_status = self.get('operation', {}).get('status')
 
         for value in resources.values():
             statuses.append(value['status'])
