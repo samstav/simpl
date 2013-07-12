@@ -380,15 +380,16 @@ class GitHubManager(ManagerBase):
         if not os.path.exists(self._cache_root):
             try:
                 os.makedirs(self._cache_root, 0766)
-            except OSError:
+            except (OSError, IOError):
                 LOG.warn("Could not create cache directory", exc_info=True)
                 return
-        with open(self._cache_file, 'w') as cache:
-            try:
+        try:
+            with open(self._cache_file, 'w') as cache:
                 cache.write(json.dumps(self._blueprints))
-                LOG.info("Cached blueprints to file: %s", self._cache_file)
-            except IOError:
-                LOG.warn("Error updating disk cache", exc_info=True)
+        except IOError:
+            LOG.warn("Error updating disk cache", exc_info=True)
+        else:
+            LOG.info("Cached blueprints to file: %s", self._cache_file)
 
     def _refresh_from_repo(self, repo):
         '''Store/update blueprint info from the specified repository.
@@ -397,19 +398,19 @@ class GitHubManager(ManagerBase):
         '''
         if repo:
             rid = "%s:%s" % (str(repo.id), self._ref)
+            blueprint = self._get_blueprint(repo, self._ref)
             if rid in self._blueprints:
                 del self._blueprints[rid]
-            self._store(self._get_blueprint(repo, self._ref), self._ref,
-                        self._blueprints)
+            self._store(blueprint, self._ref, self._blueprints)
 
             if not self._preview_ref:
                 return
 
             rid = "%s:%s" % (str(repo.id), self._preview_ref)
+            blueprint = self._get_blueprint(repo, self._preview_ref)
             if rid in self._blueprints:
                 del self._blueprints[rid]
-            self._store(self._get_blueprint(repo, self._preview_ref),
-                        self._preview_ref, self._blueprints)
+            self._store(blueprint, self._preview_ref, self._blueprints)
 
     def _get_repo(self, repo_name):
         '''Return the specified github repo.
@@ -462,9 +463,19 @@ class GitHubManager(ManagerBase):
                 dep_content = dep_content.replace("%repo_url%",
                                                   "%s#%s" % (
                                                   str(repo.clone_url), tag))
-                ret = yaml.safe_load(dep_content)
+                try:
+                    ret = yaml.safe_load(dep_content)
+                except (yaml.scanner.ScannerError, yaml.parser.ParserError):
+                    LOG.warn("Blueprint '%s' has invalid YAML", repo.clone_url)
+                    return None
+
                 if "inputs" in ret:
                     del ret['inputs']
+
+                if 'blueprint' not in ret:
+                    LOG.warn("Blueprint '%s' has no 'blueprint' key",
+                             repo.clone_url)
+                    return None
 
                 if 'documentation' not in ret['blueprint']:
                     ret['blueprint']['documentation'] = {}
