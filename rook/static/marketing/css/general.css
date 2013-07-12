@@ -1,5 +1,5 @@
 body {
-    background:#fcfcfc url("/marketing/img/top.png") top left repeat-x;
+    background:#fcfcfc url("/img/marketing/top.png") top left repeat-x;
     padding:40px 0 0;
     border-top:3px solid #ddd;
 }
@@ -365,7 +365,7 @@ form h4 {
 
 .graded {
     padding-bottom:100px;
-    background:url("/marketing/img/graded2.png") bottom center repeat-x;
+    background:url("/img/marketing/graded2.png") bottom center repeat-x;
 }
 
 .drop-shadow {
