@@ -245,7 +245,7 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     mixpanel.track("Log In Failed", {'problem': response.status});
     $location.path('/');
     $scope.loginPrompt();
-    auth.error_message = response.status + ". Your credentials could not be verified.";
+    auth.error_message = response.status + ". " + response.message;
   };
 
   $scope.autoLogIn = function() {
