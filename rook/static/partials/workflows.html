@@ -12,7 +12,7 @@
         <td><a ng-href="/{{workflow.tenantId}}/workflows/{{workflow.id}}"><i class="icon-tasks"></i> {{workflow.id}}</a></td>
         <td>{{workflow.name}}</td>
         <td>
-          <div class="progress deploy_progress">
+          <div class="progress progress-container">
             <div class="bar" ng-style="{width: (workflow.progress || '0') + '%'}"
               ng-class="{'bar-success': workflow.status == 'COMPLETE'}">
             </div>
