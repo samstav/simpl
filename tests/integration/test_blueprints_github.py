@@ -11,7 +11,7 @@ from checkmate.common.config import Config
 
 @unittest.skip("Not migrated from CrossCheck fully")
 class TestGitHubManager(unittest.TestCase):
-    ''' Tests GitHubManager '''
+    '''Tests GitHubManager.'''
 
     # pylint: disable=C0103
     def setUp(self):
@@ -23,14 +23,14 @@ class TestGitHubManager(unittest.TestCase):
         self._gm = github.GitHubManager({}, self.config)
 
     def test_get_blueprints(self):
-        """ test get_blueprints method """
+        '''Test get_blueprints method.'''
 
         blueprints = self._gm.get_blueprints("v0.5")
         self.assertIsNotNone(blueprints)
         self.assertTrue(len(blueprints.keys()) > 0)
 
     def test_get_blueprint_and_verify_documentation_section(self):
-        """ test get_blueprints method """
+        '''Test get_blueprints method.'''
 
         blueprints = self._gm.get_blueprints("v0.5")
         self.assertIsNotNone(blueprints)
@@ -41,7 +41,7 @@ class TestGitHubManager(unittest.TestCase):
         self.assertIsNotNone(blueprint['blueprint']['documentation'])
 
     def test_get_blueprint(self):
-        """ test get_blueprint method """
+        '''Test get_blueprint method.'''
 
         blueprints = self._gm.get_blueprints("v0.5")
         self.assertIsNotNone(blueprints)
@@ -66,7 +66,7 @@ class TestWebhookRouter(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_do_post(self):
-        ''' test do_post method '''
+        '''Test do_post method.'''
         new_2 = {
             "deployment": {
                 "name": "Modified deployment",
@@ -103,7 +103,7 @@ class TestWebhookRouter(unittest.TestCase):
         self.assertDictEqual(new_2, json.loads(self.response.body))
 
     def test_not_allowed(self):
-        """ Tests that calls from illegal hosts are rejected """
+        '''Tests that calls from illegal hosts are rejected.'''
         self.request._headers = {"mock": "Header"}
         self.request.get_header("X-Forwarded-Host").AndReturn(None)
         self.request.get_header("X-Remote-Host").AndReturn("github.com")
