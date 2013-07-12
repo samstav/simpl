@@ -330,6 +330,12 @@ describe('DeploymentListController', function(){
     });
   });
 
+  describe('deployment_map', function() {
+    it('should default to empty object', function() {
+      expect(scope.deployment_map).toEqual({});
+    });
+  });
+
   describe('#is_selected', function() {
     it('should return true if any deployment has been selected', function() {
       scope.selected_deployments = { 123: 'somedeployment' };
@@ -349,7 +355,8 @@ describe('DeploymentListController', function(){
     });
 
     it('should remove deployment from selected list if deployment was there', function() {
-      scope.selected_deployments = { 123: deployment };
+      scope.selected_deployments = { 123: true };
+      scope.deployment_map = { 123: deployment };
       scope.select_toggle(deployment);
       expect(scope.is_selected[123]).toBe(undefined);
     });
@@ -365,11 +372,11 @@ describe('DeploymentListController', function(){
       });
 
       it('should set selected flag to true', function() {
-        expect(scope.selected_deployments[123].selected).toBe(true);
+        expect(scope.selected_deployments[123]).toBe(true);
       });
 
       it('should add deployment object to list', function() {
-        expect(scope.selected_deployments[123].deployment).toEqual({ id: 123, content: 'somecontent' });
+        expect(scope.deployment_map[123]).toEqual({ id: 123, content: 'somecontent' });
       });
     });
   });
@@ -383,9 +390,13 @@ describe('DeploymentListController', function(){
       var d1 = {id: 123, created_by: 'asdf'};
       var d2 = {id: 456, created_by: 'qwer'};
       scope.selected_deployments = {
-        123: { selected: true, deployment: d1 },
-        456: { selected: true, deployment: d2 },
-      }
+        123: true,
+        456: true,
+      };
+      scope.deployment_map = {
+        123: d1,
+        456: d2,
+      };
       scope.sync_deployments();
       expect(scope.wrap_admin_call).toHaveBeenCalledWith('asdf', scope.sync, d1);
       expect(scope.wrap_admin_call).toHaveBeenCalledWith('qwer', scope.sync, d2);

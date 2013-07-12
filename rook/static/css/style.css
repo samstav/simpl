@@ -570,33 +570,27 @@ a:hover {
   border: 1px solid #dddddd;
   height: 100%;
 }
-
-.checkbox-filter {
-  margin-left: 10px;
+.sidebar-left .group {
+  margin: 10px;
 }
-
-.checkbox-filter input {
-  margin: 0;
+.sidebar-left .group h5 {
+  text-transform: uppercase;
+  font-size: 12px;
 }
-
-.checkbox-filter-name {
+.sidebar-left .disabled {
+  color: #888;
+  text-decoration: none;
+  cursor: pointer;
+}
+.sidebar-left .filter input { margin: 0; }
+.sidebar-left .filter span {
   vertical-align: middle;
   padding-left: 5px;
   font-size: 13px;
 }
 
-.sidebar-heading {
-  text-align: center;
-}
-
-.sidebar-heading h5 {
-  text-transform: uppercase;
-  margin: 0 0 0 10px;
-  padding: 10px 0;
-  text-align: left;
-  font-size: 12px;
-}
-
 table th.text-center {
   text-align: center;
 }
+
+th.id { min-width: 160px; }
