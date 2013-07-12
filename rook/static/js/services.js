@@ -957,7 +957,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       var headers,
           target = endpoint['uri'],
           data = this.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, endpoint.scheme);
-      if (!data) return false;
+      if (!data) return $q.reject({ status: 401, message: 'No auth data was supplied' });
 
       if (target === undefined || target === null || target.length === 0) {
         headers = {};  // Not supported on server, but we should do it
@@ -989,6 +989,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           function(response) {
             console.log("Authentication Error:");
             console.log(response.data);
+            response.message = 'Your credentials could not be verified';
             return $q.reject(response);
           }
         );
