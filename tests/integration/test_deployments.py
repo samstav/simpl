@@ -1612,7 +1612,8 @@ class TestDeploymentAddNodes(unittest.TestCase):
                                 tenant_id='T1000')
         manager.select_driver('1234').AndReturn(mock_driver)
         self._mox.StubOutWithMock(orchestrator, "run_workflow")
-        orchestrator.run_workflow.delay('w_id', driver=mock_driver)
+        orchestrator.run_workflow.delay('w_id', timeout=3600,
+                                        driver=mock_driver)
 
         self._mox.ReplayAll()
         router.add_nodes("1234", tenant_id="T1000")

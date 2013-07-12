@@ -210,7 +210,7 @@ class Deployment(MorpheusDict):
     FSM_TRANSITIONS = {
         'NEW': {'PLANNED', 'FAILED'},
         'PLANNED': {'UP', 'FAILED'},
-        'UP': {'ALERT', 'UNREACHABLE', 'DOWN', 'DELETED', 'PLANNED'},
+        'UP': {'ALERT', 'UNREACHABLE', 'DOWN', 'DELETED'},
         'FAILED': {'DELETED'},
         'ALERT': {'DELETED', 'UP'},
         'UNREACHABLE': {'DOWN', 'UP', 'ALERT'},

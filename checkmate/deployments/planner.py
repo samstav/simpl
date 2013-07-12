@@ -152,6 +152,7 @@ class Planner(ExtensibleDict):
         seed = self._get_number_of_resources(provider_key, service_name) + 1
         for service_index in range(seed, seed + count):
             self.add_resource_for_service(context, service_name, service_index)
+        self.connect_resources()
         return self.resources
 
     def plan(self, context):
@@ -550,12 +551,13 @@ class Planner(ExtensibleDict):
 
         if 'relations' in resource and write_key in resource['relations']:
             if resource['relations'][write_key] != result:
-                LOG.debug("Relation '%s' already exists")
+                LOG.debug("Relation '%s' already exists",
+                          resource['relations'][write_key])
                 return
             else:
-                CheckmateException("Conflicting relation named '%s' exists in "
-                                   "service '%s'" % (write_key,
-                                                     target['service']))
+                LOG.debug("Conflicting relation named '%s' exists in service "
+                          "'%s'" % (write_key, target['service']))
+                return
 
         # Write relation
 

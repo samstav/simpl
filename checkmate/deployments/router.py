@@ -299,7 +299,8 @@ class Router(object):
                                      tenant_id=tenant_id)
         add_nodes_wf_id = deployment['operation']['workflow-id']
         orchestrator.run_workflow.delay(
-            add_nodes_wf_id, driver=self.manager.select_driver(api_id))
+            add_nodes_wf_id, timeout=3600, driver=self.manager.select_driver(
+                api_id))
 
         # Set headers
         location = "/deployments/%s" % api_id

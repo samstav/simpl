@@ -303,9 +303,10 @@ def create_workflow_spec_deploy(deployment, context):
     LOG.info("Building workflow spec for deployment '%s'" % deployment['id'])
     blueprint = deployment['blueprint']
     environment = deployment.environment()
+    new_and_planned_resources = deployment.get_new_and_planned_resources()
 
     # Build a workflow spec (the spec is the design of the workflow)
-    wfspec = WorkflowSpec(name="Deploy '%s' Workflow" % blueprint['name'])
+    wf_spec = WorkflowSpec(name="Deploy '%s' Workflow" % blueprint['name'])
 
     #
     # Create the tasks that make the async calls
@@ -315,7 +316,7 @@ def create_workflow_spec_deploy(deployment, context):
     providers = {}  # Unique providers used in this deployment
 
     provider_keys = set()
-    for key, resource in deployment.get_new_and_planned_resources().iteritems():
+    for key, resource in deployment.get('resources', {}).iteritems():
         if key not in ['connections', 'keys'] and 'provider' in resource and\
                 resource['provider'] not in provider_keys:
             provider_keys.add(resource['provider'])
@@ -325,34 +326,32 @@ def create_workflow_spec_deploy(deployment, context):
     for key in provider_keys:
         provider = environment.get_provider(key)
         providers[provider.key] = provider
-        prep_result = provider.prep_environment(wfspec, deployment, context)
+        prep_result = provider.prep_environment(wf_spec, deployment, context)
         # Wire up tasks if not wired in somewhere
         if prep_result and not prep_result['root'].inputs:
-            wfspec.start.connect(prep_result['root'])
+            wf_spec.start.connect(prep_result['root'])
 
-    #build sorted list of resources based on dependencies
     sorted_resources = []
 
     def recursive_add_host(sorted_list, resource_key, resources, stack):
-        resource = resources[resource_key]
-        for key, relation in resource.get('relations', {}).iteritems():
-            if 'target' in relation:
-                if relation['target'] not in sorted_list:
-                    if relation['target'] in stack:
-                        raise CheckmateException("Circular dependency in "
-                                                 "resources between %s and %s"
-                                                 % (resource_key,
-                                                    relation['target']))
-                    stack.append(resource_key)
-                    recursive_add_host(sorted_resources,
-                                       relation['target'], resources, stack)
-        if resource_key not in sorted_list:
-            sorted_list.append(resource_key)
-
-    for key, resource in deployment.get_new_and_planned_resources().iteritems():
+        if resource_key in new_and_planned_resources.keys():
+            resource = resources[resource_key]
+            for key, relation in resource.get('relations', {}).iteritems():
+                if 'target' in relation:
+                    if relation['target'] not in sorted_list:
+                        if relation['target'] in stack:
+                            raise CheckmateException(
+                                "Circular dependency in resources between %s "
+                                "and %s" % (resource_key, relation['target']))
+                        stack.append(resource_key)
+                        recursive_add_host(sorted_resources,
+                                           relation['target'], resources, stack)
+            if resource_key not in sorted_list:
+                    sorted_list.append(resource_key)
+    for key, resource in new_and_planned_resources.iteritems():
         if key not in ['connections', 'keys'] and 'provider' in resource:
             recursive_add_host(sorted_resources, key,
-                               deployment.get_new_and_planned_resources(),
+                               deployment.get('resources'),
                                [])
     LOG.debug("Ordered resources: %s" % '->'.join(sorted_resources))
 
@@ -360,13 +359,13 @@ def create_workflow_spec_deploy(deployment, context):
     for key in sorted_resources:
         resource = deployment['resources'][key]
         provider = providers[resource['provider']]
-        provider_result = provider.add_resource_tasks(resource, key, wfspec,
+        provider_result = provider.add_resource_tasks(resource, key, wf_spec,
                                                       deployment, context)
 
         if provider_result and provider_result.get('root') and \
                 not provider_result['root'].inputs:
             # Attach unattached tasks
-            wfspec.start.connect(provider_result['root'])
+            wf_spec.start.connect(provider_result['root'])
         # Process hosting relationship before the hosted resource
         if 'hosts' in resource:
             for index in resource['hosts']:
@@ -382,7 +381,7 @@ def create_workflow_spec_deploy(deployment, context):
                 provider_result = provider.add_connection_tasks(hr, index,
                                                                 relation,
                                                                 'host',
-                                                                wfspec,
+                                                                wf_spec,
                                                                 deployment,
                                                                 context)
                 if provider_result and provider_result.get('root') and \
@@ -390,20 +389,21 @@ def create_workflow_spec_deploy(deployment, context):
                     # Attach unattached tasks
                     LOG.debug("Attaching '%s' to 'Start'",
                               provider_result['root'].name)
-                    wfspec.start.connect(provider_result['root'])
+                    wf_spec.start.connect(provider_result['root'])
 
     # Do relations
-    for key, resource in deployment.get_new_and_planned_resources().iteritems():
+    for key, resource in deployment.get('resources', {}).iteritems():
         if 'relations' in resource:
             for name, relation in resource['relations'].iteritems():
                 # Process where this is a source (host relations done above)
-                if 'target' in relation and name != 'host':
+                if 'target' in relation and name != 'host' and relation[
+                        'target'] in new_and_planned_resources.keys():
                     provider = providers[resource['provider']]
                     provider_result = provider.add_connection_tasks(resource,
                                                                     key,
                                                                     relation,
                                                                     name,
-                                                                    wfspec,
+                                                                    wf_spec,
                                                                     deployment,
                                                                     context)
                     if provider_result and provider_result.get('root') and \
@@ -411,13 +411,13 @@ def create_workflow_spec_deploy(deployment, context):
                         # Attach unattached tasks
                         LOG.debug("Attaching '%s' to 'Start'",
                                   provider_result['root'].name)
-                        wfspec.start.connect(provider_result['root'])
+                        wf_spec.start.connect(provider_result['root'])
 
     # Check that we have a at least one task. Workflow fails otherwise.
-    if not wfspec.start.outputs:
-        noop = Simple(wfspec, "end")
-        wfspec.start.connect(noop)
-    return wfspec
+    if not wf_spec.start.outputs:
+        noop = Simple(wf_spec, "end")
+        wf_spec.start.connect(noop)
+    return wf_spec
 
 
 def wait_for(wf_spec, task, wait_list, name=None, **kwargs):

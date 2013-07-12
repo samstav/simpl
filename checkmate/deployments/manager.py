@@ -442,7 +442,6 @@ class Manager(base.ManagerBase):
         deployment['plan'] = planner._data  # get dict so we can serialize it
 
         # Mark deployment as planned and return it (nothing has been saved yet)
-        deployment['status'] = 'PLANNED'
         LOG.info("Deployment '%s' planning complete and status changed to %s",
                  deployment['id'], deployment['status'])
         return deployment
@@ -453,4 +452,4 @@ class Manager(base.ManagerBase):
         add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
                                                      deployment, context,
                                                      driver=self.driver)
-        operations.add(deployment, add_node_workflow, "ADD_NODES", tenant_id)
+        operations.add(deployment, add_node_workflow, "SCALE UP", tenant_id)

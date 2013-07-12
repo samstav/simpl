@@ -93,8 +93,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     operation = Deployment(deployment).get_current_operation(w_id)
     if not operation:
         driver.unlock_workflow(w_id, key)
-        LOG.debug("RunWorkflow for workflow %s "
-                  "cannot proceed, as operation "
+        LOG.debug("RunWorkflow for workflow %s cannot proceed, as operation "
                   "could not be found. Deployment Id: %s", w_id, dep_id)
         run_workflow.retry()
 

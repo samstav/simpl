@@ -19,7 +19,6 @@ from checkmate import workflow
 from checkmate.deployment import Deployment
 
 
-
 class TestManager(unittest.TestCase):
 
     def setUp(self):
@@ -56,7 +55,7 @@ class TestManager(unittest.TestCase):
             mock_spec, deployment, mock_context, driver=self.controller.driver
         ).AndReturn(mock_wf)
         self._mox.StubOutWithMock(operations, "add")
-        operations.add(deployment, mock_wf, "ADD_NODES", "T_ID")
+        operations.add(deployment, mock_wf, "SCALE UP", "T_ID")
         self._mox.ReplayAll()
         self.controller.deploy_add_nodes(deployment, mock_context, "T_ID")
 
