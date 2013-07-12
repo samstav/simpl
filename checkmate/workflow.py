@@ -38,7 +38,7 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None):
     return spiff_wf
 
 
-def update_workflow_status(workflow, workflow_id=None):
+def update_workflow_status(workflow, tenant_id=None):
     total = len(workflow.get_tasks(state=Task.ANY_MASK))
     completed = len(workflow.get_tasks(state=Task.COMPLETED))
     if total is not None and total > 0:
@@ -48,17 +48,16 @@ def update_workflow_status(workflow, workflow_id=None):
     workflow.attributes['progress'] = progress
     workflow.attributes['total'] = total
     workflow.attributes['completed'] = completed
+    errors = get_errors(workflow, tenant_id)
 
     if workflow.is_completed():
         workflow.attributes['status'] = "COMPLETE"
     elif workflow.attributes['completed'] == 0:
         workflow.attributes['status'] = "NEW"
+    elif errors:
+        workflow.attributes['status'] = "FAILED"
     else:
-        deployment_id = workflow.get_attribute('deploymentId', workflow_id)
-        if get_status(deployment_id) == 'FAILED':
-            workflow.attributes['status'] = "FAILED"
-        else:
-            workflow.attributes['status'] = "IN PROGRESS"
+        workflow.attributes['status'] = "IN PROGRESS"
 
 
 def reset_task_tree(task):
@@ -99,7 +98,7 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     :return:
     '''
 
-    update_workflow_status(d_wf, workflow_id=workflow_id)
+    update_workflow_status(d_wf, tenant_id=tenant_id)
     if status:
         d_wf.attributes['status'] = status
 
@@ -290,7 +289,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context):
               overall)
     workflow.attributes['estimated_duration'] = overall
     workflow.attributes['deploymentId'] = deployment['id']
-    update_workflow_status(workflow)
+    update_workflow_status(workflow, tenant_id=deployment.get('tenantId'))
 
     return workflow
 

@@ -195,7 +195,7 @@ class TestWorkflow(unittest.TestCase):
         d_wf.attributes["id"] = w_id
 
         self.mox.StubOutWithMock(workflow, 'update_workflow_status')
-        workflow.update_workflow_status(d_wf, workflow_id=w_id)
+        workflow.update_workflow_status(d_wf, tenant_id='1001')
         mock_driver = self.mox.CreateMockAnything()
         wf_serialize = d_wf.serialize(serializer)
         wf_serialize["tenantId"] = tenant_id
@@ -217,7 +217,7 @@ class TestWorkflow(unittest.TestCase):
         d_wf.attributes["status"] = "COMPLETE"
 
         self.mox.StubOutWithMock(workflow, 'update_workflow_status')
-        workflow.update_workflow_status(d_wf, workflow_id=w_id)
+        workflow.update_workflow_status(d_wf, tenant_id="1001")
 
         mock_driver = self.mox.CreateMockAnything()
         wf_serialize = d_wf.serialize(serializer)

@@ -287,7 +287,7 @@ def retry_all_failed_tasks(id, tenant_id=None, driver=DB):
             LOG.debug("Resetting task %s for workflow %s", task_id, id)
             wf_import.reset_task_tree(task)
 
-        wf_import.update_workflow_status(wf)
+        wf_import.update_workflow_status(wf, tenant_id=tenant_id)
         entity = wf.serialize(serializer)
         body, secrets = extract_sensitive_data(entity)
         body['tenantId'] = workflow.get('tenantId', tenant_id)
@@ -443,7 +443,7 @@ def post_workflow_task(id, task_id, tenant_id=None, driver=DB):
         task._state = entity['state']
 
     # Save workflow (with secrets)
-    wf_import.update_workflow_status(wf, workflow_id=id)
+    wf_import.update_workflow_status(wf, tenant_id=tenant_id)
     serializer = DictionarySerializer()
     body, secrets = extract_sensitive_data(wf.serialize(serializer))
     body['tenantId'] = workflow.get('tenantId', tenant_id)
@@ -499,7 +499,7 @@ def reset_workflow_task(id, task_id, tenant_id=None, driver=DB):
     task._state = Task.FUTURE
     task.parent._state = Task.READY
 
-    wf_import.update_workflow_status(wf, workflow_id=workflow.id)
+    wf_import.update_workflow_status(wf, tenant_id=tenant_id)
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
@@ -553,7 +553,7 @@ def reset_task_tree(id, task_id, tenant_id=None, driver=DB):
 
     wf_import.reset_task_tree(task)
 
-    wf_import.update_workflow_status(wf)
+    wf_import.update_workflow_status(wf, tenant_id=tenant_id)
     serializer = DictionarySerializer()
     entity = wf.serialize(serializer)
     body, secrets = extract_sensitive_data(entity)
@@ -613,7 +613,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
                       task.get_state_name())
             task.task_spec._update_state(task)
 
-        wf_import.update_workflow_status(wf, workflow_id=workflow_id)
+        wf_import.update_workflow_status(wf, tenant_id=tenant_id)
         serializer = DictionarySerializer()
         entity = wf.serialize(serializer)
         body, secrets = extract_sensitive_data(entity)
