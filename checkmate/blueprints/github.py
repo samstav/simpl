@@ -23,7 +23,7 @@ import eventlet
 from eventlet.green import socket
 from eventlet.green import threading
 from eventlet import greenpool
-github = eventlet.import_patched('github')  # pylint: disable=C0103
+import github
 from github import GithubException
 import redis
 from redis.exceptions import ConnectionError

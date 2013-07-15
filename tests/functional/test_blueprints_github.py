@@ -3,8 +3,7 @@ import base64
 import os
 import unittest
 
-import eventlet
-gh = eventlet.import_patched('github')  # pylint: disable=C0103
+import github as gh
 import mox
 
 from checkmate.blueprints import github
