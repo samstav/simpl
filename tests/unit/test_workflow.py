@@ -93,7 +93,8 @@ class TestWorkflow(unittest.TestCase):
                           "+reset-task-tree",
             "error-type": "error-type",
             "action-required": True,
-            "task-id": "task_id"
+            "task-id": "task_id",
+            "traceback": "Traceback"
         }
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
@@ -124,7 +125,9 @@ class TestWorkflow(unittest.TestCase):
             "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute",
             "error-type": "error-type",
             "action-required": True,
-            "task-id": "task_id"
+            "task-id": "task_id",
+            "traceback": "Traceback"
+
         }
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
@@ -147,7 +150,7 @@ class TestWorkflow(unittest.TestCase):
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
         expected_error = {"error-message": "This is an exception",
-                          "error-type": "Exception"}
+                          "error-type": "Exception", "traceback": "Traceback"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 

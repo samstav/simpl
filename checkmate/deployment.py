@@ -194,7 +194,6 @@ class Deployment(morpheus.MorpheusDict):
         'meta-data',  # Used to store, display miscellaneous data on the
                       #deployment
         'check-limit-results', 'check-access-results',
-        'error-message',  # to be deprecated
         'includes',  # used to place YAML-referenced parts but then removed
     ]
 
@@ -1363,8 +1362,6 @@ def update_deployment_status(deployment_id, new_status, error_message=None,
     delta = {}
     if new_status:
         delta['status'] = new_status
-    if error_message:
-        delta['error-message'] = error_message
     if delta:
         try:
             driver.save_deployment(deployment_id, delta, partial=True)

@@ -124,6 +124,7 @@ def get_errors(wf_dict, tenant_id):
         if is_failed_task(task):
             task_state = task._get_internal_attribute("task_state")
             info = task_state["info"]
+            traceback = task_state.get("traceback")
             try:
                 exception = eval(info)
                 if isinstance(exception, CheckmateRetriableException):
@@ -136,7 +137,8 @@ def get_errors(wf_dict, tenant_id):
                         "retry-link":
                         "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
                         tenant_id, wf_dict.attributes["id"], task.id),
-                        "action-required": exception.action_required
+                        "action-required": exception.action_required,
+                        "traceback": traceback
 
                     })
                 elif isinstance(exception, CheckmateResumableException):
@@ -150,12 +152,14 @@ def get_errors(wf_dict, tenant_id):
                             tenant_id,
                             wf_dict.attributes["id"],
                             task.id),
-                        "action-required": exception.action_required
+                        "action-required": exception.action_required,
+                        "traceback": traceback
                     })
                 elif isinstance(exception, Exception):
                     results.append({
                         "error-type": utils.get_class_name(exception),
-                        "error-message": exception.args[0]})
+                        "error-message": exception.args[0],
+                        "traceback": traceback})
             except Exception:
                 results.append({"error-message": info})
     return results
