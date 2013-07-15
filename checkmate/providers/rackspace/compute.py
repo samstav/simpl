@@ -19,6 +19,7 @@ from novaclient.exceptions import (
 
 client = eventlet.import_patched('novaclient.v1_1.client')
 # from novaclient.v1_1 import client
+import redis
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
@@ -116,6 +117,12 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
 API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
 API_LIMITS_CACHE = {}
+REDIS = None
+if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
+    try:
+        REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
+    except StandardError as exc:
+        LOG.warn("Error connecting to Redis: %s", exc)
 
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 from checkmate import db
@@ -443,7 +450,7 @@ class Provider(RackspaceComputeProviderBase):
             result[i_key]['instance'] = {'status-message': ''}
         return result
 
-    def delete_resource_tasks(self, wf_spec,  context, deployment_id, resource,
+    def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):
         self._verify_existing_resource(resource, key)
         inst_id = resource.get("instance", {}).get("id")
@@ -676,7 +683,8 @@ class AuthPlugin(object):
             self.done = True
 
 
-@caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE,
+               backing_store=REDIS, backing_store_key='rax.compute.images')
 def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types.'''
     plugin = AuthPlugin(auth_token, api_endpoint)
@@ -702,7 +710,8 @@ def _get_images_and_types(api_endpoint, auth_token):
     return ret
 
 
-@caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE,
+               backing_store=REDIS, backing_store_key='rax.compute.flavors')
 def _get_flavors(api_endpoint, auth_token):
     '''Ask Nova for Flavors (RAM, CPU, HDD) options.'''
     plugin = AuthPlugin(auth_token, api_endpoint)
@@ -724,7 +733,8 @@ def _get_flavors(api_endpoint, auth_token):
     }
 
 
-@caching.Cache(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE)
+@caching.Cache(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE,
+               backing_store=REDIS, backing_store_key='rax.compute.limits')
 def _get_limits(api_endpoint, auth_token):
     '''Retrieve account limits as a dict.'''
     plugin = AuthPlugin(auth_token, api_endpoint)

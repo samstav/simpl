@@ -99,6 +99,45 @@ class TestRedisCache(unittest.TestCase):
         key = cache2.get_hash()
         self.assertIn(key, cache2._store)
 
+    def test_shared_caching_unique(self):
+        '''Test that we can use extra key data to separate Redis caches.'''
+
+        def increment():
+            '''For testing'''
+            increment.calls += 1
+            return increment.calls
+
+        def increment2():
+            '''For testing'''
+            return 0
+
+        # No caching
+        increment.calls = 0
+        fxn = increment
+        result1 = fxn()
+        self.assertEqual(result1, 1)
+        result2 = fxn()
+        self.assertEqual(result2, 2)
+
+        # With caching
+        cache = caching.Cache(backing_store=self.redis, backing_store_key='A')
+        increment.calls = 0
+        fxn = cache(increment)
+        result1 = fxn()
+        self.assertEqual(result1, 1)
+        result2 = fxn()
+        self.assertEqual(result2, 1)  # not incremented
+
+        # With shared caching, but seperate key
+        cache2 = caching.Cache(backing_store=self.redis, backing_store_key='B')
+        fxn = cache2(increment2)
+        result1 = fxn()
+        self.assertEqual(result1, 0)  # incremented (shared cache unique)
+
+        # Shared cache should populate local cache
+        key = cache2.get_hash()
+        self.assertIn(key, cache2._store)
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

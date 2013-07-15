@@ -199,7 +199,9 @@ class Deployment(MorpheusDict):
         'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
         'error-messages', 'live', 'plan', 'operations-history', 'created-by',
         'secrets',
-        'meta-data',  # Used to store, display miscellaneous data on the deploymnt
+        'meta-data',  # Used to store, display miscellaneous data on the
+                      #deployment
+        'check-limit-results', 'check-access-results',
         'error-message',  # to be deprecated
         'includes',  # used to place YAML-referenced parts but then removed
     ]
