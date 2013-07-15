@@ -440,7 +440,8 @@ class Manager(base.ManagerBase):
 
         body, secrets = utils.extract_sensitive_data(deployment)
         self.driver.save_deployment(deployment_id, body, secrets,
-                                    partial=True)
+                                    partial=True,
+                                    tenant_id=deployment['tenantId'])
 
         LOG.debug("Updated deployment %s with postback", deployment_id,
                   extra=dict(data=contents))
