@@ -348,6 +348,8 @@ class Router(object):
         if not entity:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)
+        context = bottle.request.context
+        context['deployment'] = api_id
         statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})
