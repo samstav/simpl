@@ -6,6 +6,7 @@ import mock
 from celery.task import task
 
 from checkmate.exceptions import CheckmateResumableException
+from checkmate import middleware
 from checkmate.providers.base import (
     ProviderBasePlanningMixIn,
     ProviderBase,
@@ -30,11 +31,9 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
             deployment_id='deba8c',
             resource_id='r0'
         )
-        self.assertEquals(
-                {'RAX-CHECKMATE':
-                    'http://blerp.com/T1/deployments/deba8c/resources/r0'},
-            result
-        )
+        self.assertEquals({
+            'RAX-CHECKMATE':
+            'http://blerp.com/T1/deployments/deba8c/resources/r0'}, result)
 
 
 class TestProviderBase(unittest.TestCase):
@@ -50,7 +49,7 @@ class TestProviderBase(unittest.TestCase):
                 'PENDING_UPDATE': 'CONFIGURE',
                 'PENDING_DELETE': 'DELETING',
                 'SUSPENDED': 'ERROR'
-                }
+            }
         results = Testing.translate_status('SUSPENDED')
         self.assertEqual('ERROR', results)
 
@@ -65,7 +64,7 @@ class TestProviderBase(unittest.TestCase):
                 'PENDING_UPDATE': 'CONFIGURE',
                 'PENDING_DELETE': 'DELETING',
                 'SUSPENDED': 'ERROR'
-                }
+            }
         results = Testing.translate_status('MISSING')
         self.assertEqual('UNDEFINED', results)
 
@@ -82,10 +81,11 @@ class TestProviderTask(unittest.TestCase):
         do_something.run = self._run
         do_something.retry = self._retry
         do_something.callback = self._callback
-        
+
     def test_provider_task_success(self):
         '''Tests success run.'''
-        context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
+        context = middleware.RequestContext({'region': 'ORD', 'resource': 1,
+                                             'deployment': {}})
         expected = {
             'api1': 'test_api',
             'name': 'test',
@@ -105,7 +105,7 @@ class TestProviderTask(unittest.TestCase):
         do_something.run = mock.Mock()
         do_something.retry = mock.MagicMock()
         do_something.run.side_effect = CheckmateResumableException(1, 2, 3)
-        
+
         do_something(context, 'test', api='test_api')
 
         do_something.retry.assert_called_with(

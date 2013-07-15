@@ -1630,6 +1630,7 @@ class TestCeleryTasks(unittest.TestCase):
         db = self.mox.CreateMockAnything()
         target = {
             'id': '1234',
+            'tenantId': 'T1000',
             'status': 'UP',
             'environment': {},
             'blueprint': {
@@ -1653,8 +1654,8 @@ class TestCeleryTasks(unittest.TestCase):
                 }
             }
         }
-        db.save_deployment('1234', expected, None, partial=True)\
-            .AndReturn(None)
+        db.save_deployment('1234', expected, None, partial=True,
+                           tenant_id='T1000').AndReturn(None)
         self.mox.ReplayAll()
         contents = {
             'instance:0': {

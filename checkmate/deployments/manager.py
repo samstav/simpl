@@ -9,6 +9,7 @@ import logging
 import uuid
 
 import eventlet
+from SpiffWorkflow.storage import DictionarySerializer
 
 from .plan import Plan
 from checkmate import base
