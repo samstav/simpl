@@ -60,10 +60,10 @@ describe('AutoLoginController', function(){
       cookies.endpoint = 'www.uri.com';
       cookies.token = 'token';
       cookies.tenantId = 'tenantId';
+      auth.endpoints = [{ uri: 'www.uri.com', scheme: 'Kablamo' }];
     });
 
     it('should call authenticate with the matching endpoint', function(){
-      auth.endpoints = [{ uri: 'www.uri.com', scheme: 'Kablamo' }];
       scope.autoLogIn();
 
       expect(auth.authenticate.getCall(0).args[0]).toEqual({ uri: 'www.uri.com', scheme: 'Kablamo' });
@@ -76,17 +76,24 @@ describe('AutoLoginController', function(){
       expect(auth.authenticate.getCall(0).args[0]).toEqual({});
     });
 
-    it('should call authenticate with info from the cookie', function(){
-      auth.endpoints = [{ uri: 'www.uri.com', scheme: 'Kablamo' }];
+    it('should call authenticate with token/tenantId', function(){
       scope.autoLogIn();
 
       expect(auth.authenticate.getCall(0).args[0]).toEqual(auth.endpoints[0]);
-      expect(auth.authenticate.getCall(0).args[1]).toBeNull();
-      expect(auth.authenticate.getCall(0).args[2]).toBeNull();
-      expect(auth.authenticate.getCall(0).args[3]).toBeNull();
       expect(auth.authenticate.getCall(0).args[4]).toEqual('token');
-      expect(auth.authenticate.getCall(0).args[5]).toBeNull();
       expect(auth.authenticate.getCall(0).args[6]).toEqual('tenantId');
+    });
+
+    it('should call authenticate with username/api_key', function(){
+      delete cookies.token;
+      delete cookies.tenantId;
+      cookies.username = 'batman';
+      cookies.api_key = 'secret key';
+      scope.autoLogIn();
+
+      expect(auth.authenticate.getCall(0).args[0]).toEqual(auth.endpoints[0]);
+      expect(auth.authenticate.getCall(0).args[1]).toEqual('batman');
+      expect(auth.authenticate.getCall(0).args[2]).toEqual('secret key');
     });
 
     it('should pass success and error callbacks', function() {

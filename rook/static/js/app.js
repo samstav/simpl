@@ -245,20 +245,22 @@ function AutoLoginController($scope, $location, $cookies, auth) {
     mixpanel.track("Log In Failed", {'problem': response.status});
     $location.path('/');
     $scope.loginPrompt();
-    auth.error_message = response.status + ". Your credentials could not be verified.";
+    auth.error_message = response.status + ". " + response.message;
   };
 
+  $scope.accepted_credentials = ['tenantId', 'token', 'endpoint', 'username', 'api_key'];
   $scope.autoLogIn = function() {
-    var tenantId = $cookies.tenantId;
-    var token = $cookies.token;
-    var endpoint = _.find(auth.endpoints, function(endpoint) { return endpoint.uri == $cookies.endpoint; } ) || {};
-
-    delete $cookies.tenantId;
-    delete $cookies.token;
-    delete $cookies.endpoint;
+    var creds = {};
+    for (var i=0 ; i<$scope.accepted_credentials.length ; i++) {
+      var key = $scope.accepted_credentials[i];
+      creds[key] = $cookies[key];
+      if (!creds[key] || creds[key] == "") delete creds[key];
+      delete $cookies[key];
+    }
+    creds.endpoint = _.find(auth.endpoints, function(endpoint) { return endpoint.uri == creds.endpoint; } ) || {};
 
     console.log("Submitting auto login credentials");
-    return auth.authenticate(endpoint, null, null, null, token, null, tenantId)
+    return auth.authenticate(creds.endpoint, creds.username, creds.api_key, null, creds.token, null, creds.tenantId)
       .then($scope.auto_login_success, $scope.auto_login_fail);
   };
 }
