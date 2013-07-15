@@ -36,6 +36,8 @@ To use a shared Redis cache also use the 'backing_store' kwarg:
     def my_cached_function(arg, kwarg=None):
         ...
 
+Note: to store multiple caches in one Redis database, use 'backing_store_key'
+      to identify cache items uniquely
 
 Specify which arguments need to be hashed to protect them from being exposed:
 
@@ -85,7 +87,8 @@ class Cache:
 
     def __init__(self, max_entries=1000, timeout=DEFAULT_TIMEOUT,
                  sensitive_args=None, sensitive_kwargs=None, salt='a_salt',
-                 store=None, cache_exceptions=False, backing_store=None):
+                 store=None, cache_exceptions=False, backing_store=None,
+                 backing_store_key=None):
         self.max_entries = max_entries
         self.salt = salt
         self.max_age = timeout
@@ -96,6 +99,7 @@ class Cache:
         self.limit_reached = False
         self._store = store or {}
         self.backing_store = backing_store or {}
+        self.backing_store_key = backing_store_key
         self.reaper = None
         self.last_reaping = time.time()
         self.memorized_function = None
@@ -140,7 +144,7 @@ class Cache:
                 self.start_collection()
         elif self.backing_store:
             try:
-                value = self.backing_store[key]
+                value = self.backing_store[self._backing_store_key(key)]
                 value = self._decode(value)
                 self._cache_local(value, key)
                 return key, value
@@ -170,11 +174,19 @@ class Cache:
         '''Cache item to backing store (if it is configured)'''
         if self.backing_store:
             try:
-                self.backing_store.setex(key, self._encode(data), self.max_age)
+                self.backing_store.setex(self._backing_store_key(key),
+                                         self._encode(data), self.max_age)
             except ConnectionError as exc:
                 LOG.warn("Error connecting to Redis: %s", exc)
             except StandardError as exc:
                 LOG.warn("Error storing value in backing store: %s", exc)
+
+    def _backing_store_key(self, key):
+        '''Generate a key used for the backing store.'''
+        if self.backing_store_key is None:
+            return key
+        else:
+            return '%s.%s' % (key, self.backing_store_key)
 
     def get_hash(self, *args, **kwargs):
         '''Calculate a secure hash'''
