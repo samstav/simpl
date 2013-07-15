@@ -81,8 +81,10 @@ def update_operation(deployment_id, workflow_id, driver=None,
         operation_value = operation.values()[0]
         if isinstance(operation_value, list):
             operation_status = operation_value[-1]['status']
-        else:
+        elif operation_value:
             operation_status = operation_value['status']
+        else:
+            operation_status = None
 
         #Do not update anything if the operation is already complete. The
         #operation gets marked as complete for both build and delete operation.
