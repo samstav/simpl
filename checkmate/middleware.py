@@ -695,6 +695,29 @@ class RequestContext(object):
         user = content['access']['user']
         return [role['name'] for role in user.get('roles', [])]
 
+    def __getitem__(self, key):
+        try:
+            return self.kwargs[key]
+        except KeyError:
+            if hasattr(self, key):
+                return getattr(self, key)
+
+    def __setitem__(self, key, value):
+        if hasattr(self, key):
+            setattr(self, key, value)
+        else:
+            self.kwargs[key] = value
+
+    def __contains__(self, key):
+        return hasattr(self, key) or key in self.kwargs
+
+    def get(self, key, default=None):
+        '''Implement get to act like a dictionary.'''
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
 
 class ContextMiddleware(object):
     '''Adds a request.context to the call which holds authn+z data'''
