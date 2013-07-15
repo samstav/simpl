@@ -14,6 +14,10 @@
           <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
           <span>{{filter.name | capitalize}}</span>
         </label>
+        <form>
+          <input class="span10" type="text" placeholder="Custom filter..." ng-model="query" />
+          <i ng-class="{disabled: !is_selected()}" class="icon-question-sign pull-right" tooltip="Press &lt;return&gt; to apply filter to all results"></i>
+        </form>
       </div>
 
     </div>
@@ -31,7 +35,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="deployment in items | orderBy:'-created'" ng-click="select_toggle(deployment)" ng-class="{info: selected_deployments[deployment.id]}">
+          <tr ng-repeat="deployment in items | filter: query | orderBy:'-created'" ng-click="select_toggle(deployment)" ng-class="{info: selected_deployments[deployment.id]}">
             <td>
               <input name="{{deployment.id}}" type="checkbox" ng-model="selected_deployments[deployment.id]" ng-click="select_toggle(deployment)">
               <ng-include src="'/partials/deployment_settings.html'"></ng-include>
