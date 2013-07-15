@@ -5,6 +5,7 @@ import logging
 from celery import exceptions as celery_exceptions
 from celery import Task
 
+from checkmate import middleware
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.component import Component
@@ -591,7 +592,9 @@ class ProviderTask(Task):
 
     def __call__(self, context, *args, **kwargs):
         utils.match_celery_logging(LOG)
-        region = kwargs.get('region') or context.get('region')
+        if isinstance(context, dict):
+            context = middleware.RequestContext(**context)
+        region = kwargs.get('region') or context.region
         try:
             self.api = kwargs.get('api') or self.provider.connect(context,
                                                                   region)
