@@ -309,7 +309,8 @@ class Provider(ProviderBase):
                                    context.get_queued_task_dict(
                                        deployment=deployment['id'],
                                        resource=key),
-                                   PathAttrib("instance:%s/id" % key)
+                                   PathAttrib("instance:%s/id" % key),
+                                   resource['region'],
                                ],
                                merge_results=True,
                                defines=dict(resource=key,
