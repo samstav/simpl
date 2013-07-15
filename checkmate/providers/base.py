@@ -1,5 +1,5 @@
 '''Base Classes and functions for Providers'''
-from functools import partial
+import functools
 import logging
 
 from celery import exceptions as celery_exceptions
@@ -592,9 +592,14 @@ class ProviderTask(Task):
 
     def __call__(self, context, *args, **kwargs):
         utils.match_celery_logging(LOG)
+
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
-        region = kwargs.get('region') or context.region
+
+        region = kwargs.get('region') or context.get('region')
+        if region and context.get('region') is None:
+            context['region'] = region
+
         try:
             self.api = kwargs.get('api') or self.provider.connect(context,
                                                                   region)
@@ -604,7 +609,7 @@ class ProviderTask(Task):
         except StandardError as exc:
             return self.retry(exc=exc)
 
-        self.partial = partial(self.callback, context)
+        self.partial = functools.partial(self.callback, context)
 
         try:
             data = self.run(context, *args, **kwargs)
