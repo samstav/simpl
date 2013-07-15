@@ -156,7 +156,7 @@ def marketing(path):
 @ROOK_STATIC.post('/autologin')
 def autologin():
     '''This handles automatic login from other systems.'''
-    fields = ['tenantId', 'token', 'endpoint']
+    fields = ['tenantId', 'token', 'endpoint', 'username', 'api_key']
     for field in fields:
         value = request.forms.get(field) or ""
         response.add_header('Set-Cookie', '%s=%s' % (field, value))
