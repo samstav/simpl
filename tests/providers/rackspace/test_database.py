@@ -37,7 +37,7 @@ class TestDatabase(ProviderTester):
         instance.hostname = 'fake.cloud.local'
 
         #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(database._create_instance, 'callback')
 
         #Stub out wait_on_build
         self.mox.StubOutWithMock(database.wait_on_build, 'delay')
@@ -49,41 +49,34 @@ class TestDatabase(ProviderTester):
             .AndReturn(instance)
 
         expected = {
-            'instance:1':  {
-                'status': 'BUILD',
-                'id': instance.id,
-                'name': instance.name,
-                'status': instance.status,
-                'region': 'NORTH',
-                'flavor': 1,
-                'interfaces': {
-                    'mysql': {
-                        'host': instance.hostname,
-                    },
+            'status': 'BUILD',
+            'id': instance.id,
+            'name': instance.name,
+            'status': instance.status,
+            'region': 'NORTH',
+            'flavor': 1,
+            'interfaces': {
+                'mysql': {
+                    'host': instance.hostname,
                 },
-                'databases': {
-                    'db1': {
-                        'name': 'db1',
-                        'interfaces': {
-                            'mysql': {
-                                'host': instance.hostname,
-                                'database_name': 'db1',
-                            },
-                        }
+            },
+            'databases': {
+                'db1': {
+                    'name': 'db1',
+                    'interfaces': {
+                        'mysql': {
+                            'host': instance.hostname,
+                            'database_name': 'db1',
+                        },
                     }
                 }
-            },
-        }
-        context = dict(deployment='DEP', resource='1')
-        instance_id = {
-            'instance:1': {
-                'id': instance.id
             }
         }
-        resource_postback.delay(context['deployment'], instance_id).AndReturn(
-            True)
-        resource_postback.delay(context['deployment'], expected).AndReturn(
-            True)
+        context = dict(deployment='DEP', resource='1')
+
+        database._create_instance.callback(context,
+                                           {'id': instance.id}).AndReturn(True)
+        database._create_instance.callback(context, expected).AndReturn(True)
 
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name, 1, 1,
