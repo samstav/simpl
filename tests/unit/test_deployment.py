@@ -13,7 +13,6 @@ import unittest
 
 import mox
 
-from checkmate.common import schema
 from checkmate.deployment import (
     Deployment,
     update_deployment_status_new,
@@ -207,6 +206,7 @@ class TestDeployments(unittest.TestCase):
         self.provider.get_resource_status(self.context, 'test',
                                           {'provider': 'test'}, '0').\
             AndReturn(resource_status)
+        self.context.__setitem__('resource', '0').AndReturn(None)
         self.mock.ReplayAll()
 
         expected = {
@@ -222,6 +222,7 @@ class TestDeployments(unittest.TestCase):
         self.provider.get_resource_status(self.context, 'test',
                                           {'provider': 'test'}, '0').\
             AndReturn(resource_status)
+        self.context.__setitem__('resource', '0').AndReturn(None)
         self.mock.ReplayAll()
 
         expected = {
@@ -237,6 +238,7 @@ class TestDeployments(unittest.TestCase):
         self.provider.get_resource_status(self.context, 'test',
                                           {'provider': 'test'}, '0').\
             AndReturn(resource_status)
+        self.context.__setitem__('resource', '0').AndReturn(None)
         self.mock.ReplayAll()
 
         expected = {
@@ -251,6 +253,7 @@ class TestDeployments(unittest.TestCase):
         self.provider.get_resource_status(self.context, 'test',
                                           {'provider': 'test'}, '0').\
             AndReturn({})
+        self.context.__setitem__('resource', '0').AndReturn(None)
         self.mock.ReplayAll()
 
         expected = {
@@ -375,7 +378,7 @@ class TestDeployments(unittest.TestCase):
 
     def test_id_validation(self):
         self.assertRaises(CheckmateValidationException, Deployment,
-            {'id': 1000})
+                          {'id': 1000})
 
     def test_schema_backwards_compatible(self):
         """Test the schema validates a an old deployment"""
@@ -696,7 +699,8 @@ class TestCeleryTasks(unittest.TestCase):
         }
         deployment.on_postback(updates)
         self.assertEqual("UP", deployment.get('status'))
-        self.assertDictEqual(updates.get('resources'), deployment.get('resources'))
+        self.assertDictEqual(updates.get('resources'),
+                             deployment.get('resources'))
 
 
 if __name__ == '__main__':

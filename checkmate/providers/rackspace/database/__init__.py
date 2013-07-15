@@ -62,6 +62,7 @@ def wait_on_build(context, instance_id, region, api=None):
 @task
 def sync_resource_task(context, resource, resource_key, api=None):
     '''Celery task registration for backwards comp.'''
+    assert context.__class__.__name__ == 'RequestContext'
     _sync_resource_task(context, resource, api=api)
 
 
@@ -437,8 +438,8 @@ def delete_instance_task(context, api=None):
     instance_id = resource.get('instance', {}).get('id')
     if not instance_id:
         msg = ("Instance ID is not available for Database server Instance, "
-               "skipping delete_instance_task for resource %s in deployment %s",
-               (resource_key, deployment_id))
+               "skipping delete_instance_task for resource %s in deployment "
+               "%s", (resource_key, deployment_id))
         res = {inst_key: {'status': 'DELETED'}}
         for hosted in resource.get('hosts', []):
             res.update({
@@ -631,8 +632,8 @@ def delete_database(context, api=None):
     host_instance = resource.get("host_instance")
     if not (instance and host_instance):
         msg = ("Cannot find instance/host-instance for database to delete. "
-               "Skipping delete_database call for resource %s in deployment %s "
-               "- Instance Id: %s, Host Instance Id: %s",
+               "Skipping delete_database call for resource %s in deployment "
+               "%s - Instance Id: %s, Host Instance Id: %s",
                (resource_key, context["deployment_id"], instance,
                 host_instance))
         results = {

@@ -225,7 +225,8 @@ def resource_postback(deployment_id, contents, driver=DB):
     if updates:
         body, secrets = utils.extract_sensitive_data(updates)
         try:
-            driver.save_deployment(deployment_id, body, secrets, partial=True)
+            driver.save_deployment(deployment_id, body, secrets, partial=True,
+                                   tenant_id=deployment['tenantId'])
 
             LOG.debug("Updated deployment %s with post-back", deployment_id,
                       extra=dict(data=contents))

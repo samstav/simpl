@@ -38,8 +38,9 @@ SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
 #
 # Shared Functions
 #
-def _content_to_deployment(request=bottle.request, deployment_id=None, tenant_id=None):
-    '''Receives request content and puts it in a deployment
+def _content_to_deployment(request=bottle.request, deployment_id=None,
+                           tenant_id=None):
+    '''Receives request content and puts it in a deployment.
 
     :param bottle_request: the bottlepy request object
     :param deployment_id: the expected/requested ID
@@ -348,6 +349,8 @@ class Router(object):
         if not entity:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)
+        context = bottle.request.context
+        context['deployment'] = api_id
         statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})

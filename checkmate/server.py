@@ -17,7 +17,7 @@ if '--eventlet' in sys.argv:
     except ImportError:
         pass  # OK if running setup.py or not using eventlet somehow
 
-# start tracer - pyling/flakes friendly
+# start tracer - pylint/flakes friendly
 __import__('checkmate.common.tracer')
 # END: ignore style guide
 

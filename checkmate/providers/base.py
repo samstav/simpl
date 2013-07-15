@@ -5,6 +5,7 @@ import logging
 from celery import exceptions as celery_exceptions
 from celery import Task
 
+from checkmate import middleware
 from checkmate import utils
 from checkmate.common import schema
 from checkmate.component import Component
@@ -531,10 +532,10 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
     def translate_status(cls, status):
         '''Return checkmate status for resource based on schema.'''
         if (hasattr(cls, '__status_mapping__') and
-              status in cls.__status_mapping__):
+                status in cls.__status_mapping__):
             return cls.__status_mapping__[status]
         else:
-            LOG.debug("Resource status %s was not found in status mapping" %
+            LOG.debug("Resource status %s was not found in status mapping",
                       status)
             #TODO(Nate): add other updates like status-message etc.
             return "UNDEFINED"
@@ -591,7 +592,9 @@ class ProviderTask(Task):
 
     def __call__(self, context, *args, **kwargs):
         utils.match_celery_logging(LOG)
-        region = kwargs.get('region') or context.get('region')
+        if isinstance(context, dict):
+            context = middleware.RequestContext(**context)
+        region = kwargs.get('region') or context.region
         try:
             self.api = kwargs.get('api') or self.provider.connect(context,
                                                                   region)
