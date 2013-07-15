@@ -38,8 +38,9 @@ SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
 #
 # Shared Functions
 #
-def _content_to_deployment(request=bottle.request, deployment_id=None, tenant_id=None):
-    '''Receives request content and puts it in a deployment
+def _content_to_deployment(request=bottle.request, deployment_id=None,
+                           tenant_id=None):
+    '''Receives request content and puts it in a deployment.
 
     :param bottle_request: the bottlepy request object
     :param deployment_id: the expected/requested ID
