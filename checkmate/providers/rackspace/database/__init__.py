@@ -1,7 +1,6 @@
 '''
 Rackspace Cloud Databases Provider
 '''
-import copy
 import logging
 
 
@@ -12,8 +11,9 @@ from clouddb.errors import ResponseError
 from .manager import Manager
 from .provider import Provider
 from .tasks import (
-    wait_on_build as _wait_on_build,
+    create_instance as _create_instance,
     sync_resource_task as _sync_resource_task,
+    wait_on_build as _wait_on_build,
 )
 
 from checkmate.deployments import resource_postback
@@ -51,10 +51,10 @@ get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 # Celery tasks
 #
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
-def wait_on_build(context, instance_id, region, api=None):
+def wait_on_build(context, instance_id, region=None, api=None):
     '''Celery task registration for backwards comp.'''
     try:
-        return _wait_on_build(context, instance_id, api=api)
+        return _wait_on_build(context, instance_id, region=region, api=api)
     except CheckmateResumableException as exc:
         return wait_on_build.retry(exc=exc)
 
@@ -67,112 +67,11 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
 
 @task(default_retry_delay=10, max_retries=2)
-def create_instance(context, instance_name, flavor, size, databases, region,
-                    api=None):
-    '''Creates a Cloud Database instance with optional initial databases.
-
-    :param databases: an array of dictionaries with keys to set the database
-    name, character set and collation.  For example:
-
-        databases=[{'name': 'db1'},
-                   {'name': 'db2', 'character_set': 'latin5',
-                    'collate': 'latin5_turkish_ci'}]
-    '''
-    match_celery_logging(LOG)
-    if context.get('simulation') is True:
-        resource_key = context['resource']
-        instance_id = {
-            'instance:%s' % resource_key: {
-                'id': "DBS%s" % resource_key
-            }
-        }
-        resource_postback.delay(context['deployment'], instance_id)
-        results = {
-            'instance:%s' % resource_key: {
-                'id': "DBS%s" % resource_key,
-                'name': instance_name,
-                'status': "ACTIVE",
-                'region': region,
-                'interfaces': {
-                    'mysql': {
-                        'host': "srv%s.rackdb.net" % resource_key
-                    }
-                },
-                'databases': {}
-            }
-        }
-        if databases:
-            db_results = results['instance:%s' % resource_key]['databases']
-            for database in databases:
-                data = copy.copy(database)
-                data['interfaces'] = {
-                    'mysql': {
-                        'host': "srv%s.rackdb.net" % resource_key,
-                        'database_name': database['name'],
-                    }
-                }
-                db_results[database['name']] = data
-
-        # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
-        return results
-
-    if not api:
-        api = Provider.connect(context, region)
-
-    if databases is None:
-        databases = []
-
-    flavor = int(flavor)
-    size = int(size)
-
-    instance_key = 'instance:%s' % context['resource']
-    dep_id = context['deployment']
-    instance = api.create_instance(instance_name, flavor, size,
-                                   databases=databases)
-    instance_id = {
-        instance_key: {
-            'id': instance.id
-        }
-    }
-    resource_postback.delay(dep_id, instance_id)
-    LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
-             "Databases = %s", instance.name, instance.id, size, flavor,
-             databases)
-
-    # Return instance and its interfaces
-    results = {
-        instance_key: {
-            'id': instance.id,
-            'name': instance.name,
-            'status': 'BUILD',
-            'region': region,
-            'flavor': flavor,
-            'interfaces': {
-                'mysql': {
-                    'host': instance.hostname
-                }
-            },
-            'databases': {}
-        }
-    }
-
-    # Return created databases and their interfaces
-    if databases:
-        db_results = results['instance:%s' % context['resource']]['databases']
-        for database in databases:
-            data = copy.copy(database)
-            data['interfaces'] = {
-                'mysql': {
-                    'host': instance.hostname,
-                    'database_name': database['name'],
-                }
-            }
-            db_results[database['name']] = data
-
-    # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
-    return results
+def create_instance(context, instance_name, flavor, size, databases,
+                    region=None, api=None):
+    '''Celery task registration for backwards comp.'''
+    return _create_instance(context, instance_name, flavor, size, databases,
+                            region=region, api=api)
 
 
 @task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
