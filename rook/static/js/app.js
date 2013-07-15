@@ -115,6 +115,9 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   }).when('/404', {
     controller: StaticController,
     templateUrl: '/partials/404.html'
+  }).when('/:tenantId/resources', {
+    controller: ResourcesController,
+    templateUrl: '/partials/resources.html'
   }).otherwise({
     controller: StaticController,
     templateUrl: '/partials/404.html'
@@ -2162,6 +2165,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.environments = {env_name: data.environment};
     } else {
       //TODO: create from catalog
+      //LOLOLOLOL take a look at $scope.auth.context.catalog to see the endpoints
       $scope.environments = $scope.generate_default_environments();
     }
     $scope.environment = $scope.environments[Object.keys($scope.environments)[0]];
@@ -2773,6 +2777,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 
   $scope.submitting = false; //Turned on while we are processing a deployment
 
+
   //Retrieve existing domains
   $scope.getDomains = function(){
     $scope.domain_names = [];
@@ -2948,7 +2953,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     var deployment = new Deployment({});
     if ($scope.deployment_name !== undefined && $scope.deployment_name.trim().length > 0)
         deployment.name = $scope.deployment_name;
-    deployment.blueprint = jQuery.extend({}, $scope.blueprint);  //Copy
+    deployment.blueprint = jQuery.extend({}, $scope.blueprint);  //Copy//{"services": {}, 'name': 'batman'};
     deployment.environment = jQuery.extend({}, $scope.environment);  //Copy
     deployment.inputs = {};
     deployment.inputs.blueprint = {};
@@ -2956,46 +2961,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     if (typeof remote == 'object' && remote.url !== undefined)
       options.substituteVariables(deployment, {"%repo_url%": remote.url});
 
-    break_flag = false;
-
     // Have to fix some of the inputs so they are in the right format, specifically the select
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
-    _.each($scope.inputs, function(element, key) {
-      var option = _.find($scope.options, function(item) {
-        if (item.id == key)
-          return item;
-        return null;
-      });
-
-      if (option === undefined){
-        console.log("WARNING: expected option '" + key + "' is undefined");
-        return;
-      }
-
-      //Check that all required fields are set
-      if (option.required === true) {
-        if ($scope.inputs[key] === null) {
-          err_msg = "Required field "+key+" not set. Aborting deployment.";
-          $scope.notify(err_msg);
-          break_flag = true;
-        }
-      }
-
-      if (option.type === "boolean") {
-        if ($scope.inputs[key] === null) {
-          deployment.inputs.blueprint[key] = false;
-        } else {
-          deployment.inputs.blueprint[key] = $scope.inputs[key];
-        }
-      } else {
-        deployment.inputs.blueprint[key] = $scope.inputs[key];
-      }
-    });
-
-    if (break_flag){
-      $scope.submitting = false;
-      return;
-    }
 
     if ($scope.auth.identity.loggedIn) {
         mixpanel.track("Deployment Launched", {'action': action});
@@ -3500,6 +3467,88 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   };
 }
 
+function ResourcesController($scope, $resource){
+  $scope.selected_resources = [];
+  $scope.resources_by_provider = {};
+  $scope.resources_by_provider.nova = [];
+  $scope.resources_by_provider.database = [];
+
+  $scope.add_to_deployment = function(resource){
+    $scope.selected_resources.push(resource);
+    $scope.resources_by_provider[resource.provider].splice($scope.resources_by_provider[resource.provider].indexOf(resource), 1);
+  };
+
+  $scope.remove_from_deployment = function(resource){
+    $scope.resources_by_provider[resource.provider].push(resource);
+    $scope.selected_resources.splice($scope.selected_resources.indexOf(resource), 1);
+  };
+
+  $scope.getServers = function(){
+    var tenant_id = $scope.auth.context.tenantId;
+    if ($scope.auth.identity.loggedIn && tenant_id){
+      var url = '/:tenantId/providers/rackspace.nova/proxy/cats';
+      var server_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+      server_api.query(function(results) {
+        $scope.resources_by_provider.nova = results;
+      },
+      function(response) {
+        if (!('data' in response))
+          response.data = {};
+        response.data.description = "Error loading server list";
+      });
+    }
+  };
+
+  $scope.getDatabases = function(){
+    var tenant_id = $scope.auth.context.tenantId;
+    if ($scope.auth.identity.loggedIn && tenant_id){
+      var url = '/:tenantId/providers/rackspace.database/proxy/dogs';
+      var db_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+      var results = db_api.query(function() {
+        for(var i=0; i<results.length; i++){
+          $scope.resources_by_provider.database.push(results[i]);
+        }
+      },
+      function(response) {
+        if (!('data' in response))
+          response.data = {};
+        response.data.description = "Error loading database list";
+      });
+    }
+  };
+
+  $scope.submit = function(){
+    var url = '/:tenantId/deployments',
+        Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId}),
+        deployment = new Deployment({}),
+        resource;
+
+    deployment.resources = {};
+    for (i=0; i<$scope.selected_resources.length; i++){
+      deployment.resources[i] = $scope.selected_resources[i]
+    }
+    deployment.blueprint = {"services": {}, 'name': 'batman'};
+    deployment.environment = { //will need to make this dynamic based on what kinds of resources are put into the deployment.  Static to nova servers now
+        "description": "This environment uses next-gen cloud servers.",
+        "name": "Next-Gen Open Cloud",
+        "providers": {
+            "nova": {},
+            'database': {},
+            "common": {
+                "vendor": "rackspace"
+            }
+        }
+    };
+    deployment.inputs = {};
+    deployment.inputs.blueprint = {};
+    deployment.$save(function(returned, getHeaders){
+      console.log("Posted deployment");
+    }, function(error){
+      console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
+      console.log(deployment);
+    });
+  };
+}
 
 /*
  * Other stuff
