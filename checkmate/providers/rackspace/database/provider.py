@@ -1,8 +1,10 @@
 # encoding: utf-8
 import logging
+import os
 import string
 
 import clouddb
+import redis
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
@@ -30,6 +32,12 @@ REGION_MAP = {
     'sydney': 'SYD',
 }
 API_FLAVOR_CACHE = {}
+REDIS = None
+if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
+    try:
+        REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
+    except StandardError as exc:
+        LOG.warn("Error connecting to Redis: %s", exc)
 
 
 class Provider(ProviderBase):
@@ -503,7 +511,8 @@ class Provider(ProviderBase):
         return api
 
 
-@caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE,
+               backing_store=REDIS, backing_store_key='rax.database.flavors')
 def _get_flavors(api_endpoint, auth_token):
     '''Ask DBaaS for Flavors (RAM, CPU, HDD) options.'''
     # the region must be supplied but is not used

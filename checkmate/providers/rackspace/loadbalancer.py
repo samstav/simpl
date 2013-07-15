@@ -3,6 +3,7 @@ Rackspace Cloud Load Balancer provider and celery tasks
 '''
 import copy
 import logging
+import os
 import sys
 
 from celery.task import task
@@ -12,6 +13,7 @@ from SpiffWorkflow.operators import PathAttrib, Attrib
 from SpiffWorkflow.specs import Celery
 
 import cloudlb
+import redis
 
 from checkmate.common import caching
 from checkmate.deployments import (
@@ -53,9 +55,14 @@ PROTOCOL_PAIRS = {
 API_ALGORTIHM_CACHE = {}
 API_PROTOCOL_CACHE = {}
 LB_API_CACHE = {}
+REDIS = None
+if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
+    try:
+        REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
+    except StandardError as exc:
+        LOG.warn("Error connecting to Redis: %s", exc)
 
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
-import os
 from checkmate import db
 from checkmate import deployments
 DRIVERS = {}
@@ -179,7 +186,9 @@ class Provider(ProviderBase):
                                           default="false"))
         return _dns.lower() in ['true', '1', 'yes']
 
-    @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE)
+    @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE,
+                         backing_store=REDIS,
+                         backing_store_key='rax.lb.limits')
     def _get_abs_limits(self, username, auth_token, api_endpoint, region):
         api = cloudlb.CloudLoadBalancer(username, 'ignore', region)
         api.client.auth_token = auth_token
@@ -679,7 +688,8 @@ class Provider(ProviderBase):
         return api
 
 
-@caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE,
+               backing_store=REDIS, backing_store_key='rax.lb.algorithms')
 def _get_algorithms(api_endpoint, auth_token):
     '''Ask CLB for Algorithms.'''
     # the region must be supplied but is not used
@@ -690,7 +700,8 @@ def _get_algorithms(api_endpoint, auth_token):
              api.client.region_account_url)
 
 
-@caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE)
+@caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE,
+               backing_store=REDIS, backing_store_key='rax.lb.protocols')
 def _get_protocols(api_endpoint, auth_token):
     '''Ask CLB for Protocols.'''
     # the region must be supplied but is not used
