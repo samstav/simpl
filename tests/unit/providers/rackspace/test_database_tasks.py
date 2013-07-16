@@ -4,6 +4,7 @@ import mock
 import unittest
 
 from checkmate import exceptions
+from checkmate import middleware
 from checkmate.providers.rackspace import database
 
 
@@ -18,12 +19,18 @@ class TestDatabaseTasks(unittest.TestCase):
         database._create_instance.callback = mock.Mock()
         partial = mock.Mock()
         functools.partial = mock.Mock(return_value=partial)
-        context = {'simulation': True, 'resource': 0, 'deployment': 0}
+        context = {
+            'simulation': True,
+            'resource': 0,
+            'deployment': 0,
+            'region':'DFW'
+        }
+        context = middleware.RequestContext(**context)
         expected_result = {
             'status': 'BUILD',
             'name': 'test_instance',
             'flavor': 1,
-            'region': None,
+            'region': 'DFW',
             'databases': {},
             'interfaces': {'mysql': {'host': 'db1.rax.net'}},
             'id': 'DBS0'
@@ -42,11 +49,17 @@ class TestDatabaseTasks(unittest.TestCase):
         database._create_instance.callback = mock.Mock()
         partial = mock.Mock()
         functools.partial = mock.Mock(return_value=partial)
-        context = {'simulation': True, 'resource': '0', 'deployment': 0}
+        context = {
+            'simulation': True,
+            'resource': '0',
+            'deployment': 0,
+            'region': 'DFW'
+        }
+        context = middleware.RequestContext(**context)
         expected_result = {
             'status': 'BUILD',
             'name': 'test_instance',
-            'region': None,
+            'region': 'DFW',
             'id': 'DBS0',
             'databases': {
                 'db1': {
@@ -85,7 +98,8 @@ class TestDatabaseTasks(unittest.TestCase):
 
     def test_create_instance_no_sim_no_dbs(self):
         'Create instance no databases.'
-        context = {'resource': '0', 'deployment': 0}
+        context = {'resource': '0', 'deployment': 0, 'region': 'DFW'}
+        context = middleware.RequestContext(**context)
         api = mock.Mock()
         database._create_instance.provider = mock.Mock()
         database._create_instance.provider.connect = mock.Mock(
@@ -126,7 +140,8 @@ class TestDatabaseTasks(unittest.TestCase):
 
     def test_create_instance_no_sim_with_dbs(self):
         'Create instance with databases.'
-        context = {'resource': '0', 'deployment': 0}
+        context = {'resource': '0', 'deployment': 0, 'region': 'DFW'}
+        context = middleware.RequestContext(**context)
         api = mock.Mock()
         instance = mock.Mock()
         database._create_instance.provider = mock.Mock()

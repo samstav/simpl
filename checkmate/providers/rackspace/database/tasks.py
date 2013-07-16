@@ -47,4 +47,4 @@ def create_instance(context, instance_name, flavor, size, databases, region,
     return Manager.create_instance(instance_name, flavor, size,
                                    databases, context, create_instance.api,
                                    create_instance.partial,
-                                   context.simulation
+                                   context.simulation)

@@ -72,7 +72,7 @@ class TestDatabase(ProviderTester):
                 }
             }
         }
-        context = dict(deployment='DEP', resource='1')
+        context = RequestContext()
 
         database._create_instance.callback(context,
                                            {'id': instance.id}).AndReturn(True)

@@ -595,14 +595,13 @@ class ProviderTask(Task):
 
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
-
-        region = kwargs.get('region') or context.get('region')
-        if region and context.get('region') is None:
-            context['region'] = region
+            
+        if context.region is None and kwargs.has_key('region'):
+            context.region = kwargs.get('region')
 
         try:
-            self.api = kwargs.get('api') or self.provider.connect(context,
-                                                                  region)
+            self.api = kwargs.get('api') or self.provider.connect(
+                context, context.region)
         # TODO(Nate): Generalize exception raised in providers connect
         except CheckmateValidationException:
             raise
