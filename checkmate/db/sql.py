@@ -590,7 +590,7 @@ class Driver(DbBase):
                 "tenantId must be specified"
             #new item
             entry = klass(id=api_id, body=body, tenant_id=tenant_id,
-                      secrets=secrets, locked=0)
+                          secrets=secrets, locked=0)
 
         # As of v0.13, status is saved in Deployment object
         if klass is Deployment:
