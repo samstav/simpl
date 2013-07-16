@@ -1,3 +1,4 @@
+'''Common Exceptions and functions for database drivers.'''
 import logging
 import os
 
@@ -28,14 +29,17 @@ DRIVERS_AVAILABLE = {
 
 
 class DatabaseTimeoutException(Exception):
+    '''Timeout or Retry value exceeded while trying to access the database.'''
     pass
 
 
 class ObjectLockedError(Exception):
+    '''Raised when trying to access a database resource with an invalid key.'''
     pass
 
 
 class InvalidKeyError(Exception):
+    '''Raised when a specified key is invalid.'''
     pass
 
 
@@ -86,11 +90,12 @@ def get_driver(name=None, reset=False, connection_string=None):
 
 
 def any_id_problems(api_id):
-    """Validates the ID provided is safe and returns problems as a string.
+    '''Validates the ID provided is safe and returns problems as a string.
 
     To use this, call it with an ID you want to validate. If the response is
     None, then the ID is good. Otherwise, the response is a string explaining
-    the problem with the ID that you can use to return to the client"""
+    the problem with the ID that you can use to return to the client
+    '''
     allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
                           "0123456789"
@@ -112,12 +117,13 @@ def any_id_problems(api_id):
 
 
 def any_tenant_id_problems(api_id):
-    """Validates the tenant provided is safe and returns problems as a string.
+    '''Validates the tenant provided is safe and returns problems as a string.
 
     To use this, call it with a tenant ID you want to validate. If the response
     is None, then the ID is good. Otherwise, the response is a string
     explaining the problem with the ID that you can use to return to the
-    client"""
+    client
+    '''
     allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
                           "0123456789"

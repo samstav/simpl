@@ -546,7 +546,7 @@ class Driver(DbBase):
                         #updated the stale lock
                         break
 
-                if (tries + 1) == DEFAULT_TIMEOUT:
+                if (tries + 1) == DEFAULT_RETRIES:
                     raise DatabaseTimeoutException("Attempted to query the "
                                                    "database the maximum "
                                                    "amount of retries.")
