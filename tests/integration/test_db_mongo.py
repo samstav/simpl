@@ -69,6 +69,28 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         self.driver.database()['deployments'].remove({'tenantId': 'T3'})
         self.driver.database()['deployments'].remove({'tenantId': 'TOTHER'})
         self.driver.database()['blueprints'].remove({})
+        self.driver.database()['resource_secrets'].remove({'id': '12345'})
+
+    def test_merge_secrets(self):
+        self.driver.database()["resources_secrets"].insert({
+            '_id': '12345',
+            'id': '12345',
+            'sync_keys': {'foo': 'bar'},
+            '1': {'instance': {'password': '13Xfdge'}}
+        })
+        body = {'id': '12345', '1': {'instance': {'id': '1'}}}
+        self.driver.merge_secrets("resources", '12345', body)
+        print body
+        expected = {
+            'id': '12345',
+            '1': {
+                'instance': {
+                    'id': '1',
+                    'password': '13Xfdge',
+                },
+            }
+        }
+        self.assertDictEqual(body, expected)
 
 
 @unittest.skipIf(SKIP, REASON)
