@@ -388,7 +388,6 @@ class Driver(common.DbBase):
                         partial, secrets):
         '''Save resources into a deployment.'''
         resource_ids = []
-        resource_secret = None
         if partial and deployment:
             if self._has_legacy_resources(deployment):
                 deployment_secrets = self._get_object('deployments_secrets',
@@ -414,6 +413,7 @@ class Driver(common.DbBase):
                                     secrets=resource["secret"])
         else:
             for key, resource in incoming_resources.iteritems():
+                resource_secret = None
                 resource_id = uuid.uuid4().hex
                 resource_ids.append(resource_id)
                 if secrets and key in secrets:
@@ -731,8 +731,15 @@ class Driver(common.DbBase):
         secrets = (self.database()['%s_secrets' % klass].find_one(
             {'_id': api_id}, {'_id': 0}))
         if secrets:
+            if klass == self._resource_collection_name:
+                self._sanitize_resource_secrets(secrets, body)
             cmutils.merge_dictionary(body, secrets)
         return body
+
+    def _sanitize_resource_secrets(self, secrets, body):
+        for key in secrets.keys():
+            if key not in body:
+                secrets.pop(key)
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
                      limit=0, with_count=True, with_deleted=False,
