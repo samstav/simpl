@@ -106,7 +106,7 @@ def any_id_problems(api_id):
                 (api_id[0], allowed_start_chars))
     for char in api_id:
         if char not in allowed_chars:
-            return ("Invalid character '%s'. Allowed charaters are '%s'" %
+            return ("Invalid character '%s'. Allowed characters are '%s'" %
                     (char, allowed_chars))
     return None
 
