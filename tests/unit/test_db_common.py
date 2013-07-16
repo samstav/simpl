@@ -46,7 +46,7 @@ class TestDbCommonAnyID(unittest.TestCase):
 
     def test_any_id_problems_invalid_char(self):
         self.assertEqual(common.any_id_problems('1^2'), "Invalid character "
-                         "'^'. Allowed charaters are 'abcdefghijklmnopqrstuvwx"
+                         "'^'. Allowed characters are 'abcdefghijklmnopqrstuvwx"
                          "yzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.+~@'")
 
 

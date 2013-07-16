@@ -546,7 +546,7 @@ class Driver(DbBase):
                         #updated the stale lock
                         break
 
-                if (tries + 1) == DEFAULT_TIMEOUT:
+                if (tries + 1) == DEFAULT_RETRIES:
                     raise DatabaseTimeoutException("Attempted to query the "
                                                    "database the maximum "
                                                    "amount of retries.")
@@ -590,7 +590,7 @@ class Driver(DbBase):
                 "tenantId must be specified"
             #new item
             entry = klass(id=api_id, body=body, tenant_id=tenant_id,
-                      secrets=secrets, locked=0)
+                          secrets=secrets, locked=0)
 
         # As of v0.13, status is saved in Deployment object
         if klass is Deployment:
