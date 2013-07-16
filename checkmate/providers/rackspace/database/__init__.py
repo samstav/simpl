@@ -71,7 +71,7 @@ def create_instance(context, instance_name, flavor, size, databases,
                     region=None, api=None):
     '''Celery task registration for backwards comp.'''
     return _create_instance(context, instance_name, flavor, size, databases,
-                            region=region, api=api)
+                               region=region, api=api)
 
 
 @task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
