@@ -134,7 +134,7 @@ class TestDeploymentParser(unittest.TestCase):
                               RequestContext())
         del parsed['status']  # we expect this to get added
         del parsed['created']  # we expect this to get added
-        self.assertDictEqual(original, parsed._data)
+        self.assertDictEqual(original, parsed)
 
     def test_constrain_format_handling(self):
         cases = {
@@ -1594,8 +1594,8 @@ class TestDeploymentAddNodes(unittest.TestCase):
         mock_driver = self._mox.CreateMockAnything()
         router = Router(bottle.default_app(), manager)
 
-        manager.get_deployment('1234', tenant_id="T1000").AndReturn(
-            self._deployment)
+        manager.get_deployment('1234', tenant_id="T1000",
+                               with_secrets=True).AndReturn(self._deployment)
 
         self._mox.StubOutWithMock(utils, "read_body")
         utils.read_body(bottle.request).AndReturn({
@@ -1609,7 +1609,7 @@ class TestDeploymentAddNodes(unittest.TestCase):
                                  "T1000")
         self._deployment["operation"].update({'workflow-id': 'w_id'})
         manager.save_deployment(self._deployment, api_id='1234',
-                                tenant_id='T1000')
+                                tenant_id='T1000').AndReturn(self._deployment)
         manager.select_driver('1234').AndReturn(mock_driver)
         self._mox.StubOutWithMock(orchestrator, "run_workflow")
         orchestrator.run_workflow.delay('w_id', timeout=3600,

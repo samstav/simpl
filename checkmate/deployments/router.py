@@ -272,7 +272,8 @@ class Router(object):
         LOG.debug("[AddNodes] Received a call to add_nodes")
         if utils.is_simulation(api_id):
             bottle.request.context.simulation = True
-        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
+        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
+                                                 with_secrets=True)
         if not deployment:
             raise CheckmateDoesNotExist("No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
@@ -282,8 +283,7 @@ class Router(object):
         if 'count' in body:
             count = int(body['count'])
 
-        LOG.debug("[AddNodes] Service-Name: %s, Count: %s", service_name,
-                  count)
+        LOG.debug("Add %s nodes for service %s", count, service_name)
 
         #Should error out if the deployment is building
         if not service_name or not count:
@@ -295,8 +295,8 @@ class Router(object):
                                                  count)
         self.manager.deploy_add_nodes(deployment, bottle.request.context,
                                       tenant_id)
-        self.manager.save_deployment(deployment, api_id=api_id,
-                                     tenant_id=tenant_id)
+        deployment = self.manager.save_deployment(deployment, api_id=api_id,
+                                                  tenant_id=tenant_id)
         add_nodes_wf_id = deployment['operation']['workflow-id']
         orchestrator.run_workflow.delay(
             add_nodes_wf_id, timeout=3600, driver=self.manager.select_driver(
