@@ -81,7 +81,7 @@ class Manager(object):
         return results
 
     # Suppressing too many arguments
-    # pylint: disable=R0913 
+    # pylint: disable=R0913
     @staticmethod
     def create_instance(instance_name, flavor, size, databases, context,
                         api, callback, simulate=False):
