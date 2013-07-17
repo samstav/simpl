@@ -2,14 +2,17 @@
 '''
 Rackspace Cloud Databases provider manager.
 '''
+import copy
 import logging
 
 from clouddb import errors as cdb_errors
 
+from checkmate import utils
 from checkmate.exceptions import (
+    CheckmateDoesNotExist,
+    CheckmateException,
     CheckmateResumableException,
     CheckmateRetriableException,
-    CheckmateDoesNotExist,
 )
 
 LOG = logging.getLogger(__name__)
@@ -76,4 +79,72 @@ class Manager(object):
                 LOG.info("Marking database instance %s as DELETED",
                          instance_id)
                 results = {'status': 'DELETED'}
+        return results
+
+    @staticmethod
+    def create_instance(instance_name, flavor, size, databases, context,
+                        api, callback, simulate=False):
+        '''Creates a Cloud Database instance with optional initial databases.
+
+        :param databases: an array of dictionaries with keys to set the
+        database name, character set and collation.  For example:
+
+            databases=[{'name': 'db1'},
+                       {'name': 'db2', 'character_set': 'latin5',
+                        'collate': 'latin5_turkish_ci'}]
+        '''
+        assert api, "API is required in create_instance_pop"
+        databases = databases or []
+        flavor = int(flavor)
+        size = int(size)
+
+        try:
+            if simulate:
+                instance = utils.Simulation(
+                    id="DBS%s" % context.get('resource'), name=instance_name,
+                    hostname='db1.rax.net')
+            else:
+                instance = api.create_instance(instance_name, flavor, size,
+                                               databases=databases)
+        except cdb_errors.ResponseError as exc:
+            raise CheckmateRetriableException('Provider error occurred when '
+                                              'building db instance', exc)
+        except Exception as exc:
+            raise CheckmateException('Provider error occurred in '
+                                     'create_instance.', exc)
+        if callable(callback):
+            callback({'id': instance.id})
+
+        LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
+                 "Databases = %s", instance.name, instance.id, size,
+                 flavor, databases)
+
+        # Return instance and its interfaces
+        results = {
+            'id': instance.id,
+            'name': instance.name,
+            'status': 'BUILD',
+            'region': context.get('region'),
+            'flavor': flavor,
+            'interfaces': {
+                'mysql': {
+                    'host': instance.hostname
+                }
+            },
+            'databases': {}
+        }
+
+        # Return created databases and their interfaces
+        if databases:
+            db_results = results['databases']
+            for database in databases:
+                data = copy.copy(database)
+                data['interfaces'] = {
+                    'mysql': {
+                        'host': instance.hostname,
+                        'database_name': database.get('name'),
+                    }
+                }
+                db_results[database['name']] = data
+
         return results

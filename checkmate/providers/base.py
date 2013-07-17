@@ -1,5 +1,5 @@
 '''Base Classes and functions for Providers'''
-from functools import partial
+import functools
 import logging
 
 from celery import exceptions as celery_exceptions
@@ -592,19 +592,23 @@ class ProviderTask(Task):
 
     def __call__(self, context, *args, **kwargs):
         utils.match_celery_logging(LOG)
+
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
-        region = kwargs.get('region') or context.region
+            
+        if context.region is None and kwargs.has_key('region'):
+            context.region = kwargs.get('region')
+
         try:
-            self.api = kwargs.get('api') or self.provider.connect(context,
-                                                                  region)
+            self.api = kwargs.get('api') or self.provider.connect(
+                context, context.region)
         # TODO(Nate): Generalize exception raised in providers connect
         except CheckmateValidationException:
             raise
         except StandardError as exc:
             return self.retry(exc=exc)
 
-        self.partial = partial(self.callback, context)
+        self.partial = functools.partial(self.callback, context)
 
         try:
             data = self.run(context, *args, **kwargs)

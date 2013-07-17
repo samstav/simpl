@@ -972,3 +972,12 @@ def filter_resources(resources, provider_name):
             if resource['provider'] == provider_name:
                 results.append(resource)
     return results
+
+
+class Simulation(object):
+    '''Generic object used to set simulation attrs.'''
+    def __init__(self, *args, **kwargs):
+        '''Assigns arguments to attributes.  Kwargs sets key to attr name.'''
+        self.args = args
+        for key, value in kwargs.items():
+            setattr(self, key, value)
