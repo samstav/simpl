@@ -1,5 +1,6 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import logging
+import mock
 import mox
 import unittest
 
@@ -556,6 +557,55 @@ environment:
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(), "Workflow did not "
                         "complete")
+
+
+class TestDatabaseProxy(unittest.TestCase):
+    @mock.patch('checkmate.providers.rackspace.database.Provider.connect')
+    def test_proxy_returns_db_host_instances(self, mock_connect):
+        request = mock.Mock()
+
+        db_host = mock.Mock()
+        db_host.status = 'status'
+        db_host.name = 'name'
+        db_host.id = 'id'
+        db_host.hostname = 'hostname'
+        db_host.flavor.id = 'flavor'
+        db_host.volume.size = 'size'
+
+        api = mock.Mock()
+        api.region_name = 'region'
+        api.list.return_value = [db_host]
+
+        expected = {
+            0: {
+                'status': 'status',
+                'index': 0,
+                'service': 'backend',
+                'region': 'region',
+                'provider': 'database',
+                'component': 'mysql_instance',
+                'dns-name': 'name',
+                'instance': {
+                    'status': 'status',
+                    'name': 'name',
+                    'region': 'region',
+                    'id': 'id',
+                    'interfaces': {
+                        'mysql': {
+                            'host': 'hostname'
+                        }
+                    },
+                    'flavor': 'flavor'
+                },
+                'hosts': [],
+                'flavor': 'flavor',
+                'disk': 'size',
+                'type': 'compute'
+            }
+         }
+
+        mock_connect.return_value = api
+        self.assertEqual(database.Provider.proxy('list', request, 'tenant'), expected)
 
 
 if __name__ == '__main__':

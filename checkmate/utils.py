@@ -991,6 +991,35 @@ def cap_limit(limit, tenant_id):
         return 100
     return limit
 
+def get_ips_from_server(server, roles, primary_address_type='public'):
+    '''Extract ip addresses from a server object'''
+    ip = None
+    result = {}
+    addresses = server.addresses.get(primary_address_type, [])
+    for address in addresses:
+        if address['version'] == 4:
+            ip = address['addr']
+            break
+    if ((primary_address_type != 'public' and server.accessIPv4) or
+            'rack_connect' in roles):
+        ip = server.accessIPv4
+        LOG.info("Using accessIPv4 to connect: %s", ip)
+    result['ip'] = ip
+
+    public_addresses = server.addresses.get('public', [])
+    for address in public_addresses:
+        if address['version'] == 4:
+            result['public_ip'] = address['addr']
+            break
+
+    private_addresses = server.addresses.get('private', [])
+    for address in private_addresses:
+        if address['version'] == 4:
+            result['private_ip'] = address['addr']
+            break
+
+    return result
+
 class Simulation(object):
     '''Generic object used to set simulation attrs.'''
     def __init__(self, *args, **kwargs):

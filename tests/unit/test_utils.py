@@ -6,10 +6,10 @@ import time
 import unittest
 import uuid
 import mox
+import mock
 
 from checkmate import utils
 from bottle import request, response
-
 
 class TestUtils(unittest.TestCase):
 
@@ -515,6 +515,44 @@ class TestUtils(unittest.TestCase):
 
     def test_escape_yaml_simple_string_object(self):
         self.assertEqual(utils.escape_yaml_simple_string({'A': 1}), {'A': 1})
+
+    def test_get_ips_from_server_public_address_of_version_4(self):
+        server = mock.Mock()
+        server.addresses = {'public': [{'version': 4, 'addr': '1.1.2.2'}]}
+        expected = {'ip': '1.1.2.2', 'public_ip': '1.1.2.2'}
+        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+
+    def test_get_ips_from_server_with_different_address_type(self):
+        server = mock.Mock()
+        server.addresses = {'foobar': [{'version': 4, 'addr': '1.1.2.2'}]}
+        server.accessIPv4 = None
+        expected = {'ip': '1.1.2.2'}
+        self.assertEqual(
+            utils.get_ips_from_server(server,
+                                      [],
+                                      primary_address_type='foobar'),
+            expected)
+
+    def test_get_ips_from_server_public_ip_is_ipv4(self):
+        server = mock.Mock()
+        server.addresses = {'public': [{'version': 4, 'addr': '1.1.1.1'}]}
+        server.accessIPv4 = None
+        expected = {'ip': '1.1.1.1', 'public_ip': '1.1.1.1'}
+        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+
+    def test_get_ips_from_server_private_ip_is_ipv4(self):
+        server = mock.Mock()
+        server.addresses = {'private': [{'version': 4, 'addr': '1.1.1.1'}]}
+        server.accessIPv4 = None
+        expected = {'ip': None, 'private_ip': '1.1.1.1'}
+        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+
+    def test_get_ips_from_server_private_ip_is_not_ipv4(self):
+        server = mock.Mock()
+        server.addresses = {'private': [{'version': 6, 'addr': '1.1.1.1'}]}
+        server.accessIPv4 = None
+        expected = {'ip': None}
+        self.assertEqual(utils.get_ips_from_server(server, []), expected)
 
 
 class TestQueryParams(unittest.TestCase):

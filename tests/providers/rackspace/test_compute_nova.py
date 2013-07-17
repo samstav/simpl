@@ -5,6 +5,7 @@ import logging
 import os
 import unittest
 
+import mock
 import mox
 
 from checkmate import deployments as cm_deps
@@ -737,6 +738,71 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         except CheckmateException:
             #pass
             self.mox.VerifyAll()
+
+
+class TestNovaProxy(unittest.TestCase):
+    """Test Nova Compute Provider's proxy function"""
+    @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
+    @mock.patch('checkmate.providers.rackspace.compute.pyrax')
+    def test_proxy_returns_compute_instances(self, mock_pyrax, mock_get_ips):
+        request = mock.Mock()
+        server = mock.Mock()
+        server.name = 'server_name'
+        server.status = 'server_status'
+        server.flavor = 'server_flavor'
+        server.image = {'id': 'server_image'}
+        server.addresses = 'server_addresses'
+
+        mock_pyrax.cloudservers.list.return_value = [server]
+        mock_pyrax.cloudservers.client.region_name = 'region_name'
+        mock_get_ips.return_value = {}
+
+        expected = {0:
+            {
+                'index': 0, 'status': 'server_status',
+                'provider': 'nova', 'type': 'compute',
+                'type': 'compute', 'dns-name': 'server_name',
+                'instance': {
+                    'flavor': 'server_flavor',
+                    'image': 'server_image',
+                    'region': 'region_name',
+                    'addresses': 'server_addresses'
+                }
+            }
+        }
+        self.assertEqual(compute.Provider.proxy('list', request, 'tenant'),
+                         expected)
+
+    @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
+    @mock.patch('checkmate.providers.rackspace.compute.pyrax')
+    def test_proxy_merges_ip_info(self, mock_pyrax, mock_get_ips):
+        request = mock.Mock()
+        server = mock.Mock()
+        server.image = {'id': None}
+        mock_pyrax.cloudservers.list.return_value = [server]
+        mock_get_ips.return_value = {'ip': '1.1.1.1',
+                                     'public_ip': '2.2.2.2',
+                                     'private_ip': '3.3.3.3'}
+        self.assertEqual(
+            compute.Provider.proxy('list',
+                                   request,
+                                   'tenant')[0]['instance']['ip'],
+            '1.1.1.1'
+        )
+
+        self.assertEqual(
+            compute.Provider.proxy('list',
+                                   request,
+                                   'tenant')[0]['instance']['public_ip'],
+            '2.2.2.2'
+        )
+
+        self.assertEqual(
+            compute.Provider.proxy('list',
+                                   request,
+                                   'tenant')[0]['instance']['private_ip'],
+            '3.3.3.3'
+        )
 
 
 if __name__ == '__main__':
