@@ -488,7 +488,8 @@ class Provider(ProviderBase):
     def connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
         #FIXME: figure out better serialization/deserialization scheme
-        assert isinstance(context, RequestContext)
+        if isinstance(context, dict):
+            context = RequestContext(**context)
         if not context.auth_token:
             raise CheckmateNoTokenError()
 
