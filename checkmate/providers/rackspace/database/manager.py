@@ -7,7 +7,7 @@ import logging
 
 from clouddb import errors as cdb_errors
 
-from checkmate import test
+from checkmate import utils
 from checkmate.exceptions import (
     CheckmateDoesNotExist,
     CheckmateException,
@@ -100,7 +100,7 @@ class Manager(object):
 
         try:
             if simulate:
-                instance = test.Simulation(
+                instance = utils.Simulation(
                     id="DBS%s" % context.get('resource'), name=instance_name,
                     hostname='db1.rax.net')
             else:

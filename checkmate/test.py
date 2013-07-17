@@ -1036,11 +1036,3 @@ class MockWsgiFilters(object):
                 self.context.tenant = parts[0]
                 environ['PATH_INFO'] = '/%s' % '/'.join(parts[1:])
         return self.app(environ, start_response)
-
-class Simulation(object):
-    '''Generic object used to set simulation attrs.'''
-    def __init__(self, *args, **kwargs):
-        '''Assigns arguments to attributes.  Kwargs sets key to attr name.'''
-        self.args = args
-        for key, value in kwargs.items():
-            setattr(self, key, value)

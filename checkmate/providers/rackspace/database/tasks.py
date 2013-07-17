@@ -21,7 +21,7 @@ def wait_on_build(context, instance_id, region, api=None, callback=None):
 
 
 # Disable on api and callback.  Suppress num args
-# pylint: disable=W0613,R0913
+# pylint: disable=W0613
 @task(base=ProviderTask, provider=Provider)
 def sync_resource_task(context, resource, api=None, callback=None):
     '''Task to handle syncing remote status with checkmate status.'''
