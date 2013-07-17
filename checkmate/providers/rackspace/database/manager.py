@@ -81,8 +81,6 @@ class Manager(object):
                 results = {'status': 'DELETED'}
         return results
 
-    # Suppressing too many arguments
-    # pylint: disable=R0913
     @staticmethod
     def create_instance(instance_name, flavor, size, databases, context,
                         api, callback, simulate=False):
