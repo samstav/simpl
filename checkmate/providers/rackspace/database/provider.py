@@ -490,6 +490,8 @@ class Provider(ProviderBase):
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
             context = RequestContext(**context)
+        # Context could be something other than a dict or RequestContext
+        assert isinstance(context, RequestContext)
         if not context.auth_token:
             raise CheckmateNoTokenError()
 
