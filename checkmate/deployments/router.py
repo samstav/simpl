@@ -62,7 +62,7 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
             raise CheckmateValidationException("tenantId must match "
                                                "with current tenant ID")
     else:
-        assert tenant_id, "Tenant ID must be specified in deployment "
+        assert tenant_id, "Tenant ID must be specified in deployment."
         deployment['tenantId'] = tenant_id
     if 'created-by' not in deployment:
         deployment['created-by'] = request.context.username

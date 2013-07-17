@@ -69,6 +69,78 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
                          "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU"
                          "VWXYZ0123456789-_.+~@'", str(expected.exception))
 
+    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployments.router.utils.read_body')
+    def test_includes_is_stripped_from_request(
+            self, mock_read_body, mock_get_time_string):
+        mock_read_body.return_value = {
+            'deployment': {
+                'created-by': 'Me',
+                'includes': 'should be deleted'
+            }
+        }
+        mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        self.assertEquals(
+            self.expected_deployment(),
+            router._content_to_deployment(
+                request=None, deployment_id='Dtest', tenant_id='Ttest')
+        )
+
+    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployments.router.utils.read_body')
+    def test_unmatched_tenant_ids_raises_exception(
+            self, mock_read_body, mock_get_time_string):
+        mock_read_body.return_value = {
+            'deployment': {
+                'created-by': 'Me',
+                'tenantId': 'Tother',
+                'includes': 'should be deleted'
+            }
+        }
+        mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        with self.assertRaises(CheckmateValidationException) as expected:
+            router._content_to_deployment(
+                request=None, deployment_id='Dtest', tenant_id='Ttest')
+        self.assertEqual('tenantId must match with current tenant ID',
+                         str(expected.exception))
+
+    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployments.router.utils.read_body')
+    def test_no_tenant_id_raises_exception(
+            self, mock_read_body, mock_get_time_string):
+        mock_read_body.return_value = {
+            'deployment': {
+                'created-by': 'Me',
+                'tenantId': 'Tother',
+                'includes': 'should be deleted'
+            }
+        }
+        mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        with self.assertRaises(AssertionError) as expected:
+            router._content_to_deployment(
+                request=None, deployment_id='Dtest')
+        self.assertEqual('Tenant ID must be specified in deployment.',
+                         str(expected.exception))
+
+    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployments.router.utils.read_body')
+    def test_created_by_added_if_not_provided(
+            self, mock_read_body, mock_get_time_string):
+        mock_read_body.return_value = {
+            'deployment': {
+                'tenantId': 'Ttest',
+                'includes': 'should be deleted'
+            }
+        }
+        mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        mock_request = mock.Mock()
+        mock_request.context.username = 'Me'
+        self.assertEqual(
+            self.expected_deployment(),
+            router._content_to_deployment(
+                request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
+        )
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
