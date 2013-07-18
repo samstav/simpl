@@ -97,17 +97,12 @@ to/by gitHttpBackend.
 import os
 import re
 
-from bottle import (
-    response,
-    Bottle,
-    request,
-    HTTPError
-)
+import bottle
 
 from checkmate.git import manager
 from checkmate import wsgi_git_http_backend
 
-GIT_SERVER_APP = Bottle()
+GIT_SERVER_APP = bottle.Bottle()
 EXPECTED_ENVIRONMENT_LIST = [
     'wsgi.errors',
     'wsgi.input',
@@ -149,7 +144,7 @@ class GitMiddleware():
             GIT_SERVER_APP.match(e)
             e['GIT_PROJECT_BASE'] = self.root
             return GIT_SERVER_APP(e, h)
-        except HTTPError:
+        except bottle.HTTPError:
             pass
         return self.app(e, h)
 
@@ -195,16 +190,17 @@ def _set_git_environ(environ, repo, path):
 
 def _git_route_callback(dep_id, path):
     '''Check deployment and verify it is valid before git backend call.'''
-    environ = _set_git_environ(dict(request.environ), dep_id, path)
+    environ = _set_git_environ(dict(bottle.request.environ), dep_id, path)
     if not os.path.isdir(environ['GIT_PROJECT_ROOT']):
         # TODO: not sure what to do about this
-        raise HTTPError(code=404, output="%s not found" % environ['PATH_INFO'])
+        raise bottle.HTTPError(code=404, output="%s not found" %
+                               environ['PATH_INFO'])
     manager.init_deployment_repo(environ['GIT_PROJECT_ROOT'])
     (status_line, headers, response_body_generator
      ) = wsgi_git_http_backend.wsgi_to_git_http_backend(environ)
     for header, value in headers:
-        response.set_header(header, value)
-    response.status = status_line
+        bottle.response.set_header(header, value)
+    bottle.response.status = status_line
     return response_body_generator
 
 
