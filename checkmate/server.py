@@ -66,7 +66,7 @@ from checkmate.exceptions import (
     CheckmateUserException,
     CheckmateValidationException,
 )
-from checkmate.git import middleware as git_middleware
+from checkmate import git
 from checkmate import middleware
 from checkmate import utils
 
@@ -350,7 +350,7 @@ def main():
             sys.exit(1)
         root_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
                                    "/var/local/checkmate/deployments")
-        next_app = git_middleware.GitMiddleware(next_app, root_path)
+        next_app = git.Middleware(next_app, root_path)
 
     next_app = middleware.ContextMiddleware(next_app)
 
