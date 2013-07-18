@@ -1296,13 +1296,16 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 }]);
 
 services.factory('pagination', function(){
-  function _buildPagingLinks(current_page, total_pages, base_url, offset, limit){
+  function _buildPagingLinks(current_page, total_pages, original_url, offset, limit){
     var counter = 0,
         links = { middle_numbered_links: [], separator: '...',
                   hide_first_separator: true, hide_last_separator: true },
         NUM_OF_LINKS_AT_ENDS = 3,
         NUM_OF_LINKS_IN_CENTER = 5,
-        TOTAL_LINKS_TO_SHOW = (NUM_OF_LINKS_AT_ENDS * 2) + NUM_OF_LINKS_IN_CENTER;
+        TOTAL_LINKS_TO_SHOW = (NUM_OF_LINKS_AT_ENDS * 2) + NUM_OF_LINKS_IN_CENTER,
+        uri = URI(original_url);
+
+        uri.setSearch('limit', limit);
 
     function _buildGroupedNumberedPageLinks(){
       var first_numbered_links = [],
@@ -1311,22 +1314,22 @@ services.factory('pagination', function(){
 
       _.each([current_page - 2, current_page - 1, current_page, current_page + 1, current_page + 2], function(num){
         if(num > 0 && num <= total_pages) {
-          middle_numbered_links.push({ uri: base_url + '?limit=' + limit + '&offset=' + (num-1)*limit,
-                                    text: num });
+          uri.setSearch('offset', (num-1)*limit)
+          middle_numbered_links.push({ uri: uri.href(), text: num });
         }
       });
 
       for(var i=NUM_OF_LINKS_AT_ENDS; i>0; i--){
         if(!(_.find(middle_numbered_links, function(link){ return link.text == i; }))){
-          first_numbered_links.unshift({ uri: base_url + '?limit=' + limit + '&offset=' + (i-1)*limit,
-                                      text: i });
+          uri.setSearch('offset', (i-1)*limit)
+          first_numbered_links.unshift({ uri: uri.href(), text: i });
         }
       }
 
       for(var i=(total_pages - NUM_OF_LINKS_AT_ENDS); i < total_pages; i++){
         if(!(_.find(middle_numbered_links, function(link){ return link.text == i+1; }))){
-        last_numbered_links.push({ uri: base_url + '?limit=' + limit + '&offset=' + (i)*limit,
-                                    text: i+1 });
+          uri.setSearch('offset', (i)*limit)
+          last_numbered_links.push({ uri: uri.href(), text: i+1 });
         }
       }
 
@@ -1343,16 +1346,17 @@ services.factory('pagination', function(){
         _buildGroupedNumberedPageLinks();
       } else {
         while(counter < total_pages){
-          links.middle_numbered_links.push({ uri: base_url + '?limit=' + limit + '&offset=' + (counter * limit),
-                                      text: counter + 1 });
+          uri.setSearch('offset', counter*limit)
+          links.middle_numbered_links.push({ uri: uri.href(), text: counter + 1 });
           counter++;
         }
       }
 
-      links.next = { uri: base_url + '?limit=' + limit + '&offset=' + (offset + limit),
-                     text: 'Next' };
-      links.previous = { uri: base_url + '?limit=' + limit + '&offset=' + (offset - limit),
-                         text: 'Previous' };
+      uri.setSearch('offset', offset + limit)
+      links.next = { uri: uri.href(), text: 'Next' };
+
+      uri.setSearch('offset', offset - limit)
+      links.previous = { uri: uri.href(), text: 'Previous' };
 
       if(current_page === 1) {
         links.disable_previous = true;
@@ -1366,7 +1370,7 @@ services.factory('pagination', function(){
     return links;
   }
 
-  function getPagingInformation(total_item_count, base_url){
+  function getPagingInformation(total_item_count, original_url){
     var current_page,
         total_pages,
         page_links;
@@ -1380,7 +1384,7 @@ services.factory('pagination', function(){
     }
 
     total_pages = Math.ceil(total_item_count / this.limit);
-    page_links = _buildPagingLinks(current_page, total_pages, base_url, this.offset, this.limit);
+    page_links = _buildPagingLinks(current_page, total_pages, original_url, this.offset, this.limit);
 
     return {
              currentPage: current_page,

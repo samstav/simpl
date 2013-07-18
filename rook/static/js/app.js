@@ -951,7 +951,8 @@ function WorkflowListController($scope, $location, $resource, workflow, items, n
 
     paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
     if (paginator.changed_params()) {
-      $location.search({ limit: paginator.limit, offset: paginator.offset });
+      $location.search('limit', paginator.limit)
+      $location.search('offset', paginator.offset);
       $location.replace();
     }
 
@@ -2209,7 +2210,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.applyFilters = function(){
     var active_filters = _.where($scope.filter_list, { active: true });
     var filter_names = _.map(active_filters, function(f){ return f.name })
-    $location.search({ status: filter_names });
+    $location.search('status', filter_names);
   }
 
   $scope.selected_deployments = {};
@@ -2255,7 +2256,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
     paginator = pagination.buildPaginator(query_params.offset, query_params.limit);
     if (paginator.changed_params()) {
-      $location.search({ limit: paginator.limit, offset: paginator.offset });
+      $location.search('limit', paginator.limit);
+      $location.search('offset', paginator.offset);
       $location.replace();
     }
 
@@ -2269,7 +2271,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
     this.klass.get(params, function(data, getResponseHeaders){
       var paging_info,
-          deployments_url = $location.path();
+          deployments_url = $location.url();
 
       paging_info = paginator.getPagingInformation(data['collection-count'], deployments_url);
 
