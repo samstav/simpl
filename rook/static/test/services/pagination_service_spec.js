@@ -141,6 +141,35 @@ describe('pagination', function(){
         links = {};
       });
 
+      describe('with query params', function(){
+        beforeEach(function(){
+          base_url = '/deployments?status=UP';
+        });
+        it('should build the next link', function(){
+          offset = 6;
+          limit = 3;
+          total_item_count = 10;
+          links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+          expect(links.next).toEqual({ uri: '/deployments?status=UP&limit=3&offset=9', text: 'Next' });
+        });
+
+        it('should build the previous link', function(){
+          offset = 6;
+          limit = 3;
+          total_item_count = 10;
+          links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+          expect(links.previous).toEqual({ uri: '/deployments?status=UP&limit=3&offset=3', text: 'Previous' });
+        });
+
+        it('should build the numbered links', function(){
+          offset = 6;
+          limit = 3;
+          total_item_count = 10;
+          links = this.pagination.buildPaginator(offset, limit).getPagingInformation(total_item_count, base_url).links;
+          expect(links.middle_numbered_links).toEqual([{ uri: '/deployments?status=UP&limit=3&offset=0', text: 1 }, { uri: '/deployments?status=UP&limit=3&offset=3', text: 2 }, { uri: '/deployments?status=UP&limit=3&offset=6', text: 3 }, { uri: '/deployments?status=UP&limit=3&offset=9', text: 4 }]);
+        });
+      });
+
       it('should build the next link', function(){
         offset = 6;
         limit = 3;
