@@ -4,6 +4,7 @@ import os
 import string
 
 import clouddb
+import pyrax
 import redis
 from SpiffWorkflow.operators import (
     PathAttrib,
@@ -129,7 +130,7 @@ class Provider(ProviderBase):
                 volume_size_needed += database['disk']
 
         cdb = self.connect(context)
-        instances = cdb.get_instances()
+        instances = cdb.list()
         instances_used = len(instances)
         volume_size_used = 0
         for instance in instances:
@@ -492,26 +493,13 @@ class Provider(ProviderBase):
             context = RequestContext(**context)
         if not context.auth_token:
             raise CheckmateNoTokenError()
+        
+        if not pyrax.get_setting("identity_type"):
+            pyrax.set_setting("identity_type", "rackspace")
+        pyrax.auth_with_token(context.auth_token, context.tenant,
+                              context.username, context.region)
 
-        # Make sure we use airport codes (translate cities to that)
-        if region in REGION_MAP:
-            region = REGION_MAP[region]
-
-        if not region:
-            region = getattr(context, 'region', None)
-            if not region:
-                region = Provider.find_a_region(context.catalog) or 'DFW'
-
-        #TODO(any): instead of hacking auth using a token, submit patch
-        url = Provider.find_url(context.catalog, region)
-        if not url:
-            raise CheckmateException("Unable to locate region url for DBaaS "
-                                     "for region '%s'" % region)
-        api = clouddb.CloudDB(context.username, 'dummy', region)
-        api.client.auth_token = context.auth_token
-        api.client.region_account_url = url
-
-        return api
+        return pyrax.cloud_databases
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE,

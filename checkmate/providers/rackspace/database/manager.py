@@ -5,7 +5,7 @@ Rackspace Cloud Databases provider manager.
 import copy
 import logging
 
-from clouddb import errors as cdb_errors
+from pyrax import exceptions as cdb_errors
 
 from checkmate import utils
 from checkmate.exceptions import (
@@ -32,8 +32,8 @@ class Manager(object):
             if simulate:
                 data['status'] = 'ACTIVE'
             else:
-                data['status'] = api.get_instance(instance_id).status
-        except cdb_errors.ResponseError as exc:
+                data['status'] = api.get(instance_id).status
+        except cdb_errors.ClientException as exc:
             raise CheckmateResumableException(str(exc), 'Error occurred in db '
                                               'provider', type(exc).__name__)
         except StandardError as exc:
@@ -71,11 +71,11 @@ class Manager(object):
                 if not instance_id:
                     raise CheckmateDoesNotExist("Instance is blank or has no "
                                                 "ID.")
-                database = api.get_instance(instance_id)
+                database = api.get(instance_id)
                 LOG.info("Marking database instance %s as %s", instance_id,
                          database.status)
                 results = {'status': database.status}
-            except (cdb_errors.ResponseError, CheckmateDoesNotExist):
+            except (cdb_errors.ClientException, CheckmateDoesNotExist):
                 LOG.info("Marking database instance %s as DELETED",
                          instance_id)
                 results = {'status': 'DELETED'}
@@ -93,7 +93,7 @@ class Manager(object):
                        {'name': 'db2', 'character_set': 'latin5',
                         'collate': 'latin5_turkish_ci'}]
         '''
-        assert api, "API is required in create_instance_pop"
+        assert api, "API is required in create_instance"
         databases = databases or []
         flavor = int(flavor)
         size = int(size)
@@ -104,9 +104,9 @@ class Manager(object):
                     id="DBS%s" % context.get('resource'), name=instance_name,
                     hostname='db1.rax.net')
             else:
-                instance = api.create_instance(instance_name, flavor, size,
-                                               databases=databases)
-        except cdb_errors.ResponseError as exc:
+                instance = api.create(instance_name, flavor=flavor,
+                                      volume=size, databases=databases)
+        except cdb_errors.ClientException as exc:
             raise CheckmateRetriableException('Provider error occurred when '
                                               'building db instance', exc)
         except Exception as exc:

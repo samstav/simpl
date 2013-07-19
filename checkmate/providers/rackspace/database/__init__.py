@@ -6,6 +6,7 @@ import logging
 from celery.task import task, current
 import clouddb
 from clouddb.errors import ResponseError
+from pyrax.exceptions import ClientException
 
 from .manager import Manager
 from .provider import Provider
@@ -152,20 +153,20 @@ def create_database(context, name, region, character_set=None, collate=None,
         results[instance_key]['flavor'] = flavor
         return results
 
-    instance = api.get_instance(instance_id)
+    instance = api.get(instance_id)
     if instance.status != "ACTIVE":
         current.retry(
             exc=CheckmateBadState("Database instance is not active.")
         )
     try:
-        instance.create_databases(databases)
+        instance.create_database(name, character_set, collate)
         results = {
             instance_key: {
                 'name': name,
                 'id': name,
                 'host_instance': instance_id,
                 'host_region': region,
-                'flavor': instance.flavor['id'],
+                'flavor': instance.flavor.id,
                 'status': "BUILD",
                 'interfaces': {
                     'mysql': {
@@ -214,9 +215,11 @@ def add_databases(context, instance_id, databases, region, api=None):
     if not api:
         api = Provider.connect(context, region)
 
-    instance = api.get_instance(instance_id)
-    instance.create_databases(databases)
-    LOG.info('Added database(s) %s to instance %s', dbnames, instance_id)
+    instance = api.get(instance_id)
+    for database in databases:
+        instance.create_database(database.get('name'))
+        LOG.info('Added database(s) %s to instance %s', database.get('name'),
+                 instance_id)
     return dict(database_names=dbnames)
 
 
@@ -256,7 +259,7 @@ def add_user(context, instance_id, databases, username, password, region,
         api = Provider.connect(context, region)
 
     LOG.debug('Obtaining instance %s', instance_id)
-    instance = api.get_instance(instance_id)
+    instance = api.get(instance_id)
 
     try:
         instance.create_user(username, password, databases)
@@ -366,7 +369,7 @@ def delete_instance_task(context, api=None):
         api = Provider.connect(context, region)
     res = {}
     try:
-        api.delete_instance(instance_id)
+        api.delete(instance_id)
         LOG.info('Database instance %s deleted.', instance_id)
         res = {inst_key: {'status': 'DELETING'}}
         for hosted in resource.get('hosts', []):
@@ -376,8 +379,8 @@ def delete_instance_task(context, api=None):
                     'status-message': 'Host %s is being deleted'
                 }
             })
-    except ResponseError as rese:
-        if rese.status == 404:  # already deleted
+    except ClientException as rese:
+        if rese.code in [401, 403, 404]:  # already deleted
             res = {inst_key: {'status': 'DELETED'}}
             for hosted in resource.get('hosts', []):
                 res.update({
@@ -437,7 +440,7 @@ def wait_on_del_instance(context, api=None):
     instance = None
     deployment_id = context["deployment_id"]
 
-    if not instance_id:
+    if not instance_id or context.get('simulation'):
         msg = ("Instance ID is not available for Database, skipping "
                "wait_on_delete_instance_task for resource %s in deployment "
                "%s" % (key, deployment_id))
@@ -454,12 +457,17 @@ def wait_on_del_instance(context, api=None):
     if not api:
         api = Provider.connect(context, region)
     try:
-        instance = api.get_instance(instance_id)
-    except ResponseError:
+        instance = api.get(instance_id)
+    except ClientException:
         pass
 
     if not instance or ('DELETED' == instance.status):
-        res = {inst_key: {'status': 'DELETED'}}
+        res = {
+            inst_key: {
+                'status': 'DELETED',
+                'status-message': ''
+            }
+        }
         for hosted in resource.get('hosts', []):
             res.update({
                 'instance:%s' % hosted: {
@@ -548,7 +556,7 @@ def delete_database(context, api=None):
     instance_id = resource.get('instance', {}).get('host_instance')
     instance = None
     try:
-        instance = api.get_instance(instance_id)
+        instance = api.get(instance_id)
     except ResponseError as respe:
         if respe.status != 404:
             delete_database.retry(exc=respe)
@@ -582,7 +590,7 @@ def delete_user(context, instance_id, username, region, api=None):
     if api is None:
         api = Provider.connect(context, region)
 
-    instance = api.get_instance(instanceid=instance_id)
+    instance = api.get(instanceid=instance_id)
     instance.delete_user(username)
     LOG.info('Deleted user %s from database instance %d', username,
              instance_id)
