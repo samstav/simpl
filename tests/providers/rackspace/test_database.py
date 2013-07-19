@@ -44,9 +44,9 @@ class TestDatabase(ProviderTester):
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.create_instance(instance.name, 1, 1,
-                                         databases=[{'name': 'db1'}])\
-            .AndReturn(instance)
+        clouddb_api_mock.create(instance.name, flavor=1, volume=1,
+                                databases=[{'name': 'db1'}])\
+                                .AndReturn(instance)
 
         expected = {
             'status': 'BUILD',
@@ -104,7 +104,7 @@ class TestDatabase(ProviderTester):
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
+        clouddb_api_mock.get(instance.id).AndReturn(instance)
         self.mox.ReplayAll()
         #Should throw exception when instance.status="BUILD"
         self.assertRaises(CheckmateException, database.create_database,
@@ -121,7 +121,8 @@ class TestDatabase(ProviderTester):
         #Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
-        instance.flavor = {'id': '1'}
+        instance.flavor = self.mox.CreateMockAnything()
+        instance.flavor.id = '1'
         instance.name = 'fake_instance'
         instance.status = 'ACTIVE'
         instance.hostname = 'fake.cloud.local'
@@ -132,8 +133,8 @@ class TestDatabase(ProviderTester):
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
-        instance.create_databases([{'name': 'db1'}]).AndReturn(True)
+        clouddb_api_mock.get(instance.id).AndReturn(instance)
+        instance.create_database('db1', None, None).AndReturn(True)
 
         expected = {
             'instance:1': {
@@ -154,7 +155,7 @@ class TestDatabase(ProviderTester):
         resource_postback.delay(context['deployment'], expected).AndReturn(
             True)
         reset_failed_resource_task.delay(context['deployment'],
-                                          context['resource'])
+                                         context['resource'])
 
         self.mox.ReplayAll()
         results = database.create_database(context, 'db1', 'NORTH',
@@ -327,7 +328,7 @@ class TestDatabase(ProviderTester):
         self.mox.StubOutWithMock(database.Provider, 'connect')
         cdb = self.mox.CreateMockAnything()
         database.Provider.connect(mox.IgnoreArg()).AndReturn(cdb)
-        cdb.get_instances().AndReturn(instances)
+        cdb.list().AndReturn(instances)
         self.mox.ReplayAll()
         provider = database.Provider({})
         result = provider.verify_limits(context, resources)

@@ -124,15 +124,15 @@ class TestDatabaseTasks(unittest.TestCase):
                 }
             }
         }
-        api.create_instance = mock.Mock(return_value=instance)
+        api.create = mock.Mock(return_value=instance)
 
         results = database.create_instance(context, 'test_instance', '1', '1',
                                            None, 'DFW')
 
         database._create_instance.provider.connect.assert_called_with(
             context, 'DFW')
-        api.create_instance.assert_called_with('test_instance', 1, 1,
-                                               databases=[])
+        api.create.assert_called_with('test_instance', flavor=1, volume=1,
+                                      databases=[])
         partial.assert_called_with({'id': 1234})
         database._create_instance.callback.assert_called_with(context,
                                                               expected)
@@ -185,7 +185,7 @@ class TestDatabaseTasks(unittest.TestCase):
                 }
             }
         }
-        api.create_instance = mock.Mock(return_value=instance)
+        api.create = mock.Mock(return_value=instance)
         database._create_instance.callback = mock.Mock()
 
         results = database.create_instance(context, 'test_instance', '1', '1',
@@ -193,8 +193,8 @@ class TestDatabaseTasks(unittest.TestCase):
 
         database._create_instance.provider.connect.assert_called_with(
             context, 'DFW')
-        api.create_instance.assert_called_with('test_instance', 1, 1,
-                                               databases=databases)
+        api.create.assert_called_with('test_instance', volume=1, flavor=1,
+                                      databases=databases)
         partial.assert_called_with({'id': 1234})
         database._create_instance.callback.assert_called_with(context,
                                                               expected)
@@ -211,7 +211,7 @@ class TestDatabaseTasks(unittest.TestCase):
                              'create_instance.')
             assert isinstance(exc.args[1], AttributeError)
             self.assertEqual(str(exc.args[1]), "'str' object has no attribute "
-                             "'create_instance'")
+                             "'create'")
 
 
 if __name__ == '__main__':
