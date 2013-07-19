@@ -11,7 +11,7 @@ describe('DeploymentController', function(){
       workflow;
 
   beforeEach(function(){
-    $scope = { $watch: sinon.spy() };
+    $scope = { $watch: sinon.spy(), auth: { context: {} } };
     location = { path: emptyFunction, absUrl: emptyFunction };
     resource = sinon.stub().returns({ get: emptyFunction });
     routeParams = undefined;
@@ -71,13 +71,26 @@ describe('DeploymentController', function(){
       it('should format data', function(){
         var resource_result = { get: sinon.spy() },
             data = { yeeaaa: 1 };
-            deploymentDataParser.formatData = sinon.stub().returns(data);
+
+        deploymentDataParser.formatData = sinon.stub().returns(data);
 
         resource.returns(resource_result);
         $scope.load();
         var callback = resource_result.get.getCall(0).args[1];
-        callback({}, emptyFunction);
+        callback(data, emptyFunction);
         expect($scope.formatted_data).toEqual(data);
+      });
+
+      it('should showCommands if the data tenantId matches the current user context', function(){
+        var data = { tenantId: 12345 },
+            resource_result = { get: sinon.spy() };
+
+        resource.returns(resource_result);
+        $scope.load()
+        $scope.auth = { context: { tenantId: 12345 } };
+        var callback = resource_result.get.getCall(0).args[1];
+        callback(data, emptyFunction);
+        expect($scope.data).toEqual(data);
       });
     });
   });
