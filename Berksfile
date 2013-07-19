@@ -15,6 +15,10 @@ cookbook 'mongodb',
 cookbook 'checkmate',
   :git => 'https://github.rackspace.com/Cookbooks/checkmate'
 
+cookbook 'redisio',
+  :git => 'https://github.com/brianbianco/redisio.git',
+  :branch => '2.0.0_wip'
+
 cookbook 'rvm',
   :git => 'https://github.com/fnichol/chef-rvm',
   :ref => '485e042818063dcf40e8da1404d9758fb26de65d'

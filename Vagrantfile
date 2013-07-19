@@ -27,9 +27,11 @@ Vagrant.configure("2") do |config|
     chef.add_recipe "rvm::vagrant"
     chef.add_recipe "rvm::user"
     chef.add_recipe "checkmate::vagrant"
+    chef.add_recipe "checkmate::redis-master"
     chef.add_recipe "checkmate::broker"
+    chef.add_recipe "checkmate::datastore"
     chef.add_recipe "checkmate::worker"
-    chef.add_recipe "checkmate::webui"
+    chef.add_recipe "checkmate::svr_instances"
 
     chef.json = {
       :rvm => {
@@ -104,7 +106,7 @@ Vagrant.configure("2") do |config|
           :mongodb_backend_settings => '{"host": "localhost", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
         },
         :broker => {
-          :type => "mongodb",
+          :type => "redis",
         }
       },
       :build_essential => {
