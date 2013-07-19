@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
+'''Module for testing Database Provider Manager.'''
 import mock
 import unittest
 
@@ -12,7 +13,7 @@ from checkmate.exceptions import (
 from checkmate.providers.rackspace.database import Manager
 
 
-class test_database(unittest.TestCase):
+class TestDatabaseManager(unittest.TestCase):
     '''Test Rackspace Database Manager functions.'''
 
     def test_wait_on_build_success(self):
@@ -43,7 +44,7 @@ class test_database(unittest.TestCase):
 
         #Mock methods
         api.get = mock.MagicMock(side_effect=cdb_errors.ClientException(
-                                          123, "message"))
+                                 123, "message"))
         callback = mock.MagicMock(return_value=True)
         try:
             Manager.wait_on_build(instance_id, api, callback)
@@ -86,7 +87,7 @@ class test_database(unittest.TestCase):
 
         self.assertRaises(CheckmateRetriableException, Manager.wait_on_build,
                           instance_id, api, callback)
-        
+
         api.get.assert_called_with(instance_id)
         callback.assert_called_with(expected)
 
@@ -102,7 +103,7 @@ class test_database(unittest.TestCase):
         database.status = 'ACTIVE'
         expected = {'status': 'ACTIVE'}
         api.get = mock.MagicMock(return_value=database)
-        
+
         results = Manager.sync_resource(resource, api)
         api.get.assert_called_with('123')
         self.assertEqual(results, expected)
@@ -117,7 +118,7 @@ class test_database(unittest.TestCase):
         api = mock.Mock()
         expected = {'status': 'DELETED'}
         api.get = mock.MagicMock(side_effect=cdb_errors.ClientException(
-                                          "test", "message"))        
+                                 "test", "message"))
         results = Manager.sync_resource(resource, api)
         api.get.assert_called_with('123')
         self.assertEqual(results, expected)

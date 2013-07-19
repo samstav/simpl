@@ -1,4 +1,5 @@
 # encoding: utf-8
+# pylint: disable=E1103
 '''
 Rackspace Cloud Databases provider manager.
 '''

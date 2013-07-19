@@ -1,4 +1,5 @@
 # encoding: utf-8
+'''Provider module for interfacing with Cloud Databases.'''
 import logging
 import os
 import string
@@ -45,6 +46,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
 
 
 class Provider(ProviderBase):
+    '''Provider class for Cloud Databases.'''
     name = 'database'
     vendor = 'rackspace'
 
@@ -493,9 +495,10 @@ class Provider(ProviderBase):
             context = RequestContext(**context)
         if not context.auth_token:
             raise CheckmateNoTokenError()
-        
+
         if not pyrax.get_setting("identity_type"):
             pyrax.set_setting("identity_type", "rackspace")
+
         pyrax.auth_with_token(context.auth_token, context.tenant,
                               context.username, context.region)
 

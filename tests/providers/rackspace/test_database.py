@@ -22,7 +22,7 @@ LOG = logging.getLogger(__name__)
 
 
 class TestDatabase(ProviderTester):
-    """ Test Database Provider """
+    '''Test Database Provider.'''
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -100,7 +100,7 @@ class TestDatabase(ProviderTester):
         self.mox.StubOutWithMock(resource_postback, 'delay')
         self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
         reset_failed_resource_task.delay(context['deployment'],
-                                          context['resource'])
+                                         context['resource'])
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -113,7 +113,6 @@ class TestDatabase(ProviderTester):
 
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
-
 
     def test_create_database(self):
         context = dict(deployment='DEP', resource='1')
@@ -205,7 +204,7 @@ class TestDatabase(ProviderTester):
         self.mox.VerifyAll()
 
     def test_template_generation_compute_sizing(self):
-        """Test that flavor and volume selection pick >-= sizes"""
+        '''Test that flavor and volume selection pick >-= sizes.'''
         catalog = {
             'compute': {
                 'mysql_instance': {
@@ -277,7 +276,7 @@ class TestDatabase(ProviderTester):
         self.mox.VerifyAll()
 
     def verify_limits(self, volume_size_used):
-        """Test the verify_limits() method"""
+        '''Test the verify_limits() method.'''
         context = RequestContext()
         resources = [
             {'component': 'mysql_database',
@@ -336,17 +335,21 @@ class TestDatabase(ProviderTester):
         return result
 
     def test_verify_limits_negative(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
+        '''Test that verify_limits() returns warnings if limits are not
+        okay.
+        '''
         result = self.verify_limits(100)  # Will be 200 total (2 instances)
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
 
     def test_verify_limits_positive(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
+        '''Test that verify_limits() returns warnings if limits are not
+        okay.
+        '''
         result = self.verify_limits(1)
         self.assertEqual(result, [])
 
     def test_verify_access_positive(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
+        '''Test that verify_access() returns ACCESS-OK if user has access.'''
         context = RequestContext()
         context.roles = 'identity:user-admin'
         provider = database.Provider({})
@@ -360,7 +363,7 @@ class TestDatabase(ProviderTester):
         self.assertEqual(result['type'], 'ACCESS-OK')
 
     def test_verify_access_negative(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
+        '''Test that verify_access() returns ACCESS-OK if user has access.'''
         context = RequestContext()
         context.roles = 'dbaas:observer'
         provider = database.Provider({})
@@ -475,7 +478,7 @@ class TestCatalog(unittest.TestCase):
 
 
 class TestDBWorkflow(StubbedWorkflowBase):
-    """ Test MySQL and DBaaS Resource Creation Workflow """
+    '''Test MySQL and DBaaS Resource Creation Workflow.'''
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
@@ -552,7 +555,7 @@ environment:
         self.workflow = self._get_stubbed_out_workflow()
 
     def test_workflow_completion(self):
-        """Verify workflow sequence and data flow"""
+        '''Verify workflow sequence and data flow.'''
 
         self.mox.ReplayAll()
 

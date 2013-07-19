@@ -23,7 +23,7 @@ class TestDatabaseTasks(unittest.TestCase):
             'simulation': True,
             'resource': 0,
             'deployment': 0,
-            'region':'DFW'
+            'region': 'DFW'
         }
         context = middleware.RequestContext(**context)
         expected_result = {
