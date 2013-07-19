@@ -840,6 +840,13 @@ class Driver(common.DbBase):
             if not status:
                 status = "!DELETED"
             filters['status'] = _parse_comparison(status)
+
+        if query:
+            for key in query:
+                if query[key]:
+                    regex = { '$regex': query[key], '$options': 'i' }
+                    filters[key] = regex
+
         return filters
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,

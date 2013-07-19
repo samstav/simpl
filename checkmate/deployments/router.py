@@ -139,6 +139,11 @@ class Router(object):
         show_deleted = bottle.request.query.get('show_deleted')
         statuses = bottle.request.query.getall('status')
         query = {}
+        allowed_params = [ 'name', 'blueprint.name' ]
+        for term in allowed_params:
+            value = bottle.request.query.get(term)
+            if value:
+                query[term] = value
         return self.manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
