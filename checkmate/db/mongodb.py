@@ -842,10 +842,20 @@ class Driver(common.DbBase):
             filters['status'] = _parse_comparison(status)
 
         if query:
-            for key in query:
-                if query[key]:
-                    regex = { '$regex': query[key], '$options': 'i' }
-                    filters[key] = regex
+            if ('search' in query):
+                search_term = query['search']
+                allowed_attributes = ['name', 'tenantId', 'blueprint.name']
+                disjunction = []
+                for attr in allowed_attributes:
+                    regex = { '$regex': search_term, '$options': 'i' }
+                    condition = { attr: regex }
+                    disjunction.append( condition )
+                filters['$or'] = disjunction
+            else:
+                for key in query:
+                    if query[key]:
+                        regex = { '$regex': query[key], '$options': 'i' }
+                        filters[key] = regex
 
         return filters
 
