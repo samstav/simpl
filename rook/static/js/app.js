@@ -2982,7 +2982,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
 
   $scope.delayed_refresh = function() {
     var original_url = $location.url();
-    setTimeout(function() {$scope.reload(original_url);}, 2000);
+    setTimeout(function() {$scope.reload(original_url);}, 5000);
   };
 
   $scope.toggle_auto_refresh = function() {
@@ -3016,14 +3016,20 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.load_workflow_stats(data.operation);
       data.display_status = Deployment.status(data);
       $scope.data = data;
-      $scope.formatted_data = deploymentDataParser.formatData(data);
+      $scope.showCommands = $scope.auth.context.tenantId === $scope.data.tenantId;
       $scope.abs_url = $location.absUrl();
       $scope.clippy_element = "#deployment_summary_clipping";
-      $scope.showCommands = $scope.auth.context.tenantId === $scope.data.tenantId;
+      try {
+        $scope.formatted_data = deploymentDataParser.formatData(data);
+      } catch(err) {
+        console.log('Could not format deployment data');
+        $scope.formatted_data = {};
+      }
 
       if ($scope.data.operation !== undefined && $scope.data.operation.status != 'COMPLETE') {
         $scope.delayed_refresh();
       }
+
     });
   };
 

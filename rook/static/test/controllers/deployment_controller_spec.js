@@ -81,6 +81,18 @@ describe('DeploymentController', function(){
         expect($scope.formatted_data).toEqual(data);
       });
 
+      it('should not blow up with an error', function(){
+        var resource_result = { get: sinon.spy() },
+            data = { resources: [{ type: 'load-balancer', instance: null }] };
+
+        deploymentDataParser.formatData = sinon.stub().throws();
+
+        resource.returns(resource_result);
+        $scope.load();
+        var callback = resource_result.get.getCall(0).args[1];
+        expect(function(){ callback(data, emptyFunction) }).not.toThrow();
+      });
+
       it('should showCommands if the data tenantId matches the current user context', function(){
         var data = { tenantId: 12345 },
             resource_result = { get: sinon.spy() };
