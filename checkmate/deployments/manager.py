@@ -60,14 +60,15 @@ class Manager(base.ManagerBase):
         return count
 
     def get_deployments(self, tenant_id=None, offset=None, limit=None,
-                        with_deleted=False, status=None):
+                        with_deleted=False, status=None, query=None):
         '''Get existing deployments..'''
         results = self.driver.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
             with_deleted=with_deleted,
-            status=status
+            status=status,
+            query=query,
         )
         #FIXME: inefficient and not fail-safe. We need better secrets handling
         for dep in results['results'].itervalues():

@@ -337,7 +337,7 @@ class TestSecrets(unittest.TestCase):
 
     def test_get_deployments_strips_secrets(self):
         self.driver.get_deployments(tenant_id="T1000", offset=None, limit=None,
-                                    with_deleted=False, status=None)\
+                                    with_deleted=False, status=None, query=None)\
             .AndReturn({'results': {'1': self.deployment}})
         self.mox.ReplayAll()
         results = self.manager.get_deployments(tenant_id="T1000")

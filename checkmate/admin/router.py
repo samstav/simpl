@@ -161,12 +161,14 @@ class Router(object):
         show_deleted = bottle.request.query.get('show_deleted')
         status = bottle.request.query.get('status')
         tenant_id = bottle.request.query.get('tenant_id')
+        query = {}
         data = self.manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
             with_deleted=show_deleted == '1',
             status=status,
+            query=query,
         )
         return data
 
