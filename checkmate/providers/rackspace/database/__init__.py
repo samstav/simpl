@@ -4,8 +4,6 @@ Rackspace Cloud Databases Provider
 import logging
 
 from celery.task import task, current
-import clouddb
-from clouddb.errors import ResponseError
 from pyrax.exceptions import ClientException
 
 from .manager import Manager
@@ -182,9 +180,9 @@ def create_database(context, name, region, character_set=None, collate=None,
         # Send data back to deployment
         resource_postback.delay(context['deployment'], results)
         return results
-    except clouddb.errors.ResponseError as exc:
+    except ClientException as exc:
         LOG.exception(exc)
-        if str(exc) == '400: Bad Request':
+        if exc.code == 400:
             current.retry(exc=exc, throw=True)  # Do not retry. Will fail.
         # Expected while instance is being created. So retry
         return current.retry(exc=exc)
@@ -265,10 +263,10 @@ def add_user(context, instance_id, databases, username, password, region,
         instance.create_user(username, password, databases)
         LOG.info('Added user %s to %s on instance %s', username, databases,
                  instance_id)
-    except clouddb.errors.ResponseError as exc:
+    except ClientException as exc:
         # This could be '422 Unprocessable Entity', meaning the instance is not
         # up yet
-        if '422' in exc.args[0]:
+        if exc.code == 422:
             current.retry(exc=exc)
         else:
             raise exc
@@ -557,8 +555,8 @@ def delete_database(context, api=None):
     instance = None
     try:
         instance = api.get(instance_id)
-    except ResponseError as respe:
-        if respe.status != 404:
+    except ClientException as respe:
+        if respe.code != 404:
             delete_database.retry(exc=respe)
     if not instance or (instance.status == 'DELETED'):
         # instance is gone, so is the db
@@ -575,7 +573,7 @@ def delete_database(context, api=None):
                                                      "be out of BUILD status"))
     try:
         instance.delete_database(db_name)
-    except ResponseError as respe:
+    except ClientException as respe:
         delete_database.retry(exc=respe)
     LOG.info('Database %s deleted from instance %s', db_name, instance_id)
     ret = {inst_key: {'status': 'DELETED'}}
