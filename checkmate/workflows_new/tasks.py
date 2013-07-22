@@ -3,7 +3,6 @@ Workflows Asynchronous tasks
 '''
 import logging
 import os
-from celery import current_task
 
 from celery.task import task
 from SpiffWorkflow import Workflow, Task
@@ -11,7 +10,6 @@ from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.specs import Celery
 
 from checkmate import db
-from checkmate import utils
 from checkmate import workflow as cm_workflow
 from checkmate.common import tasks as common_tasks
 from checkmate.deployment import Deployment
@@ -28,7 +26,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
 
 
 @task(default_retry_delay=10, max_retries=300)
-def pause_workflow(w_id, driver=None, pause_action_update_retry_counter=0):
+def pause_workflow(w_id, driver=None, retry_counter=0):
     '''
     Waits for all the waiting celery tasks to move to ready and then marks the
     operation as paused
@@ -61,26 +59,27 @@ def pause_workflow(w_id, driver=None, pause_action_update_retry_counter=0):
                  deployment_id)
         driver.unlock_workflow(w_id, key)
         return True
-    elif pause_action_update_retry_counter >= 10:
+    elif retry_counter >= 10:
         LOG.debug("Skipping waitiing for Operation Action to turn to PAUSE - "
                   "pause_workflow for workflow %s has already been retried %s "
-                  "times", w_id, pause_action_update_retry_counter)
+                  "times", w_id, retry_counter)
         pass
     else:
         LOG.warn("Pause request for workflow %s received but operation's action"
                  "is not PAUSE. Retry-Count waiting for action to turn to "
-                 "PAUSE: %s  ", w_id, pause_action_update_retry_counter)
+                 "PAUSE: %s  ", w_id, retry_counter)
         driver.unlock_workflow(w_id, key)
-        pause_action_update_retry_counter += 1
+        retry_counter += 1
         pause_workflow.retry([w_id], kwargs={
-            'pause_action_update_retry_counter': pause_action_update_retry_counter,
+            'retry_counter': retry_counter,
             'driver': driver
         })
 
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
+    final_tasks = cm_workflow.find_tasks(d_wf, state=Task.WAITING, tag='final')
 
-    for task in Task.Iterator(d_wf.task_tree, Task.WAITING):
+    for task in final_tasks:
         if (isinstance(task.task_spec, Celery) and
                 not cm_workflow.is_failed_task(task)):
             task.task_spec._update_state(task)
@@ -109,6 +108,6 @@ def pause_workflow(w_id, driver=None, pause_action_update_retry_counter=0):
                                     workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
         pause_workflow.retry([w_id], kwargs={
-            'pause_action_update_retry_counter': pause_action_update_retry_counter,
+            'retry_counter': retry_counter,
             'driver': driver
         })

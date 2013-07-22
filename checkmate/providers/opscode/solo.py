@@ -184,7 +184,7 @@ class Provider(ProviderBase):
 
         # Wait for relations tasks to complete
         for relation_key in resource.get('relations', {}).keys():
-            tasks = self.find_tasks(wfspec, resource=key,
+            tasks = self.find_task_specs(wfspec, resource=key,
                                     relation=relation_key, tag='final')
             if tasks:
                 dependencies.extend(tasks)
@@ -245,12 +245,12 @@ class Provider(ProviderBase):
         Only one role per component is supported now.
         '''
         # Do tasks already exist?
-        collect_tasks = self.find_tasks(wfspec,
+        collect_tasks = self.find_task_specs(wfspec,
                                         provider=self.key,
                                         resource=resource_key,
                                         tag=collect_tag)
         if collect_tasks:
-            ready_tasks = self.find_tasks(wfspec,
+            ready_tasks = self.find_task_specs(wfspec,
                                           provider=self.key,
                                           resource=resource_key,
                                           tag=ready_tag)
@@ -587,7 +587,7 @@ class Provider(ProviderBase):
             LOG.debug("Relation '%s' for resource '%s' has a mapping",
                       relation_key, key)
             # Set up a wait for the relation target to be ready
-            tasks = self.find_tasks(wfspec, resource=relation['target'],
+            tasks = self.find_task_specs(wfspec, resource=relation['target'],
                                     tag='final')
 
         if tasks:
@@ -695,9 +695,9 @@ class Provider(ProviderBase):
                                                          server_component)
                 recollect_task = recon_tasks['root']
 
-                final_tasks = self.find_tasks(
+                final_tasks = self.find_task_specs(
                     wfspec, resource=key, provider=self.key, tag='final')
-                final_tasks.extend(self.find_tasks(
+                final_tasks.extend(self.find_task_specs(
                     wfspec, resource=server.get('index'),
                     provider=self.key, tag='final')
                 )
@@ -727,14 +727,14 @@ class Provider(ProviderBase):
         LOG.debug("Inform server %s (%s) that client %s (%s) is ready to "
                   "connect it", server['index'], server['component'],
                   client['index'], client['component'])
-        existing = self.find_tasks(wfspec, resource=server['index'],
+        existing = self.find_task_specs(wfspec, resource=server['index'],
                                    provider=self.key, tag='client-ready')
         collect_tag = "reconfig"
         ready_tag = "reconfig-options-ready"
 
         if existing:
             reconfigure_task = existing[0]
-            collect = self.find_tasks(wfspec, resource=server['index'],
+            collect = self.find_task_specs(wfspec, resource=server['index'],
                                       provider=self.key, tag=collect_tag)
             if collect:
                 root_task = collect[0]

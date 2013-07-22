@@ -495,6 +495,22 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
         return task
 
 
+def find_tasks(wf, state=Task.ANY_MASK, **kwargs):
+    tasks = []
+    filtered_tasks = wf.get_tasks(state=state)
+    for task in filtered_tasks:
+        if kwargs:
+            for key, value in kwargs.iteritems():
+                if key == 'tag':
+                    if value is not None and value not in task.get_property(
+                            "task_tags", []):
+                        match = False
+                        break
+        if match:
+            tasks.append(task)
+    return tasks
+
+
 class Workflow(ExtensibleDict):
     """A workflow.
 

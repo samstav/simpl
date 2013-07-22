@@ -284,7 +284,7 @@ class Provider(ProviderBase):
         create_lb_task_tags = ['create', 'root', 'vip']
 
         #Find existing task which has created the vip
-        vip_tasks = self.find_tasks(wfspec, provider=self.key, tag='vip')
+        vip_tasks = self.find_task_specs(wfspec, provider=self.key, tag='vip')
         parent_lb = None
 
         if vip_tasks:
@@ -503,9 +503,9 @@ class Provider(ProviderBase):
                                                               protocols))
 
         # Get all tasks we need to precede the LB Add Node task
-        finals = self.find_tasks(wfspec, resource=relation['target'],
+        finals = self.find_task_specs(wfspec, resource=relation['target'],
                                  tag='final')
-        create_lb = self.find_tasks(wfspec, resource=key, provider=self.key,
+        create_lb = self.find_task_specs(wfspec, resource=key, provider=self.key,
                                     tag='final')[0]
         target_resource = deployment['resources'][relation['target']]
         if 'hosted_on' in target_resource:

@@ -866,7 +866,7 @@ class TestProvider(ProviderBase):
                 relation['target'], interface, field))
 
         # Get the final task for the target
-        target_final = self.find_tasks(
+        target_final = self.find_task_specs(
             wfspec,
             provider=target['provider'],
             resource=relation['target'],
@@ -919,7 +919,7 @@ class TestProvider(ProviderBase):
         # When target is ready, compile data
         wait_for(wfspec, compile_override, [target_final])
         # Provide data to 'final' task
-        tasks = self.find_tasks(
+        tasks = self.find_task_specs(
             wfspec,
             provider=resource['provider'],
             resource=key, tag='final'
