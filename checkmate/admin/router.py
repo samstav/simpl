@@ -194,7 +194,11 @@ class Router(object):
         '''
         tenant_id = bottle.request.query.get('tenant_id')
         status = bottle.request.query.get('status')
-        count = self.manager.count(tenant_id=tenant_id, status=status)
+        query = self._get_filter_params()
+        count = self.manager.count(tenant_id=tenant_id,
+                                   status=status,
+                                   query=query
+                                   )
         result = {'count': count}
         return utils.write_body(result, bottle.request, bottle.response)
 
