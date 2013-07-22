@@ -595,8 +595,8 @@ class ProviderTask(Task):
 
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
-            
-        if context.region is None and kwargs.has_key('region'):
+
+        if context.region is None and 'region' in kwargs:
             context.region = kwargs.get('region')
 
         try:

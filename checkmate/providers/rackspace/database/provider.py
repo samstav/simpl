@@ -5,10 +5,7 @@ import string
 
 import clouddb
 import redis
-from SpiffWorkflow.operators import (
-    PathAttrib,
-    Attrib,
-)
+from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.common import caching
