@@ -618,7 +618,9 @@ class ProviderTask(Task):
             return self.retry(exc=exc)
 
         self.callback(context, data)
-        return data
+        key = getattr(context, 'resource', None) or context.kwargs.get(
+            'resource')
+        return {'instance:%s' % key: data}
 
     def callback(self, context, data):
         '''Calls postback with instance.id to ensure posted to resource.'''
