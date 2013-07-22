@@ -508,7 +508,7 @@ class Provider(ProviderBase):
 
         pyrax.auth_with_token(context.auth_token, context.tenant,
                               context.username, region)
-''
+
         return pyrax.cloud_databases
 
 
