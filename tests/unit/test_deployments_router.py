@@ -13,6 +13,7 @@ import os
 import unittest
 
 import bottle
+import mock
 import mox
 from mox import IgnoreArg
 from webtest import TestApp
@@ -180,6 +181,54 @@ class TestAPICalls(unittest.TestCase):
         self.mox.ReplayAll()
         with self.assertRaises(bottle.HTTPError):
             self.router.get_deployment_secrets('1234', tenant_id="T1000")
+
+
+class TestGetDeployments(unittest.TestCase):
+
+    def setUp(self):
+        self.root_app = bottle.Bottle()
+        self.root_app.catchall = False
+        self.filters = test.MockWsgiFilters(self.root_app)
+        self.app = TestApp(self.filters)
+
+        self.manager = mock.Mock()
+        self.router = deployments.Router(self.root_app, self.manager)
+        results = {'_links': {}, 'results': {}, 'collection-count': 0}
+        self.manager.get_deployments.return_value = results
+
+    def test_pass_empty_query(self):
+        self.router.get_deployments()
+        self.manager.get_deployments.assert_called_with(
+            status=mock.ANY,
+            tenant_id=mock.ANY,
+            with_deleted=mock.ANY,
+            limit=mock.ANY,
+            offset=mock.ANY,
+            query={}
+        )
+
+    def test_query_only_allowed_params(self):
+        query_params = {
+            'name': ['fake name'],
+            'blueprint.name': ['fake blue'],
+            'search': ['fake search'],
+            'param_not_whitelisted': ['evil param'],
+        }
+        with mock.patch.dict(bottle.request.query.dict, query_params):
+            self.router.get_deployments()
+            self.manager.get_deployments.assert_called_with(
+                tenant_id=mock.ANY,
+                offset=mock.ANY,
+                limit=mock.ANY,
+                with_deleted=mock.ANY,
+                status=mock.ANY,
+                query={
+                    'name': 'fake name',
+                    'blueprint.name': 'fake blue',
+                    'search': 'fake search',
+                }
+            )
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

@@ -1,5 +1,6 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 '''Unit tests for functions in mongodb.py'''
+import mock
 import unittest
 
 from checkmate.db import mongodb
@@ -49,6 +50,27 @@ class TestMongoDB(unittest.TestCase):
             'Operators cannot be used when specifying multiple filters.',
             str(expected.exception)
         )
+
+
+class TestGetDeployments(unittest.TestCase):
+
+    def setUp(self):
+        self.driver = mongodb.Driver('mongodb://fake.connection.string')
+
+    def test_send_query_to_get_objects(self):
+        with mock.patch.object(self.driver, '_get_objects') as __get_objects:
+            self.driver.get_deployments(query='fake query')
+            __get_objects.assert_called_with(
+                'deployments',
+                None,
+                with_secrets=mock.ANY,
+                offset=mock.ANY,
+                limit=mock.ANY,
+                with_count=mock.ANY,
+                with_deleted=mock.ANY,
+                status=mock.ANY,
+                query='fake query',
+            )
 
 
 if __name__ == '__main__':

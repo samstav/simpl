@@ -11,6 +11,8 @@ import copy
 import json
 import os
 import unittest
+
+import mock
 import mox
 
 from checkmate import deployments
@@ -348,6 +350,37 @@ class TestSecrets(unittest.TestCase):
         outputs = out['display-outputs']
         self.assertNotIn('value', outputs['Locked Password'])
         self.assertNotIn('value', outputs['New Password'])
+
+
+class TestGetDeployments(unittest.TestCase):
+
+    def setUp(self):
+        results = {'_links': {}, 'results': {}, 'collection-count': 0}
+        self.driver = mock.Mock()
+        self.driver.get_deployments.return_value = results
+        self.manager = deployments.Manager({'default': self.driver})
+
+    def test_send_empty_query_to_driver(self):
+        self.manager.get_deployments(query={})
+        self.driver.get_deployments.assert_called_with(
+            tenant_id=mock.ANY,
+            offset=mock.ANY,
+            limit=mock.ANY,
+            with_deleted=mock.ANY,
+            status=mock.ANY,
+            query={}
+        )
+
+    def test_send_query_to_driver(self):
+        self.manager.get_deployments(query={'name': 'fake name'})
+        self.driver.get_deployments.assert_called_with(
+            tenant_id=mock.ANY,
+            offset=mock.ANY,
+            limit=mock.ANY,
+            with_deleted=mock.ANY,
+            status=mock.ANY,
+            query={'name': 'fake name'}
+        )
 
 
 if __name__ == '__main__':
