@@ -496,12 +496,19 @@ class Provider(ProviderBase):
         if not context.auth_token:
             raise CheckmateNoTokenError()
 
+        if region in REGION_MAP:
+            region = REGION_MAP[region]
+        if not region:
+            region = getattr(context, 'region', None)	  	
+            if not region:
+                region = Provider.find_a_region(context.catalog) or 'DFW'
+
         if not pyrax.get_setting("identity_type"):
             pyrax.set_setting("identity_type", "rackspace")
 
         pyrax.auth_with_token(context.auth_token, context.tenant,
-                              context.username, context.region)
-
+                              context.username, region)
+''
         return pyrax.cloud_databases
 
 
