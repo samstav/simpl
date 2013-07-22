@@ -139,7 +139,7 @@ class Router(object):
         show_deleted = bottle.request.query.get('show_deleted')
         statuses = bottle.request.query.getall('status')
         query = {}
-        allowed_params = [ 'search', 'name', 'blueprint.name' ]
+        allowed_params = ['search', 'name', 'blueprint.name']
         for term in allowed_params:
             value = bottle.request.query.get(term)
             if value:

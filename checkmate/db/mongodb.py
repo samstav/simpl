@@ -804,7 +804,8 @@ class Driver(common.DbBase):
                     klass, tenant_id, with_deleted, status, query)
         return response
 
-    def _get_count(self, klass, tenant_id, with_deleted, status=None, query=None):
+    def _get_count(self, klass, tenant_id, with_deleted, status=None,
+                   query=None):
         '''Returns a record count for the given tenant.
 
         :param klass: the collection to query
@@ -814,12 +815,14 @@ class Driver(common.DbBase):
         :return: An integer indicating how many records were found
         '''
         return self.database()[klass].find(
-            self._build_filters(klass, tenant_id, with_deleted, status, query),
+            self._build_filters(klass, tenant_id, with_deleted, status,
+                                query),
             self._object_projection
         ).count()
 
     @staticmethod
-    def _build_filters(klass, tenant_id, with_deleted, status=None, query=None):
+    def _build_filters(klass, tenant_id, with_deleted, status=None,
+                       query=None):
         '''Build MongoDB filters.
 
         `with_deleted` is a handy shortcut for including/excluding deleted
@@ -847,14 +850,14 @@ class Driver(common.DbBase):
                 allowed_attributes = ['name', 'tenantId', 'blueprint.name']
                 disjunction = []
                 for attr in allowed_attributes:
-                    regex = { '$regex': search_term, '$options': 'i' }
-                    condition = { attr: regex }
-                    disjunction.append( condition )
+                    regex = {'$regex': search_term, '$options': 'i'}
+                    condition = {attr: regex}
+                    disjunction.append(condition)
                 filters['$or'] = disjunction
             else:
                 for key in query:
                     if query[key]:
-                        regex = { '$regex': query[key], '$options': 'i' }
+                        regex = {'$regex': query[key], '$options': 'i'}
                         filters[key] = regex
 
         return filters
