@@ -18,7 +18,7 @@ from checkmate import admin
 from checkmate import test
 
 
-class TestGetDeployments(unittest.TestCase):
+class TestAdminRouter(unittest.TestCase):
 
     def setUp(self):
         self.root_app = bottle.Bottle()
@@ -35,16 +35,60 @@ class TestGetDeployments(unittest.TestCase):
         results = {'_links': {}, 'results': {}, 'collection-count': 0}
         self.manager.get_deployments.return_value = results
 
-    def test_send_empty_query(self):
-        self.router.get_deployments()
-        self.manager.get_deployments.assert_called_with(
-            tenant_id=mock.ANY,
-            offset=mock.ANY,
-            limit=mock.ANY,
-            with_deleted=mock.ANY,
-            status=mock.ANY,
-            query={},
-        )
+
+class TestGetDeployments(TestAdminRouter):
+
+    def test_pass_query_params_to_manager(self):
+        with mock.patch.object(self.router, '_get_filter_params'):
+            self.router._get_filter_params.return_value = 'fake query'
+            self.router.get_deployments()
+            self.manager.get_deployments.assert_called_with(
+                tenant_id=mock.ANY,
+                offset=mock.ANY,
+                limit=mock.ANY,
+                with_deleted=mock.ANY,
+                status=mock.ANY,
+                query='fake query',
+            )
+
+
+class TestGetFilterParams(TestAdminRouter):
+
+    def test_pass_empty_filter(self):
+        query_params = {}
+        with mock.patch.dict(bottle.request.query.dict, query_params):
+            self.router.get_deployments()
+            self.manager.get_deployments.assert_called_with(
+                tenant_id=mock.ANY,
+                offset=mock.ANY,
+                limit=mock.ANY,
+                with_deleted=mock.ANY,
+                status=mock.ANY,
+                query={}
+            )
+
+
+    def test_pass_only_whitelisted_params(self):
+        query_params = {
+            'name': ['fake name'],
+            'blueprint.name': ['fake blue'],
+            'search': ['fake search'],
+            'evil_param': ['Muahaha'],
+        }
+        with mock.patch.dict(bottle.request.query.dict, query_params):
+            self.router.get_deployments()
+            self.manager.get_deployments.assert_called_with(
+                tenant_id=mock.ANY,
+                offset=mock.ANY,
+                limit=mock.ANY,
+                with_deleted=mock.ANY,
+                status=mock.ANY,
+                query={
+                    'name': 'fake name',
+                    'blueprint.name': 'fake blue',
+                    'search': 'fake search',
+                }
+            )
 
 
 if __name__ == '__main__':

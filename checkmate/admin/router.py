@@ -154,6 +154,17 @@ class Router(object):
     #
     # Deployments
     #
+    def _get_filter_params(self):
+        query = {}
+
+        allowed_params = ['search', 'name', 'blueprint.name']
+        for term in allowed_params:
+            value = bottle.request.query.get(term)
+            if value:
+                query[term] = value
+
+        return query
+
     @utils.only_admins
     @utils.formatted_response('deployments', with_pagination=True)
     def get_deployments(self, tenant_id=None, offset=None, limit=None):
@@ -161,12 +172,7 @@ class Router(object):
         show_deleted = bottle.request.query.get('show_deleted')
         status = bottle.request.query.get('status')
         tenant_id = bottle.request.query.get('tenant_id')
-        query = {}
-        allowed_params = ['search', 'name', 'blueprint.name']
-        for term in allowed_params:
-            value = bottle.request.query.get(term)
-            if value:
-                query[term] = value
+        query = self._get_filter_params()
         data = self.manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
