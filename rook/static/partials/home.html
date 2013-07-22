@@ -328,7 +328,7 @@
                 <div ng-class="{spot: in_spot(item, 'ready'), spot2: in_spot(item, 'write', 'coming')}">
                   <span ng-show="in_spot(item, 'ready')">Ready<br />Now</span>
                   <span ng-show="in_spot(item, 'write')">
-                    <a target="_blank" ng-href="spot_write_url" class="nohover" style="color: #FFFFFF">Write<br />it!</a>
+                    <a target="_blank" ng-href="{{spot_write_url}}" class="nohover" style="color: #FFFFFF">Write<br />it!</a>
                   </span>
                   <span ng-show="in_spot(item, 'coming')">Coming<br />soon</span>
                 </div>
