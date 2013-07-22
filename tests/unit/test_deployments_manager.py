@@ -179,7 +179,8 @@ class TestCount(unittest.TestCase):
 
     def test_get_count_all(self):
         self.db.get_deployments(tenant_id=None, with_count=True,
-                                status=None).AndReturn(self._deployments)
+                                status=None, query=None)\
+            .AndReturn(self._deployments)
         self._mox.ReplayAll()
         self.assertEqual(self.controller.count(), 4)
 
@@ -190,13 +191,13 @@ class TestCount(unittest.TestCase):
         deps['results'].pop("4ijk")
         deps['collection-count'] = 2
         self.db.get_deployments(tenant_id="12345", with_count=True,
-                                status=None).AndReturn(deps)
+                                status=None, query=None).AndReturn(deps)
         self._mox.ReplayAll()
         self.assertEqual(self.controller.count(tenant_id="12345"), 2)
 
     def test_get_count_blueprint(self):
-        self.db.get_deployments(status=None, tenant_id=None, with_count=True)\
-            .AndReturn(self._deployments)
+        self.db.get_deployments(status=None, tenant_id=None, with_count=True,
+                                query=None).AndReturn(self._deployments)
         self._mox.ReplayAll()
         result = self.controller.count(blueprint_id="blp-123-aabc-efg")
         self.assertEqual(result, 2)
@@ -209,7 +210,7 @@ class TestCount(unittest.TestCase):
         deps['collection-count'] = 1
 
         self.db.get_deployments(tenant_id="12345", with_count=True,
-                                status=None).AndReturn(deps)
+                                status=None, query=None).AndReturn(deps)
         self._mox.ReplayAll()
         result = self.controller.count(blueprint_id="blp-123-aabc-efg",
                                        tenant_id="12345")

@@ -34,13 +34,15 @@ LOG = logging.getLogger(__name__)
 class Manager(base.ManagerBase):
     '''Contains Deployments Model and Logic for Accessing Deployments.'''
 
-    def count(self, tenant_id=None, blueprint_id=None, status=None):
+    def count(self, tenant_id=None, blueprint_id=None, status=None,
+              query=None):
         '''Return count of deployments filtered by passed in parameters.'''
         # TODO: This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
         deployments = self.driver.get_deployments(tenant_id=tenant_id,
                                                   with_count=True,
-                                                  status=status)
+                                                  status=status,
+                                                  query=query)
         count = 0
         if blueprint_id:
             if not deployments:
