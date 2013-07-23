@@ -41,8 +41,8 @@ class TestDatabaseTasks(unittest.TestCase):
             context, 'test_instance', 1, 1, None, None)
         self.assertEqual(expected_result, results)
         partial.assert_called_with({'id': 'DBS0'})
-        database._create_instance.callback.assert_called_with(context,
-            expected_result['instance:0'])
+        database._create_instance.callback.assert_called_with(
+            context, expected_result['instance:0'])
 
     def test_create_instance_sim_with_dbs(self):
         'Create instance with simulation and databases.'
@@ -97,8 +97,8 @@ class TestDatabaseTasks(unittest.TestCase):
             context, 'test_instance', 1, 1, databases, None)
         self.assertEqual(expected_result, results)
         partial.assert_called_with({'id': 'DBS0'})
-        database._create_instance.callback.assert_called_with(context,
-            expected_result['instance:0'])
+        database._create_instance.callback.assert_called_with(
+            context, expected_result['instance:0'])
 
     def test_create_instance_no_sim_no_dbs(self):
         'Create instance no databases.'
@@ -140,8 +140,8 @@ class TestDatabaseTasks(unittest.TestCase):
         api.create.assert_called_with('test_instance', flavor=1, volume=1,
                                       databases=[])
         partial.assert_called_with({'id': 1234})
-        database._create_instance.callback.assert_called_with(context,
-            expected['instance:0'])
+        database._create_instance.callback.assert_called_with(
+            context, expected['instance:0'])
         self.assertEqual(results, expected)
 
     def test_create_instance_no_sim_with_dbs(self):
@@ -204,8 +204,8 @@ class TestDatabaseTasks(unittest.TestCase):
         api.create.assert_called_with('test_instance', volume=1, flavor=1,
                                       databases=databases)
         partial.assert_called_with({'id': 1234})
-        database._create_instance.callback.assert_called_with(context,
-            expected['instance:0'])
+        database._create_instance.callback.assert_called_with(
+            context, expected['instance:0'])
         self.assertEqual(results, expected)
 
     def test_create_instance_invalid_api(self):
