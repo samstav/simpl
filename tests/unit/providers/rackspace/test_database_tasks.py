@@ -269,6 +269,58 @@ class TestDatabaseTasks(unittest.TestCase):
                                            instance_id=instance_id)
         self.assertEqual(expected, results)
 
+    @mock.patch.object(database, 'create_instance')
+    @mock.patch.object(database.Provider, 'connect')
+    @mock.patch.object(database, 'reset_failed_resource_task')
+    @mock.patch.object(database, 'wait_on_build')
+    def test_create_database_no_api_no_sim_no_iid_no_attrs(
+            self, mock_create_instance, mock_connect, mock_rfrt, mock_wob):
+        '''Verifies create database simulation is working.'''
+        context = {'resource': '2', 'deployment': 0}
+        name = 'test_database'
+        region = 'ORD'
+
+        instance = {
+            'instance:2': {
+                'id': '12345',
+            },
+            'instance': {
+                'databases': {
+                    name: {},
+                }
+            },
+            'region': 'ORD'
+        }
+
+        expected = {
+            'instance:2': {
+                'flavor': '1',
+                'host_instance': '12345',
+                'host_region': 'ORD'
+            }
+        }
+
+        mock_connect.return_value = True
+        mock_create_instance.return_value = instance
+
+        database.reset_failed_resource_task.delay = mock_rfrt.delay
+        database.wait_on_build.delay = mock_wob.delay
+        database.Provider.connect = mock_connect
+        database.create_instance = mock_create_instance
+
+        results = database.create_database(context, name, region)
+
+        mock_connect.assert_called_once_with(context, region)
+        mock_rfrt.delay.assert_called_once_with(context['deployment'],
+                                                context['resource'])
+
+        mock_create_instance.assert_called_once_with(
+            context, ('%s_instance' % (name)), 1, '1',
+            [{'name': name}], region, api=mock_connect.return_value)
+
+        mock_wob.delay.assert_called_once_with(context, '12345', region,
+                                               api=mock_connect.return_value)
+        self.assertEqual(expected, results)
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately
