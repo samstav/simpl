@@ -595,7 +595,9 @@ class ProviderTask(celery.Task):
 
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
-
+        elif not isinstance(context, middleware.RequestContext):
+            raise CheckmateException('Context passed into ProviderTask is an '
+                                     'unsupported type %s.' % type(context))
         if context.region is None and 'region' in kwargs:
             context.region = kwargs.get('region')
 
@@ -618,9 +620,7 @@ class ProviderTask(celery.Task):
             return self.retry(exc=exc)
 
         self.callback(context, data)
-        key = getattr(context, 'resource', None) or context.kwargs.get(
-            'resource')
-        return {'instance:%s' % key: data}
+        return {'instance:%s' % context.resource: data}
 
     def callback(self, context, data):
         '''Calls postback with instance.id to ensure posted to resource.'''

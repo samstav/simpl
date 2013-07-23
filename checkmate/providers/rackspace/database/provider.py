@@ -501,8 +501,9 @@ class Provider(providers.ProviderBase):
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
-        # Context could be something other than a dict or RequestContext
-        assert isinstance(context, middleware.RequestContext)
+        elif not isinstance(context, middleware.RequestContext):
+            raise CheckmateException('Context passed into connect is an '
+                                     'unsupported type %s.' % type(context))
         if not context.auth_token:
             raise CheckmateNoTokenError()
 
