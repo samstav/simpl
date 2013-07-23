@@ -297,6 +297,7 @@ def formatted_response(uripath, with_pagination=False):
     def _formatted_response(fxn):
         '''Add pagination (optional) and headers to response.'''
         def _decorator(*args, **kwargs):
+            '''Internal function wrapped as a decorator.'''
             try:
                 _validate_range_values(bottle.request, 'offset', kwargs)
                 _validate_range_values(bottle.request, 'limit', kwargs)
@@ -666,6 +667,7 @@ def with_tenant(fxn):
     the decorated function as a kwarg
     '''
     def wrapped(*args, **kwargs):
+        '''Internal function wrapped as a decorator.'''
         if kwargs.get('tenant_id'):
             # Tenant ID is being passed in
             return fxn(*args, **kwargs)
@@ -682,7 +684,9 @@ def support_only(types):
     content type is in the list of types supplied
     '''
     def wrap(fxn):
+        '''Internal function wrapped as a decorator.'''
         def wrapped(*args, **kwargs):
+            '''Internal function wrapped as a decorator.'''
             accept = bottle.request.get_header("Accept", [])
             if accept == "*/*":
                 return fxn(*args, **kwargs)
@@ -698,6 +702,7 @@ def support_only(types):
 def only_admins(fxn):
     '''Decorator to limit access to admins only.'''
     def wrapped(*args, **kwargs):
+        '''Internal function wrapped as a decorator.'''
         if bottle.request.context.is_admin is True:
             LOG.debug("Admin account '%s' accessing '%s'",
                       bottle.request.context.username, bottle.request.path)
@@ -775,6 +780,10 @@ def generate_password(min_length=None, max_length=None, required_chars=None,
     :param starts_with: a set of characters required as the first character
     :param valid_chars: the set of valid characters for non-required chars
     '''
+    # Raise Exception if max_length exceeded
+    if max_length > 255:
+        raise ValueError('Maximum password length of 255 characters exceeded.')
+
     # Choose a valid password length based on min_length and max_length
     if max_length and min_length and max_length != min_length:
         password_length = random.randint(min_length, max_length)
@@ -898,6 +907,7 @@ def is_simulation(api_id):
 
 
 def get_id(is_simulation):
+    '''Generate id: prepend 'simulate' for simulations.'''
     if is_simulation:
         return 'simulate%s' % uuid.uuid4().hex[0:12]
     else:
