@@ -30,7 +30,7 @@ from checkmate.middleware import RequestContext  # also enables logging
 from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary, \
     yaml_to_dict
 from checkmate.workflow import (
-    create_workflow,
+    init_spiff_workflow,
     create_workflow_spec_deploy,
     wait_for,
 )
@@ -254,7 +254,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             deployments.Manager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
         workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = create_workflow(workflow_spec, self.deployment, context)
+        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
 
         if not expected_calls:
             expected_calls = self._get_expected_calls()

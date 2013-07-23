@@ -11,11 +11,12 @@ import copy
 import json
 import os
 import unittest
-
 import mox
 
-from checkmate.deployment import Deployment
 from checkmate import deployments
+from checkmate import operations
+from checkmate import workflow
+from checkmate.deployment import Deployment
 
 
 class TestManager(unittest.TestCase):
@@ -30,6 +31,33 @@ class TestManager(unittest.TestCase):
         self._mox.VerifyAll()
         self._mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
+
+    # def test_add_node(self):
+    #     deployment = {}
+    #     mockContext = self._mox.CreateMockAnything()
+    #     self._mox.StubOutClassWithMocks(deployments, "Planner")
+    #     mock_planner = deployments.Planner(deployment)
+    #     mock_planner.plan_additional_nodes(mockContext, "service_name", 3)
+    #     self._mox.ReplayAll()
+    #     self.controller.add_nodes(deployment, mockContext, 'service_name', 3)
+    #     self._mox.VerifyAll()
+
+    def test_deploy_add_nodes(self):
+        deployment = {}
+        mock_context = self._mox.CreateMockAnything()
+        mock_spec = self._mox.CreateMockAnything()
+        mock_wf = self._mox.CreateMockAnything()
+        self._mox.StubOutWithMock(workflow, "create_workflow_spec_deploy")
+        workflow.create_workflow_spec_deploy(deployment, mock_context)\
+            .AndReturn(mock_spec)
+        self._mox.StubOutWithMock(workflow, "create_workflow")
+        workflow.create_workflow(
+            mock_spec, deployment, mock_context, driver=self.controller.driver
+        ).AndReturn(mock_wf)
+        self._mox.StubOutWithMock(operations, "add")
+        operations.add(deployment, mock_wf, "SCALE UP", "T_ID")
+        self._mox.ReplayAll()
+        self.controller.deploy_add_nodes(deployment, mock_context, "T_ID")
 
     def test_reset_failed_resources(self):
         deployment_id = 1234

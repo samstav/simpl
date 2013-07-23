@@ -11,7 +11,10 @@ from celery.exceptions import MaxRetriesExceededError
 from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate.common.tasks import update_operation
+from checkmate.common.tasks import (
+    update_operation,
+    update_deployment_status,
+)
 from checkmate.db.common import ObjectLockedError
 from checkmate.deployment import Deployment
 from checkmate.middleware import RequestContext
@@ -100,7 +103,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
     operation_type = operation.get("type")
     action = operation.get("action")
 
-    if action and action == "PAUSE" and operation_type == "BUILD":
+    if action and action == "PAUSE":
         driver.unlock_workflow(w_id, key)
         return False
 
@@ -138,7 +141,6 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
         LOG.exception(exc)
     finally:
         # Save any changes, even if we errored out
-        deployment_status = None
         errors = cm_workflow.get_errors(d_wf, tenant_id)
         after = d_wf.get_dump()
 
@@ -146,12 +148,6 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             #save if there are failed tasks or the workflow has progressed
             cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
                                         driver=driver, workflow_id=w_id)
-
-        if before != after:
-            # We made some progress, so prioritize next run
-            wait = 1
-
-            # Report progress
             completed = d_wf.get_attribute('completed')
             total = d_wf.get_attribute('total')
             workflow_status = operation_status = d_wf.get_attribute('status')
@@ -161,10 +157,6 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
                 operation_status = "ERROR"
                 status_info = get_status_info(errors, tenant_id, w_id)
 
-            if total == completed:
-                deployment_status = ("DELETED" if operation_type == "DELETE"
-                                     else "UP")
-
             operation_kwargs = {'status': operation_status,
                                 'tasks': total,
                                 'complete': completed,
@@ -172,8 +164,17 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             operation_kwargs.update(status_info)
 
             update_operation.delay(dep_id, w_id, driver=driver,
-                                   deployment_status=deployment_status,
                                    **operation_kwargs)
+
+        if before != after:
+            # We made some progress, so prioritize next run
+            wait = 1
+
+            if total == completed:
+                deployment_status = ("DELETED" if operation_type == "DELETE"
+                                     else "UP")
+                update_deployment_status.delay(dep_id, deployment_status,
+                                               driver=driver)
 
             LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
                                                              total,
@@ -181,7 +182,6 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
             run_workflow.update_state(state="PROGRESS",
                                       meta={'complete': completed,
                                             'total': total})
-
         else:
             # No progress made. So drop priority (to max of 20s wait)
             if wait < 20:
@@ -271,7 +271,8 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
             LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
                      "progressed", task_id, workflow_id, task.get_state_name())
             return False
-        cm_workflow.update_workflow_status(d_wf, workflow_id=workflow_id)
+        cm_workflow.update_workflow_status(d_wf,
+                                           tenant_id=workflow.get('tenantId'))
         updated = d_wf.serialize(serializer)
         if original != updated:
             LOG.debug("Task '%s' in Workflow '%s' completion result: %s" % (

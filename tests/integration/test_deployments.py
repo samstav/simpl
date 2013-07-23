@@ -1,21 +1,24 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,E1101,E1103
+import bottle
 import copy
 import json
 import logging
 import os
 import unittest
+import time
 
-import bottle
-from bottle import HTTPError
-from celery.app.task import Context
 import mox
+
+from celery.app.task import Context
 from mox import IgnoreArg, ContainsKeyValue
+from SpiffWorkflow import Workflow
 
 import checkmate
 from checkmate import (
     keys,
     operations,
     orchestrator,
+    utils,
     workflow,
 )
 from checkmate.common import tasks as common_tasks
@@ -209,8 +212,9 @@ class TestDeploymentDeployer(unittest.TestCase):
             },
         }
         self._mox.ReplayAll()
-        parsed = manager.plan(Deployment(deployment), RequestContext())
-        operation = manager.deploy(parsed, RequestContext())
+        d = Deployment(deployment)
+        parsed = manager.plan(d, RequestContext())
+        manager.deploy(parsed, RequestContext())
         self._mox.VerifyAll()
         expected = {
             'status': 'IN PROGRESS',
@@ -222,6 +226,7 @@ class TestDeploymentDeployer(unittest.TestCase):
             'type': 'BUILD',
             'workflow-id': 'test'
         }
+        operation = d["operation"]
         operation['last-change'] = None  # skip comparing/mocking times
 
         self.assertDictEqual(expected, operation)
@@ -1313,7 +1318,7 @@ class TestDeleteDeployments(unittest.TestCase):
             router.delete_deployment('1234')
             self.fail("Delete deployment with bad status did not raise "
                       "exception")
-        except HTTPError as exc:
+        except bottle.HTTPError as exc:
             self.assertEqual(400, exc.status)
             self.assertIn("Deployment 1234 cannot be deleted while in status "
                           "PLANNED", exc.output)
@@ -1336,21 +1341,28 @@ class TestDeleteDeployments(unittest.TestCase):
         self._deployment['created'] = get_time_string()
         self._deployment['operation'] = {'status': 'IN PROGRESS'}
         mock_driver = self._mox.CreateMockAnything()
+        mock_spec = self._mox.CreateMock(Workflow)
+        mock_spiff_wf = self._mox.CreateMockAnything()
+        mock_spiff_wf.attributes = {"id": "w_id"}
         manager = self._mox.CreateMock(Manager)
         router = Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(self._deployment)
         manager.select_driver('1234').AndReturn(mock_driver)
 
-        self._mox.StubOutWithMock(workflow, "create_delete_deployment_workflow")
-        workflow.create_delete_deployment_workflow('1234',
-                                                   bottle.request.context,
-                                                   driver=mock_driver)\
-            .AndReturn({'id': 'w_id'})
+        self._mox.StubOutWithMock(workflow,
+                                  "create_delete_deployment_workflow_spec")
+        workflow.create_delete_deployment_workflow_spec(
+            self._deployment, bottle.request.context).AndReturn(mock_spec)
+        self._mox.StubOutWithMock(workflow,
+                                  "create_workflow")
+        workflow.create_workflow(mock_spec, self._deployment,
+                                 bottle.request.context, driver=mock_driver)\
+            .AndReturn(mock_spiff_wf)
         self._mox.StubOutWithMock(common_tasks, "update_operation")
         common_tasks.update_operation.delay('1234', '1234', action='PAUSE',
                                             driver=mock_driver)
-        self._mox.StubOutWithMock(operations, "create_delete_operation")
-        operations.create_delete_operation.delay('1234', 'w_id', 'T1000')
+        self._mox.StubOutWithMock(operations, "create")
+        operations.create.delay('1234', 'w_id', 'DELETE', 'T1000')
         self._mox.StubOutWithMock(orchestrator, "run_workflow")
         orchestrator.run_workflow.delay('w_id', timeout=3600,
                                         driver=mock_driver).AndReturn(4)
@@ -1555,6 +1567,62 @@ class TestPostbackHelpers(unittest.TestCase):
                                               {}).get('status-message'))
         self.assertEquals('I test u', ret.get('instance:9',
                                               {}).get('status-message'))
+
+
+class TestDeploymentAddNodes(unittest.TestCase):
+    def setUp(self):
+        self._mox = mox.Mox()
+        bottle.request.bind({})
+        bottle.request.context = Context()
+        bottle.request.context.tenant = None
+        self._deployment = {
+            'id': '1234',
+            'status': 'PLANNED',
+            'environment': {},
+            'blueprint': {
+                'meta-data': {
+                    'schema-version': '0.7'
+                }
+            },
+            'operation': {},
+            'created': time.time()
+        }
+        unittest.TestCase.setUp(self)
+
+    def test_happy_path(self):
+        manager = self._mox.CreateMock(Manager)
+        mock_driver = self._mox.CreateMockAnything()
+        router = Router(bottle.default_app(), manager)
+
+        manager.get_deployment('1234', tenant_id="T1000",
+                               with_secrets=True).AndReturn(self._deployment)
+
+        self._mox.StubOutWithMock(utils, "read_body")
+        utils.read_body(bottle.request).AndReturn({
+            'service_name': 'service_name',
+            'count': '2'
+        })
+
+        manager.plan_add_nodes(self._deployment, bottle.request.context,
+                               "service_name", 2).AndReturn(self._deployment)
+        manager.deploy_add_nodes(self._deployment, bottle.request.context,
+                                 "T1000")
+        self._deployment["operation"].update({'workflow-id': 'w_id'})
+        manager.save_deployment(self._deployment, api_id='1234',
+                                tenant_id='T1000').AndReturn(self._deployment)
+        manager.select_driver('1234').AndReturn(mock_driver)
+        self._mox.StubOutWithMock(orchestrator, "run_workflow")
+        orchestrator.run_workflow.delay('w_id', timeout=3600,
+                                        driver=mock_driver)
+
+        self._mox.ReplayAll()
+        router.add_nodes("1234", tenant_id="T1000")
+
+        self._mox.VerifyAll()
+
+    def tearDown(self):
+        self._mox.UnsetStubs()
+        unittest.TestCase.tearDown(self)
 
 
 class TestDeploymentDisplayOutputs(unittest.TestCase):

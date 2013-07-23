@@ -8,9 +8,11 @@ For tests, we don't care about:
     W0212 - Access to protected member of a client class
     W0232 - Class has no __init__ method '''
 
+import mox
 import unittest
 
-import mox
+from SpiffWorkflow import Workflow
+from SpiffWorkflow.specs import WorkflowSpec, Simple
 
 from checkmate import operations
 
@@ -22,6 +24,19 @@ class TestOperations(unittest.TestCase):
 
     def tearDown(self):
         self.mox.UnsetStubs()
+
+    def test_create_add_nodes(self):
+        wf_spec = WorkflowSpec(name="Add Nodes")
+        wf_spec.start.connect(Simple(wf_spec, "end"))
+        wf = Workflow(wf_spec)
+        expected_operation = {"foo": "bar", 'type': "ADD_NODES"}
+        deployment = {}
+        self.mox.StubOutWithMock(operations, "init_operation")
+        operations.init_operation(wf, tenant_id="TENANT_ID").AndReturn(
+            {"foo": "bar"})
+        self.mox.ReplayAll()
+        operations.add(deployment, wf, "ADD_NODES", "TENANT_ID")
+        self.assertDictEqual(deployment['operation'], expected_operation)
 
     def test_update_operation(self):
         db = self.mox.CreateMockAnything()

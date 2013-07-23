@@ -180,7 +180,7 @@ class Provider(ProviderBase):
             anchor_task = collect_data_tasks['root']
 
         # Collect dependencies
-        dependencies = [self.prep_task]
+        dependencies = [self.prep_task] if self.prep_task else []
 
         # Wait for relations tasks to complete
         for relation_key in resource.get('relations', {}).keys():
@@ -661,7 +661,8 @@ class Provider(ProviderBase):
             bootstrap_task.follow(register_node_task)
 
             # Register only when server is up and environment is ready
-            wait_on.append(self.prep_task)
+            if self.prep_task:
+                wait_on.append(self.prep_task)
             root = wait_for(
                 wfspec, register_node_task, wait_on,
                 name="After Environment is Ready and Server %s (%s) is Up" %
