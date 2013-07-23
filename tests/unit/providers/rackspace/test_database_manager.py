@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # encoding: utf-8
+'''Module for testing Database Provider Manager.'''
 import mock
 import unittest
 
-from clouddb import errors as cdb_errors
+from pyrax import exceptions as cdb_errors
 
 from checkmate.exceptions import (
     CheckmateResumableException,
@@ -12,7 +13,7 @@ from checkmate.exceptions import (
 from checkmate.providers.rackspace.database import Manager
 
 
-class test_database(unittest.TestCase):
+class TestDatabaseManager(unittest.TestCase):
     '''Test Rackspace Database Manager functions.'''
 
     def test_wait_on_build_success(self):
@@ -26,12 +27,12 @@ class test_database(unittest.TestCase):
             'status-message': ''
         }
         #Mock methods
-        api.get_instance = mock.MagicMock(return_value=instance)
+        api.get = mock.MagicMock(return_value=instance)
         callback = mock.MagicMock(return_value=True)
 
         results = Manager.wait_on_build(instance_id, api, callback)
 
-        api.get_instance.assert_called_with(instance_id)
+        api.get.assert_called_with(instance_id)
         #callback.assert_called_with({'status': 'ACTIVE'})
 
         self.assertEqual(results, expected)
@@ -42,15 +43,15 @@ class test_database(unittest.TestCase):
         api = mock.Mock()
 
         #Mock methods
-        api.get_instance = mock.MagicMock(side_effect=cdb_errors.ResponseError(
-                                          123, "message"))
+        api.get = mock.MagicMock(side_effect=cdb_errors.ClientException(
+                                 123, "message"))
         callback = mock.MagicMock(return_value=True)
         try:
             Manager.wait_on_build(instance_id, api, callback)
         except CheckmateResumableException as exc:
-            self.assertEqual(exc.message, '123: message')
+            self.assertEqual(exc.message, 'message (HTTP 123)')
             self.assertEqual(exc.error_help, 'Error occurred in db provider')
-            self.assertEqual(exc.error_type, 'ResponseError')
+            self.assertEqual(exc.error_type, 'ClientException')
 
     def test_wait_on_build_error(self):
         '''Verifies method calls and raises StandardError after callback.'''
@@ -62,7 +63,7 @@ class test_database(unittest.TestCase):
             'error-message': ''
         }
         #Mock methods
-        api.get_instance = mock.MagicMock(side_effect=StandardError())
+        api.get = mock.MagicMock(side_effect=StandardError())
         callback = mock.MagicMock()
         try:
             Manager.wait_on_build(instance_id, api, callback)
@@ -81,13 +82,13 @@ class test_database(unittest.TestCase):
         }
 
         #Mock methods
-        api.get_instance = mock.MagicMock(return_value=instance)
+        api.get = mock.MagicMock(return_value=instance)
         callback = mock.MagicMock()
 
         self.assertRaises(CheckmateRetriableException, Manager.wait_on_build,
                           instance_id, api, callback)
-        
-        api.get_instance.assert_called_with(instance_id)
+
+        api.get.assert_called_with(instance_id)
         callback.assert_called_with(expected)
 
     def test_sync_resource_success(self):
@@ -101,10 +102,10 @@ class test_database(unittest.TestCase):
         database = mock.Mock()
         database.status = 'ACTIVE'
         expected = {'status': 'ACTIVE'}
-        api.get_instance = mock.MagicMock(return_value=database)
-        
+        api.get = mock.MagicMock(return_value=database)
+
         results = Manager.sync_resource(resource, api)
-        api.get_instance.assert_called_with('123')
+        api.get.assert_called_with('123')
         self.assertEqual(results, expected)
 
     def test_sync_resource_not_found(self):
@@ -116,10 +117,10 @@ class test_database(unittest.TestCase):
         }
         api = mock.Mock()
         expected = {'status': 'DELETED'}
-        api.get_instance = mock.MagicMock(side_effect=cdb_errors.ResponseError(
-                                          "test", "message"))        
+        api.get = mock.MagicMock(side_effect=cdb_errors.ClientException(
+                                 "test", "message"))
         results = Manager.sync_resource(resource, api)
-        api.get_instance.assert_called_with('123')
+        api.get.assert_called_with('123')
         self.assertEqual(results, expected)
 
     def test_sync_resource_missing_id(self):

@@ -22,7 +22,7 @@ LOG = logging.getLogger(__name__)
 
 
 class TestDatabase(ProviderTester):
-    """ Test Database Provider """
+    '''Test Database Provider.'''
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -44,9 +44,9 @@ class TestDatabase(ProviderTester):
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.create_instance(instance.name, 1, 1,
-                                         databases=[{'name': 'db1'}])\
-            .AndReturn(instance)
+        clouddb_api_mock.create(instance.name, flavor=1, volume=1,
+                                databases=[{'name': 'db1'}])\
+                                .AndReturn(instance)
 
         expected = {
             'status': 'BUILD',
@@ -100,11 +100,11 @@ class TestDatabase(ProviderTester):
         self.mox.StubOutWithMock(resource_postback, 'delay')
         self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
         reset_failed_resource_task.delay(context['deployment'],
-                                          context['resource'])
+                                         context['resource'])
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
+        clouddb_api_mock.get(instance.id).AndReturn(instance)
         self.mox.ReplayAll()
         #Should throw exception when instance.status="BUILD"
         self.assertRaises(CheckmateException, database.create_database,
@@ -114,14 +114,14 @@ class TestDatabase(ProviderTester):
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
 
-
     def test_create_database(self):
         context = dict(deployment='DEP', resource='1')
 
         #Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
-        instance.flavor = {'id': '1'}
+        instance.flavor = self.mox.CreateMockAnything()
+        instance.flavor.id = '1'
         instance.name = 'fake_instance'
         instance.status = 'ACTIVE'
         instance.hostname = 'fake.cloud.local'
@@ -132,8 +132,8 @@ class TestDatabase(ProviderTester):
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.get_instance(instance.id).AndReturn(instance)
-        instance.create_databases([{'name': 'db1'}]).AndReturn(True)
+        clouddb_api_mock.get(instance.id).AndReturn(instance)
+        instance.create_database('db1', None, None).AndReturn(True)
 
         expected = {
             'instance:1': {
@@ -154,7 +154,7 @@ class TestDatabase(ProviderTester):
         resource_postback.delay(context['deployment'], expected).AndReturn(
             True)
         reset_failed_resource_task.delay(context['deployment'],
-                                          context['resource'])
+                                         context['resource'])
 
         self.mox.ReplayAll()
         results = database.create_database(context, 'db1', 'NORTH',
@@ -204,7 +204,7 @@ class TestDatabase(ProviderTester):
         self.mox.VerifyAll()
 
     def test_template_generation_compute_sizing(self):
-        """Test that flavor and volume selection pick >-= sizes"""
+        '''Test that flavor and volume selection pick >-= sizes.'''
         catalog = {
             'compute': {
                 'mysql_instance': {
@@ -276,7 +276,7 @@ class TestDatabase(ProviderTester):
         self.mox.VerifyAll()
 
     def verify_limits(self, volume_size_used):
-        """Test the verify_limits() method"""
+        '''Test the verify_limits() method.'''
         context = RequestContext()
         resources = [
             {'component': 'mysql_database',
@@ -327,7 +327,7 @@ class TestDatabase(ProviderTester):
         self.mox.StubOutWithMock(database.Provider, 'connect')
         cdb = self.mox.CreateMockAnything()
         database.Provider.connect(mox.IgnoreArg()).AndReturn(cdb)
-        cdb.get_instances().AndReturn(instances)
+        cdb.list().AndReturn(instances)
         self.mox.ReplayAll()
         provider = database.Provider({})
         result = provider.verify_limits(context, resources)
@@ -335,17 +335,21 @@ class TestDatabase(ProviderTester):
         return result
 
     def test_verify_limits_negative(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
+        '''Test that verify_limits() returns warnings if limits are not
+        okay.
+        '''
         result = self.verify_limits(100)  # Will be 200 total (2 instances)
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
 
     def test_verify_limits_positive(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
+        '''Test that verify_limits() returns warnings if limits are not
+        okay.
+        '''
         result = self.verify_limits(1)
         self.assertEqual(result, [])
 
     def test_verify_access_positive(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
+        '''Test that verify_access() returns ACCESS-OK if user has access.'''
         context = RequestContext()
         context.roles = 'identity:user-admin'
         provider = database.Provider({})
@@ -359,7 +363,7 @@ class TestDatabase(ProviderTester):
         self.assertEqual(result['type'], 'ACCESS-OK')
 
     def test_verify_access_negative(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
+        '''Test that verify_access() returns ACCESS-OK if user has access.'''
         context = RequestContext()
         context.roles = 'dbaas:observer'
         provider = database.Provider({})
@@ -474,7 +478,7 @@ class TestCatalog(unittest.TestCase):
 
 
 class TestDBWorkflow(StubbedWorkflowBase):
-    """ Test MySQL and DBaaS Resource Creation Workflow """
+    '''Test MySQL and DBaaS Resource Creation Workflow.'''
 
     def setUp(self):
         StubbedWorkflowBase.setUp(self)
@@ -551,7 +555,7 @@ environment:
         self.workflow = self._get_stubbed_out_workflow()
 
     def test_workflow_completion(self):
-        """Verify workflow sequence and data flow"""
+        '''Verify workflow sequence and data flow.'''
 
         self.mox.ReplayAll()
 
