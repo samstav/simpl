@@ -499,6 +499,7 @@ def find_tasks(wf, state=Task.ANY_MASK, **kwargs):
     tasks = []
     filtered_tasks = wf.get_tasks(state=state)
     for task in filtered_tasks:
+        match = True
         if kwargs:
             for key, value in kwargs.iteritems():
                 if key == 'tag':
