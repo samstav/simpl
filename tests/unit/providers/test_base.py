@@ -3,7 +3,10 @@ import celery
 import mock
 import unittest
 
-from checkmate.exceptions import CheckmateResumableException
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateResumableException,
+)
 from checkmate import middleware
 from checkmate.providers import base as cm_base
 from checkmate.providers.rackspace import database
@@ -108,6 +111,26 @@ class TestProviderTask(unittest.TestCase):
         do_something.retry.assert_called_with(
             exc=do_something.run.side_effect)
 
+    def test_provider_task_invalid_context(self):
+        '''Verifies exception raised when context is invalid type.'''
+        context = 'invalid'
+        try:
+            do_something(context, 'test', 'api')
+        except CheckmateException as exc:
+            self.assertEqual(str(exc), "Context passed into ProviderTask is "
+                             "an unsupported type <type 'str'>.")
+
+    def test_provider_task_context_region_kwargs(self):
+        '''Verifies context.region is assigned from kwargs if is None.'''
+        context = middleware.RequestContext(**{})
+        do_something.run = mock.Mock()
+        do_something.callback = mock.MagicMock(return_value=True)
+
+        do_something(context, 'test', api='api', region='ORD')
+        self.assertEqual(context.region, 'ORD')
+        do_something.run.assert_called_with(context, 'test',
+                                            api='api', region='ORD')
+
     @mock.patch('checkmate.deployments.tasks')
     def test_provider_task_callback(self, mocked_lib):
         '''Validates postback data in callback.'''
@@ -134,7 +157,7 @@ class TestProviderTask(unittest.TestCase):
 
 
 @celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
-def do_something(context, name, api):
+def do_something(context, name, api, region=None):
     return {
         'api1': do_something.api,
         'name': name,
