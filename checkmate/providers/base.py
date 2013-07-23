@@ -123,7 +123,7 @@ class ProviderBaseWorkflowMixIn(object):
                   "but was not implemented", self.vendor, self.name)
 
     @staticmethod
-    def find_tasks(wfspec, **kwargs):
+    def find_task_specs(wfspec, **kwargs):
         '''Find tasks in the workflow with matching properties.
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
@@ -174,7 +174,7 @@ class ProviderBaseWorkflowMixIn(object):
         if 'hosted_on' in resource:
             host_key = resource['hosted_on']
             host_resource = deployment['resources'][host_key]
-            host_final = self.find_tasks(wfspec,
+            host_final = self.find_task_specs(wfspec,
                                          resource=host_key,
                                          provider=host_resource['provider'],
                                          tag='final')
@@ -185,7 +185,7 @@ class ProviderBaseWorkflowMixIn(object):
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
         '''
-        relation_final = self.find_tasks(wfspec, resource=resource_key,
+        relation_final = self.find_task_specs(wfspec, resource=resource_key,
                                          relation='host',
                                          provider=self.key,
                                          tag=['final'])
@@ -200,7 +200,7 @@ class ProviderBaseWorkflowMixIn(object):
         tasks = []
         for key, relation in resource.get('relations', {}).iteritems():
             if 'target' in relation:
-                relation_final = self.find_tasks(wfspec,
+                relation_final = self.find_task_specs(wfspec,
                                                  resource=resource['index'],
                                                  relation=key,
                                                  tag=['final'])
@@ -212,7 +212,7 @@ class ProviderBaseWorkflowMixIn(object):
         '''Get the task tagged as 'complete' (if any) for the resource's
         host.
         '''
-        tasks = self.find_tasks(wfspec,
+        tasks = self.find_task_specs(wfspec,
                                 resource=resource.get('hosted_on', None),
                                 tag='complete')
         if tasks:  # should only be one
