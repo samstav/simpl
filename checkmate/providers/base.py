@@ -2,22 +2,22 @@
 import functools
 import logging
 
+import celery
 from celery import exceptions as celery_exceptions
-from celery import Task
 
-from checkmate import middleware
-from checkmate import utils
 from checkmate.common import schema
-from checkmate.component import Component
+from checkmate import component as cmcomp
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
     CheckmateResumableException,
     CheckmateValidationException,
 )
+from checkmate import middleware
 from checkmate.providers.provider_base_planning_mixin import (
     ProviderBasePlanningMixIn,
 )
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -35,28 +35,28 @@ class CheckmateInvalidProvider(Exception):
 
 # pylint: disable=W0232
 class ProviderBaseWorkflowMixIn(object):
-    """The methods used by the workflow generation code (i.e. they need a
+    '''The methods used by the workflow generation code (i.e. they need a
     workflow to work on)
 
     This class is mixed in to the ProviderBase
-    """
+    '''
 
     # pylint: disable=W0613,R0913
     def prep_environment(self, wfspec, deployment, context):
-        """Add any tasks that are needed for an environment setup
+        '''Add any tasks that are needed for an environment setup
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
         :returns: a hash (dict) of relevant tasks. The hash keys are:
                 'root': the root task in the sequence
                 'final': the task that signifies readiness (work is done)
-        """
+        '''
         LOG.debug("%s.%s.prep_environment called, but was not implemented",
                   self.vendor, self.name)
 
     # pylint: disable=W0613,R0913
     def add_resource_tasks(self, resource, key, wfspec, deployment,
                            context, wait_on=None):
-        """Add tasks needed to create a resource (the resource would normally
+        '''Add tasks needed to create a resource (the resource would normally
             be what was generated in the generate_template call)
 
         :param wait_on: tasks to wait on before executing
@@ -68,7 +68,7 @@ class ProviderBaseWorkflowMixIn(object):
               impacted, the provider who owns the task, and the position or
               role of the task (ex. final, root, etc). This allows for other
               providers top look this task up and connect to it if needed
-        """
+        '''
         LOG.debug("%s.%s.add_resource_tasks called, but was not implemented",
                   self.vendor, self.name)
 
@@ -343,7 +343,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 result = value[component_id]
                 if 'is' not in result:
                     result['is'] = key
-                return Component(result, id=component_id, provider=self)
+                return cmcomp.Component(result, id=component_id, provider=self)
 
     def find_components(self, context, **kwargs):
         '''Finds the components that matches the supplied key/value arguments
@@ -421,7 +421,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                     continue  # ID specified and does not match
                 if role and role not in component.get('roles', []):
                     continue  # Component does not provide given role
-                comp = Component(component, id=iter_id)
+                comp = cmcomp.Component(component, id=iter_id)
                 provides = comp.provides or {}
                 for entry in provides.values():
                     ptype = entry.get('resource_type')
@@ -432,9 +432,9 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                         continue  # Type specified and does not match
                     LOG.debug("'%s' matches in provider '%s' and provides %s",
                               iter_id, self.key, provides)
-                    matches.append(Component(component,
-                                             id=iter_id,
-                                             provider=self))
+                    matches.append(cmcomp.Component(component,
+                                                    id=iter_id,
+                                                    provider=self))
 
         return matches
 
@@ -551,7 +551,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
 
 def register_providers(providers):
-    """Add provider classes to list of available providers."""
+    '''Add provider classes to list of available providers.'''
     for provider in providers:
         name = '%s.%s' % (provider.vendor, provider.name)
         if name in PROVIDER_CLASSES:
@@ -560,7 +560,7 @@ def register_providers(providers):
 
 
 def get_provider_class(vendor, key):
-    """Given a vendor name, and provider key, return the provider class."""
+    '''Given a vendor name, and provider key, return the provider class.'''
     name = "%s.%s" % (vendor, key)
     if name in PROVIDER_CLASSES:
         return PROVIDER_CLASSES[name]
@@ -579,14 +579,14 @@ def get_provider_class(vendor, key):
 
 
 def user_has_access(context, roles):
-    """Return True if user has permissions to create resources."""
+    '''Return True if user has permissions to create resources.'''
     for role in roles:
         if role in context.roles:
             return True
     return False
 
 
-class ProviderTask(Task):
+class ProviderTask(celery.Task):
     '''Celery Task for providers.'''
     abstract = True
 
