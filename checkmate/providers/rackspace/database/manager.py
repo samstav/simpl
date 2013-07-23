@@ -108,8 +108,10 @@ class Manager(object):
                 instance = api.create(instance_name, flavor=flavor,
                                       volume=size, databases=databases)
         except cdb_errors.ClientException as exc:
-            raise CheckmateRetriableException('Provider error occurred when '
-                                              'building db instance', exc)
+            raise CheckmateRetriableException(str(exc), "",
+                                              utils.get_class_name(exc),
+                                              action_required=True)
+
         except Exception as exc:
             raise CheckmateException('Provider error occurred in '
                                      'create_instance.', exc)

@@ -7,6 +7,8 @@ import os
 import time
 
 from celery.task import task
+from SpiffWorkflow import Workflow as SpiffWorkflow
+from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import celeryglobal as celery
 from checkmate import db
@@ -29,13 +31,19 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
 
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=2)
-def create_delete_operation(dep_id, workflow_id, tenant_id=None):
+def create(dep_id, workflow_id, type, tenant_id=None):
     deployment = DB.get_deployment(dep_id, with_secrets=False)
-    link = "/%s/workflows/%s" % (tenant_id, workflow_id)
-    kwargs = {"status": "NEW", "link": link, "workflow-id": workflow_id}
-    add_operation(deployment, 'DELETE', **kwargs)
+    workflow = DB.get_workflow(workflow_id, with_secrets=False)
+    serializer = DictionarySerializer()
+    spiff_wf = SpiffWorkflow.deserialize(serializer, workflow)
+    add(deployment, spiff_wf, type, tenant_id=tenant_id)
     DB.save_deployment(dep_id, deployment, secrets=None, tenant_id=tenant_id,
                        partial=False)
+
+
+def add(deployment, spiff_wf, type, tenant_id=None):
+    wf_data = init_operation(spiff_wf, tenant_id=tenant_id)
+    return add_operation(deployment, type, **wf_data)
 
 
 def add_operation(deployment, type_name, **kwargs):
@@ -161,6 +169,7 @@ def init_operation(workflow, tenant_id=None):
     workflow_id = (workflow.attributes.get('id') or
                    workflow.attributes.get('deploymentId'))
     operation['link'] = "/%s/workflows/%s" % (tenant_id, workflow_id)
+    operation['workflow-id'] = workflow_id
 
     return operation
 

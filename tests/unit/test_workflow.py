@@ -28,7 +28,7 @@ from checkmate.workflow import (
     is_failed_task,
     update_workflow,
     create_delete_deployment_workflow_spec,
-    create_workflow,
+    init_spiff_workflow,
 )
 
 
@@ -195,7 +195,7 @@ class TestWorkflow(unittest.TestCase):
         d_wf.attributes["id"] = w_id
 
         self.mox.StubOutWithMock(workflow, 'update_workflow_status')
-        workflow.update_workflow_status(d_wf, workflow_id=w_id)
+        workflow.update_workflow_status(d_wf, tenant_id='1001')
         mock_driver = self.mox.CreateMockAnything()
         wf_serialize = d_wf.serialize(serializer)
         wf_serialize["tenantId"] = tenant_id
@@ -217,7 +217,7 @@ class TestWorkflow(unittest.TestCase):
         d_wf.attributes["status"] = "COMPLETE"
 
         self.mox.StubOutWithMock(workflow, 'update_workflow_status')
-        workflow.update_workflow_status(d_wf, workflow_id=w_id)
+        workflow.update_workflow_status(d_wf, tenant_id="1001")
 
         mock_driver = self.mox.CreateMockAnything()
         wf_serialize = d_wf.serialize(serializer)
@@ -284,7 +284,7 @@ class TestWorkflow(unittest.TestCase):
             'id': 'lbid'}
         workflow_spec = create_delete_deployment_workflow_spec(
             deployment_with_lb_provider, context)
-        workflow = create_workflow(workflow_spec, deployment_with_lb_provider,
+        workflow = init_spiff_workflow(workflow_spec, deployment_with_lb_provider,
                                    context)
         workflow_dump = re.sub("\s", "", workflow.get_dump())
         expected_dump = """
@@ -352,7 +352,7 @@ class TestWorkflow(unittest.TestCase):
             'id': 'lbid'}
         workflow_spec = create_delete_deployment_workflow_spec(
             deployment_with_lb_provider, context)
-        workflow = create_workflow(workflow_spec, deployment_with_lb_provider,
+        workflow = init_spiff_workflow(workflow_spec, deployment_with_lb_provider,
                                    context)
         workflow_dump = re.sub("\s", "", workflow.get_dump())
         print workflow.get_dump()
@@ -376,6 +376,17 @@ class TestWorkflow(unittest.TestCase):
         wf_spec.start.connect(A)
         return Workflow(wf_spec)
 
+    def test_format_resources_for_path_attrib(self):
+        actual = workflow.format({"1": {"instance": {"id": "1000",
+                                                     "foo":"bar"}}})
+        expected = {"instance:1": {"id":"1000",
+                                  "foo": "bar"}}
+        self.assertDictEqual(actual, expected)
+
+        actual = workflow.format({"1": {"index": "1"}})
+        expected = {"instance:1": {}}
+
+        self.assertDictEqual(actual, expected)
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

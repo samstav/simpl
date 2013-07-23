@@ -30,7 +30,7 @@ from checkmate.middleware import RequestContext  # also enables logging
 from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary, \
     yaml_to_dict
 from checkmate.workflow import (
-    create_workflow,
+    init_spiff_workflow,
     create_workflow_spec_deploy,
     wait_for,
 )
@@ -254,7 +254,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             deployments.Manager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
         workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = create_workflow(workflow_spec, self.deployment, context)
+        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
 
         if not expected_calls:
             expected_calls = self._get_expected_calls()
@@ -866,7 +866,7 @@ class TestProvider(ProviderBase):
                 relation['target'], interface, field))
 
         # Get the final task for the target
-        target_final = self.find_tasks(
+        target_final = self.find_task_specs(
             wfspec,
             provider=target['provider'],
             resource=relation['target'],
@@ -919,7 +919,7 @@ class TestProvider(ProviderBase):
         # When target is ready, compile data
         wait_for(wfspec, compile_override, [target_final])
         # Provide data to 'final' task
-        tasks = self.find_tasks(
+        tasks = self.find_task_specs(
             wfspec,
             provider=resource['provider'],
             resource=key, tag='final'

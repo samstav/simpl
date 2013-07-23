@@ -13,7 +13,7 @@ from checkmate import utils
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
-from checkmate.deployment import get_status, Deployment
+from checkmate.deployment import get_status
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateRetriableException,
@@ -24,26 +24,21 @@ DB = get_driver()
 LOG = logging.getLogger(__name__)
 
 
-def create_delete_deployment_workflow(dep_id, context, driver=DB):
-    deployment = driver.get_deployment(dep_id)
-    deployment = Deployment(deployment)
-    workflow_id = utils.get_id(context.simulation)
-    delete_wf_spec = create_delete_deployment_workflow_spec(deployment, context)
-    delete_wf = create_workflow(delete_wf_spec, deployment, context)
-    LOG.debug("Workflow %s created for deleting deployment %s", workflow_id,
-              deployment["id"])
-
-    delete_wf.attributes['id'] = workflow_id
+def create_workflow(spec, deployment, context, driver=DB, workflow_id=None):
+    if not workflow_id:
+        workflow_id = utils.get_id(context.simulation)
+    spiff_wf = init_spiff_workflow(spec, deployment, context)
+    spiff_wf.attributes['id'] = workflow_id
     serializer = DictionarySerializer()
-    workflow = delete_wf.serialize(serializer)
+    workflow = spiff_wf.serialize(serializer)
     workflow['id'] = workflow_id
     body, secrets = utils.extract_sensitive_data(workflow)
     driver.save_workflow(workflow_id, body, secrets, tenant_id=deployment[
         'tenantId'])
-    return workflow
+    return spiff_wf
 
 
-def update_workflow_status(workflow, workflow_id=None):
+def update_workflow_status(workflow, tenant_id=None):
     total = len(workflow.get_tasks(state=Task.ANY_MASK))
     completed = len(workflow.get_tasks(state=Task.COMPLETED))
     if total is not None and total > 0:
@@ -53,17 +48,16 @@ def update_workflow_status(workflow, workflow_id=None):
     workflow.attributes['progress'] = progress
     workflow.attributes['total'] = total
     workflow.attributes['completed'] = completed
+    errors = get_errors(workflow, tenant_id)
 
     if workflow.is_completed():
         workflow.attributes['status'] = "COMPLETE"
     elif workflow.attributes['completed'] == 0:
         workflow.attributes['status'] = "NEW"
+    elif errors:
+        workflow.attributes['status'] = "FAILED"
     else:
-        deployment_id = workflow.get_attribute('deploymentId', workflow_id)
-        if get_status(deployment_id) == 'FAILED':
-            workflow.attributes['status'] = "FAILED"
-        else:
-            workflow.attributes['status'] = "IN PROGRESS"
+        workflow.attributes['status'] = "IN PROGRESS"
 
 
 def reset_task_tree(task):
@@ -104,7 +98,7 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     :return:
     '''
 
-    update_workflow_status(d_wf, workflow_id=workflow_id)
+    update_workflow_status(d_wf, tenant_id=tenant_id)
     if status:
         d_wf.attributes['status'] = status
 
@@ -257,7 +251,7 @@ def create_delete_deployment_workflow_spec(deployment, context):
     return wf_spec
 
 
-def create_workflow(spiff_wf_spec, deployment, context):
+def init_spiff_workflow(spiff_wf_spec, deployment, context):
     """Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
 
     :returns: SpiffWorkflow.Workflow"""
@@ -274,6 +268,7 @@ def create_workflow(spiff_wf_spec, deployment, context):
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
     runtime_context['token'] = context.auth_token
+    runtime_context.update(format(deployment.get_indexed_resources()))
     workflow.get_task(2).set_attribute(**runtime_context)
 
     # Calculate estimated_duration
@@ -295,9 +290,16 @@ def create_workflow(spiff_wf_spec, deployment, context):
               overall)
     workflow.attributes['estimated_duration'] = overall
     workflow.attributes['deploymentId'] = deployment['id']
-    update_workflow_status(workflow)
+    update_workflow_status(workflow, tenant_id=deployment.get('tenantId'))
 
     return workflow
+
+def format(resources):
+    formatted_resources = {}
+    for resource_key, resource_value in resources.iteritems():
+        formatted_resources.update({("instance:%s" % resource_key):
+                                    resource_value.get("instance", {})})
+    return formatted_resources
 
 
 def create_workflow_spec_deploy(deployment, context):
@@ -308,9 +310,10 @@ def create_workflow_spec_deploy(deployment, context):
     LOG.info("Building workflow spec for deployment '%s'" % deployment['id'])
     blueprint = deployment['blueprint']
     environment = deployment.environment()
+    new_and_planned_resources = deployment.get_new_and_planned_resources()
 
     # Build a workflow spec (the spec is the design of the workflow)
-    wfspec = WorkflowSpec(name="Deploy '%s' Workflow" % blueprint['name'])
+    wf_spec = WorkflowSpec(name="Deploy '%s' Workflow" % blueprint['name'])
 
     #
     # Create the tasks that make the async calls
@@ -330,33 +333,33 @@ def create_workflow_spec_deploy(deployment, context):
     for key in provider_keys:
         provider = environment.get_provider(key)
         providers[provider.key] = provider
-        prep_result = provider.prep_environment(wfspec, deployment, context)
+        prep_result = provider.prep_environment(wf_spec, deployment,
+                                                context)
         # Wire up tasks if not wired in somewhere
         if prep_result and not prep_result['root'].inputs:
-            wfspec.start.connect(prep_result['root'])
+            wf_spec.start.connect(prep_result['root'])
 
-    #build sorted list of resources based on dependencies
     sorted_resources = []
 
     def recursive_add_host(sorted_list, resource_key, resources, stack):
-        resource = resources[resource_key]
-        for key, relation in resource.get('relations', {}).iteritems():
-            if 'target' in relation:
-                if relation['target'] not in sorted_list:
-                    if relation['target'] in stack:
-                        raise CheckmateException("Circular dependency in "
-                                                 "resources between %s and %s"
-                                                 % (resource_key,
-                                                    relation['target']))
-                    stack.append(resource_key)
-                    recursive_add_host(sorted_resources,
-                                       relation['target'], resources, stack)
-        if resource_key not in sorted_list:
-            sorted_list.append(resource_key)
-
-    for key, resource in deployment.get('resources', {}).iteritems():
+        if resource_key in new_and_planned_resources.keys():
+            resource = resources[resource_key]
+            for key, relation in resource.get('relations', {}).iteritems():
+                if 'target' in relation:
+                    if relation['target'] not in sorted_list:
+                        if relation['target'] in stack:
+                            raise CheckmateException(
+                                "Circular dependency in resources between %s "
+                                "and %s" % (resource_key, relation['target']))
+                        stack.append(resource_key)
+                        recursive_add_host(sorted_resources,
+                                           relation['target'], resources, stack)
+            if resource_key not in sorted_list:
+                    sorted_list.append(resource_key)
+    for key, resource in new_and_planned_resources.iteritems():
         if key not in ['connections', 'keys'] and 'provider' in resource:
-            recursive_add_host(sorted_resources, key, deployment['resources'],
+            recursive_add_host(sorted_resources, key,
+                               deployment.get('resources'),
                                [])
     LOG.debug("Ordered resources: %s" % '->'.join(sorted_resources))
 
@@ -364,13 +367,13 @@ def create_workflow_spec_deploy(deployment, context):
     for key in sorted_resources:
         resource = deployment['resources'][key]
         provider = providers[resource['provider']]
-        provider_result = provider.add_resource_tasks(resource, key, wfspec,
+        provider_result = provider.add_resource_tasks(resource, key, wf_spec,
                                                       deployment, context)
 
         if provider_result and provider_result.get('root') and \
                 not provider_result['root'].inputs:
             # Attach unattached tasks
-            wfspec.start.connect(provider_result['root'])
+            wf_spec.start.connect(provider_result['root'])
         # Process hosting relationship before the hosted resource
         if 'hosts' in resource:
             for index in resource['hosts']:
@@ -386,7 +389,7 @@ def create_workflow_spec_deploy(deployment, context):
                 provider_result = provider.add_connection_tasks(hr, index,
                                                                 relation,
                                                                 'host',
-                                                                wfspec,
+                                                                wf_spec,
                                                                 deployment,
                                                                 context)
                 if provider_result and provider_result.get('root') and \
@@ -394,20 +397,22 @@ def create_workflow_spec_deploy(deployment, context):
                     # Attach unattached tasks
                     LOG.debug("Attaching '%s' to 'Start'",
                               provider_result['root'].name)
-                    wfspec.start.connect(provider_result['root'])
+                    wf_spec.start.connect(provider_result['root'])
 
     # Do relations
     for key, resource in deployment.get('resources', {}).iteritems():
         if 'relations' in resource:
             for name, relation in resource['relations'].iteritems():
                 # Process where this is a source (host relations done above)
-                if 'target' in relation and name != 'host':
+                if 'target' in relation and name != 'host' and (relation[
+                        'target'] in new_and_planned_resources.keys() or key
+                        in new_and_planned_resources.keys()):
                     provider = providers[resource['provider']]
                     provider_result = provider.add_connection_tasks(resource,
                                                                     key,
                                                                     relation,
                                                                     name,
-                                                                    wfspec,
+                                                                    wf_spec,
                                                                     deployment,
                                                                     context)
                     if provider_result and provider_result.get('root') and \
@@ -415,13 +420,13 @@ def create_workflow_spec_deploy(deployment, context):
                         # Attach unattached tasks
                         LOG.debug("Attaching '%s' to 'Start'",
                                   provider_result['root'].name)
-                        wfspec.start.connect(provider_result['root'])
+                        wf_spec.start.connect(provider_result['root'])
 
     # Check that we have a at least one task. Workflow fails otherwise.
-    if not wfspec.start.outputs:
-        noop = Simple(wfspec, "end")
-        wfspec.start.connect(noop)
-    return wfspec
+    if not wf_spec.start.outputs:
+        noop = Simple(wf_spec, "end")
+        wf_spec.start.connect(noop)
+    return wf_spec
 
 
 def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
@@ -493,6 +498,23 @@ def wait_for(wf_spec, task, wait_list, name=None, **kwargs):
             return wait_set[0]
     else:
         return task
+
+
+def find_tasks(wf, state=Task.ANY_MASK, **kwargs):
+    tasks = []
+    filtered_tasks = wf.get_tasks(state=state)
+    for task in filtered_tasks:
+        match = True
+        if kwargs:
+            for key, value in kwargs.iteritems():
+                if key == 'tag':
+                    if value is not None and value not in task.get_property(
+                            "task_tags", []):
+                        match = False
+                        break
+        if match:
+            tasks.append(task)
+    return tasks
 
 
 class Workflow(ExtensibleDict):

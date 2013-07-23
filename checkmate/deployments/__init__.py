@@ -3,7 +3,7 @@ All the Deployments things
 '''
 from .manager import Manager
 from .router import Router
-from .plan import Plan
+from .planner import Planner
 
 # Legacy compatibility with Celery tasks for deployments
 #

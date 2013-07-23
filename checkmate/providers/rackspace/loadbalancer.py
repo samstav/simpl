@@ -284,7 +284,7 @@ class Provider(ProviderBase):
         create_lb_task_tags = ['create', 'root', 'vip']
 
         #Find existing task which has created the vip
-        vip_tasks = self.find_tasks(wfspec, provider=self.key, tag='vip')
+        vip_tasks = self.find_task_specs(wfspec, provider=self.key, tag='vip')
         parent_lb = None
 
         if vip_tasks:
@@ -503,10 +503,10 @@ class Provider(ProviderBase):
                                                               protocols))
 
         # Get all tasks we need to precede the LB Add Node task
-        finals = self.find_tasks(wfspec, resource=relation['target'],
-                                 tag='final')
-        create_lb = self.find_tasks(wfspec, resource=key, provider=self.key,
-                                    tag='final')[0]
+        finals = self.find_task_specs(wfspec, resource=relation['target'],
+                                      tag='final')
+        lb_final_tasks = self.find_task_specs(wfspec, resource=key,
+                                              provider=self.key, tag='final')
         target_resource = deployment['resources'][relation['target']]
         if 'hosted_on' in target_resource:
             target = target_resource['hosted_on']
@@ -533,7 +533,8 @@ class Provider(ProviderBase):
                                properties={'estimated_duration': 20})
 
         #Make it wait on all other provider completions
-        finals.append(create_lb)
+        if lb_final_tasks:
+            finals.append(lb_final_tasks[0])
         wait_for(wfspec, add_node_task, finals,
                  name="Wait before adding %s to LB %s" % (relation['target'],
                                                           key),

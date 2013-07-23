@@ -13,7 +13,7 @@ import unittest
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
 from checkmate.deployment import Deployment
-from checkmate.deployments import Manager, Plan
+from checkmate.deployments import Manager, Planner
 from checkmate.middleware import RequestContext
 from checkmate.exceptions import (
     CheckmateException,
@@ -73,7 +73,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
         base.PROVIDER_CLASSES['test.gbase'] = ProviderBase
 
-        planner = Plan(deployment)
+        planner = Planner(deployment)
         planner.plan(RequestContext())
 
         services = planner['services']
@@ -128,7 +128,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        planner = Plan(deployment)
+        planner = Planner(deployment)
         self.assertRaises(CheckmateException, planner.plan, RequestContext())
 
     def test_find_components_mismatch(self):
@@ -158,7 +158,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        planner = Plan(deployment)
+        planner = Planner(deployment)
         self.assertRaises(CheckmateException, planner.plan, RequestContext())
 
     def test_resolve_relations(self):
@@ -195,7 +195,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        planner = Plan(deployment)
+        planner = Planner(deployment)
         planner.plan(RequestContext())
         services = planner['services']
         component = services['main']['component']
@@ -254,7 +254,7 @@ class TestDeploymentPlanning(unittest.TestCase):
             """))
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        planner = Plan(deployment)
+        planner = Planner(deployment)
         self.assertRaises(CheckmateValidationException, planner.plan,
                           RequestContext())
 
@@ -321,7 +321,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        planner = Plan(deployment)
+        planner = Planner(deployment)
         planner.plan(RequestContext())
 
         resources = {key: [] for key in planner['services'].keys()}
@@ -406,7 +406,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = ProviderBase
 
-        planner = Plan(deployment)
+        planner = Planner(deployment)
         planner.plan(RequestContext())
         services = planner['services']
 
@@ -577,7 +577,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         self.assertEqual(assigned_name, expected_name)
 
     def test_evaluate_defaults(self):
-        default_plan = Plan(Deployment(utils.yaml_to_dict("""
+        default_plan = Planner(Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   options:

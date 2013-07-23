@@ -11,12 +11,13 @@ import uuid
 import eventlet
 from SpiffWorkflow.storage import DictionarySerializer
 
-from .plan import Plan
+from .planner import Planner
 from checkmate import base
 from checkmate import db
 from checkmate import operations
 from checkmate import orchestrator
 from checkmate import utils
+from checkmate import workflow
 from checkmate.deployment import (
     Deployment,
     generate_keys,
@@ -25,10 +26,6 @@ from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,
     CheckmateValidationException,
-)
-from checkmate.workflow import (
-    create_workflow,
-    create_workflow_spec_deploy,
 )
 
 LOG = logging.getLogger(__name__)
@@ -128,16 +125,16 @@ class Manager(base.ManagerBase):
                                     "deployed" % (deployment['id'],
                                     deployment.get('status')))
         generate_keys(deployment)
-
         deployment['display-outputs'] = deployment.calculate_outputs()
 
-        operation = self.create_deploy_operation(deployment, context,
-                                                 tenant_id=
-                                                 deployment['tenantId'])
-
+        deploy_spec = workflow.create_workflow_spec_deploy(deployment, context)
+        spiff_wf = workflow.create_workflow(
+            deploy_spec, deployment, context, driver=self.select_driver(
+                deployment['id']), workflow_id=deployment['id'])
+        deployment['workflow'] = spiff_wf.attributes['id']
+        operations.add(deployment, spiff_wf, "BUILD",
+                       tenant_id=deployment['tenantId'])
         self.save_deployment(deployment)
-
-        return operation
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
         '''
@@ -315,7 +312,7 @@ class Manager(base.ManagerBase):
                                                "instead.")
 
         # Analyze Deployment and Create plan
-        planner = Plan(deployment, parse_only=parse_only)
+        planner = Planner(deployment, parse_only=parse_only)
         resources = planner.plan(context)
         if resources:
             deployment['resources'] = resources
@@ -338,30 +335,6 @@ class Manager(base.ManagerBase):
         LOG.info("Deployment '%s' planning complete and status changed to %s",
                  deployment['id'], deployment['status'])
         return deployment
-
-    #
-    # Operations - this should eventually move to operations.py
-    #
-    def create_deploy_operation(self, deployment, context, tenant_id=None):
-        '''Create Deploy Operation (Workflow).'''
-        api_id = workflow_id = deployment['id']
-        spiff_wf_spec = create_workflow_spec_deploy(deployment, context)
-        spiff_wf = create_workflow(spiff_wf_spec, deployment, context)
-        spiff_wf.attributes['id'] = workflow_id
-        serializer = DictionarySerializer()
-        workflow = spiff_wf.serialize(serializer)
-        workflow['id'] = workflow_id
-        deployment['workflow'] = workflow_id
-        wf_data = operations.init_operation(spiff_wf, tenant_id=tenant_id)
-        operation = operations.add_operation(deployment, 'BUILD', **wf_data)
-        operation['workflow-id'] = workflow_id
-
-        body, secrets = utils.extract_sensitive_data(workflow)
-        driver = self.select_driver(api_id)
-        driver.save_workflow(workflow_id, body, secrets,
-                             tenant_id=deployment['tenantId'])
-
-        return operation
 
     def reset_failed_resource(self, deployment_id, resource_id):
         ''' Creates a copy of a failed resource and appends it at the end of
@@ -445,3 +418,38 @@ class Manager(base.ManagerBase):
 
         LOG.debug("Updated deployment %s with postback", deployment_id,
                   extra=dict(data=contents))
+
+    def plan_add_nodes(self, deployment, context, service_name, count,
+                       parse_only=False):
+        '''Process a new checkmate deployment and plan for execution.
+
+        This creates templates for resources and connections that will be used
+        for the actual creation of resources.
+
+        :param deployment: checkmate deployment instance (dict)
+        :param context: RequestContext (auth data, etc) for making API calls
+        '''
+        assert context.__class__.__name__ == 'RequestContext'
+        assert isinstance(deployment, Deployment)
+
+        # Analyze Deployment and Create plan
+        planner = Planner(deployment, parse_only, deployment.get('plan', {}))
+        resources = planner.plan_additional_nodes(context, service_name, count)
+        if resources:
+            deployment.get('resources', {}).update(resources)
+
+        # Save plan details for future rehydration/use
+        deployment['plan'] = planner._data  # get dict so we can serialize it
+
+        # Mark deployment as planned and return it (nothing has been saved yet)
+        LOG.info("Deployment '%s' planning complete and status changed to %s",
+                 deployment['id'], deployment['status'])
+        return deployment
+
+    def deploy_add_nodes(self, deployment, context, tenant_id):
+        add_node_workflow_spec = workflow.create_workflow_spec_deploy(
+            deployment, context)
+        add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
+                                                     deployment, context,
+                                                     driver=self.driver)
+        operations.add(deployment, add_node_workflow, "SCALE UP", tenant_id)
