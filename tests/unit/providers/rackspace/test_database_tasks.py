@@ -21,26 +21,28 @@ class TestDatabaseTasks(unittest.TestCase):
         functools.partial = mock.Mock(return_value=partial)
         context = {
             'simulation': True,
-            'resource': 0,
+            'resource': '0',
             'deployment': 0,
             'region': 'DFW'
         }
         context = middleware.RequestContext(**context)
         expected_result = {
-            'status': 'BUILD',
-            'name': 'test_instance',
-            'flavor': 1,
-            'region': 'DFW',
-            'databases': {},
-            'interfaces': {'mysql': {'host': 'db1.rax.net'}},
-            'id': 'DBS0'
+            'instance:0': {
+                'status': 'BUILD',
+                'name': 'test_instance',
+                'flavor': 1,
+                'region': 'DFW',
+                'databases': {},
+                'interfaces': {'mysql': {'host': 'db1.rax.net'}},
+                'id': 'DBS0'
+            }
         }
         results = database.create_instance(
             context, 'test_instance', 1, 1, None, None)
         self.assertEqual(expected_result, results)
         partial.assert_called_with({'id': 'DBS0'})
         database._create_instance.callback.assert_called_with(context,
-                                                              expected_result)
+            expected_result['instance:0'])
 
     def test_create_instance_sim_with_dbs(self):
         'Create instance with simulation and databases.'
@@ -57,34 +59,36 @@ class TestDatabaseTasks(unittest.TestCase):
         }
         context = middleware.RequestContext(**context)
         expected_result = {
-            'status': 'BUILD',
-            'name': 'test_instance',
-            'region': 'DFW',
-            'id': 'DBS0',
-            'databases': {
-                'db1': {
-                    'interfaces': {
-                        'mysql': {
-                            'host': 'db1.rax.net',
-                            'database_name': 'db1'
-                        }
+            'instance:0': {
+                'status': 'BUILD',
+                'name': 'test_instance',
+                'region': 'DFW',
+                'id': 'DBS0',
+                'databases': {
+                    'db1': {
+                        'interfaces': {
+                            'mysql': {
+                                'host': 'db1.rax.net',
+                                'database_name': 'db1'
+                            }
+                        },
+                        'name': 'db1'
                     },
-                    'name': 'db1'
+                    'db2': {
+                        'interfaces': {
+                            'mysql': {
+                                'host': 'db1.rax.net',
+                                'database_name': 'db2'
+                            }
+                        },
+                        'name': 'db2'
+                    }
                 },
-                'db2': {
-                    'interfaces': {
-                        'mysql': {
-                            'host': 'db1.rax.net',
-                            'database_name': 'db2'
-                        }
-                    },
-                    'name': 'db2'
-                }
-            },
-            'flavor': 1,
-            'interfaces': {
-                'mysql': {
-                    'host': 'db1.rax.net'
+                'flavor': 1,
+                'interfaces': {
+                    'mysql': {
+                        'host': 'db1.rax.net'
+                    }
                 }
             }
         }
@@ -94,7 +98,7 @@ class TestDatabaseTasks(unittest.TestCase):
         self.assertEqual(expected_result, results)
         partial.assert_called_with({'id': 'DBS0'})
         database._create_instance.callback.assert_called_with(context,
-                                                              expected_result)
+            expected_result['instance:0'])
 
     def test_create_instance_no_sim_no_dbs(self):
         'Create instance no databases.'
@@ -112,15 +116,17 @@ class TestDatabaseTasks(unittest.TestCase):
         instance.name = 'test_instance'
         instance.hostname = 'test.hostname'
         expected = {
-            'status': 'BUILD',
-            'name': 'test_instance',
-            'region': 'DFW',
-            'id': 1234,
-            'databases': {},
-            'flavor': 1,
-            'interfaces': {
-                'mysql': {
-                    'host': 'test.hostname'
+            'instance:0': {
+                'status': 'BUILD',
+                'name': 'test_instance',
+                'region': 'DFW',
+                'id': 1234,
+                'databases': {},
+                'flavor': 1,
+                'interfaces': {
+                    'mysql': {
+                        'host': 'test.hostname'
+                    }
                 }
             }
         }
@@ -135,7 +141,7 @@ class TestDatabaseTasks(unittest.TestCase):
                                       databases=[])
         partial.assert_called_with({'id': 1234})
         database._create_instance.callback.assert_called_with(context,
-                                                              expected)
+            expected['instance:0'])
         self.assertEqual(results, expected)
 
     def test_create_instance_no_sim_with_dbs(self):
@@ -154,34 +160,36 @@ class TestDatabaseTasks(unittest.TestCase):
         instance.hostname = 'test.hostname'
         databases = [{'name': 'db1'}, {'name': 'db2'}]
         expected = {
-            'status': 'BUILD',
-            'name': 'test_instance',
-            'region': 'DFW',
-            'id': 1234,
-            'databases': {
-                'db1': {
-                    'interfaces': {
-                        'mysql': {
-                            'host': 'test.hostname',
-                            'database_name': 'db1'
-                        }
+            'instance:0': {
+                'status': 'BUILD',
+                'name': 'test_instance',
+                'region': 'DFW',
+                'id': 1234,
+                'databases': {
+                    'db1': {
+                        'interfaces': {
+                            'mysql': {
+                                'host': 'test.hostname',
+                                'database_name': 'db1'
+                            }
+                        },
+                        'name': 'db1'
                     },
-                    'name': 'db1'
+                    'db2': {
+                        'interfaces': {
+                            'mysql': {
+                                'host': 'test.hostname',
+                                'database_name': 'db2'
+                            }
+                        },
+                        'name': 'db2'
+                    }
                 },
-                'db2': {
-                    'interfaces': {
-                        'mysql': {
-                            'host': 'test.hostname',
-                            'database_name': 'db2'
-                        }
-                    },
-                    'name': 'db2'
-                }
-            },
-            'flavor': 1,
-            'interfaces': {
-                'mysql': {
-                    'host': 'test.hostname'
+                'flavor': 1,
+                'interfaces': {
+                    'mysql': {
+                        'host': 'test.hostname'
+                    }
                 }
             }
         }
@@ -197,7 +205,7 @@ class TestDatabaseTasks(unittest.TestCase):
                                       databases=databases)
         partial.assert_called_with({'id': 1234})
         database._create_instance.callback.assert_called_with(context,
-                                                              expected)
+            expected['instance:0'])
         self.assertEqual(results, expected)
 
     def test_create_instance_invalid_api(self):
@@ -212,6 +220,54 @@ class TestDatabaseTasks(unittest.TestCase):
             assert isinstance(exc.args[1], AttributeError)
             self.assertEqual(str(exc.args[1]), "'str' object has no attribute "
                              "'create'")
+
+    def test_create_database_sim_no_instance_id(self):
+        '''Verifies create database simulation is working.'''
+        context = {'resource': '2', 'simulation': True, 'deployment': 0}
+        name = 'test_database'
+        region = 'ORD'
+        database.resource_postback.delay = mock.Mock()
+        expected = {
+            'instance:2': {
+                'host_instance': 'DBS2',
+                'host_region': 'ORD',
+                'interfaces': {
+                    'mysql': {
+                        'database_name': 'test_database',
+                        'host': 'srv2.rackdb.net'
+                    }
+                },
+                'name': 'test_database'
+            }
+        }
+
+        results = database.create_database(context, name, region)
+        self.assertEqual(expected, results)
+
+    def test_create_database_sim_instance_id(self):
+        '''Verifies create database simulation is working.'''
+        context = {'resource': '2', 'simulation': True, 'deployment': 0}
+        name = 'test_database'
+        region = 'ORD'
+        instance_id = '12345'
+        database.resource_postback.delay = mock.Mock()
+        expected = {
+            'instance:2': {
+                'host_instance': '12345',
+                'host_region': 'ORD',
+                'interfaces': {
+                    'mysql': {
+                        'database_name': 'test_database',
+                        'host': 'srv2.rackdb.net'
+                    }
+                },
+                'name': 'test_database'
+            }
+        }
+
+        results = database.create_database(context, name, region,
+                                           instance_id=instance_id)
+        self.assertEqual(expected, results)
 
 
 if __name__ == '__main__':

@@ -49,34 +49,37 @@ class TestDatabase(ProviderTester):
                                 .AndReturn(instance)
 
         expected = {
-            'status': 'BUILD',
-            'id': instance.id,
-            'name': instance.name,
-            'status': instance.status,
-            'region': 'NORTH',
-            'flavor': 1,
-            'interfaces': {
-                'mysql': {
-                    'host': instance.hostname,
+            'instance:1': {
+                'status': 'BUILD',
+                'id': instance.id,
+                'name': instance.name,
+                'status': instance.status,
+                'region': 'NORTH',
+                'flavor': 1,
+                'interfaces': {
+                    'mysql': {
+                        'host': instance.hostname,
+                    },
                 },
-            },
-            'databases': {
-                'db1': {
-                    'name': 'db1',
-                    'interfaces': {
-                        'mysql': {
-                            'host': instance.hostname,
-                            'database_name': 'db1',
-                        },
+                'databases': {
+                    'db1': {
+                        'name': 'db1',
+                        'interfaces': {
+                            'mysql': {
+                                'host': instance.hostname,
+                                'database_name': 'db1',
+                            },
+                        }
                     }
                 }
             }
         }
-        context = RequestContext()
+        context = RequestContext(resource='1')
 
         database._create_instance.callback(context,
                                            {'id': instance.id}).AndReturn(True)
-        database._create_instance.callback(context, expected).AndReturn(True)
+        database._create_instance.callback(context,
+            expected['instance:1']).AndReturn(True)
 
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name, 1, 1,

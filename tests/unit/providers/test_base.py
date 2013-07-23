@@ -84,18 +84,21 @@ class TestProviderTask(unittest.TestCase):
 
     def test_provider_task_success(self):
         '''Tests success run.'''
-        context = middleware.RequestContext({'region': 'ORD', 'resource': 1,
-                                             'deployment': {}})
+        context = middleware.RequestContext(**{'region': 'ORD',
+                                            'resource': '1', 'deployment': {}})
         expected = {
-            'api1': 'test_api',
-            'name': 'test',
-            'api2': 'test_api',
-            'status': 'BLOCKED'
+            'instance:1': {
+                'api1': 'test_api',
+                'name': 'test',
+                'api2': 'test_api',
+                'status': 'BLOCKED'
+            }
         }
         do_something.callback = mock.MagicMock(return_value=True)
         results = do_something(context, 'test', api='test_api')
 
-        do_something.callback.assert_called_with(context, expected)
+        do_something.callback.assert_called_with(context,
+            expected['instance:1'])
         self.assertEqual(results, expected)
         assert do_something.partial, 'Partial attr should be set'
 

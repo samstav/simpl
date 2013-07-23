@@ -7,10 +7,7 @@ import string
 import clouddb
 import pyrax
 import redis
-from SpiffWorkflow.operators import (
-    PathAttrib,
-    Attrib,
-)
+from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
 from checkmate.common import caching
@@ -241,7 +238,9 @@ class Provider(ProviderBase):
                                                   'instance:%s/region' %
                                                   resource['hosted_on']),
                                           ],
-                                          instance_id=Attrib('id'),
+                                          instance_id=PathAttrib(
+                                              'instance:%s/id' %
+                                              resource['hosted_on']),
                                           merge_results=True,
                                           defines=dict(resource=key,
                                                        provider=self.key,
@@ -313,7 +312,7 @@ class Provider(ProviderBase):
                                    context.get_queued_task_dict(
                                        deployment=deployment['id'],
                                        resource=key),
-                                   Attrib('id'),
+                                   PathAttrib('instance:%s/id' % key),
                                    resource['region'],
                                ],
                                merge_results=True,
