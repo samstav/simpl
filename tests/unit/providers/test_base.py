@@ -1,31 +1,25 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-import unittest
-
+# pylint: disable=C0103,C0111,R0201,R0903,R0904,W0212,W0232
+import celery
 import mock
-
-from celery.task import task
+import unittest
 
 from checkmate.exceptions import CheckmateResumableException
 from checkmate import middleware
-from checkmate.providers.base import (
-    ProviderBasePlanningMixIn,
-    ProviderBase,
-    ProviderTask,
-)
+from checkmate.providers import base as cm_base
 from checkmate.providers.rackspace import database
 
 
 class TestProviderBasePlanningMixIn(unittest.TestCase):
     # Tests for generate_resource_tag
     def test_no_values_given(self):
-        result = ProviderBasePlanningMixIn.generate_resource_tag()
+        result = cm_base.ProviderBasePlanningMixIn.generate_resource_tag()
         self.assertEquals(
             {'RAX-CHECKMATE': 'None/None/deployments/None/resources/None'},
             result
         )
 
     def test_with_good_values(self):
-        result = ProviderBasePlanningMixIn.generate_resource_tag(
+        result = cm_base.ProviderBasePlanningMixIn.generate_resource_tag(
             base_url='http://blerp.com',
             tenant_id='T1',
             deployment_id='deba8c',
@@ -39,8 +33,8 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
 class TestProviderBase(unittest.TestCase):
 
     def test_translate_status_success(self):
-        ''' Test checkmate status schema entry returned '''
-        class Testing(ProviderBase):
+        '''Test checkmate status schema entry returned.'''
+        class Testing(cm_base.ProviderBase):
             __status_mapping__ = {
                 'ACTIVE': 'ACTIVE',
                 'BUILD': 'BUILD',
@@ -54,8 +48,8 @@ class TestProviderBase(unittest.TestCase):
         self.assertEqual('ERROR', results)
 
     def test_translate_status_fail(self):
-        ''' Test checkmate status schema UNDEFINED returned '''
-        class Testing(ProviderBase):
+        '''Test checkmate status schema UNDEFINED returned.'''
+        class Testing(cm_base.ProviderBase):
             __status_mapping__ = {
                 'ACTIVE': 'ACTIVE',
                 'BUILD': 'BUILD',
@@ -97,8 +91,8 @@ class TestProviderTask(unittest.TestCase):
         do_something.callback = mock.MagicMock(return_value=True)
         results = do_something(context, 'test', api='test_api')
 
-        do_something.callback.assert_called_with(context,
-            expected['instance:1'])
+        do_something.callback.assert_called_with(
+            context, expected['instance:1'])
         self.assertEqual(results, expected)
         assert do_something.partial, 'Partial attr should be set'
 
@@ -139,7 +133,7 @@ class TestProviderTask(unittest.TestCase):
         mocked_lib.postback.assert_called_with({}, expected_postback)
 
 
-@task(base=ProviderTask, provider=database.Provider)
+@celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
 def do_something(context, name, api):
     return {
         'api1': do_something.api,
@@ -150,6 +144,6 @@ def do_something(context, name, api):
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
+    from checkmate import test
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+    test.run_with_params(sys.argv[:])

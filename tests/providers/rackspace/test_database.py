@@ -1,27 +1,26 @@
-#!/usr/bin/env python
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W023
 import logging
+import mox
 import unittest
 
-import mox
-
-from checkmate import test
+from checkmate import deployment
+from checkmate import deployments
+from checkmate.deployments import tasks
 from checkmate.exceptions import CheckmateException
-from checkmate.deployment import Deployment
-from checkmate.deployments import resource_postback
-from checkmate.deployments.tasks import reset_failed_resource_task
-from checkmate.providers import base, register_providers
-from checkmate.providers.rackspace import database, checkmate
+from checkmate import middleware
+from checkmate import providers
+from checkmate.providers import base
+from checkmate.providers.rackspace import database
 from checkmate.providers.rackspace.database import (
-    provider as db_provider,
+    provider as db_provider
 )
-from checkmate.test import StubbedWorkflowBase, ProviderTester
+from checkmate import test
 from checkmate import utils
-from checkmate.middleware import RequestContext
 
 LOG = logging.getLogger(__name__)
 
 
-class TestDatabase(ProviderTester):
+class TestDatabase(test.ProviderTester):
     '''Test Database Provider.'''
 
     def setUp(self):
@@ -44,13 +43,15 @@ class TestDatabase(ProviderTester):
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.create(instance.name, flavor=1, volume=1,
-                                databases=[{'name': 'db1'}])\
-                                .AndReturn(instance)
+        clouddb_api_mock.create(
+            instance.name,
+            flavor=1,
+            volume=1,
+            databases=[{'name': 'db1'}]
+        ).AndReturn(instance)
 
         expected = {
             'instance:1': {
-                'status': 'BUILD',
                 'id': instance.id,
                 'name': instance.name,
                 'status': instance.status,
@@ -74,12 +75,12 @@ class TestDatabase(ProviderTester):
                 }
             }
         }
-        context = RequestContext(resource='1')
+        context = middleware.RequestContext(resource='1')
 
         database._create_instance.callback(context,
                                            {'id': instance.id}).AndReturn(True)
-        database._create_instance.callback(context,
-            expected['instance:1']).AndReturn(True)
+        database._create_instance.callback(
+            context, expected['instance:1']).AndReturn(True)
 
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name, 1, 1,
@@ -100,10 +101,10 @@ class TestDatabase(ProviderTester):
         instance.hostname = 'fake.cloud.local'
 
         #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
-        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
-        reset_failed_resource_task.delay(context['deployment'],
-                                         context['resource'])
+        self.mox.StubOutWithMock(deployments.resource_postback, 'delay')
+        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
+        tasks.reset_failed_resource_task.delay(context['deployment'],
+                                               context['resource'])
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -130,8 +131,8 @@ class TestDatabase(ProviderTester):
         instance.hostname = 'fake.cloud.local'
 
         #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
-        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
+        self.mox.StubOutWithMock(deployments.resource_postback, 'delay')
+        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -154,10 +155,10 @@ class TestDatabase(ProviderTester):
                 'flavor': '1'
             }
         }
-        resource_postback.delay(context['deployment'], expected).AndReturn(
-            True)
-        reset_failed_resource_task.delay(context['deployment'],
-                                         context['resource'])
+        deployments.resource_postback.delay(
+            context['deployment'], expected).AndReturn(True)
+        tasks.reset_failed_resource_task.delay(context['deployment'],
+                                               context['resource'])
 
         self.mox.ReplayAll()
         results = database.create_database(context, 'db1', 'NORTH',
@@ -280,7 +281,7 @@ class TestDatabase(ProviderTester):
 
     def verify_limits(self, volume_size_used):
         '''Test the verify_limits() method.'''
-        context = RequestContext()
+        context = middleware.RequestContext()
         resources = [
             {'component': 'mysql_database',
              'dns-name': 'backend01.wordpress.cldsrvr.com',
@@ -353,7 +354,7 @@ class TestDatabase(ProviderTester):
 
     def test_verify_access_positive(self):
         '''Test that verify_access() returns ACCESS-OK if user has access.'''
-        context = RequestContext()
+        context = middleware.RequestContext()
         context.roles = 'identity:user-admin'
         provider = database.Provider({})
         result = provider.verify_access(context)
@@ -367,7 +368,7 @@ class TestDatabase(ProviderTester):
 
     def test_verify_access_negative(self):
         '''Test that verify_access() returns ACCESS-OK if user has access.'''
-        context = RequestContext()
+        context = middleware.RequestContext()
         context.roles = 'dbaas:observer'
         provider = database.Provider({})
         result = provider.verify_access(context)
@@ -480,14 +481,14 @@ class TestCatalog(unittest.TestCase):
         self.mox.VerifyAll()
 
 
-class TestDBWorkflow(StubbedWorkflowBase):
+class TestDBWorkflow(test.StubbedWorkflowBase):
     '''Test MySQL and DBaaS Resource Creation Workflow.'''
 
     def setUp(self):
-        StubbedWorkflowBase.setUp(self)
+        test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
-        register_providers([database.Provider, test.TestProvider])
-        self.deployment = Deployment(utils.yaml_to_dict("""
+        providers.register_providers([database.Provider, test.TestProvider])
+        self.deployment = deployment.Deployment(utils.yaml_to_dict("""
 id: 'DEP-ID-1000'
 blueprint:
   name: test db
@@ -570,10 +571,10 @@ environment:
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
     import sys
-    args = sys.argv[:]
+    ARGS = sys.argv[:]
     # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    if '--debug' in ARGS:
+        ARGS.pop(ARGS.index('--debug'))
+        if '--verbose' not in ARGS:
+            ARGS.insert(1, '--verbose')
+    unittest.main(argv=ARGS)
