@@ -216,6 +216,21 @@ class TestCount(unittest.TestCase):
                                        tenant_id="12345")
         self.assertEquals(result, 1)
 
+    def test_send_query_to_driver(self):
+        # set up
+        results = {'_links': {}, 'results': {}, 'collection-count': 0}
+        self.driver = mock.Mock()
+        self.driver.get_deployments.return_value = results
+        self.manager = deployments.Manager({'default': self.driver})
+
+        self.manager.count(query='fake query')
+        self.driver.get_deployments.assert_called_with(
+            tenant_id=mock.ANY,
+            with_count=mock.ANY,
+            status=mock.ANY,
+            query='fake query',
+        )
+
 
 class TestSecrets(unittest.TestCase):
 
@@ -354,7 +369,7 @@ class TestSecrets(unittest.TestCase):
         self.assertNotIn('value', outputs['New Password'])
 
 
-class TestGetDeployments(unittest.TestCase):
+class TestDeploymentManager(unittest.TestCase):
 
     def setUp(self):
         results = {'_links': {}, 'results': {}, 'collection-count': 0}
@@ -362,26 +377,18 @@ class TestGetDeployments(unittest.TestCase):
         self.driver.get_deployments.return_value = results
         self.manager = deployments.Manager({'default': self.driver})
 
-    def test_send_empty_query_to_driver(self):
-        self.manager.get_deployments(query={})
-        self.driver.get_deployments.assert_called_with(
-            tenant_id=mock.ANY,
-            offset=mock.ANY,
-            limit=mock.ANY,
-            with_deleted=mock.ANY,
-            status=mock.ANY,
-            query={}
-        )
+
+class TestGetDeployments(TestDeploymentManager):
 
     def test_send_query_to_driver(self):
-        self.manager.get_deployments(query={'name': 'fake name'})
+        self.manager.get_deployments(query='fake query')
         self.driver.get_deployments.assert_called_with(
             tenant_id=mock.ANY,
             offset=mock.ANY,
             limit=mock.ANY,
             with_deleted=mock.ANY,
             status=mock.ANY,
-            query={'name': 'fake name'}
+            query='fake query',
         )
 
 

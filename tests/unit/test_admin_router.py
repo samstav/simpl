@@ -67,7 +67,6 @@ class TestGetFilterParams(TestAdminRouter):
                 query={}
             )
 
-
     def test_pass_only_whitelisted_params(self):
         query_params = {
             'name': ['fake name'],
@@ -88,6 +87,20 @@ class TestGetFilterParams(TestAdminRouter):
                     'blueprint.name': 'fake blue',
                     'search': 'fake search',
                 }
+            )
+
+
+class TestGetDeploymentCount(TestAdminRouter):
+
+    def test_pass_query_params_to_manager(self):
+        self.manager.count.return_value = 99
+        with mock.patch.object(self.router, '_get_filter_params'):
+            self.router._get_filter_params.return_value = 'fake query'
+            self.router.get_deployment_count()
+            self.manager.count.assert_called_with(
+                tenant_id=mock.ANY,
+                status=mock.ANY,
+                query='fake query',
             )
 
 
