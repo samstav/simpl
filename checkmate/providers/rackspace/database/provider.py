@@ -7,22 +7,19 @@ import string
 import clouddb
 import pyrax
 import redis
-from SpiffWorkflow.operators import PathAttrib
-from SpiffWorkflow.specs import Celery
+from SpiffWorkflow import operators
+from SpiffWorkflow import specs
 
 from checkmate.common import caching
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
     CheckmateNoTokenError,
-
 )
-from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase, user_has_access
-from checkmate.utils import (
-    generate_password,
-)
-from checkmate.workflow import wait_for
+from checkmate import middleware
+from checkmate import providers
+from checkmate import utils
+from checkmate import workflow
 
 LOG = logging.getLogger(__name__)
 
@@ -42,7 +39,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
         LOG.warn("Error connecting to Redis: %s", exc)
 
 
-class Provider(ProviderBase):
+class Provider(providers.ProviderBase):
     '''Provider class for Cloud Databases.'''
     name = 'database'
     vendor = 'rackspace'
@@ -58,11 +55,11 @@ class Provider(ProviderBase):
 
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition):
-        templates = ProviderBase.generate_template(self, deployment,
-                                                   resource_type, service,
-                                                   context, index, self.key,
-                                                   definition)
-
+        templates = providers.ProviderBase.generate_template(self, deployment,
+                                                             resource_type,
+                                                             service, context,
+                                                             index, self.key,
+                                                             definition)
         catalog = self.get_catalog(context)
 
         if resource_type == 'compute':
@@ -164,7 +161,7 @@ class Provider(ProviderBase):
         resources.
         '''
         roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
-        if user_has_access(context, roles):
+        if providers.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
                 'message': "You have access to create Cloud Databases",
@@ -208,7 +205,7 @@ class Provider(ProviderBase):
                                               provider_key=self.key,
                                               service_name=service_name)
             if not password:
-                password = generate_password(
+                password = utils.generate_password(
                     valid_chars=''.join(
                         [string.ascii_letters, string.digits, '@?#_']
                     ),
@@ -225,54 +222,59 @@ class Provider(ProviderBase):
                                              "with one of '%s'" % start_with)
 
             # Create resource tasks
-            create_database_task = Celery(wfspec,
-                                          'Create Database',
-                                          'checkmate.providers.rackspace.'
-                                          'database.create_database',
-                                          call_args=[
-                                              context.get_queued_task_dict(
-                                                  deployment=deployment['id'],
-                                                  resource=key),
-                                              db_name,
-                                              PathAttrib(
-                                                  'instance:%s/region' %
-                                                  resource['hosted_on']),
-                                          ],
-                                          instance_id=PathAttrib(
-                                              'instance:%s/id' %
-                                              resource['hosted_on']),
-                                          merge_results=True,
-                                          defines=dict(resource=key,
-                                                       provider=self.key,
-                                                       task_tags=['create']),
-                                          properties={
-                                              'estimated_duration': 80
-                                          })
-            create_db_user = Celery(wfspec,
-                                    "Add DB User: %s" % username,
-                                    'checkmate.providers.rackspace.database.'
-                                    'add_user',
-                                    call_args=[
-                                        context.get_queued_task_dict(
-                                            deployment=deployment['id'],
-                                            resource=key),
-                                        PathAttrib(
-                                            'instance:%s/host_instance' % key),
-                                        [db_name],
-                                        username, password,
-                                        PathAttrib(
-                                            'instance:%s/host_region' % key),
-                                    ],
-                                    merge_results=True,
-                                    defines=dict(resource=key,
-                                                 provider=self.key,
-                                                 task_tags=['final']),
-                                    properties={
-                                        'estimated_duration': 20
-                                    })
+            create_database_task = specs.Celery(
+                wfspec,
+                'Create Database',
+                'checkmate.providers.rackspace.'
+                'database.create_database',
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment=deployment['id'],
+                        resource=key
+                    ),
+                    db_name,
+                    operators.PathAttrib(
+                        'instance:%s/region' %
+                        resource['hosted_on']
+                    ),
+                ],
+                instance_id=operators.PathAttrib(
+                    'instance:%s/id' % resource['hosted_on']
+                ),
+                merge_results=True,
+                defines=dict(
+                    resource=key,
+                    provider=self.key,
+                    task_tags=['create']
+                ),
+                properties={'estimated_duration': 80}
+            )
+            create_db_user = specs.Celery(
+                wfspec,
+                "Add DB User: %s" % username,
+                'checkmate.providers.rackspace.database.add_user',
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment=deployment['id'],
+                        resource=key
+                    ),
+                    operators.PathAttrib('instance:%s/host_instance' % key),
+                    [db_name],
+                    username,
+                    password,
+                    operators.PathAttrib('instance:%s/host_region' % key),
+                ],
+                merge_results=True,
+                defines=dict(
+                    resource=key,
+                    provider=self.key,
+                    task_tags=['final']
+                ),
+                properties={'estimated_duration': 20}
+            )
 
             create_db_user.follow(create_database_task)
-            root = wait_for(wfspec, create_database_task, wait_on)
+            root = workflow.wait_for(wfspec, create_database_task, wait_on)
             if 'task_tags' in root.properties:
                 root.properties['task_tags'].append('root')
             else:
@@ -284,44 +286,47 @@ class Provider(ProviderBase):
                            interface=resource.get('interface'),
                            provider=self.key,
                            task_tags=['create', 'root'])
-            create_instance_task = Celery(wfspec,
-                                          'Create Database Server',
-                                          'checkmate.providers.rackspace.'
-                                          'database.create_instance',
-                                          call_args=[
-                                              context.get_queued_task_dict(
-                                                  deployment=deployment['id'],
-                                                  resource=key),
-                                              resource.get('dns-name'),
-                                              resource['flavor'],
-                                              resource['disk'],
-                                              None,
-                                              resource['region'],
-                                          ],
-                                          merge_results=True,
-                                          defines=defines,
-                                          properties={
-                                              'estimated_duration': 80
-                                          })
-            root = wait_for(wfspec, create_instance_task, wait_on)
-            wait_task = Celery(wfspec,
-                               'Wait on Database Instance %s' % key,
-                               'checkmate.providers.rackspace.database.'
-                               'tasks.wait_on_build',
-                               call_args=[
-                                   context.get_queued_task_dict(
-                                       deployment=deployment['id'],
-                                       resource=key),
-                                   PathAttrib('instance:%s/id' % key),
-                                   resource['region'],
-                               ],
-                               merge_results=True,
-                               defines=dict(resource=key,
-                                            provider=self.key,
-                                            task_tags=['final']),
-                               properties={
-                                   'estimated_duration': 80
-                               })
+            create_instance_task = specs.Celery(
+                wfspec,
+                'Create Database Server',
+                'checkmate.providers.rackspace.'
+                'database.create_instance',
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment=deployment['id'],
+                        resource=key
+                    ),
+                    resource.get('dns-name'),
+                    resource['flavor'],
+                    resource['disk'],
+                    None,
+                    resource['region'],
+                ],
+                merge_results=True,
+                defines=defines,
+                properties={'estimated_duration': 80}
+            )
+            root = workflow.wait_for(wfspec, create_instance_task, wait_on)
+            wait_task = specs.Celery(
+                wfspec,
+                'Wait on Database Instance %s' % key,
+                'checkmate.providers.rackspace.database.tasks.wait_on_build',
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment=deployment['id'],
+                        resource=key
+                    ),
+                    operators.PathAttrib('instance:%s/id' % key),
+                    resource['region'],
+                ],
+                merge_results=True,
+                defines=dict(
+                    resource=key,
+                    provider=self.key,
+                    task_tags=['final']
+                ),
+                properties={'estimated_duration': 80}
+            )
             wait_task.follow(create_instance_task)
             return dict(root=root, final=wait_task)
         else:
@@ -339,7 +344,7 @@ class Provider(ProviderBase):
         self._verify_existing_resource(resource, key)
         region = resource.get('region') or \
             resource.get('instance', {}).get('host_region')
-        if isinstance(context, RequestContext):
+        if isinstance(context, middleware.RequestContext):
             context = context.get_queued_task_dict(deployment_id=deployment_id,
                                                    resource_key=key,
                                                    resource=resource,
@@ -358,23 +363,26 @@ class Provider(ProviderBase):
                                  " Invalid resource type '%s'"
                                  % (key, resource.get('type')))
 
-    def _delete_comp_res_tasks(self, wf_spec, context, key):
-            delete_instance = Celery(
-                wf_spec, 'Delete Computer Resource Tasks (%s)' % key,
-                'checkmate.providers.rackspace.database.delete_instance_task',
-                call_args=[context], properties={'estimated_duration': 5})
+    @staticmethod
+    def _delete_comp_res_tasks(wf_spec, context, key):
+        '''Delete Computer Resource Tasks.'''
+        delete_instance = specs.Celery(
+            wf_spec, 'Delete Computer Resource Tasks (%s)' % key,
+            'checkmate.providers.rackspace.database.delete_instance_task',
+            call_args=[context], properties={'estimated_duration': 5})
 
-            wait_on_delete = Celery(
-                wf_spec, 'Wait on delete Database (%s)' % key,
-                'checkmate.providers.rackspace.database.wait_on_del_instance',
-                call_args=[context], properties={'estimated_duration': 10})
+        wait_on_delete = specs.Celery(
+            wf_spec, 'Wait on delete Database (%s)' % key,
+            'checkmate.providers.rackspace.database.wait_on_del_instance',
+            call_args=[context], properties={'estimated_duration': 10})
 
-            delete_instance.connect(wait_on_delete)
-            return {'root': delete_instance}
+        delete_instance.connect(wait_on_delete)
+        return {'root': delete_instance}
 
-    def _delete_db_res_tasks(self, wf_spec, context, key):
+    @staticmethod
+    def _delete_db_res_tasks(wf_spec, context, key):
         '''Return delete tasks for the specified database instance.'''
-        delete_db = Celery(
+        delete_db = specs.Celery(
             wf_spec, 'Delete DB Resource tasks (%s)' % key,
             'checkmate.providers.rackspace.database.delete_database',
             call_args=[context], properties={'estimated_duration': 15})
@@ -388,8 +396,8 @@ class Provider(ProviderBase):
 
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
-        results = ProviderBase.get_catalog(self, context,
-                                           type_filter=type_filter)
+        results = providers.ProviderBase.get_catalog(
+            self, context, type_filter=type_filter)
         if results:
             # We have a prexisting or overridecatalog stored
             return results
@@ -470,6 +478,7 @@ class Provider(ProviderBase):
 
     @staticmethod
     def find_url(catalog, region):
+        '''Returns a URL for a region/catalog.'''
         for service in catalog:
             if service['type'] == 'rax:database':
                 endpoints = service['endpoints']
@@ -491,16 +500,16 @@ class Provider(ProviderBase):
         '''Use context info to connect to API and return api object.'''
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
-            context = RequestContext(**context)
+            context = middleware.RequestContext(**context)
         # Context could be something other than a dict or RequestContext
-        assert isinstance(context, RequestContext)
+        assert isinstance(context, middleware.RequestContext)
         if not context.auth_token:
             raise CheckmateNoTokenError()
 
         if region in REGION_MAP:
             region = REGION_MAP[region]
         if not region:
-            region = getattr(context, 'region', None)	  	
+            region = getattr(context, 'region', None)
             if not region:
                 region = Provider.find_a_region(context.catalog) or 'DFW'
 
