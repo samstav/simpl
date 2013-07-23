@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 
 
 def generate_response(self, environ, start_response):
-    '''A patch for webob.exc.WSGIHTTPException to handle YAML and JSON'''
+    '''A patch for webob.exc.WSGIHTTPException to handle YAML and JSON.'''
     if self.content_length is not None:
         del self.content_length
     headerlist = list(self.headerlist)
@@ -75,7 +75,7 @@ class TenantMiddleware(object):
     This is needed by the authz middleware too
     '''
     def __init__(self, app, resources=None):
-        '''
+        '''Init for TenantMiddleware.
         :param resources: REST resources that are NOT tenants
         '''
         self.app = app
@@ -172,7 +172,7 @@ class PAMAuthMiddleware(object):
 
     def __call__(self, environ, start_response):
         # Authenticate basic auth calls to PAM
-        #TODO: this header is not being returned in a 401
+        # TODO(any): this header is not being returned in a 401
         start_response = self.start_response_callback(start_response)
         context = request.context
 
@@ -192,7 +192,7 @@ class PAMAuthMiddleware(object):
                                 # Does not apply to this instance. Pass through
                                 return self.app(environ, start_response)
                             username = login.split('\\')[len(domain) + 1:]
-                    # TODO: maybe implement some caching?
+                    # TODO(any): maybe implement some caching?
                     if not pam.authenticate(login, passwd, service='login'):
                         LOG.debug('PAM failing request because of bad creds')
                         return (HTTPUnauthorized("Invalid credentials")
@@ -206,9 +206,9 @@ class PAMAuthMiddleware(object):
         return self.app(environ, start_response)
 
     def start_response_callback(self, start_response):
-        '''Intercepts upstream start_response and adds our headers'''
+        '''Intercepts upstream start_response and adds our headers.'''
         def callback(status, headers, exc_info=None):
-            '''Intercepts upstream start_response and adds our headers'''
+            '''Intercepts upstream start_response and adds our headers.'''
             # Add our headers to response
             headers.append(('WWW-Authenticate', self.auth_header))
             # Call upstream start_response
@@ -261,7 +261,7 @@ class TokenAuthMiddleware(object):
         LOG.info("Listening for Keystone auth for %s", self.endpoint['uri'])
 
     def __call__(self, environ, start_response):
-        '''Authenticate calls with X-Auth-Token to the source auth service'''
+        '''Authenticate calls with X-Auth-Token to the source auth service.'''
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
         if self.anonymous_paths and root in self.anonymous_paths:
@@ -304,7 +304,7 @@ class TokenAuthMiddleware(object):
                          timeout=600, cache_exceptions=True)
     def auth_keystone(self, tenant, auth_url, auth_header, token=None,
                       username=None, apikey=None, password=None):
-        '''Authenticates to keystone'''
+        '''Authenticates to keystone.'''
         url = urlparse(auth_url)
         if url.scheme == 'https':
             port = url.port or 443
@@ -359,7 +359,7 @@ class TokenAuthMiddleware(object):
 
     @caching.CacheMethod(sensitive_args=[0], timeout=600)
     def _validate_keystone(self, token, tenant_id=None):
-        '''Validates a Keystone Auth Token using a service token'''
+        '''Validates a Keystone Auth Token using a service token.'''
         url = urlparse(self.endpoint['uri'])
         if url.scheme == 'https':
             http_class = httplib.HTTPSConnection
@@ -405,9 +405,9 @@ class TokenAuthMiddleware(object):
         return content
 
     def start_response_callback(self, start_response):
-        '''Intercepts upstream start_response and adds our headers'''
+        '''Intercepts upstream start_response and adds our headers.'''
         def callback(status, headers, exc_info=None):
-            '''Intercepts upstream start_response and adds our headers'''
+            '''Intercepts upstream start_response and adds our headers.'''
             # Add our headers to response
             header = ('WWW-Authenticate', self.auth_header)
             if header not in headers:
@@ -460,7 +460,7 @@ class AuthorizationMiddleware(object):
         return HTTPUnauthorized()(environ, start_response)
 
     def start_response_callback(self, start_response):
-        '''Intercepts upstream start_response and adds auth-z headers'''
+        '''Intercepts upstream start_response and adds auth-z headers.'''
         def callback(status, headers, exc_info=None):
             # Add our headers to response
             header = ('X-AuthZ-Admin', "True")
@@ -472,7 +472,7 @@ class AuthorizationMiddleware(object):
 
 
 class StripPathMiddleware(object):
-    '''Strips extra / at end of path'''
+    '''Strips extra / at end of path.'''
     def __init__(self, app):
         self.app = app
 
@@ -482,7 +482,7 @@ class StripPathMiddleware(object):
 
 
 class ExtensionsMiddleware(object):
-    '''Converts extensions to accept headers: yaml, json, html'''
+    '''Converts extensions to accept headers: yaml, json, html.'''
     def __init__(self, app):
         self.app = app
 
@@ -576,10 +576,9 @@ class ExceptionMiddleware(object):
 #
 # Call Context (class and middleware)
 #
-#TODO: Get this from openstack common?
+# TODO(any): Get this from openstack common?
 class RequestContext(object):
-    '''
-    Stores information about the security context under which the user
+    '''Stores information about the security context under which the user
     accesses the system, as well as additional request information related to
     the current call, such as scope (which object, resource, etc).
     '''
@@ -627,7 +626,8 @@ class RequestContext(object):
         '''Checks if a tenant can be accessed by this current session.
 
         If no tenant is specified, the check will be done against the current
-        context's tenant.'''
+        context's tenant.
+        '''
         return (tenant_id or self.tenant) in (self.user_tenants or [])
 
     def set_context(self, content):
@@ -721,7 +721,7 @@ class RequestContext(object):
 
 
 class ContextMiddleware(object):
-    '''Adds a request.context to the call which holds authn+z data'''
+    '''Adds a request.context to the call which holds authn+z data.'''
     def __init__(self, app):
         self.app = app
 
@@ -751,9 +751,7 @@ class ContextMiddleware(object):
 
 
 class AuthTokenRouterMiddleware(object):
-    '''
-
-    Middleware that routes auth to multiple endpoints
+    '''Middleware that routes auth to multiple endpoints
 
     The list of available auth endpoints is always returned in the API HTTP
     response using standard HTTP WWW-Authorization headers. This is what
@@ -789,7 +787,7 @@ class AuthTokenRouterMiddleware(object):
 
     '''
     def __init__(self, app, endpoints, anonymous_paths=None):
-        '''
+        '''Init for AuthTokenRouterMiddleware.
         :param endpoints: an array of auth endpoint dicts which is the list of
                 endpoints to authenticate against.
                 Each entry should have the following keys:
@@ -898,7 +896,7 @@ class AuthTokenRouterMiddleware(object):
         return self.app(environ, start_response)
 
     def start_response_intercept(self, start_response):
-        '''Intercepts upstream start_response and remembers status'''
+        '''Intercepts upstream start_response and remembers status.'''
         def callback(status, headers, exc_info=None):
             self.last_status = status
             self.last_headers = headers
@@ -908,7 +906,7 @@ class AuthTokenRouterMiddleware(object):
         return callback
 
     def start_response_callback(self, start_response):
-        '''Intercepts upstream start_response and adds our headers'''
+        '''Intercepts upstream start_response and adds our headers.'''
         def callback(status, headers, exc_info=None):
             # Add our headers to response
             for header in self.response_headers:
@@ -935,7 +933,8 @@ class CatchAll404(object):
         @get('<path:path>')
         def extensions(path):  # pylint: disable=W0612
             '''Catch-all unmatched paths (so we know we got the request, but
-               didn't match it)'''
+               didn't match it).
+            '''
             abort(404, "Path '%s' not recognized" % path)
 
     def __call__(self, environ, start_response):

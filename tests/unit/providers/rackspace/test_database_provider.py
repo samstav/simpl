@@ -1,3 +1,4 @@
+# pylint: disable=C0103,C0111,R0201,R0903,R0904,W0212,W0232
 # encoding: utf-8
 '''Module for testing Database Provider class.'''
 import mock

@@ -156,6 +156,8 @@ class TestProviderTask(unittest.TestCase):
         mocked_lib.postback.assert_called_with({}, expected_postback)
 
 
+# Disabling on context and region being unused.
+# pylint: disable=W0613
 @celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
 def do_something(context, name, api, region=None):
     return {
