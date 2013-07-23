@@ -1329,6 +1329,15 @@ class Deployment(MorpheusDict):
                 planned_resources.update({resource_key: resource_value})
         return planned_resources
 
+    def get_indexed_resources(self):
+        indexed_resources = {}
+        for resource_key, resource_value in self.get(
+                "resources", {}).iteritems():
+            if resource_key.isdigit():
+                indexed_resources.update({resource_key: resource_value})
+        return indexed_resources
+
+
 @task(default_retry_delay=0.3, max_retries=2)
 def update_operation(deployment_id, driver=DB, **kwargs):
     '''

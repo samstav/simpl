@@ -268,6 +268,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context):
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
     runtime_context['token'] = context.auth_token
+    runtime_context.update(format(deployment.get_indexed_resources()))
     workflow.get_task(2).set_attribute(**runtime_context)
 
     # Calculate estimated_duration
@@ -292,6 +293,13 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context):
     update_workflow_status(workflow, tenant_id=deployment.get('tenantId'))
 
     return workflow
+
+def format(resources):
+    formatted_resources = {}
+    for resource_key, resource_value in resources.iteritems():
+        formatted_resources.update({("instance:%s" % resource_key):
+                                    resource_value.get("instance", {})})
+    return formatted_resources
 
 
 def create_workflow_spec_deploy(deployment, context):
@@ -325,7 +333,8 @@ def create_workflow_spec_deploy(deployment, context):
     for key in provider_keys:
         provider = environment.get_provider(key)
         providers[provider.key] = provider
-        prep_result = provider.prep_environment(wf_spec, deployment, context)
+        prep_result = provider.prep_environment(wf_spec, deployment,
+                                                context)
         # Wire up tasks if not wired in somewhere
         if prep_result and not prep_result['root'].inputs:
             wf_spec.start.connect(prep_result['root'])
@@ -395,8 +404,9 @@ def create_workflow_spec_deploy(deployment, context):
         if 'relations' in resource:
             for name, relation in resource['relations'].iteritems():
                 # Process where this is a source (host relations done above)
-                if 'target' in relation and name != 'host' and relation[
-                        'target'] in new_and_planned_resources.keys():
+                if 'target' in relation and name != 'host' and (relation[
+                        'target'] in new_and_planned_resources.keys() or key
+                        in new_and_planned_resources.keys()):
                     provider = providers[resource['provider']]
                     provider_result = provider.add_connection_tasks(resource,
                                                                     key,

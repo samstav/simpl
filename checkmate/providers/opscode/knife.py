@@ -374,7 +374,8 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
         if any((f.endswith('.json') for f in os.listdir(nodes_path))):
             msg = ("Kitchen already exists and seems to have nodes defined "
                    "in it: %s" % nodes_path)
-            raise CheckmateException(msg)
+            LOG.debug(msg)
+            return {"kitchen": kitchen_path}
     else:
         # we don't pass the config file here because we're creating the
         # kitchen for the first time and knife will overwrite our config file
