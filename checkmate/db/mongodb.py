@@ -310,13 +310,14 @@ class Driver(common.DbBase):
 
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=None,
                         offset=None, with_count=True, with_deleted=False,
-                        status=None):
+                        status=None, query=None):
         deployments = self._get_objects(self._deployment_collection_name,
                                         tenant_id, with_secrets=with_secrets,
                                         offset=offset,
                                         limit=limit, with_count=with_count,
                                         with_deleted=with_deleted,
-                                        status=status)
+                                        status=status,
+                                        query=query)
         return deployments
 
     def _remove_all(self, collection_name, ids):
@@ -743,7 +744,7 @@ class Driver(common.DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
                      limit=0, with_count=True, with_deleted=False,
-                     status=None):
+                     status=None, query=None):
         '''Returns a list of objects for the given Tenant ID.
 
         :param klass: The klass to query from
@@ -773,7 +774,7 @@ class Driver(common.DbBase):
             limit = 0
         with self._get_client().start_request():
             results = self.database()[klass].find(self._build_filters(
-                klass, tenant_id, with_deleted, status), projection)
+                klass, tenant_id, with_deleted, status, query), projection)
             if sort_key:
                 results.sort(sort_key, sort_direction)
             results = results.skip(offset).limit(limit)
@@ -800,10 +801,11 @@ class Driver(common.DbBase):
 
             if with_count:
                 response['collection-count'] = self._get_count(
-                    klass, tenant_id, with_deleted, status)
+                    klass, tenant_id, with_deleted, status, query)
         return response
 
-    def _get_count(self, klass, tenant_id, with_deleted, status=None):
+    def _get_count(self, klass, tenant_id, with_deleted, status=None,
+                   query=None):
         '''Returns a record count for the given tenant.
 
         :param klass: the collection to query
@@ -813,12 +815,14 @@ class Driver(common.DbBase):
         :return: An integer indicating how many records were found
         '''
         return self.database()[klass].find(
-            self._build_filters(klass, tenant_id, with_deleted, status),
+            self._build_filters(klass, tenant_id, with_deleted, status,
+                                query),
             self._object_projection
         ).count()
 
     @staticmethod
-    def _build_filters(klass, tenant_id, with_deleted, status=None):
+    def _build_filters(klass, tenant_id, with_deleted, status=None,
+                       query=None):
         '''Build MongoDB filters.
 
         `with_deleted` is a handy shortcut for including/excluding deleted
@@ -834,11 +838,29 @@ class Driver(common.DbBase):
         filters = {}
         if tenant_id:
             filters['tenantId'] = tenant_id
-        if klass == Driver._deployment_collection_name and (
-                not with_deleted or status):
-            if not status:
-                status = "!DELETED"
-            filters['status'] = _parse_comparison(status)
+        if klass == Driver._deployment_collection_name:
+            if not with_deleted and not status:
+                status = '!DELETED'
+
+            if status:
+                filters['status'] = _parse_comparison(status)
+
+            if query:
+                if ('search' in query):
+                    search_term = query['search']
+                    allowed_attributes = ['name', 'tenantId', 'blueprint.name']
+                    disjunction = []
+                    for attr in allowed_attributes:
+                        regex = {'$regex': search_term, '$options': 'i'}
+                        condition = {attr: regex}
+                        disjunction.append(condition)
+                    filters['$or'] = disjunction
+                else:
+                    for key in query:
+                        if query[key]:
+                            regex = {'$regex': query[key], '$options': 'i'}
+                            filters[key] = regex
+
         return filters
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,

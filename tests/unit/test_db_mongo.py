@@ -1,11 +1,17 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 '''Unit tests for functions in mongodb.py'''
+import mock
 import unittest
 
 from checkmate.db import mongodb
 
 
 class TestMongoDB(unittest.TestCase):
+
+    @mock.patch.object(mongodb.Driver, 'tune')
+    def setUp(self, tune_mock):
+        self.driver = mongodb.Driver('mongodb://fake.connection.string')
+
     def test_parse_comparison_handles_simple_single_param(self):
         self.assertEqual('ACTIVE', mongodb._parse_comparison('ACTIVE'))
 
@@ -49,6 +55,84 @@ class TestMongoDB(unittest.TestCase):
             'Operators cannot be used when specifying multiple filters.',
             str(expected.exception)
         )
+
+
+class TestGetDeployments(TestMongoDB):
+
+    @mock.patch.object(mongodb.Driver, '_get_objects')
+    def test_send_query_to_get_objects(self, __get_objects):
+        self.driver.get_deployments(query='fake query')
+        __get_objects.assert_called_with(
+            'deployments',
+            None,
+            with_secrets=mock.ANY,
+            offset=mock.ANY,
+            limit=mock.ANY,
+            with_count=mock.ANY,
+            with_deleted=mock.ANY,
+            status=mock.ANY,
+            query='fake query',
+        )
+
+
+class TestGetObjects(TestMongoDB):
+
+    @mock.patch.object(mongodb.Driver, '_get_client')
+    @mock.patch.object(mongodb.Driver, '_build_filters')
+    def test_send_query_to_build_filters(self, __build_filters, __get_client):
+        self.driver._get_objects('deployments', query='fake query')
+        __build_filters.assert_called_with(
+            'deployments', None, False, None, 'fake query',
+        )
+
+    @mock.patch.object(mongodb.Driver, '_get_client')
+    @mock.patch.object(mongodb.Driver, '_build_filters')
+    @mock.patch.object(mongodb.Driver, '_get_count')
+    def test_send_query_to_get_count(self, __get_count, __build_filters,
+                                     __get_client):
+        self.driver._get_objects('deployments',
+                                 with_count=True,
+                                 query='fake query')
+        __get_count.assert_called_with(
+            'deployments', None, False, None, 'fake query',
+        )
+
+
+class TestGetCount(TestMongoDB):
+
+    @mock.patch.object(mongodb.Driver, '_get_client')
+    @mock.patch.object(mongodb.Driver, '_build_filters')
+    def test_send_query_to_build_filters(self, __build_filters, __get_client):
+        self.driver._get_count('deployments', None, False, query='fake query')
+        __build_filters.assert_called_with(
+            'deployments', None, False, None, 'fake query',
+        )
+
+
+class TestBuildFilters(TestMongoDB):
+
+    def test_create_empty_filter_if_no_query(self):
+        filters = self.driver._build_filters('deployments', None, True, None,
+                                             query=None)
+        self.assertEqual(filters, {})
+
+    def test_create_filter_for_specific_fields(self):
+        filters = self.driver._build_filters('deployments', None, True, None,
+                                             query={'name': 'foobar'})
+        expected_filters = {'name': {'$options': 'i', '$regex': 'foobar'}}
+        self.assertEqual(filters, expected_filters)
+
+    def test_create_filter_with_all_fields_when_searching(self):
+        filters = self.driver._build_filters('deployments', None, True, None,
+                                             query={'search': 'foobar'})
+        expected_filters = {
+            '$or': [
+                {'name': {'$options': 'i', '$regex': 'foobar'}},
+                {'tenantId': {'$options': 'i', '$regex': 'foobar'}},
+                {'blueprint.name': {'$options': 'i', '$regex': 'foobar'}}
+            ]
+        }
+        self.assertEqual(filters, expected_filters)
 
 
 if __name__ == '__main__':

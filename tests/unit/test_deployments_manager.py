@@ -11,6 +11,8 @@ import copy
 import json
 import os
 import unittest
+
+import mock
 import mox
 
 from checkmate import deployments
@@ -177,7 +179,8 @@ class TestCount(unittest.TestCase):
 
     def test_get_count_all(self):
         self.db.get_deployments(tenant_id=None, with_count=True,
-                                status=None).AndReturn(self._deployments)
+                                status=None, query=None)\
+            .AndReturn(self._deployments)
         self._mox.ReplayAll()
         self.assertEqual(self.controller.count(), 4)
 
@@ -188,13 +191,13 @@ class TestCount(unittest.TestCase):
         deps['results'].pop("4ijk")
         deps['collection-count'] = 2
         self.db.get_deployments(tenant_id="12345", with_count=True,
-                                status=None).AndReturn(deps)
+                                status=None, query=None).AndReturn(deps)
         self._mox.ReplayAll()
         self.assertEqual(self.controller.count(tenant_id="12345"), 2)
 
     def test_get_count_blueprint(self):
-        self.db.get_deployments(status=None, tenant_id=None, with_count=True)\
-            .AndReturn(self._deployments)
+        self.db.get_deployments(status=None, tenant_id=None, with_count=True,
+                                query=None).AndReturn(self._deployments)
         self._mox.ReplayAll()
         result = self.controller.count(blueprint_id="blp-123-aabc-efg")
         self.assertEqual(result, 2)
@@ -207,11 +210,26 @@ class TestCount(unittest.TestCase):
         deps['collection-count'] = 1
 
         self.db.get_deployments(tenant_id="12345", with_count=True,
-                                status=None).AndReturn(deps)
+                                status=None, query=None).AndReturn(deps)
         self._mox.ReplayAll()
         result = self.controller.count(blueprint_id="blp-123-aabc-efg",
                                        tenant_id="12345")
         self.assertEquals(result, 1)
+
+    def test_send_query_to_driver(self):
+        # set up
+        results = {'_links': {}, 'results': {}, 'collection-count': 0}
+        self.driver = mock.Mock()
+        self.driver.get_deployments.return_value = results
+        self.manager = deployments.Manager({'default': self.driver})
+
+        self.manager.count(query='fake query')
+        self.driver.get_deployments.assert_called_with(
+            tenant_id=mock.ANY,
+            with_count=mock.ANY,
+            status=mock.ANY,
+            query='fake query',
+        )
 
 
 class TestSecrets(unittest.TestCase):
@@ -337,7 +355,8 @@ class TestSecrets(unittest.TestCase):
 
     def test_get_deployments_strips_secrets(self):
         self.driver.get_deployments(tenant_id="T1000", offset=None, limit=None,
-                                    with_deleted=False, status=None)\
+                                    with_deleted=False, status=None,
+                                    query=None)\
             .AndReturn({'results': {'1': self.deployment}})
         self.mox.ReplayAll()
         results = self.manager.get_deployments(tenant_id="T1000")
@@ -348,6 +367,29 @@ class TestSecrets(unittest.TestCase):
         outputs = out['display-outputs']
         self.assertNotIn('value', outputs['Locked Password'])
         self.assertNotIn('value', outputs['New Password'])
+
+
+class TestDeploymentManager(unittest.TestCase):
+
+    def setUp(self):
+        results = {'_links': {}, 'results': {}, 'collection-count': 0}
+        self.driver = mock.Mock()
+        self.driver.get_deployments.return_value = results
+        self.manager = deployments.Manager({'default': self.driver})
+
+
+class TestGetDeployments(TestDeploymentManager):
+
+    def test_send_query_to_driver(self):
+        self.manager.get_deployments(query='fake query')
+        self.driver.get_deployments.assert_called_with(
+            tenant_id=mock.ANY,
+            offset=mock.ANY,
+            limit=mock.ANY,
+            with_deleted=mock.ANY,
+            status=mock.ANY,
+            query='fake query',
+        )
 
 
 if __name__ == '__main__':

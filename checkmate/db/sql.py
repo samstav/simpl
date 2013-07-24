@@ -345,7 +345,7 @@ class Driver(DbBase):
 
     def get_deployments(self, tenant_id=None, with_secrets=None, offset=None,
                         limit=None, with_count=True, with_deleted=False,
-                        status=None):
+                        status=None, query=None):
         '''Retrieve all deployments for a given tenant id.'''
         return self._get_objects(
             Deployment,
@@ -435,7 +435,7 @@ class Driver(DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
                      offset=None, limit=None, with_count=True,
-                     with_deleted=False, status=None):
+                     with_deleted=False, status=None, query=None):
         '''Retrieve all recrods from a given table for a given tenant id.'''
         response = {}
         response['_links'] = {}  # To be populated soon!
@@ -469,7 +469,7 @@ class Driver(DbBase):
         return response
 
     @staticmethod
-    def _add_filters(klass, query, tenant_id, with_deleted, status=None):
+    def _add_filters(klass, query, tenant_id, with_deleted, status=None, filters=None):
         '''Apply status filters to query.'''
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
@@ -480,7 +480,7 @@ class Driver(DbBase):
                 _parse_comparison('deployments_status', status))
         return query
 
-    def _get_count(self, klass, tenant_id, with_deleted, status=None):
+    def _get_count(self, klass, tenant_id, with_deleted, status=None, query=None):
         '''Determine how many items based on filter and return the count.'''
         return self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted,

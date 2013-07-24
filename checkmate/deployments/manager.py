@@ -34,13 +34,15 @@ LOG = logging.getLogger(__name__)
 class Manager(base.ManagerBase):
     '''Contains Deployments Model and Logic for Accessing Deployments.'''
 
-    def count(self, tenant_id=None, blueprint_id=None, status=None):
+    def count(self, tenant_id=None, blueprint_id=None, status=None,
+              query=None):
         '''Return count of deployments filtered by passed in parameters.'''
         # TODO: This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
         deployments = self.driver.get_deployments(tenant_id=tenant_id,
                                                   with_count=True,
-                                                  status=status)
+                                                  status=status,
+                                                  query=query)
         count = 0
         if blueprint_id:
             if not deployments:
@@ -60,14 +62,15 @@ class Manager(base.ManagerBase):
         return count
 
     def get_deployments(self, tenant_id=None, offset=None, limit=None,
-                        with_deleted=False, status=None):
+                        with_deleted=False, status=None, query=None):
         '''Get existing deployments..'''
         results = self.driver.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
             with_deleted=with_deleted,
-            status=status
+            status=status,
+            query=query,
         )
         #FIXME: inefficient and not fail-safe. We need better secrets handling
         for dep in results['results'].itervalues():
