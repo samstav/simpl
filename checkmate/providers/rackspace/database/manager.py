@@ -129,6 +129,7 @@ class Manager(object):
             'status': 'BUILD',
             'region': context.get('region'),
             'flavor': flavor,
+            'disk': instance.volume.size,
             'interfaces': {
                 'mysql': {
                     'host': instance.hostname
