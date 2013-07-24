@@ -454,6 +454,18 @@ class TestDatabaseTasks(unittest.TestCase):
         mock_postback.assert_called_with('123', expected)
         self.assertEqual(results, expected)
 
+    #@mock.patch.object(database.resource_postback, 'delay')
+    def test_delete_instance_task_on_failure_dep_id_key(self):
+        '''Test on_failure code with dep_id and key.'''
+        context = {'deployment_id': '123', 'resource_key': '0'}
+        args = [context]
+        kwargs = {}
+        exc = Exception('test exception')
+        task_id = 4321
+        
+        database.delete_instance_task.on_failure(exc, task_id, args, kwargs,
+                                                 '')
+        #mock_postback.assert_called_with('123', {})
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately
