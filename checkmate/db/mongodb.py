@@ -838,27 +838,28 @@ class Driver(common.DbBase):
         filters = {}
         if tenant_id:
             filters['tenantId'] = tenant_id
-        if klass == Driver._deployment_collection_name and (
-                not with_deleted or status):
-            if not status:
-                status = "!DELETED"
-            filters['status'] = _parse_comparison(status)
+        if klass == Driver._deployment_collection_name:
+            if not with_deleted and not status:
+                status = '!DELETED'
 
-        if query:
-            if ('search' in query):
-                search_term = query['search']
-                allowed_attributes = ['name', 'tenantId', 'blueprint.name']
-                disjunction = []
-                for attr in allowed_attributes:
-                    regex = {'$regex': search_term, '$options': 'i'}
-                    condition = {attr: regex}
-                    disjunction.append(condition)
-                filters['$or'] = disjunction
-            else:
-                for key in query:
-                    if query[key]:
-                        regex = {'$regex': query[key], '$options': 'i'}
-                        filters[key] = regex
+            if status:
+                filters['status'] = _parse_comparison(status)
+
+            if query:
+                if ('search' in query):
+                    search_term = query['search']
+                    allowed_attributes = ['name', 'tenantId', 'blueprint.name']
+                    disjunction = []
+                    for attr in allowed_attributes:
+                        regex = {'$regex': search_term, '$options': 'i'}
+                        condition = {attr: regex}
+                        disjunction.append(condition)
+                    filters['$or'] = disjunction
+                else:
+                    for key in query:
+                        if query[key]:
+                            regex = {'$regex': query[key], '$options': 'i'}
+                            filters[key] = regex
 
         return filters
 

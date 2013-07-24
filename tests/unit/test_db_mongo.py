@@ -112,18 +112,18 @@ class TestGetCount(TestMongoDB):
 class TestBuildFilters(TestMongoDB):
 
     def test_create_empty_filter_if_no_query(self):
-        filters = self.driver._build_filters(None, None, None, None,
+        filters = self.driver._build_filters('deployments', None, True, None,
                                              query=None)
         self.assertEqual(filters, {})
 
     def test_create_filter_for_specific_fields(self):
-        filters = self.driver._build_filters(None, None, None, None,
+        filters = self.driver._build_filters('deployments', None, True, None,
                                              query={'name': 'foobar'})
         expected_filters = {'name': {'$options': 'i', '$regex': 'foobar'}}
         self.assertEqual(filters, expected_filters)
 
     def test_create_filter_with_all_fields_when_searching(self):
-        filters = self.driver._build_filters(None, None, None, None,
+        filters = self.driver._build_filters('deployments', None, True, None,
                                              query={'search': 'foobar'})
         expected_filters = {
             '$or': [
