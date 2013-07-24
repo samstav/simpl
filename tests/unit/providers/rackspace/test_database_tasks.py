@@ -34,6 +34,7 @@ class TestDatabaseTasks(unittest.TestCase):
                 'status': 'BUILD',
                 'name': 'test_instance',
                 'flavor': 1,
+                'disk': 1,
                 'region': 'DFW',
                 'databases': {},
                 'interfaces': {'mysql': {'host': 'db1.rax.net'}},
@@ -88,6 +89,7 @@ class TestDatabaseTasks(unittest.TestCase):
                     }
                 },
                 'flavor': 1,
+                'disk': 1,
                 'interfaces': {
                     'mysql': {
                         'host': 'db1.rax.net'
@@ -118,6 +120,7 @@ class TestDatabaseTasks(unittest.TestCase):
         instance.id = 1234
         instance.name = 'test_instance'
         instance.hostname = 'test.hostname'
+        instance.volume.size = 1
         expected = {
             'instance:0': {
                 'status': 'BUILD',
@@ -126,6 +129,7 @@ class TestDatabaseTasks(unittest.TestCase):
                 'id': 1234,
                 'databases': {},
                 'flavor': 1,
+                'disk': 1,
                 'interfaces': {
                     'mysql': {
                         'host': 'test.hostname'
@@ -161,6 +165,7 @@ class TestDatabaseTasks(unittest.TestCase):
         instance.id = 1234
         instance.name = 'test_instance'
         instance.hostname = 'test.hostname'
+        instance.volume.size = 1
         databases = [{'name': 'db1'}, {'name': 'db2'}]
         expected = {
             'instance:0': {
@@ -189,6 +194,7 @@ class TestDatabaseTasks(unittest.TestCase):
                     }
                 },
                 'flavor': 1,
+                'disk': 1,
                 'interfaces': {
                     'mysql': {
                         'host': 'test.hostname'
