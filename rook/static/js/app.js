@@ -2188,7 +2188,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
  * Deployment controllers
  */
 //Deployment list
-function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout) {
   //Model: UI
   var STATUSES = [
     "ALERT",
@@ -2207,10 +2207,33 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     return { name: status, active: is_active };
   })
 
-  $scope.applyFilters = function(){
+  $scope.query = $location.search().search;
+
+  $scope.filter_deployments = function() {
+    var filters = {};
+
+    // Status
     var active_filters = _.where($scope.filter_list, { active: true });
-    var filter_names = _.map(active_filters, function(f){ return f.name })
-    $location.search('status', filter_names);
+    if (active_filters.length > 0) {
+      var filter_names = _.map(active_filters, function(f){ return f.name })
+      filters.status = filter_names;
+    }
+
+    // Search
+    if ($scope.query) {
+      filters.search = $scope.query;
+    }
+
+    $location.search( filters );
+  }
+
+  $scope.filter_promise = null;
+
+  $scope.applyFilters = function(){
+    if ($scope.filter_promise) {
+      $timeout.cancel($scope.filter_promise);
+    }
+    $scope.filter_promise = $timeout($scope.filter_deployments, 1500);
   }
 
   $scope.selected_deployments = {};

@@ -10,6 +10,8 @@ describe('DeploymentListController', function(){
       auth,
       $q,
       cmTenant,
+      Deployment,
+      $timeout,
       controller,
       emptyResponse;
 
@@ -25,7 +27,10 @@ describe('DeploymentListController', function(){
     auth = { context: {} };
     $q = { all: sinon.stub().returns( sinon.spy() ), defer: sinon.stub() };
     cmTenant = {};
-    controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant);
+    Deployment = {};
+    $timeout = sinon.stub().returns('fake promise');
+    $timeout.cancel = sinon.stub();
+    controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
     emptyResponse = { get: emptyFunction };
   });
 
@@ -406,6 +411,73 @@ describe('DeploymentListController', function(){
       scope.selected_deployments = {};
       scope.sync_deployments();
       expect(scope.wrap_admin_call).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('query', function() {
+    it('should default to empty if no search params are used', function() {
+      $location.search.returns({})
+      controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+      expect(scope.query).toBe(undefined);
+    });
+
+    it('should equal to search params if present', function() {
+      $location.search.returns({ search: 'foobar' })
+      controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+      expect(scope.query).toEqual('foobar');
+    });
+  });
+
+  describe('filter_promise', function() {
+    it('should default to null', function() {
+      expect(scope.filter_promise).toBe(null);
+    });
+  });
+
+  describe('#applyFilters', function() {
+    it('should cancel pending filter promise', function() {
+      scope.filter_promise = 'old promise';
+      scope.applyFilters();
+      expect(scope.filter_promise).not.toEqual('old promise');
+    });
+
+    it('should set promise to apply filters', function() {
+      scope.applyFilters();
+      expect($timeout).toHaveBeenCalledWith(scope.filter_deployments, 1500);
+    });
+
+    it('should save promise for future reference', function() {
+      scope.filter_promise = null;
+      scope.applyFilters();
+      expect(scope.filter_promise).toEqual('fake promise');
+    });
+  });
+
+  describe('#filter_deployments', function() {
+    it('should default to setting location to new empty search', function() {
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({});
+    });
+
+    it('should filter by status', function() {
+      scope.filter_list = [ { name: 'foobar', active: true } ];
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ status: ['foobar'] });
+    });
+
+    it('should filter by several statuses at once', function() {
+      scope.filter_list = [
+        { name: 'foobar', active: true },
+        { name: 'mordor', active: true },
+      ];
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ status: ['foobar', 'mordor'] });
+    });
+
+    it('should filter by custom search', function() {
+      scope.query = 'fake query';
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ search: 'fake query' });
     });
   });
 });

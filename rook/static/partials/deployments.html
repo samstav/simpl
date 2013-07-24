@@ -9,14 +9,18 @@
       </div>
 
       <div class='group'>
-        <h5><i class="icon-filter"></i> Filter</h5>
+        <h5><i class="icon-filter"></i> Filters</h5>
+
+        <h5> Status</h5>
         <label class="filter" ng-repeat="filter in filter_list">
           <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
           <span>{{filter.name | capitalize}}</span>
         </label>
+
+        <h5> Search</h5>
         <form>
-          <input class="span10" type="text" placeholder="Custom filter..." ng-model="query" />
-          <i ng-class="{disabled: !is_selected()}" class="icon-question-sign pull-right" tooltip="Press &lt;return&gt; to apply filter to all results"></i>
+          <input class="span10" type="text" placeholder="ex.: wordpress" ng-model="query" ng-change="applyFilters()" />
+          <i class="icon-question-sign pull-right" tooltip="Press &lt;return&gt; to apply filter to all results"></i>
         </form>
       </div>
 
