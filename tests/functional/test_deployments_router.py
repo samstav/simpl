@@ -18,7 +18,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             'tenantId': 'Ttest'
         }
 
-    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_unwrap_needed(self, mock_read_body, mock_get_time_string):
         mock_read_body.return_value = {'deployment': {'created-by': 'Me'}}
@@ -30,7 +30,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         )
 
     @mock.patch('checkmate.deployments.router.uuid.uuid4')
-    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_no_id_provided(
             self, mock_read_body, mock_get_time_string, mock_uuid):
@@ -43,7 +43,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             router._content_to_deployment(
                 request=None, tenant_id='Ttest'))
 
-    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_id_with_invalid_start_character(
             self, mock_read_body, mock_get_time_string):
@@ -56,7 +56,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
                          "of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU"
                          "VWXYZ0123456789'", str(expected.exception))
 
-    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_id_with_invalid_character(
             self, mock_read_body, mock_get_time_string):
@@ -69,7 +69,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
                          "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU"
                          "VWXYZ0123456789-_.+~@'", str(expected.exception))
 
-    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_includes_is_stripped_from_request(
             self, mock_read_body, mock_get_time_string):
@@ -86,7 +86,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
                 request=None, deployment_id='Dtest', tenant_id='Ttest')
         )
 
-    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_unmatched_tenant_ids_raises_exception(
             self, mock_read_body, mock_get_time_string):
@@ -104,7 +104,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         self.assertEqual('tenantId must match with current tenant ID',
                          str(expected.exception))
 
-    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_no_tenant_id_raises_exception(
             self, mock_read_body, mock_get_time_string):
@@ -122,7 +122,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         self.assertEqual('Tenant ID must be specified in deployment.',
                          str(expected.exception))
 
-    @mock.patch('checkmate.deployment.get_time_string')
+    @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_created_by_added_if_not_provided(
             self, mock_read_body, mock_get_time_string):
