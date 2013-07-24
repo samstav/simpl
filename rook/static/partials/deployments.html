@@ -1,4 +1,4 @@
-<div class="entries container-fluid" ng-init="load()" ng-show="is_content_loaded()">
+<div class="entries container-fluid" ng-init="load()">
   <div class='row-fluid'>
     <div class='span2 sidebar-left'>
 
@@ -62,7 +62,7 @@
               </div>
             </td>
             <td>
-              {{deployment.created | formattedFullDate}}<span ng-cloak ng-show="deployment.created_by"> by {{deployment.created_by}}</span>
+              {{deployment.created | formattedFullDate}}<span ng-show="deployment.created_by"> by {{deployment.created_by}}</span>
             </td>
           </tr>
 
