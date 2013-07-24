@@ -1,6 +1,6 @@
 describe('DeploymentListController', function(){
   var scope,
-      location,
+      $location,
       http,
       resource,
       scroll,
@@ -15,7 +15,7 @@ describe('DeploymentListController', function(){
 
   beforeEach(function(){
     scope = { $watch: emptyFunction };
-    location = { search: sinon.stub().returns({}), replace: emptyFunction, path: sinon.stub().returns('/1/deployments') };
+    $location = { search: sinon.stub().returns({}), replace: emptyFunction, path: sinon.stub().returns('/1/deployments') };
     http = {};
     resource = { get: sinon.spy() };
     scroll = {};
@@ -25,7 +25,7 @@ describe('DeploymentListController', function(){
     auth = { context: {} };
     $q = { all: sinon.stub().returns( sinon.spy() ), defer: sinon.stub() };
     cmTenant = {};
-    controller = new DeploymentListController(scope, location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant);
+    controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant);
     emptyResponse = { get: emptyFunction };
   });
 
@@ -45,7 +45,7 @@ describe('DeploymentListController', function(){
         resource_spy = sinon.spy(resource);
 
         auth.context.tenantId = 'cats';
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
+        controller = new DeploymentListController(scope, $location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
 
         expect(resource_spy.getCall(0).args[0]).toEqual('/1/deployments.json');
@@ -54,12 +54,12 @@ describe('DeploymentListController', function(){
 
       it('should pass in pagination params to the resource call', function(){
         pagination.buildPaginator.returns({ offset: 20, limit: 30, changed_params: emptyFunction });
-        location = { search: sinon.stub().returns({ offset: 20, limit: 30 }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
+        $location = { search: sinon.stub().returns({ offset: 20, limit: 30 }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
         get_spy = sinon.spy();
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
+        controller = new DeploymentListController(scope, $location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/123/deployments.json');
         expect(get_spy.getCall(0).args[0].offset).toEqual(20);
@@ -68,12 +68,12 @@ describe('DeploymentListController', function(){
 
       it('should use adjusted pagination params from the paginator', function(){
         pagination.buildPaginator.returns({ offset: 20, limit: 30, changed_params: emptyFunction });
-        location = { search: sinon.stub().returns({ offset: 25, limit: 30 }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
+        $location = { search: sinon.stub().returns({ offset: 25, limit: 30 }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
         get_spy = sinon.spy();
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
+        controller = new DeploymentListController(scope, $location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/123/deployments.json');
         expect(get_spy.getCall(0).args[0].offset).toEqual(20);
@@ -81,12 +81,12 @@ describe('DeploymentListController', function(){
       });
 
       it('should pass through url options to checkmate', function(){
-        location = { search: sinon.stub().returns({ show_deleted: true, cats: 'dogs' }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
+        $location = { search: sinon.stub().returns({ show_deleted: true, cats: 'dogs' }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
         get_spy = sinon.spy();
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
+        controller = new DeploymentListController(scope, $location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/123/deployments.json');
         expect(get_spy.getCall(0).args[0].show_deleted).toEqual(true);
