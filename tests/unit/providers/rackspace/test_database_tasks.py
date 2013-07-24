@@ -4,6 +4,8 @@ import functools
 import mock
 import unittest
 
+import pyrax
+
 from checkmate import exceptions
 from checkmate import middleware
 from checkmate.providers.rackspace import database
@@ -272,10 +274,10 @@ class TestDatabaseTasks(unittest.TestCase):
 
     @mock.patch.object(database, 'create_instance')
     @mock.patch.object(database.Provider, 'connect')
-    @mock.patch.object(database, 'reset_failed_resource_task')
-    @mock.patch.object(database, 'wait_on_build')
+    @mock.patch.object(database.reset_failed_resource_task, 'delay')
+    @mock.patch.object(database.wait_on_build, 'delay')
     def test_create_database_no_api_no_sim_no_iid_no_attrs(
-            self, mock_create_instance, mock_connect, mock_rfrt, mock_wob):
+            self, mock_wob, mock_rfrt, mock_connect, mock_create_instance):
         '''Verifies create database simulation is working.'''
         context = {'resource': '2', 'deployment': 0}
         name = 'test_database'
@@ -304,24 +306,148 @@ class TestDatabaseTasks(unittest.TestCase):
         mock_connect.return_value = True
         mock_create_instance.return_value = instance
 
-        database.reset_failed_resource_task.delay = mock_rfrt.delay
-        database.wait_on_build.delay = mock_wob.delay
-        database.Provider.connect = mock_connect
-        database.create_instance = mock_create_instance
-
         results = database.create_database(context, name, region)
 
         mock_connect.assert_called_once_with(context, region)
-        mock_rfrt.delay.assert_called_once_with(context['deployment'],
-                                                context['resource'])
+        mock_rfrt.assert_called_once_with(context['deployment'],
+                                          context['resource'])
 
         mock_create_instance.assert_called_once_with(
             context, ('%s_instance' % (name)), 1, '1',
             [{'name': name}], region, api=mock_connect.return_value)
 
-        mock_wob.delay.assert_called_once_with(context, '12345', region,
-                                               api=mock_connect.return_value)
+        mock_wob.assert_called_once_with(context, '12345', region,
+                                         api=mock_connect.return_value)
         self.assertEqual(expected, results)
+
+    def test_add_user_assert_instance_id(self):
+        '''Verifies AssertionError raised when invalid instance_id passed.'''
+        self.assertRaises(AssertionError, database.add_user, {}, None, [], '',
+                          '', '')
+
+    @mock.patch.object(database.resource_postback, 'delay')
+    def test_add_user_sim(self, mock_postback):
+        '''Validates add_user simulation return.'''
+        instance_id = '12345'
+        context = {'resource': '0', 'simulation': True, 'deployment': 0}
+        username = 'test_user'
+        password = 'test_pass'
+        databases = ['blah']
+        region = 'ORD'
+        expected = {
+            'instance:0': {
+                'username': 'test_user',
+                'status': 'ACTIVE',
+                'interfaces': {
+                    'mysql': {
+                        'username': 'test_user',
+                        'host': 'srv0.rackdb.net',
+                        'password': 'test_pass',
+                        'database_name': 'blah'
+                    }
+                },
+                'password': 'test_pass'
+            }
+        }
+        results = database.add_user(context, instance_id, databases, username,
+                                    password, region)
+        mock_postback.assert_called_with(0, expected)
+        self.assertEqual(results, expected)
+
+    @mock.patch.object(database, 'current')
+    @mock.patch.object(database.Provider, 'connect')
+    @mock.patch.object(database.resource_postback, 'delay')
+    def test_add_user_no_api_create_exc_retry(self, mock_postback,
+                                              mock_connect, mock_current):
+        '''Validates methods and retry called on add_user ClientException.'''
+        context = {'resource': '0', 'deployment': '123'}
+        instance_id = '12345'
+        databases = [123]
+        username = 'test_user'
+        password = 'test_pass'
+        region = 'ORD'
+        api = mock.Mock()
+        instance = mock.Mock()
+        mock_exception = pyrax.exceptions.ClientException(code=422)
+        instance.create_user = mock.MagicMock(side_effect=mock_exception)
+        api.get = mock.Mock(return_value=instance)
+        mock_connect.return_value = api
+        mock_current.retry = mock.MagicMock(
+            side_effect=AssertionError('retry'))
+
+        self.assertRaises(AssertionError, database.add_user, context,
+                          instance_id, databases, username, password, region)
+
+        mock_postback.assert_called_with(
+            '123', {'instance:0': {'status': 'CONFIGURE'}})
+        mock_connect.assert_called_with(context, region)
+        api.get.assert_called_with(instance_id)
+        instance.create_user.assert_called_with(username, password, databases)
+        mock_current.retry.assert_called_with(exc=mock_exception)
+
+    @mock.patch.object(database.Provider, 'connect')
+    @mock.patch.object(database.resource_postback, 'delay')
+    def test_add_user_no_api_create_raise_exc(self, mock_postback,
+                                              mock_connect):
+        '''Validates methods and exc raised on add_user ClientException.'''
+        context = {'resource': '0', 'deployment': '123'}
+        instance_id = '12345'
+        databases = [123]
+        username = 'test_user'
+        password = 'test_pass'
+        region = 'ORD'
+        api = mock.Mock()
+        instance = mock.Mock()
+        mock_exception = pyrax.exceptions.ClientException(code=400)
+        instance.create_user = mock.MagicMock(side_effect=mock_exception)
+        api.get = mock.Mock(return_value=instance)
+        mock_connect.return_value = api
+
+        self.assertRaises(pyrax.exceptions.ClientException, database.add_user,
+                          context, instance_id, databases, username, password,
+                          region)
+
+        mock_postback.assert_called_with(
+            '123', {'instance:0': {'status': 'CONFIGURE'}})
+        mock_connect.assert_called_with(context, region)
+        api.get.assert_called_with(instance_id)
+        instance.create_user.assert_called_with(username, password, databases)
+
+    @mock.patch.object(database.resource_postback, 'delay')
+    def test_add_user_api_success(self, mock_postback):
+        '''Validates methods and results called on add_user success.'''
+        context = {'resource': '0', 'deployment': '123'}
+        instance_id = '12345'
+        databases = [123]
+        username = 'test_user'
+        password = 'test_pass'
+        region = 'ORD'
+        api = mock.Mock()
+        instance = mock.Mock()
+        api.get = mock.Mock(return_value=instance)
+        instance.create_user = mock.Mock()
+        instance.hostname = 'test_hostname'
+        expected = {
+            'instance:0': {
+                'interfaces': {
+                    'mysql': {
+                        'database_name': 123,
+                        'host': 'test_hostname',
+                        'password': 'test_pass',
+                        'username': 'test_user'
+                    }
+                },
+                'password': 'test_pass',
+                'status': 'ACTIVE',
+                'username': 'test_user'
+            }
+        }
+
+        results = database.add_user(context, instance_id, databases, username,
+                                    password, region, api)
+        mock_postback.assert_called_with('123', expected)
+        self.assertEqual(results, expected)
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately
