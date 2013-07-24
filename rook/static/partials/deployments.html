@@ -67,8 +67,11 @@
           </tr>
 
           <tr class="messages">
-            <td colspan="6" ng-show="has_pending_results()"> Loading results... </td>
             <td colspan="6" ng-show="no_results_found()"> No deployments found. =( </td>
+            <td colspan="6" ng-show="has_pending_results()">
+              <img class="loading" src="/img/ajax-loader.gif" />
+              Loading results...
+            </td>
           </tr>
         </tbody>
       </table>
