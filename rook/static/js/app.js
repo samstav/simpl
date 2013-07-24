@@ -2188,7 +2188,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
  * Deployment controllers
  */
 //Deployment list
-function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout) {
+function DeploymentListController($scope, $location, $http, $resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout, $filter) {
   //Model: UI
   var STATUSES = [
     "ALERT",
@@ -2234,6 +2234,21 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       $timeout.cancel($scope.filter_promise);
     }
     $scope.filter_promise = $timeout($scope.filter_deployments, 1500);
+  }
+
+  $scope.has_pending_results = function() {
+    if (!$scope.items) return true;
+    if ($scope.filter_promise != null) return true;
+    return false;
+  }
+
+  $scope.no_results_found = function() {
+    if ($scope.has_pending_results()) return false;
+
+    var filter = $filter('filter');
+    var filtered_results = filter($scope.items, $scope.query);
+
+    return filtered_results.length == 0;
   }
 
   $scope.selected_deployments = {};

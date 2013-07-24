@@ -594,3 +594,7 @@ table th.text-center {
 }
 
 th.id { min-width: 160px; }
+
+tr.messages td {
+  text-align: center;
+}

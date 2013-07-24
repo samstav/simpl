@@ -12,6 +12,7 @@ describe('DeploymentListController', function(){
       cmTenant,
       Deployment,
       $timeout,
+      $filter,
       controller,
       emptyResponse;
 
@@ -30,7 +31,8 @@ describe('DeploymentListController', function(){
     Deployment = {};
     $timeout = sinon.stub().returns('fake promise');
     $timeout.cancel = sinon.stub();
-    controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+    $filter = sinon.stub();
+    controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout, $filter);
     emptyResponse = { get: emptyFunction };
   });
 
@@ -478,6 +480,50 @@ describe('DeploymentListController', function(){
       scope.query = 'fake query';
       scope.filter_deployments();
       expect($location.search).toHaveBeenCalledWith({ search: 'fake query' });
+    });
+  });
+
+  describe('#has_pending_results', function() {
+    it('should return true if page not loaded', function() {
+      delete scope.items
+      expect(scope.has_pending_results()).toBeTruthy();
+    });
+
+    it('should return true if there is a promise to filter deployments', function() {
+      scope.items = 'fake items';
+      scope.filter_promise = 'items will arrive';
+      expect(scope.has_pending_results()).toBeTruthy();
+    });
+
+    it('should return false if no pending results are available', function() {
+      scope.items = 'fake items';
+      scope.filter_promise = null;
+      expect(scope.has_pending_results()).toBeFalsy();
+    });
+  });
+
+  describe('#no_results_found', function() {
+    it('should return false if there are pending results', function() {
+      scope.has_pending_results = sinon.stub().returns(true);
+      expect(scope.no_results_found()).toBeFalsy();
+    });
+
+    describe('if no pending results are left', function() {
+      beforeEach(function() {
+        scope.has_pending_results = sinon.stub().returns(false);
+      });
+
+      it('should return true if there are no deployments to be displayed', function() {
+        empty_filter = sinon.stub().returns([]);
+        $filter.returns(empty_filter);
+        expect(scope.no_results_found()).toBeTruthy();
+      });
+
+      it('should return false if there are deployments to be displayed', function() {
+        some_filter = sinon.stub().returns([1,2,3]);
+        $filter.returns(some_filter);
+        expect(scope.no_results_found()).toBeFalsy();
+      });
     });
   });
 });
