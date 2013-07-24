@@ -1094,6 +1094,16 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       return false;
     },
 
+    is_valid: function(context) {
+      if (!context) return false;
+      if (!context.token) return false;
+
+      var now = new Date();
+      var context_expiration = new Date(context.token.expires || null);
+
+      return context_expiration > now;
+    },
+
     cache_context: function(context) {
       if (!context) return;
 
@@ -1165,7 +1175,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     impersonate: function(username, temporarily) {
       var deferred = $q.defer();
       var previous_context = auth.get_cached_context(username);
-      if (previous_context) {
+      if (previous_context && auth.is_valid(previous_context)) {
         auth.context = previous_context;
         if (!temporarily) {
           auth.cache_tenant(auth.context);
