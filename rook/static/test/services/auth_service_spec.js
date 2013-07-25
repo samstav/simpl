@@ -421,6 +421,7 @@ describe('auth Service', function(){
       spyOn(this.auth, 'get_impersonation_url');
       spyOn(this.auth, 'impersonate_success');
       spyOn(this.auth, 'impersonate_error');
+      spyOn(this.auth, 'check_state');
       deferred = $q.defer();
     }));
 
@@ -437,6 +438,24 @@ describe('auth Service', function(){
       $httpBackend.flush();
       expect(this.auth.impersonate_error).toHaveBeenCalled();
     });
+
+    it('should use cached context if present', function() {
+      spyOn(this.auth, 'is_valid').andReturn(true);
+      this.auth.cache.contexts = {};
+      this.auth.cache.contexts['fakeusername'] = {tenantId: 'blah'};
+      this.auth.impersonate("fakeusername");
+      expect(this.auth.generate_impersonation_data).not.toHaveBeenCalled();
+      expect(this.auth.check_state).toHaveBeenCalled();
+    });
+
+    it('should not use context that is expired', function(){
+      $httpBackend.when('POST', '/authproxy').respond(401, deferred.promise);
+      this.auth.cache.contexts = {};
+      this.auth.cache.contexts['fakeusername'] = {tenantId: 'blah', token: { expires: '2013-03-23T21:08:25.521-05:00'}};
+      this.auth.impersonate("fakeusername");
+      $httpBackend.flush();
+      expect(this.auth.generate_impersonation_data).toHaveBeenCalled();
+    });
   });
 
   describe('#impersonate_success', function() {
@@ -450,22 +469,6 @@ describe('auth Service', function(){
       response.data = { access: { token: { id: "faketoken" } } };
       username = "fakeusername";
     }));
-
-    describe('when context is cached', function() {
-      beforeEach(function() {
-        spyOn(this.auth, 'get_cached_context').andReturn({ info: 'fakeinfo' });
-        spyOn(this.auth, 'check_state');
-        this.auth.impersonate('batman');
-      });
-
-      it('should restore previous context', function() {
-        expect(this.auth.context.info).toBe('fakeinfo');
-      });
-
-      it('should check token state after restoring context', function() {
-        expect(this.auth.check_state).toHaveBeenCalled();
-      });
-    });
 
     describe('when tenant_id was retrieved', function() {
       beforeEach(function() {
@@ -493,6 +496,10 @@ describe('auth Service', function(){
           this.auth.identity.auth_url = "https://some-internal.rackspace.com/path"
           spyOn(this.auth, 'get_regions').andReturn("fakeregions");
           $rootScope.$apply();
+        });
+
+        it('should check token state', function() {
+          expect(this.auth.check_state).toHaveBeenCalled();
         });
 
         it('should set context username', function() {
