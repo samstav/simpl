@@ -2244,12 +2244,15 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.no_results_found = function() {
     if ($scope.has_pending_results()) return false;
+    if ($scope.error_message) return false;
 
     var filter = $filter('filter');
     var filtered_results = filter($scope.items, $scope.query);
 
     return filtered_results.length == 0;
   }
+
+  $scope.error_message = null;
 
   $scope.selected_deployments = {};
   $scope.deployment_map = {};
@@ -2307,28 +2310,37 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
     params = _.defaults(adjusted_params, query_params)
     this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
-    this.klass.get(params, function(data, getResponseHeaders){
-      var paging_info,
-          deployments_url = $location.url();
+    this.klass.get(params,
+      // Success
+      function(data, getResponseHeaders){
+        var paging_info,
+            deployments_url = $location.url();
 
-      paging_info = paginator.getPagingInformation(data['collection-count'], deployments_url);
+        paging_info = paginator.getPagingInformation(data['collection-count'], deployments_url);
 
-      var received_items = items.receive(data.results, function(item) {
-        return {id: item.id, name: item.name, created: item.created, created_by: item['created-by'], tenantId: item.tenantId,
-                blueprint: item.blueprint, environment: item.environment, operation: item.operation,
-                status: item.status, display_status: Deployment.status(item),
-                progress: Deployment.progress(item)};
-      });
-      $scope.count = received_items.count;
-      $scope.items = received_items.all;
-      $scope.currentPage = paging_info.currentPage;
-      $scope.totalPages = paging_info.totalPages;
-      $scope.links = paging_info.links;
+        var received_items = items.receive(data.results, function(item) {
+          return {id: item.id, name: item.name, created: item.created, created_by: item['created-by'], tenantId: item.tenantId,
+                  blueprint: item.blueprint, environment: item.environment, operation: item.operation,
+                  status: item.status, display_status: Deployment.status(item),
+                  progress: Deployment.progress(item)};
+        });
+        $scope.error_message = null;
+        $scope.count = received_items.count;
+        $scope.items = received_items.all;
+        $scope.currentPage = paging_info.currentPage;
+        $scope.totalPages = paging_info.totalPages;
+        $scope.links = paging_info.links;
 
-      var tenant_ids = $scope.get_tenant_ids($scope.items);
-      $scope.load_tenant_info(tenant_ids)
-        .then($scope.mark_content_as_loaded, $scope.mark_content_as_loaded);
-    });
+        var tenant_ids = $scope.get_tenant_ids($scope.items);
+        $scope.load_tenant_info(tenant_ids)
+          .then($scope.mark_content_as_loaded, $scope.mark_content_as_loaded);
+      },
+      // Error
+      function(response) {
+        $scope.items = [];
+        $scope.error_message = response.data.error.explanation;
+      }
+    );
   };
 
   // This also exists on DeploymentController - can be refactored
