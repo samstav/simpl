@@ -44,8 +44,8 @@ url: shows "Address Builder" to handle url options
     display:inline;
 }
 </style>
-<div class="alert" ng-class="{'alert-info': stable}" ng-cloak ng-show="blueprint &amp;&amp; remote.branch.name != 'stable'"><h4 ng-cloak ng-show="!stable">Warning!</h4> You have selected an <strong>unsupported</strong> <span ng-cloak ng-show="stable">version of this </span>blueprint. <span ng-cloak ng-show="stable"><a ng-href="/deployments/new?blueprint={{stable.url}}">This</a> is a supported version of this blueprint.</span><span ng-cloak ng-show="!stable">Try a supported blueprint from the list on the home page instead.</span></div>
-<form id="newDeploymentForm" name="newDeploymentForm" class="form-horizontal" autocomplete="off" ng-cloak ng-show="blueprint" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{blueprint['meta-data']['reach-info'].tattoo}})">
+<div class="alert" ng-class="{'alert-info': stable}" ng-show="blueprint &amp;&amp; remote.branch.name != 'stable'"><h4 ng-show="!stable">Warning!</h4> You have selected an <strong>unsupported</strong> <span ng-show="stable">version of this </span>blueprint. <span ng-show="stable"><a ng-href="/deployments/new?blueprint={{stable.url}}">This</a> is a supported version of this blueprint.</span><span ng-show="!stable">Try a supported blueprint from the list on the home page instead.</span></div>
+<form id="newDeploymentForm" name="newDeploymentForm" class="form-horizontal" autocomplete="off" ng-show="blueprint" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{blueprint['meta-data']['reach-info'].tattoo}})">
   <fieldset>
     <!-- Name -->
     <div class="row-fluid">
@@ -64,12 +64,12 @@ url: shows "Address Builder" to handle url options
             <label class="control-label" for="blueprint">What to deploy?</label>
             <div class="controls">
                 <!-- Show list if list exists -->
-                <select ng-cloak ng-show="blueprints" id="blueprint" ng-class="{span7: branches, span9: !branches}" ng-model="blueprint" ng-change="setBlueprint(blueprint)"
+                <select ng-show="blueprints" id="blueprint" ng-class="{span7: branches, span9: !branches}" ng-model="blueprint" ng-change="setBlueprint(blueprint)"
                         ng-options="blueprint.name for (id, blueprint) in blueprints" required>
                 </select>
                 <!-- Show text if only one exists -->
-                <input ng-cloak ng-show="!blueprints" readonly="" type="text" value="{{blueprint.name}}" ng-class="{span7: branches, span9: !branches}"><span ng-cloak ng-show="branches"> branch/tag: <select id="branch" name="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
-                <p class="help-block" ng-cloak ng-show="blueprint.documentation.abstract" ng-bind-html-unsafe="render_markdown(blueprint.documentation.abstract)">
+                <input ng-show="!blueprints" readonly="" type="text" value="{{blueprint.name}}" ng-class="{span7: branches, span9: !branches}"><span ng-show="branches"> branch/tag: <select id="branch" name="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
+                <p class="help-block" ng-show="blueprint.documentation.abstract" ng-bind-html-unsafe="render_markdown(blueprint.documentation.abstract)">
                 </p>
             </div>
         </div>
@@ -83,12 +83,12 @@ url: shows "Address Builder" to handle url options
         <label class="control-label" for="environment">Where to deploy?</label>
         <div class="controls">
           <!-- Show list if list exists -->
-          <select ng-cloak ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="setEnvironment(environment)" ng-options="environment.name for (id,environment) in environments" required>
+          <select ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="setEnvironment(environment)" ng-options="environment.name for (id,environment) in environments" required>
           </select>
           <!-- Show text if only one exists -->
-          <input ng-cloak ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
+          <input ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
           <!-- region -->
-          <span ng-repeat="option in [region_option]" ng-cloak ng-show="region_option">
+          <span ng-repeat="option in [region_option]" ng-show="region_option">
               in <select id="region" style="width: 80px;" ng-model="inputs['region']" ng-options="o for o in option.choice"></select>
               <span ng-hide="!option.description" class="help-block">{{option.description}}</span>
           </span>
@@ -114,11 +114,11 @@ url: shows "Address Builder" to handle url options
   </fieldset>
 
 
-  <div ng-cloak ng-show="newDeploymentForm.$invalid"><hr><div class="alert"><strong>WARNING!</strong> There seem to be some fields with invalid or missing data. Fields with bad data should be shown in red. Fields that are required will have a <span style="color: #b94a48;">*</span> next to their label. You can still try to launch this deployment if you believe the data is valid.</div></div>
+  <div ng-show="newDeploymentForm.$invalid"><hr><div class="alert"><strong>WARNING!</strong> There seem to be some fields with invalid or missing data. Fields with bad data should be shown in red. Fields that are required will have a <span style="color: #b94a48;">*</span> next to their label. You can still try to launch this deployment if you believe the data is valid.</div></div>
 
   <div class="form-actions">
     <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
-    <button ng-cloak ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
+    <button ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
     <button ng-click="preview()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Preview It</button>
     <button ng-click="loginPrompt()" class="btn" ng-hide="auth.identity.loggedIn">Log in to execute this workflow</button>
 
@@ -161,7 +161,7 @@ url: shows "Address Builder" to handle url options
         <input ng-hide="show" type="password" class="input-large" name="{{option.id}}_safe" ng-model="inputs[option.id]"
                 ng-required="required &amp;&amp; option.default != '=generate_password()'" ng-pattern="{{option.regex || ''}}" validate-option="option"
                 placeholder="{{option.sample | prepend:'ex. '}}">
-        <input ng-cloak ng-show="show" type="text" class="input-large" name="{{option.id}}_unsafe" ng-model="inputs[option.id]"
+        <input ng-show="show" type="text" class="input-large" name="{{option.id}}_unsafe" ng-model="inputs[option.id]"
                 ng-required="required &amp;&amp; option.default != '=generate_password()'" ng-pattern="{{option.regex || ''}}" validate-option="option"
                 placeholder="{{option.sample | prepend:'ex. '}}">
         <button class="btn" ng-class="{'active': show}" ng-click="show = !show">Show</button>
@@ -227,7 +227,7 @@ url: shows "Address Builder" to handle url options
         </div>
       </div>
     </div>
-    <div id="url_controls_for_{{option.id}}" ng-cloak ng-show="builder" class="well offset1">
+    <div id="url_controls_for_{{option.id}}" ng-show="builder" class="well offset1">
       <!-- protocol -->
       <div class="row-fluid">
         <div class="control-group">
@@ -249,7 +249,7 @@ url: shows "Address Builder" to handle url options
                 <button class="btn dropdown-toggle" type="button"><b class="caret"></b></button>
                 <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
                   <li ng-hide="auth.identity.loggedIn"><a href="#" ng-click="loginPrompt()">Log in (to see your domains)</a></li>
-                  <li ng-cloak ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.context.tenantId}}</li>
+                  <li ng-show="domain_names==[]"><i class="icon-question-sign"></i> No domains registered for account {{auth.context.tenantId}}</li>
                   <li ng-repeat="o in domain_names"><a href="#" ng-click="$parent.domain=o;UpdateURL($parent, option.id)">{{o}}</a></li>
                 </ul>
               </div>
@@ -280,7 +280,7 @@ url: shows "Address Builder" to handle url options
       </div>
 
       <!-- New Certificate Format -->
-      <div class="row-fluid" ng-cloak ng-show="AcceptsSSLCertificate(this)">
+      <div class="row-fluid" ng-show="AcceptsSSLCertificate(this)">
         <hr>
         <h6>SSL Certificate</h6>
         <p class="help-block">To generate internal certificates for testing, go to <a href="https://ssl.corp.rackspace.com/" target="_blank">https://ssl.corp.rackspace.com/</a></p>
@@ -321,7 +321,7 @@ url: shows "Address Builder" to handle url options
       <!-- LEGACY FIELDS -->
       <!-- ssl certificate -->
       <div class="row-fluid">
-        <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_certificate'}">
+        <div class="control-group offset1" ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_certificate'}">
           <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
           <div class="controls">
             <textarea cols="80" rows="20" class="input-xlarge" id="ssl_certificate" ng-model="inputs['ssl_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
@@ -332,7 +332,7 @@ url: shows "Address Builder" to handle url options
 
       <!-- ssl key -->
       <div class="row-fluid">
-        <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_private_key'}">
+        <div class="control-group offset1" ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_private_key'}">
           <label class="control-label capitalize" for="ssl_certificate">{{option.label}}</label>
           <div class="controls">
             <textarea cols="80" rows="20" class="input-xlarge" id="ssl_private_key" ng-model="inputs['ssl_private_key']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>
@@ -343,7 +343,7 @@ url: shows "Address Builder" to handle url options
 
       <!-- ssl CA certificate -->
       <div class="row-fluid">
-        <div class="control-group offset1" ng-cloak ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_intermediate_certificate'}">
+        <div class="control-group offset1" ng-show="ShowCerts()" ng-repeat="option in options | filter:{id: 'ssl_intermediate_certificate'}">
           <label class="control-label capitalize" for="ssl_intermediate_certificate">{{option.label}}</label>
           <div class="controls">
             <textarea cols="80" rows="20" class="input-xlarge" id="ssl_intermediate_certificate" ng-model="inputs['ssl_intermediate_certificate']" placeholder="{{option.sample | prepend:'ex. '}}"></textarea>

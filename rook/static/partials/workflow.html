@@ -1,20 +1,20 @@
-<div id="leftControls" class="lcontrols no-select" ng-cloak ng-show="showControls" ng-init="auto_refresh()">
+<div id="leftControls" class="lcontrols no-select" ng-show="showControls" ng-init="auto_refresh()">
   <div class="tControls">
-    <div class="top" ng-cloak ng-show="data">
+    <div class="top" ng-show="data">
       <button ng-click="workflow_action(data.id, 'execute')" class="btn" tooltip="Run workflow" tooltip-placement="right" ng-hide="is_paused()"><i class="icon-play"></i></button>
       <button ng-click="workflow_action(data.id, 'pause')" class="btn" tooltip="Pause Workflow" tooltip-placement="right" ng-hide="is_paused()"><i class="icon-pause"></i></button>
       <button ng-click="workflow_action(data.id, 'resume')" class="btn" tooltip="Resume Workflow" tooltip-placement="right" ng-show="is_paused()"><i class="icon-play"></i></button>
       <button ng-click="navigate(data.tenantId + '/workflows/' + data.attributes.deploymentId + '/status')" class="btn" tooltip="Check status" tooltip-placement="right"><i class="icon-heart"></i></button>
     </div>
-    <div class="bottom" ng-cloak ng-show="data">
+    <div class="bottom" ng-show="data">
       <button ng-click="load()" class="btn" tooltip="Refresh" tooltip-placement="right"><i class="icon-repeat"></i></button>
     </div>
   </div>
 </div>
 
 <div class="span3 summaryBar">
-  <div class="summaryHeader" ng-cloak ng-show="data">
-    <div class="top well" ng-cloak ng-show="showStatus">
+  <div class="summaryHeader" ng-show="data">
+    <div class="top well" ng-show="showStatus">
       <div class="row-fluid" style="height: 20px;">
         <div class="span6 actions">
           Workflow
@@ -51,10 +51,10 @@
 </div>
 
 <div class="entries">
-  <div class="nothingSelected" ng-cloak ng-show="!data">
+  <div class="nothingSelected" ng-show="!data">
     <p>Nothing selected.</p>
   </div>
-  <div class="well entry" ng-cloak ng-show="data">
+  <div class="well entry" ng-show="data">
     <svg id="workflow_tree" viewBox="0 0 1080 300"></svg>
     <h2>{{current_spec.name}}</h2>
     <h5>{{current_spec.description}} &nbsp;</h5>
@@ -95,7 +95,7 @@
 
     <div id="task" class="row-fluid">
       <div class="span3">
-        <ul class="nav nav-list" ng-cloak ng-show="current_task_index">
+        <ul class="nav nav-list" ng-show="current_task_index">
           <li class="nav-header">Task</li>
           <li><a ng-href="#{{current_task.task_spec}}" ng-click="save_task()" tooltip-placement='left' tooltip="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
           <li>
@@ -126,7 +126,7 @@
           <li ng-repeat="task in current_spec_tasks" ng-include="'task.html'" ng-class="{active: task.id==current_task_index}"></li>
         </ul>
 
-        <div ng-cloak ng-show="current_task_index">
+        <div ng-show="current_task_index">
           <alert type="'error'" close="$parent.hide_alert('task_error')" ng-show="$parent.current_task.internal_attributes.task_state.state == 'FAILURE' && $parent.current_task.state != 64 && $parent.display_alert('task_error')">
             <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
             <p>
@@ -156,7 +156,7 @@
 
           <!-- Next Gen Server -->
           <alert type="'success'" close="$parent.hide_alert('server_success')" ng-show="$parent.was_server_created() && $parent.display_alert('server_success')">
-            Server <a ng-cloak ng-show="resource(current_task).id.indexOf('-')" target="_blank" ng-href="{{urlBuilder.myCloudURL('server', auth.context.username, resource(current_task).region || current_task.attributes.region, resource(current_task).id)}}">{{resource(current_task).id}}</a> <a ng-hide="resource(current_task).id.indexOf('-')" target="_blank" href="{{urlBuilder.myCloudURL('legacy_server', auth.context.username, resource(current_task).region || current_task.attributes.region, resource(current_task).id)}}">{{resource(current_task).id}}</a> was created<span ng-switch on="resource(current_task).ip || true"><span ng-switch-when="true">.</span><span ng-switch-default> with IP address {{resource(current_task).ip}}. Connect to it over <a href="{{urlBuilder.sshTo(resource(current_task).ip)}}">ssh</a></span></span>, view it in <a target="_blank" ng-href="{{urlBuilder.cloudControlURL('server', resource(current_task).id, resource(current_task).region || current_task.attributes.region, data.tenantId)}}"
+            Server <a ng-show="resource(current_task).id.indexOf('-')" target="_blank" ng-href="{{urlBuilder.myCloudURL('server', auth.context.username, resource(current_task).region || current_task.attributes.region, resource(current_task).id)}}">{{resource(current_task).id}}</a> <a ng-hide="resource(current_task).id.indexOf('-')" target="_blank" href="{{urlBuilder.myCloudURL('legacy_server', auth.context.username, resource(current_task).region || current_task.attributes.region, resource(current_task).id)}}">{{resource(current_task).id}}</a> was created<span ng-switch on="resource(current_task).ip || true"><span ng-switch-when="true">.</span><span ng-switch-default> with IP address {{resource(current_task).ip}}. Connect to it over <a href="{{urlBuilder.sshTo(resource(current_task).ip)}}">ssh</a></span></span>, view it in <a target="_blank" ng-href="{{urlBuilder.cloudControlURL('server', resource(current_task).id, resource(current_task).region || current_task.attributes.region, data.tenantId)}}"
             >Cloud Control</a> or in <a target="_blank" ng-href="{{urlBuilder.novaStatsURL(resource(current_task).region || current_task.attributes.region, resource(current_task).instance.id || resource(current_task).id)}}"
             >NovaStats</a>.
           </alert>
