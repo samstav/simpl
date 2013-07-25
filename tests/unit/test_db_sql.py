@@ -119,13 +119,13 @@ class TestAddFilters(TestSqlDB):
 
     @mock.patch.object(sql, 'or_')
     def test_create_filter_with_all_fields_when_searching(self, or_):
+        query_params = {'search': 'foobar', 'whitelist': ['name', 'tenantId']}
         filters = self.driver._add_filters(self.klass, self.query,
                                            None, True, None,
-                                           query_params={'search': 'foobar'})
+                                           query_params=query_params)
         expected_filters = [
             "name LIKE '%foobar%'",
             "tenantId LIKE '%foobar%'",
-            "blueprint.name LIKE '%foobar%'",
         ]
         or_.assert_called_with(*expected_filters)
 

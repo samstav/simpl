@@ -1007,7 +1007,7 @@ class QueryParams:
         for key in keys:
             if key in params:
                 value = params[key]
-                if len(value) == 1:
+                if value and len(value) == 1:
                     value = value[0]
 
                 if value:
