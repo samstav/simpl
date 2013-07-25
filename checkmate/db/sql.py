@@ -355,7 +355,8 @@ class Driver(DbBase):
             limit=limit,
             with_count=with_count,
             with_deleted=with_deleted,
-            status=status
+            status=status,
+            query=query,
         )
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
@@ -441,7 +442,8 @@ class Driver(DbBase):
         response['_links'] = {}  # To be populated soon!
         response['results'] = {}
         results = self._add_filters(
-            klass, self.session.query(klass), tenant_id, with_deleted, status)
+            klass, self.session.query(klass), tenant_id, with_deleted, status,
+            query)
         if klass is Deployment:
             results = results.order_by(Deployment.created.desc())
         elif klass is Workflow:
@@ -465,7 +467,7 @@ class Driver(DbBase):
                     response['results'][entry.id]['tenantId'] = entry.tenant_id
         if with_count:
             response['collection-count'] = self._get_count(
-                klass, tenant_id, with_deleted, status)
+                klass, tenant_id, with_deleted, status, query)
         return response
 
     @staticmethod
@@ -484,7 +486,7 @@ class Driver(DbBase):
         '''Determine how many items based on filter and return the count.'''
         return self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted,
-            status).count()
+            status, query).count()
 
     def _save_object(self, klass, api_id, body, secrets=None,
                      tenant_id=None, merge_existing=False):
