@@ -207,7 +207,8 @@ def resource_postback(deployment_id, contents, driver=DB):
                 utils.write_path(updates, 'resources/%s/error-message' % r_id,
                                  r_msg)
                 value.pop('error-message', None)
-                updates['status'] = "FAILED"
+                if deployment.fsm.permitted("FAILED"):
+                    updates['status'] = 'FAILED'
                 updates['error-message'] = deployment.get('error-message', [])
                 if r_msg not in updates['error-message']:
                     updates['error-message'].append(r_msg)
