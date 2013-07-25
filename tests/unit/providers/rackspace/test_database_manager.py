@@ -49,9 +49,8 @@ class TestDatabaseManager(unittest.TestCase):
         try:
             Manager.wait_on_build(instance_id, api, callback)
         except CheckmateResumableException as exc:
-            self.assertEqual(exc.message, 'message (HTTP 123)')
+            self.assertEqual(exc.args[0], 'message (HTTP 123)')
             self.assertEqual(exc.error_help, 'Error occurred in db provider')
-            self.assertEqual(exc.error_type, 'ClientException')
 
     def test_wait_on_build_error(self):
         '''Verifies method calls and raises StandardError after callback.'''

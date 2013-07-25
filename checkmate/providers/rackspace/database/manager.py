@@ -49,7 +49,7 @@ class Manager(object):
             callback(data)
             raise CheckmateRetriableException(data['status-message'],
                                               'Workflow is retriable',
-                                              'Provider Error', True)
+                                              'Provider Error')
         elif data['status'] in ['ACTIVE', 'DELETED']:
             data['status-message'] = ''
         else:

@@ -94,28 +94,40 @@ class CheckmateServerBuildFailed(CheckmateException):
     pass
 
 
-class CheckmateRetriableException(CheckmateException):
-    '''Retriable Exception.'''
-
-    def __init__(self, message, error_help, error_type, action_required=False):
-        self.error_help = error_help  # kb article
-        self.message = message
-        self.error_type = error_type
-        self.action_required = action_required
-        super(CheckmateRetriableException, self).__init__(
-            message, error_help, error_type, action_required)
-
-
-class CheckmateResumableException(CheckmateException):
-    '''Retriable Exception.'''
-
-    def __init__(self, message, error_help, error_type, action_required=False):
+class CheckmateUserException(CheckmateException):
+    '''
+    Exception with user friendly messages
+    '''
+    def __init__(self, error_message, error_type, friendly_message,
+                 error_help):
+        self.friendly_message = friendly_message
         self.error_help = error_help
-        self.message = message
+        self.error_message = error_message
         self.error_type = error_type
-        self.action_required = action_required
-        super(CheckmateResumableException, self).__init__(
-            message, error_help, error_type, action_required)
+        super(CheckmateUserException, self).__init__(self.error_message,
+                                                     self.error_type,
+                                                     self.friendly_message,
+                                                     self.error_help)
+
+
+class CheckmateRetriableException(CheckmateUserException):
+    '''Retriable Exception.'''
+    def __init__(self, error_message, error_type, friendly_message,
+                 error_help):
+        super(CheckmateRetriableException, self).__init__(error_message,
+                                                          error_type,
+                                                          friendly_message,
+                                                          error_help)
+
+
+class CheckmateResumableException(CheckmateUserException):
+    '''Retriable Exception.'''
+    def __init__(self, error_message, error_type, friendly_message,
+                 error_help):
+        super(CheckmateResumableException, self).__init__(error_message,
+                                                          error_type,
+                                                          friendly_message,
+                                                          error_help)
 
 
 class CheckmateValidationException(CheckmateException):

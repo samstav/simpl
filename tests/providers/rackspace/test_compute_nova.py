@@ -67,7 +67,7 @@ class TestNovaCompute(test.ProviderTester):
         }
         self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
         reset_failed_resource_task.delay(context['deployment'],
-                                          context['resource'])
+                                         context['resource'])
 
         #Stub out postback call
         self.mox.StubOutWithMock(resource_postback, 'delay')

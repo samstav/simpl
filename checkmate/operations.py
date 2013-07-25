@@ -119,31 +119,30 @@ def update_operation(deployment_id, workflow_id, driver=None,
 
 
 def get_status_info(errors, tenant_id, workflow_id):
-    '''
-    Gets the status message and the retry and resume links for an operation
-    :param errors: The workflow errors
-    :param tenant_id: tenant_id
-    :param workflow_id: workflow_id
-    :return: dictionary with the status message and retry and resume link
-    '''
-    status_message = ""
-    errors_with_action_required = filter(
-        lambda x: x.get("action-required", False), errors)
-    distinct_errors = _get_distinct_errors(errors_with_action_required)
+    status_info = {}
+    friendly_messages = []
+    distinct_errors = _get_distinct_errors(errors)
+    print distinct_errors
     for error in distinct_errors:
-        status_message += ("%s. %s\n" % (distinct_errors.index(error) + 1,
-                           error["error-message"]))
-    status_info = {'status-message': status_message}
+        if 'friendly-message' in error:
+            friendly_messages.append("%s. %s\n" %
+                                    (len(friendly_messages) + 1,
+                                     error['friendly-message']))
+
+    status_message = ''.join(friendly_messages) \
+        if len(distinct_errors) == len(friendly_messages) \
+        else 'Multiple errors have occurred. Please contact support'
+    status_info.update({'status-message': status_message})
 
     if any(error.get("retriable", False) for error in distinct_errors):
         retry_link = "/%s/workflows/%s/+retry-failed-tasks" % (tenant_id,
                                                                workflow_id)
         status_info.update({'retry-link': retry_link, 'retriable': True})
+
     if any(error.get("resumable", False) for error in distinct_errors):
         resume_link = "/%s/workflows/%s/+resume-failed-tasks" % (tenant_id,
                                                                  workflow_id)
         status_info.update({'resume-link': resume_link, 'resumable': True})
-
     return status_info
 
 
@@ -239,6 +238,8 @@ def _update_operation(operation, workflow):
 
 def _get_distinct_errors(errors):
     distinct_errors = []
-    for k, g in itertools.groupby(errors, lambda x: x["error-type"]):
-        distinct_errors.append(list(g)[0])
+    sorted_errors = sorted(errors, key=lambda k: k.get('error-type'))
+    for k, g in itertools.groupby(sorted_errors, lambda x: x.get("error-type")):
+        a = list(g)[0]
+        distinct_errors.append(a)
     return distinct_errors

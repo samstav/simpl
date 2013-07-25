@@ -47,29 +47,10 @@ class TestWorkflow(unittest.TestCase):
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
 
-    def test_get_failed_tasks_evaluates_only_failed_tasks(self):
-        task_state = {"info": "Error Information", "state": "FAILURE",
-                      "traceback": "Traceback"}
-        self.task_with_error._get_internal_attribute('task_state').AndReturn(
-            task_state)
-        self.task_with_error._get_internal_attribute('task_state').AndReturn(
-            task_state)
-        self.task_without_error._get_internal_attribute(
-            'task_state').AndReturn({})
-        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error,
-                                                    self.task_without_error])
-        self.mox.ReplayAll()
-
-        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
-
-        self.assertEqual(1, len(failed_tasks))
-        self.assertDictEqual({"error-message": "Error Information"},
-                             failed_tasks[0])
-
     def test_get_failed_tasks_with_retriable_exception(self):
         task_state = {
-            "info": "CheckmateRetriableException('exception_message', "
-                    "'error-help', 'error-type', True)",
+            "info": "CheckmateRetriableException('foo', 'Exception', "
+                    "'exception_message', 'error-help')",
             "state": "FAILURE",
             "traceback": "Traceback"
         }
@@ -86,26 +67,27 @@ class TestWorkflow(unittest.TestCase):
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
         expected_error = {
-            "error-message": "exception_message",
+            "error-message": "foo",
             "error-help": "error-help",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/tasks/task_id/"
                           "+reset-task-tree",
-            "error-type": "error-type",
-            "action-required": True,
+            "error-type": "Exception",
             "task-id": "task_id",
-            "traceback": "Traceback"
+            "error-traceback": "Traceback",
+            "friendly-message": "exception_message"
         }
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
-    def test_get_failed_tasks_with_resumable_exception(self):
+    def test_get_failed_tasks_with_checkmate_user_exception(self):
         task_state = {
-            "info": "CheckmateResumableException('exception_message', "
-                    "'error-help', 'error-type', True)",
+            "info": "CheckmateUserException('foo', 'Exception', "
+                    "'friendly_message', 'error-help')",
             "state": "FAILURE",
             "traceback": "Traceback"
         }
+
         self.task_with_error._get_internal_attribute('task_state').AndReturn(
             task_state)
         self.task_with_error._get_internal_attribute('task_state').AndReturn(
@@ -115,20 +97,50 @@ class TestWorkflow(unittest.TestCase):
         self.mox.ReplayAll()
 
         failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
+        self.mox.VerifyAll()
 
+        expected = {
+            "error-message": 'foo',
+            "error-type": 'Exception',
+            "error-help": 'error-help',
+            "task-id": "task_id",
+            "error-traceback": 'Traceback',
+            "friendly-message": 'friendly_message'
+        }
+
+        self.assertEquals(len(failed_tasks), 1)
+        self.assertDictEqual(failed_tasks[0], expected)
+
+    def test_get_failed_tasks_with_resumable_exception(self):
+        task_state = {
+            "info": "CheckmateResumableException('foo', 'Exception', "
+                    "'friendly_message', 'error-help')",
+            "state": "FAILURE",
+            "traceback": "Traceback"
+        }
+
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
+        self.mocked_workflow.attributes = {"id": "wf_id"}
+        self.mox.ReplayAll()
+
+        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
         expected_error = {
-            "error-message": "exception_message",
+            "error-message": "foo",
             "error-help": "error-help",
             "resumable": True,
             "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute",
-            "error-type": "error-type",
-            "action-required": True,
+            "error-type": "Exception",
             "task-id": "task_id",
-            "traceback": "Traceback"
-
+            "error-traceback": "Traceback",
+            "friendly-message": 'friendly_message'
         }
+
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
@@ -150,13 +162,14 @@ class TestWorkflow(unittest.TestCase):
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
         expected_error = {"error-message": "This is an exception",
-                          "error-type": "Exception", "traceback": "Traceback"}
+                          "error-type": "Exception",
+                          "error-traceback": "Traceback"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
     def test_get_failed_tasks_with_no_exception(self):
         task_state = {
-            "info": "This is a exception message",
+            "info": "C",
             "state": "FAILURE",
             "traceback": "Traceback"
         }
@@ -171,7 +184,8 @@ class TestWorkflow(unittest.TestCase):
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
-        expected_error = {"error-message": "This is a exception message"}
+        expected_error = {"error-message": "C",
+                          "error-traceback": "Traceback"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 

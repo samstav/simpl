@@ -34,6 +34,7 @@ from checkmate.exceptions import (
     CheckmateResumableException,
     CheckmateRetriableException,
     CheckmateServerBuildFailed,
+    CheckmateUserException,
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
@@ -865,14 +866,15 @@ def create_server(context, name, region, api_object=None, flavor="2",
         server = api_object.servers.create(name, image_object, flavor_object,
                                            meta=meta, files=files)
     except OverLimit as exc:
-        raise CheckmateRetriableException("You have reached the maximum "
+        raise CheckmateRetriableException(str(exc),
+                                          get_class_name(exc),
+                                          "You have reached the maximum "
                                           "number of servers that can be "
                                           "spun up using this account. "
                                           "Please delete some servers to "
                                           "continue or contact your support "
-                                          "team to increase your limit", "",
-                                          get_class_name(exc),
-                                          action_required=True)
+                                          "team to increase your limit",
+                                          "")
 
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
@@ -887,7 +889,9 @@ def create_server(context, name, region, api_object=None, flavor="2",
             'region': api_object.client.region_name,
             'status': 'NEW',
             'flavor': flavor,
-            'image': image
+            'image': image,
+            'status-message': '',
+            'error-message': ''
         }
     }
 

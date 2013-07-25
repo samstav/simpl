@@ -18,7 +18,7 @@ from checkmate.exceptions import (
     CheckmateException,
     CheckmateRetriableException,
     CheckmateResumableException,
-)
+    CheckmateUserException)
 
 DB = get_driver()
 LOG = logging.getLogger(__name__)
@@ -123,28 +123,27 @@ def get_errors(wf_dict, tenant_id):
         task = tasks.pop(0)
         if is_failed_task(task):
             task_state = task._get_internal_attribute("task_state")
-            info = task_state["info"]
+            info = task_state.get("info")
             traceback = task_state.get("traceback")
             try:
                 exception = eval(info)
-                if isinstance(exception, CheckmateRetriableException):
+                if type(exception) is CheckmateRetriableException:
                     results.append({
                         "error-type": exception.error_type,
-                        "error-message": exception.args[0],
+                        "error-message": exception.error_message,
                         "error-help": exception.error_help,
                         "retriable": True,
                         "task-id": task.id,
                         "retry-link":
                         "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
                         tenant_id, wf_dict.attributes["id"], task.id),
-                        "action-required": exception.action_required,
-                        "traceback": traceback
-
+                        "error-traceback": traceback,
+                        "friendly-message": str(exception.friendly_message)
                     })
-                elif isinstance(exception, CheckmateResumableException):
+                elif type(exception) is CheckmateResumableException:
                     results.append({
-                        "error-message": exception.args[0],
                         "error-type": exception.error_type,
+                        "error-message": exception.error_message,
                         "error-help": exception.error_help,
                         "resumable": True,
                         "task-id": task.id,
@@ -152,16 +151,29 @@ def get_errors(wf_dict, tenant_id):
                             tenant_id,
                             wf_dict.attributes["id"],
                             task.id),
-                        "action-required": exception.action_required,
-                        "traceback": traceback
+                        "error-traceback": traceback,
+                        "friendly-message": exception.friendly_message
+                    })
+                elif type(exception) is CheckmateUserException:
+                    results.append({
+                        "error-type": exception.error_type,
+                        "error-message": exception.error_message,
+                        "error-help": exception.error_help,
+                        "task-id": task.id,
+                        "error-traceback": traceback,
+                        "friendly-message": exception.friendly_message
                     })
                 elif isinstance(exception, Exception):
                     results.append({
                         "error-type": utils.get_class_name(exception),
-                        "error-message": exception.args[0],
-                        "traceback": traceback})
-            except Exception:
-                results.append({"error-message": info})
+                        "error-message": str(exception),
+                        "error-traceback": traceback
+                    })
+            except Exception as exp:
+                results.append({
+                    "error-message": info,
+                    "error-traceback": traceback
+                })
     return results
 
 
