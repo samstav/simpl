@@ -3,7 +3,6 @@ GitHub Classes
 
 Manager for caching GitHub blueprints
 Router for responding to webhooks
-
 '''
 from __future__ import absolute_import
 
@@ -286,16 +285,14 @@ class GitHubManager(base.ManagerBase):
         '''pre-seed with existing cache if any in case we can't connect to the
         repo.
         '''
-        if self._load_redis_cache():
-            return
-
-        if os.path.exists(self._cache_file):
-            try:
-                with open(self._cache_file, 'r') as cache:
-                    self._blueprints = json.load(cache)
-                    LOG.info("Retrieved blueprints from cache file")
-            except IOError:
-                LOG.warn("Could not load cache file", exc_info=True)
+        if not self._load_redis_cache():
+            if os.path.exists(self._cache_file):
+                try:
+                    with open(self._cache_file, 'r') as cache:
+                        self._blueprints = json.load(cache)
+                        LOG.info("Retrieved blueprints from cache file")
+                except IOError:
+                    LOG.warn("Could not load cache file", exc_info=True)
 
     def background_refresh(self):
         '''Called by background thread to start a refresh.'''
@@ -398,20 +395,25 @@ class GitHubManager(base.ManagerBase):
         :param repo: the repository containing blueprint data or :None:
         '''
         if repo:
-            rid = "%s:%s" % (str(repo.id), self._ref)
-            blueprint = self._get_blueprint(repo, self._ref)
+            _refresh_blueprint(repo, self._ref)
+            if self._preview_ref:
+                _refresh_blueprint(repo, self._preview_ref)
+
+    def _refresh_blueprint(self, repo, ref):
+            rid = "%s:%s" % (str(repo.id), ref)
+            blueprint = self._get_blueprint(repo, ref)
             if rid in self._blueprints:
                 del self._blueprints[rid]
             self._store(blueprint, self._ref, self._blueprints)
 
-            if not self._preview_ref:
-                return
+    def blueprint_is_invalid(self, untrusted_blueprint):
+        return not self.blueprint_is_valid(untrusted_blueprint)
 
-            rid = "%s:%s" % (str(repo.id), self._preview_ref)
-            blueprint = self._get_blueprint(repo, self._preview_ref)
-            if rid in self._blueprints:
-                del self._blueprints[rid]
-            self._store(blueprint, self._preview_ref, self._blueprints)
+    def blueprint_is_valid(self, untrusted_blueprint):
+        for _, blueprint in self._blueprints.items():
+            if untrusted_blueprint == blueprint['blueprint']:
+                return True
+        return False
 
     def _get_repo(self, repo_name):
         '''Return the specified github repo.

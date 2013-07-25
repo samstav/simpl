@@ -14,6 +14,8 @@ import bottle
 
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate import blueprints
+from checkmate.common import config
 from checkmate.common import tasks as common_tasks
 from checkmate import db
 from checkmate import deployment as cmdeploy
@@ -33,6 +35,7 @@ DB = db.get_driver()
 SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_SIMULATOR_CONNECTION_STRING',
     os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
+DRIVERS = {'default': DB, 'simulation': SIMULATOR_DB}
 
 
 #
@@ -50,6 +53,19 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
     entity = utils.read_body(request)
     if 'deployment' in entity:
         entity = entity['deployment']  # Unwrap if wrapped
+    # Perform Extra Validation: someone could have tampered with the blueprint!
+    if request.headers and 'X-SOURCE-UNTRUSTED' in request.headers:
+        LOG.info("X-SOURCE-UNTRUSTED: Validating Blueprint against "
+                 "Checkmate's cached version.")
+        CONFIG = config.current()
+        if CONFIG.github_api is None:
+            raise CheckmateValidationException('Cannot validate blueprint.')
+        github_manager = blueprints.GitHubManager(DRIVERS, CONFIG)
+        if github_manager.blueprint_is_invalid(utils.read_body(request)['blueprint']):
+            LOG.warn("X-SOURCE-UNTRUSTED: Passed in Blueprint did not match "
+                     "anything in Checkmate's cache.")
+            raise CheckmateValidationException('Invalid Blueprint.')
+
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
     if db.any_id_problems(entity['id']):
