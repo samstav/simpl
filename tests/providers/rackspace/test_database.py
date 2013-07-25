@@ -34,6 +34,8 @@ class TestDatabase(test.ProviderTester):
         instance.name = 'fake_instance'
         instance.status = 'BUILD'
         instance.hostname = 'fake.cloud.local'
+        instance.volume = self.mox.CreateMockAnything()
+        instance.volume.size = 1
 
         #Stub out postback call
         self.mox.StubOutWithMock(database._create_instance, 'callback')
@@ -57,6 +59,7 @@ class TestDatabase(test.ProviderTester):
                 'status': instance.status,
                 'region': 'NORTH',
                 'flavor': 1,
+                'disk': 1,
                 'interfaces': {
                     'mysql': {
                         'host': instance.hostname,
