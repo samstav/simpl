@@ -105,8 +105,8 @@ Priv Key: {{formatted_data.private_key}}
               </div>
             </div>
 
-            <div ng-cloak ng-show="shouldDisplayWorkflowStatus()">
-              <div class="control-group" ng-cloak ng-show="timeRemaining">
+            <div ng-show="shouldDisplayWorkflowStatus()">
+              <div class="control-group" ng-show="timeRemaining">
                 <label class="control-label">Progress:</label>
                 <div class="controls progress">
                   <div class="bar" style="width: {{percentComplete}}%;"></div>
@@ -120,7 +120,7 @@ Priv Key: {{formatted_data.private_key}}
                   taskStates['maybe']}}</span> tasks waiting on other tasks to finish.</p>
                 </div>
                 &nbsp;
-                <a style="margin-bottom: 15px;" class="btn" ng-cloak ng-show="data.id == 'simulate'" href="./status?complete">Complete the Simulation Now</a>
+                <a style="margin-bottom: 15px;" class="btn" ng-show="data.id == 'simulate'" href="./status?complete">Complete the Simulation Now</a>
                 <div class="alert controls">You can access an <a ng-href="/{{data.tenantId}}/workflows/{{data.id}}">advanced</a> view of
                 the workflow to manage any errors or hack at the workflow.</div>
               </div>
@@ -247,7 +247,7 @@ Priv Key: {{formatted_data.private_key}}
               </td>
               <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
               <td>{{resource.instance.public_ip}}</td>
-              <td>{{resource.status}} <span ng-cloak ng-show="resource['status-message']">({{resource['status-message']}})</span><span ng-cloak ng-show="resource['error-message']">({{resource['error-message']}})</span></td>
+              <td>{{resource.status}} <span ng-show="resource['status-message']">({{resource['status-message']}})</span><span ng-show="resource['error-message']">({{resource['error-message']}})</span></td>
             </tr>
           </tbody>
         </table>
@@ -277,9 +277,9 @@ Priv Key: {{formatted_data.private_key}}
             <p><strong>Databases</strong><br>
             <table class="table table-condensed" ng-repeat="resource in formatted_data.resources | filter:{type:'database'}">
               <tr><td>Name:</td><td>
-                <a ng-cloak ng-show="resource.provider=='database'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
-                <a ng-cloak ng-show="resource.provider=='chef-local'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
-                <a ng-cloak ng-show="resource.provider=='chef-solo'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-show="resource.provider=='database'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-show="resource.provider=='chef-local'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+                <a ng-show="resource.provider=='chef-solo'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
               <tr><td>Role:</td><td>{{resource.service}}</td></tr>
               <tr><td>Host:</td><td>{{resource.instance.interfaces.mysql.host}}</td></tr>
               <tr><td>Database:</td><td>{{resource.instance.interfaces.mysql.database_name}}</td></tr>
@@ -289,14 +289,14 @@ Priv Key: {{formatted_data.private_key}}
 
             <p><strong>Access your application</strong> using these administrative credentials:
             <pre>username: {{formatted_data.username}}<br>password: {{formatted_data.password}}</pre></p>
-            <p ng-cloak ng-show="formatted_data.private_key">Alternatively, you can use this private key:<clippy content="{{formatted_data.private_key}}" bgcolor="#f5f5f5"></clippy>
+            <p ng-show="formatted_data.private_key">Alternatively, you can use this private key:<clippy content="{{formatted_data.private_key}}" bgcolor="#f5f5f5"></clippy>
             </p>
-            <p ng-cloak ng-show="formatted_data.private_key"><pre>{{formatted_data.private_key}}</pre></p>
+            <p ng-show="formatted_data.private_key"><pre>{{formatted_data.private_key}}</pre></p>
             <p>The advanced view of the workflow can still be reached <a ng-href="/{{data.tenantId}}/workflows/{{data.id}}">here</a>.</p>
           </accordion-group>
         </accordion>
 
-        <div ng-cloak ng-show="data.blueprint.documentation.instructions">
+        <div ng-show="data.blueprint.documentation.instructions">
           <accordion>
             <accordion-group heading="Instructions">
               <p class="help-block" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>

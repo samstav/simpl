@@ -1,6 +1,6 @@
 describe('DeploymentListController', function(){
   var scope,
-      location,
+      $location,
       http,
       resource,
       scroll,
@@ -10,12 +10,15 @@ describe('DeploymentListController', function(){
       auth,
       $q,
       cmTenant,
+      Deployment,
+      $timeout,
+      $filter,
       controller,
       emptyResponse;
 
   beforeEach(function(){
     scope = { $watch: emptyFunction };
-    location = { search: sinon.stub().returns({}), replace: emptyFunction, path: sinon.stub().returns('/1/deployments') };
+    $location = { search: sinon.stub().returns({}), replace: emptyFunction, path: sinon.stub().returns('/1/deployments') };
     http = {};
     resource = { get: sinon.spy() };
     scroll = {};
@@ -25,7 +28,11 @@ describe('DeploymentListController', function(){
     auth = { context: {} };
     $q = { all: sinon.stub().returns( sinon.spy() ), defer: sinon.stub() };
     cmTenant = {};
-    controller = new DeploymentListController(scope, location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant);
+    Deployment = {};
+    $timeout = sinon.stub().returns('fake promise');
+    $timeout.cancel = sinon.stub();
+    $filter = sinon.stub();
+    controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout, $filter);
     emptyResponse = { get: emptyFunction };
   });
 
@@ -45,7 +52,7 @@ describe('DeploymentListController', function(){
         resource_spy = sinon.spy(resource);
 
         auth.context.tenantId = 'cats';
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
+        controller = new DeploymentListController(scope, $location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
 
         expect(resource_spy.getCall(0).args[0]).toEqual('/1/deployments.json');
@@ -54,12 +61,12 @@ describe('DeploymentListController', function(){
 
       it('should pass in pagination params to the resource call', function(){
         pagination.buildPaginator.returns({ offset: 20, limit: 30, changed_params: emptyFunction });
-        location = { search: sinon.stub().returns({ offset: 20, limit: 30 }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
+        $location = { search: sinon.stub().returns({ offset: 20, limit: 30 }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
         get_spy = sinon.spy();
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
+        controller = new DeploymentListController(scope, $location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/123/deployments.json');
         expect(get_spy.getCall(0).args[0].offset).toEqual(20);
@@ -68,12 +75,12 @@ describe('DeploymentListController', function(){
 
       it('should use adjusted pagination params from the paginator', function(){
         pagination.buildPaginator.returns({ offset: 20, limit: 30, changed_params: emptyFunction });
-        location = { search: sinon.stub().returns({ offset: 25, limit: 30 }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
+        $location = { search: sinon.stub().returns({ offset: 25, limit: 30 }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
         get_spy = sinon.spy();
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
+        controller = new DeploymentListController(scope, $location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/123/deployments.json');
         expect(get_spy.getCall(0).args[0].offset).toEqual(20);
@@ -81,12 +88,12 @@ describe('DeploymentListController', function(){
       });
 
       it('should pass through url options to checkmate', function(){
-        location = { search: sinon.stub().returns({ show_deleted: true, cats: 'dogs' }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
+        $location = { search: sinon.stub().returns({ show_deleted: true, cats: 'dogs' }), replace: emptyFunction, path: sinon.stub().returns('/123/deployments') };
         get_spy = sinon.spy();
         resource = function(){ return { get: get_spy }; };
         resource_spy = sinon.spy(resource);
 
-        controller = new DeploymentListController(scope, location, http, resource_spy, scroll, items, navbar, pagination, auth);
+        controller = new DeploymentListController(scope, $location, http, resource_spy, scroll, items, navbar, pagination, auth);
         scope.load();
         expect(resource_spy.getCall(0).args[0]).toEqual('/123/deployments.json');
         expect(get_spy.getCall(0).args[0].show_deleted).toEqual(true);
@@ -406,6 +413,117 @@ describe('DeploymentListController', function(){
       scope.selected_deployments = {};
       scope.sync_deployments();
       expect(scope.wrap_admin_call).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('query', function() {
+    it('should default to empty if no search params are used', function() {
+      $location.search.returns({})
+      controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+      expect(scope.query).toBe(undefined);
+    });
+
+    it('should equal to search params if present', function() {
+      $location.search.returns({ search: 'foobar' })
+      controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+      expect(scope.query).toEqual('foobar');
+    });
+  });
+
+  describe('filter_promise', function() {
+    it('should default to null', function() {
+      expect(scope.filter_promise).toBe(null);
+    });
+  });
+
+  describe('#applyFilters', function() {
+    it('should cancel pending filter promise', function() {
+      scope.filter_promise = 'old promise';
+      scope.applyFilters();
+      expect(scope.filter_promise).not.toEqual('old promise');
+    });
+
+    it('should set promise to apply filters', function() {
+      scope.applyFilters();
+      expect($timeout).toHaveBeenCalledWith(scope.filter_deployments, 1500);
+    });
+
+    it('should save promise for future reference', function() {
+      scope.filter_promise = null;
+      scope.applyFilters();
+      expect(scope.filter_promise).toEqual('fake promise');
+    });
+  });
+
+  describe('#filter_deployments', function() {
+    it('should default to setting location to new empty search', function() {
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({});
+    });
+
+    it('should filter by status', function() {
+      scope.filter_list = [ { name: 'foobar', active: true } ];
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ status: ['foobar'] });
+    });
+
+    it('should filter by several statuses at once', function() {
+      scope.filter_list = [
+        { name: 'foobar', active: true },
+        { name: 'mordor', active: true },
+      ];
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ status: ['foobar', 'mordor'] });
+    });
+
+    it('should filter by custom search', function() {
+      scope.query = 'fake query';
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ search: 'fake query' });
+    });
+  });
+
+  describe('#has_pending_results', function() {
+    it('should return true if page not loaded', function() {
+      delete scope.items
+      expect(scope.has_pending_results()).toBeTruthy();
+    });
+
+    it('should return true if there is a promise to filter deployments', function() {
+      scope.items = 'fake items';
+      scope.filter_promise = 'items will arrive';
+      expect(scope.has_pending_results()).toBeTruthy();
+    });
+
+    it('should return false if no pending results are available', function() {
+      scope.items = 'fake items';
+      scope.filter_promise = null;
+      expect(scope.has_pending_results()).toBeFalsy();
+    });
+  });
+
+  describe('#no_results_found', function() {
+    it('should return false if there are pending results', function() {
+      scope.has_pending_results = sinon.stub().returns(true);
+      expect(scope.no_results_found()).toBeFalsy();
+    });
+
+    describe('if no pending results are left', function() {
+      beforeEach(function() {
+        scope.has_pending_results = sinon.stub().returns(false);
+      });
+
+      it('should return true if there are no deployments to be displayed', function() {
+        empty_filter = sinon.stub().returns([]);
+        $filter.returns(empty_filter);
+        expect(scope.no_results_found()).toBeTruthy();
+      });
+
+      it('should return false if there are deployments to be displayed', function() {
+        some_filter = sinon.stub().returns([1,2,3]);
+        $filter.returns(some_filter);
+        expect(scope.no_results_found()).toBeFalsy();
+      });
     });
   });
 });

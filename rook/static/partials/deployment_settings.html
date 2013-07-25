@@ -15,7 +15,12 @@
     <li class="nav-header" ng-show="is_admin(true)">
       <i class="icon-tags"></i> Tenant Tags
     </li>
-    <li ng-repeat="tag in all_tags()" ng-show="is_admin(true)">
+    <li ng-show="!is_content_loaded() && is_admin(true)">
+      <a>
+        Loading...
+      </a>
+    </li>
+    <li ng-repeat="tag in all_tags()" ng-show="is_admin(true) && is_content_loaded()">
       <a ng-click="toggle_tag(deployment.tenantId, tag)">
         {{tag}}<i class="icon-remove pull-right" ng-show="has_tag(deployment.tenantId, tag)"></i>
       </a>

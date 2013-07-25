@@ -1,4 +1,4 @@
-<div id="leftControls" class="lcontrols no-select" ng-cloak ng-show="showControls">
+<div id="leftControls" class="lcontrols no-select" ng-show="showControls">
   <div class="tControls">
     <div class="top">
     </div>
@@ -10,7 +10,7 @@
 
 <div class="span3 summaryBar" ng-init="parse_org_url('https://github.rackspace.com/Blueprints')">
   <div class="summaryHeader">
-    <div class="top well" ng-cloak ng-show="showStatus">
+    <div class="top well" ng-show="showStatus">
       <form name="RemoteSelector" style="margin-bottom: 0;">
         <div class="row-fluid" style="height: 20px;">
           <div class="span10 actions">
@@ -28,7 +28,7 @@
           <span ng-show="remote.user">User: {{remote.user}}</span>
           <span ng-show="remote.org">Org: {{remote.org}}</span>
         </h4>
-        <div ng-cloak ng-show="remote.server">on {{remote.server}}</div>
+        <div ng-show="remote.server">on {{remote.server}}</div>
 
         <div class="control-group" style="padding-top: 5px;">
           <label class="control-label" for="url">Enter URL to an org or user:</label>
@@ -85,7 +85,7 @@
           <h1>New Deployment</h1>
           <p>Select your blueprint, environment, and options to create a new deployment</p>
         </div>
-        <p ng-cloak ng-show="is_unsupported_account()" class="alert">
+        <p ng-show="is_unsupported_account()" class="alert">
           This account is a not supported.
         </p>
         <ng-include src="'/partials/new-deployment-form.html'"></ng-include>

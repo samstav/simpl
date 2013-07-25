@@ -1,4 +1,4 @@
-<div class="entries container-fluid" ng-init="load()" ng-show="is_content_loaded()">
+<div class="entries container-fluid" ng-init="load()">
   <div class='row-fluid'>
     <div class='span2 sidebar-left'>
 
@@ -9,11 +9,19 @@
       </div>
 
       <div class='group'>
-        <h5><i class="icon-filter"></i> Filter</h5>
+        <h5><i class="icon-filter"></i> Filters</h5>
+
+        <h5> Status</h5>
         <label class="filter" ng-repeat="filter in filter_list">
           <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
           <span>{{filter.name | capitalize}}</span>
         </label>
+
+        <h5> Search</h5>
+        <form>
+          <input class="span10" type="text" placeholder="ex.: wordpress" ng-model="query" ng-change="applyFilters()" />
+          <i class="icon-question-sign pull-right" tooltip="Press &lt;return&gt; to apply filter to all results"></i>
+        </form>
       </div>
 
     </div>
@@ -31,7 +39,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="deployment in items | orderBy:'-created'" ng-click="select_toggle(deployment)" ng-class="{info: selected_deployments[deployment.id]}">
+          <tr ng-repeat="deployment in items | filter: query | orderBy:'-created'" ng-click="select_toggle(deployment)" ng-class="{info: selected_deployments[deployment.id]}">
             <td>
               <input name="{{deployment.id}}" type="checkbox" ng-model="selected_deployments[deployment.id]" ng-click="select_toggle(deployment)">
               <ng-include src="'/partials/deployment_settings.html'"></ng-include>
@@ -54,7 +62,15 @@
               </div>
             </td>
             <td>
-              {{deployment.created | formattedFullDate}}<span ng-cloak ng-show="deployment.created_by"> by {{deployment.created_by}}</span>
+              {{deployment.created | formattedFullDate}}<span ng-show="deployment.created_by"> by {{deployment.created_by}}</span>
+            </td>
+          </tr>
+
+          <tr class="messages">
+            <td colspan="6" ng-show="no_results_found()"> No deployments found. =( </td>
+            <td colspan="6" ng-show="has_pending_results()">
+              <img class="loading" src="/img/ajax-loader.gif" />
+              Loading results...
             </td>
           </tr>
         </tbody>
