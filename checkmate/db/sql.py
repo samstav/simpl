@@ -475,11 +475,13 @@ class Driver(DbBase):
         '''Apply status filters to query.'''
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
-        if klass is Deployment and (not with_deleted or status):
-            if not status:
+        if klass is Deployment:
+            if not with_deleted and not status:
                 status = "!DELETED"
-            query = query.filter(
-                _parse_comparison('deployments_status', status))
+
+            if status:
+                filters = _parse_comparison('deployments_status', status)
+                query = query.filter(filters)
         return query
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None, query=None):
