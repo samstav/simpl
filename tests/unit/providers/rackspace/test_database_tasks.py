@@ -673,7 +673,7 @@ class TestDatabaseTasks(unittest.TestCase):
         api.get = mock.Mock(return_value=instance)
 
         database.delete_user(context, instance_id, username, region, api)
-        api.get.assert_called_with(instanceid=instance_id)
+        api.get.assert_called_with(instance_id)
         instance.delete_user.assert_called_with(username)
 
 
