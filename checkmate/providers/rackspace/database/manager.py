@@ -101,9 +101,10 @@ class Manager(object):
 
         try:
             if simulate:
+                volume = utils.Simulation(size=1)
                 instance = utils.Simulation(
                     id="DBS%s" % context.get('resource'), name=instance_name,
-                    hostname='db1.rax.net')
+                    hostname='db1.rax.net', volume=volume)
             else:
                 instance = api.create(instance_name, flavor=flavor,
                                       volume=size, databases=databases)
@@ -129,6 +130,7 @@ class Manager(object):
             'status': 'BUILD',
             'region': context.get('region'),
             'flavor': flavor,
+            'disk': instance.volume.size,
             'interfaces': {
                 'mysql': {
                     'host': instance.hostname

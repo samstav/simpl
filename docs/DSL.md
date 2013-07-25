@@ -184,13 +184,13 @@ Blueprint Options
 
 Note: this is the schema that is being supported in v0.7 of the engine. The schema had not been formalized, firmed up, or sufficiently validated prior to this. Validation will start to be more aggressive as we proceed towards a v1.0 release of the Checkmate API.
 
-**label**: the short label to use when displaying the option to the user.
-**description**: A full description of this option (what it is)
-**help**: Detailed help on this option (how to use it)
-**sample**: an example of what the data will look like. This could be shown as the background of a text control.
+**label**: the short label to use when displaying the option to the user.  
+**description**: A full description of this option (what it is)  
+**help**: Detailed help on this option (how to use it)  
+**sample**: an example of what the data will look like. This could be shown as the background of a text control.  
 
-**display-hints**: a mapping (key, value pairs) of hints for how to order and display this option in relation to other options
-**....group**: a random group name used to group options together. Note that Reach would use this and would expect one of the following (to be finalized with Reach):
+**display-hints**: a mapping (key, value pairs) of hints for how to order and display this option in relation to other options  
+**....group**: a random group name used to group options together. Note that Reach would use this and would expect one of the following (to be finalized with Reach):  
 * _deployment_: this is a deployment option and shows right under the deployment name
 * _application_: this is an application option and shows on the first screen of options
 * _servers_: this is an option that should be shown under the server options section
@@ -198,14 +198,14 @@ Note: this is the schema that is being supported in v0.7 of the engine. The sche
 * _database_: this is an option that should be shown under the database options section
 * _dns_: this is an option that should be shown under the dns options section
 
-**....order**: relative order of this option within its group (as an integer)
+**....order**: relative order of this option within its group (as an integer)  
 **....list-type**: what is the type of the entries in the list. This is used to identify if it should be a specific resource type and list or attribute. The format is resource-type.list where resource-type is a known Checkmate resource type (compute, database, etc...) and the list is one of the lists from the provider [TODO: define these `lists` more precisely in the DSL or schema. Right now, they exist only in the provider catalogs]. Examples (and what we will initially support):
 * _compute.memory_: list of available compute image sizes
 * _compute.os: list of available compute operating systems
 * _load-balancer.algorithm_: list of available load balancer algorithms
 
-**....encrypted-protocols**: The subset of protocols that are encrypted so that we know when to show ssl cert controls. Ex. [https, pop3s]
-**....always-accept-certificates**: if a blueprint always accepts and handles the certificates (especially if the url is entered in free-form supporting any protocol)
+**....encrypted-protocols**: The subset of protocols that are encrypted so that we know when to show ssl cert controls. Ex. [https, pop3s]  
+**....always-accept-certificates**: if a blueprint always accepts and handles the certificates (especially if the url is entered in free-form supporting any protocol)  
 **....default-protocol**: The default protocol to display to the user. If not supplied, clients should default to an unencrypted protocol since it is the simpler option for the user and does not present certificate options which could deter a user from launching the blueprint.
 
 **default**: The default value to use. YAML will assume numbers are ints, so enclose strings in "quotation marks" as a best practice. Special values for this are `=generate_password()` which will generate a random password on the server. Several parameters can be passed to `generate_password()`:  
@@ -216,7 +216,7 @@ Note: this is the schema that is being supported in v0.7 of the engine. The sche
   - `starts_with="<string>"`: for use when the first password character should be restricted to a set of characters. Defaults to all alphanumeric characters. Pass `starts_with=None` to override this behavior.  
   - `valid_chars`: the set of characters that should be used for all but `starts_with` and `required_chars` chars. `valid_chars` can contain duplicates of the characters specified in both `starts_with` and `required_chars`. Defaults to all alphanumeric characters.  
 
-Here is an example of teh password section of a blueprint:
+Here is an example of the password section of a blueprint:
 
 ```yaml
 
@@ -248,9 +248,9 @@ choice:
 - name: Ubuntu 12.10
   value: 2384729387w0tw9879t87ywt3y42
 ```
-**constrains**: a list of mappings that are used as a way to set or limit aspects of the blueprint with the value (or parts of) the option.
-**required**: true/false. Set to true if this option must be supplied by the user.
-**constraints**: an array of mappings (key/value pairs) in the standard Checkmate constraints syntax. Supported constraints are:
+**constrains**: a list of mappings that are used as a way to set or limit aspects of the blueprint with the value (or parts of) the option.  
+**required**: true/false. Set to true if this option must be supplied by the user.  
+**constraints**: an array of mappings (key/value pairs) in the standard Checkmate constraints syntax. Supported constraints are:  
 * _greater-than_: self-explanatory (for strings or integers)
 * _less-than_: self-explanatory (for strings or integers)
 * _greater-than-or-equal-to_: self-explanatory (for strings or integers)
