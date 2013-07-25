@@ -454,18 +454,206 @@ class TestDatabaseTasks(unittest.TestCase):
         mock_postback.assert_called_with('123', expected)
         self.assertEqual(results, expected)
 
-    #@mock.patch.object(database.resource_postback, 'delay')
-    def test_delete_instance_task_on_failure_dep_id_key(self):
-        '''Test on_failure code with dep_id and key.'''
-        context = {'deployment_id': '123', 'resource_key': '0'}
-        args = [context]
-        kwargs = {}
-        exc = Exception('test exception')
-        task_id = 4321
-        
-        database.delete_instance_task.on_failure(exc, task_id, args, kwargs,
-                                                 '')
-        #mock_postback.assert_called_with('123', {})
+    def test_delete_database_no_context_region(self):
+        '''Validates an assert raised is thrown when region not in context.'''
+        context = {}
+        try:
+            database.delete_database(context)
+        except AssertionError as exc:
+            self.assertEqual(str(exc), 'Region not supplied in context')
+
+    def test_delete_database_no_context_resource(self):
+        '''Validates an assert raised is thrown when region not in context.'''
+        context = {'region': 'ORD'}
+        try:
+            database.delete_database(context)
+        except AssertionError as exc:
+            self.assertEqual(str(exc), 'Resource not supplied in context')
+
+    def test_delete_database_no_resource_index(self):
+        '''Validates an assert raised is thrown when region not in context.'''
+        context = {'region': 'ORD', 'resource': {}}
+        try:
+            database.delete_database(context)
+        except AssertionError as exc:
+            self.assertEqual(str(exc), 'Resource does not have an index')
+
+    @mock.patch.object(database.resource_postback, 'delay')
+    @mock.patch.object(database.Provider, 'connect')
+    def test_delete_database_no_api_no_instance_host_instance(self,
+        mock_connect, mock_postback):
+        '''Validates database delete postback when no instance or host_instance
+        in context resource.
+        '''
+        context = {
+            'region': 'ORD',
+            'resource': {
+                'index': '1'
+            },
+            'deployment_id': '123',
+            'resource_key': '1'
+        }
+        expected = {
+            'instance:1': {
+                'status': 'DELETED',
+                'status-message': ('Cannot find instance/host-instance for '
+                                   'database to delete. Skipping '
+                                   'delete_database call for resource %s in '
+                                   'deployment %s - Instance Id: %s, Host '
+                                   'Instance Id: %s', ('1', '123', None, None))
+            }
+        }
+
+        results = database.delete_database(context)
+
+        self.assertEqual(results, None)
+        mock_connect.assert_called_with(context, 'ORD')
+        mock_postback.assert_called_with('123', expected)
+
+    @mock.patch.object(database.delete_database, 'retry')
+    def test_delete_database_api_get_exception(self, mock_retry):
+        '''Validates exception raised and task retried on get.
+        '''
+        context = {
+            'region': 'ORD',
+            'resource': {
+                'index': '1',
+                'instance': {
+                    'name': 'test_name',
+                    'host_instance': '2'
+                },
+                'host_instance': '2'
+            },
+            'deployment_id': '123',
+            'resource_key': '1'
+        }
+        api = mock.Mock()
+        mock_exception = pyrax.exceptions.ClientException(code=400)
+        api.get = mock.MagicMock(
+            side_effect=mock_exception)
+        mock_retry.side_effect = AssertionError('retry')
+        try:
+            database.delete_database(context, api)
+        except AssertionError as exc:
+            self.assertEqual(str(exc), 'retry')
+    
+        mock_retry.assert_called_with(
+            exc=mock_exception)
+
+    def test_delete_database_api_get_no_instance(self):
+        '''Validates database marked as deleted when get returns None.'''
+        context = {
+            'region': 'ORD',
+            'resource': {
+                'index': '1',
+                'instance': {
+                    'name': 'test_name',
+                    'host_instance': '2'
+                },
+                'host_instance': '2',
+                'hosted_on': '3'
+            },
+            'deployment_id': '123',
+            'resource_key': '1'
+        }
+        api = mock.Mock()
+        api.get = mock.Mock(return_value=None)
+        expected = {
+            'instance:1': {
+                'status': 'DELETED',
+                'status-message': 'Host 3 was deleted'
+            }
+        }
+
+        results = database.delete_database(context, api)
+
+        self.assertEqual(results, expected)
+
+    def test_delete_database_api_get_instance_build(self):
+        '''Validates task retry on build status.'''
+        context = {
+            'region': 'ORD',
+            'resource': {
+                'index': '1',
+                'instance': {
+                    'name': 'test_name',
+                    'host_instance': '2'
+                },
+                'host_instance': '2',
+                'hosted_on': '3'
+            },
+            'deployment_id': '123',
+            'resource_key': '1'
+        }
+        instance = mock.Mock()
+        instance.status = 'BUILD'
+        api = mock.Mock()
+        api.get = mock.Mock(return_value=instance)
+
+        try:
+            database.delete_database(context, api)
+        except exceptions.CheckmateException as exc:
+            self.assertEqual(str(exc), 'Waiting on instance to be out of '
+                             'BUILD status')
+
+    def test_delete_database_api_delete_exception_retry(self):
+        '''Validates task retry on delete exception.'''
+        context = {
+            'region': 'ORD',
+            'resource': {
+                'index': '1',
+                'instance': {
+                    'name': 'test_name',
+                    'host_instance': '2'
+                },
+                'host_instance': '2',
+                'hosted_on': '3'
+            },
+            'deployment_id': '123',
+            'resource_key': '1'
+        }
+        mock_exception = pyrax.exceptions.ClientException(code=400)
+        instance = mock.Mock()
+        instance.delete_database = mock.MagicMock(side_effect=mock_exception)
+        instance.status = 'ACTIVE'
+        api = mock.Mock()
+        api.get = mock.Mock(return_value=instance)
+
+        try:
+            database.delete_database(context, api)
+        except pyrax.exceptions.ClientException as exc:
+            self.assertEqual(exc.code, 400)
+
+        instance.delete_database.assert_called_with('test_name')
+
+    @mock.patch.object(database.resource_postback, 'delay')
+    def test_delete_database_success(self, mock_postback):
+        '''Validates delete_database success.'''
+        context = {
+            'region': 'ORD',
+            'resource': {
+                'index': '1',
+                'instance': {
+                    'name': 'test_name',
+                    'host_instance': '2'
+                },
+                'host_instance': '2',
+                'hosted_on': '3'
+            },
+            'deployment_id': '123',
+            'resource_key': '1'
+        }
+        instance = mock.Mock()
+        instance.delete_database = mock.Mock()
+        instance.status = 'ACTIVE'
+        api = mock.Mock()
+        api.get = mock.Mock(return_value=instance)
+        expected = {'instance:1': {'status': 'DELETED'}}
+
+        results = database.delete_database(context, api)
+        self.assertEqual(expected, results)
+        mock_postback.assert_called_with('123', expected)
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately
