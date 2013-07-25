@@ -1,11 +1,16 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 '''Unit tests for functions in sql.py'''
+import mock
 import unittest
 
 from checkmate.db import sql
 
 
 class TestSqlDB(unittest.TestCase):
+
+    def setUp(self):
+        self.driver = sql.Driver('sqlite://')
+
     def test_parse_comparison_handles_simple_single_param(self):
         self.assertEqual("status == 'ACTIVE'", sql._parse_comparison('status', 'ACTIVE'))
 
@@ -48,6 +53,93 @@ class TestSqlDB(unittest.TestCase):
         self.assertEqual(
             'Operators cannot be used when specifying multiple filters.',
             str(expected.exception)
+        )
+
+
+class TestGetDeployments(TestSqlDB):
+
+    @mock.patch.object(sql.Driver, '_get_objects')
+    def test_send_query_to_get_objects(self, __get_objects):
+        self.driver.get_deployments(query='fake query')
+        __get_objects.assert_called_with(
+            mock.ANY,
+            mock.ANY,
+            with_secrets=mock.ANY,
+            offset=mock.ANY,
+            limit=mock.ANY,
+            with_count=mock.ANY,
+            with_deleted=mock.ANY,
+            status=mock.ANY,
+            query='fake query',
+        )
+
+
+class TestGetObjects(TestSqlDB):
+
+    @mock.patch.object(sql.Driver, '_add_filters')
+    def test_send_query_to_add_filters(self, _add_filters):
+        self.driver._get_objects('deployments', query='fake query')
+        _add_filters.assert_called_with(
+            'deployments',
+            mock.ANY, mock.ANY, mock.ANY, mock.ANY,
+            'fake query',
+        )
+
+    @mock.patch.object(sql.Driver, '_add_filters')
+    @mock.patch.object(sql.Driver, '_get_count')
+    def test_send_query_to_get_count(self, _get_count, _add_filters):
+        self.driver._get_objects('deployments', with_count=True,
+                                 query='fake query')
+        _get_count.assert_called_with(
+            mock.ANY, mock.ANY, mock.ANY, mock.ANY,
+            'fake query',
+        )
+
+
+class TestAddFilters(TestSqlDB):
+
+    def setUp(self):
+        super(TestAddFilters, self).setUp()
+        self.query = mock.Mock()
+        self.query.filter.return_value = self.query
+        self.klass = sql.Deployment
+
+    def test_create_empty_filter_if_no_query(self):
+        filters = self.driver._add_filters(self.klass, self.query, None, True,
+                                           None, query_params=None)
+        self.assertEqual(self.query.call_count, 0)
+
+    @mock.patch.object(sql, '_parse_comparison')
+    def test_create_filter_for_specific_fields(self, _parse_comparison):
+        filters = self.driver._add_filters(self.klass, self.query,
+                                           None, True, None,
+                                           query_params={'name': 'foobar'})
+        _parse_comparison.assert_called_with('deployments_name', 'foobar')
+        self.assertEqual(self.query.filter.call_count, 1)
+
+    @mock.patch.object(sql, 'or_')
+    def test_create_filter_with_all_fields_when_searching(self, or_):
+        filters = self.driver._add_filters(self.klass, self.query,
+                                           None, True, None,
+                                           query_params={'search': 'foobar'})
+        expected_filters = [
+            "name LIKE '%foobar%'",
+            "tenantId LIKE '%foobar%'",
+            "blueprint.name LIKE '%foobar%'",
+        ]
+        or_.assert_called_with(*expected_filters)
+
+
+class TestGetCount(TestSqlDB):
+
+    @mock.patch.object(sql.Driver, '_add_filters')
+    def test_send_query_to_add_filters(self, _add_filters):
+        self.driver.session = mock.Mock()
+        self.driver._get_count(mock.ANY, mock.ANY, mock.ANY,
+                               query='fake query')
+        _add_filters.assert_called_with(
+            mock.ANY, mock.ANY, mock.ANY, mock.ANY, mock.ANY,
+            'fake query',
         )
 
 

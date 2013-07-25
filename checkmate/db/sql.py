@@ -21,6 +21,7 @@ from sqlalchemy import (
 from sqlalchemy import create_engine
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker, scoped_session, relationship
 from sqlalchemy.pool import StaticPool
 
@@ -355,7 +356,8 @@ class Driver(DbBase):
             limit=limit,
             with_count=with_count,
             with_deleted=with_deleted,
-            status=status
+            status=status,
+            query=query,
         )
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
@@ -441,7 +443,8 @@ class Driver(DbBase):
         response['_links'] = {}  # To be populated soon!
         response['results'] = {}
         results = self._add_filters(
-            klass, self.session.query(klass), tenant_id, with_deleted, status)
+            klass, self.session.query(klass), tenant_id, with_deleted, status,
+            query)
         if klass is Deployment:
             results = results.order_by(Deployment.created.desc())
         elif klass is Workflow:
@@ -465,26 +468,48 @@ class Driver(DbBase):
                     response['results'][entry.id]['tenantId'] = entry.tenant_id
         if with_count:
             response['collection-count'] = self._get_count(
-                klass, tenant_id, with_deleted, status)
+                klass, tenant_id, with_deleted, status, query)
         return response
 
     @staticmethod
-    def _add_filters(klass, query, tenant_id, with_deleted, status=None, filters=None):
+    def _add_filters(klass, query, tenant_id, with_deleted, status=None,
+                     query_params=None):
         '''Apply status filters to query.'''
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
-        if klass is Deployment and (not with_deleted or status):
-            if not status:
+        if klass is Deployment:
+            if not with_deleted and not status:
                 status = "!DELETED"
-            query = query.filter(
-                _parse_comparison('deployments_status', status))
+
+            if status:
+                filters = _parse_comparison('deployments_status', status)
+                query = query.filter(filters)
+
+            if query_params:
+                if ('search' in query_params):
+                    search_term = query_params['search']
+                    allowed_attributes = ['name', 'tenantId', 'blueprint.name']
+                    disjunction = []
+                    for attr in allowed_attributes:
+                        condition = ("%s LIKE '%%%s%%'" % (attr, search_term))
+                        disjunction.append(condition)
+                    query = query.filter(or_(*disjunction))
+                else:
+                    for key in query_params:
+                        if query_params[key]:
+                            attr = "deployments_%s" % key
+                            query = query.filter(
+                                _parse_comparison(attr, query_params[key])
+                            )
+
         return query
 
-    def _get_count(self, klass, tenant_id, with_deleted, status=None, query=None):
+    def _get_count(self, klass, tenant_id, with_deleted, status=None,
+                   query=None):
         '''Determine how many items based on filter and return the count.'''
         return self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted,
-            status).count()
+            status, query).count()
 
     def _save_object(self, klass, api_id, body, secrets=None,
                      tenant_id=None, merge_existing=False):
