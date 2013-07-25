@@ -38,70 +38,32 @@ class TestAdminRouter(unittest.TestCase):
 
 class TestGetDeployments(TestAdminRouter):
 
-    def test_pass_query_params_to_manager(self):
-        with mock.patch.object(self.router, '_get_filter_params'):
-            self.router._get_filter_params.return_value = 'fake query'
-            self.router.get_deployments()
-            self.manager.get_deployments.assert_called_with(
-                tenant_id=mock.ANY,
-                offset=mock.ANY,
-                limit=mock.ANY,
-                with_deleted=mock.ANY,
-                status=mock.ANY,
-                query='fake query',
-            )
-
-
-class TestGetFilterParams(TestAdminRouter):
-
-    def test_pass_empty_filter(self):
-        query_params = {}
-        with mock.patch.dict(bottle.request.query.dict, query_params):
-            self.router.get_deployments()
-            self.manager.get_deployments.assert_called_with(
-                tenant_id=mock.ANY,
-                offset=mock.ANY,
-                limit=mock.ANY,
-                with_deleted=mock.ANY,
-                status=mock.ANY,
-                query={}
-            )
-
-    def test_pass_only_whitelisted_params(self):
-        query_params = {
-            'name': ['fake name'],
-            'blueprint.name': ['fake blue'],
-            'search': ['fake search'],
-            'evil_param': ['Muahaha'],
-        }
-        with mock.patch.dict(bottle.request.query.dict, query_params):
-            self.router.get_deployments()
-            self.manager.get_deployments.assert_called_with(
-                tenant_id=mock.ANY,
-                offset=mock.ANY,
-                limit=mock.ANY,
-                with_deleted=mock.ANY,
-                status=mock.ANY,
-                query={
-                    'name': 'fake name',
-                    'blueprint.name': 'fake blue',
-                    'search': 'fake search',
-                }
-            )
+    @mock.patch.object(admin.router.utils.QueryParams, 'parse')
+    def test_pass_query_params_to_manager(self, parse):
+        parse.return_value = 'fake query'
+        self.router.get_deployments()
+        self.manager.get_deployments.assert_called_with(
+            tenant_id=mock.ANY,
+            offset=mock.ANY,
+            limit=mock.ANY,
+            with_deleted=mock.ANY,
+            status=mock.ANY,
+            query='fake query',
+        )
 
 
 class TestGetDeploymentCount(TestAdminRouter):
 
-    def test_pass_query_params_to_manager(self):
+    @mock.patch.object(admin.router.utils.QueryParams, 'parse')
+    def test_pass_query_params_to_manager(self, parse):
         self.manager.count.return_value = 99
-        with mock.patch.object(self.router, '_get_filter_params'):
-            self.router._get_filter_params.return_value = 'fake query'
-            self.router.get_deployment_count()
-            self.manager.count.assert_called_with(
-                tenant_id=mock.ANY,
-                status=mock.ANY,
-                query='fake query',
-            )
+        parse.return_value = 'fake query'
+        self.router.get_deployment_count()
+        self.manager.count.assert_called_with(
+            tenant_id=mock.ANY,
+            status=mock.ANY,
+            query='fake query',
+        )
 
 
 if __name__ == '__main__':

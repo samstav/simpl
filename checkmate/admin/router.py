@@ -154,16 +154,7 @@ class Router(object):
     #
     # Deployments
     #
-    def _get_filter_params(self):
-        query = {}
-
-        allowed_params = ['search', 'name', 'blueprint.name']
-        for term in allowed_params:
-            value = bottle.request.query.get(term)
-            if value:
-                query[term] = value
-
-        return query
+    param_whitelist = ['search', 'name', 'blueprint.name', 'tenantId', 'status']
 
     @utils.only_admins
     @utils.formatted_response('deployments', with_pagination=True)
@@ -172,7 +163,10 @@ class Router(object):
         show_deleted = bottle.request.query.get('show_deleted')
         status = bottle.request.query.get('status')
         tenant_id = bottle.request.query.get('tenant_id')
-        query = self._get_filter_params()
+
+        params = bottle.request.query.dict
+        query = utils.QueryParams.parse(params, self.param_whitelist)
+
         data = self.manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
@@ -194,7 +188,8 @@ class Router(object):
         '''
         tenant_id = bottle.request.query.get('tenant_id')
         status = bottle.request.query.get('status')
-        query = self._get_filter_params()
+        params = bottle.request.query.dict
+        query = utils.QueryParams.parse(params, self.param_whitelist)
         count = self.manager.count(tenant_id=tenant_id,
                                    status=status,
                                    query=query

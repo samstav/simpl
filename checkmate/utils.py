@@ -991,3 +991,26 @@ class Simulation(object):
         self.args = args
         for key, value in kwargs.items():
             setattr(self, key, value)
+
+
+class QueryParams:
+
+    @staticmethod
+    def parse(params, whitelist=None):
+        keys = params.keys()
+        if whitelist:
+            keys = whitelist
+
+        query = {}
+        query['whitelist'] = keys
+
+        for key in keys:
+            if key in params:
+                value = params[key]
+                if len(value) == 1:
+                    value = value[0]
+
+                if value:
+                    query[key] = value
+
+        return query
