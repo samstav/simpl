@@ -21,6 +21,7 @@ from sqlalchemy import (
 from sqlalchemy import create_engine
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker, scoped_session, relationship
 from sqlalchemy.pool import StaticPool
 
@@ -471,7 +472,8 @@ class Driver(DbBase):
         return response
 
     @staticmethod
-    def _add_filters(klass, query, tenant_id, with_deleted, status=None, filters=None):
+    def _add_filters(klass, query, tenant_id, with_deleted, status=None,
+                     query_params=None):
         '''Apply status filters to query.'''
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
@@ -482,9 +484,28 @@ class Driver(DbBase):
             if status:
                 filters = _parse_comparison('deployments_status', status)
                 query = query.filter(filters)
+
+            if query_params:
+                if ('search' in query_params):
+                    search_term = query_params['search']
+                    allowed_attributes = ['name', 'tenantId', 'blueprint.name']
+                    disjunction = []
+                    for attr in allowed_attributes:
+                        condition = ("%s LIKE '%%%s%%'" % (attr, search_term))
+                        disjunction.append(condition)
+                    query = query.filter(or_(*disjunction))
+                else:
+                    for key in query_params:
+                        if query_params[key]:
+                            attr = "deployments_%s" % key
+                            query = query.filter(
+                                _parse_comparison(attr, query_params[key])
+                            )
+
         return query
 
-    def _get_count(self, klass, tenant_id, with_deleted, status=None, query=None):
+    def _get_count(self, klass, tenant_id, with_deleted, status=None,
+                   query=None):
         '''Determine how many items based on filter and return the count.'''
         return self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted,
