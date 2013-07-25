@@ -48,6 +48,7 @@ class TestAPICalls(unittest.TestCase):
         req = self.mox.CreateMockAnything()
         req.context = self.mox.CreateMockAnything()
         req.context.username = 'john'
+        req.headers = {}
         self.mox.StubOutWithMock(utils, 'read_body')
         utils.read_body(req).AndReturn({})
         self.mox.ReplayAll()
@@ -69,6 +70,7 @@ class TestAPICalls(unittest.TestCase):
         req = self.mox.CreateMockAnything()
         req.context = self.mox.CreateMockAnything()
         req.context.username = 'john'
+        req.headers = {}
         self.mox.StubOutWithMock(utils, 'read_body')
         utils.read_body(req).AndReturn({'created-by': 'tom'})
         self.mox.ReplayAll()

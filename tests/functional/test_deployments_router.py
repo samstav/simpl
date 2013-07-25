@@ -23,10 +23,12 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
     def test_unwrap_needed(self, mock_read_body, mock_get_time_string):
         mock_read_body.return_value = {'deployment': {'created-by': 'Me'}}
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        request = mock.Mock()
+        request.headers = {}
         self.assertEquals(
             self.expected_deployment(),
             router._content_to_deployment(
-                request=None, deployment_id='Dtest', tenant_id='Ttest')
+                request=request, deployment_id='Dtest', tenant_id='Ttest')
         )
 
     @mock.patch('checkmate.deployments.router.uuid.uuid4')
@@ -38,10 +40,12 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
         mock_uuid.return_value = uuid.UUID(
             '{12345678123456781234567812345678}')
+        request = mock.Mock()
+        request.headers = {}
         self.assertEquals(
             self.expected_deployment('12345678123456781234567812345678'),
             router._content_to_deployment(
-                request=None, tenant_id='Ttest'))
+                request=request, tenant_id='Ttest'))
 
     @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
@@ -49,8 +53,10 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             self, mock_read_body, mock_get_time_string):
         mock_read_body.return_value = {'deployment': {'created-by': 'Me'}}
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        request = mock.Mock()
+        request.headers = {}
         with self.assertRaises(CheckmateValidationException) as expected:
-            router._content_to_deployment(request=None, deployment_id='>test',
+            router._content_to_deployment(request=request, deployment_id='>test',
                                           tenant_id='Ttest')
         self.assertEqual("Invalid start character '>'. ID can start with any "
                          "of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU"
@@ -62,8 +68,10 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             self, mock_read_body, mock_get_time_string):
         mock_read_body.return_value = {'deployment': {'created-by': 'Me'}}
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        request = mock.Mock()
+        request.headers = {}
         with self.assertRaises(CheckmateValidationException) as expected:
-            router._content_to_deployment(request=None, deployment_id='t>est',
+            router._content_to_deployment(request=request, deployment_id='t>est',
                                           tenant_id='Ttest')
         self.assertEqual("Invalid character '>'. Allowed characters are "
                          "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU"
@@ -80,10 +88,12 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             }
         }
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        request = mock.Mock()
+        request.headers = {}
         self.assertEquals(
             self.expected_deployment(),
             router._content_to_deployment(
-                request=None, deployment_id='Dtest', tenant_id='Ttest')
+                request=request, deployment_id='Dtest', tenant_id='Ttest')
         )
 
     @mock.patch('checkmate.deployment.utils.get_time_string')
@@ -98,9 +108,11 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             }
         }
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        request = mock.Mock()
+        request.headers = {}
         with self.assertRaises(CheckmateValidationException) as expected:
             router._content_to_deployment(
-                request=None, deployment_id='Dtest', tenant_id='Ttest')
+                request=request, deployment_id='Dtest', tenant_id='Ttest')
         self.assertEqual('tenantId must match with current tenant ID',
                          str(expected.exception))
 
@@ -116,9 +128,11 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             }
         }
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        request = mock.Mock()
+        request.headers = {}
         with self.assertRaises(AssertionError) as expected:
             router._content_to_deployment(
-                request=None, deployment_id='Dtest')
+                request=request, deployment_id='Dtest')
         self.assertEqual('Tenant ID must be specified in deployment.',
                          str(expected.exception))
 
@@ -135,6 +149,61 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
         mock_request = mock.Mock()
         mock_request.context.username = 'Me'
+        mock_request.headers = {}
+        self.assertEqual(
+            self.expected_deployment(),
+            router._content_to_deployment(
+                request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
+        )
+
+
+    @mock.patch('checkmate.deployment.utils.get_time_string')
+    @mock.patch('checkmate.deployments.router.utils.read_body')
+    def test_untrusted_request_but_no_github_config(
+            self, mock_read_body, mock_get_time_string):
+        mock_read_body.return_value = {
+            'deployment': {
+                'tenantId': 'Ttest',
+            }
+        }
+        mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        mock_request = mock.Mock()
+        mock_request.context.username = 'Me'
+        mock_request.headers = {'X-SOURCE-UNTRUSTED': 'True'}
+        with self.assertRaises(CheckmateValidationException) as expected:
+            router._content_to_deployment(
+                request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
+        self.assertEqual(
+            'Cannot validate blueprint.',
+            str(expected.exception)
+        )
+
+
+    @mock.patch('checkmate.common.config.current')
+    @mock.patch('checkmate.blueprints.GitHubManager')
+    @mock.patch('checkmate.deployment.utils.get_time_string')
+    @mock.patch('checkmate.deployments.router.utils.read_body')
+    def test_untrusted_request_with_valid_blueprint(self, mock_read_body,
+                                                    mock_get_time_string,
+                                                    mock_githubmgr,
+                                                    mock_config):
+        mock_read_body.return_value = {
+            'blueprint': {'id': 'abc123'},
+            'deployment': {
+                'tenantId': 'Ttest',
+                'includes': 'should be deleted'
+            }
+        }
+        mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
+        mock_request = mock.Mock()
+        mock_request.context.username = 'Me'
+        mock_request.headers = {'X-SOURCE-UNTRUSTED': 'True'}
+        manager = mock.Mock()
+        manager.blueprint_is_invalid.return_value = False
+        mock_githubmgr.return_value = manager
+        config = mock.Mock()
+        config.github_api = 'http://some.valid.url.com'
+        mock_config.return_value = config
         self.assertEqual(
             self.expected_deployment(),
             router._content_to_deployment(
