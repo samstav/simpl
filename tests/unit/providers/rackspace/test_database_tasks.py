@@ -457,31 +457,26 @@ class TestDatabaseTasks(unittest.TestCase):
     def test_delete_database_no_context_region(self):
         '''Validates an assert raised is thrown when region not in context.'''
         context = {}
-        try:
-            database.delete_database(context)
-        except AssertionError as exc:
-            self.assertEqual(str(exc), 'Region not supplied in context')
+        self.assertRaisesRegexp(AssertionError, 'Region not supplied in '
+                                'context', database.delete_database, context)
 
     def test_delete_database_no_context_resource(self):
         '''Validates an assert raised is thrown when region not in context.'''
         context = {'region': 'ORD'}
-        try:
-            database.delete_database(context)
-        except AssertionError as exc:
-            self.assertEqual(str(exc), 'Resource not supplied in context')
+        self.assertRaisesRegexp(AssertionError, 'Resource not supplied in '
+                                'context', database.delete_database, context)
 
     def test_delete_database_no_resource_index(self):
         '''Validates an assert raised is thrown when region not in context.'''
         context = {'region': 'ORD', 'resource': {}}
-        try:
-            database.delete_database(context)
-        except AssertionError as exc:
-            self.assertEqual(str(exc), 'Resource does not have an index')
+        self.assertRaisesRegexp(AssertionError, 'Resource does not have an '
+                                'index', database.delete_database, context)
 
     @mock.patch.object(database.resource_postback, 'delay')
     @mock.patch.object(database.Provider, 'connect')
     def test_delete_database_no_api_no_instance_host_instance(self,
-        mock_connect, mock_postback):
+                                                              mock_connect,
+                                                              mock_postback):
         '''Validates database delete postback when no instance or host_instance
         in context resource.
         '''
@@ -532,11 +527,9 @@ class TestDatabaseTasks(unittest.TestCase):
         api.get = mock.MagicMock(
             side_effect=mock_exception)
         mock_retry.side_effect = AssertionError('retry')
-        try:
-            database.delete_database(context, api)
-        except AssertionError as exc:
-            self.assertEqual(str(exc), 'retry')
-    
+        self.assertRaisesRegexp(AssertionError, 'retry',
+                                database.delete_database, context, api)
+
         mock_retry.assert_called_with(
             exc=mock_exception)
 
@@ -590,11 +583,9 @@ class TestDatabaseTasks(unittest.TestCase):
         api = mock.Mock()
         api.get = mock.Mock(return_value=instance)
 
-        try:
-            database.delete_database(context, api)
-        except exceptions.CheckmateException as exc:
-            self.assertEqual(str(exc), 'Waiting on instance to be out of '
-                             'BUILD status')
+        self.assertRaisesRegexp(exceptions.CheckmateException, 'Waiting on '
+                                'instance to be out of BUILD status',
+                                database.delete_database, context, api)
 
     def test_delete_database_api_delete_exception_retry(self):
         '''Validates task retry on delete exception.'''
