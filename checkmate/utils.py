@@ -993,7 +993,7 @@ class Simulation(object):
             setattr(self, key, value)
 
 
-class QueryParams:
+class QueryParams(object):
 
     @staticmethod
     def parse(params, whitelist=None):
