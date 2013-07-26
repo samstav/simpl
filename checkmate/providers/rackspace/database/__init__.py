@@ -149,6 +149,7 @@ def create_database(context, name, region, character_set=None, collate=None,
         results[instance_key]['host_instance'] = instance_id
         results[instance_key]['host_region'] = instance['region']
         results[instance_key]['flavor'] = flavor
+        results[instance_key]['disk'] = size
         return results
 
     instance = api.get(instance_id)
