@@ -11,11 +11,14 @@ from SpiffWorkflow.specs import Celery
 from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
+    BLUEPRINT_ERROR,
     CheckmateNoTokenError,
     CheckmateNoMapping,
     CheckmateException,
     CheckmateRetriableException,
     CheckmateServerBuildFailed,
+    CheckmateUserException,
+    UNEXPECTED_ERROR,
 )
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
 from checkmate.utils import match_celery_logging, yaml_to_dict, get_class_name
@@ -131,11 +134,13 @@ class Provider(RackspaceComputeProviderBase):
                 pass  # region not specified. Assume blueprint does not care.
             elif region not in legacy_regions:
                 if legacy_regions:
-                    raise CheckmateException("Legacy set to spin up in '%s'. "
-                                             "Cannot provision servers "
-                                             "in '%s'." %
-                                             (legacy_regions.keys()[0],
-                                                 region))
+                    error_message = "Legacy set to spin up in '%s'. " \
+                              "Cannot provision servers " \
+                              "in '%s'." % (legacy_regions.keys()[0], region)
+                    raise CheckmateUserException(error_message,
+                                                 get_class_name(
+                                                     CheckmateException),
+                                                 BLUEPRINT_ERROR, '')
                 else:
                     LOG.warning("Region %s specified in deployment, but no "
                                 "regions are specified in the Legacy Compute "
@@ -523,14 +528,15 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
         )
         raise
     except OverLimit as exc:
-        raise CheckmateRetriableException("You have reached the maximum "
+        raise CheckmateRetriableException(str(exc),
+                                          get_class_name(exc),
+                                          "You have reached the maximum "
                                           "number of servers that can be "
                                           "spun up using this account. "
                                           "Please delete some servers to "
                                           "continue or contact your support "
-                                          "team to increase your limit", "",
-                                          get_class_name(exc),
-                                          action_required=True)
+                                          "team to increase your limit",
+                                          "")
     except Exception, exc:
         LOG.debug(
             'Error creating server %s (image: %s, flavor: %s) Error: %s' % (
@@ -576,14 +582,13 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
 
     if server.status == 'ERROR':
         msg = "Server %s build failed" % server_id
-        results = {'status': "ERROR"}
-        results['error-message'] = msg
+        results = {'status': "ERROR", 'error-message': msg}
         instance_key = 'instance:%s' % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         delete_server(context, server_id, api_object)
-        raise CheckmateRetriableException(msg, "", get_class_name(
-            CheckmateServerBuildFailed()), action_required=True)
+        raise CheckmateRetriableException(msg, get_class_name(
+            CheckmateServerBuildFailed()), msg, '')
 
     ip = None
     if server.addresses:
@@ -629,7 +634,9 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
                     "Assuming it is active" % (server_id, server.status))
 
     if not ip:
-        raise CheckmateException("Could not find IP of server %s" % server_id)
+        error_message = "Could not find IP of server %s" % server_id
+        raise CheckmateUserException(error_message, get_class_name(
+            CheckmateException), UNEXPECTED_ERROR, '')
     else:
         up = test_connection(context, ip, username, timeout=timeout,
                              password=password, identity_file=identity_file,

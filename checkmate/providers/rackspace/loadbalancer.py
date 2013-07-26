@@ -26,7 +26,7 @@ from checkmate.exceptions import (
     CheckmateNoTokenError,
     CheckmateBadState,
     CheckmateRetriableException,
-)
+    CheckmateUserException, BLUEPRINT_ERROR, UNEXPECTED_ERROR)
 from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
@@ -112,8 +112,10 @@ class Provider(ProviderBase):
                                         service_name=service,
                                         provider_key=self.key)
         if not region:
-            raise CheckmateException("Could not identify which region to "
-                                     "create load-balancer in")
+            error_message = ("Could not identify which region to "
+                             "create load-balancer in")
+            raise CheckmateUserException(error_message, get_class_name(
+                CheckmateUserException), BLUEPRINT_ERROR, '')
         number_of_resources = 1
         interface = \
             deployment.get('blueprint')['services'][service]['component'][
@@ -488,19 +490,21 @@ class Provider(ProviderBase):
                              wfspec, deployment, context, interface):
         comp = self.find_components(context, id="rsCloudLB")
         if not comp:
-            raise CheckmateException("Could not locate component for id "
-                                     "'rsCloudLB'")
+            error_message = "Could not locate component for id 'rsCloudLB'"
+            raise CheckmateUserException(error_message, get_class_name(
+                CheckmateException), BLUEPRINT_ERROR, '')
         else:
             comp = comp[0]  # there should be only one
             options = comp.get('options', {})
             protocol_option = options.get("protocol", {})
             protocols = protocol_option.get("choice", [])
             if interface not in protocols:
-                raise CheckmateException("'%s' is an invalid relation "
-                                         "interface for provider '%s'. Valid "
-                                         "options are: %s" % (interface,
-                                                              self.key,
-                                                              protocols))
+                error_message = "'%s' is an invalid relation " \
+                             "interface for provider '%s'. Valid " \
+                             "options are: %s" % (
+                             interface, self.key, protocols)
+                raise CheckmateUserException(error_message, get_class_name(
+                    CheckmateException), BLUEPRINT_ERROR, '')
 
         # Get all tasks we need to precede the LB Add Node task
         finals = self.find_task_specs(wfspec, resource=relation['target'],
@@ -817,15 +821,17 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         if str(exc) == 'retry-after':
             LOG.info("A limit 'may' have been reached creating a load "
                      "balancer for deployment %s", deployment_id)
-            raise CheckmateRetriableException("API limit reached", "",
+            error_message = "API limit reached"
+            raise CheckmateRetriableException(error_message,
                                               get_class_name(exc),
-                                              action_required=False)
+                                              error_message,
+                                              '')
         raise
     except RateLimit as exc:
         LOG.info("API Limit reached creating a load balancer for deployment "
                  "%s", deployment_id)
-        raise CheckmateRetriableException(exc.reason, "", get_class_name(exc),
-                                          action_required=False)
+        raise CheckmateRetriableException(exc.reason, get_class_name(exc),
+                                          exc.reason, '')
 
     # Put the instance_id in the db as soon as it's available
     instance_id = {
@@ -870,10 +876,13 @@ def collect_record_data(deployment_id, resource_key, record):
     assert record, "No record specified"
 
     if "id" not in record:
-        raise CheckmateException("Missing record id in %s" % record)
+        message = "Missing record id in %s" % record
+        raise CheckmateUserException(message, get_class_name(
+            CheckmateException), UNEXPECTED_ERROR, '')
     if "domain" not in record:
-        raise CheckmateException("No domain specified for record %s"
-                                 % record.get("id"))
+        message = "No domain specified for record %s" % record.get("id")
+        raise CheckmateUserException(message, get_class_name(
+            CheckmateException), UNEXPECTED_ERROR, '')
     contents = {
         "instance:%s" % resource_key: {
             "domain_id": record.get("domain"),
@@ -902,8 +911,9 @@ def sync_resource_task(context, resource, resource_key, api=None):
     instance_id = instance.get("id")
     try:
         if not instance_id:
-            raise CheckmateException("No instance id supplied for resource %s"
-                                     % key)
+            error_message = "No instance id supplied for resource %s" % key
+            raise CheckmateUserException(error_message, get_class_name(
+                CheckmateException), UNEXPECTED_ERROR, '')
         lb = api.loadbalancers.get(instance_id)
         # TODO(Nate): Update sync to use postback instead of resource postback
         #and also add in checkmate translated status to resource root
@@ -1087,8 +1097,10 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
         api = Provider.connect(context, region)
 
     if ipaddr == PLACEHOLDER_IP:
-        raise CheckmateException("IP %s is reserved as a placeholder IP by "
-                                 "checkmate" % ipaddr)
+        message = "IP %s is reserved as a placeholder IP by " \
+                           "checkmate" % ipaddr
+        raise CheckmateUserException(message, get_class_name(
+            CheckmateException), UNEXPECTED_ERROR, ''  )
 
     loadbalancer = api.loadbalancers.get(lbid)
 
@@ -1308,7 +1320,7 @@ def wait_on_build(context, lbid, region, api=None):
             wait_on_lb_delete_task.si(context, context["resource"], lbid,
                                       region, api)).apply_async()
         raise CheckmateRetriableException(msg, "", get_class_name(
-            CheckmateLoadbalancerBuildFailed()), action_required=True)
+            CheckmateLoadbalancerBuildFailed()), msg, '')
     elif loadbalancer.status == "ACTIVE":
         results = {
             instance_key: {

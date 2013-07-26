@@ -12,6 +12,12 @@ This is important to allow exceptions to flow back from the message queue
 tasks.
 '''
 
+''' Error message constants '''
+BLUEPRINT_ERROR = "There is a possible problem in the " \
+                                  "Blueprint provided - Please contact support"
+UNEXPECTED_ERROR = "There was an unexpected error executing your deployment -" \
+                   " Please contact support"
+
 
 class CheckmateException(Exception):
     '''Checkmate Error.'''
@@ -121,7 +127,7 @@ class CheckmateRetriableException(CheckmateUserException):
 
 
 class CheckmateResumableException(CheckmateUserException):
-    '''Retriable Exception.'''
+    '''Resumable Exception.'''
     def __init__(self, error_message, error_type, friendly_message,
                  error_help):
         super(CheckmateResumableException, self).__init__(error_message,

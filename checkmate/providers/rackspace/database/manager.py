@@ -14,6 +14,8 @@ from checkmate.exceptions import (
     CheckmateException,
     CheckmateResumableException,
     CheckmateRetriableException,
+    CheckmateUserException,
+    UNEXPECTED_ERROR,
 )
 
 LOG = logging.getLogger(__name__)
@@ -35,8 +37,8 @@ class Manager(object):
             else:
                 data['status'] = api.get(instance_id).status
         except cdb_errors.ClientException as exc:
-            raise CheckmateResumableException(str(exc), 'Error occurred in db '
-                                              'provider', type(exc).__name__)
+            raise CheckmateResumableException(str(exc), utils.get_class_name(
+                exc), "Error occurred in db provider", "")
         except StandardError as exc:
             data['status'] = 'ERROR'
             data['status-message'] = 'Error waiting on resource to build'
@@ -48,15 +50,19 @@ class Manager(object):
             data['status-message'] = 'Instance went into status ERROR'
             callback(data)
             raise CheckmateRetriableException(data['status-message'],
-                                              'Workflow is retriable',
-                                              'Provider Error')
+                                              utils.get_class_name(
+                                                  CheckmateException),
+                                              data['status-message'], '')
         elif data['status'] in ['ACTIVE', 'DELETED']:
             data['status-message'] = ''
         else:
             callback(data)
             msg = 'DB instance in status %s' % data['status']
             info = 'DB status is not ACTIVE'
-            raise CheckmateResumableException(msg, info, 'Retriable')
+            raise CheckmateResumableException(msg,
+                                              utils.get_class_name(
+                                                  CheckmateException),
+                                              info, '')
 
         return data
 
@@ -109,13 +115,13 @@ class Manager(object):
                 instance = api.create(instance_name, flavor=flavor,
                                       volume=size, databases=databases)
         except cdb_errors.ClientException as exc:
-            raise CheckmateRetriableException(str(exc), "",
+            raise CheckmateRetriableException(str(exc),
                                               utils.get_class_name(exc),
-                                              action_required=True)
-
+                                              UNEXPECTED_ERROR,
+                                              '')
         except Exception as exc:
-            raise CheckmateException('Provider error occurred in '
-                                     'create_instance.', exc)
+            raise CheckmateUserException(str(exc), utils.get_class_name(exc),
+                                         UNEXPECTED_ERROR, '')
         if callable(callback):
             callback({'id': instance.id})
 

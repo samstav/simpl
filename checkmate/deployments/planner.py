@@ -13,8 +13,10 @@ from checkmate.deployment import (
     validate_input_constraints,
 )
 from checkmate.exceptions import (
+    BLUEPRINT_ERROR,
     CheckmateException,
-    CheckmateValidationException
+    CheckmateValidationException,
+    CheckmateUserException,
 )
 from checkmate.resource import Resource
 
@@ -387,9 +389,12 @@ class Planner(ExtensibleDict):
                             deployment._get_setting_by_resource_path(
                                 "resources/%s/name" % key, 'admin')
                         if not instance['name']:
-                            raise CheckmateException("Name must be specified "
-                                                     "for the '%s' user "
-                                                     "resource" % key)
+                            error_message = "Name must be specified " \
+                                           "for the '%s' user " \
+                                           "resource" % key
+                            raise CheckmateUserException(
+                                error_message, utils.get_class_name(
+                                    CheckmateException), BLUEPRINT_ERROR, '')
                     else:
                         instance['name'] = resource['name']
                     if 'password' not in resource:
@@ -444,8 +449,12 @@ class Planner(ExtensibleDict):
                         instance = resource['instance']
                     result = dict(type='key-pair', instance=instance)
                 else:
-                    raise CheckmateException("Could not find provider for the "
-                                             "'%s' resource" % key)
+                    error_message = "Could not find provider for the " \
+                                   "'%s' resource" % key
+                    raise CheckmateUserException(error_message,
+                                                 utils.get_class_name(
+                                                     CheckmateException),
+                                                 BLUEPRINT_ERROR, '')
                     # Add it to resources
             resources[str(key)] = result
             result['index'] = str(key)
@@ -566,11 +575,14 @@ class Planner(ExtensibleDict):
         relations = resource['relations']
         if relation_type == 'host':
             if resource.get('hosted_on') not in [None, target['index']]:
-                raise CheckmateException(
-                    "Resource '%s' is already set to be hosted on '%s'. "
-                    "Cannot change host to '%s'" %
-                    (resource['index'], resource['hosted_on'], target['index'])
-                )
+                error_message = ("Resource '%s' is already set to be hosted on "
+                                 "'%s'. Cannot change host to '%s'" %
+                                (resource['index'], resource['hosted_on'],
+                                 target['index']))
+                raise CheckmateUserException(error_message,
+                                             utils.get_class_name(
+                                                 CheckmateException),
+                                             BLUEPRINT_ERROR, '')
 
             resource['hosted_on'] = target['index']
             if 'hosts' in target:
@@ -787,8 +799,11 @@ class Planner(ExtensibleDict):
                           service_name)
                 component = self.identify_component(definition, context)
                 if not component:
-                    raise CheckmateException("Could not resolve component '%s'"
-                                             % definition)
+                    error_message = "Could not resolve component '%s'" % definition
+                    raise CheckmateUserException(error_message,
+                                                 utils.get_class_name(
+                                                     CheckmateException),
+                                                 BLUEPRINT_ERROR, '')
                 LOG.debug("Component '%s' identified as '%s'  to satisfy "
                           "requirement '%s' for service '%s'", definition,
                           component['id'], key, service_name)
@@ -865,8 +880,11 @@ class Planner(ExtensibleDict):
                       component_key)
             found = self.identify_component(definition, context)
             if not found:
-                raise CheckmateException("Could not resolve component '%s'"
-                                         % definition)
+                error_message = "Could not resolve component '%s'" % definition
+                raise CheckmateUserException(error_message,
+                                             utils.get_class_name(
+                                                 CheckmateException),
+                                             BLUEPRINT_ERROR, "")
             LOG.debug("Component '%s' identified as '%s'  to satisfy "
                       "requirement '%s' for service '%s' for extra component "
                       "'%s'", definition, found['id'], requirement_key,
@@ -878,7 +896,8 @@ class Planner(ExtensibleDict):
                        "for service '%s'. The component '%s' has been "
                        "encountered already" % signature)
                 LOG.debug(msg, extra={'data': self})
-                raise CheckmateException(msg)
+                raise CheckmateUserException(msg, utils.get_class_name(
+                    CheckmateException), BLUEPRINT_ERROR, '')
             history.append(signature)
             # Add it to the 'extra-components' list in the service
             service['extra-components'][requirement_key] = found
@@ -964,8 +983,9 @@ class Planner(ExtensibleDict):
         assert not isinstance(definition, list)  # deprecated syntax
         found = self.environment.find_component(definition, context)
         if not found:
-            raise CheckmateException("Could not resolve component '%s'"
-                                     % definition)
+            error_message = "Could not resolve component '%s'" % definition
+            raise CheckmateUserException(error_message,utils.get_class_name(
+                CheckmateException), BLUEPRINT_ERROR, '')
         component = {}
         component['id'] = found['id']
         provider = found.provider
@@ -1028,8 +1048,9 @@ class Planner(ExtensibleDict):
             final_map['service'] = service
 
         if 'service' not in final_map:  # post v0.2, let's raise this
-            raise CheckmateException("No service specified for relation '%s'" %
-                                     final_key)
+            error_message = "No service specified for relation '%s'" % final_key
+            raise CheckmateUserException(error_message, utils.get_class_name(
+                CheckmateException),BLUEPRINT_ERROR, '')
         return final_key, final_map
 
     @staticmethod

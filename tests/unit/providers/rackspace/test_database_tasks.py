@@ -223,12 +223,10 @@ class TestDatabaseTasks(unittest.TestCase):
         try:
             database.create_instance(context, 'test_instance', '1', '1',
                                      None, 'DFW', api='invalid')
-        except exceptions.CheckmateException as exc:
-            self.assertEqual(exc.args[0], 'Provider error occurred in '
-                             'create_instance.')
-            assert isinstance(exc.args[1], AttributeError)
-            self.assertEqual(str(exc.args[1]), "'str' object has no attribute "
-                             "'create'")
+        except exceptions.CheckmateUserException as exc:
+            self.assertEqual(exc.error_message, "'str' object has no "
+                                                "attribute 'create'")
+            self.assertEqual(exc.error_type, "AttributeError")
 
     def test_create_database_sim_no_instance_id(self):
         '''Verifies create database simulation is working.'''

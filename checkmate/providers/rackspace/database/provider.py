@@ -12,9 +12,12 @@ from SpiffWorkflow import specs
 
 from checkmate.common import caching
 from checkmate.exceptions import (
+    BLUEPRINT_ERROR,
     CheckmateException,
     CheckmateNoMapping,
     CheckmateNoTokenError,
+    CheckmateUserException,
+    UNEXPECTED_ERROR,
 )
 from checkmate import middleware
 from checkmate import providers
@@ -99,8 +102,10 @@ class Provider(providers.ProviderBase):
                                             service_name=service,
                                             provider_key=self.key)
             if not region:
-                raise CheckmateException("Could not identify which region to "
-                                         "create database in")
+                message = "Could not identify which region to " \
+                              "create database in"
+                raise CheckmateUserException(message,utils.get_class_name(
+                    CheckmateException), BLUEPRINT_ERROR, '')
 
             for template in templates:
                 template['flavor'] = flavor
@@ -218,8 +223,12 @@ class Provider(providers.ProviderBase):
             if password:
                 start_with = string.ascii_uppercase + string.ascii_lowercase
                 if password[0] not in start_with:
-                    raise CheckmateException("Database password must start "
-                                             "with one of '%s'" % start_with)
+                    error_message = "Database password must start " \
+                                   "with one of '%s'" % start_with
+                    raise CheckmateUserException(error_message,
+                                                 utils.get_class_name(
+                                                     CheckmateUserException),
+                                                 UNEXPECTED_ERROR, '')
 
             # Create resource tasks
             create_database_task = specs.Celery(
@@ -330,9 +339,10 @@ class Provider(providers.ProviderBase):
             wait_task.follow(create_instance_task)
             return dict(root=root, final=wait_task)
         else:
-            raise CheckmateException("Unsupported component type '%s' for "
-                                     "provider %s" % (component['is'],
-                                                      self.key))
+            error_message = "Unsupported component type '%s' for " \
+                   "provider %s" % (component['is'], self.key)
+            raise CheckmateUserException(error_message, utils.get_class_name(
+                CheckmateException), UNEXPECTED_ERROR, '')
 
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
@@ -359,9 +369,10 @@ class Provider(providers.ProviderBase):
             return self._delete_comp_res_tasks(wf_spec, context, key)
         if resource.get('type') == 'database':
             return self._delete_db_res_tasks(wf_spec, context, key)
-        raise CheckmateException("Cannot provide delete tasks for resource %s:"
-                                 " Invalid resource type '%s'"
-                                 % (key, resource.get('type')))
+        message = "Cannot provide delete tasks for resource %s:" \
+                " Invalid resource type '%s'" % (key, resource.get('type'))
+        raise CheckmateUserException(message, utils.get_class_name(
+            CheckmateException), UNEXPECTED_ERROR, '')
 
     @staticmethod
     def _delete_comp_res_tasks(wf_spec, context, key):
@@ -502,8 +513,9 @@ class Provider(providers.ProviderBase):
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
         elif not isinstance(context, middleware.RequestContext):
-            raise CheckmateException('Context passed into connect is an '
-                                     'unsupported type %s.' % type(context))
+            message = 'Context passed into connect is an ' \
+                       'unsupported type %s.' % type(context)
+            raise CheckmateException(message)
         if not context.auth_token:
             raise CheckmateNoTokenError()
 

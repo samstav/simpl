@@ -14,20 +14,23 @@ import simplefsm as fsm
 from simplefsm.exceptions import InvalidStateError
 
 from checkmate import blueprints
-from checkmate.common import schema
 from checkmate import constraints as cm_constraints
 from checkmate import db
-from checkmate.db.common import ObjectLockedError
 from checkmate import environment as cm_env
-from checkmate.exceptions import (
-    CheckmateBadState,
-    CheckmateException,
-    CheckmateValidationException,
-)
 from checkmate import inputs as cm_inputs
 from checkmate import keys
 from checkmate import resource as cm_res
 from checkmate import utils
+from checkmate.common import schema
+from checkmate.db.common import ObjectLockedError
+from checkmate.exceptions import (
+    BLUEPRINT_ERROR,
+    CheckmateBadState,
+    CheckmateException,
+    CheckmateValidationException,
+    CheckmateUserException,
+)
+
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -850,11 +853,14 @@ class Deployment(morpheus.MorpheusDict):
                     if attribute in value:
                         result = value[attribute]
                 else:
-                    raise CheckmateException("Could not read attribute '%s' "
-                                             "while obtaining option '%s' "
-                                             "since value is of type %s" % (
-                                             attribute, name,
-                                             type(value).__name__))
+                    error_message = "Could not read attribute '%s' " \
+                              "while obtaining option '%s' " \
+                              "since value is of type %s" % (
+                              attribute, name, type(value).__name__)
+                    raise CheckmateUserException(error_message,
+                                                 utils.get_class_name(
+                                                     CheckmateException),
+                                                 BLUEPRINT_ERROR, "")
                 if result is not None:
                     LOG.debug("Found setting '%s' from constraint. %s=%s",
                               name, option_key or name, result)
@@ -971,8 +977,11 @@ class Deployment(morpheus.MorpheusDict):
             component = self.environment().find_component(service_component,
                                                           context)
             if not component:
-                raise CheckmateException("Could not resolve component '%s'"
-                                         % service_component)
+                error_message = "Could not resolve component '%s'" % service_component
+                raise CheckmateUserException(error_message,
+                                             utils.get_class_name(
+                                                 CheckmateException),
+                                             BLUEPRINT_ERROR, "")
             LOG.debug("Component '%s' identified as '%s' for service '%s'",
                       service_component, component['id'], service_name)
             results[service_name] = component

@@ -15,10 +15,13 @@ from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
 from checkmate.deployment import get_status
 from checkmate.exceptions import (
+    BLUEPRINT_ERROR,
     CheckmateException,
     CheckmateRetriableException,
     CheckmateResumableException,
-    CheckmateUserException)
+    CheckmateUserException,
+    UNEXPECTED_ERROR,
+)
 
 DB = get_driver()
 LOG = logging.getLogger(__name__)
@@ -276,9 +279,11 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context):
     if results:
         serializer = DictionarySerializer()
         serialized_spec = spiff_wf_spec.serialize(serializer)
-        LOG.debug("Errors in Workflow: %s", '\n'.join(results),
+        error_message = '. '.join(results)
+        LOG.debug("Errors in Workflow: %s", error_message,
                   extra=dict(data=serialized_spec))
-        raise CheckmateException('. '.join(results))
+        raise CheckmateUserException(error_message, utils.get_class_name(
+            CheckmateException), UNEXPECTED_ERROR, '')
 
     workflow = SpiffWorkflow(spiff_wf_spec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
@@ -309,6 +314,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context):
     update_workflow_status(workflow, tenant_id=deployment.get('tenantId'))
 
     return workflow
+
 
 def format(resources):
     formatted_resources = {}
@@ -364,9 +370,12 @@ def create_workflow_spec_deploy(deployment, context):
                 if 'target' in relation:
                     if relation['target'] not in sorted_list:
                         if relation['target'] in stack:
-                            raise CheckmateException(
-                                "Circular dependency in resources between %s "
-                                "and %s" % (resource_key, relation['target']))
+                            error_message = "Circular dependency in resources between %s " \
+                                      "and %s" % (
+                                      resource_key, relation['target'])
+                            raise CheckmateUserException(
+                                error_message,utils.get_class_name(
+                                    CheckmateException), BLUEPRINT_ERROR, '')
                         stack.append(resource_key)
                         recursive_add_host(sorted_resources,
                                            relation['target'], resources, stack)
@@ -398,8 +407,12 @@ def create_workflow_spec_deploy(deployment, context):
                              if (r.get('relation') == 'host'
                                  and r['target'] == key)]
                 if len(relations) > 1:
-                    raise CheckmateException("Multiple 'host' relations for "
-                                             "resource '%s'" % key)
+                    error_message = ("Multiple 'host' relations for resource "
+                                     "'%s'" % key)
+                    raise CheckmateUserException(error_message,
+                                                 utils.get_class_name(
+                                                     CheckmateException),
+                                                 UNEXPECTED_ERROR, '')
                 relation = relations[0]
                 provider = providers[hr['provider']]
                 provider_result = provider.add_connection_tasks(hr, index,

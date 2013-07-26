@@ -13,6 +13,7 @@ import os
 
 # some distros install as PAM (Ubuntu, SuSE)
 # https://bugs.launchpad.net/keystone/+bug/938801
+
 try:
     import pam
 except ImportError:
@@ -25,10 +26,15 @@ import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized
 
+from checkmate import utils
 from checkmate.common import caching
 from checkmate.db import any_tenant_id_problems
-from checkmate.exceptions import CheckmateException
-from checkmate.utils import to_json, to_yaml, import_class
+from checkmate.exceptions import (
+    BLUEPRINT_ERROR,
+    CheckmateException,
+    CheckmateUserException,
+)
+
 
 LOG = logging.getLogger(__name__)
 
@@ -46,12 +52,12 @@ def generate_response(self, environ, start_response):
         content_type = 'application/x-yaml'
         data = dict(error=dict(explanation=self.__str__(), code=self.code,
                                description=self.title))
-        body = to_yaml(data)
+        body = utils.to_yaml(data)
     elif accept and 'json' in accept:
         content_type = 'application/json'
         data = dict(error=dict(explanation=self.__str__(), code=self.code,
                                description=self.title))
-        body = to_json(data)
+        body = utils.to_json(data)
     else:
         content_type = 'text/plain'
         body = self.plain_body(environ)
@@ -808,13 +814,20 @@ class AuthTokenRouterMiddleware(object):
             for endpoint in endpoints:
                 if endpoint not in self.endpoints:
                     if 'middleware' not in endpoint:
-                        raise CheckmateException("Required 'middleware' key "
-                                                 "not specified in endpoint: "
-                                                 "%s" % endpoint)
+                        error_message = "Required 'middleware' key " \
+                                     "not specified in endpoint: " \
+                                     "%s" % endpoint
+                        raise CheckmateUserException(error_message,
+                                                     utils.get_class_name(
+                                                         CheckmateException),
+                                                     BLUEPRINT_ERROR, '')
                     if 'uri' not in endpoint:
-                        raise CheckmateException("Required 'uri' key "
-                                                 "not specified in endpoint: "
-                                                 "%s" % endpoint)
+                        error_message = ("Required 'uri' key not specified in"
+                                         "endpoint: %s" % endpoint)
+                        raise CheckmateUserException(error_message,
+                                                     utils.get_class_name(
+                                                         CheckmateException),
+                                                     BLUEPRINT_ERROR, '')
                     self.endpoints.append(endpoint)
                     if endpoint.get('default') is True:
                         self.default_endpoint = endpoint
@@ -836,7 +849,7 @@ class AuthTokenRouterMiddleware(object):
         # token auth calls. We'll route to it when appropriate
         for endpoint in self.endpoints:
             if 'middleware_instance' not in endpoint:
-                middleware = import_class(endpoint['middleware'])
+                middleware = utils.import_class(endpoint['middleware'])
                 instance = middleware(app, endpoint,
                                       anonymous_paths=self.anonymous_paths)
                 endpoint['middleware'] = instance
