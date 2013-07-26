@@ -502,6 +502,12 @@ describe('DeploymentListController', function(){
     });
   });
 
+  describe('error_message', function() {
+    it('should default to null', function() {
+      expect(scope.error_message).toBe(null);
+    });
+  });
+
   describe('#no_results_found', function() {
     it('should return false if there are pending results', function() {
       scope.has_pending_results = sinon.stub().returns(true);
@@ -511,6 +517,11 @@ describe('DeploymentListController', function(){
     describe('if no pending results are left', function() {
       beforeEach(function() {
         scope.has_pending_results = sinon.stub().returns(false);
+      });
+
+      it('should return false if there is an error message', function() {
+        scope.error_message = 'foobar';
+        expect(scope.no_results_found()).toBeFalsy();
       });
 
       it('should return true if there are no deployments to be displayed', function() {
