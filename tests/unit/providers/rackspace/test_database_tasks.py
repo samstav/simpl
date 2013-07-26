@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0201,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,C0302,R0201,R0903,R0904,W0212,W0232,W0613
 'Tests to exercise database celery tasks.'
 import functools
 import mock
@@ -676,10 +676,10 @@ class TestDatabaseTasks(unittest.TestCase):
         api.get.assert_called_with(instance_id)
         instance.delete_user.assert_called_with(username)
 
-    
+
 class DeleteInstanceTaskTest(unittest.TestCase):
     '''Class for testing delete instance task.'''
-    
+
     def setUp(self):
         '''Sets up valid args passed into delete_instance_task.'''
         self.context = {
@@ -693,7 +693,7 @@ class DeleteInstanceTaskTest(unittest.TestCase):
                 'hosts': []
             }
         }
-    
+
     def test_delete_instance_no_dep_id(self):
         '''Verifies assertion raised on dep id missing from context.'''
         self.context.pop('deployment_id')
@@ -850,7 +850,7 @@ class DeleteInstanceTaskTest(unittest.TestCase):
 
 class TestWaitOnDelInstance(unittest.TestCase):
     '''Class to exercise database.wait_on_del_instance task.'''
-    
+
     def setUp(self):
         '''Sets up valid args passed into wait_on_del_instance.'''
         self.context = {
@@ -932,7 +932,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
     @mock.patch.object(database.Provider, 'connect')
     def test_no_api_get_client_exception_no_hosts(self, mock_connect,
                                                   mock_postback):
-        '''Verifies method calls with no api and ClientException raised on 
+        '''Verifies method calls with no api and ClientException raised on
         get.
         '''
         api = mock.Mock()
@@ -991,7 +991,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
             'instance:4': {
                 'status': 'DELETING',
                 'status-message': 'Waiting on state DELETED. Instance 4 is in '
-                              'state ACTIVE'
+                                  'state ACTIVE'
             }
         }
         database.wait_on_del_instance(self.context, api)
