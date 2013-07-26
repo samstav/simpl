@@ -588,9 +588,9 @@ def delete_user(context, instance_id, username, region, api=None):
     if api is None:
         api = Provider.connect(context, region)
 
-    instance = api.get(instanceid=instance_id)
+    instance = api.get(instance_id)
     instance.delete_user(username)
-    LOG.info('Deleted user %s from database instance %d', username,
+    LOG.info('Deleted user %s from database instance %s', username,
              instance_id)
 
 

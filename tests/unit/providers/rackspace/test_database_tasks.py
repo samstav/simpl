@@ -645,6 +645,37 @@ class TestDatabaseTasks(unittest.TestCase):
         self.assertEqual(expected, results)
         mock_postback.assert_called_with('123', expected)
 
+    @mock.patch.object(database.Provider, 'connect')
+    def test_delete_user_no_api(self, mock_connect):
+        '''Verifies Provider connect is called in delete user with no api.'''
+        context = {}
+        instance_id = 12345
+        username = 'test_user'
+        region = 'ORD'
+        instance = mock.Mock()
+        instance.delete_user = mock.Mock()
+        api = mock.Mock()
+        api.get = mock.Mock(return_value=instance)
+        mock_connect.return_value = api
+
+        database.delete_user(context, instance_id, username, region)
+        mock_connect.assert_called_with(context, region)
+
+    def test_delete_user_api_success(self):
+        '''Verifies all method calls in the delete_user task.'''
+        context = {}
+        instance_id = 12345
+        username = 'test_user'
+        region = 'ORD'
+        instance = mock.Mock()
+        instance.delete_user = mock.Mock()
+        api = mock.Mock()
+        api.get = mock.Mock(return_value=instance)
+
+        database.delete_user(context, instance_id, username, region, api)
+        api.get.assert_called_with(instance_id)
+        instance.delete_user.assert_called_with(username)
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately
