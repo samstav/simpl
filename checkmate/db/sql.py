@@ -486,17 +486,20 @@ class Driver(DbBase):
                 query = query.filter(filters)
 
             if query_params:
+                whitelist = query_params.keys()
+                if 'whitelist' in query_params:
+                    whitelist = query_params['whitelist']
+
                 if ('search' in query_params):
                     search_term = query_params['search']
-                    allowed_attributes = ['name', 'tenantId', 'blueprint.name']
                     disjunction = []
-                    for attr in allowed_attributes:
+                    for attr in whitelist:
                         condition = ("%s LIKE '%%%s%%'" % (attr, search_term))
                         disjunction.append(condition)
                     query = query.filter(or_(*disjunction))
                 else:
-                    for key in query_params:
-                        if query_params[key]:
+                    for key in whitelist:
+                        if key in query_params and query_params[key]:
                             attr = "deployments_%s" % key
                             query = query.filter(
                                 _parse_comparison(attr, query_params[key])

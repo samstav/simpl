@@ -841,23 +841,25 @@ class Driver(common.DbBase):
         if klass == Driver._deployment_collection_name:
             if not with_deleted and not status:
                 status = '!DELETED'
-
             if status:
                 filters['status'] = _parse_comparison(status)
 
             if query:
-                if ('search' in query):
+                whitelist = query.keys()
+                if 'whitelist' in query:
+                    whitelist = query['whitelist']
+
+                if 'search' in query:
                     search_term = query['search']
-                    allowed_attributes = ['name', 'tenantId', 'blueprint.name']
                     disjunction = []
-                    for attr in allowed_attributes:
+                    for attr in whitelist:
                         regex = {'$regex': search_term, '$options': 'i'}
                         condition = {attr: regex}
                         disjunction.append(condition)
                     filters['$or'] = disjunction
                 else:
-                    for key in query:
-                        if query[key]:
+                    for key in whitelist:
+                        if key in query and query[key]:
                             regex = {'$regex': query[key], '$options': 'i'}
                             filters[key] = regex
 

@@ -123,13 +123,13 @@ class TestBuildFilters(TestMongoDB):
         self.assertEqual(filters, expected_filters)
 
     def test_create_filter_with_all_fields_when_searching(self):
+        query = {'search': 'foobar', 'whitelist': ['foo', 'bar']}
         filters = self.driver._build_filters('deployments', None, True, None,
-                                             query={'search': 'foobar'})
+                                             query=query)
         expected_filters = {
             '$or': [
-                {'name': {'$options': 'i', '$regex': 'foobar'}},
-                {'tenantId': {'$options': 'i', '$regex': 'foobar'}},
-                {'blueprint.name': {'$options': 'i', '$regex': 'foobar'}}
+                {'foo': {'$options': 'i', '$regex': 'foobar'}},
+                {'bar': {'$options': 'i', '$regex': 'foobar'}},
             ]
         }
         self.assertEqual(filters, expected_filters)

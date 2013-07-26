@@ -519,6 +519,45 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.escape_yaml_simple_string({'A': 1}), {'A': 1})
 
 
+class TestQueryParams(unittest.TestCase):
+
+    def setUp(self):
+        self.parser = utils.QueryParams.parse
+
+    def test_whitelist_is_optional(self):
+        query = self.parser({'foo': 'bar'})
+        self.assertIn('foo', query)
+        self.assertEqual(query['foo'], 'bar')
+
+    def test_add_keys_as_whitelist_if_no_whitelist(self):
+        query = self.parser({'foo': 'bar', 'asdf': 'qwer'})
+        self.assertIn('whitelist', query)
+        self.assertIn('foo',  query['whitelist'])
+        self.assertIn('asdf', query['whitelist'])
+
+    def test_add_whitelist_to_query(self):
+        query = self.parser({}, 'fake whitelist')
+        self.assertEqual(query['whitelist'], 'fake whitelist')
+
+    def test_add_value_instead_of_array_with_one_element(self):
+        query = self.parser({'foo': ['bar']})
+        self.assertEqual(query['foo'], 'bar')
+
+    def test_add_array_if_array_has_more_than_one_element(self):
+        query = self.parser({'foo': ['bar', 'zoo']})
+        self.assertEqual(query['foo'], ['bar', 'zoo'])
+
+    def test_should_not_add_non_whitelisted_values(self):
+        whitelist = ['bar']
+        query = self.parser({'foo': 'zoo'}, whitelist)
+        self.assertNotIn('foo', query)
+
+    def test_should_not_add_empty_values_to_query(self):
+        query = self.parser({'foo': '', 'bar': None})
+        self.assertNotIn('foo', query)
+        self.assertNotIn('bar', query)
+
+
 if __name__ == '__main__':
     # Any change here should be made in all test files
     import sys

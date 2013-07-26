@@ -185,7 +185,7 @@ class TestAPICalls(unittest.TestCase):
             self.router.get_deployment_secrets('1234', tenant_id="T1000")
 
 
-class TestGetDeployments(unittest.TestCase):
+class TestDeploymentRouter(unittest.TestCase):
 
     def setUp(self):
         self.root_app = bottle.Bottle()
@@ -195,10 +195,24 @@ class TestGetDeployments(unittest.TestCase):
 
         self.manager = mock.Mock()
         self.router = deployments.Router(self.root_app, self.manager)
+
+    def test_params_whitelist(self):
+        whitelist = self.router.params_whitelist
+        self.assertEqual(len(whitelist), 4)
+        self.assertIn('name', whitelist)
+        self.assertIn('search', whitelist)
+        self.assertIn('status', whitelist)
+        self.assertIn('blueprint.name', whitelist)
+
+
+class TestGetDeployments(TestDeploymentRouter):
+
+    def setUp(self):
+        super(TestGetDeployments, self).setUp()
         results = {'_links': {}, 'results': {}, 'collection-count': 0}
         self.manager.get_deployments.return_value = results
 
-    def test_pass_empty_query(self):
+    def test_pass_query_to_manager(self):
         self.router.get_deployments()
         self.manager.get_deployments.assert_called_with(
             status=mock.ANY,
@@ -206,30 +220,27 @@ class TestGetDeployments(unittest.TestCase):
             with_deleted=mock.ANY,
             limit=mock.ANY,
             offset=mock.ANY,
-            query={}
+            query=mock.ANY
         )
 
-    def test_query_only_allowed_params(self):
-        query_params = {
-            'name': ['fake name'],
-            'blueprint.name': ['fake blue'],
-            'search': ['fake search'],
-            'param_not_whitelisted': ['evil param'],
-        }
-        with mock.patch.dict(bottle.request.query.dict, query_params):
+    @mock.patch.object(utils.QueryParams, 'parse')
+    def test_query_is_properly_parsed(self, parse):
+        parse.return_value = 'fake query'
+        self.router.get_deployments()
+        self.manager.get_deployments.assert_called_with(
+            status=mock.ANY,
+            tenant_id=mock.ANY,
+            with_deleted=mock.ANY,
+            limit=mock.ANY,
+            offset=mock.ANY,
+            query='fake query',
+        )
+
+    @mock.patch.object(utils.QueryParams, 'parse')
+    def test_pass_whitelist_to_query_parser(self, parse):
+        with mock.patch.object(self.router, 'params_whitelist', 'fake white'):
             self.router.get_deployments()
-            self.manager.get_deployments.assert_called_with(
-                tenant_id=mock.ANY,
-                offset=mock.ANY,
-                limit=mock.ANY,
-                with_deleted=mock.ANY,
-                status=mock.ANY,
-                query={
-                    'name': 'fake name',
-                    'blueprint.name': 'fake blue',
-                    'search': 'fake search',
-                }
-            )
+            parse.assert_called_with({}, 'fake white')
 
 
 if __name__ == '__main__':
