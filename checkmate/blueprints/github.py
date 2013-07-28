@@ -411,9 +411,19 @@ class GitHubManager(base.ManagerBase):
 
     def blueprint_is_valid(self, untrusted_blueprint):
         for _, blueprint in self._blueprints.items():
-            if untrusted_blueprint == blueprint['blueprint']:
+            if (
+                untrusted_blueprint == blueprint['blueprint'] and
+                self._inputs_are_valid(blueprint) and
+                self._environment_is_valid(blueprint)
+            ):
                 return True
         return False
+
+    def _inputs_are_valid(self, blueprint):
+        return True
+
+    def _environment_is_valid(self, blueprint):
+        return True
 
     def _get_repo(self, repo_name):
         '''Return the specified github repo.
