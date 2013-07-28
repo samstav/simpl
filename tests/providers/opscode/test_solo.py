@@ -8,23 +8,22 @@ import logging
 import os
 import shutil
 import unittest
-from urlparse import urlunparse
+import urlparse
 import uuid
 import yaml
 
 import mox
-from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
-from SpiffWorkflow.util import merge_dictionary  # HACK: used by transform
 
 import checkmate
-from checkmate.deployment import Deployment
+from checkmate import deployment as cm_dep
 from checkmate import deployments
-from checkmate.middleware import RequestContext
-from checkmate.providers import base, register_providers
-from checkmate.providers.opscode import solo, knife
+from checkmate import middleware
+from checkmate import providers
+from checkmate.providers.opscode import knife
+from checkmate.providers.opscode import solo
 from checkmate import test
 from checkmate import utils
-from checkmate.workflow import init_spiff_workflow, create_workflow_spec_deploy
+from checkmate import workflow as cm_wf
 
 
 LOG = logging.getLogger(__name__)
@@ -35,9 +34,9 @@ class TestChefSoloProvider(test.ProviderTester):
     klass = solo.Provider
 
     def test_get_resource_prepared_maps(self):
-        base.PROVIDER_CLASSES = {}
-        register_providers([solo.Provider, test.TestProvider])
-        deployment = Deployment(utils.yaml_to_dict('''
+        providers.base.PROVIDER_CLASSES = {}
+        providers.register_providers([solo.Provider, test.TestProvider])
+        deployment = cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test app
@@ -96,7 +95,7 @@ class TestChefSoloProvider(test.ProviderTester):
                   targets:
                   - attributes://clients
             ''')
-        deployments.Manager.plan(deployment, RequestContext())
+        deployments.Manager.plan(deployment, middleware.RequestContext())
         provider = deployment.environment().get_provider('chef-solo')
 
         # Check requirement map
@@ -133,9 +132,9 @@ class TestChefSoloProvider(test.ProviderTester):
         self.assertListEqual(result, expected)
 
     def test_get_map_with_context_defaults(self):
-        '''Make sure defaults get evaluated correctly'''
+        '''Make sure defaults get evaluated correctly.'''
         provider = solo.Provider({})
-        deployment = Deployment(utils.yaml_to_dict('''
+        deployment = cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: Test
@@ -191,9 +190,7 @@ class TestChefSoloProvider(test.ProviderTester):
 
 
 class TestCeleryTasks(unittest.TestCase):
-
-    ''' Test Celery tasks '''
-
+    '''Test Celery tasks.'''
     def setUp(self):
         self.mox = mox.Mox()
         self.original_local_path = os.environ.get('CHECKMATE_CHEF_LOCAL_PATH')
@@ -208,7 +205,7 @@ class TestCeleryTasks(unittest.TestCase):
             os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
 
     def test_cook(self):
-        '''Test that cook task picks up run_list and attributes'''
+        '''Test that cook task picks up run_list and attributes.'''
         root_path = os.environ['CHECKMATE_CHEF_LOCAL_PATH']
         environment_path = os.path.join(root_path, "env_test")
         kitchen_path = os.path.join(environment_path, "kitchen")
@@ -236,12 +233,12 @@ class TestCeleryTasks(unittest.TestCase):
         mock_file.__enter__().AndReturn(mock_file)
         self.mox.StubOutWithMock(json, 'dump')
         json.dump(
-            And(
-                ContainsKeyValue(
+            mox.And(
+                mox.ContainsKeyValue(
                     'run_list',
                     ['role[role1]', 'recipe[recipe1]']
                 ),
-                ContainsKeyValue('id', 1)
+                mox.ContainsKeyValue('id', 1)
             ),
             mock_file
         ).AndReturn(None)
@@ -260,11 +257,13 @@ class TestCeleryTasks(unittest.TestCase):
         knife._run_kitchen_command(
             "env_test", kitchen_path, params).AndReturn("OK")
 
-        #TODO: better test for postback?
+        #TODO(any): better test for postback?
         #Stub out call to resource_postback
         self.mox.StubOutWithMock(knife.resource_postback, 'delay')
-        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(True)
-        knife.resource_postback.delay(IgnoreArg(), IgnoreArg()).AndReturn(True)
+        knife.resource_postback.delay(
+            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
+        knife.resource_postback.delay(
+            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
         resource = {'index': 1234, 'hosted_on': 'rack cloud'}
@@ -276,21 +275,16 @@ class TestCeleryTasks(unittest.TestCase):
 
 
 class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
-
-    '''
-
-    Test that cookbooks can be used without a map file (only catalog)
+    '''Test that cookbooks can be used without a map file (only catalog)
 
     This test is done using the MySQL cookbook. This is a very commonly used
     cookbook.
-
     '''
-
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        base.PROVIDER_CLASSES = {}
-        register_providers([solo.Provider, test.TestProvider])
-        self.deployment = Deployment(utils.yaml_to_dict('''
+        providers.base.PROVIDER_CLASSES = {}
+        providers.register_providers([solo.Provider, test.TestProvider])
+        self.deployment = cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: MySQL Database
@@ -319,16 +313,18 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                             provides:
                             - compute: linux
             '''))
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
 
     def test_workflow_task_generation(self):
-        '''Verify workflow task creation'''
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
-        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
+        '''Verify workflow task creation.'''
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
+        workflow_spec = cm_wf.create_workflow_spec_deploy(
+            self.deployment, context)
+        workflow = cm_wf.init_spiff_workflow(
+            workflow_spec, self.deployment, context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
@@ -345,7 +341,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_completion(self):
-        '''Verify workflow sequence and data flow'''
+        '''Verify workflow sequence and data flow.'''
 
         expected = []
 
@@ -356,14 +352,14 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             # Use only one kitchen. Call it "kitchen" like we used to
             'call': 'checkmate.providers.opscode.knife.create_environment',
             'args': [self.deployment['id'], 'kitchen'],
-            'kwargs': And(
-                ContainsKeyValue('private_key', IgnoreArg()),
-                ContainsKeyValue('secret_key', IgnoreArg()),
-                ContainsKeyValue(
+            'kwargs': mox.And(
+                mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
+                mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
+                mox.ContainsKeyValue(
                     'public_key_ssh',
-                    IgnoreArg()
+                    mox.IgnoreArg()
                 ),
-                ContainsKeyValue('source_repo', IgnoreArg())
+                mox.ContainsKeyValue('source_repo', mox.IgnoreArg())
             ),
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
@@ -380,7 +376,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             if resource['type'] == 'compute':
                 expected.append({
                     'call': 'checkmate.providers.test.create_resource',
-                    'args': [IsA(dict), resource],
+                    'args': [mox.IsA(dict), resource],
                     'kwargs': None,
                     'result': {
                         'instance:%s' % key: {
@@ -409,11 +405,11 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'args': [
                         '4.4.4.1',
                         self.deployment['id'],
-                        ContainsKeyValue('index', IgnoreArg())
+                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
-                    'kwargs': And(
-                        In('password'),
-                        ContainsKeyValue('omnibus_version', '10.24.0')
+                    'kwargs': mox.And(
+                        mox.In('password'),
+                        mox.ContainsKeyValue('omnibus_version', '10.24.0')
                     ),
                     'result': None,
                     'resource': key,
@@ -426,13 +422,13 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'args': [
                         '4.4.4.1',
                         self.deployment['id'],
-                        ContainsKeyValue('index', IgnoreArg())
+                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
-                    'kwargs': And(
-                        In('password'),
-                        Not(In('recipes')),
-                        Not(In('roles')),
-                        ContainsKeyValue(
+                    'kwargs': mox.And(
+                        mox.In('password'),
+                        mox.Not(mox.In('recipes')),
+                        mox.Not(mox.In('roles')),
+                        mox.ContainsKeyValue(
                             'identity_file',
                             '/var/tmp/%s/private.pem' % self.deployment['id']
                         )
@@ -449,12 +445,12 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'args': [
                         '4.4.4.1',
                         self.deployment['id'],
-                        ContainsKeyValue('index', IgnoreArg())
+                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
-                    'kwargs': And(
-                        In('password'),
-                        ContainsKeyValue('recipes', ['mysql::server']),
-                        ContainsKeyValue(
+                    'kwargs': mox.And(
+                        mox.In('password'),
+                        mox.ContainsKeyValue('recipes', ['mysql::server']),
+                        mox.ContainsKeyValue(
                             'identity_file',
                             '/var/tmp/%s/private.pem' % self.deployment['id']
                         )
@@ -475,15 +471,13 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
 
 class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
-
-    '''Test that map file works without maps (was 'checkmate.json')'''
-
+    '''Test that map file works without maps (was 'checkmate.json').'''
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        base.PROVIDER_CLASSES = {}
-        register_providers([solo.Provider, test.TestProvider])
+        providers.base.PROVIDER_CLASSES = {}
+        providers.register_providers([solo.Provider, test.TestProvider])
         self.deployment = \
-            Deployment(utils.yaml_to_dict('''
+            cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test app
@@ -527,20 +521,22 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
             '''
 
     def test_workflow_task_generation(self):
-        '''Verify workflow sequence and data flow'''
+        '''Verify workflow sequence and data flow.'''
 
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
 
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
 
-        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
+        workflow_spec = cm_wf.create_workflow_spec_deploy(
+            self.deployment, context)
+        workflow = cm_wf.init_spiff_workflow(
+            workflow_spec, self.deployment, context)
 
         task_list = workflow.spec.task_specs.keys()
         self.assertNotIn('Collect Chef Data for 0', task_list,
@@ -561,9 +557,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
 
 
 class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
-    '''
-
-    Test workflow for a single service works
+    '''Test workflow for a single service works
 
     We're looking to:
     - test using a map file to generate outputs (map and template)
@@ -572,16 +566,14 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
     - test routing data from requires (host/ip) to provides (mysql/host)
     - have a simple, one component test to test the basics if one of the more
       complex tests fails
-
     '''
-
     def setUp(self):
         self.maxDiff = 1000
         test.StubbedWorkflowBase.setUp(self)
-        base.PROVIDER_CLASSES = {}
-        register_providers([solo.Provider, test.TestProvider])
+        providers.base.PROVIDER_CLASSES = {}
+        providers.register_providers([solo.Provider, test.TestProvider])
         self.deployment = \
-            Deployment(utils.yaml_to_dict('''
+            cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test db
@@ -662,18 +654,19 @@ interfaces/mysql/host
             '''
 
     def test_workflow_task_creation(self):
-        '''Verify workflow sequence and data flow'''
-
+        '''Verify workflow sequence and data flow.'''
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
+        workflow_spec = cm_wf.create_workflow_spec_deploy(
+            self.deployment, context)
+        workflow = cm_wf.init_spiff_workflow(
+            workflow_spec, self.deployment, context)
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',
@@ -695,15 +688,15 @@ interfaces/mysql/host
         self.assertIn("hash", resources['admin']['instance'])
 
     def test_workflow_execution(self):
-        '''Verify workflow executes'''
+        '''Verify workflow executes.'''
 
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
         self.mox.VerifyAll()
 
@@ -715,10 +708,10 @@ interfaces/mysql/host
             # Create Chef Environment
             'call': 'checkmate.providers.opscode.knife.create_environment',
             'args': [self.deployment['id'], 'kitchen'],
-            'kwargs': And(
-                ContainsKeyValue('private_key', IgnoreArg()),
-                ContainsKeyValue('secret_key', IgnoreArg()),
-                ContainsKeyValue('public_key_ssh', IgnoreArg())
+            'kwargs': mox.And(
+                mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
+                mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
+                mox.ContainsKeyValue('public_key_ssh', mox.IgnoreArg())
             ),
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
@@ -742,8 +735,8 @@ interfaces/mysql/host
                     {
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
-                        'args': [IsA(dict), IsA(dict)],
-                        'kwargs': IgnoreArg(),
+                        'args': [mox.IsA(dict), mox.IsA(dict)],
+                        'kwargs': mox.IgnoreArg(),
                         'result': {
                             'instance:%s' % key: {
                                 'id': '1',
@@ -768,12 +761,12 @@ interfaces/mysql/host
                         'args': [
                             "4.4.4.4",
                             self.deployment['id'],
-                            ContainsKeyValue('index', IgnoreArg())
+                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
-                        'kwargs': And(
-                            In('password'),
-                            ContainsKeyValue('attributes', attributes),
-                            ContainsKeyValue('omnibus_version', '10.24.0')
+                        'kwargs': mox.And(
+                            mox.In('password'),
+                            mox.ContainsKeyValue('attributes', attributes),
+                            mox.ContainsKeyValue('omnibus_version', '10.24.0')
                         ),
                         'result': None,
                         'resource': key,
@@ -784,12 +777,12 @@ interfaces/mysql/host
                         'args': [
                             '4.4.4.4',
                             self.deployment['id'],
-                            ContainsKeyValue('index', IgnoreArg())
+                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
-                        'kwargs': And(
-                            In('password'),
-                            Not(In('recipes')),
-                            ContainsKeyValue(
+                        'kwargs': mox.And(
+                            mox.In('password'),
+                            mox.Not(mox.In('recipes')),
+                            mox.ContainsKeyValue(
                                 'identity_file',
                                 '/var/tmp/%s/private.pem' %
                                 self.deployment['id']
@@ -805,12 +798,12 @@ interfaces/mysql/host
                     'args': [
                         '4.4.4.4',
                         self.deployment['id'],
-                        ContainsKeyValue('index', IgnoreArg())
+                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
-                    'kwargs': And(
-                        In('password'),
-                        ContainsKeyValue('recipes', ['mysql::server']),
-                        ContainsKeyValue(
+                    'kwargs': mox.And(
+                        mox.In('password'),
+                        mox.ContainsKeyValue('recipes', ['mysql::server']),
+                        mox.ContainsKeyValue(
                             'identity_file',
                             '/var/tmp/%s/private.pem' % self.deployment['id']
                         )
@@ -870,10 +863,7 @@ def do_nothing(self, my_task):
 
 
 class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
-
-    '''
-
-    Test complex workflows
+    '''Test complex workflows
 
     We're looking to test:
     - workflows with multiple service that all use map files
@@ -885,15 +875,13 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     - multiple components in one service (count>1)
     - use conceptual (foo, bar, widget, etc) catalog, not mysql
     - check client mappings
-
     '''
-
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        base.PROVIDER_CLASSES = {}
-        register_providers([solo.Provider, test.TestProvider])
+        providers.base.PROVIDER_CLASSES = {}
+        providers.register_providers([solo.Provider, test.TestProvider])
         self.deployment = \
-            Deployment(utils.yaml_to_dict('''
+            cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test app
@@ -983,18 +971,19 @@ interfaces/mysql/database_name
             '''
 
     def test_workflow_task_creation(self):
-        '''Verify workflow sequence and data flow'''
-
+        '''Verify workflow sequence and data flow.'''
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
-        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
+        workflow_spec = cm_wf.create_workflow_spec_deploy(
+            self.deployment, context)
+        workflow = cm_wf.init_spiff_workflow(
+            workflow_spec, self.deployment, context)
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
         host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']
@@ -1113,16 +1102,16 @@ interfaces/mysql/database_name
         self.assertListEqual(role.kwargs['run_list'], expected)
 
     def test_workflow_execution(self):
-        '''Verify workflow executes'''
+        '''Verify workflow executes.'''
 
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         # Plan deployment
         self.mox.ReplayAll()
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
         self.mox.VerifyAll()
 
@@ -1134,10 +1123,10 @@ interfaces/mysql/database_name
             # Create Chef Environment
             'call': 'checkmate.providers.opscode.knife.create_environment',
             'args': [self.deployment['id'], 'kitchen'],
-            'kwargs': And(
-                ContainsKeyValue('private_key', IgnoreArg()),
-                ContainsKeyValue('secret_key', IgnoreArg()),
-                ContainsKeyValue('public_key_ssh', IgnoreArg())
+            'kwargs': mox.And(
+                mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
+                mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
+                mox.ContainsKeyValue('public_key_ssh', mox.IgnoreArg())
             ),
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
@@ -1160,12 +1149,12 @@ interfaces/mysql/database_name
                         'args': [
                             "4.4.4.4",
                             self.deployment['id'],
-                            ContainsKeyValue('index', IgnoreArg())
+                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
-                        'kwargs': And(
-                            In('password'),
-                            ContainsKeyValue('omnibus_version', '10.24.0'),
-                            ContainsKeyValue(
+                        'kwargs': mox.And(
+                            mox.In('password'),
+                            mox.ContainsKeyValue('omnibus_version', '10.24.0'),
+                            mox.ContainsKeyValue(
                                 'attributes',
                                 {'connections': 10, 'widgets': 10}
                             )
@@ -1179,12 +1168,12 @@ interfaces/mysql/database_name
                         'args': [
                             '4.4.4.4',
                             self.deployment['id'],
-                            ContainsKeyValue('index', IgnoreArg())
+                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
-                        'kwargs': And(
-                            In('password'),
-                            Not(ContainsKeyValue('recipes', ['foo'])),
-                            ContainsKeyValue(
+                        'kwargs': mox.And(
+                            mox.In('password'),
+                            mox.Not(mox.ContainsKeyValue('recipes', ['foo'])),
+                            mox.ContainsKeyValue(
                                 'identity_file',
                                 '/var/tmp/%s/private.pem' %
                                 self.deployment['id']
@@ -1195,8 +1184,8 @@ interfaces/mysql/database_name
                     {
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
-                        'args': [IsA(dict), IsA(dict)],
-                        'kwargs': IgnoreArg(),
+                        'args': [mox.IsA(dict), mox.IsA(dict)],
+                        'kwargs': mox.IgnoreArg(),
                         'result': {
                             'instance:%s' % key: {
                                 'id': '1',
@@ -1224,7 +1213,7 @@ interfaces/mysql/database_name
                         'checkmate.providers.opscode.knife.write_databag',
                         'args': [
                             'DEP-ID-1000', 'app_bag', 'mysql',
-                            {'db_name': 'foo-db'}, IgnoreArg()
+                            {'db_name': 'foo-db'}, mox.IgnoreArg()
                         ],
                         'kwargs': {
                             'merge': True,
@@ -1236,7 +1225,7 @@ interfaces/mysql/database_name
                         # Write foo-master role
                         'call':
                         'checkmate.providers.opscode.knife.manage_role',
-                        'args': ['foo-master', 'DEP-ID-1000', IgnoreArg()],
+                        'args': ['foo-master', 'DEP-ID-1000', mox.IgnoreArg()],
                         'kwargs': {
                             'run_list': ['recipe[apt]', 'recipe[foo::server]'],
                             'override_attributes': {'how-many': 2},
@@ -1250,23 +1239,23 @@ interfaces/mysql/database_name
                         'args': [
                             '4.4.4.4',
                             self.deployment['id'],
-                            ContainsKeyValue('index', IgnoreArg())
+                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
-                        'kwargs': And(
-                            In('password'),
-                            ContainsKeyValue(
+                        'kwargs': mox.And(
+                            mox.In('password'),
+                            mox.ContainsKeyValue(
                                 'recipes',
                                 ['something', 'something::role']
                             ),
-                            ContainsKeyValue('roles', ['foo-master']),
-                            ContainsKeyValue(
+                            mox.ContainsKeyValue('roles', ['foo-master']),
+                            mox.ContainsKeyValue(
                                 'attributes',
                                 {
                                     'master': {'ip': '4.4.4.4'},
                                     'db': {'name': 'foo-db'},
                                 }
                             ),
-                            ContainsKeyValue(
+                            mox.ContainsKeyValue(
                                 'identity_file',
                                 '/var/tmp/%s/private.pem' %
                                 self.deployment['id']
@@ -1283,12 +1272,12 @@ interfaces/mysql/database_name
                         'args': [
                             None,
                             self.deployment['id'],
-                            ContainsKeyValue('index', IgnoreArg())
+                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
-                        'kwargs': And(
-                            In('password'),
-                            ContainsKeyValue('recipes', ['bar']),
-                            ContainsKeyValue(
+                        'kwargs': mox.And(
+                            mox.In('password'),
+                            mox.ContainsKeyValue('recipes', ['bar']),
+                            mox.ContainsKeyValue(
                                 'identity_file',
                                 '/var/tmp/%s/private.pem' %
                                 self.deployment['id']
@@ -1302,12 +1291,12 @@ interfaces/mysql/database_name
                         'args': [
                             None,
                             self.deployment['id'],
-                            ContainsKeyValue('index', IgnoreArg())
+                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
-                        'kwargs': And(
-                            In('password'),
-                            ContainsKeyValue('recipes', ['bar']),
-                            ContainsKeyValue(
+                        'kwargs': mox.And(
+                            mox.In('password'),
+                            mox.ContainsKeyValue('recipes', ['bar']),
+                            mox.ContainsKeyValue(
                                 'identity_file',
                                 '/var/tmp/%s/private.pem' %
                                 self.deployment['id']
@@ -1370,9 +1359,7 @@ interfaces/mysql/database_name
 
 
 class TestChefMap(unittest.TestCase):
-
-    '''Test ChefMap Class'''
-
+    '''Test ChefMap Class.'''
     def setUp(self):
         self.mox = mox.Mox()
         knife.CONFIG = self.mox.CreateMockAnything()
@@ -1396,7 +1383,7 @@ class TestChefMap(unittest.TestCase):
             shutil.rmtree('/tmp/checkmate-chefmap')
 
     def test_get_map_file_hit_cache(self):
-        '''Test remote map file retrieval (cache hit)'''
+        '''Test remote map file retrieval (cache hit).'''
         os.makedirs(os.path.join(self.cache_path, ".git"))
         LOG.info("Created '%s'", self.cache_path)
 
@@ -1418,7 +1405,8 @@ class TestChefMap(unittest.TestCase):
             with open(self.chef_map_path, 'a') as f:
                 f.write("new information")
         utils.git_pull = self.mox.CreateMockAnything()
-        utils.git_pull(IgnoreArg(), IgnoreArg()).WithSideEffects(update_map)
+        utils.git_pull(
+            mox.IgnoreArg(), mox.IgnoreArg()).WithSideEffects(update_map)
         self.assertEqual(map_file, TEMPLATE)
 
         # Catch the exception that mox will throw when it doesn't get
@@ -1427,7 +1415,7 @@ class TestChefMap(unittest.TestCase):
             self.mox.VerifyAll()
 
     def test_get_map_file_miss_cache(self):
-        '''Test remote map file retrieval (cache miss)'''
+        '''Test remote map file retrieval (cache miss).'''
         os.makedirs(os.path.join(self.cache_path, ".git"))
         LOG.info("Created '%s'", self.cache_path)
 
@@ -1447,12 +1435,12 @@ class TestChefMap(unittest.TestCase):
             with open(self.chef_map_path, 'a') as f:
                 f.write("new information")
         utils.git_tags = self.mox.CreateMockAnything()
-        utils.git_tags(IgnoreArg()).AndReturn(["master"])
+        utils.git_tags(mox.IgnoreArg()).AndReturn(["master"])
         utils.git_fetch = self.mox.CreateMockAnything()
-        utils.git_fetch(IgnoreArg(), IgnoreArg())
+        utils.git_fetch(mox.IgnoreArg(), mox.IgnoreArg())
         utils.git_checkout = self.mox.CreateMockAnything()
         utils.git_checkout(
-            IgnoreArg(), IgnoreArg()).WithSideEffects(update_map)
+            mox.IgnoreArg(), mox.IgnoreArg()).WithSideEffects(update_map)
         self.mox.ReplayAll()
 
         chefmap.url = self.url
@@ -1463,7 +1451,7 @@ class TestChefMap(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_get_map_file_no_cache(self):
-        '''Test remote map file retrieval (not cached)'''
+        '''Test remote map file retrieval (not cached).'''
         chefmap = solo.ChefMap()
 
         def fake_clone(url=None, path=None, branch=None):
@@ -1474,12 +1462,12 @@ class TestChefMap(unittest.TestCase):
                 f.write(TEMPLATE)
 
         utils.git_clone = self.mox.CreateMockAnything()
-        utils.git_clone(IgnoreArg(), IgnoreArg(), branch=IgnoreArg())\
-            .WithSideEffects(fake_clone)
+        utils.git_clone(mox.IgnoreArg(), mox.IgnoreArg(),
+                        branch=mox.IgnoreArg()).WithSideEffects(fake_clone)
         utils.git_tags = self.mox.CreateMockAnything()
-        utils.git_tags(IgnoreArg()).AndReturn(["master"])
+        utils.git_tags(mox.IgnoreArg()).AndReturn(["master"])
         utils.git_checkout = self.mox.CreateMockAnything()
-        utils.git_checkout(IgnoreArg(), IgnoreArg())
+        utils.git_checkout(mox.IgnoreArg(), mox.IgnoreArg())
         self.mox.ReplayAll()
 
         chefmap.url = self.url
@@ -1489,7 +1477,7 @@ class TestChefMap(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_get_map_file_local(self):
-        '''Test local map file retrieval'''
+        '''Test local map file retrieval.'''
         blueprint = os.path.join(self.local_path, "blueprint")
         os.makedirs(blueprint)
 
@@ -1569,14 +1557,14 @@ class TestChefMap(unittest.TestCase):
         ]
 
         for case in cases:
-            uri = urlunparse((case['scheme'],
-                              case['netloc'],
-                              case['path'],
-                              None,
-                              None,
-                              None
-                              )
-                             )
+            uri = urlparse.urlunparse((
+                case['scheme'],
+                case['netloc'],
+                case['path'],
+                None,
+                None,
+                None
+            ))
             result = fxn(uri)
             for key, value in result.iteritems():
                 self.assertEqual(value, case.get(key, ''), msg="'%s' got '%s' "
@@ -1716,7 +1704,7 @@ class TestChefMap(unittest.TestCase):
 
 
 class TestTransform(unittest.TestCase):
-    '''Test Transform functionality'''
+    '''Test Transform functionality.'''
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -1748,7 +1736,7 @@ class TestTransform(unittest.TestCase):
         self.assertDictEqual(results, expected)
 
     def test_write_output_template(self):
-        '''Test that an output template written as output'''
+        '''Test that an output template written as output.'''
         output = utils.yaml_to_dict('''
                   'instance:0':
                     name: test
@@ -1768,7 +1756,7 @@ class TestTransform(unittest.TestCase):
         spec.get_property('chef_output').AndReturn(output or {})
         spec.get_property('deployment').AndReturn(1)
         checkmate.deployments.resource_postback.delay(
-            IgnoreArg(), IgnoreArg()).AndReturn(None)
+            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
         results = {}
         task.attributes = results
         self.mox.ReplayAll()
@@ -1787,7 +1775,7 @@ class TestTransform(unittest.TestCase):
 
 
 class TestChefMapEvaluator(unittest.TestCase):
-    '''Test ChefMap Mapping Evaluation'''
+    '''Test ChefMap Mapping Evaluation.'''
     def test_scalar_evaluation(self):
         chefmap = solo.ChefMap(parsed="")
         result = chefmap.evaluate_mapping_source({'value': 10}, None)
@@ -1815,7 +1803,7 @@ class TestChefMapEvaluator(unittest.TestCase):
 
 
 class TestChefMapApplier(unittest.TestCase):
-    '''Test ChefMap Mapping writing to targets'''
+    '''Test ChefMap Mapping writing to targets.'''
     def test_output_writing(self):
         chefmap = solo.ChefMap(parsed="")
         mapping = {'targets': ['outputs://ip']}
@@ -1825,7 +1813,7 @@ class TestChefMapApplier(unittest.TestCase):
 
 
 class TestChefMapResolver(unittest.TestCase):
-    '''Test ChefMap Mapping writing to targets'''
+    '''Test ChefMap Mapping writing to targets.'''
     def test_resolve_ready_maps(self):
         maps = utils.yaml_to_dict('''
                 - value: 1
@@ -1857,7 +1845,7 @@ class TestChefMapResolver(unittest.TestCase):
 
 
 class TestTemplating(unittest.TestCase):
-    '''Test that templating engine handles the use cases we need'''
+    '''Test that templating engine handles the use cases we need.'''
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -1866,7 +1854,7 @@ class TestTemplating(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_remote_catalog_sourcing(self):
-        '''Test source constraint picks up remote catalog'''
+        '''Test source constraint picks up remote catalog.'''
 
         provider = \
             solo.Provider(utils.yaml_to_dict('''
@@ -1875,11 +1863,11 @@ class TestTemplating(unittest.TestCase):
                 - source: git://gh.acme.com/user/repo.git#branch
                 '''))
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(IgnoreArg())
+        chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(TEMPLATE)
         self.mox.ReplayAll()
 
-        response = provider.get_catalog(RequestContext())
+        response = provider.get_catalog(middleware.RequestContext())
 
         self.assertListEqual(
             response.keys(), ['application', 'database'])
@@ -1888,7 +1876,7 @@ class TestTemplating(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_parsing_scalar(self):
-        '''Test parsing with simple, scalar variables'''
+        '''Test parsing with simple, scalar variables.'''
         chef_map = solo.ChefMap('')
         chef_map._raw = '''
             {% set id = 'foo' %}
@@ -1901,7 +1889,7 @@ class TestTemplating(unittest.TestCase):
         self.assertDictEqual(chef_map.get_attributes('foo', None), {'here': 1})
 
     def test_parsing_functions_parse_url(self):
-        '''Test 'parse_url' function use in parsing'''
+        '''Test 'parse_url' function use in parsing.'''
         chef_map = solo.ChefMap('')
         chef_map._raw = '''
             id: foo
@@ -1937,7 +1925,7 @@ class TestTemplating(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_parse_url_Input(self):
-        '''Test 'parse_url' function use in parsing of Inputs'''
+        '''Test 'parse_url' function use in parsing of Inputs.'''
         chef_map = solo.ChefMap('')
         chef_map._raw = '''
             id: foo
@@ -1970,7 +1958,7 @@ class TestTemplating(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_url_certificate(self):
-        '''Test 'parse_url' function use in parsing of Inputs'''
+        '''Test 'parse_url' function use in parsing of Inputs.'''
         cert = """-----BEGIN CERTIFICATE-----
 MIICkjCCAfsCAgXeMA0GCSqGSIb3DQEBBQUAMIG2MQswCQYDVQQGEwJVUzEOMAwG
 A1UECBMFVGV4YXMxFDASBgNVBAcTC1NhbiBBbnRvbmlvMRIwEAYDVQQKEwlSYWNr
@@ -1988,7 +1976,7 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
 /YrPhnGGC24lpqLV8lBZkLsdnnoKwQfI+aRGbg0x2pi+Zh22H8U=
 -----END CERTIFICATE-----
 """
-        deployment = Deployment({
+        deployment = cm_dep.Deployment({
             'inputs': {
                 'blueprint': {
                     'url': {
@@ -2016,7 +2004,7 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
         self.assertEqual(data['maps'][0]['value'], cert)
 
     def test_parsing_functions_hash(self):
-        '''Test 'hash' function use in parsing'''
+        '''Test 'hash' function use in parsing.'''
         chef_map = solo.ChefMap('')
         chef_map._raw = '''
             id: foo
@@ -2036,10 +2024,10 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
         )
 
     def test_yaml_escaping_simple(self):
-        '''Test parsing with simple strings that don't break YAML'''
+        '''Test parsing with simple strings that don't break YAML.'''
         chef_map = solo.ChefMap('')
         template = "id: {{ setting('password') }}"
-        deployment = Deployment({
+        deployment = cm_dep.Deployment({
             'inputs': {
                 'password': "Password1",
             },
@@ -2052,10 +2040,10 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
         self.assertEqual(data, {'id': 'Password1'})
 
     def test_yaml_escaping_at(self):
-        '''Test parsing with YAML-breaking values: @'''
+        '''Test parsing with YAML-breaking values: @.'''
         chef_map = solo.ChefMap('')
         template = "id: {{ setting('password') }}"
-        deployment = Deployment({
+        deployment = cm_dep.Deployment({
             'inputs': {
                 'password': "@W#$%$^D%F^UGY",
             },
@@ -2171,6 +2159,6 @@ output:
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
+    from checkmate import test as cm_test
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+    cm_test.run_with_params(sys.argv[:])
