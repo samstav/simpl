@@ -5,19 +5,21 @@ import logging
 import celery
 from celery import exceptions as celery_exceptions
 
-from checkmate.common import schema
 from checkmate import component as cmcomp
+from checkmate import middleware
+from checkmate import utils
+from checkmate.common import schema
 from checkmate.exceptions import (
+    BLUEPRINT_ERROR,
     CheckmateException,
     CheckmateNoMapping,
     CheckmateResumableException,
     CheckmateValidationException,
+    CheckmateUserException,
 )
-from checkmate import middleware
 from checkmate.providers.provider_base_planning_mixin import (
     ProviderBasePlanningMixIn,
 )
-from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -97,8 +99,9 @@ class ProviderBaseWorkflowMixIn(object):
         # Get service
         service_name = resource['service']
         if not service_name:
-            raise CheckmateException("Service not found for resource %s" %
-                                     key)
+            error_message = "Service not found for resource %s" % key
+            raise CheckmateUserException(error_message, utils.get_class_name(
+                CheckmateException), BLUEPRINT_ERROR, '')
         return wait_on, service_name, component
 
     # pylint: disable=R0913
@@ -542,12 +545,10 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
     def _verify_existing_resource(self, resource, key):
         '''Private method for Resource verification.'''
-        msg = None
         if (resource.get('status') != "DELETED" and
                 resource.get("provider") != self.name):
-            msg = "%s did not provide resource %s" % (self.name, key)
-        if msg:
-            raise CheckmateException(msg)
+            raise CheckmateException("%s did not provide resource %s" % (
+                self.name, key))
 
 
 def register_providers(providers):

@@ -209,10 +209,7 @@ def resource_postback(deployment_id, contents, driver=DB):
                 value.pop('error-message', None)
                 if deployment.fsm.permitted("FAILED"):
                     updates['status'] = 'FAILED'
-                updates['error-message'] = deployment.get('error-message', [])
-                if r_msg not in updates['error-message']:
-                    updates['error-message'].append(r_msg)
-
+                    
     # Create new contents dict if values existed
     # TODO(any): make this smarter
     new_contents = {}

@@ -21,13 +21,14 @@ from checkmate.common import schema
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException,
+    CheckmateUserException,
+    UNEXPECTED_ERROR,
 )
 from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.providers.opscode import knife
 from checkmate.workflow import wait_for
-from checkmate.utils import merge_dictionary  # Spiff version used by transform
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
@@ -890,33 +891,33 @@ class Transforms(object):
                 outputs = results.pop('outputs', {})
                 # Use output_template as a template for outputs
                 if output_template:
-                    outputs = merge_dictionary(copy.copy(output_template),
-                                               outputs)
+                    outputs = utils.merge_dictionary(
+                        copy.copy(output_template), outputs)
 
                 # Write chef_options for databag and role tasks
                 if results:
                     if 'chef_options' not in my_task.attributes:
                         my_task.attributes['chef_options'] = {}
-                    merge_dictionary(my_task.attributes['chef_options'],
-                                     results, True)
+                    utils.merge_dictionary(my_task.attributes['chef_options'],
+                                           results, True)
 
                 # write outputs (into attributes and output_template)
                 if outputs:
                     # Write results into attributes
-                    merge_dictionary(my_task.attributes, outputs)
+                    utils.merge_dictionary(my_task.attributes, outputs)
                     # Be compatible and write without 'instance'
                     compat = {}
                     for key, value in outputs.iteritems():
                         if isinstance(value, dict) and 'instance' in value:
                             compat[key] = value['instance']
                     if compat:
-                        merge_dictionary(my_task.attributes, compat)
+                        utils.merge_dictionary(my_task.attributes, compat)
 
                     # Write outputs into output template
-                    merge_dictionary(output_template, outputs)
+                    utils.merge_dictionary(output_template, outputs)
             else:
                 if output_template:
-                    merge_dictionary(my_task.attributes, output_template)
+                    utils.merge_dictionary(my_task.attributes, output_template)
 
             # postback output into deployment resource
 
@@ -992,8 +993,11 @@ class ChefMap(object):
                 with open(os.path.join(repo_cache, "Chefmap")) as chefmap:
                     return chefmap.read()
             else:
-                raise CheckmateException("No Chefmap in repository %s" %
-                                         repo_cache)
+                error_message = "No Chefmap in repository %s" % repo_cache
+                raise CheckmateUserException(error_message,
+                                             utils.get_class_name(
+                                                 CheckmateException),
+                                             UNEXPECTED_ERROR, '')
 
     @property
     def components(self):
@@ -1157,8 +1161,12 @@ class ChefMap(object):
             url = ChefMap.parse_map_URI(target)
             if url['scheme'] == 'attributes':
                 if 'resource' not in mapping:
-                    raise CheckmateException('Resource hint required in '
-                                             'attribute mapping')
+                    message = 'Resource hint required in ' \
+                                        'attribute mapping'
+                    raise CheckmateUserException(message,
+                                                 utils.get_class_name(
+                                                     CheckmateException),
+                                                 UNEXPECTED_ERROR, '')
 
                 path = '%s:%s' % (url['scheme'], mapping['resource'])
                 if path not in output:
@@ -1238,8 +1246,9 @@ class ChefMap(object):
         elif 'value' in mapping:
             value = mapping['value']
         else:
-            raise CheckmateException("Mapping has neither 'source' nor "
-                                     "'value'")
+            message = "Mapping has neither 'source' nor 'value'"
+            raise CheckmateUserException(message, utils.get_class_name(
+                CheckmateException), UNEXPECTED_ERROR, '')
         return value
 
     @staticmethod
@@ -1393,9 +1402,12 @@ class ChefMap(object):
             #traceback
         except StandardError as exc:
             LOG.error(exc, exc_info=True)
-            raise CheckmateException("Chef template rendering failed: %s" %
-                                     exc)
+            error_message = "Chef template rendering failed: %s" % exc
+            raise CheckmateUserException(error_message,utils.get_class_name(
+                CheckmateException), UNEXPECTED_ERROR, '' )
         except TemplateError as exc:
             LOG.error(exc, exc_info=True)
-            raise CheckmateException("Chef template had an error: %s" % exc)
+            error_message = "Chef template had an error: %s" % exc
+            raise CheckmateUserException(error_message, utils.get_class_name(
+                CheckmateException), UNEXPECTED_ERROR, '')
         return result

@@ -177,10 +177,6 @@ class DbBase(object):  # pylint: disable=R0921
 
     def convert_data(self, klass, data):
         if klass == 'deployments':
-            if 'errmessage' in data:
-                data['error-message'] = data.pop('errmessage')
-            if 'error_messages' in data:
-                data['error-message'] = data.pop('error_messages')
             if 'status' in data:
                 if data['status'] in self.legacy_statuses:
                     data['status'] = self.legacy_statuses[data['status']]
@@ -188,6 +184,8 @@ class DbBase(object):  # pylint: disable=R0921
                 self.convert_data('resources', data['resources'])  # legacy
             if 'display-outputs' in data and data['display-outputs'] is None:
                 data['display-outputs'] = {}
+            if 'error-message' in data:
+                data.pop('error-message')
         elif klass == 'resources':
             for _, resource in data.items():
                 if 'statusmsg' in resource:

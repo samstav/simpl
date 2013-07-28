@@ -5,16 +5,22 @@ import sys
 
 import SpiffWorkflow.operators
 from SpiffWorkflow.specs import Celery
+import clouddns
+import eventlet.greenpool
 import tldextract
 
-from checkmate.common import caching
-from checkmate.exceptions import CheckmateException, CheckmateNoTokenError
 import checkmate.middleware
 import checkmate.providers
 import checkmate.providers.base
-import checkmate.utils
-import clouddns
-import eventlet.greenpool
+
+from checkmate.common import caching
+from checkmate import utils
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateNoTokenError,
+    CheckmateUserException,
+    UNEXPECTED_ERROR,
+)
 
 LOG = logging.getLogger(__name__)
 DNS_API_CACHE = {}
@@ -364,7 +370,8 @@ def create_record(context, domain, name, dnstype, data,
                 dnstype, name, data, domain)
             )
             LOG.error(msg)
-            raise CheckmateException(msg)
+            raise CheckmateUserException(msg, utils.get_class_name(
+                Exception), UNEXPECTED_ERROR, '')
 
     try:
         rec = domain_object.create_record(name, data, dnstype, ttl=rec_ttl)
@@ -401,7 +408,8 @@ def delete_record_task(context, domain_id, record_id):
         msg = ('Error finding domain %s. Cannot delete record %s.'
                % (domain_id, record_id))
         LOG.error(msg, exc_info=True)
-        raise CheckmateException(msg)
+        raise CheckmateUserException(msg, utils.get_class_name(
+            CheckmateException), UNEXPECTED_ERROR, '')
     try:
         record = domain.get_record(id=record_id)
         domain.delete_record(record.id)

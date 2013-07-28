@@ -119,6 +119,62 @@ class TestOperations(unittest.TestCase):
         }
         self.assertDictEqual(deployment, expected)
 
+    def test_get_status_message_from_all_friendly_error_messages(self):
+        errors = [
+            {"friendly-message": "Message 1", "error-type": "Type 1"},
+            {"friendly-message": "Message 2", "error-type": "Type 2"}
+        ]
+        info = operations.get_status_info(errors, "tenantId", "workflowId")
+        expected = {
+            "status-message": "1. Message 1\n2. Message 2\n"
+        }
+
+        self.assertDictEqual(info, expected)
+
+    def test_put_a_generic_status_message_if_status_message_not_available(self):
+        errors = [
+            {"error-message": 'Complicated Error message'},
+            {"error-message": 'Another Complicated error'},
+        ]
+        info = operations.get_status_info(errors, "tenantId", "workflowId")
+        expected = {
+            "status-message": "Multiple errors have occurred. Please contact "
+                              "support"
+        }
+        self.assertDictEqual(info, expected)
+
+    def test_get_status_info_when_there_are_both_frndly_non_frndly_errs(self):
+        errors = [
+            {"error-message": 'Complicated Error message'},
+            {"error-message": 'Another Complicated error'},
+            {"friendly-message": 'A friendly message'},
+        ]
+
+        info = operations.get_status_info(errors, "tenantId", "workflowId")
+        expected = {
+            "status-message": "Multiple errors have occurred. Please contact "
+                              "support"
+        }
+        self.assertDictEqual(info, expected)
+
+    def test_get_status_message_with_grouping_based_on_error_type(self):
+        errors = [
+            {"friendly-message": 'I am a friendly error message',
+             'error-type': 'Overlimit'},
+            {"friendly-message": 'I am a friendly error message',
+             'error-type': 'Overlimit'},
+            {"friendly-message": 'Another friendly error message',
+             'error-type': 'RandomException'},
+            {"friendly-message": 'I am a friendly error message',
+             'error-type': 'Overlimit'},
+        ]
+        info = operations.get_status_info(errors, "tenantId", "workflowId")
+        expected = {
+            "status-message": "1. I am a friendly error message\n2. Another "
+                              "friendly error message\n"
+        }
+        self.assertDictEqual(info, expected)
+
     def test_status_info_with_retriable_errors(self):
         errors = [
             {"error-type": "OverLimit", "error-message": "OverLimit Message",
@@ -133,24 +189,10 @@ class TestOperations(unittest.TestCase):
         ]
         info = operations.get_status_info(errors, "tenantId", "workflowId")
         expected = {
-            'status-message': "1. OverLimit Message\n2. RateLimit Message\n",
+            'status-message': "Multiple errors have occurred. Please contact "
+                              "support",
             'retry-link': "/tenantId/workflows/workflowId/+retry-failed-tasks",
             'retriable': True
-        }
-        self.assertDictEqual(info, expected)
-
-    def test_status_info_with_no_retriable_and_resumable_errors(self):
-        errors = [
-            {"error-type": "OverLimit", "error-message": "OverLimit Message",
-             "action-required": True},
-            {"error-type": "OverLimit", "error-message": "OverLimit Message",
-             "action-required": True},
-            {"error-type": "RateLimit", "error-message": "RateLimit Message",
-             "action-required": True},
-        ]
-        info = operations.get_status_info(errors, "tenantId", "workflowId")
-        expected = {
-            'status-message': "1. OverLimit Message\n2. RateLimit Message\n",
         }
         self.assertDictEqual(info, expected)
 
@@ -163,7 +205,8 @@ class TestOperations(unittest.TestCase):
         ]
         info = operations.get_status_info(errors, "tenantId", "workflowId")
         expected = {
-            'status-message': "1. OverLimit Message\n2. SomeError Message\n",
+            'status-message': "Multiple errors have occurred. Please contact "
+                              "support",
             'resume-link': "/tenantId/workflows/workflowId/"
                            "+resume-failed-tasks",
             'resumable': True

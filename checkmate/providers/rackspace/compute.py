@@ -27,6 +27,7 @@ from checkmate.common import caching
 from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
+    BLUEPRINT_ERROR,
     CheckmateDoesNotExist,
     CheckmateNoTokenError,
     CheckmateNoMapping,
@@ -34,6 +35,8 @@ from checkmate.exceptions import (
     CheckmateResumableException,
     CheckmateRetriableException,
     CheckmateServerBuildFailed,
+    CheckmateUserException,
+    UNEXPECTED_ERROR,
 )
 from checkmate.middleware import RequestContext
 from checkmate.providers import ProviderBase, user_has_access
@@ -211,8 +214,9 @@ class Provider(RackspaceComputeProviderBase):
                                         service_name=service,
                                         provider_key=self.key)
         if not region:
-            raise CheckmateException("Could not identify which region to "
-                                     "create servers in")
+            message = "Could not identify which region to create servers in"
+            raise CheckmateUserException(message, get_class_name(
+                CheckmateException), BLUEPRINT_ERROR, '')
 
         catalog = self.get_catalog(context)
 
@@ -666,6 +670,7 @@ class AuthPlugin(object):
         if self.done:
             LOG.debug("Called a second time from Nova. Assuming token expired")
             raise CheckmateResumableException("Auth Token expired",
+                                              "CheckmateResumableException",
                                               "Your authentication token "
                                               "expired before work on your "
                                               "deployment was completed. To "
@@ -673,9 +678,7 @@ class AuthPlugin(object):
                                               "need to 'retry' the operation "
                                               "to supply a fresh token that "
                                               "we can use to continue working "
-                                              "with",
-                                              "CheckmateResumableException",
-                                              action_required=False)
+                                              "with", '')
         else:
             LOG.debug("Nova client called authenticate from plugin")
             novaclient.auth_token = self.token
@@ -865,14 +868,15 @@ def create_server(context, name, region, api_object=None, flavor="2",
         server = api_object.servers.create(name, image_object, flavor_object,
                                            meta=meta, files=files)
     except OverLimit as exc:
-        raise CheckmateRetriableException("You have reached the maximum "
+        raise CheckmateRetriableException(str(exc),
+                                          get_class_name(exc),
+                                          "You have reached the maximum "
                                           "number of servers that can be "
                                           "spun up using this account. "
                                           "Please delete some servers to "
                                           "continue or contact your support "
-                                          "team to increase your limit", "",
-                                          get_class_name(exc),
-                                          action_required=True)
+                                          "team to increase your limit",
+                                          "")
 
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
@@ -1154,7 +1158,8 @@ def wait_on_build(context, server_id, region, resource,
     except (NotFound, NoUniqueMatch):
         msg = "No server matching id %s" % server_id
         LOG.error(msg, exc_info=True)
-        raise CheckmateException(msg)
+        raise CheckmateUserException(msg, get_class_name(CheckmateException),
+                                     UNEXPECTED_ERROR, '')
 
     results = {
         'id': server_id,
@@ -1172,11 +1177,11 @@ def wait_on_build(context, server_id, region, resource,
         chain(delete_server_task.si(context), wait_on_delete_server.si(
             context)).apply_async()
 
-        raise CheckmateRetriableException("Server %s build failed" % server_id,
-                                          "",
+        raise CheckmateRetriableException(results['status-message'],
                                           get_class_name(
                                               CheckmateServerBuildFailed()),
-                                          action_required=True)
+                                          results['status-message'],
+                                          '')
 
     if server.status == 'BUILD':
         results['progress'] = server.progress

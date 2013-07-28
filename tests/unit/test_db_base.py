@@ -32,11 +32,9 @@ class TestDbBase(unittest.TestCase):
         dbb = db.DbBase("connection-string://")
         data = {
             'status': 'BUILD',
-            'errmessage': '',
         }
         expected = {
             'status': 'UP',
-            'error-message': '',
         }
         dbb.convert_data('deployments', data)
         self.assertEqual(data, expected)
