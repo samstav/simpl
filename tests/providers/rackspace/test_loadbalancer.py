@@ -4,31 +4,24 @@ import unittest
 
 import cloudlb
 import mox
-from mox import IsA, IgnoreArg
 
+from checkmate import deployment as cm_dep
 from checkmate import deployments
-from checkmate import test, utils
+from checkmate.deployments import tasks
 from checkmate.exceptions import CheckmateException
-from checkmate.deployment import Deployment
-from checkmate.deployments import resource_postback
-from checkmate.deployments.tasks import reset_failed_resource_task
-from checkmate.middleware import RequestContext
-from checkmate.providers import base, register_providers
+from checkmate import middleware
+from checkmate import providers
+from checkmate.providers import base
 from checkmate.providers.rackspace import loadbalancer
-from checkmate.providers.rackspace.loadbalancer import (
-    delete_lb_task,
-    wait_on_lb_delete_task,
-)
-from checkmate.workflow import (
-    init_spiff_workflow,
-    create_workflow_spec_deploy,
-)
+from checkmate import test
+from checkmate import utils
+from checkmate import workflow as cm_wf
 
 LOG = logging.getLogger(__name__)
 
 
 class TestLoadBalancer(test.ProviderTester):
-    """ Test Load-Balancer Provider """
+    """Test Load-Balancer Provider."""
     klass = loadbalancer.Provider
 
     def test_provider(self):
@@ -36,7 +29,7 @@ class TestLoadBalancer(test.ProviderTester):
         self.assertEqual(provider.key, 'rackspace.load-balancer')
 
     def verify_limits(self, max_lbs, max_nodes):
-        """Test the verify_limits() method"""
+        """Test the verify_limits() method."""
         resources = [
             {
                 "status": "BUILD",
@@ -93,7 +86,7 @@ class TestLoadBalancer(test.ProviderTester):
                 }
             }
         ]
-        context = RequestContext()
+        context = middleware.RequestContext()
         self.mox.StubOutWithMock(loadbalancer.Provider, 'find_a_region')
         self.mox.StubOutWithMock(loadbalancer.Provider, 'find_url')
         self.mox.StubOutWithMock(loadbalancer.Provider, '_get_abs_limits')
@@ -124,14 +117,14 @@ class TestLoadBalancer(test.ProviderTester):
         return result
 
     def test_verify_limits_negative(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
+        """Test that verify_limits returns warnings if limits are not okay."""
         result = self.verify_limits(1, 0)
         self.assertEqual(3, len(result))
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
 
     def test_verify_access_positive(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
-        context = RequestContext()
+        """Test that verify_access() returns ACCESS-OK if user has access."""
+        context = middleware.RequestContext()
         context.roles = 'identity:user-admin'
         provider = loadbalancer.Provider({})
         result = provider.verify_access(context)
@@ -144,8 +137,8 @@ class TestLoadBalancer(test.ProviderTester):
         self.assertEqual(result['type'], 'ACCESS-OK')
 
     def test_verify_access_negative(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
-        context = RequestContext()
+        """Test that verify_access() returns ACCESS-OK if user has access."""
+        context = middleware.RequestContext()
         context.roles = 'LBaaS:observer'
         provider = loadbalancer.Provider({})
         result = provider.verify_access(context)
@@ -153,9 +146,7 @@ class TestLoadBalancer(test.ProviderTester):
 
 
 class TestCeleryTasks(unittest.TestCase):
-
-    """ Test Celery tasks """
-
+    """Test Celery tasks."""
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -194,10 +185,10 @@ class TestCeleryTasks(unittest.TestCase):
         context = dict(deployment='DEP', resource='1')
 
         #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
-        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
-        reset_failed_resource_task.delay(context['deployment'],
-                                          context['resource'])
+        self.mox.StubOutWithMock(deployments.resource_postback, 'delay')
+        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
+        tasks.reset_failed_resource_task.delay(context['deployment'],
+                                               context['resource'])
 
         #Stub out set_monitor call
         self.mox.StubOutWithMock(loadbalancer, 'set_monitor')
@@ -207,8 +198,8 @@ class TestCeleryTasks(unittest.TestCase):
         api_mock.loadbalancers = self.mox.CreateMockAnything()
         api_mock.loadbalancers.create(name=name, port=80,
                                       protocol=protocol.upper(),
-                                      nodes=[IsA(cloudlb.Node)],
-                                      virtualIps=[IsA(cloudlb.VirtualIP)],
+                                      nodes=[mox.IsA(cloudlb.Node)],
+                                      virtualIps=[mox.IsA(cloudlb.VirtualIP)],
                                       algorithm='ROUND_ROBIN').AndReturn(lb)
 
         expected = {
@@ -232,10 +223,10 @@ class TestCeleryTasks(unittest.TestCase):
             }
         }
 
-        resource_postback.delay(context['deployment'],
-                                instance_id).AndReturn(True)
-        resource_postback.delay(context['deployment'],
-                                expected).AndReturn(True)
+        deployments.resource_postback.delay(context['deployment'],
+                                            instance_id).AndReturn(True)
+        deployments.resource_postback.delay(context['deployment'],
+                                            expected).AndReturn(True)
 
         self.mox.ReplayAll()
         results = loadbalancer.create_loadbalancer(context, name, vip_type,
@@ -246,7 +237,7 @@ class TestCeleryTasks(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_delete_lb_task(self):
-        """ Test delete task """
+        """Test delete task."""
         context = {"deployment": "1234"}
         expect = {
             "instance:1": {
@@ -269,20 +260,21 @@ class TestCeleryTasks(unittest.TestCase):
         m_lb.delete().AndReturn(True)
         api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
         self.mox.ReplayAll()
-        ret = delete_lb_task(context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
+        ret = loadbalancer.delete_lb_task(
+            context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
     def test_delete_lb_task_for_building_loadbalancer(self):
-        """ Test delete task """
+        """Test delete task."""
         context = {"deployment": "1234"}
         expect = {
             "instance:1": {
                 "status": "DELETING",
                 "status-message": "Cannot delete LoadBalancer load-balancer, "
                                   "as it currently is in BUILD state."
-                                  " Waiting for load-balancer status to move to "
-                                  "ACTIVE, ERROR or SUSPENDED"
+                                  " Waiting for load-balancer status to move "
+                                  "to ACTIVE, ERROR or SUSPENDED"
             }
         }
         api = self.mox.CreateMockAnything()
@@ -292,8 +284,8 @@ class TestCeleryTasks(unittest.TestCase):
                 'status': 'DELETING',
                 'status-message': "Cannot delete LoadBalancer load-balancer, "
                                   "as it currently is in BUILD state."
-                                  " Waiting for load-balancer status to move to "
-                                  "ACTIVE, ERROR or SUSPENDED",
+                                  " Waiting for load-balancer status to move "
+                                  "to ACTIVE, ERROR or SUSPENDED",
             }
         })
         api.loadbalancers = self.mox.CreateMockAnything()
@@ -302,19 +294,20 @@ class TestCeleryTasks(unittest.TestCase):
         m_lb.__str__().AndReturn("Mock LB")
         api.loadbalancers.get('load-balancer').AndReturn(m_lb)
         self.mox.ReplayAll()
-        ret = delete_lb_task(context, '1', 'load-balancer', 'ORD', api=api)
+        ret = loadbalancer.delete_lb_task(
+            context, '1', 'load-balancer', 'ORD', api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
     def test_wait_on_lb_delete(self):
-        """ Test wait on delete task """
+        """Test wait on delete task."""
         context = {"deployment": "1234"}
         expect = {
-                  'instance:1': {
-                                  'status': 'DELETED',
-                                  'status-message': ''
-                                }
-                 }
+            'instance:1': {
+                'status': 'DELETED',
+                'status-message': ''
+            }
+        }
         api = self.mox.CreateMockAnything()
         api.loadbalancers = self.mox.CreateMockAnything()
         m_lb = self.mox.CreateMockAnything()
@@ -328,29 +321,31 @@ class TestCeleryTasks(unittest.TestCase):
             }
         })
         self.mox.ReplayAll()
-        ret = wait_on_lb_delete_task(context, '1', 'lb14nuai-asfjb', 'ORD',
-                                     api=api)
+        ret = loadbalancer.wait_on_lb_delete_task(context, '1',
+                                                  'lb14nuai-asfjb', 'ORD',
+                                                  api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
     def test_wait_on_lb_delete_still(self):
-        """ Test wait on delete task when not deleted """
+        """Test wait on delete task when not deleted."""
         context = {'deployment': '1234'}
         api = self.mox.CreateMockAnything()
         api.loadbalancers = self.mox.CreateMockAnything()
         m_lb = self.mox.CreateMockAnything()
         m_lb.status = 'DELETING'
         api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
-        self.mox.StubOutWithMock(wait_on_lb_delete_task, 'retry')
-        wait_on_lb_delete_task.retry(exc=IsA(CheckmateException)).AndReturn(
-            None)
+        self.mox.StubOutWithMock(loadbalancer.wait_on_lb_delete_task, 'retry')
+        loadbalancer.wait_on_lb_delete_task.retry(
+            exc=mox.IsA(CheckmateException)).AndReturn(None)
 
         self.mox.ReplayAll()
-        wait_on_lb_delete_task(context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
+        loadbalancer.wait_on_lb_delete_task(
+            context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
         self.mox.VerifyAll()
 
     def test_lb_sync_resource_task(self):
-        """Tests db sync_resource_task via mox"""
+        """Tests db sync_resource_task via mox."""
         #Mock instance
         lb = self.mox.CreateMockAnything()
         lb.id = 'fake_lb_id'
@@ -385,18 +380,13 @@ class TestCeleryTasks(unittest.TestCase):
 
 
 class TestBasicWorkflow(test.StubbedWorkflowBase):
-
-    """
-
-    Test that workflow tasks are generated and workflow completes
-
-    """
-
+    """Test that workflow tasks are generated and workflow completes."""
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
-        register_providers([loadbalancer.Provider, test.TestProvider])
-        self.deployment = Deployment(utils.yaml_to_dict("""
+        providers.register_providers(
+            [loadbalancer.Provider, test.TestProvider])
+        self.deployment = cm_dep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: LB Test
@@ -439,12 +429,12 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - compute: linux
             """))
 
-        self.context = RequestContext(auth_token='MOCK_TOKEN',
-                                      username='MOCK_USER')
+        self.context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                                 username='MOCK_USER')
         deployments.Manager.plan(self.deployment, self.context)
 
     def test_workflow_task_generation_for_vip_load_balancer(self):
-        vip_deployment = Deployment(utils.yaml_to_dict("""
+        vip_deployment = cm_dep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: LB Test
@@ -511,9 +501,10 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - compute: linux
             """))
         deployments.Manager.plan(vip_deployment, self.context)
-        workflow_spec = create_workflow_spec_deploy(vip_deployment,
-                                                    self.context)
-        workflow = init_spiff_workflow(workflow_spec, vip_deployment, self.context)
+        workflow_spec = cm_wf.create_workflow_spec_deploy(vip_deployment,
+                                                          self.context)
+        workflow = cm_wf.init_spiff_workflow(
+            workflow_spec, vip_deployment, self.context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root', 'Start',
@@ -535,7 +526,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_task_generation_with_allow_unencrypted_setting(self):
-        deployment_with_allow_unencrypted = Deployment(utils.yaml_to_dict("""
+        deployment_with_allow_unencrypted = cm_dep.Deployment(
+            utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: LB Test
@@ -594,11 +586,10 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             """))
         deployments.Manager.plan(
             deployment_with_allow_unencrypted, self.context)
-        workflow_spec = create_workflow_spec_deploy(
+        workflow_spec = cm_wf.create_workflow_spec_deploy(
             deployment_with_allow_unencrypted, self.context)
-        workflow = init_spiff_workflow(workflow_spec,
-                                   deployment_with_allow_unencrypted,
-                                   self.context)
+        workflow = cm_wf.init_spiff_workflow(
+            workflow_spec, deployment_with_allow_unencrypted, self.context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = [
@@ -626,11 +617,11 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_task_generation(self):
-        """Verify workflow task creation"""
-        workflow_spec = create_workflow_spec_deploy(self.deployment,
-                                                    self.context)
-        workflow = init_spiff_workflow(workflow_spec, self.deployment,
-                                   self.context)
+        """Verify workflow task creation."""
+        workflow_spec = cm_wf.create_workflow_spec_deploy(self.deployment,
+                                                          self.context)
+        workflow = cm_wf.init_spiff_workflow(workflow_spec, self.deployment,
+                                             self.context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = [
@@ -648,7 +639,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_completion(self):
-        """Verify workflow sequence and data flow"""
+        """Verify workflow sequence and data flow."""
 
         expected = []
 
@@ -656,7 +647,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             if resource.get('type') == 'compute':
                 expected.append({
                     'call': 'checkmate.providers.test.create_resource',
-                    'args': [IsA(dict), resource],
+                    'args': [mox.IsA(dict), resource],
                     'kwargs': None,
                     'result': {
                         'instance:%s' % key: {
@@ -692,7 +683,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
                             'create_loadbalancer',
                     'args': [
-                        IsA(dict),
+                        mox.IsA(dict),
                         'lb01.checkmate.local',
                         'PUBLIC',
                         'HTTP',
@@ -725,7 +716,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                 expected.append({
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
                             'wait_on_build',
-                    'args': [IsA(dict), 121212, 'North'],
+                    'args': [mox.IsA(dict), 121212, 'North'],
                     'kwargs': None,
                     'result': None,
                     'resource': key,
@@ -734,7 +725,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                 expected.append({
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
                             'set_monitor',
-                    'args': [IsA(dict), 121212, mox.IgnoreArg(), 'North'],
+                    'args': [mox.IsA(dict), 121212, mox.IgnoreArg(), 'North'],
                     'kwargs': None,
                     'result': None,
                     'resource': key,
@@ -743,7 +734,13 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                 expected.append({
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
                             'add_node',
-                    'args': [IsA(dict), 121212, '10.1.2.1', 'North', resource],
+                    'args': [
+                        mox.IsA(dict),
+                        121212,
+                        '10.1.2.1',
+                        'North',
+                        resource
+                    ],
                     'kwargs': None,
                     'result': None,
                     'resource': key,
