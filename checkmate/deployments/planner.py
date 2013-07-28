@@ -5,20 +5,17 @@ import string
 
 import eventlet
 
-from checkmate import keys
-from checkmate import utils
-from checkmate.classes import ExtensibleDict
-from checkmate.deployment import (
-    validate_blueprint_options,
-    validate_input_constraints,
-)
+from checkmate import classes
+from checkmate import deployment as cm_dep
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,
     CheckmateValidationException,
     CheckmateUserException,
 )
-from checkmate.resource import Resource
+from checkmate import keys
+from checkmate import resource as cm_res
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -68,7 +65,7 @@ CQgY86P4n6fXSJTU+fU+hCZYwh/N/H74n2gJYE4lzjJH08L7HByjncueo1WOqyV1pifT3HC/MKryV6\
 mfCNuJ71hzS3"""
 
 
-class Planner(ExtensibleDict):
+class Planner(classes.ExtensibleDict):
     '''Analyzes a Checkmate deployment and persists the analysis results
 
     This class will do the following:
@@ -109,14 +106,13 @@ class Planner(ExtensibleDict):
 
     The class behaves like a dict and will contain the analysis results.
     The resources attribute will contain the planned resources as well.
-
     '''
     def __init__(self, deployment, parse_only=False, *args, **kwargs):
-        '''
+        '''Object Initialization
 
         :param parse_only: optimize for parsing. Uses dummy keys
         '''
-        ExtensibleDict.__init__(self, *args, **kwargs)
+        classes.ExtensibleDict.__init__(self, *args, **kwargs)
         self.deployment = deployment
         self.resources = self.deployment.get('resources', {})
         self.connections = self.deployment.get('connections', {})
@@ -133,10 +129,9 @@ class Planner(ExtensibleDict):
                                                "Nowhere to deploy to.")
 
     def plan_additional_nodes(self, context, service_name, count):
-        '''
-        This method would add 'count' number of resource nodes of
-        service-type 'service_name' to a deployment that has already been
-        PLANNED.
+        '''Adds 'count' number of service_name nodes to a deployment.
+
+        Deployment must already be in 'PLANNED' state.
 
         :param context: Request context
         :param service_name: The service to add additional nodes for
@@ -158,12 +153,12 @@ class Planner(ExtensibleDict):
         return self.resources
 
     def plan(self, context):
-        '''Perform plan analysis. Returns a reference to planned resources'''
+        '''Perform plan analysis. Returns a reference to planned resources.'''
         LOG.info("Planning deployment '%s'", self.deployment['id'])
 
         # Quick validations
-        validate_blueprint_options(self.deployment)
-        validate_input_constraints(self.deployment)
+        cm_dep.validate_blueprint_options(self.deployment)
+        cm_dep.validate_input_constraints(self.deployment)
 
         # Fill the list of services
         service_names = self.deployment['blueprint'].get('services', {}).keys()
@@ -237,13 +232,10 @@ class Planner(ExtensibleDict):
         return results
 
     def evaluate_defaults(self):
-        '''
-
-        Evaluate option defaults
+        '''Evaluate option defaults
 
         Replaces defaults if they are a function with a final value so that the
         defaults are not evaluated once per workflow or once per component.
-
         '''
         for _, option in self.blueprint.get('options', {}).iteritems():
             if 'default' in option:
@@ -253,8 +245,9 @@ class Planner(ExtensibleDict):
                     option['default'] = utils.evaluate(default[1:])
 
     def add_resources(self, context):
-        '''
-        This is a container for the original plan() function. It contains
+        '''Container for the original plan() function.
+
+        It contains
         code that is not yet fully refactored. This will go away over time.
         '''
         blueprint = self.blueprint
@@ -286,9 +279,10 @@ class Planner(ExtensibleDict):
                                               service_index)
 
     def add_resource_for_service(self, context, service_name, service_index):
-        '''
-        Adds a new 'resource' block to the deployment, based on the
-        service name
+        '''Adds a new 'resource' block to the deployment,
+
+        based on the service name
+
         :param service_name: Name of the service
         :param context: Request context
         :param service_index:
@@ -339,7 +333,7 @@ class Planner(ExtensibleDict):
                                                connection, key)
 
     def connect_resources(self):
-        '''Wire up resource connections within a Plan'''
+        '''Wire up resource connections within a Plan.'''
         # Add connections
         LOG.debug("Connect resources")
         for _, service_plan in self['services'].iteritems():
@@ -359,7 +353,7 @@ class Planner(ExtensibleDict):
             self.resources['connections'] = self.connections
 
     def add_static_resources(self, deployment, context):
-        '''Generate static resources and add them to resources collection'''
+        '''Generate static resources and add them to resources collection.'''
         blueprint = self.blueprint
         environment = self.environment
         resources = self.resources
@@ -378,8 +372,8 @@ class Planner(ExtensibleDict):
                 for result in results:
                     result['component'] = component['id']
             else:
-                # TODO: These should come from a provider (ex. AD, LDAP, PKI,
-                # etc...)
+                # TODO(any): These should come from a provider (ex. AD, LDAP,
+                # PKI, etc...)
                 if resource['type'] == 'user':
                     # Fall-back to local loader
                     instance = {}
@@ -389,9 +383,8 @@ class Planner(ExtensibleDict):
                             deployment._get_setting_by_resource_path(
                                 "resources/%s/name" % key, 'admin')
                         if not instance['name']:
-                            error_message = "Name must be specified " \
-                                           "for the '%s' user " \
-                                           "resource" % key
+                            error_message = ("Name must be specified for the "
+                                             "'%s' user resource" % key)
                             raise CheckmateUserException(
                                 error_message, utils.get_class_name(
                                     CheckmateException), BLUEPRINT_ERROR, '')
@@ -449,8 +442,8 @@ class Planner(ExtensibleDict):
                         instance = resource['instance']
                     result = dict(type='key-pair', instance=instance)
                 else:
-                    error_message = "Could not find provider for the " \
-                                   "'%s' resource" % key
+                    error_message = ("Could not find provider for the '%s' "
+                                     "resource" % key)
                     raise CheckmateUserException(error_message,
                                                  utils.get_class_name(
                                                      CheckmateException),
@@ -461,10 +454,10 @@ class Planner(ExtensibleDict):
             LOG.debug("  Adding a %s resource with resource key %s",
                       resources[str(key)]['type'],
                       key)
-            Resource.validate(result)
+            cm_res.Resource.validate(result)
 
     def add_resource(self, resource, definition, service_name=None):
-        '''Add a resource to the list of resources to be created'''
+        '''Add a resource to the list of resources to be created.'''
         resource['index'] = self._get_next_resource_index()
 
         LOG.debug("  Adding a '%s' resource with resource key '%s'",
@@ -474,7 +467,7 @@ class Planner(ExtensibleDict):
             definition['instances'] = []
         definition['instances'].append(resource['index'])
 
-        #TODO: Refactor this
+        #TODO(any): Refactor this
         if service_name:
             interface = self.blueprint["services"][service_name][
                 "component"].get("interface")
@@ -484,14 +477,10 @@ class Planner(ExtensibleDict):
                     "outbound-from"] = resource['index']
 
     def connect_resource(self, resource, definition):
-        '''
-
-        Add 'relations' key to a resource based on the connection information
-        in the plan to connect it to all other resources
+        '''Add 'relations' key to resource based on the definition.
 
         :param resource: the resource to connect
         :param definition: the definition of the resource from the plan
-
         '''
         for key, connection in definition.get('connections', {}).iteritems():
             if connection.get('outbound-from') and connection.get(
@@ -519,7 +508,7 @@ class Planner(ExtensibleDict):
 
                 self.connect_instances(resource, target, connection, key)
 
-                #TODO: this is just copied in for legacy compatibility
+                #TODO(any): this is just copied in for legacy compatibility
             if (connection['direction'] == 'outbound' and
                     'extra-key' not in connection):
                 rel_key = key  # connection['name']
@@ -529,7 +518,7 @@ class Planner(ExtensibleDict):
 
     @staticmethod
     def connect_instances(resource, target, connection, connection_key):
-        '''Connect two resources based on the provided connection definition'''
+        '''Connect two resources based on provided connection definition.'''
         relation_type = connection.get('relation', 'reference')
         if relation_type == 'host':
             write_key = 'host'
@@ -575,10 +564,11 @@ class Planner(ExtensibleDict):
         relations = resource['relations']
         if relation_type == 'host':
             if resource.get('hosted_on') not in [None, target['index']]:
-                error_message = ("Resource '%s' is already set to be hosted on "
-                                 "'%s'. Cannot change host to '%s'" %
-                                (resource['index'], resource['hosted_on'],
-                                 target['index']))
+                error_message = (
+                    "Resource '%s' is already set to be hosted on '%s'. "
+                    "Cannot change host to '%s'" % (resource['index'],
+                    resource['hosted_on'], target['index'])
+                )
                 raise CheckmateUserException(error_message,
                                              utils.get_class_name(
                                                  CheckmateException),
@@ -593,13 +583,10 @@ class Planner(ExtensibleDict):
         relations[write_key] = result
 
     def resolve_components(self, context):
-        '''
-
-        Identify needed components and resolve them to provider components
+        '''Identify needed components and resolve them to provider components
 
         :param context: the call context. Component catalog may depend on
                 current context
-
         '''
         LOG.debug("Analyzing service components")
         services = self.deployment['blueprint'].get('services', {})
@@ -613,13 +600,10 @@ class Planner(ExtensibleDict):
             self['services'][service_name]['component'] = component
 
     def resolve_relations(self):
-        '''
-
-        Identifies source and target provides/requires keys for all relations
+        '''Identify source and target provides/requires keys for all relations
 
         Assumes that find_components() has already run and identified all the
         components in the deployment. If not, this will effectively be a noop
-
         '''
         LOG.debug("Analyzing relations")
         services = self.deployment['blueprint'].get('services', {})
@@ -687,9 +671,7 @@ class Planner(ExtensibleDict):
     @staticmethod
     def connect(source, target, interface, connection_key,
                 relation_type='reference', relation_key=None, attribute=None):
-        '''
-
-        Connect two components by adding the connection information to them
+        '''Connect two components by adding the connection information to them
 
         :param source: a map of the source 'component', 'service' name, and
                        'endpoint, as shown below
@@ -721,8 +703,6 @@ class Planner(ExtensibleDict):
             service: the service at the other end if this is between services
             extra-key: key of component if it is an extra component
             attribute: if needed by v0.2 connection
-
-
         '''
 
         # Write to source connections
@@ -768,9 +748,7 @@ class Planner(ExtensibleDict):
             connections[connection_key] = info
 
     def resolve_remaining_requirements(self, context):
-        '''
-
-        Resolves all requirements by finding and loading appropriate components
+        '''Resolves requirements by finding and loading appropriate components
 
         Requirements that have been already resolved by an explicit relation
         are left alone. This is expected to be run after relations are resolved
@@ -778,7 +756,6 @@ class Planner(ExtensibleDict):
 
         Any additional components are added under a service's
         `extra-components` key using the requirement's key.
-
         '''
         LOG.debug("Analyzing requirements")
         services = self['services']
@@ -799,7 +776,8 @@ class Planner(ExtensibleDict):
                           service_name)
                 component = self.identify_component(definition, context)
                 if not component:
-                    error_message = "Could not resolve component '%s'" % definition
+                    error_message = (
+                        "Could not resolve component '%s'" % definition)
                     raise CheckmateUserException(error_message,
                                                  utils.get_class_name(
                                                      CheckmateException),
@@ -841,13 +819,10 @@ class Planner(ExtensibleDict):
                              key, relation_type=relation)
 
     def resolve_recursive_requirements(self, context, history):
-        '''
-
-        Goes through extra-component and resolves any of their requirements
+        '''Goes through extra-component and resolves any of their requirements
 
         Loops recursively until all requirements are met. Detects cyclic Loops
         by keeping track of requirements met.
-
         '''
         LOG.debug("Analyzing additional requirements")
         stack = []
@@ -925,16 +900,16 @@ class Planner(ExtensibleDict):
             self.resolve_recursive_requirements(context, history)
 
     def _get_next_resource_index(self):
-        '''
-        Calculates the next resource index based on the current resources
+        '''Calculates the next resource index based on the current resources
+
         :return:
         '''
         return (str(len([res for res in self.resources.keys()
                          if res.isdigit()])))
 
     def _get_number_of_resources(self, provider_key, service_name):
-        '''
-        Gets the number of resources for a specific service and provider
+        '''Gets the number of resources for a specific service and provider
+
         :param provider_key:
         :param service_name:
         :return:
@@ -948,9 +923,7 @@ class Planner(ExtensibleDict):
 
     def _satisfy_requirement(self, requirement, requirement_key, component,
                              component_service, relation_key=None, name=None):
-        '''
-
-        Mark requirement as satisfied by component
+        '''Mark requirement as satisfied by component
 
         Format is:
             satisfied-by:
@@ -960,7 +933,6 @@ class Planner(ExtensibleDict):
               name: the name to use for the relation
               relation-key: optional key of a relation if one was used as a
                             hint to identify this relationship
-
         '''
         # Identify the matching interface
         provides_match = self._find_provides_key(requirement, component)
@@ -979,13 +951,15 @@ class Planner(ExtensibleDict):
         requirement['satisfied-by'] = info
 
     def identify_component(self, definition, context):
-        '''Identifies a component based on blueprint-type keys'''
+        '''Identifies a component based on blueprint-type keys.'''
         assert not isinstance(definition, list)  # deprecated syntax
         found = self.environment.find_component(definition, context)
         if not found:
             error_message = "Could not resolve component '%s'" % definition
-            raise CheckmateUserException(error_message,utils.get_class_name(
-                CheckmateException), BLUEPRINT_ERROR, '')
+            raise CheckmateUserException(
+                error_message, utils.get_class_name(CheckmateException),
+                BLUEPRINT_ERROR, ''
+            )
         component = {}
         component['id'] = found['id']
         provider = found.provider
@@ -997,9 +971,7 @@ class Planner(ExtensibleDict):
 
     @staticmethod
     def _format_relation(key, value, service):
-        '''
-
-        Parses relation and returns expanded relation as key and map tuple
+        '''Parses relation and returns expanded relation as key and map tuple
 
         A Relation's syntax is one of:
         1 - service: interface
@@ -1019,7 +991,6 @@ class Planner(ExtensibleDict):
         readability. COnnections between services are named 'from-to',
         connections generated by a named relation are named per the relation
         name, and other relations are named service:interface.
-
         '''
         final_key = key
         final_map = {}
@@ -1048,24 +1019,23 @@ class Planner(ExtensibleDict):
             final_map['service'] = service
 
         if 'service' not in final_map:  # post v0.2, let's raise this
-            error_message = "No service specified for relation '%s'" % final_key
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException),BLUEPRINT_ERROR, '')
+            error_message = (
+                "No service specified for relation '%s'" % final_key)
+            raise CheckmateUserException(
+                error_message, utils.get_class_name(CheckmateException),
+                BLUEPRINT_ERROR, ''
+            )
         return final_key, final_map
 
     @staticmethod
     def _find_requires_key(relation, component):
-        '''
-
-        Matches a requirement on the source component as the source of a
-        relation
+        '''Matches a requirement on the source component based on relation.
 
         Will not match a requirement that is already satisfied.
 
         :param relation: dict of the relation
         :param component: a dict of the component as parsed by the analyzer
         :returns: 'requires' key
-
         '''
         backup = None
         for key, requirement in component.get('requires', {}).iteritems():
@@ -1084,7 +1054,7 @@ class Planner(ExtensibleDict):
 
     @staticmethod
     def _find_provides_key(relation, component):
-        '''
+        '''Returns a 'provides' key for a given component based on relation.
 
         Matches a provided interface on the target component as the target of a
         relation
@@ -1092,7 +1062,6 @@ class Planner(ExtensibleDict):
         :param relation: dict of the relation
         :param component: a dict of the component as parsed by the analyzer
         :returns: 'provides' key
-
         '''
         for key, provided in component.get('provides', {}).iteritems():
             if provided['interface'] == relation['interface']:
