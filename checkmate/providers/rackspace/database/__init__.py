@@ -149,6 +149,7 @@ def create_database(context, name, region, character_set=None, collate=None,
         results[instance_key]['host_instance'] = instance_id
         results[instance_key]['host_region'] = instance['region']
         results[instance_key]['flavor'] = flavor
+        results[instance_key]['disk'] = size
         return results
 
     instance = api.get(instance_id)
@@ -339,6 +340,7 @@ def delete_instance_task(context, api=None):
         msg = ("Instance ID is not available for Database server Instance, "
                "skipping delete_instance_task for resource %s in deployment "
                "%s", (resource_key, deployment_id))
+        # TODO(Nate): Clear status-message on delete
         res = {inst_key: {'status': 'DELETED'}}
         for hosted in resource.get('hosts', []):
             res.update({
@@ -369,6 +371,7 @@ def delete_instance_task(context, api=None):
     try:
         api.delete(instance_id)
         LOG.info('Database instance %s deleted.', instance_id)
+        # TODO(Nate): Add status-message to current resource
         res = {inst_key: {'status': 'DELETING'}}
         for hosted in resource.get('hosts', []):
             res.update({
@@ -379,6 +382,7 @@ def delete_instance_task(context, api=None):
             })
     except ClientException as rese:
         if rese.code in [401, 403, 404]:  # already deleted
+            # TODO(Nate): Remove status-message on current resource
             res = {inst_key: {'status': 'DELETED'}}
             for hosted in resource.get('hosts', []):
                 res.update({
