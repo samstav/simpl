@@ -1,9 +1,9 @@
-'''
+"""
 GitHub Classes
 
 Manager for caching GitHub blueprints
 Router for responding to webhooks
-'''
+"""
 from __future__ import absolute_import
 
 import base64
@@ -45,16 +45,15 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
 
 
 def _handle_ghe(ghe, msg="Unexpected Github error"):
-    '''Ignore a 404 response from github but log other errors.'''
+    """Ignore a 404 response from github but log other errors."""
     if ghe.status != 404:
         LOG.warn(msg or "", exc_info=True)
 
 
 class GitHubManager(base.ManagerBase):
-    '''Manage the catalog of "known good" blueprints.'''
-
+    """Manage the catalog of "known good" blueprints."""
     def __init__(self, drivers, config):
-        '''Init Github blueprint manager.
+        """Init Github blueprint manager.
 
         Config params used
         :github_api_base: Base uri for the github api hosting the
@@ -63,7 +62,7 @@ class GitHubManager(base.ManagerBase):
                                 the blueprint; defaults to 'master'
         :repo_org: the organization owning the blueprint repositories
         :cache_dir: directory to write cached blueprint data to
-        '''
+        """
         base.ManagerBase.__init__(self, drivers)
         self._github_api_base = config.github_api
         if self._github_api_base:
@@ -92,7 +91,7 @@ class GitHubManager(base.ManagerBase):
             self.check_cache_freshess()
 
     def get_tenant_tag(self, tenant_id, tenant_auth_groups):
-        '''Find the tag to return for this tenant.
+        """Find the tag to return for this tenant.
 
         If the tenant is explicitely called out in preview-refs, then use the
         preview ref.
@@ -100,7 +99,7 @@ class GitHubManager(base.ManagerBase):
         match wins).
         Otherwise, default to ref.
         Finally, if none specified, use 'master'
-        '''
+        """
         assert tenant_id, "must provide a tenant id"
 
         if self._preview_tenants and tenant_id in self._preview_tenants:
@@ -118,27 +117,22 @@ class GitHubManager(base.ManagerBase):
 
     @property
     def api_host(self):
-        '''Source for github request
+        """Source for github request
 
         :return: source Github api host (not url)
-        '''
+        """
         return self._api_host
 
     @property
     def repo_owner(self):
-        '''Github reposiroty owner (org or user).
+        """Github reposiroty owner (org or user).
 
         :return: repository owner
-        '''
+        """
         return self._repo_org
 
-    def get_blueprints(self, tenant_id=None, offset=0, limit=100, details=0):
-        '''Return an abbreviated list of known deployment blueprints.
-
-        :param offset: pagination start
-        :param limit: pagination length
-        '''
-        tag = self.get_tenant_tag(tenant_id, request.context.roles)
+    def _perform_blocking_refresh_if_needed(self):
+        """If _blueprints is None, perform a refresh of all blueprints."""
         if not self._blueprints:
             # Wait for refresh to complete (block)
             if self.background is None:
@@ -148,6 +142,15 @@ class GitHubManager(base.ManagerBase):
                 self.refresh_lock.acquire()
             finally:
                 self.refresh_lock.release()
+
+    def get_blueprints(self, tenant_id=None, offset=0, limit=100, details=0):
+        """Return an abbreviated list of known deployment blueprints.
+
+        :param offset: pagination start
+        :param limit: pagination length
+        """
+        tag = self.get_tenant_tag(tenant_id, request.context.roles)
+        self._perform_blocking_refresh_if_needed()
 
         if not tag:
             return
@@ -192,12 +195,12 @@ class GitHubManager(base.ManagerBase):
     @caching.CacheMethod(store=BLUEPRINT_CACHE, timeout=60,
                          backing_store=REDIS)
     def _get_blueprint_list_by_tag(self, tag, include_preview=False):
-        '''Filter blueprints to show.
+        """Filter blueprints to show.
 
         :param tag: git to include
         :param include_preview: if preview blueprints should be included
         :returns: filtered blueprints dict
-        '''
+        """
         LOG.debug("Filtering blueprints: cache miss")
         results = {}
         if include_preview:
@@ -226,38 +229,38 @@ class GitHubManager(base.ManagerBase):
         return results
 
     def get_blueprint(self, blueprint_id):
-        '''Get blueprint by id.
+        """Get blueprint by id.
 
         :param blueprint_id: the deployment blueprint identifier
         :returns: the specified deployment blueprint
-        '''
+        """
         if not self._blueprints:
             self.refresh_all()
 
         return self._blueprints.get(str(blueprint_id))
 
     def refresh(self, repo_name):
-        '''Get updated deployment blueprint information from the specified
+        """Get updated deployment blueprint information from the specified
         github repository.
 
         :param repo_name: the name of the github repository containing the
                           the blueprint
-        '''
+        """
         self._refresh_from_repo(self._get_repo(repo_name))
         self._update_cache()
 
     def check_cache_freshess(self):
-        '''Check if cache is up to date and trigger refresh if not.'''
+        """Check if cache is up to date and trigger refresh if not."""
         if (self.background is None and
                 time.time() - self.last_refresh > DEFAULT_CACHE_TIMEOUT):
             if not self._load_redis_cache():
                 self.start_background_refresh()
 
     def _load_redis_cache(self):
-        '''Load blueprints from Redis.
+        """Load blueprints from Redis.
 
         :returns: True if loaded valid blueprints
-        '''
+        """
         if REDIS:
             try:
                 cache = REDIS['blueprint_cache']
@@ -282,9 +285,9 @@ class GitHubManager(base.ManagerBase):
         return False
 
     def load_cache(self):
-        '''pre-seed with existing cache if any in case we can't connect to the
+        """pre-seed with existing cache if any in case we can't connect to the
         repo.
-        '''
+        """
         if not self._load_redis_cache():
             if os.path.exists(self._cache_file):
                 try:
@@ -295,7 +298,7 @@ class GitHubManager(base.ManagerBase):
                     LOG.warn("Could not load cache file", exc_info=True)
 
     def background_refresh(self):
-        '''Called by background thread to start a refresh.'''
+        """Called by background thread to start a refresh."""
         with self.refresh_lock:
             LOG.info("Starting background refresh of blueprint cache")
             try:
@@ -308,7 +311,7 @@ class GitHubManager(base.ManagerBase):
                 self.background = None
 
     def start_background_refresh(self):
-        '''Initiate a background refresh of all blueprints.'''
+        """Initiate a background refresh of all blueprints."""
         if self.background is None and self.start_refresh_lock.acquire(False):
             try:
                 self.background = eventlet.spawn_n(self.background_refresh)
@@ -323,9 +326,9 @@ class GitHubManager(base.ManagerBase):
             LOG.debug("Already refreshing")
 
     def refresh_all(self):
-        '''Get all deployment blueprints from the repositories owned by
+        """Get all deployment blueprints from the repositories owned by
         :self.repo_org:.
-        '''
+        """
         org = self._get_repo_owner()
         if not org:
             LOG.error("No user or group matching %s", self._repo_org)
@@ -349,7 +352,7 @@ class GitHubManager(base.ManagerBase):
         self._update_cache()
 
     def _get_repo_owner(self):
-        '''Return the user or organization owning the repo.'''
+        """Return the user or organization owning the repo."""
         if self._repo_org:
             try:
                 return self._github.get_organization(self._repo_org)
@@ -362,7 +365,7 @@ class GitHubManager(base.ManagerBase):
                     LOG.warn("Could not find user or org %s.", self._repo_org)
 
     def _update_cache(self):
-        '''Write the current blueprint map to local disk and Redis.'''
+        """Write the current blueprint map to local disk and Redis."""
         if REDIS:
             try:
                 timestamped = copy.copy(self._blueprints)
@@ -390,26 +393,30 @@ class GitHubManager(base.ManagerBase):
             LOG.info("Cached blueprints to file: %s", self._cache_file)
 
     def _refresh_from_repo(self, repo):
-        '''Store/update blueprint info from the specified repository.
+        """Store/update blueprint info from the specified repository.
 
         :param repo: the repository containing blueprint data or :None:
-        '''
+        """
         if repo:
-            _refresh_blueprint(repo, self._ref)
+            self._refresh_blueprint(repo, self._ref)
             if self._preview_ref:
-                _refresh_blueprint(repo, self._preview_ref)
+                self._refresh_blueprint(repo, self._preview_ref)
 
     def _refresh_blueprint(self, repo, ref):
-            rid = "%s:%s" % (str(repo.id), ref)
-            blueprint = self._get_blueprint(repo, ref)
-            if rid in self._blueprints:
-                del self._blueprints[rid]
-            self._store(blueprint, self._ref, self._blueprints)
+        """Get a new copy of the specified blueprint."""
+        rid = "%s:%s" % (str(repo.id), ref)
+        blueprint = self._get_blueprint(repo, ref)
+        if rid in self._blueprints:
+            del self._blueprints[rid]
+        self._store(blueprint, self._ref, self._blueprints)
 
     def blueprint_is_invalid(self, untrusted_blueprint):
+        """Returns true if passed-in blueprint does NOT pass validation."""
         return not self.blueprint_is_valid(untrusted_blueprint)
 
     def blueprint_is_valid(self, untrusted_blueprint):
+        """Returns true if passed-in blueprint passes validation."""
+        self._perform_blocking_refresh_if_needed()
         for _, blueprint in self._blueprints.items():
             if (
                 untrusted_blueprint == blueprint['blueprint'] and
@@ -419,13 +426,14 @@ class GitHubManager(base.ManagerBase):
         return False
 
     def _environment_is_valid(self, blueprint):
+        """Returns true if passed in blueprint passes validation."""
         return True
 
     def _get_repo(self, repo_name):
-        '''Return the specified github repo.
+        """Return the specified github repo.
 
         :param repo_name: the repo to get; must belong to :self.repo_org:
-        '''
+        """
         if repo_name:
             owner = self._get_repo_owner()
             if owner:
@@ -438,7 +446,7 @@ class GitHubManager(base.ManagerBase):
 
     @staticmethod
     def _repo_contains_ref(repo, ref_name):
-        '''Check if a repo contains a tag or reference.'''
+        """Check if a repo contains a tag or reference."""
         if '/' in ref_name:
             return ref_name in repo.get_git_refs()
         else:
@@ -449,11 +457,11 @@ class GitHubManager(base.ManagerBase):
         return False
 
     def _get_blueprint(self, repo, tag):
-        '''Get the deployment blueprint from the specified repo if any; format
+        """Get the deployment blueprint from the specified repo if any; format
         and correct as needed.
 
         :param repo: the repo containing the blueprint
-        '''
+        """
         if repo and isinstance(repo, github.Repository.Repository) and tag:
             dep_file = None
             try:
@@ -509,7 +517,7 @@ class GitHubManager(base.ManagerBase):
         return None
 
     def _inline_documentation_field(self, blueprint, repo, doc_field):
-        '''Set documentation field.
+        """Set documentation field.
 
         'documentation.abstract/instructions/guide' etc... field if they are
         not present in the blueprint and respective
@@ -518,7 +526,7 @@ class GitHubManager(base.ManagerBase):
         :param blueprint: the blueprint blueprint
         :param repo: the repo containing the blueprint
         :param doc_field: documentation field in the blueprint
-        '''
+        """
 
         file_name = ""
         # if a field (abstract/instructions/guide) does not exist in the
@@ -540,11 +548,11 @@ class GitHubManager(base.ManagerBase):
 
     @staticmethod
     def _get_repo_file_contents(repo, filename):
-        '''Get contents of the given file from the repository.
+        """Get contents of the given file from the repository.
 
         :param repo: the repo containing the blueprint
         :param filename: file name
-        '''
+        """
         isinstance(repo, github.Repository.Repository)
         try:
             repo_file = repo.get_file_contents(filename)
@@ -555,10 +563,10 @@ class GitHubManager(base.ManagerBase):
 
     @staticmethod
     def _store(blueprint, tag, target):
-        '''Store the blueprint in the target memory.
+        """Store the blueprint in the target memory.
 
         :param blueprint: the deployment blueprint to store
-        '''
+        """
 
         if blueprint and tag and isinstance(blueprint, collections.Mapping):
             if "repo_id" not in blueprint:
@@ -570,10 +578,10 @@ class GitHubManager(base.ManagerBase):
 
 
 class WebhookRouter(object):
-    '''Handler for processing web-hook updates from Github.
+    """Handler for processing web-hook updates from Github.
 
     Note: Code ported from CrossCheck
-    '''
+    """
 
     def __init__(self, app, manager):
         self.app = app
@@ -585,18 +593,15 @@ class WebhookRouter(object):
         app.route('/webhooks/blueprints', 'POST', self.on_post)
 
     def on_post(self):
-        '''Handle a web-hook post from github.
+        """Handle a web-hook post from github.
 
-        :throws 500: if the request body could not
-                be parsed
-        :throws 403: if the request comes from
-                an unknown Github service
-        '''
-
+        :throws 500: if the request body could not be parsed
+        :throws 403: if the request comes from an unknown Github service
+        """
         self._logger.info("Received repo update notification: %s %s",
                           request.method, request.url)
 
-        if not self._is_from_our_repo(request):
+        if not self._is_from_our_repo():
             source = (request.get_header("X-Forwarded-Host") or
                       request.get_header("X-Remote-Host") or
                       request.get_header("X-Forwarded-For") or
@@ -639,13 +644,13 @@ class WebhookRouter(object):
                               owner)
             abort(403)
 
-    def _is_from_our_repo(self, request):
-        '''Check if the call came from a trusted repo.
+    def _is_from_our_repo(self):
+        """Check if the call came from a trusted repo.
 
         :param request: the http request
         :returns: True if the request comes from the manager's configured
                   source api host; False otherwise
-        '''
+        """
         source = (request.get_header("X-Forwarded-Host") or
                   request.get_header("X-Remote-Host") or
                   request.get_header("X-Forwarded-For") or
