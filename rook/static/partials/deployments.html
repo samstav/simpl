@@ -17,6 +17,14 @@
           <span>{{filter.name | capitalize}}</span>
         </label>
 
+        <div ng-show="auth.is_admin()">
+          <h5> Tenant Tag</h5>
+          <label class="filter" ng-repeat="filter in filters.tenant_tag">
+            <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
+            <span>{{filter.name | capitalize}}</span>
+          </label>
+        </div>
+
         <h5> Search</h5>
         <form>
           <input class="span10" type="text" placeholder="ex.: wordpress" ng-model="query" ng-change="applyFilters()" />
