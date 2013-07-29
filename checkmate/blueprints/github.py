@@ -413,14 +413,10 @@ class GitHubManager(base.ManagerBase):
         for _, blueprint in self._blueprints.items():
             if (
                 untrusted_blueprint == blueprint['blueprint'] and
-                self._inputs_are_valid(blueprint) and
                 self._environment_is_valid(blueprint)
             ):
                 return True
         return False
-
-    def _inputs_are_valid(self, blueprint):
-        return True
 
     def _environment_is_valid(self, blueprint):
         return True

@@ -160,6 +160,11 @@ class Router(object):
     @utils.formatted_response('deployments', with_pagination=True)
     def get_deployments(self, tenant_id=None, offset=None, limit=None):
         '''Get existing deployments.'''
+        # So that we don't end up with a DoS due to unchecked limit:
+        if limit is None or limit > 100:
+            LOG.warn('Request for tenant %s with limit of %s. Defaulting '
+                     'limit to 100.', tenant_id, limit)
+            limit = 100
         show_deleted = bottle.request.query.get('show_deleted')
         status = bottle.request.query.get('status')
         tenant_id = bottle.request.query.get('tenant_id')
