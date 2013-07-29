@@ -31,14 +31,14 @@ LOG = logging.getLogger(__name__)
 OP_MATCH = '(!|(>|<)[=]*)'
 
 
-def _build_filter(field):
+def _build_filter(value):
     '''Translate string with operator and status into mongodb filter.'''
     op_map = {'!': '$ne', '>': '$gt', '<': '$lt', '>=': '$gte', '<=': '$lte'}
-    operator = re.search(OP_MATCH, field)
+    operator = re.search(OP_MATCH, value)
     if operator:
-        return {op_map[operator.group(0)]: field[len(operator.group(0)):]}
+        return {op_map[operator.group(0)]: value[len(operator.group(0)):]}
     else:
-        return field
+        return value
 
 
 def _validate_no_operators(fields):
