@@ -4,28 +4,21 @@ import logging
 import os
 import unittest
 
-from mox import IgnoreArg
-
 import mox
 
+from checkmate import deployments as cm_deps
+from checkmate.deployments import tasks
+from checkmate.exceptions import CheckmateException
+from checkmate import middleware as cm_mid
+from checkmate.providers.rackspace import compute
 from checkmate import ssh
 from checkmate import test
-from checkmate.deployments import resource_postback
-from checkmate.deployments.tasks import reset_failed_resource_task
-from checkmate.exceptions import CheckmateException
-from checkmate.middleware import RequestContext
-from checkmate.providers.rackspace import compute
-from checkmate.providers.rackspace.compute import (
-    delete_server_task,
-    wait_on_delete_server,
-    _on_failure,
-)
 
 LOG = logging.getLogger(__name__)
 
 
 class TestNovaCompute(test.ProviderTester):
-    """ Test Nova Compute Provider """
+    """Test Nova Compute Provider."""
     klass = compute.Provider
 
     def test_provider(self):
@@ -65,12 +58,12 @@ class TestNovaCompute(test.ProviderTester):
             'tenant': 'TMOCK',
             'base_url': 'http://MOCK'
         }
-        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
-        reset_failed_resource_task.delay(context['deployment'],
-                                         context['resource'])
+        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
+        tasks.reset_failed_resource_task.delay(context['deployment'],
+                                               context['resource'])
 
         #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
 
         #Create appropriate api mocks
         openstack_api_mock = self.mox.CreateMockAnything()
@@ -104,8 +97,8 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        resource_postback.delay(context['deployment'],
-                                expected).AndReturn(True)
+        cm_deps.resource_postback.delay(context['deployment'],
+                                        expected).AndReturn(True)
 
         self.mox.ReplayAll()
         results = compute.create_server(context, 'fake_server', "North",
@@ -123,7 +116,7 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_on_failure(self):
-        '''Test create server on failure postback data'''
+        """Test create server on failure postback data."""
 
         exc = self.mox.CreateMockAnything()
         exc.__str__().AndReturn('some message')
@@ -136,7 +129,7 @@ class TestNovaCompute(test.ProviderTester):
         einfo = self.mox.CreateMockAnything()
 
         #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
 
         expected = {
             "instance:0": {
@@ -149,13 +142,14 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        resource_postback.delay("4321", expected).AndReturn(True)
+        cm_deps.resource_postback.delay("4321", expected).AndReturn(True)
         self.mox.ReplayAll()
-        _on_failure(exc, task_id, args, kwargs, einfo, "deleting", "method")
+        compute._on_failure(
+            exc, task_id, args, kwargs, einfo, "deleting", "method")
         self.mox.VerifyAll()
 
     def test_wait_on_build_rackconnect_pending(self):
-        """ Test that Rack Connect waits on metadata """
+        """Test that Rack Connect waits on metadata."""
 
         #Mock server
         server = self.mox.CreateMockAnything()
@@ -183,7 +177,7 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {}
 
         #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
         self.mox.StubOutWithMock(ssh, 'test_connection')
 
         #Create appropriate api mocks
@@ -197,8 +191,8 @@ class TestNovaCompute(test.ProviderTester):
         ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
                             password=None, identity_file=None, port=22,
                             private_key=None).AndReturn(True)
-        resource_postback.delay(context['deployment'],
-                                IgnoreArg()).AndReturn(True)
+        cm_deps.resource_postback.delay(context['deployment'],
+                                        mox.IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
         self.assertRaises(CheckmateException, compute.wait_on_build, context,
@@ -206,7 +200,7 @@ class TestNovaCompute(test.ProviderTester):
                           api_object=openstack_api_mock)
 
     def test_wait_on_build_rackconnect_ready(self):
-        """ Test that Rack Connect waits on metadata """
+        """Test that Rack Connect waits on metadata."""
 
         #Mock server
         server = self.mox.CreateMockAnything()
@@ -237,7 +231,7 @@ class TestNovaCompute(test.ProviderTester):
         server.accessIPv4 = "8.8.8.8"
 
         #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
         self.mox.StubOutWithMock(ssh, 'test_connection')
 
         #Create appropriate api mocks
@@ -278,8 +272,8 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        resource_postback.delay(context['deployment'],
-                                expected).AndReturn(True)
+        cm_deps.resource_postback.delay(context['deployment'],
+                                        expected).AndReturn(True)
 
         self.mox.ReplayAll()
         results = compute.wait_on_build(
@@ -289,7 +283,7 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_wait_on_build(self):
-        """ Test that normal wait finishes """
+        """Test that normal wait finishes."""
 
         #Mock server
         server = self.mox.CreateMockAnything()
@@ -320,7 +314,7 @@ class TestNovaCompute(test.ProviderTester):
         server.accessIPv4 = "4.4.4.4"
 
         #Stub out postback call
-        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
         self.mox.StubOutWithMock(ssh, 'test_connection')
 
         #Create appropriate api mocks
@@ -361,8 +355,8 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        resource_postback.delay(context['deployment'],
-                                expected).AndReturn(True)
+        cm_deps.resource_postback.delay(context['deployment'],
+                                        expected).AndReturn(True)
 
         self.mox.ReplayAll()
         results = compute.wait_on_build(
@@ -372,7 +366,7 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_delete_server(self):
-        """ Test delete server task """
+        """Test delete server task."""
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -407,12 +401,12 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.StubOutWithMock(compute.resource_postback, 'delay')
         compute.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
-        ret = delete_server_task(context, api=api)
+        ret = compute.delete_server_task(context, api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
     def test_wait_on_delete(self):
-        """ Test wait on delete server task """
+        """Test wait on delete server task."""
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -446,7 +440,7 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.StubOutWithMock(compute.resource_postback, 'delay')
         compute.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
-        ret = wait_on_delete_server(context, api=api)
+        ret = compute.wait_on_delete_server(context, api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
@@ -466,7 +460,7 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
 
     def test_compute_sync_resource_task(self):
-        """Tests compute sync_resource_task via mox"""
+        """Tests compute sync_resource_task via mox."""
         #Mock server
         server = self.mox.CreateMockAnything()
         server.id = 'fake_server_id'
@@ -502,8 +496,8 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(results, expected)
 
     def verify_limits(self, cores_used, ram_used):
-        """Test the verify_limits() method"""
-        context = RequestContext()
+        """Test the verify_limits() method."""
+        context = cm_mid.RequestContext()
         resources = [
             {'component': 'linux_instance',
              'dns-name': 'master.wordpress.cldsrvr.com',
@@ -535,10 +529,12 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.StubOutWithMock(compute, '_get_limits')
         self.mox.StubOutWithMock(compute.Provider, 'find_url')
         self.mox.StubOutWithMock(compute.Provider, 'find_a_region')
-        compute._get_flavors(IgnoreArg(), IgnoreArg()).AndReturn(flavors)
-        compute._get_limits(IgnoreArg(), IgnoreArg()).AndReturn(limits)
-        compute.Provider.find_url(IgnoreArg(), IgnoreArg()).AndReturn(url)
-        compute.Provider.find_a_region(IgnoreArg()).AndReturn('DFW')
+        compute._get_flavors(
+            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(flavors)
+        compute._get_limits(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(limits)
+        compute.Provider.find_url(
+            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(url)
+        compute.Provider.find_a_region(mox.IgnoreArg()).AndReturn('DFW')
         self.mox.ReplayAll()
         provider = compute.Provider({})
         result = provider.verify_limits(context, resources)
@@ -546,7 +542,7 @@ class TestNovaCompute(test.ProviderTester):
         return result
 
     def test_verify_limits_negative(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
+        """Test that verify_limits returns warnings if limits are not okay."""
         result = self.verify_limits(15, 1000)
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
         self.mox.UnsetStubs()
@@ -557,7 +553,7 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
 
     def test_verify_limits_positive(self):
-        """Test that verify_limits() returns no results if limits are okay"""
+        """Test that verify_limits() returns no results if limits are okay."""
         result = self.verify_limits(5, 1000)
         self.assertEqual(result, [])
         self.mox.UnsetStubs()
@@ -565,8 +561,8 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(result, [])
 
     def test_verify_access_positive(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
-        context = RequestContext()
+        """Test that verify_access() returns ACCESS-OK if user has access."""
+        context = cm_mid.RequestContext()
         context.roles = 'identity:user-admin'
         provider = compute.Provider({})
         result = provider.verify_access(context)
@@ -579,8 +575,8 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(result['type'], 'ACCESS-OK')
 
     def test_verify_access_negative(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
-        context = RequestContext()
+        """Test that verify_access() returns ACCESS-OK if user has access."""
+        context = cm_mid.RequestContext()
         context.roles = 'nova:observer'
         provider = compute.Provider({})
         result = provider.verify_access(context)
@@ -588,7 +584,7 @@ class TestNovaCompute(test.ProviderTester):
 
 
 class TestNovaGenerateTemplate(unittest.TestCase):
-    """Test Nova Compute Provider's region functions"""
+    """Test Nova Compute Provider's region functions."""
 
     def setUp(self):
         self.mox = mox.Mox()
@@ -603,7 +599,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_catalog_and_deployment_same(self):
-        """Catalog and Deployment have matching regions"""
+        """Catalog and Deployment have matching regions."""
         catalog = {
             'lists': {
                 'sizes': {
@@ -628,7 +624,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
-        context = RequestContext()
+        context = cm_mid.RequestContext()
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
@@ -669,7 +665,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_catalog_and_deployment_diff(self):
-        """Catalog and Deployment have different regions"""
+        """Catalog and Deployment have different regions."""
         catalog = {
             'lists': {
                 'sizes': {
@@ -692,7 +688,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         }
         provider = compute.Provider({})
 
-        context = RequestContext()
+        context = cm_mid.RequestContext()
 
         #Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
