@@ -866,15 +866,14 @@ class Driver(common.DbBase):
                     search_term = query['search']
                     disjunction = []
                     for attr in whitelist:
-                        regex = {'$regex': search_term, '$options': 'i'}
-                        condition = {attr: regex}
+                        condition = {attr: _parse_comparison(search_term)}
                         disjunction.append(condition)
                     filters['$or'] = disjunction
                 else:
                     for key in whitelist:
                         if key in query and query[key]:
-                            regex = {'$regex': query[key], '$options': 'i'}
-                            filters[key] = regex
+                            condition = _parse_comparison(query[key])
+                            filters[key] = condition
 
         return filters
 
