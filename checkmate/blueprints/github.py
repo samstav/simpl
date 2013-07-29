@@ -132,13 +132,7 @@ class GitHubManager(base.ManagerBase):
         '''
         return self._repo_org
 
-    def get_blueprints(self, tenant_id=None, offset=0, limit=100, details=0):
-        '''Return an abbreviated list of known deployment blueprints.
-
-        :param offset: pagination start
-        :param limit: pagination length
-        '''
-        tag = self.get_tenant_tag(tenant_id, request.context.roles)
+    def _perform_blocking_refresh_if_needed(self):
         if not self._blueprints:
             # Wait for refresh to complete (block)
             if self.background is None:
@@ -148,6 +142,15 @@ class GitHubManager(base.ManagerBase):
                 self.refresh_lock.acquire()
             finally:
                 self.refresh_lock.release()
+
+    def get_blueprints(self, tenant_id=None, offset=0, limit=100, details=0):
+        '''Return an abbreviated list of known deployment blueprints.
+
+        :param offset: pagination start
+        :param limit: pagination length
+        '''
+        tag = self.get_tenant_tag(tenant_id, request.context.roles)
+        self._perform_blocking_refresh_if_needed()
 
         if not tag:
             return
@@ -410,6 +413,7 @@ class GitHubManager(base.ManagerBase):
         return not self.blueprint_is_valid(untrusted_blueprint)
 
     def blueprint_is_valid(self, untrusted_blueprint):
+        self._perform_blocking_refresh_if_needed()
         for _, blueprint in self._blueprints.items():
             if (
                 untrusted_blueprint == blueprint['blueprint'] and
