@@ -160,6 +160,7 @@ class Router(object):
     @utils.formatted_response('deployments', with_pagination=True)
     def get_deployments(self, tenant_id=None, offset=None, limit=None):
         '''Get existing deployments.'''
+        limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         show_deleted = bottle.request.query.get('show_deleted')
         statuses = bottle.request.query.getall('status')
         params = bottle.request.query.dict
