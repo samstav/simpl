@@ -28,17 +28,30 @@ from checkmate.exceptions import (
 from checkmate import utils as cmutils
 
 LOG = logging.getLogger(__name__)
-OP_MATCH = '(!|(>|<)[=]*)'
+OP_MATCH = '(%|!|(>|<)[=]*)'
 
 
 def _build_filter(value):
-    '''Translate string with operator and status into mongodb filter.'''
-    op_map = {'!': '$ne', '>': '$gt', '<': '$lt', '>=': '$gte', '<=': '$lte'}
-    operator = re.search(OP_MATCH, value)
-    if operator:
-        return {op_map[operator.group(0)]: value[len(operator.group(0)):]}
+    '''Translate string with operator and value into mongodb filter.'''
+    filters = None
+    op_map = {
+        '!':  '$ne',
+        '>':  '$gt',
+        '<':  '$lt',
+        '>=': '$gte',
+        '<=': '$lte',
+        '%':  '$regex',
+    }
+    match = re.search(OP_MATCH, value)
+    if match:
+        operator = match.group(0)
+        filters = {op_map[operator]: value[len(operator):]}
+        if operator == '%':
+            filters['$options'] = 'i'
     else:
-        return value
+        filters = value
+
+    return filters
 
 
 def _validate_no_operators(fields):

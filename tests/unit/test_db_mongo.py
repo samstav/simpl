@@ -6,6 +6,37 @@ import unittest
 from checkmate.db import mongodb
 
 
+class TestBuildFilter(unittest.TestCase):
+
+    def test_return_value_if_no_operator_is_used(self):
+        query = mongodb._build_filter('foobar')
+        self.assertEqual(query, 'foobar')
+
+    def test_recognize_not_equal_operator(self):
+        query = mongodb._build_filter('!foobar')
+        self.assertEqual(query, {'$ne': 'foobar'})
+
+    def test_recognize_greater_than_operator(self):
+        query = mongodb._build_filter('>foobar')
+        self.assertEqual(query, {'$gt': 'foobar'})
+
+    def test_recognize_greater_equal_operator(self):
+        query = mongodb._build_filter('>=foobar')
+        self.assertEqual(query, {'$gte': 'foobar'})
+
+    def test_recognize_less_than_operator(self):
+        query = mongodb._build_filter('<foobar')
+        self.assertEqual(query, {'$lt': 'foobar'})
+
+    def test_recognize_less_equal_operator(self):
+        query = mongodb._build_filter('<=foobar')
+        self.assertEqual(query, {'$lte': 'foobar'})
+
+    def test_recognize_like_operator(self):
+        query = mongodb._build_filter('%foobar')
+        self.assertEqual(query, {'$regex': 'foobar', '$options': 'i'})
+
+
 class TestMongoDB(unittest.TestCase):
 
     @mock.patch.object(mongodb.Driver, 'tune')
