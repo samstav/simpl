@@ -891,7 +891,9 @@ def create_server(context, name, region, api_object=None, flavor="2",
             'region': api_object.client.region_name,
             'status': 'NEW',
             'flavor': flavor,
-            'image': image
+            'image': image,
+            'error-message': '',
+            'status-message': '',
         }
     }
 
