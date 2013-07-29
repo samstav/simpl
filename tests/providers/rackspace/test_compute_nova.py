@@ -94,6 +94,8 @@ class TestNovaCompute(test.ProviderTester):
                 'region': "NORTH",
                 'flavor': flavor.id,
                 'image': image.id,
+                'error-message': '',
+                'status-message': ''
             }
         }
 
