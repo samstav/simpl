@@ -202,11 +202,12 @@ def resource_postback(deployment_id, contents, driver=DB):
             utils.write_path(updates, 'resources/%s/status' % r_id, r_status)
             # Don't want to write status to resource instance
             value.pop('status', None)
-            if r_status == "ERROR":
+            if 'error-message' in value:
                 r_msg = value.get('error-message')
                 utils.write_path(updates, 'resources/%s/error-message' % r_id,
                                  r_msg)
                 value.pop('error-message', None)
+            if r_status == "ERROR":
                 if deployment.fsm.permitted("FAILED"):
                     updates['status'] = 'FAILED'
                     
