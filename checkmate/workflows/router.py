@@ -35,7 +35,8 @@ class Router(object):
         app.route('/workflows', 'POST', self.add_workflow)
         app.route('/workflows/<api_id>', ['PUT', 'POST'], self.save_workflow)
         app.route('/workflows/<api_id>', 'GET', self.get_workflow)
-        app.route('/workflows/<api_id>/status', 'GET', self.get_workflow_status)
+        app.route('/workflows/<api_id>/status', 'GET',
+                  self.get_workflow_status)
         app.route('/workflows/<workflow_id>/specs/<spec_id>', 'POST',
                   self.post_workflow_spec)
 
@@ -147,8 +148,8 @@ class Router(object):
         if 'id' not in results:
             results['id'] = str(api_id)
         if tenant_id is not None and tenant_id != results.get('tenantId'):
-            LOG.warning("Attempt to access workflow %s from wrong tenant %s by "
-                        "%s", api_id, tenant_id,
+            LOG.warning("Attempt to access workflow %s from wrong tenant %s by"
+                        " %s", api_id, tenant_id,
                         bottle.request.context.username)
             bottle.abort(404)
         return utils.write_body(results, bottle.request, bottle.response)
@@ -195,8 +196,8 @@ class Router(object):
 
         workflow = self.manager.get_workflow(api_id)
         dep_id = workflow["attributes"].get("deploymentId") or api_id
-        deployment = self.deployment_manager.get_deployment(dep_id,
-                                                            tenant_id=tenant_id)
+        deployment = self.deployment_manager.get_deployment(
+            dep_id, tenant_id=tenant_id)
         deployment = Deployment(deployment)
         operation = deployment.get("operation")
 
@@ -220,8 +221,8 @@ class Router(object):
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
         dep_id = workflow["attributes"]["deploymentId"] or api_id
-        deployment = self.deployment_manager.get_deployment(dep_id,
-                                                            tenant_id=tenant_id)
+        deployment = self.deployment_manager.get_deployment(
+            dep_id, tenant_id=tenant_id)
         operation = deployment.get("operation")
         if operation and operation.get('status') == 'PAUSED':
             async_call = tasks.run_workflow.delay(api_id, timeout=1800)
@@ -239,8 +240,8 @@ class Router(object):
         wf = SpiffWorkflow.deserialize(serializer, workflow)
 
         dep_id = workflow["attributes"]["deploymentId"] or api_id
-        deployment = self.deployment_manager.get_deployment(dep_id,
-                                                            tenant_id=tenant_id)
+        deployment = self.deployment_manager.get_deployment(
+            dep_id, tenant_id=tenant_id)
         operation = deployment.get("operation")
 
         if operation.get("errors"):
@@ -283,7 +284,7 @@ class Router(object):
                 task_id = error["task-id"]
                 LOG.debug("Resuming task %s for workflow %s", task_id, id)
                 tasks.run_one_task.delay(bottle.request.context, api_id,
-                                             task_id, timeout=10)
+                                         task_id, timeout=10)
 
             workflow = self.manager.get_workflow(id)
 
@@ -380,8 +381,8 @@ class Router(object):
         if 'attributes' in entity:
             if not isinstance(entity['attributes'], dict):
                 bottle.abort(406, "'attribues' must be a dict")
-            # Don't do a simple overwrite since incoming may not have secrets and
-            # we don't want to stomp on them
+            # Don't do a simple overwrite since incoming may not have secrets
+            # and we don't want to stomp on them
             body, secrets = utils.extract_sensitive_data(task.attributes)
             updated = utils.merge_dictionary(secrets or {},
                                              entity['attributes'])
@@ -479,8 +480,8 @@ class Router(object):
 
     @utils.with_tenant
     def reset_task_tree(self, api_id, task_id, tenant_id=None):
-        '''Resets all the tasks starting from the passed in task_id and going up
-        the chain till the root task is reset
+        '''Resets all the tasks starting from the passed in task_id and going
+        up the chain till the root task is reset
 
         :param api_id: checkmate workflow id
         :param task_id: checkmate workflow task id
@@ -592,7 +593,6 @@ class Router(object):
             if key:
                 self.manager.unlock_workflow(api_id, key)
         return utils.write_body(body, bottle.request, bottle.response)
-
 
     @utils.with_tenant
     def execute_workflow_task(self, api_id, task_id, tenant_id=None):

@@ -211,6 +211,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
         driver.unlock_workflow(w_id, key)
         return False
 
+
 @task
 def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
     """Attempt to complete one task.
@@ -282,6 +283,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
         if key:
             driver.unlock_workflow(workflow_id, key)
 
+
 @task(default_retry_delay=10, max_retries=300)
 def pause_workflow(w_id, driver=DB, retry_counter=0):
     '''
@@ -320,9 +322,9 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
                   "times", w_id, retry_counter)
         pass
     else:
-        LOG.warn("Pause request for workflow %s received but operation's action"
-                 "is not PAUSE. Retry-Count waiting for action to turn to "
-                 "PAUSE: %s  ", w_id, retry_counter)
+        LOG.warn("Pause request for workflow %s received but operation's "
+                 "action is not PAUSE. Retry-Count waiting for action to "
+                 "turn to PAUSE: %s  ", w_id, retry_counter)
         driver.unlock_workflow(w_id, key)
         retry_counter += 1
         pause_workflow.retry([w_id], kwargs={
