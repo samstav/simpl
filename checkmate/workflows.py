@@ -110,26 +110,26 @@ def add_workflow(tenant_id=None, driver=DB):
     return utils.write_body(results, bottle.request, bottle.response)
 
 
-@bottle.route('/workflows/<id>', method=['POST', 'PUT'])
+@bottle.route('/workflows/<api_id>', method=['POST', 'PUT'])
 @utils.with_tenant
-def save_workflow(id, tenant_id=None, driver=DB):
+def save_workflow(api_id, tenant_id=None, driver=DB):
     """Save the workflow passed in the request's body."""
-    if utils.is_simulation(id):
+    if utils.is_simulation(api_id):
         driver = SIMULATOR_DB
     entity = utils.read_body(bottle.request)
 
     if 'workflow' in entity and isinstance(entity['workflow'], dict):
         entity = entity['workflow']
 
-    if db.any_id_problems(id):
-        bottle.abort(406, db.any_id_problems(id))
+    if db.any_id_problems(api_id):
+        bottle.abort(406, db.any_id_problems(api_id))
     if 'id' not in entity:
-        entity['id'] = str(id)
+        entity['id'] = str(api_id)
 
     body, secrets = utils.extract_sensitive_data(entity)
 
-    existing = driver.get_workflow(id)
-    results = safe_workflow_save(str(id), body, secrets=secrets,
+    existing = driver.get_workflow(api_id)
+    results = safe_workflow_save(str(api_id), body, secrets=secrets,
                                  tenant_id=tenant_id, driver=driver)
     if existing:
         bottle.response.status = 200  # OK - updated
@@ -139,31 +139,31 @@ def save_workflow(id, tenant_id=None, driver=DB):
     return utils.write_body(results, bottle.request, bottle.response)
 
 
-@bottle.get('/workflows/<id>')
+@bottle.get('/workflows/<api_id>')
 @utils.with_tenant
-def get_workflow(id, tenant_id=None, driver=DB):
+def get_workflow(api_id, tenant_id=None, driver=DB):
     """Get the status of the worfklow identified by id."""
-    if utils.is_simulation(id):
+    if utils.is_simulation(api_id):
         driver = SIMULATOR_DB
 
     if 'with_secrets' in bottle.request.query:
         LOG.info("Administrator accessing workflow %s with secrets: %s",
-                 id, bottle.request.context.username)
-        results = driver.get_workflow(id, with_secrets=True)
+                 api_id, bottle.request.context.username)
+        results = driver.get_workflow(api_id, with_secrets=True)
     else:
-        results = driver.get_workflow(id)
+        results = driver.get_workflow(api_id)
     if not results:
-        bottle.abort(404, 'No workflow with id %s' % id)
+        bottle.abort(404, 'No workflow with id %s' % api_id)
     if 'id' not in results:
-        results['id'] = str(id)
+        results['id'] = str(api_id)
     if tenant_id is not None and tenant_id != results.get('tenantId'):
         LOG.warning("Attempt to access workflow %s from wrong tenant %s by "
-                    "%s", id, tenant_id, bottle.request.context.username)
+                    "%s", api_id, tenant_id, bottle.request.context.username)
         bottle.abort(404)
     return utils.write_body(results, bottle.request, bottle.response)
 
 
-@bottle.get('/workflows/<id>/status')
+@bottle.get('/workflows/<api_id>/status')
 @utils.with_tenant
 def get_workflow_status(api_id, tenant_id=None, driver=DB):
     """Get the status of the worfklow identified by api_id."""
@@ -178,7 +178,7 @@ def get_workflow_status(api_id, tenant_id=None, driver=DB):
                             bottle.request, bottle.response)
 
 
-@bottle.route('/workflows/<id>/+execute', method=['GET', 'POST'])
+@bottle.route('/workflows/<api_id>/+execute', method=['GET', 'POST'])
 @utils.with_tenant
 def execute_workflow(api_id, tenant_id=None, driver=DB):
     """Process a checkmate deployment workflow
@@ -202,7 +202,7 @@ def execute_workflow(api_id, tenant_id=None, driver=DB):
     return utils.write_body(entity, bottle.request, bottle.response)
 
 
-@bottle.route('/workflows/<id>/+pause', method=['GET', 'POST'])
+@bottle.route('/workflows/<api_id>/+pause', method=['GET', 'POST'])
 @utils.with_tenant
 def pause_workflow(api_id, tenant_id=None, driver=DB):
     '''Pauses the workflow.
@@ -230,7 +230,7 @@ def pause_workflow(api_id, tenant_id=None, driver=DB):
     return utils.write_body(workflow, bottle.request, bottle.response)
 
 
-@bottle.route('/workflows/<id>/+resume', method=['GET', 'POST'])
+@bottle.route('/workflows/<api_id>/+resume', method=['GET', 'POST'])
 @utils.with_tenant
 def resume_workflow(api_id, tenant_id=None, driver=DB):
     """Process a checkmate deployment workflow
@@ -256,7 +256,8 @@ def resume_workflow(api_id, tenant_id=None, driver=DB):
     return utils.write_body(workflow, bottle.request, bottle.response)
 
 
-@bottle.route('/workflows/<id>/+retry-failed-tasks', method=['GET', 'POST'])
+@bottle.route('/workflows/<api_id>/+retry-failed-tasks', method=['GET',
+                                                                 'POST'])
 @utils.with_tenant
 def retry_all_failed_tasks(api_id, tenant_id=None, driver=DB):
     """Retry all retriable tasks."""
@@ -293,7 +294,8 @@ def retry_all_failed_tasks(api_id, tenant_id=None, driver=DB):
     return utils.write_body(workflow, bottle.request, bottle.response)
 
 
-@bottle.route('/workflows/<id>/+resume-failed-tasks', method=['GET', 'POST'])
+@bottle.route('/workflows/<api_id>/+resume-failed-tasks', method=['GET',
+                                                                 'POST'])
 @utils.with_tenant
 def resume_all_failed_tasks(api_id, tenant_id=None, driver=DB):
     """Check all tasks: if retriable, resume the task."""
@@ -361,7 +363,7 @@ def post_workflow_spec(workflow_id, spec_id, tenant_id=None, driver=DB):
 #
 # Workflow Tasks
 #
-@bottle.get('/workflows/<id>/tasks/<task_id:int>')
+@bottle.get('/workflows/<api_id>/tasks/<task_id:int>')
 @utils.with_tenant
 def get_workflow_task(api_id, task_id, tenant_id=None, driver=DB):
     """Get a workflow task
@@ -391,7 +393,7 @@ def get_workflow_task(api_id, task_id, tenant_id=None, driver=DB):
     return utils.write_body(data, bottle.request, bottle.response)
 
 
-@bottle.post('/workflows/<id>/tasks/<task_id:int>')
+@bottle.post('/workflows/<api_id>/tasks/<task_id:int>')
 @utils.with_tenant
 def post_workflow_task(api_id, task_id, tenant_id=None, driver=DB):
     """Update a workflow task
@@ -457,7 +459,7 @@ def post_workflow_task(api_id, task_id, tenant_id=None, driver=DB):
     return utils.write_body(results, bottle.request, bottle.response)
 
 
-@bottle.route('/workflows/<id>/tasks/<task_id:int>/+reset',
+@bottle.route('/workflows/<api_id>/tasks/<task_id:int>/+reset',
               method=['GET', 'POST'])
 @utils.with_tenant
 def reset_workflow_task(api_id, task_id, tenant_id=None, driver=DB):
@@ -517,7 +519,7 @@ def reset_workflow_task(api_id, task_id, tenant_id=None, driver=DB):
     return utils.write_body(body, bottle.request, bottle.response)
 
 
-@bottle.route('/workflows/<id>/tasks/<task_id:int>/+reset-task-tree',
+@bottle.route('/workflows/<api_id>/tasks/<task_id:int>/+reset-task-tree',
               method=['GET', 'POST'])
 @utils.with_tenant
 def reset_task_tree(api_id, task_id, tenant_id=None, driver=DB):
@@ -638,7 +640,7 @@ def resubmit_workflow_task(workflow_id, task_id, tenant_id=None, driver=DB):
     return utils.write_body(body, bottle.request, bottle.response)
 
 
-@bottle.route('/workflows/<id>/tasks/<task_id:int>/+execute',
+@bottle.route('/workflows/<api_id>/tasks/<task_id:int>/+execute',
               method=['GET', 'POST'])
 @utils.with_tenant
 def execute_workflow_task(api_id, task_id, tenant_id=None, driver=DB):
