@@ -906,47 +906,30 @@ class TestCreateDatabase(unittest.TestCase):
     '''Class for testing the create_database task.'''
 
     def setUp(self):
-        self.context = {
+        self.context = middleware.RequestContext(**{
             'resource': '2',
             'deployment': '0'
-        }
+        })
         self.name = 'test_database'
         self.region = 'ORD'
         self.instance_id = '12345'
 
-    def test_create_database_sim_no_instance_id(self):
+    @mock.patch.object(database._create_database.provider, 'connect')
+    @mock.patch.object(database._create_database, 'callback')
+    def test_create_database_sim_no_instance_id(self, mock_connect,
+                                                mock_callback):
         '''Verifies create database simulation is working.'''
-        self.context['simulation'] = True
-        database.resource_postback.delay = mock.Mock()
+        self.context.simulation = True
         expected = {
             'instance:2': {
-                'host_instance': 'DBS2',
-                'host_region': 'ORD',
+                'status': 'BUILD',
+                'host_instance': self.instance_id,
+                'host_region': self.region,
+                'flavor': '1',
+                'id': self.name,
                 'interfaces': {
                     'mysql': {
-                        'database_name': 'test_database',
-                        'host': 'srv2.rackdb.net'
-                    }
-                },
-                'name': 'test_database'
-            }
-        }
-
-        results = database.create_database(self.context, self.name,
-                                           self.region)
-        self.assertEqual(expected, results)
-
-    def test_create_database_sim_instance_id(self):
-        '''Verifies create database simulation is working.'''
-        self.context['simulation'] = True
-        database.resource_postback.delay = mock.Mock()
-        expected = {
-            'instance:2': {
-                'host_instance': '12345',
-                'host_region': 'ORD',
-                'interfaces': {
-                    'mysql': {
-                        'database_name': 'test_database',
+                        'database_name': self.name,
                         'host': 'srv2.rackdb.net'
                     }
                 },
@@ -959,24 +942,51 @@ class TestCreateDatabase(unittest.TestCase):
                                            instance_id=self.instance_id)
         self.assertEqual(expected, results)
 
-    @mock.patch.object(database, 'create_instance')
-    @mock.patch.object(database.Provider, 'connect')
-    @mock.patch.object(database.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.wait_on_build, 'delay')
-    def test_create_database_no_api_no_iid_no_attrs(
-            self, mock_wob, mock_rfrt, mock_connect, mock_create_instance):
+    @mock.patch.object(database._create_database.provider, 'connect')
+    @mock.patch.object(database._create_database, 'callback')
+    def test_create_database_sim_instance_id(self, mock_connect,
+                                             mock_callback):
+        '''Verifies create database simulation is working.'''
+        self.context.simulation = True
+        expected = {
+            'instance:2': {
+                'id': self.name,
+                'flavor': '1',
+                'status': 'BUILD',
+                'host_instance': self.instance_id,
+                'host_region': self.region,
+                'interfaces': {
+                    'mysql': {
+                        'database_name': self.name,
+                        'host': 'srv2.rackdb.net'
+                    }
+                },
+                'name': 'test_database'
+            }
+        }
+
+        results = database.create_database(self.context, self.name,
+                                           self.region,
+                                           instance_id=self.instance_id)
+        self.assertEqual(expected, results)
+
+    @mock.patch.object(database._create_database, 'callback')
+    @mock.patch.object(database.Manager, 'wait_on_build')
+    @mock.patch.object(database.Manager, 'create_instance')
+    @mock.patch.object(database._create_database.provider, 'connect')
+    def test_create_databaseno_api_no_iid_no_attrs(self, mock_connect,
+                                                   mock_create_instance,
+                                                   mock_wob, mock_callback):
         '''Verifies method calls with no api instance id or attrs.'''
         instance = {
-            'instance:2': {
-                'id': '12345',
+            'id': '12345',
+            'databases': {
+                self.name: {},
             },
-            'instance': {
-                'databases': {
-                    self.name: {},
-                }
-            },
-            'region': 'ORD'
+            'region': 'ORD',
+            'status': 'BUILD'
         }
+        
 
         expected = {
             'instance:2': {
@@ -988,45 +998,43 @@ class TestCreateDatabase(unittest.TestCase):
         }
 
         mock_create_instance.return_value = instance
+        mock_wob.return_value = {'status': 'ACTIVE'}
 
         results = database.create_database(self.context, self.name,
                                            self.region)
 
         mock_connect.assert_called_once_with(self.context, self.region)
-        mock_rfrt.assert_called_once_with(self.context['deployment'],
-                                          self.context['resource'])
 
-        mock_create_instance.assert_called_once_with(
-            self.context, ('%s_instance' % (self.name)), 1, '1',
-            [{'name': self.name}], self.region, api=mock_connect.return_value)
+        mock_create_instance.assert_called_once_with(self.name, '1', 1,
+            [{'name': self.name}], self.context, mock_connect.return_value,
+            database._create_database.partial)
 
-        mock_wob.assert_called_once_with(self.context, '12345', self.region,
-                                         api=mock_connect.return_value)
+        mock_wob.assert_called_once_with('12345', mock_connect.return_value,
+                                         database._create_database.partial)
         self.assertEqual(expected, results)
 
-    @mock.patch.object(database, 'create_instance')
-    @mock.patch.object(database.Provider, 'connect')
-    @mock.patch.object(database.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.wait_on_build, 'delay')
-    def test_create_database_no_api_no_iid_no_attrs_charset(
-            self, mock_wob, mock_rfrt, mock_connect, mock_create_instance):
+    @mock.patch.object(database._create_database, 'callback')
+    @mock.patch.object(database.Manager, 'wait_on_build')
+    @mock.patch.object(database.Manager, 'create_instance')
+    @mock.patch.object(database._create_database.provider, 'connect')
+    def test_create_database_no_api_no_iid_no_attrs_charset(self, mock_connect,
+                                                   mock_create_instance,
+                                                   mock_wob, mock_callback):
         '''Verifies method calls with no api instance id or attrs w/ latin
         charset.
         '''
         instance = {
-            'instance:2': {
-                'id': '12345',
+            'id': '12345',
+            'databases': {
+                self.name: {'character_set': 'latin'},
             },
-            'instance': {
-                'databases': {
-                    self.name: {},
-                }
-            },
-            'region': 'ORD'
+            'region': 'ORD',
+            'status': 'BUILD'
         }
 
         expected = {
             'instance:2': {
+                'character_set': 'latin',
                 'flavor': '1',
                 'disk': 1,
                 'host_instance': '12345',
@@ -1035,47 +1043,41 @@ class TestCreateDatabase(unittest.TestCase):
         }
 
         mock_create_instance.return_value = instance
+        mock_wob.return_value = {'status': 'ACTIVE'}
 
         results = database.create_database(self.context, self.name,
                                            self.region, character_set='latin')
 
         mock_connect.assert_called_once_with(self.context, self.region)
-        mock_rfrt.assert_called_once_with(self.context['deployment'],
-                                          self.context['resource'])
 
-        mock_create_instance.assert_called_with(self.context, ('%s_instance' %
-                                                (self.name)), 1, '1',
-                                                [{'name': self.name,
-                                                'character_set': 'latin'}],
-                                                self.region,
-                                                api=mock_connect.return_value)
+        mock_create_instance.assert_called_with(self.name, '1', 1,
+            [{'name': self.name, 'character_set': 'latin'}], self.context,
+            mock_connect.return_value, database._create_database.partial)
 
-        mock_wob.assert_called_once_with(self.context, '12345', self.region,
-                                         api=mock_connect.return_value)
+        mock_wob.assert_called_once_with('12345', mock_connect.return_value,
+                                         database._create_database.partial)
         self.assertEqual(expected, results)
 
-    @mock.patch.object(database, 'create_instance')
-    @mock.patch.object(database.Provider, 'connect')
-    @mock.patch.object(database.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.wait_on_build, 'delay')
-    def test_create_database_no_api_no_iid_no_attrs_collate(
-            self, mock_wob, mock_rfrt, mock_connect, mock_create_instance):
+    @mock.patch.object(database._create_database, 'callback')
+    @mock.patch.object(database.Manager, 'wait_on_build')
+    @mock.patch.object(database.Manager, 'create_instance')
+    @mock.patch.object(database._create_database.provider, 'connect')
+    def test_create_database_no_api_no_iid_no_attrs_collate(self, mock_connect,
+        mock_create_instance, mock_wob, mock_callback):
         '''Verifies method calls with no api instance id or attrs w/ collate.
         '''
         instance = {
-            'instance:2': {
-                'id': '12345',
+            'id': '12345',
+            'databases': {
+                self.name: {'collate': True},
             },
-            'instance': {
-                'databases': {
-                    self.name: {},
-                }
-            },
-            'region': 'ORD'
+            'region': 'ORD',
+            'status': 'BUILD'
         }
 
         expected = {
             'instance:2': {
+                'collate': True,
                 'flavor': '1',
                 'disk': 1,
                 'host_instance': '12345',
@@ -1084,100 +1086,96 @@ class TestCreateDatabase(unittest.TestCase):
         }
 
         mock_create_instance.return_value = instance
+        mock_wob.return_value = {'status': 'ACTIVE'}
 
         results = database.create_database(self.context, self.name,
-                                           self.region, collate=True)
+                                           self.region, character_set='latin')
 
         mock_connect.assert_called_once_with(self.context, self.region)
-        mock_rfrt.assert_called_once_with(self.context['deployment'],
-                                          self.context['resource'])
 
-        mock_create_instance.assert_called_once_with(
-            self.context, ('%s_instance' % (self.name)), 1, '1',
-            [{'name': self.name, 'collate': True}], self.region,
-            api=mock_connect.return_value)
+        mock_create_instance.assert_called_with(self.name, '1', 1,
+            [{'name': self.name, 'character_set': 'latin'}], self.context,
+            mock_connect.return_value, database._create_database.partial)
 
-        mock_wob.assert_called_once_with(self.context, '12345', self.region,
-                                         api=mock_connect.return_value)
+        mock_wob.assert_called_once_with('12345', mock_connect.return_value,
+                                         database._create_database.partial)
         self.assertEqual(expected, results)
 
-    @mock.patch.object(database, 'create_instance')
-    @mock.patch.object(database.Provider, 'connect')
-    @mock.patch.object(database.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.wait_on_build, 'delay')
-    def test_create_database_no_api_no_iid_with_attrs(
-            self, mock_wob, mock_rfrt, mock_connect, mock_create_instance):
+    @mock.patch.object(database._create_database, 'callback')
+    @mock.patch.object(database.Manager, 'wait_on_build')
+    @mock.patch.object(database.Manager, 'create_instance')
+    @mock.patch.object(database._create_database.provider, 'connect')
+    def test_create_database_no_api_no_iid_with_attrs(self, mock_connect,
+                                                      mock_create_instance,
+                                                      mock_wob, mock_callback):
         '''Verifies method calls with no api instance id with attrs.'''
         instance = {
-            'instance:2': {
-                'id': '12345',
+            'id': '12345',
+            'databases': {
+                self.name: {},
             },
-            'instance': {
-                'databases': {
-                    self.name: {},
-                }
-            },
-            'region': 'ORD'
+            'region': 'ORD',
+            'status': 'BUILD'
         }
-        attributes = {
-            'name': 'test_instance',
-            'size': 2,
-            'flavor': '3'
-        }
+
         expected = {
             'instance:2': {
-                'disk': 2,
                 'flavor': '3',
+                'disk': 5,
                 'host_instance': '12345',
                 'host_region': 'ORD'
             }
         }
-
+        attrs = {'flavor': '3', 'size': 5}
         mock_create_instance.return_value = instance
+        mock_wob.return_value = {'status': 'ACTIVE'}
 
         results = database.create_database(self.context, self.name,
                                            self.region,
-                                           instance_attributes=attributes)
+                                           instance_attributes=attrs)
 
         mock_connect.assert_called_once_with(self.context, self.region)
-        mock_rfrt.assert_called_once_with(self.context['deployment'],
-                                          self.context['resource'])
 
-        mock_create_instance.assert_called_once_with(
-            self.context, 'test_instance', 2, '3', [{'name': self.name}],
-            self.region, api=mock_connect.return_value)
+        mock_create_instance.assert_called_with(self.name, '3', 5,
+            [{'name': self.name}], self.context,
+            mock_connect.return_value, database._create_database.partial)
 
-        mock_wob.assert_called_once_with(self.context, '12345', self.region,
-                                         api=mock_connect.return_value)
+        mock_wob.assert_called_once_with('12345', mock_connect.return_value,
+                                         database._create_database.partial)
         self.assertEqual(expected, results)
 
-    @mock.patch.object(database.resource_postback, 'delay')
-    @mock.patch.object(database, 'current')
-    @mock.patch.object(database.reset_failed_resource_task, 'delay')
-    def test_instance_not_active_retry(self, mock_reset, mock_current,
-                                       mock_postback):
+    @mock.patch.object(database._create_database, 'retry')
+    @mock.patch.object(database._create_database, 'callback')
+    @mock.patch.object(database._create_database.provider, 'connect')
+    def test_instance_not_active_retry(self, mock_connect, mock_callback,
+                                       mock_retry):
         '''Verifies method calls when instance is not ACTIVE.'''
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'BUILD'
         api.get = mock.Mock(return_value=instance)
+        mock_connect.return_value = api
         database.create_database(self.context, self.name, self.region,
                                  instance_id=self.instance_id, api=api)
-        assert mock_current.retry.called
+        mock_callback.assert_called_with(self.context, {'status': 'BUILD'})
+        assert mock_retry.called
 
-    @mock.patch.object(database.LOG, 'info')
-    @mock.patch.object(database.resource_postback, 'delay')
-    @mock.patch.object(database.reset_failed_resource_task, 'delay')
-    def test_success_char_set(self, mock_reset, mock_postback, mock_logger):
+    @mock.patch.object(database._create_database.provider, 'connect')
+    @mock.patch.object(database.manager.LOG, 'info')
+    @mock.patch.object(database._create_database, 'callback')
+    def test_success_char_set(self, mock_postback, mock_logger, mock_connect):
         '''Verifies method calls with successful db creation and charset.'''
         api = mock.Mock()
         instance = mock.Mock()
+        instance.id = self.instance_id
+        instance.name = self.name
         instance.status = 'ACTIVE'
         instance.hostname = 'test_hostname'
         instance.flavor = mock.Mock()
         instance.flavor.id = '2'
         instance.create_database = mock.Mock()
         api.get = mock.Mock(return_value=instance)
+        mock_connect.return_value = api
         expected = {
             'instance:2': {
                 'status': 'BUILD',
@@ -1190,7 +1188,7 @@ class TestCreateDatabase(unittest.TestCase):
                 },
                 'host_instance': '12345',
                 'flavor': '2',
-                'id': 'test_database',
+                'id': self.name,
                 'host_region': 'ORD'
             }
         }
@@ -1200,14 +1198,15 @@ class TestCreateDatabase(unittest.TestCase):
                                            api=api)
         self.assertEqual(results, expected)
         instance.create_database.assert_called_with(self.name, 'latin', None)
-        mock_logger.assert_called_with('Created database(s) %s on instance %s',
-                                       ['test_database'], '12345')
-        mock_postback.assert_called_with(self.context['deployment'], expected)
+        mock_logger.assert_called_with('Created database %s on instance %s',
+                                       'test_database', '12345')
+        mock_postback.assert_called_with(self.context, expected['instance:2'])
 
-    @mock.patch.object(database.LOG, 'exception')
-    @mock.patch.object(database, 'current')
-    @mock.patch.object(database.reset_failed_resource_task, 'delay')
-    def test_client_exception_400(self, mock_reset, mock_current, mock_logger):
+    @mock.patch.object(database.manager.LOG, 'exception')
+    @mock.patch.object(database._create_database.provider, 'connect')
+    @mock.patch.object(database._create_database, 'callback')
+    def test_client_exception_400(self, mock_callback, mock_connect,
+                                  mock_logger):
         '''Verifies method calls with ClientException(400).'''
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code=400)
@@ -1215,11 +1214,65 @@ class TestCreateDatabase(unittest.TestCase):
         instance.status = 'ACTIVE'
         instance.create_database = mock.MagicMock(side_effect=mock_exception)
         api.get = mock.Mock(return_value=instance)
-
-        database.create_database(self.context, self.name, self.region,
-                                 instance_id=self.instance_id, api=api)
+        mock_connect.return_value = api
+        self.assertRaises(pyrax.exceptions.ClientException,
+                          database.create_database, self.context, self.name,
+                          self.region, instance_id=self.instance_id, api=api)
         mock_logger.assert_called_with(mock_exception)
-        self.assertEqual(mock_current.retry.call_count, 2)
+        
+    @mock.patch.object(database.manager.LOG, 'exception')
+    @mock.patch.object(database._create_database.provider, 'connect')
+    @mock.patch.object(database._create_database, 'callback')
+    def test_client_exception_not_400(self, mock_callback, mock_connect,
+                                      mock_logger):
+        '''Verifies method calls with ClientException(402).'''
+        api = mock.Mock()
+        mock_exception = pyrax.exceptions.ClientException(code=402)
+        instance = mock.Mock()
+        instance.status = 'ACTIVE'
+        instance.create_database = mock.MagicMock(side_effect=mock_exception)
+        api.get = mock.Mock(return_value=instance)
+        mock_connect.return_value = api
+        self.assertRaises(exceptions.CheckmateResumableException,
+                          database.create_database, self.context, self.name,
+                          self.region, instance_id=self.instance_id, api=api)
+        mock_logger.assert_called_with(mock_exception)
+
+    @mock.patch.object(database.manager.LOG, 'exception')
+    @mock.patch.object(database._create_database.provider, 'connect')
+    @mock.patch.object(database._create_database, 'callback')
+    def test_exception_on_create_database(self, mock_callback, mock_connect,
+                                          mock_logger):
+        '''Verifies method calls with Exception thrown on create.'''
+        api = mock.Mock()
+        mock_exception = Exception('testing')
+        instance = mock.Mock()
+        instance.status = 'ACTIVE'
+        instance.create_database = mock.MagicMock(side_effect=mock_exception)
+        api.get = mock.Mock(return_value=instance)
+        mock_connect.return_value = api
+        self.assertRaises(exceptions.CheckmateUserException,
+                          database.create_database, self.context, self.name,
+                          self.region, instance_id=self.instance_id, api=api)
+
+    @mock.patch.object(database.manager.LOG, 'info')
+    @mock.patch.object(database.Manager, 'wait_on_build')
+    @mock.patch.object(database.Manager, 'create_instance')
+    @mock.patch.object(database._create_database.provider, 'connect')
+    @mock.patch.object(database._create_database, 'callback')
+    def test_no_instance_id_wob_resumable(self, mock_callback, mock_connect,
+                                          mock_create, mock_wob, mock_logger):
+        '''Verifies LOG.info called when wait on build throws resumable 
+        exception.
+        '''
+        data = {'status': 'BUILD'}
+        mock_create.return_value = data
+        mock_logger.side_effect = Exception('testing')
+        mock_wob.side_effect = exceptions.CheckmateResumableException('', '',
+                                                                      '', '')
+        self.assertRaisesRegexp(Exception, 'testing', database.create_database,
+                                self.context, self.name, self.region,
+                                api='api')
 
 
 if __name__ == '__main__':
