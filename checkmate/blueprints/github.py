@@ -132,9 +132,13 @@ class GitHubManager(base.ManagerBase):
 
     def _blocking_refresh_if_needed(self):
         """If _blueprints is None, perform a refresh of all blueprints."""
+        LOG.info("X-Source-Untrusted: blocking_refresh_if_needed with "
+                 "blueprint count of %d", len(self._bluprints))
         if not self._blueprints:
             # Wait for refresh to complete (block)
+            LOG.info("X-Source-Untrusted: background is %s", self.background)
             if self.background is None:
+                LOG.info("X-Source-Untrusted: starting background refresh.")
                 self.start_background_refresh()
             try:
                 LOG.warning("Call to GET /blueprints blocking on refresh")
@@ -416,12 +420,15 @@ class GitHubManager(base.ManagerBase):
     def blueprint_is_valid(self, untrusted_blueprint):
         """Returns true if passed-in blueprint passes validation."""
         self._blocking_refresh_if_needed()
+        LOG.info("X-Source-Untrusted: %d blueprints cached in memory.",
+                 len(self._blueprints))
         for _, blueprint in self._blueprints.items():
-            if (
-                untrusted_blueprint['blueprint'] == blueprint['blueprint'] and
-                untrusted_blueprint['environment'] == blueprint['environment']
-            ):
-                return True
+            LOG.info("X-Source-Untrusted: checking a cached blueprint.")
+            if untrusted_blueprint['blueprint'] == blueprint['blueprint']:
+                LOG.info("X-Source-Untrusted: blueprint section matched!")
+                if untrusted_blueprint['environment'] == blueprint['environment']:
+                    LOG.info("X-Source-Untrusted: environment section matched!")
+                    return True
         return False
 
     def _get_repo(self, repo_name):
