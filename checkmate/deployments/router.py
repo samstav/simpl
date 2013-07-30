@@ -17,11 +17,12 @@ from checkmate.common import config
 from checkmate.common import tasks as common_tasks
 from checkmate import db
 from checkmate import deployment as cmdeploy
-from checkmate.deployments import tasks
 from checkmate import operations
-from checkmate import orchestrator
 from checkmate import utils
 from checkmate import workflow
+from checkmate import workflows
+from checkmate.deployments import tasks
+from checkmate.workflows import tasks as wf_tasks
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,
@@ -324,7 +325,7 @@ class Router(object):
         deployment = self.manager.save_deployment(deployment, api_id=api_id,
                                                   tenant_id=tenant_id)
         add_nodes_wf_id = deployment['operation']['workflow-id']
-        orchestrator.run_workflow.delay(
+        wf_tasks.run_workflow.delay(
             add_nodes_wf_id, timeout=3600, driver=self.manager.select_driver(
                 api_id))
 
@@ -372,8 +373,7 @@ class Router(object):
             driver=driver)
         workflow_id = spiff_workflow.attributes.get('id')
         operations.create.delay(api_id, workflow_id, "DELETE", tenant_id)
-        orchestrator.run_workflow.delay(workflow_id, timeout=3600,
-                                        driver=driver)
+        wf_tasks.run_workflow.delay(workflow_id, timeout=3600, driver=driver)
         # Set headers
         location = "/deployments/%s" % api_id
         link = "/workflows/%s" % workflow_id

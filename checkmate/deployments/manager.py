@@ -15,9 +15,10 @@ from .planner import Planner
 from checkmate import base
 from checkmate import db
 from checkmate import operations
-from checkmate import orchestrator
 from checkmate import utils
 from checkmate import workflow
+from checkmate import workflows
+from checkmate.workflows import tasks
 from checkmate.deployment import (
     Deployment,
     generate_keys,
@@ -255,8 +256,7 @@ class Manager(base.ManagerBase):
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
         driver = self.select_driver(api_id)
-        result = orchestrator.run_workflow.delay(api_id, timeout=3600,
-                                                 driver=driver)
+        result = tasks.run_workflow.delay(api_id, timeout=3600, driver=driver)
         return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):

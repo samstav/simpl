@@ -241,7 +241,7 @@ def create_delete_deployment_workflow_spec(deployment, context):
     else:
         root_task = Celery(wf_spec, 'Pause %s Workflow %s' %
                                     (operation['type'], existing_workflow_id),
-                           'checkmate.workflows_new.tasks.pause_workflow',
+                           'checkmate.workflows.tasks.pause_workflow',
                            call_args=[dep_id],
                            properties={'estimated_duration': 10})
         wf_spec.start.connect(root_task)

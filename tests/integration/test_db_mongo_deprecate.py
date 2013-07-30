@@ -17,14 +17,11 @@ except ImportError as exc:
     MongoBox = object
 
 
-from bottle import HTTPError
-
 from checkmate import db
 from checkmate import utils
 from checkmate.db import db_lock
-from checkmate.db.common import ObjectLockedError, InvalidKeyError
 from checkmate.utils import extract_sensitive_data
-from checkmate.workflows import safe_workflow_save
+from checkmate.workflows import manager
 
 LOG = logging.getLogger(__name__)
 
@@ -67,6 +64,7 @@ class TestDatabase(unittest.TestCase):
                                     connection_string=self._connection_string)
         self.driver._connection = self.driver._database = None  # reset driver
         self.driver.db_name = 'test'
+        self.manager = manager.Manager({'default': self.driver})
         self.tenantId = "T1000"
         self.default_deployment = {
             'id': 'test',
@@ -385,7 +383,7 @@ class TestDatabase(unittest.TestCase):
 
         self.driver.lock_object(klass, obj_id)
 
-        with self.assertRaises(ObjectLockedError):
+        with self.assertRaises(db.ObjectLockedError):
             self.driver.lock_object(klass, obj_id)
 
     @unittest.skipIf(SKIP, REASON)
@@ -399,7 +397,7 @@ class TestDatabase(unittest.TestCase):
 
         self.driver.lock_object(klass, obj_id)
 
-        with self.assertRaises(ObjectLockedError):
+        with self.assertRaises(db.ObjectLockedError):
             self.driver.lock_object(klass, obj_id)
 
     @unittest.skipIf(SKIP, REASON)
@@ -429,7 +427,7 @@ class TestDatabase(unittest.TestCase):
 
         self.driver.lock_workflow(obj_id)
 
-        with self.assertRaises(InvalidKeyError):
+        with self.assertRaises(db.InvalidKeyError):
             self.driver.unlock_workflow(obj_id, "bad_key")
 
     @unittest.skipIf(SKIP, REASON)
@@ -443,7 +441,7 @@ class TestDatabase(unittest.TestCase):
 
         self.driver.lock_workflow(obj_id)
 
-        with self.assertRaises(InvalidKeyError):
+        with self.assertRaises(db.InvalidKeyError):
             self.driver.lock_workflow(obj_id, key="bad_key")
 
     @unittest.skipIf(SKIP, REASON)
@@ -470,8 +468,7 @@ class TestDatabase(unittest.TestCase):
         workflows.DB = self.driver
         #test that a new object can be saved with the lock
         self.driver.database()['workflows'].remove({'_id': "1"})
-        safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423,
-                           driver=self.driver)
+        self.manager.safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423)
 
     @unittest.skipIf(SKIP, REASON)
     def test_save_new_deployment(self):
@@ -711,9 +708,9 @@ class TestDatabase(unittest.TestCase):
                                                   "_lock_timestamp":
                                                       timestamp})
 
-        with self.assertRaises(HTTPError):
-            safe_workflow_save("1", {"id": "yolo"}, tenant_id=2412423,
-                               driver=self.driver)
+        with self.assertRaises(db.ObjectLockedError):
+            self.manager.safe_workflow_save("1", {"id": "yolo"},
+                                            tenant_id=2412423)
 
     @unittest.skipIf(SKIP, REASON)
     def test_get_deployment(self):
@@ -783,7 +780,7 @@ class TestDatabase(unittest.TestCase):
         try:
             with self.driver.lock(key, 200):
                 pass
-        except ObjectLockedError:
+        except db.ObjectLockedError:
             raised = True
         self.assertTrue(raised)
 
@@ -796,7 +793,7 @@ class TestDatabase(unittest.TestCase):
         try:
             with self.driver.lock(key, 200):
                 pass
-        except ObjectLockedError:
+        except db.ObjectLockedError:
             raised = True
         self.assertTrue(raised)
 
@@ -819,7 +816,8 @@ class TestDatabase(unittest.TestCase):
         self.driver.database()['locks'].insert(
             {"_id": key, "expires_at": current_time - 20})
         self.driver.acquire_lock(key, 20)
-        self.assertRaises(ObjectLockedError, self.driver.acquire_lock, key, 20)
+        self.assertRaises(db.ObjectLockedError, self.driver.acquire_lock, key,
+                          20)
         self.driver.release_lock(key)
 
     @unittest.skipIf(SKIP, REASON)
@@ -833,7 +831,8 @@ class TestDatabase(unittest.TestCase):
         _mox.ReplayAll()
 
         self.driver.acquire_lock(key, 20)
-        self.assertRaises(ObjectLockedError, self.driver.acquire_lock, key, 20)
+        self.assertRaises(db.ObjectLockedError, self.driver.acquire_lock, key,
+                          20)
         self.driver.release_lock(key)
 
         _mox.VerifyAll()
@@ -843,19 +842,19 @@ class TestDatabase(unittest.TestCase):
         key = uuid.uuid4()
         self.driver.database()['locks'].insert(
             {"_id": key, "expires_at": time.time() + 20})
-        self.assertRaises(ObjectLockedError, self.driver.lock, key, 100)
+        self.assertRaises(db.ObjectLockedError, self.driver.lock, key, 100)
 
         self.driver.unlock(key)
         lock = self.driver.database()['locks'].find_one({"_id": key})
         self.assertIsNone(lock)
         self.assertIsInstance(self.driver.lock(key, 100), db_lock.DbLock)
 
-        self.assertRaises(InvalidKeyError, self.driver.unlock, "X")
+        self.assertRaises(db.InvalidKeyError, self.driver.unlock, "X")
 
 
     @unittest.skipIf(SKIP, REASON)
     def test_raise_if_trying_to_unlock_non_existent_key(self):
-        self.assertRaises(InvalidKeyError, self.driver.unlock, uuid.uuid4())
+        self.assertRaises(db.InvalidKeyError, self.driver.unlock, uuid.uuid4())
 
 
 if __name__ == '__main__':

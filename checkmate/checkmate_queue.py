@@ -20,6 +20,7 @@ def main_func():
             'checkmate.ssh',
             'checkmate.rdp',
             'checkmate.deployments',
+            'checkmate.workflows',
             'checkmate.providers.rackspace',
             'checkmate.providers.opscode',
             'checkmate.celeryapp',

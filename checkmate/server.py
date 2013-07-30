@@ -44,6 +44,7 @@ from checkmate.common import eventlet_backdoor
 from checkmate.common import gzip_middleware
 from checkmate import db
 from checkmate import deployments
+from checkmate import workflows
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
@@ -250,6 +251,13 @@ def main():
         root_app, MANAGERS['deployments']
     )
     resources.append('deployments')
+
+    # Load Workflow Handlers
+    MANAGERS['workflows'] = workflows.Manager(DRIVERS)
+    ROUTERS['workflows'] = workflows.Router(
+        root_app, MANAGERS['workflows'], MANAGERS['deployments']
+    )
+    resources.append('workflows')
 
     # Load Blueprint Handlers - choose between database or github cache
     if CONFIG.github_api:

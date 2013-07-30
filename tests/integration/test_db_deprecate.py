@@ -3,7 +3,6 @@ import logging
 import os
 import unittest
 import time
-from bottle import HTTPError
 
 from checkmate.db.common import (
     DatabaseTimeoutException,
@@ -16,6 +15,7 @@ from checkmate.db.sql import Deployment, Workflow
 LOG = logging.getLogger(__name__)
 
 from checkmate import db
+from checkmate.workflows import manager
 from checkmate.utils import extract_sensitive_data
 
 
@@ -24,6 +24,7 @@ class TestDatabase(unittest.TestCase):
     def setUp(self):
         self.driver = db.get_driver(name='checkmate.db.sql.Driver', reset=True,
                                     connection_string='sqlite://')
+        self.manager = manager.Manager({'default': self.driver})
         self.klass = Deployment
         db.sql.DEFAULT_RETRIES = 1
         self.default_deployment = {
@@ -445,10 +446,8 @@ class TestDatabase(unittest.TestCase):
         workflows.DB = self.driver
         #test that a new object can be saved with the lock
         self.delete(klass, obj_id)
-        workflows.safe_workflow_save(obj_id,
-                                     {"id": "yolo"},
-                                     tenant_id=2412423,
-                                     driver=self.driver)
+        self.manager.safe_workflow_save(obj_id, {"id": "yolo"},
+                                        tenant_id=2412423)
 
     def test_existing_workflow_save(self):
         klass = Workflow
@@ -464,11 +463,9 @@ class TestDatabase(unittest.TestCase):
                                       lock="1",
                                       lock_timestamp=timestamp))
 
-        with self.assertRaises(HTTPError):
-            workflows.safe_workflow_save(obj_id,
-                                         {"id": "yolo"},
-                                         tenant_id=2412423,
-                                         driver=self.driver)
+        with self.assertRaises(db.ObjectLockedError):
+            self.manager.safe_workflow_save(obj_id, {"id": "yolo"},
+                                            tenant_id=2412423)
 
 
 if __name__ == '__main__':
