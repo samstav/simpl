@@ -171,6 +171,18 @@ class TestBuildFilters(TestMongoDB):
                                              query={'name': 'foobar'})
         _parse_comparison.assert_called_with('foobar')
 
+    @mock.patch.object(mongodb, '_parse_comparison')
+    def test_parse_start_date_with_greater_equal(self, _parse_comparison):
+        filters = self.driver._build_filters('deployments', None, True, None,
+                                             query={'start_date': 'foobar'})
+        _parse_comparison.assert_called_with('>=foobar')
+
+    @mock.patch.object(mongodb, '_parse_comparison')
+    def test_parse_end_date_maps_to_end_of_day(self, _parse_comparison):
+        filters = self.driver._build_filters('deployments', None, True, None,
+                                             query={'end_date': 'foobar'})
+        _parse_comparison.assert_called_with('<=foobar 23:59:59 +0000')
+
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

@@ -872,8 +872,15 @@ class Driver(common.DbBase):
                 else:
                     for key in whitelist:
                         if key in query and query[key]:
-                            condition = _parse_comparison(query[key])
-                            filters[key] = condition
+                            if key == 'start_date':
+                                condition = _parse_comparison('>=' + query[key])
+                                filters['created'] = condition
+                            elif key == 'end_date':
+                                condition = _parse_comparison('<=' + query[key] + ' 23:59:59 +0000')
+                                filters['created'] = condition
+                            else:
+                                condition = _parse_comparison(query[key])
+                                filters[key] = condition
 
         return filters
 

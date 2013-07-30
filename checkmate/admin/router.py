@@ -154,7 +154,8 @@ class Router(object):
     #
     # Deployments
     #
-    param_whitelist = ['search', 'name', 'blueprint.name', 'tenantId', 'status']
+    param_whitelist = ['search', 'name', 'blueprint.name', 'tenantId',
+                       'status', 'start_date', 'end_date']
 
     @utils.only_admins
     @utils.formatted_response('deployments', with_pagination=True)
