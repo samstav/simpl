@@ -133,7 +133,7 @@ class GitHubManager(base.ManagerBase):
     def _blocking_refresh_if_needed(self):
         """If _blueprints is None, perform a refresh of all blueprints."""
         LOG.info("X-Source-Untrusted: blocking_refresh_if_needed with "
-                 "blueprint count of %d", len(self._bluprints))
+                 "blueprint count of %d", len(self._blueprints))
         if not self._blueprints:
             # Wait for refresh to complete (block)
             LOG.info("X-Source-Untrusted: background is %s", self.background)
