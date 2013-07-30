@@ -28,17 +28,30 @@ from checkmate.exceptions import (
 from checkmate import utils as cmutils
 
 LOG = logging.getLogger(__name__)
-OP_MATCH = '(!|(>|<)[=]*)'
+OP_MATCH = '(%|!|(>|<)[=]*)'
 
 
-def _build_filter(field):
-    '''Translate string with operator and status into mongodb filter.'''
-    op_map = {'!': '$ne', '>': '$gt', '<': '$lt', '>=': '$gte', '<=': '$lte'}
-    operator = re.search(OP_MATCH, field)
-    if operator:
-        return {op_map[operator.group(0)]: field[len(operator.group(0)):]}
+def _build_filter(value):
+    '''Translate string with operator and value into mongodb filter.'''
+    filters = None
+    op_map = {
+        '!':  '$ne',
+        '>':  '$gt',
+        '<':  '$lt',
+        '>=': '$gte',
+        '<=': '$lte',
+        '%':  '$regex',
+    }
+    match = re.search(OP_MATCH, value)
+    if match:
+        operator = match.group(0)
+        filters = {op_map[operator]: value[len(operator):]}
+        if operator == '%':
+            filters['$options'] = 'i'
     else:
-        return field
+        filters = value
+
+    return filters
 
 
 def _validate_no_operators(fields):
@@ -853,15 +866,14 @@ class Driver(common.DbBase):
                     search_term = query['search']
                     disjunction = []
                     for attr in whitelist:
-                        regex = {'$regex': search_term, '$options': 'i'}
-                        condition = {attr: regex}
+                        condition = {attr: _parse_comparison(search_term)}
                         disjunction.append(condition)
                     filters['$or'] = disjunction
                 else:
                     for key in whitelist:
                         if key in query and query[key]:
-                            regex = {'$regex': query[key], '$options': 'i'}
-                            filters[key] = regex
+                            condition = _parse_comparison(query[key])
+                            filters[key] = condition
 
         return filters
 

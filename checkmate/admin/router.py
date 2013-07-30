@@ -166,6 +166,13 @@ class Router(object):
         tenant_id = bottle.request.query.get('tenant_id')
 
         params = bottle.request.query.dict
+        if 'tenant_tag' in params:
+            tags = params['tenant_tag']
+            tenants = self.tenant_manager.list_tenants(*tags)
+            if len(tenants) == 0:
+                tenants['no-tenants-found'] = True
+            params['tenantId'] = tenants.keys()
+            params.pop('tenant_tag')
         query = utils.QueryParams.parse(params, self.param_whitelist)
 
         data = self.manager.get_deployments(

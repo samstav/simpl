@@ -6,6 +6,37 @@ import unittest
 from checkmate.db import mongodb
 
 
+class TestBuildFilter(unittest.TestCase):
+
+    def test_return_value_if_no_operator_is_used(self):
+        query = mongodb._build_filter('foobar')
+        self.assertEqual(query, 'foobar')
+
+    def test_recognize_not_equal_operator(self):
+        query = mongodb._build_filter('!foobar')
+        self.assertEqual(query, {'$ne': 'foobar'})
+
+    def test_recognize_greater_than_operator(self):
+        query = mongodb._build_filter('>foobar')
+        self.assertEqual(query, {'$gt': 'foobar'})
+
+    def test_recognize_greater_equal_operator(self):
+        query = mongodb._build_filter('>=foobar')
+        self.assertEqual(query, {'$gte': 'foobar'})
+
+    def test_recognize_less_than_operator(self):
+        query = mongodb._build_filter('<foobar')
+        self.assertEqual(query, {'$lt': 'foobar'})
+
+    def test_recognize_less_equal_operator(self):
+        query = mongodb._build_filter('<=foobar')
+        self.assertEqual(query, {'$lte': 'foobar'})
+
+    def test_recognize_like_operator(self):
+        query = mongodb._build_filter('%foobar')
+        self.assertEqual(query, {'$regex': 'foobar', '$options': 'i'})
+
+
 class TestMongoDB(unittest.TestCase):
 
     @mock.patch.object(mongodb.Driver, 'tune')
@@ -119,20 +150,26 @@ class TestBuildFilters(TestMongoDB):
     def test_create_filter_for_specific_fields(self):
         filters = self.driver._build_filters('deployments', None, True, None,
                                              query={'name': 'foobar'})
-        expected_filters = {'name': {'$options': 'i', '$regex': 'foobar'}}
+        expected_filters = {'name': 'foobar'}
         self.assertEqual(filters, expected_filters)
 
-    def test_create_filter_with_all_fields_when_searching(self):
-        query = {'search': 'foobar', 'whitelist': ['foo', 'bar']}
+    def test_create_filter_with_all_whitelist_fields_when_searching(self):
+        query = {'search': 'zoo', 'whitelist': ['foo', 'bar']}
         filters = self.driver._build_filters('deployments', None, True, None,
                                              query=query)
         expected_filters = {
             '$or': [
-                {'foo': {'$options': 'i', '$regex': 'foobar'}},
-                {'bar': {'$options': 'i', '$regex': 'foobar'}},
+                {'foo': 'zoo'},
+                {'bar': 'zoo'},
             ]
         }
         self.assertEqual(filters, expected_filters)
+
+    @mock.patch.object(mongodb, '_parse_comparison')
+    def test_parse_value_comparison(self, _parse_comparison):
+        filters = self.driver._build_filters('deployments', None, True, None,
+                                             query={'name': 'foobar'})
+        _parse_comparison.assert_called_with('foobar')
 
 
 if __name__ == '__main__':
