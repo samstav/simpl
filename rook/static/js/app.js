@@ -2209,6 +2209,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.filters = {}
   $scope.default_tags = ['RackConnect', 'Managed', 'Racker', 'Internal'];
+  $scope.filters.end_date = $location.search().end_date;
+  $scope.filters.start_date = $location.search().start_date;
   $scope.filters.tenant_tag = _.map(_.uniq($scope.default_tags.concat($location.search().tenant_tag || [])), function(tag) {
     var is_active = ($location.search().tenant_tag == tag || _.contains($location.search().tenant_tag, tag));
     return { name: tag, active: is_active };
@@ -2232,6 +2234,12 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       var filter_names = _.map(active_filters, function(f){ return f.name })
       filters.tenant_tag = filter_names;
     }
+
+    // Dates
+    if ($scope.filters.start_date)
+      filters.start_date = $scope.filters.start_date
+    if ($scope.filters.end_date)
+      filters.end_date = $scope.filters.end_date
 
     // Search
     if ($scope.query) {

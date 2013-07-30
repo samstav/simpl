@@ -476,6 +476,30 @@ describe('DeploymentListController', function(){
         expect(scope.filters.tenant_tag).toContain({ name: 'foobar', active: true });
       });
     });
+
+    describe('default start date', function() {
+      it('should default to undefined if there is no search', function() {
+        expect(scope.filters.start_date).toBeUndefined();
+      });
+
+      it('should contain the search value, if present', function() {
+        $location.search.returns({ start_date: 'lorem ipsum' });
+        controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+        expect(scope.filters.start_date).toEqual('lorem ipsum');
+      });
+    });
+
+    describe('default end date', function() {
+      it('should default to undefined if there is no search', function() {
+        expect(scope.filters.end_date).toBeUndefined();
+      });
+
+      it('should contain the search value, if present', function() {
+        $location.search.returns({ end_date: 'dolor sit amet' });
+        controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+        expect(scope.filters.end_date).toEqual('dolor sit amet');
+      });
+    });
   });
 
   describe('#applyFilters', function() {
@@ -532,6 +556,18 @@ describe('DeploymentListController', function(){
       ];
       scope.filter_deployments();
       expect($location.search).toHaveBeenCalledWith({ tenant_tag: ['foobar', 'mordor'] });
+    });
+
+    it('should filter by start date', function() {
+      scope.filters.start_date = 'beginning of time';
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ start_date: 'beginning of time' });
+    });
+
+    it('should filter by end date', function() {
+      scope.filters.end_date = 'end of days';
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ end_date: 'end of days' });
     });
 
     it('should filter by custom search', function() {
