@@ -370,15 +370,16 @@ def create_workflow_spec_deploy(deployment, context):
                 if 'target' in relation:
                     if relation['target'] not in sorted_list:
                         if relation['target'] in stack:
-                            error_message = "Circular dependency in resources between %s " \
-                                      "and %s" % (
-                                      resource_key, relation['target'])
+                            error_message = "Circular dependency in " \
+                                            "resources between %s and %s" % \
+                                            (resource_key, relation['target'])
                             raise CheckmateUserException(
-                                error_message,utils.get_class_name(
+                                error_message, utils.get_class_name(
                                     CheckmateException), BLUEPRINT_ERROR, '')
                         stack.append(resource_key)
                         recursive_add_host(sorted_resources,
-                                           relation['target'], resources, stack)
+                                           relation['target'], resources,
+                                           stack)
             if resource_key not in sorted_list:
                     sorted_list.append(resource_key)
     for key, resource in new_and_planned_resources.iteritems():

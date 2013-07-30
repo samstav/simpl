@@ -210,7 +210,7 @@ def resource_postback(deployment_id, contents, driver=DB):
             if r_status == "ERROR":
                 if deployment.fsm.permitted("FAILED"):
                     updates['status'] = 'FAILED'
-                    
+
     # Create new contents dict if values existed
     # TODO(any): make this smarter
     new_contents = {}
