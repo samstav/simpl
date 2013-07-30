@@ -32,12 +32,16 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=2)
 def create(dep_id, workflow_id, type, tenant_id=None):
-    deployment = DB.get_deployment(dep_id, with_secrets=False)
-    workflow = DB.get_workflow(workflow_id, with_secrets=False)
+    if is_simulation(dep_id):
+        driver = SIMULATOR_DB
+    else:
+        driver = DB
+    deployment = driver.get_deployment(dep_id, with_secrets=False)
+    workflow = driver.get_workflow(workflow_id, with_secrets=False)
     serializer = DictionarySerializer()
     spiff_wf = SpiffWorkflow.deserialize(serializer, workflow)
     add(deployment, spiff_wf, type, tenant_id=tenant_id)
-    DB.save_deployment(dep_id, deployment, secrets=None, tenant_id=tenant_id,
+    driver.save_deployment(dep_id, deployment, secrets=None, tenant_id=tenant_id,
                        partial=False)
 
 
