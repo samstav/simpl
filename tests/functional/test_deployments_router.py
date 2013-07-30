@@ -169,7 +169,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
         mock_request = mock.Mock()
         mock_request.context.username = 'Me'
-        mock_request.headers = {'X-SOURCE-UNTRUSTED': 'True'}
+        mock_request.headers = {'X-Source-Untrusted': 'True'}
         with self.assertRaises(CheckmateValidationException) as expected:
             router._content_to_deployment(
                 request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
@@ -197,7 +197,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
         mock_request = mock.Mock()
         mock_request.context.username = 'Me'
-        mock_request.headers = {'X-SOURCE-UNTRUSTED': 'True'}
+        mock_request.headers = {'X-Source-Untrusted': 'True'}
         manager = mock.Mock()
         manager.blueprint_is_invalid.return_value = False
         mock_githubmgr.return_value = manager

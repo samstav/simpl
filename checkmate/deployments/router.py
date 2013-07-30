@@ -52,8 +52,8 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
     if 'deployment' in entity:
         entity = entity['deployment']  # Unwrap if wrapped
 
-    if request.headers and 'X-SOURCE-UNTRUSTED' in request.headers:
-        LOG.info("X-SOURCE-UNTRUSTED: Validating Blueprint against Checkmate's"
+    if request.headers and 'X-Source-Untrusted' in request.headers:
+        LOG.info("X-Source-Untrusted: Validating Blueprint against Checkmate's"
                  "cached version.")
         _validate_blueprint(entity)
 
@@ -83,7 +83,7 @@ def _validate_blueprint(deployment):
         raise CheckmateValidationException('Cannot validate blueprint.')
     github_manager = blueprints.GitHubManager(DRIVERS, curr_config)
     if github_manager.blueprint_is_invalid(deployment):
-        LOG.warn("X-SOURCE-UNTRUSTED: Passed in Blueprint did not match "
+        LOG.info("X-Source-Untrusted: Passed in Blueprint did not match "
                  "anything in Checkmate's cache.")
         raise CheckmateValidationException('Invalid Blueprint.')
 
