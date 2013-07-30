@@ -29,7 +29,7 @@ class Manager(object):
         '''Checks provider resource.  Returns True when built otherwise False.
         If resource goes into error state, raises exception.
         '''
-        assert api, "API is required in wait_on_build_pop"
+        assert api, "API is required in wait_on_build"
         data = {}
         try:
             if simulate:
@@ -158,4 +158,90 @@ class Manager(object):
                 }
                 db_results[database['name']] = data
 
+        return results
+
+    @staticmethod
+    def create_database(name, instance_id, api, callback, context,
+                        character_set=None, collate=None, instance_attrs=None,
+                        simulate=False):
+        '''Creates database in existing db instance.  Returns
+        instance, dbs and its interfaces. If resource goes into
+        error state, raises exception.
+        '''
+        assert api, "API is required in create_database_pop"
+        assert callback, 'Callback is required in create_database_pop.'
+
+        database = {'name': name}
+        if character_set:
+            database['character_set'] = character_set
+        if collate:
+            database['collate'] = collate
+        databases = [database]
+
+        if simulate:
+            flavor = utils.Simulation(id='1')
+            instance = utils.Simulation(id=instance_id, name=name,
+                                        hostname='srv2.rackdb.net',
+                                        flavor=flavor)
+        # TODO(Nate): Pretty sure this inst being used.  
+        elif not instance_id:
+            attrs = {'name': '%s_instance' % name, 'flavor': '1', 'size': 1}
+            if not instance_attrs:
+                instance_attrs = {}
+            instance_name, flavor, size = [instance_attrs.get(k, attrs[k]) for
+                k in ['name', 'flavor', 'size']]
+                
+            data = Manager.create_instance(name, flavor, size, databases,
+                                           context, api, callback)
+            while data.get('status') == 'BUILD':
+                try:
+                    data.update(Manager.wait_on_build(data.get('id'), api,
+                                                 callback))
+                except CheckmateResumableException:
+                    LOG.info('DB instance in status %s, waiting on ACTIVE '
+                             'status', data['status'])
+            results = data.get('databases', {}).get(name)
+            results['host_instance'] = data.get('id')
+            results['host_region'] = data.get('region')
+            results['flavor'] = flavor
+            results['disk'] = size
+            return results
+        else:
+            instance = api.get(instance_id)
+            callback({'status': instance.status})
+
+            if instance.status != "ACTIVE":
+                raise CheckmateResumableException('Database instance is not '
+                                                  'active.', '',
+                                                  UNEXPECTED_ERROR, '')
+            try:
+                instance.create_database(name, character_set, collate)
+            except cdb_errors.ClientException as exc:
+                LOG.exception(exc)
+                if exc.code == 400:
+                    raise
+                else:
+                    raise CheckmateResumableException(str(exc),
+                                                      str(exc.details),
+                                                      UNEXPECTED_ERROR, '')
+            except Exception as exc:
+                raise CheckmateUserException(str(exc),
+                                             utils.get_class_name(exc),
+                                             UNEXPECTED_ERROR, '')
+                                     
+        results = {
+            'host_instance': instance.id,
+            'host_region': context.region,
+            'name': name,
+            'id': name,
+            'status': 'BUILD',
+            'flavor': instance.flavor.id,
+            'interfaces': {
+                'mysql': {
+                    'host': instance.hostname,
+                    'database_name': name
+                }
+            }
+        }
+        LOG.info('Created database %s on instance %s', name, instance_id)
         return results

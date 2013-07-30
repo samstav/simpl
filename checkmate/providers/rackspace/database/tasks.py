@@ -48,3 +48,30 @@ def create_instance(context, instance_name, flavor, size, databases, region,
                                    databases, context, create_instance.api,
                                    create_instance.partial,
                                    context.simulation)
+
+@task(base=ProviderTask, default_retry_delay=15, max_retries=40,
+      provider=Provider)
+def create_database(context, name, region=None, character_set=None, collate=None,
+                   instance_id=None, instance_attributes=None, callback=None,
+                   api=None):
+    '''Create a database resource.
+
+    This call also creates a server instance if it is not supplied.
+
+    :param name: the database name
+    :param region: where to create the database (ex. DFW or dallas)
+    :param character_set: character set to use (see MySql and cloud databases
+            documanetation)
+    :param collate: collation to use (see MySql and cloud databases
+            documanetation)
+    :param instance_id: create the database on a specific instance id (if not
+            supplied, the instance is created)
+    :param instance_attributes: kwargs used to create the instance (used if
+            instance_id not supplied)
+    '''
+    return Manager.create_database(name, instance_id, create_database.api,
+                                   create_database.partial, context=context, 
+                                   character_set=character_set,
+                                   collate=collate,
+                                   instance_attrs=instance_attributes,
+                                   simulate=context.simulation)
