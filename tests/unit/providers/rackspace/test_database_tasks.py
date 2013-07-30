@@ -1004,7 +1004,7 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_connect.assert_called_once_with(self.context, self.region)
 
-        mock_create.assert_called_once_with(self.name, '1', 1,
+        mock_create.assert_called_once_with(self.name+'_instance', '1', 1,
                                             [{'name': self.name}],
                                             self.context,
                                             mock_connect.return_value,
@@ -1052,7 +1052,8 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_connect.assert_called_once_with(self.context, self.region)
 
-        mock_create.assert_called_with(self.name, '1', 1, [{'name': self.name,
+        mock_create.assert_called_with(self.name+'_instance', '1', 1,
+                                       [{'name': self.name,
                                        'character_set': 'latin'}],
                                        self.context, mock_connect.return_value,
                                        database._create_database.partial)
@@ -1098,7 +1099,7 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_connect.assert_called_once_with(self.context, self.region)
 
-        mock_create.assert_called_with(self.name, '1', 1,
+        mock_create.assert_called_with(self.name+'_instance', '1', 1,
                                        [{'name': self.name,
                                        'character_set': 'latin'}],
                                        self.context, mock_connect.return_value,
@@ -1143,7 +1144,7 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_connect.assert_called_once_with(self.context, self.region)
 
-        mock_create.assert_called_with(self.name, '3', 5,
+        mock_create.assert_called_with(self.name+'_instance', '3', 5,
                                        [{'name': self.name}], self.context,
                                        mock_connect.return_value,
                                        database._create_database.partial)
