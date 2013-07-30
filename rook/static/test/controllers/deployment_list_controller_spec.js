@@ -436,6 +436,48 @@ describe('DeploymentListController', function(){
     });
   });
 
+  describe('filters', function() {
+    it('should be an object', function() {
+      expect(typeof scope.filters).toBe("object");
+    });
+
+    describe('default tenant_tag', function() {
+      it('should contain four default filters for tenant_tag', function() {
+        expect(scope.filters.tenant_tag.length).toBe(4);
+      });
+
+      it('should contain filter: RackConnect', function() {
+        expect(scope.filters.tenant_tag).toContain({ name: 'RackConnect', active: false });
+      });
+
+      it('should contain filter: Managed', function() {
+        expect(scope.filters.tenant_tag).toContain({ name: 'Managed', active: false });
+      });
+
+      it('should contain filter: Racker', function() {
+        expect(scope.filters.tenant_tag).toContain({ name: 'Racker', active: false });
+      });
+
+      it('should contain filter: Internal', function() {
+        expect(scope.filters.tenant_tag).toContain({ name: 'Internal', active: false });
+      });
+    });
+
+    describe('when search exists', function() {
+      it('should set active flag to true on default search filter', function() {
+        $location.search.returns({ tenant_tag: 'Racker' })
+        controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+        expect(scope.filters.tenant_tag).toContain({ name: 'Racker', active: true });
+      });
+
+      it('should set active flag to true on custom search filters', function() {
+        $location.search.returns({ tenant_tag: 'foobar' })
+        controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+        expect(scope.filters.tenant_tag).toContain({ name: 'foobar', active: true });
+      });
+    });
+  });
+
   describe('#applyFilters', function() {
     it('should cancel pending filter promise', function() {
       scope.filter_promise = 'old promise';
@@ -474,6 +516,22 @@ describe('DeploymentListController', function(){
       ];
       scope.filter_deployments();
       expect($location.search).toHaveBeenCalledWith({ status: ['foobar', 'mordor'] });
+    });
+
+    it('should filter by tenant tag', function() {
+      scope.filters.tenant_tag = [ { name: 'foobar', active: true } ];
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ tenant_tag: ['foobar'] });
+    });
+
+    it('should filter by several active tenant tags at once', function() {
+      scope.filters.tenant_tag = [
+        { name: 'foobar', active: true },
+        { name: 'middle earth', active: false },
+        { name: 'mordor', active: true },
+      ];
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ tenant_tag: ['foobar', 'mordor'] });
     });
 
     it('should filter by custom search', function() {
