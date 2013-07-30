@@ -16,8 +16,7 @@ import time
 import urlparse
 import yaml
 
-#pylint: disable=E0611
-from bottle import abort, request
+from bottle import abort, request  # pylint: disable=E0611
 import eventlet
 from eventlet.green import socket
 from eventlet.green import threading
@@ -131,7 +130,7 @@ class GitHubManager(base.ManagerBase):
         """
         return self._repo_org
 
-    def _perform_blocking_refresh_if_needed(self):
+    def _blocking_refresh_if_needed(self):
         """If _blueprints is None, perform a refresh of all blueprints."""
         if not self._blueprints:
             # Wait for refresh to complete (block)
@@ -150,7 +149,7 @@ class GitHubManager(base.ManagerBase):
         :param limit: pagination length
         """
         tag = self.get_tenant_tag(tenant_id, request.context.roles)
-        self._perform_blocking_refresh_if_needed()
+        self._blocking_refresh_if_needed()
 
         if not tag:
             return
@@ -416,18 +415,14 @@ class GitHubManager(base.ManagerBase):
 
     def blueprint_is_valid(self, untrusted_blueprint):
         """Returns true if passed-in blueprint passes validation."""
-        self._perform_blocking_refresh_if_needed()
+        self._blocking_refresh_if_needed()
         for _, blueprint in self._blueprints.items():
             if (
-                untrusted_blueprint == blueprint['blueprint'] and
-                self._environment_is_valid(blueprint)
+                untrusted_blueprint['blueprint'] == blueprint['blueprint'] and
+                untrusted_blueprint['environment'] == blueprint['environment']
             ):
                 return True
         return False
-
-    def _environment_is_valid(self, blueprint):
-        """Returns true if passed in blueprint passes validation."""
-        return True
 
     def _get_repo(self, repo_name):
         """Return the specified github repo.

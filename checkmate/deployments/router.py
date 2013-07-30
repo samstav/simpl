@@ -3,14 +3,12 @@ Deployments Resource Router
 
 Handles API calls to /deployments and routes them appropriately
 '''
-#pylint: disable=W0212
 import copy
 import logging
 import os
 import uuid
 
-#pylint: disable=E0611
-import bottle
+import bottle  # pylint: disable=E0611
 
 from SpiffWorkflow.storage import DictionarySerializer
 
@@ -54,7 +52,10 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
     if 'deployment' in entity:
         entity = entity['deployment']  # Unwrap if wrapped
 
-    _validate_blueprint(request)
+    if request.headers and 'X-SOURCE-UNTRUSTED' in request.headers:
+        LOG.info("X-SOURCE-UNTRUSTED: Validating Blueprint against Checkmate's"
+                 "cached version.")
+        _validate_blueprint(entity)
 
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
@@ -75,20 +76,16 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
     return deployment
 
 
-def _validate_blueprint(request):
+def _validate_blueprint(deployment):
     '''Someone could have tampered with the blueprint!'''
-    if request.headers and 'X-SOURCE-UNTRUSTED' in request.headers:
-        LOG.info("X-SOURCE-UNTRUSTED: Validating Blueprint against Checkmate's"
-                 "cached version.")
-        CONFIG = config.current()
-        if CONFIG.github_api is None:
-            raise CheckmateValidationException('Cannot validate blueprint.')
-        github_manager = blueprints.GitHubManager(DRIVERS, CONFIG)
-        if github_manager.blueprint_is_invalid(
-                utils.read_body(request)['blueprint']):
-            LOG.warn("X-SOURCE-UNTRUSTED: Passed in Blueprint did not match "
-                     "anything in Checkmate's cache.")
-            raise CheckmateValidationException('Invalid Blueprint.')
+    curr_config = config.current()
+    if curr_config.github_api is None:
+        raise CheckmateValidationException('Cannot validate blueprint.')
+    github_manager = blueprints.GitHubManager(DRIVERS, curr_config)
+    if github_manager.blueprint_is_invalid(deployment):
+        LOG.warn("X-SOURCE-UNTRUSTED: Passed in Blueprint did not match "
+                 "anything in Checkmate's cache.")
+        raise CheckmateValidationException('Invalid Blueprint.')
 
 
 def write_deploy_headers(deployment_id, tenant_id=None):
@@ -297,6 +294,7 @@ class Router(object):
 
     @utils.with_tenant
     def add_nodes(self, api_id, tenant_id=None):
+        """Add nodes to deployment identified by api_id."""
         LOG.debug("[AddNodes] Received a call to add_nodes")
         if utils.is_simulation(api_id):
             bottle.request.context.simulation = True
@@ -361,7 +359,7 @@ class Router(object):
                         api_id, deployment.get('status', 'UNKNOWN')))
         operation = deployment.get('operation')
 
-        #TODO: driver will come from workflow manager once we create that
+        #TODO(any): driver will come from workflow manager once we create that
         driver = self.manager.select_driver(api_id)
         if (operation and operation.get('action') != 'PAUSE' and
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
