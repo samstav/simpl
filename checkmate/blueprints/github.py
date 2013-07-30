@@ -419,15 +419,11 @@ class GitHubManager(base.ManagerBase):
         self._perform_blocking_refresh_if_needed()
         for _, blueprint in self._blueprints.items():
             if (
-                untrusted_blueprint == blueprint['blueprint'] and
-                self._environment_is_valid(blueprint)
+                untrusted_blueprint['blueprint'] == blueprint['blueprint'] and
+                untrusted_blueprint['environment'] == blueprint['environment']
             ):
                 return True
         return False
-
-    def _environment_is_valid(self, blueprint):
-        """Returns true if passed in blueprint passes validation."""
-        return True
 
     def _get_repo(self, repo_name):
         """Return the specified github repo.

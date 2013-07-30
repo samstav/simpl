@@ -54,7 +54,10 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
     if 'deployment' in entity:
         entity = entity['deployment']  # Unwrap if wrapped
 
-    _validate_blueprint(request)
+    if request.headers and 'X-SOURCE-UNTRUSTED' in request.headers:
+        LOG.info("X-SOURCE-UNTRUSTED: Validating Blueprint against Checkmate's"
+                 "cached version.")
+        _validate_blueprint(entity)
 
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
@@ -75,20 +78,16 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
     return deployment
 
 
-def _validate_blueprint(request):
+def _validate_blueprint(deployment):
     '''Someone could have tampered with the blueprint!'''
-    if request.headers and 'X-SOURCE-UNTRUSTED' in request.headers:
-        LOG.info("X-SOURCE-UNTRUSTED: Validating Blueprint against Checkmate's"
-                 "cached version.")
-        CONFIG = config.current()
-        if CONFIG.github_api is None:
-            raise CheckmateValidationException('Cannot validate blueprint.')
-        github_manager = blueprints.GitHubManager(DRIVERS, CONFIG)
-        if github_manager.blueprint_is_invalid(
-                utils.read_body(request)['blueprint']):
-            LOG.warn("X-SOURCE-UNTRUSTED: Passed in Blueprint did not match "
-                     "anything in Checkmate's cache.")
-            raise CheckmateValidationException('Invalid Blueprint.')
+    CONFIG = config.current()
+    if CONFIG.github_api is None:
+        raise CheckmateValidationException('Cannot validate blueprint.')
+    github_manager = blueprints.GitHubManager(DRIVERS, CONFIG)
+    if github_manager.blueprint_is_invalid(deployment):
+        LOG.warn("X-SOURCE-UNTRUSTED: Passed in Blueprint did not match "
+                 "anything in Checkmate's cache.")
+        raise CheckmateValidationException('Invalid Blueprint.')
 
 
 def write_deploy_headers(deployment_id, tenant_id=None):
