@@ -11,11 +11,11 @@ from SpiffWorkflow import (
 )
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate import utils
-from checkmate import db
-from checkmate import workflow as cm_wf
 from checkmate.common import tasks as common_tasks
+from checkmate import db
 from checkmate.deployment import Deployment
+from checkmate import utils
+from checkmate import workflow as cm_wf
 from checkmate.workflows import tasks
 
 LOG = logging.getLogger(__name__)
