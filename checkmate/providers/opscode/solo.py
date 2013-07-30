@@ -699,6 +699,8 @@ class Provider(ProviderBase):
 
                 final_tasks = self.find_task_specs(
                     wfspec, resource=key, provider=self.key, tag='final')
+
+                host_complete = self.get_host_complete_task(wfspec, server)
                 final_tasks.extend(self.find_task_specs(
                     wfspec, resource=server.get('index'),
                     provider=self.key, tag='final')
@@ -709,6 +711,10 @@ class Provider(ProviderBase):
                     final_tasks = [self.prep_task]
                 LOG.debug("Reconfig waiting on %s", final_tasks)
                 wait_for(wfspec, recollect_task, final_tasks)
+
+                if host_complete:
+                    LOG.debug("Re-ordering the Mark Server Online task to follow Reconfigure tasks")
+                    wait_for(wfspec, host_complete, [recon_tasks['final']])
 
     def get_reconfigure_tasks(self, wfspec, deployment, client, server,
                               server_component):
