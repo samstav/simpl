@@ -2207,6 +2207,14 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     return { name: status, active: is_active };
   })
 
+  $scope.filters = {}
+  $scope.default_tags = ['RackConnect', 'Managed', 'Racker', 'Internal'];
+  $scope.filters = {};
+  $scope.filters.tenant_tag = _.map(_.uniq($scope.default_tags.concat($location.search().tenant_tag || [])), function(tag) {
+    var is_active = ($location.search().tenant_tag == tag || _.contains($location.search().tenant_tag, tag));
+    return { name: tag, active: is_active };
+  });
+
   $scope.query = $location.search().search;
 
   $scope.filter_deployments = function() {
@@ -2217,6 +2225,13 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     if (active_filters.length > 0) {
       var filter_names = _.map(active_filters, function(f){ return f.name })
       filters.status = filter_names;
+    }
+
+    // Tenant Tag
+    var active_filters = _.where($scope.filters.tenant_tag, { active: true });
+    if (active_filters.length > 0) {
+      var filter_names = _.map(active_filters, function(f){ return f.name })
+      filters.tenant_tag = filter_names;
     }
 
     // Search
@@ -2377,7 +2392,6 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.__tenants = {};
   $scope.__content_loaded = false;
-  $scope.default_tags = ['RackConnect', 'Managed', 'Racker', 'Internal'];
   $scope.tenant_tags = function(tenant_id) {
     var tags = $scope.__tenants[tenant_id] && $scope.__tenants[tenant_id].tags;
     return (tags || []);
