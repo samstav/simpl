@@ -118,9 +118,9 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_create_database(self):
-        context = middleware.RequestContext(**{'deployment':'DEP',
-                                            'resource':'1'})
-        
+        context = middleware.RequestContext(**{'deployment': 'DEP',
+                                            'resource': '1'})
+
         #Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'

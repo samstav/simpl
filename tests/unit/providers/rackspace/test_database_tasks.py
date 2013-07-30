@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,C0302,R0201,R0903,R0904,W0212,W0232,W0613
+# pylint: disable=C0103,C0111,C0302,R0201,R0903,R0904,R0913,W0212,W0232,W0613
 'Tests to exercise database celery tasks.'
 import functools
 import mock
@@ -975,8 +975,8 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database.Manager, 'create_instance')
     @mock.patch.object(database._create_database.provider, 'connect')
     def test_create_databaseno_api_no_iid_no_attrs(self, mock_connect,
-                                                   mock_create_instance,
-                                                   mock_wob, mock_callback):
+                                                   mock_create, mock_wob,
+                                                   mock_callback):
         '''Verifies method calls with no api instance id or attrs.'''
         instance = {
             'id': '12345',
@@ -986,7 +986,6 @@ class TestCreateDatabase(unittest.TestCase):
             'region': 'ORD',
             'status': 'BUILD'
         }
-        
 
         expected = {
             'instance:2': {
@@ -997,7 +996,7 @@ class TestCreateDatabase(unittest.TestCase):
             }
         }
 
-        mock_create_instance.return_value = instance
+        mock_create.return_value = instance
         mock_wob.return_value = {'status': 'ACTIVE'}
 
         results = database.create_database(self.context, self.name,
@@ -1005,9 +1004,11 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_connect.assert_called_once_with(self.context, self.region)
 
-        mock_create_instance.assert_called_once_with(self.name, '1', 1,
-            [{'name': self.name}], self.context, mock_connect.return_value,
-            database._create_database.partial)
+        mock_create.assert_called_once_with(self.name, '1', 1,
+                                            [{'name': self.name}],
+                                            self.context,
+                                            mock_connect.return_value,
+                                            database._create_database.partial)
 
         mock_wob.assert_called_once_with('12345', mock_connect.return_value,
                                          database._create_database.partial)
@@ -1018,8 +1019,9 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database.Manager, 'create_instance')
     @mock.patch.object(database._create_database.provider, 'connect')
     def test_create_database_no_api_no_iid_no_attrs_charset(self, mock_connect,
-                                                   mock_create_instance,
-                                                   mock_wob, mock_callback):
+                                                            mock_create,
+                                                            mock_wob,
+                                                            mock_callback):
         '''Verifies method calls with no api instance id or attrs w/ latin
         charset.
         '''
@@ -1042,7 +1044,7 @@ class TestCreateDatabase(unittest.TestCase):
             }
         }
 
-        mock_create_instance.return_value = instance
+        mock_create.return_value = instance
         mock_wob.return_value = {'status': 'ACTIVE'}
 
         results = database.create_database(self.context, self.name,
@@ -1050,9 +1052,10 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_connect.assert_called_once_with(self.context, self.region)
 
-        mock_create_instance.assert_called_with(self.name, '1', 1,
-            [{'name': self.name, 'character_set': 'latin'}], self.context,
-            mock_connect.return_value, database._create_database.partial)
+        mock_create.assert_called_with(self.name, '1', 1, [{'name': self.name,
+                                       'character_set': 'latin'}],
+                                       self.context, mock_connect.return_value,
+                                       database._create_database.partial)
 
         mock_wob.assert_called_once_with('12345', mock_connect.return_value,
                                          database._create_database.partial)
@@ -1063,7 +1066,9 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database.Manager, 'create_instance')
     @mock.patch.object(database._create_database.provider, 'connect')
     def test_create_database_no_api_no_iid_no_attrs_collate(self, mock_connect,
-        mock_create_instance, mock_wob, mock_callback):
+                                                            mock_create,
+                                                            mock_wob,
+                                                            mock_callback):
         '''Verifies method calls with no api instance id or attrs w/ collate.
         '''
         instance = {
@@ -1085,7 +1090,7 @@ class TestCreateDatabase(unittest.TestCase):
             }
         }
 
-        mock_create_instance.return_value = instance
+        mock_create.return_value = instance
         mock_wob.return_value = {'status': 'ACTIVE'}
 
         results = database.create_database(self.context, self.name,
@@ -1093,9 +1098,11 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_connect.assert_called_once_with(self.context, self.region)
 
-        mock_create_instance.assert_called_with(self.name, '1', 1,
-            [{'name': self.name, 'character_set': 'latin'}], self.context,
-            mock_connect.return_value, database._create_database.partial)
+        mock_create.assert_called_with(self.name, '1', 1,
+                                       [{'name': self.name,
+                                       'character_set': 'latin'}],
+                                       self.context, mock_connect.return_value,
+                                       database._create_database.partial)
 
         mock_wob.assert_called_once_with('12345', mock_connect.return_value,
                                          database._create_database.partial)
@@ -1106,8 +1113,8 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database.Manager, 'create_instance')
     @mock.patch.object(database._create_database.provider, 'connect')
     def test_create_database_no_api_no_iid_with_attrs(self, mock_connect,
-                                                      mock_create_instance,
-                                                      mock_wob, mock_callback):
+                                                      mock_create, mock_wob,
+                                                      mock_callback):
         '''Verifies method calls with no api instance id with attrs.'''
         instance = {
             'id': '12345',
@@ -1127,7 +1134,7 @@ class TestCreateDatabase(unittest.TestCase):
             }
         }
         attrs = {'flavor': '3', 'size': 5}
-        mock_create_instance.return_value = instance
+        mock_create.return_value = instance
         mock_wob.return_value = {'status': 'ACTIVE'}
 
         results = database.create_database(self.context, self.name,
@@ -1136,9 +1143,10 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_connect.assert_called_once_with(self.context, self.region)
 
-        mock_create_instance.assert_called_with(self.name, '3', 5,
-            [{'name': self.name}], self.context,
-            mock_connect.return_value, database._create_database.partial)
+        mock_create.assert_called_with(self.name, '3', 5,
+                                       [{'name': self.name}], self.context,
+                                       mock_connect.return_value,
+                                       database._create_database.partial)
 
         mock_wob.assert_called_once_with('12345', mock_connect.return_value,
                                          database._create_database.partial)
@@ -1219,7 +1227,7 @@ class TestCreateDatabase(unittest.TestCase):
                           database.create_database, self.context, self.name,
                           self.region, instance_id=self.instance_id, api=api)
         mock_logger.assert_called_with(mock_exception)
-        
+
     @mock.patch.object(database.manager.LOG, 'exception')
     @mock.patch.object(database._create_database.provider, 'connect')
     @mock.patch.object(database._create_database, 'callback')
@@ -1262,7 +1270,7 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database._create_database, 'callback')
     def test_no_instance_id_wob_resumable(self, mock_callback, mock_connect,
                                           mock_create, mock_wob, mock_logger):
-        '''Verifies LOG.info called when wait on build throws resumable 
+        '''Verifies LOG.info called when wait on build throws resumable
         exception.
         '''
         data = {'status': 'BUILD'}

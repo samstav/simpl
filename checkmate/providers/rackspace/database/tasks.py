@@ -49,11 +49,12 @@ def create_instance(context, instance_name, flavor, size, databases, region,
                                    create_instance.partial,
                                    context.simulation)
 
+
 @task(base=ProviderTask, default_retry_delay=15, max_retries=40,
       provider=Provider)
-def create_database(context, name, region=None, character_set=None, collate=None,
-                   instance_id=None, instance_attributes=None, callback=None,
-                   api=None):
+def create_database(context, name, region=None, character_set=None,
+                    collate=None, instance_id=None, instance_attributes=None,
+                    callback=None, api=None):
     '''Create a database resource.
 
     This call also creates a server instance if it is not supplied.
@@ -70,7 +71,7 @@ def create_database(context, name, region=None, character_set=None, collate=None
             instance_id not supplied)
     '''
     return Manager.create_database(name, instance_id, create_database.api,
-                                   create_database.partial, context=context, 
+                                   create_database.partial, context=context,
                                    character_set=character_set,
                                    collate=collate,
                                    instance_attrs=instance_attributes,

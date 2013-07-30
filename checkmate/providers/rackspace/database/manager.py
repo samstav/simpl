@@ -183,20 +183,20 @@ class Manager(object):
             instance = utils.Simulation(id=instance_id, name=name,
                                         hostname='srv2.rackdb.net',
                                         flavor=flavor)
-        # TODO(Nate): Pretty sure this inst being used.  
+        # TODO(Nate): Pretty sure this inst being used.
         elif not instance_id:
             attrs = {'name': '%s_instance' % name, 'flavor': '1', 'size': 1}
             if not instance_attrs:
                 instance_attrs = {}
             instance_name, flavor, size = [instance_attrs.get(k, attrs[k]) for
                 k in ['name', 'flavor', 'size']]
-                
-            data = Manager.create_instance(name, flavor, size, databases,
-                                           context, api, callback)
+
+            data = Manager.create_instance(instance_name, flavor, size,
+                                           databases, context, api, callback)
             while data.get('status') == 'BUILD':
                 try:
                     data.update(Manager.wait_on_build(data.get('id'), api,
-                                                 callback))
+                                                      callback))
                 except CheckmateResumableException:
                     LOG.info('DB instance in status %s, waiting on ACTIVE '
                              'status', data['status'])
@@ -228,7 +228,7 @@ class Manager(object):
                 raise CheckmateUserException(str(exc),
                                              utils.get_class_name(exc),
                                              UNEXPECTED_ERROR, '')
-                                     
+
         results = {
             'host_instance': instance.id,
             'host_region': context.region,
