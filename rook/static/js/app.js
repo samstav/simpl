@@ -2104,9 +2104,13 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.load = function() {
     console.log("Starting load", $scope.remote.url);
     $scope.loading_remote_blueprints = true;
-    github.get_repos($scope.remote, $scope.receive_blueprints, function(data) {
-      $scope.loading_remote_blueprints = false;
-      $scope.show_error(data);
+    github.get_repos($scope.remote).then(
+      function(response) { // Success
+        $scope.receive_blueprints(response.data);
+      },
+      function(response) { // Error
+        $scope.loading_remote_blueprints = false;
+        $scope.show_error(response.data);
     });
   };
 

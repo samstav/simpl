@@ -602,23 +602,15 @@ services.factory('github', ['$http', function($http) {
 
 
     //Load all repos for owner
-    get_repos: function(remote, callback, error_callback) {
+    get_repos: function(remote) {
       var path = remote.api.url;
       if (remote.org !== null) {
         path += 'orgs/' + remote.org + '/repos';
       } else
         path += 'users/' + remote.user + '/repos';
       console.log("Loading: " + path);
-      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-        success(function(data, status, headers, config) {
-          console.log("Load repos returned");
-          callback(data);
-          console.log("Done loading repos");
-        }).
-        error(function(data, status, headers, config) {
-          var response = {data: data, status: status};
-          error_callback(response);
-        });
+      var config = {headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}};
+      return $http.get(path, config);
     },
 
     //Load one repo
