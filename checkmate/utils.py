@@ -781,7 +781,7 @@ def generate_password(min_length=None, max_length=None, required_chars=None,
     :param valid_chars: the set of valid characters for non-required chars
     '''
     # Raise Exception if max_length exceeded
-    if max_length > 255:
+    if min_length > 255 or max_length > 255:
         raise ValueError('Maximum password length of 255 characters exceeded.')
 
     # Choose a valid password length based on min_length and max_length

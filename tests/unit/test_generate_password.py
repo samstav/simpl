@@ -104,9 +104,17 @@ class TestGeneratePassword(unittest.TestCase):
         self.assertAtLeastOne(password, as_set('$%^'))
         self.assertAtLeastOne(password, as_set('&*('))
 
-    def test_255_characters_is_max_password_length(self):
+    def test_max_length_cannot_exceed_255(self):
         with self.assertRaises(ValueError) as expected:
             utils.generate_password(max_length=256)
+        self.assertEqual(
+            "Maximum password length of 255 characters exceeded.",
+            str(expected.exception)
+        )
+
+    def test_min_length_cannot_exceed_255(self):
+        with self.assertRaises(ValueError) as expected:
+            utils.generate_password(min_length=256)
         self.assertEqual(
             "Maximum password length of 255 characters exceeded.",
             str(expected.exception)
