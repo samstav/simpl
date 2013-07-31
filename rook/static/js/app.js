@@ -3472,6 +3472,7 @@ function ResourcesController($scope, $resource){
   $scope.resources_by_provider = {};
   $scope.resources_by_provider.nova = [];
   $scope.resources_by_provider.database = [];
+  $scope.resources_by_provider['load-balancer'] = [];
 
   $scope.add_to_deployment = function(resource){
     $scope.selected_resources.push(resource);
@@ -3483,10 +3484,26 @@ function ResourcesController($scope, $resource){
     $scope.selected_resources.splice($scope.selected_resources.indexOf(resource), 1);
   };
 
-  $scope.getServers = function(){
+  $scope.get_load_balancers = function(){
     var tenant_id = $scope.auth.context.tenantId;
     if ($scope.auth.identity.loggedIn && tenant_id){
-      var url = '/:tenantId/providers/rackspace.nova/proxy/cats';
+      var url = '/:tenantId/providers/rackspace.load-balancer/proxy/list';
+      var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+      lb_api.query(function(results) {
+        $scope.resources_by_provider['load-balancer'] = results;
+      },
+      function(response) {
+        if (!('data' in response))
+          response.data = {};
+        response.data.description = "Error loading load balancer list";
+      });
+    }
+  };
+
+  $scope.get_servers = function(){
+    var tenant_id = $scope.auth.context.tenantId;
+    if ($scope.auth.identity.loggedIn && tenant_id){
+      var url = '/:tenantId/providers/rackspace.nova/proxy/list';
       var server_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
       server_api.query(function(results) {
         $scope.resources_by_provider.nova = results;
@@ -3499,10 +3516,10 @@ function ResourcesController($scope, $resource){
     }
   };
 
-  $scope.getDatabases = function(){
+  $scope.get_databases = function(){
     var tenant_id = $scope.auth.context.tenantId;
     if ($scope.auth.identity.loggedIn && tenant_id){
-      var url = '/:tenantId/providers/rackspace.database/proxy/dogs';
+      var url = '/:tenantId/providers/rackspace.database/proxy/list';
       var db_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
       var results = db_api.query(function() {
         for(var i=0; i<results.length; i++){
@@ -3534,6 +3551,7 @@ function ResourcesController($scope, $resource){
         "providers": {
             "nova": {},
             'database': {},
+            'load-balancer': {},
             "common": {
                 "vendor": "rackspace"
             }

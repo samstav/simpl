@@ -1,17 +1,24 @@
 <div>
   <div class='row-fluid'>
     <div class='span3'>
-      <h4 ng-init="getServers()">Nova Servers</h4>
+      <h4 ng-init="get_servers()">Nova Servers</h4>
       <ul>
         <li ng-repeat="server in resources_by_provider.nova" ng-click="add_to_deployment(server)">
           {{server.instance.ip}}
         </li>
       </ul>
 
-      <h4 ng-init="getDatabases()">Databases</h4>
+      <h4 ng-init="get_databases()">Databases</h4>
       <ul>
         <li ng-repeat="db in resources_by_provider.database" ng-click="add_to_deployment(db)">
           {{db.instance.id}}
+        </li>
+      </ul>
+
+      <h4 ng-init="get_load_balancers()">Load Balancers</h4>
+      <ul>
+        <li ng-repeat="lb in resources_by_provider['load-balancer']" ng-click="add_to_deployment(lb)">
+          {{lb.instance.id}}
         </li>
       </ul>
     </div>
