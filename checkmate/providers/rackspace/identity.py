@@ -2,59 +2,90 @@
   Celery tasks to authenticate against the Rackspace Cloud
 """
 import logging
+import httplib
+import json
+import sys
 
 from celery.task import task
-import cloudlb
-from keystoneclient.v2_0 import client
-
 from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
 
 
-def _get_ddi(context, tenants):
-    """Given a list of tenants, find the DDI tenant
-
-    This is a hackish way to get the tenant. What's the right way?
-    """
-    for tenant in tenants:
-        if 'Mosso' not in tenant.id:
-            return tenant.id
-    LOG.debug("ERROR: Could not find the expected DDI in tenant list")
-
-
 # Celeryd functions
 @task
 def get_token(context):
-    match_celery_logging(LOG)
-    LOG.debug('Auth %s' % (context['username']))
-    if 'apikey' in context:
-        LOG.debug("Using cloudlb to handle APIKEY aurthentication")
-        clb = cloudlb.CloudLoadBalancer(
-            context['username'], context['apikey'], context['region']
-        )
-        clb.client.authenticate()
-        LOG.debug('Auth token for user %s is %s' % (
-            context['username'], clb.client.auth_token))
-        return clb.client.auth_token
-    elif 'password' in context:
-        keystone = client.Client(
-            username=context['username'],
-            password=context['password'],
-            tenant_name=context.get('tenant'),
-            auth_url=context.get(
-                'auth_url',
-                "https://identity.api.rackspacecloud.com/v2.0"
-            )
-        )
+    """
+    Authentication For Openstack API, Pulls the full Openstack Service
+    Catalog Credentials are the Users API Username and Key/Password
+    "osauth" has a Built in Rackspace Method for Authentication
 
-    if 'tenant' in context:
-        keystone.tenant_id = context['tenant']
+    Set a DC Endpoint and Authentication URL for the Open Stack environment
+    """
+    if context.get('region') is None:
+        raise AttributeError('No Region Specified')
     else:
-        keystone.tenant_id = _get_ddi(context, keystone.tenants.list())
-    LOG.debug(
-        'Auth token for user %s is %s (tenant %s)' % (
-            context['username'], keystone.auth_token, keystone.tenant_id
-        )
-    )
-    return keystone.auth_token
+        _region = context.get('region').upper()
+
+    if any([_region == 'LON']):
+        _url = context.get('auth_url', 'lon.identity.api.rackspacecloud.com')
+        _rax = True
+    elif any([_region == 'DFW',
+              _region == 'ORD',
+              _region == 'SYD']):
+        _url = context.get('auth_url', 'identity.api.rackspacecloud.com')
+        _rax = True
+    else:
+        if context.get('auth_url'):
+            _url = context.get('auth_url')
+            _rax = False
+        else:
+            raise AttributeError('FAIL\t: You have to specify an Auth URL')
+
+    # Setup our Authentication POST
+    _username = context.get('username')
+    setup = {'username': _username}
+    if context.get('apikey'):
+        prefix = 'RAX-KSKEY:apiKeyCredentials'
+        setup['apiKey'] = context.get('apikey')
+    elif context.get('password'):
+        prefix = 'passwordCredentials'
+        setup['password'] = context.get('password')
+    else:
+        raise AttributeError('No Password or APIKey Specified')
+
+    # remove the prefix for the Authentication URL if Found
+    authurl = _url.strip('http?s://')
+    url_data = authurl.split('/')
+    aurl = url_data[0]
+    authjsonreq = json.dumps({'auth': {prefix: setup}})
+    headers = {'Content-Type': 'application/json'}
+    tokenurl = '/v2.0/tokens'
+
+    # Setup the Authentication URL
+    if ('https' in _url or _rax is True):
+        conn = httplib.HTTPSConnection(aurl)
+    else:
+        conn = httplib.HTTPConnection(aurl)
+
+    # Make the request for authentication
+    conn.request('POST', tokenurl, authjsonreq, headers)
+    try:
+        if sys.version_info < (2, 7, 0):
+            resp = conn.getresponse()
+        else:
+            resp = conn.getresponse(buffering=True)
+    except Exception, exc:
+        LOG.debug("Failure to perform Authentication %s" % exc)
+    else:
+        resp_read = resp.read()
+    jrp = json.loads(resp_read)
+    jra = jrp.get('access')
+    token = jra.get('token').get('id')
+    # Tenant ID set as it was originaly in the method, but its not used
+    tenantid = jra.get('token').get('tenant').get('id')
+    LOG.debug('Auth token for user %s is %s (tenant %s)' % (_username,
+                                                            token,
+                                                            tenantid))
+    return token
+
