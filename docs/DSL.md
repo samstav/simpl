@@ -201,7 +201,7 @@ Note: this is the schema that is being supported in v0.7 of the engine. The sche
 **....order**: relative order of this option within its group (as an integer)  
 **....list-type**: what is the type of the entries in the list. This is used to identify if it should be a specific resource type and list or attribute. The format is resource-type.list where resource-type is a known Checkmate resource type (compute, database, etc...) and the list is one of the lists from the provider [TODO: define these `lists` more precisely in the DSL or schema. Right now, they exist only in the provider catalogs]. Examples (and what we will initially support):
 * _compute.memory_: list of available compute image sizes
-* _compute.os: list of available compute operating systems
+* _compute.os_: list of available compute operating systems
 * _load-balancer.algorithm_: list of available load balancer algorithms
 
 **....encrypted-protocols**: The subset of protocols that are encrypted so that we know when to show ssl cert controls. Ex. [https, pop3s]  
