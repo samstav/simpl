@@ -560,37 +560,44 @@ services.factory('github', ['$http', function($http) {
       return api;
     },
 
+    parse_url: function(url_string) {
+      var remote = {};
+
+      var url = URI(url_string);
+      var segments = url.path().substring(1).split('/');
+      var first_path_part = segments[0];
+      remote.server = url.protocol() + '://' + url.host(); //includes port
+      remote.url = url.href();
+      remote.api = this.get_api_details(url);
+      remote.owner = first_path_part;
+      if (segments.length > 1) {
+        remote.repo = {name: segments[1]};
+      } else {
+        remote.repo = {};
+      }
+
+      return remote;
+    },
+
     //Parse URL and returns the github components (org, user, repo) back
     parse_org_url: function(url, callback) {
-      var results = {};
-      var u = URI(url);
-      var parts = u.path().substring(1).split('/');
-      var first_path_part = parts[0];
-      results.server = u.protocol() + '://' + u.host(); //includes port
-      results.url = u.href();
-      results.api = this.get_api_details(u);
-      results.owner = first_path_part;
-      if (parts.length > 1) {
-        results.repo = {name: parts[1]};
-      } else {
-        results.repo = {};
-      }
+      var remote = this.parse_url(url);
       //Test if org
-      $http({method: 'HEAD', url: results.api.url + 'orgs/' + first_path_part,
-          headers: {'X-Target-Url': results.api.server, 'accept': 'application/json'}}).
+      $http({method: 'HEAD', url: remote.api.url + 'orgs/' + remote.owner,
+          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
         //This is an org
-        results.org = first_path_part;
-        results.user = null;
+        remote.org = remote.owner;
+        remote.user = null;
         if(callback) callback();
       }).
       error(function(data, status, headers, config) {
         //This is not an org (assume it is a user)
-        results.org = null;
-        results.user = first_path_part;
+        remote.org = null;
+        remote.user = remote.owner;
         if(callback) callback();
       });
-      return results;
+      return remote;
     },
 
 
@@ -740,7 +747,7 @@ services.factory('github', ['$http', function($http) {
         error(function() {
           console.log('Failed to retrieve ' + content_item + ' from ' + url);
         });
-    }
+    },
   };
   return me;
 }]);
