@@ -12,6 +12,10 @@ from checkmate.utils import match_celery_logging
 LOG = logging.getLogger(__name__)
 
 
+class NoTenatIdFound(Exception):
+    pass
+
+
 # Celeryd functions
 @task
 def get_token(context):
@@ -83,7 +87,13 @@ def get_token(context):
     jra = jrp.get('access')
     token = jra.get('token').get('id')
     # Tenant ID set as it was originaly in the method, but its not used
-    tenantid = jra.get('token').get('tenant').get('id')
+    if 'tenant' in jra:
+        tenantid = jra.get('token').get('tenant').get('id')
+    elif 'user' in jra:
+        tenantid = jra.get('user').get('name')
+    else:
+        raise NoTenatIdFound('When attempting to grab the tenant/user ',
+                             ' nothing was found.')
     LOG.debug('Auth token for user %s is %s (tenant %s)' % (_username,
                                                             token,
                                                             tenantid))
