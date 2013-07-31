@@ -132,13 +132,9 @@ class GitHubManager(base.ManagerBase):
 
     def _blocking_refresh_if_needed(self):
         """If _blueprints is None, perform a refresh of all blueprints."""
-        LOG.info("X-Source-Untrusted: blocking_refresh_if_needed with "
-                 "blueprint count of %d", len(self._blueprints))
         if not self._blueprints:
             # Wait for refresh to complete (block)
-            LOG.info("X-Source-Untrusted: background is %s", self.background)
             if self.background is None:
-                LOG.info("X-Source-Untrusted: starting background refresh.")
                 self.start_background_refresh()
             try:
                 LOG.warning("Call to GET /blueprints blocking on refresh")
@@ -413,6 +409,20 @@ class GitHubManager(base.ManagerBase):
             del self._blueprints[rid]
         self._store(blueprint, self._ref, self._blueprints)
 
+    def _get_source(self, provider):
+        """Given a dict of providers, return the 'source' from 'chef-solo'."""
+        # Scary assumptions here...
+        return provider['constraints'][0]['source']
+
+    def _sources_match(self, untrusted, trusted):
+        """If chef-solo's 'source' is the same in both, return True."""
+        untrusted_p = untrusted['environment']['providers']
+        trusted_p = trusted['environment']['providers']
+        if not untrusted_p.get('chef-solo') or not trusted_p.get('chef-solo'):
+            return False
+        return (self._get_source(untrusted_p['chef-solo']) ==
+                self._get_source(trusted_p['chef-solo']))
+
     def blueprint_is_invalid(self, untrusted_blueprint):
         """Returns true if passed-in blueprint does NOT pass validation."""
         return not self.blueprint_is_valid(untrusted_blueprint)
@@ -420,15 +430,11 @@ class GitHubManager(base.ManagerBase):
     def blueprint_is_valid(self, untrusted_blueprint):
         """Returns true if passed-in blueprint passes validation."""
         self._blocking_refresh_if_needed()
-        LOG.info("X-Source-Untrusted: %d blueprints cached in memory.",
-                 len(self._blueprints))
         for _, blueprint in self._blueprints.items():
-            LOG.info("X-Source-Untrusted: checking a cached blueprint.")
-            if untrusted_blueprint['blueprint'] == blueprint['blueprint']:
-                LOG.info("X-Source-Untrusted: blueprint section matched!")
-                if untrusted_blueprint['environment'] == blueprint['environment']:
-                    LOG.info("X-Source-Untrusted: environment section matched!")
-                    return True
+            if self._sources_match(untrusted_blueprint, blueprint):
+                untrusted_blueprint['blueprint'] = blueprint['blueprint']
+                untrusted_blueprint['environment'] = blueprint['environment']
+                return True
         return False
 
     def _get_repo(self, repo_name):
