@@ -16,6 +16,7 @@ from checkmate.providers.rackspace import loadbalancer
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
+from checkmate import workflows
 
 LOG = logging.getLogger(__name__)
 
@@ -501,8 +502,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - compute: linux
             """))
         deployments.Manager.plan(vip_deployment, self.context)
-        workflow_spec = cm_wf.create_workflow_spec_deploy(vip_deployment,
-                                                          self.context)
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+            vip_deployment, self.context)
         workflow = cm_wf.init_spiff_workflow(
             workflow_spec, vip_deployment, self.context)
 
@@ -586,7 +587,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             """))
         deployments.Manager.plan(
             deployment_with_allow_unencrypted, self.context)
-        workflow_spec = cm_wf.create_workflow_spec_deploy(
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             deployment_with_allow_unencrypted, self.context)
         workflow = cm_wf.init_spiff_workflow(
             workflow_spec, deployment_with_allow_unencrypted, self.context)
@@ -618,8 +619,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
     def test_workflow_task_generation(self):
         """Verify workflow task creation."""
-        workflow_spec = cm_wf.create_workflow_spec_deploy(self.deployment,
-                                                          self.context)
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+            self.deployment, self.context)
         workflow = cm_wf.init_spiff_workflow(workflow_spec, self.deployment,
                                              self.context)
 

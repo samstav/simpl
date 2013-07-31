@@ -48,7 +48,6 @@ from checkmate.utils import (
     yaml_to_dict,
     get_class_name,
 )
-from checkmate.workflow import wait_for
 
 
 LOG = logging.getLogger(__name__)
@@ -431,7 +430,7 @@ class Provider(RackspaceComputeProviderBase):
         preps = getattr(self, 'prep_task', None)
         if preps:
             wait_on.append(preps)
-        join = wait_for(wfspec, create_server_task, wait_on,
+        join = wfspec.wait_for(create_server_task, wait_on,
                         name="Server Wait on:%s (%s)" % (key,
                                                          resource['service']))
 

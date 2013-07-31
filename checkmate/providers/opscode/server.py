@@ -11,7 +11,6 @@ from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Merge, Transform
 
 from checkmate.providers import ProviderBase
-from checkmate.workflow import wait_for
 from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
@@ -96,10 +95,10 @@ class Provider(ProviderBase):
             environment=deployment['id'],
             properties={'estimated_duration': 90}
         )
-        wait_for(
-            wfspec, bootstrap_task, [ssh_apt_get_task, register_node_task],
-            name="Wait for Server Build:%s (%s)" % (key, resource['service'])
-        )
+        wfspec.wait_for(bootstrap_task,
+                        [ssh_apt_get_task, register_node_task],
+                        name="Wait for Server Build:%s (%s)" % (
+                            key, resource['service']))
         return {'root': register_node_task, 'final': bootstrap_task}
 
     def add_connection_tasks(
@@ -155,8 +154,7 @@ class Provider(ProviderBase):
             )
 
             wait_on = [compile_override, self.prep_task]
-            wait_for(
-                wfspec, set_overrides, wait_on,
+            wfspec.wait_for(set_overrides, wait_on,
                 name="Wait on Environment and Settings:%s" % key
             )
 

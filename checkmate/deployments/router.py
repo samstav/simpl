@@ -233,7 +233,7 @@ class Router(object):
         '''Parse and preview a deployment and its workflow.'''
         deployment = _content_to_deployment(tenant_id=tenant_id)
         results = self.manager.plan(deployment, bottle.request.context)
-        spec = workflow.create_workflow_spec_deploy(
+        spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             results, bottle.request.context)
         serializer = DictionarySerializer()
         serialized_spec = spec.serialize(serializer)
@@ -366,8 +366,9 @@ class Router(object):
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
             common_tasks.update_operation.delay(api_id, api_id, driver=driver,
                                                 action='PAUSE')
-        delete_workflow_spec = workflow.create_delete_deployment_workflow_spec(
-            deployment, bottle.request.context)
+        delete_workflow_spec = (
+            workflows.WorkflowSpec.create_delete_deployment_workflow_spec(
+                deployment, bottle.request.context))
         spiff_workflow = workflow.create_workflow(
             delete_workflow_spec, deployment, bottle.request.context,
             driver=driver)

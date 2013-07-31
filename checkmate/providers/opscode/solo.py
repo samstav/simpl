@@ -28,7 +28,6 @@ from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
 from checkmate.providers import ProviderBase
 from checkmate.providers.opscode import knife
-from checkmate.workflow import wait_for
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
@@ -185,17 +184,15 @@ class Provider(ProviderBase):
 
         # Wait for relations tasks to complete
         for relation_key in resource.get('relations', {}).keys():
-            tasks = self.find_task_specs(wfspec, resource=key,
-                                    relation=relation_key, tag='final')
+            tasks = wfspec.find_task_specs(resource=key,
+                                           relation=relation_key, tag='final')
             if tasks:
                 dependencies.extend(tasks)
 
         server_id = resource.get('hosted_on', key)
 
-        wait_for(
-            wfspec,
-            anchor_task,
-            dependencies,
+        wfspec.wait_for(
+            anchor_task, dependencies,
             name="After server %s (%s) is registered and options are ready"
                  % (server_id, service_name),
             description="Before applying chef recipes, we need to know that "
@@ -206,7 +203,7 @@ class Provider(ProviderBase):
         # if we have a host task marked 'complete', make that wait on configure
         host_complete = self.get_host_complete_task(wfspec, resource)
         if host_complete:
-            wait_for(wfspec, host_complete, [configure_task],
+            wfspec.wait_for(host_complete, [configure_task],
                      name='Wait for %s to be configured before completing '
                      'host %s' %
                      (service_name, resource.get('hosted_on', key)))
@@ -246,15 +243,13 @@ class Provider(ProviderBase):
         Only one role per component is supported now.
         '''
         # Do tasks already exist?
-        collect_tasks = self.find_task_specs(wfspec,
-                                        provider=self.key,
-                                        resource=resource_key,
-                                        tag=collect_tag)
+        collect_tasks = wfspec.find_task_specs(provider=self.key,
+                                               resource=resource_key,
+                                               tag=collect_tag)
         if collect_tasks:
-            ready_tasks = self.find_task_specs(wfspec,
-                                          provider=self.key,
-                                          resource=resource_key,
-                                          tag=ready_tag)
+            ready_tasks = wfspec.find_task_specs(provider=self.key,
+                                                 resource=resource_key,
+                                                 tag=ready_tag)
             if not ready_tasks:
                 raise CheckmateException("'collect' task exists, but "
                                          "'options-ready' is missing")
@@ -588,8 +583,8 @@ class Provider(ProviderBase):
             LOG.debug("Relation '%s' for resource '%s' has a mapping",
                       relation_key, key)
             # Set up a wait for the relation target to be ready
-            tasks = self.find_task_specs(wfspec, resource=relation['target'],
-                                    tag='final')
+            tasks = wfspec.find_task_specs(resource=relation['target'],
+                                           tag='final')
 
         if tasks:
             # The collect task will have received a copy of the map and
@@ -597,7 +592,7 @@ class Provider(ProviderBase):
             # tasks signal they are complete.
             collect_tasks = self.get_prep_tasks(wfspec, deployment, key,
                                                 component)
-            wait_for(wfspec, collect_tasks['root'], tasks)
+            wfspec.wait_for(collect_tasks['root'], tasks)
 
         if relation.get('relation') == 'host':
             # Wait on host to be ready
@@ -664,8 +659,8 @@ class Provider(ProviderBase):
             # Register only when server is up and environment is ready
             if self.prep_task:
                 wait_on.append(self.prep_task)
-            root = wait_for(
-                wfspec, register_node_task, wait_on,
+            root = wfspec.wait_for(
+                register_node_task, wait_on,
                 name="After Environment is Ready and Server %s (%s) is Up" %
                      (relation['target'], service_name),
                 resource=key, relation=relation_key, provider=self.key
@@ -697,12 +692,12 @@ class Provider(ProviderBase):
                                                          server_component)
                 recollect_task = recon_tasks['root']
 
-                final_tasks = self.find_task_specs(
-                    wfspec, resource=key, provider=self.key, tag='final')
-
+                final_tasks = wfspec.find_task_specs(resource=key,
+                                                     provider=self.key,
+                                                     tag='final')
                 host_complete = self.get_host_complete_task(wfspec, server)
-                final_tasks.extend(self.find_task_specs(
-                    wfspec, resource=server.get('index'),
+                final_tasks.extend(wfspec.find_task_specs(
+                    resource=server.get('index'),
                     provider=self.key, tag='final')
                 )
                 if not final_tasks:
@@ -710,11 +705,12 @@ class Provider(ProviderBase):
                     LOG.warn("Did not find final task for resource %s", key)
                     final_tasks = [self.prep_task]
                 LOG.debug("Reconfig waiting on %s", final_tasks)
-                wait_for(wfspec, recollect_task, final_tasks)
+                wfspec.wait_for(recollect_task, final_tasks)
 
                 if host_complete:
-                    LOG.debug("Re-ordering the Mark Server Online task to follow Reconfigure tasks")
-                    wait_for(wfspec, host_complete, [recon_tasks['final']])
+                    LOG.debug("Re-ordering the Mark Server Online task to "
+                              "follow Reconfigure tasks")
+                    wfspec.wait_for(host_complete, [recon_tasks['final']])
 
     def get_reconfigure_tasks(self, wfspec, deployment, client, server,
                               server_component):
@@ -735,15 +731,17 @@ class Provider(ProviderBase):
         LOG.debug("Inform server %s (%s) that client %s (%s) is ready to "
                   "connect it", server['index'], server['component'],
                   client['index'], client['component'])
-        existing = self.find_task_specs(wfspec, resource=server['index'],
-                                   provider=self.key, tag='client-ready')
+        existing = wfspec.find_task_specs(resource=server['index'],
+                                          provider=self.key,
+                                          tag='client-ready')
         collect_tag = "reconfig"
         ready_tag = "reconfig-options-ready"
 
         if existing:
             reconfigure_task = existing[0]
-            collect = self.find_task_specs(wfspec, resource=server['index'],
-                                      provider=self.key, tag=collect_tag)
+            collect = wfspec.find_task_specs(resource=server['index'],
+                                             provider=self.key,
+                                             tag=collect_tag)
             if collect:
                 root_task = collect[0]
             else:

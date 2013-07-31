@@ -131,7 +131,8 @@ class Manager(base.ManagerBase):
         generate_keys(deployment)
         deployment['display-outputs'] = deployment.calculate_outputs()
 
-        deploy_spec = workflow.create_workflow_spec_deploy(deployment, context)
+        deploy_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+            deployment, context)
         spiff_wf = workflow.create_workflow(
             deploy_spec, deployment, context, driver=self.select_driver(
                 deployment['id']), workflow_id=deployment['id'])
@@ -450,8 +451,9 @@ class Manager(base.ManagerBase):
         return deployment
 
     def deploy_add_nodes(self, deployment, context, tenant_id):
-        add_node_workflow_spec = workflow.create_workflow_spec_deploy(
-            deployment, context)
+        add_node_workflow_spec = (workflows.WorkflowSpec
+                                  .create_workflow_spec_deploy(deployment,
+                                                               context))
         add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
                                                      deployment, context,
                                                      driver=self.driver)

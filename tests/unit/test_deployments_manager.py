@@ -18,6 +18,7 @@ import mox
 from checkmate import deployments
 from checkmate import operations
 from checkmate import workflow
+from checkmate import workflows
 from checkmate.deployment import Deployment
 
 
@@ -49,10 +50,13 @@ class TestManager(unittest.TestCase):
         mock_context = self._mox.CreateMockAnything()
         mock_spec = self._mox.CreateMockAnything()
         mock_wf = self._mox.CreateMockAnything()
-        self._mox.StubOutWithMock(workflow, "create_workflow_spec_deploy")
-        workflow.create_workflow_spec_deploy(deployment, mock_context)\
-            .AndReturn(mock_spec)
+        self._mox.StubOutWithMock(workflows.WorkflowSpec,
+                                  "create_workflow_spec_deploy")
+
+        workflows.WorkflowSpec.create_workflow_spec_deploy(
+            deployment, mock_context).AndReturn(mock_spec)
         self._mox.StubOutWithMock(workflow, "create_workflow")
+
         workflow.create_workflow(
             mock_spec, deployment, mock_context, driver=self.controller.driver
         ).AndReturn(mock_wf)

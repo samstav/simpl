@@ -17,7 +17,7 @@ from SpiffWorkflow.specs import WorkflowSpec, Simple
 from SpiffWorkflow.storage import DictionarySerializer
 from SpiffWorkflow.Workflow import Workflow
 
-from checkmate import workflow, deployments, test
+from checkmate import workflow, deployments, test, workflows
 from checkmate import utils
 from checkmate.deployment import Deployment
 from checkmate.middleware import RequestContext
@@ -27,7 +27,6 @@ from checkmate.workflow import (
     get_errors,
     is_failed_task,
     update_workflow,
-    create_delete_deployment_workflow_spec,
     init_spiff_workflow,
 )
 
@@ -299,10 +298,11 @@ class TestWorkflow(unittest.TestCase):
         deployments.Manager.plan(deployment_with_lb_provider, context)
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
-        workflow_spec = create_delete_deployment_workflow_spec(
-            deployment_with_lb_provider, context)
-        workflow = init_spiff_workflow(workflow_spec, deployment_with_lb_provider,
-                                   context)
+        workflow_spec = workflows.WorkflowSpec\
+            .create_delete_deployment_workflow_spec(
+                deployment_with_lb_provider, context)
+        workflow = init_spiff_workflow(workflow_spec,
+                                       deployment_with_lb_provider, context)
         workflow_dump = re.sub("\s", "", workflow.get_dump())
         expected_dump = """
 1/0: Task of Root State: COMPLETED Children: 1
@@ -367,10 +367,11 @@ class TestWorkflow(unittest.TestCase):
         deployments.Manager.plan(deployment_with_lb_provider, context)
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
-        workflow_spec = create_delete_deployment_workflow_spec(
-            deployment_with_lb_provider, context)
-        workflow = init_spiff_workflow(workflow_spec, deployment_with_lb_provider,
-                                   context)
+        workflow_spec = workflows.WorkflowSpec\
+            .create_delete_deployment_workflow_spec(
+                deployment_with_lb_provider, context)
+        workflow = init_spiff_workflow(workflow_spec,
+                                       deployment_with_lb_provider, context)
         workflow_dump = re.sub("\s", "", workflow.get_dump())
         print workflow.get_dump()
         expected_dump = """
