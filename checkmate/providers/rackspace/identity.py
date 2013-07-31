@@ -1,5 +1,5 @@
 """
-  Celery tasks to authenticate against the Rackspace Cloud
+Celery tasks to authenticate against the Rackspace Cloud
 """
 import logging
 import httplib
@@ -16,6 +16,33 @@ class NoTenatIdFound(Exception):
     pass
 
 
+def parse_region(context):
+    """
+    Pull region/auth url information from conext.
+    :param context:
+    """
+    if context.get('region') is None:
+        raise AttributeError('No Region Specified')
+    else:
+        region = context.get('region').upper()
+
+    if any([region == 'LON']):
+        url = context.get('auth_url', 'lon.identity.api.rackspacecloud.com')
+        rax = True
+    elif any([region == 'DFW',
+              region == 'ORD',
+              region == 'SYD']):
+        url = context.get('auth_url', 'identity.api.rackspacecloud.com')
+        rax = True
+    else:
+        if context.get('auth_url'):
+            url = context.get('auth_url')
+            rax = False
+        else:
+            raise AttributeError('FAIL\t: You have to specify an Auth URL')
+    return url, rax
+
+
 # Celeryd functions
 @task
 def get_token(context):
@@ -25,26 +52,9 @@ def get_token(context):
     "osauth" has a Built in Rackspace Method for Authentication
 
     Set a DC Endpoint and Authentication URL for the Open Stack environment
+    :param context:
     """
-    if context.get('region') is None:
-        raise AttributeError('No Region Specified')
-    else:
-        _region = context.get('region').upper()
-
-    if any([_region == 'LON']):
-        _url = context.get('auth_url', 'lon.identity.api.rackspacecloud.com')
-        _rax = True
-    elif any([_region == 'DFW',
-              _region == 'ORD',
-              _region == 'SYD']):
-        _url = context.get('auth_url', 'identity.api.rackspacecloud.com')
-        _rax = True
-    else:
-        if context.get('auth_url'):
-            _url = context.get('auth_url')
-            _rax = False
-        else:
-            raise AttributeError('FAIL\t: You have to specify an Auth URL')
+    _url, _rax = parse_region(context=context)
 
     # Setup our Authentication POST
     _username = context.get('username')
@@ -98,4 +108,3 @@ def get_token(context):
                                                             token,
                                                             tenantid))
     return token
-
