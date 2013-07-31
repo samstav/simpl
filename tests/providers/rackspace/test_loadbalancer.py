@@ -3,6 +3,7 @@ import logging
 import re
 
 import cloudlb
+import mock
 import mox
 import unittest
 
@@ -785,6 +786,37 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'Workflow did not complete')
 
         self.mox.VerifyAll()
+
+class TestLoadBalancerProxy(unittest.TestCase):
+    """Test Load Balancer Provider's proxy function"""
+    @mock.patch('checkmate.providers.rackspace.loadbalancer.pyrax')
+    def test_proxy_returns_load_balancer_resource(self, mock_pyrax):
+        request = mock.Mock()
+        load_balancer = mock.Mock()
+        load_balancer.status = 'status'
+        load_balancer.name = 'name'
+        load_balancer.virtual_ips = []
+        mock_pyrax.cloud_loadbalancers.list.return_value = [load_balancer]
+        mock_pyrax.cloud_loadbalancers.region_name = 'region_name'
+        result = loadbalancer.Provider.proxy('list', request, 'tenant')[0]
+
+        self.assertEqual(result['region'], 'region_name')
+        self.assertEqual(result['status'], 'status')
+        self.assertEqual(result['dns-name'], 'name')
+
+    @mock.patch('checkmate.providers.rackspace.loadbalancer.pyrax')
+    def test_proxy_uses_public_ip(self, mock_pyrax):
+        request = mock.Mock()
+        load_balancer = mock.Mock()
+        vip = mock.Mock()
+        vip.type = 'PUBLIC'
+        vip.ip_version = 'IPV4'
+        vip.address = '1.1.1.1'
+        load_balancer.virtual_ips = [vip]
+        mock_pyrax.cloud_loadbalancers.list.return_value = [load_balancer]
+        result = loadbalancer.Provider.proxy('list', request, 'tenant')
+        instance = result[0]['instance']
+        self.assertEqual(instance['public_ip'], '1.1.1.1')
 
 
 if __name__ == '__main__':

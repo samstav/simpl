@@ -13,6 +13,7 @@ from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
 import cloudlb
+import pyrax
 import redis
 
 from checkmate.common import caching, statsd
@@ -655,6 +656,49 @@ class Provider(ProviderBase):
         self.validate_catalog(results)
         if type_filter is None:
             self._dict['catalog'] = results
+        return results
+
+    @staticmethod
+    def proxy(path, request, tenant_id=None):
+        """Proxy request through to loadbalancer provider"""
+        if path != 'list':
+            raise CheckmateException("Not a valid Provider path")
+        context = request.context
+        if not pyrax.get_setting("identity_type"):
+            pyrax.set_setting("identity_type", "rackspace")
+
+        pyrax.auth_with_token(context.auth_token, tenant_name=context.tenant)
+        api = pyrax.cloud_loadbalancers
+        load_balancers = api.list()
+        results = {}
+        for idx, lb in enumerate(load_balancers):
+            vip = None
+            for ip_data in lb.virtual_ips:
+                if ip_data.ip_version == 'IPV4' and ip_data.type == "PUBLIC":
+                    vip = ip_data.address
+
+            results[idx] = {
+                'status': lb.status,
+                'index': idx,
+                'service': 'lb',
+                'region': api.region_name,
+                'provider': 'load-balancer',
+                'component': 'http', #EH? IS THIS NECESSARY? WHATS THiS FoR?
+                'dns-name': lb.name,
+                'instance': {
+                    'protocol': lb.protocol,
+                    'interfaces': {
+                        'vip': {
+                            'public_ip': vip,
+                            'ip': vip
+                        }
+                    },
+                    'id': lb.id,
+                    'public_ip': vip,
+                    'port': lb.port
+                },
+                'type': 'load-balancer'
+            }
         return results
 
     @staticmethod
