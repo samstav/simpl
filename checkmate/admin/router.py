@@ -13,6 +13,7 @@ GET /admin/tenants/ and return all
 GET /admin/tenants?tag=foo&tag=bar
 
 '''
+import copy
 import errno
 import logging
 import subprocess
@@ -166,7 +167,7 @@ class Router(object):
         status = bottle.request.query.get('status')
         tenant_id = bottle.request.query.get('tenant_id')
 
-        params = bottle.request.query.dict
+        params = copy.deepcopy(bottle.request.query.dict)
         if 'tenant_tag' in params:
             tags = params['tenant_tag']
             tenants = self.tenant_manager.list_tenants(*tags)
