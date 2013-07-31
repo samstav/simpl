@@ -749,29 +749,18 @@ class TestNovaProxy(unittest.TestCase):
         server = mock.Mock()
         server.name = 'server_name'
         server.status = 'server_status'
-        server.flavor = 'server_flavor'
+        server.flavor = {'id': 'server_flavor'}
         server.image = {'id': 'server_image'}
-        server.addresses = 'server_addresses'
 
         mock_pyrax.cloudservers.list.return_value = [server]
         mock_pyrax.cloudservers.client.region_name = 'region_name'
         mock_get_ips.return_value = {}
 
-        expected = {0:
-            {
-                'index': 0, 'status': 'server_status',
-                'provider': 'nova', 'type': 'compute',
-                'type': 'compute', 'dns-name': 'server_name',
-                'instance': {
-                    'flavor': 'server_flavor',
-                    'image': 'server_image',
-                    'region': 'region_name',
-                    'addresses': 'server_addresses'
-                }
-            }
-        }
-        self.assertEqual(compute.Provider.proxy('list', request, 'tenant'),
-                         expected)
+        result = compute.Provider.proxy('list', request, 'tenant')[0]
+        self.assertEqual(result['status'], 'server_status')
+        self.assertEqual(result['flavor'], 'server_flavor')
+        self.assertEqual(result['instance']['image'], 'server_image')
+        self.assertEqual(result['instance']['region'], 'region_name')
 
     @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
@@ -779,6 +768,7 @@ class TestNovaProxy(unittest.TestCase):
         request = mock.Mock()
         server = mock.Mock()
         server.image = {'id': None}
+        server.flavor = {'id': None}
         mock_pyrax.cloudservers.list.return_value = [server]
         mock_get_ips.return_value = {'ip': '1.1.1.1',
                                      'public_ip': '2.2.2.2',

@@ -706,17 +706,22 @@ class Provider(RackspaceComputeProviderBase):
         results = {}
         for idx, server in enumerate(servs):
             results[idx] = {
-                'index': idx,
-                'provider': 'nova',
-                'type': 'compute',
-                'dns-name': server.name,
                 'status': server.status,
+                'index': idx,
+                'service': 'web',
+                'image': server.image['id'],
+                'provider': 'nova',
+                'dns-name': server.name,
                 'instance': {
-                    'flavor': server.flavor,
-                    'image': server.image['id'],
+                    'addresses': server.addresses,
+                    'id': server.id,
+                    'flavor': server.flavor['id'],
                     'region': api.client.region_name,
-                    'addresses': server.addresses
-                }
+                    'image': server.image['id']
+                },
+                'flavor': server.flavor['id'],
+                'type': 'compute',
+                'region': api.client.region_name,
             }
             merge_dictionary(results[idx]['instance'], get_ips_from_server(server, context.roles))
         return results
