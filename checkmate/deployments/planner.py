@@ -156,6 +156,10 @@ class Planner(classes.ExtensibleDict):
         '''Perform plan analysis. Returns a reference to planned resources.'''
         LOG.info("Planning deployment '%s'", self.deployment['id'])
 
+        # SECURITY: Someone could pass in a bazillion character name
+        if 'name' in self.deployment and len(self.deployment['name']) > 255:
+            deployment['name'] = deployment['name'][:255]
+
         # Quick validations
         cm_dep.validate_blueprint_options(self.deployment)
         cm_dep.validate_input_constraints(self.deployment)
