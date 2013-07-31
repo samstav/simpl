@@ -975,7 +975,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
             var params = { headers: response.headers, endpoint: endpoint };
             auth.context = auth.create_context(response.data, params);
             auth.identity = auth.create_identity(response.data, params);
-            auth.identity.context = _.clone(auth.context);
+            auth.identity.context = angular.copy(auth.context);
             if (auth.is_admin())
               auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
             auth.save();
@@ -1074,7 +1074,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         return tenant.username == context.username;
       });
 
-      auth.cache.tenants.unshift(_.clone(context));
+      auth.cache.tenants.unshift(angular.copy(context));
       if (auth.cache.tenants.length > 10)
         auth.cache.tenants.pop();
     },
@@ -1123,7 +1123,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     },
 
     exit_impersonation: function() {
-      auth.context = _.clone(auth.identity.context);
+      auth.context = angular.copy(auth.identity.context);
       auth.check_state();
       auth.save();
     },

@@ -1584,7 +1584,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     }
 
     $scope.auto_refresh_promise = $timeout($scope.auto_refresh, $scope.auto_refresh_timeout.current);
-    $scope._task_states = _.clone($scope.taskStates);
+    $scope._task_states = angular.copy($scope.taskStates);
   }
 
   $scope.auto_refresh = function() {
@@ -1653,7 +1653,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.avoid_collision = function(nodes, current_position, axis, level) {
     level = level || 0;
-    var new_position = _.clone(current_position);
+    var new_position = angular.copy(current_position);
     var existing_node = _.findWhere(nodes, new_position);
     if (!existing_node) {
       return new_position;
@@ -1699,7 +1699,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.interpolate_nodes = function(nodes) {
-    var interpolated_nodes = _.clone(nodes);
+    var interpolated_nodes = angular.copy(nodes);
     var limits = $scope.get_limits(nodes);
 
     _.each(interpolated_nodes, function(node) {
