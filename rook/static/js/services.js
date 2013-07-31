@@ -1780,3 +1780,26 @@ angular.module('checkmate.services').factory('Deployment', function(){
   return { status: status,
            progress: progress };
 });
+
+angular.module('checkmate.services').factory('Cache', function() {
+  var scope = {};
+  var CACHE_STORAGE = 'cmcache';
+  var storage = JSON.parse(localStorage.getItem(CACHE_STORAGE) || "{}");
+
+  scope.get = function(cache_name) {
+    if (!storage[cache_name]) {
+      storage[cache_name] = {};
+    }
+
+    storage[cache_name].save = function() {
+      // Loads current cache to update only necessary values
+      var current_cache = JSON.parse(localStorage.getItem(CACHE_STORAGE) || "{}");
+      current_cache[cache_name] = storage[cache_name];
+      localStorage.setItem(CACHE_STORAGE, JSON.stringify(current_cache));
+    }
+
+    return storage[cache_name];
+  }
+
+  return scope;
+});
