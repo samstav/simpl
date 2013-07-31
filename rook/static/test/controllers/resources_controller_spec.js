@@ -1,11 +1,13 @@
 describe('ResourcesController', function(){
   var $scope,
-      $resource;
+      $resource,
+      $location;
 
   beforeEach(function(){
     $scope = {};
     $resource = {};
-    controller = new ResourcesController($scope, $resource);
+    $location = {path: sinon.spy()};
+    controller = new ResourcesController($scope, $resource, $location);
   });
 
   it('should setup selected_resources', function(){
@@ -41,6 +43,20 @@ describe('ResourcesController', function(){
       $scope.selected_resources = [provider];
       $scope.remove_from_deployment(provider);
       expect($scope.resources_by_provider['nova']).toEqual([provider]);
+    });
+  });
+
+  describe('#submit', function(){
+    it('should redirect to the new deployment page after submission', function(){
+      var data = {'id': '111'}
+      var save_spy = sinon.spy();
+      $scope.auth = {context: {tenantId: '123'}};
+      $scope.new_deployment = sinon.stub().returns({$save: save_spy})
+      $scope.submit();
+
+      var success_callback = save_spy.getCall(0).args[0]
+      success_callback(data)
+      expect($location.path.getCall(0).args[0]).toEqual('/123/deployments/111');
     });
   });
 });

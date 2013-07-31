@@ -3467,7 +3467,7 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   };
 }
 
-function ResourcesController($scope, $resource){
+function ResourcesController($scope, $resource, $location){
   $scope.selected_resources = [];
   $scope.resources_by_provider = {};
   $scope.resources_by_provider.nova = [];
@@ -3534,11 +3534,16 @@ function ResourcesController($scope, $resource){
     }
   };
 
+  $scope.new_deployment = function(tenant_id){
+    var url = '/:tenantId/deployments';
+    Deployment = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id});
+    return new Deployment({});
+  }
+
   $scope.submit = function(){
     var url = '/:tenantId/deployments',
-        Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId}),
-        deployment = new Deployment({}),
-        resource;
+        tenant_id = $scope.auth.context.tenantId,
+        deployment = $scope.new_deployment(tenant_id);
 
     deployment.resources = {};
     for (i=0; i<$scope.selected_resources.length; i++){
@@ -3559,8 +3564,9 @@ function ResourcesController($scope, $resource){
     };
     deployment.inputs = {};
     deployment.inputs.blueprint = {};
-    deployment.$save(function(returned, getHeaders){
+    deployment.$save(function(result, getHeaders){
       console.log("Posted deployment");
+      $location.path('/' + tenant_id + '/deployments/' + result['id']);
     }, function(error){
       console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
       console.log(deployment);
