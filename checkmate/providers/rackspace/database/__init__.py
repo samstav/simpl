@@ -12,13 +12,12 @@ from .tasks import (
     create_instance as _create_instance,
     sync_resource_task as _sync_resource_task,
     wait_on_build as _wait_on_build,
+    create_database as _create_database,
 )
 
 from checkmate.deployments import resource_postback
-from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
     CheckmateException,
-    CheckmateBadState,
     CheckmateResumableException,
 )
 from checkmate.utils import (
@@ -75,118 +74,11 @@ def create_instance(context, instance_name, flavor, size, databases,
 @task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
 def create_database(context, name, region, character_set=None, collate=None,
                     instance_id=None, instance_attributes=None, api=None):
-    '''Create a database resource.
-
-    This call also creates a server instance if it is not supplied.
-
-    :param name: the database name
-    :param region: where to create the database (ex. DFW or dallas)
-    :param character_set: character set to use (see MySql and cloud databases
-            documanetation)
-    :param collate: collation to use (see MySql and cloud databases
-            documanetation)
-    :param instance_id: create the database on a specific instance id (if not
-            supplied, the instance is created)
-    :param instance_attributes: kwargs used to create the instance (used if
-            instance_id not supplied)
-    '''
-
-    match_celery_logging(LOG)
-
-    if context.get('simulation') is True:
-        resource_key = context['resource']
-        hostname = "srv%s.rackdb.net" % resource_key
-        database_name = name
-        results = {
-            'instance:%s' % resource_key: {
-                'name': database_name,
-                'host_instance': instance_id or 'DBS%s' % resource_key,
-                'host_region': region,
-                'interfaces': {
-                    'mysql': {
-                        'host': hostname,
-                        'database_name': database_name
-                    },
-                }
-            }
-        }
-        # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
-        return results
-
-    database = {'name': name}
-    if character_set:
-        database['character_set'] = character_set
-    if collate:
-        database['collate'] = collate
-    databases = [database]
-
-    if not api:
-        api = Provider.connect(context, region)
-
-    reset_failed_resource_task.delay(context["deployment"],
-                                     context["resource"])
-
-    instance_key = 'instance:%s' % context['resource']
-    if not instance_id:
-        # Create instance & database
-        instance_name = '%s_instance' % name
-        size = 1
-        flavor = '1'
-        if instance_attributes:
-            instance_name = instance_attributes.get('name', instance_name)
-            size = instance_attributes.get('size', size)
-            flavor = instance_attributes.get('flavor', flavor)
-
-        instance = create_instance(context, instance_name, size, flavor,
-                                   databases, region, api=api)
-        instance_id = instance.get(instance_key, {}).get('id')
-        wait_on_build.delay(context, instance_id, region, api=api)
-        # create_instance calls its own postback
-        results = {
-            instance_key: instance['instance']['databases'][name]
-        }
-        results[instance_key]['host_instance'] = instance_id
-        results[instance_key]['host_region'] = instance['region']
-        results[instance_key]['flavor'] = flavor
-        results[instance_key]['disk'] = size
-        return results
-
-    instance = api.get(instance_id)
-    if instance.status != "ACTIVE":
-        current.retry(
-            exc=CheckmateBadState("Database instance is not active.")
-        )
-    try:
-        instance.create_database(name, character_set, collate)
-        results = {
-            instance_key: {
-                'name': name,
-                'id': name,
-                'host_instance': instance_id,
-                'host_region': region,
-                'flavor': instance.flavor.id,
-                'status': "BUILD",
-                'interfaces': {
-                    'mysql': {
-                        # pylint: disable=E1103
-                        'host': instance.hostname,
-                        'database_name': name
-                    },
-                }
-            }
-        }
-        LOG.info('Created database(s) %s on instance %s',
-                 [d['name'] for d in databases], instance_id)
-        # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
-        return results
-    except ClientException as exc:
-        LOG.exception(exc)
-        if exc.code == 400:
-            current.retry(exc=exc, throw=True)  # Do not retry. Will fail.
-        # Expected while instance is being created. So retry
-        return current.retry(exc=exc)
+    '''Celery task registration for backwards comp.'''
+    return _create_database(context, name, region=region,
+                            character_set=character_set, collate=collate,
+                            instance_id=instance_id,
+                            instance_attributes=instance_attributes, api=api)
 
 
 @task(default_retry_delay=10, max_retries=10)

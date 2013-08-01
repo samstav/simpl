@@ -4,8 +4,6 @@ import mox
 import unittest
 
 from checkmate import deployment
-from checkmate import deployments
-from checkmate.deployments import tasks
 from checkmate.exceptions import CheckmateException
 from checkmate import middleware
 from checkmate import providers
@@ -94,7 +92,8 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_create_database_fail_building(self):
-        context = dict(deployment='DEP', resource='1')
+        context = middleware.RequestContext(**{'deployment': 'DEP',
+                                            'resource': '1'})
 
         #Mock instance
         instance = self.mox.CreateMockAnything()
@@ -104,11 +103,8 @@ class TestDatabase(test.ProviderTester):
         instance.hostname = 'fake.cloud.local'
 
         #Stub out postback call
-        self.mox.StubOutWithMock(deployments.resource_postback, 'delay')
-        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
-        tasks.reset_failed_resource_task.delay(context['deployment'],
-                                               context['resource'])
-
+        self.mox.StubOutWithMock(database._create_database, 'callback')
+        database._create_database.callback(context, {'status': 'BUILD'})
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get(instance.id).AndReturn(instance)
@@ -122,7 +118,8 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_create_database(self):
-        context = dict(deployment='DEP', resource='1')
+        context = middleware.RequestContext(**{'deployment': 'DEP',
+                                            'resource': '1'})
 
         #Mock instance
         instance = self.mox.CreateMockAnything()
@@ -134,8 +131,8 @@ class TestDatabase(test.ProviderTester):
         instance.hostname = 'fake.cloud.local'
 
         #Stub out postback call
-        self.mox.StubOutWithMock(deployments.resource_postback, 'delay')
-        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
+        self.mox.StubOutWithMock(database._create_database, 'callback')
+        #self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -158,10 +155,9 @@ class TestDatabase(test.ProviderTester):
                 'flavor': '1'
             }
         }
-        deployments.resource_postback.delay(
-            context['deployment'], expected).AndReturn(True)
-        tasks.reset_failed_resource_task.delay(context['deployment'],
-                                               context['resource'])
+        database._create_database.callback(
+            context, {'status': instance.status}).AndReturn(True)
+        database._create_database.callback(context, expected['instance:1'])
 
         self.mox.ReplayAll()
         results = database.create_database(context, 'db1', 'NORTH',
