@@ -537,7 +537,7 @@ services.value('options', {
 });
 
 /* Github APIs for blueprint parsing*/
-services.factory('github', ['$http', function($http) {
+services.factory('github', ['$http', '$q', function($http, $q) {
   var set_remote_owner_type = function(remote, type) {
     remote[type] = remote.owner;
     return remote;
@@ -613,7 +613,14 @@ services.factory('github', ['$http', function($http) {
         path += 'users/' + remote.user + '/repos';
       console.log("Loading: " + path);
       var config = {headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}};
-      return $http.get(path, config);
+      return $http.get(path, config).then(
+        function(response) {
+          return response.data;
+        },
+        function(response) {
+          return $q.reject(response);
+        }
+      );
     },
 
     //Load one repo
