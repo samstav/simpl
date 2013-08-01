@@ -158,7 +158,7 @@ class Planner(classes.ExtensibleDict):
 
         # SECURITY: Someone could pass in a bazillion character name
         if 'name' in self.deployment and len(self.deployment['name']) > 255:
-            deployment['name'] = deployment['name'][:255]
+            self.deployment['name'] = self.deployment['name'][:255]
 
         # Quick validations
         cm_dep.validate_blueprint_options(self.deployment)
