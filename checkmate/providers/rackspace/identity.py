@@ -4,7 +4,6 @@ Celery tasks to authenticate against the Rackspace Cloud
 import logging
 import httplib
 import json
-import sys
 
 from celery.task import task
 from checkmate.utils import match_celery_logging
@@ -66,7 +65,7 @@ def get_token(context):
         prefix = 'passwordCredentials'
         setup['password'] = context.get('password')
     else:
-        raise AttributeError('No Password or APIKey Specified')
+        raise AttributeError('No Password or APIKey/Password Specified')
 
     # remove the prefix for the Authentication URL if Found
     authurl = _url.strip('http?s://')
@@ -77,7 +76,7 @@ def get_token(context):
     tokenurl = '/v2.0/tokens'
 
     # Setup the Authentication URL
-    if ('https' in _url or _rax is True):
+    if any(['https' in _url, _rax is True]):
         conn = httplib.HTTPSConnection(aurl)
     else:
         conn = httplib.HTTPConnection(aurl)
@@ -85,19 +84,16 @@ def get_token(context):
     # Make the request for authentication
     conn.request('POST', tokenurl, authjsonreq, headers)
     try:
-        if sys.version_info < (2, 7, 0):
-            resp = conn.getresponse()
-        else:
-            resp = conn.getresponse(buffering=True)
+        resp = conn.getresponse()
     except Exception, exc:
-        LOG.debug("Failure to perform Authentication %s" % exc)
+        raise AttributeError("Failure to perform Authentication %s" % exc)
     else:
         resp_read = resp.read()
     jrp = json.loads(resp_read)
     jra = jrp.get('access')
     token = jra.get('token').get('id')
-    # Tenant ID set as it was originaly in the method, but its not used
-    if 'tenant' in jra:
+    # Tenant ID set as it was originally in the method, but its not used
+    if 'tenant' in jra.get('token'):
         tenantid = jra.get('token').get('tenant').get('id')
     elif 'user' in jra:
         tenantid = jra.get('user').get('name')
