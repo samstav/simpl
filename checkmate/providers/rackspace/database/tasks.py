@@ -81,3 +81,10 @@ def create_database(context, name, region=None, character_set=None,
                                    collate=collate,
                                    instance_attrs=instance_attributes,
                                    simulate=context.simulation)
+@task(base=ProviderTask, default_retry_delay=10, max_retries=2,
+      provider=Provider)
+def add_user(context, instance_id, databases, username, password,
+             api=None, callback=None):
+    ''' Add a database user to an instance for one or more databases'''
+    return Manager.add_user(instance_id, databases, username, password,
+                            add_user.api, add_user.partial, context.simulation)

@@ -245,3 +245,63 @@ class Manager(object):
         }
         LOG.info('Created database %s on instance %s', name, instance_id)
         return results
+
+    def add_user(instance_id, databases, username, password,
+                 api, callback, simulate=False):
+        ''' Add a database user to an instance for one or more databases.
+            Returns instance data.
+        '''
+
+        assert api, "api is required in add_user"
+        assert callback, "callback is required in add_user"
+
+
+        # TODO(sam): cover only code necessary with this try/except block
+        # -- pyrax ClientException?
+        #try:
+
+        if simulate:
+            instance = utils.Simulation(hostname='db1.rax.net', status='ACTIVE')
+        else:
+            try:
+                instance = api.get(instance_id)
+            except cdb_errors.ClientException as exc:
+                raise CheckmateResumableException(str(exc),
+                                                  utils.get_class_name(exc),
+                                                  "Error occurred in db provider", "")
+
+            callback({'status': instance.status})
+
+            if instance.status != "ACTIVE":
+                raise CheckmateResumableException('Database instance is '
+                                                  'not active.', 'help',
+                                                  'status error')
+            #except ClientException as exc
+
+            try:
+                instance.create_user(username, password, databases)
+            except cdb_errors.ClientException as exc:
+                raise CheckmateResumableException(exc.reason, str(exc.status),
+                                                  'RS_DB_ClientException')
+            except Exception as exc:
+                raise CheckmateUserException(str(exc), utils.get_class_name(exc),
+                                             UNEXPECTED_ERROR, '')
+
+        LOG.info('Added user %s to %s on instance %s', username, databases, instance_id)
+
+        results = {
+            'username': username,
+            'password': password,
+            'status': 'ACTIVE',
+            'interfaces': {
+                'mysql': {
+                    'host': instance.hostname,
+                    'database_name': databases[0],
+                    'username': username,
+                    'password': password,
+                }
+            }
+        }
+
+        return results
+
