@@ -436,6 +436,72 @@ describe('DeploymentListController', function(){
     });
   });
 
+  describe('filters', function() {
+    it('should be an object', function() {
+      expect(typeof scope.filters).toBe("object");
+    });
+
+    describe('default tenant_tag', function() {
+      it('should contain four default filters for tenant_tag', function() {
+        expect(scope.filters.tenant_tag.length).toBe(4);
+      });
+
+      it('should contain filter: RackConnect', function() {
+        expect(scope.filters.tenant_tag).toContain({ name: 'RackConnect', active: false });
+      });
+
+      it('should contain filter: Managed', function() {
+        expect(scope.filters.tenant_tag).toContain({ name: 'Managed', active: false });
+      });
+
+      it('should contain filter: Racker', function() {
+        expect(scope.filters.tenant_tag).toContain({ name: 'Racker', active: false });
+      });
+
+      it('should contain filter: Internal', function() {
+        expect(scope.filters.tenant_tag).toContain({ name: 'Internal', active: false });
+      });
+    });
+
+    describe('when search exists', function() {
+      it('should set active flag to true on default search filter', function() {
+        $location.search.returns({ tenant_tag: 'Racker' })
+        controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+        expect(scope.filters.tenant_tag).toContain({ name: 'Racker', active: true });
+      });
+
+      it('should set active flag to true on custom search filters', function() {
+        $location.search.returns({ tenant_tag: 'foobar' })
+        controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+        expect(scope.filters.tenant_tag).toContain({ name: 'foobar', active: true });
+      });
+    });
+
+    describe('default start date', function() {
+      it('should default to undefined if there is no search', function() {
+        expect(scope.filters.start_date).toBeUndefined();
+      });
+
+      it('should contain the search value, if present', function() {
+        $location.search.returns({ start_date: 'lorem ipsum' });
+        controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+        expect(scope.filters.start_date).toEqual('lorem ipsum');
+      });
+    });
+
+    describe('default end date', function() {
+      it('should default to undefined if there is no search', function() {
+        expect(scope.filters.end_date).toBeUndefined();
+      });
+
+      it('should contain the search value, if present', function() {
+        $location.search.returns({ end_date: 'dolor sit amet' });
+        controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout);
+        expect(scope.filters.end_date).toEqual('dolor sit amet');
+      });
+    });
+  });
+
   describe('#applyFilters', function() {
     it('should cancel pending filter promise', function() {
       scope.filter_promise = 'old promise';
@@ -474,6 +540,34 @@ describe('DeploymentListController', function(){
       ];
       scope.filter_deployments();
       expect($location.search).toHaveBeenCalledWith({ status: ['foobar', 'mordor'] });
+    });
+
+    it('should filter by tenant tag', function() {
+      scope.filters.tenant_tag = [ { name: 'foobar', active: true } ];
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ tenant_tag: ['foobar'] });
+    });
+
+    it('should filter by several active tenant tags at once', function() {
+      scope.filters.tenant_tag = [
+        { name: 'foobar', active: true },
+        { name: 'middle earth', active: false },
+        { name: 'mordor', active: true },
+      ];
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ tenant_tag: ['foobar', 'mordor'] });
+    });
+
+    it('should filter by start date', function() {
+      scope.filters.start_date = 'beginning of time';
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ start_date: 'beginning of time' });
+    });
+
+    it('should filter by end date', function() {
+      scope.filters.end_date = 'end of days';
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ end_date: 'end of days' });
     });
 
     it('should filter by custom search', function() {

@@ -11,6 +11,9 @@
       <div class='group'>
         <h5><i class="icon-filter"></i> Filters</h5>
 
+        <input ng-change="applyFilters()" ui-date ng-model="filters.start_date" ui-date-format="yy-mm-dd" placeholder="Start date" type="text" class="span10" />
+        <input ng-change="applyFilters()" ui-date ng-model="filters.end_date" ui-date-format="yy-mm-dd" placeholder="End date" type="text" class="span10" />
+
         <h5> Status</h5>
         <label class="filter" ng-repeat="filter in filter_list">
           <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
