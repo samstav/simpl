@@ -543,7 +543,23 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     return remote;
   }
 
+  var get_config = function(url) {
+    var config = {
+      headers: {
+        'X-Target-Url': url,
+        'accept': 'application/json'
+      }
+    };
+
+    return config;
+  }
+
   var me = {
+
+    get_proxy_url: function(repo_url) {
+      var uri = URI(repo_url);
+      return '/githubproxy' + uri.path();
+    },
 
     // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
     get_api_details: function(uri) {
