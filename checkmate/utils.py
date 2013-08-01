@@ -985,7 +985,7 @@ def filter_resources(resources, provider_name):
 
 def cap_limit(limit, tenant_id):
     # So that we don't end up with a DoS due to unchecked limit:
-    if limit is None or limit > 100:
+    if limit is None or limit > 100 or limit < 0:
         LOG.warn('Request for tenant %s with limit of %s. Defaulting '
                  'limit to 100.', tenant_id, limit)
         return 100
