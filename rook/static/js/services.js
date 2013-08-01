@@ -1110,15 +1110,16 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       if (!auth.cache.contexts)
         auth.cache.contexts = {};
 
-      if (context.username) auth.cache.contexts[context.username] = context;
-      if (context.tenantId) auth.cache.contexts[context.tenantId] = context;
+      var cached_context = angular.copy(context);
+      if (context.username) auth.cache.contexts[context.username] = cached_context;
+      if (context.tenantId) auth.cache.contexts[context.tenantId] = cached_context;
 
       return context;
     },
 
     get_cached_context: function(username_or_tenant_id) {
       if (!auth.cache.contexts) return;
-      return auth.cache.contexts[username_or_tenant_id];
+      return angular.copy(auth.cache.contexts[username_or_tenant_id]);
     },
 
     exit_impersonation: function() {
