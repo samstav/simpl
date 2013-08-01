@@ -283,7 +283,7 @@ class Provider(providers.ProviderBase):
             )
 
             create_db_user.follow(create_database_task)
-            root = workflow.wait_for(wfspec, create_database_task, wait_on)
+            root = wfspec.wait_for(create_database_task, wait_on)
             if 'task_tags' in root.properties:
                 root.properties['task_tags'].append('root')
             else:
@@ -315,7 +315,7 @@ class Provider(providers.ProviderBase):
                 defines=defines,
                 properties={'estimated_duration': 80}
             )
-            root = workflow.wait_for(wfspec, create_instance_task, wait_on)
+            root = wfspec.wait_for(create_instance_task, wait_on)
             wait_task = specs.Celery(
                 wfspec,
                 'Wait on Database Instance %s' % key,

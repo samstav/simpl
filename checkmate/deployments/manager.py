@@ -15,9 +15,10 @@ from .planner import Planner
 from checkmate import base
 from checkmate import db
 from checkmate import operations
-from checkmate import orchestrator
 from checkmate import utils
 from checkmate import workflow
+from checkmate import workflows
+from checkmate.workflows import tasks
 from checkmate.deployment import (
     Deployment,
     generate_keys,
@@ -130,7 +131,8 @@ class Manager(base.ManagerBase):
         generate_keys(deployment)
         deployment['display-outputs'] = deployment.calculate_outputs()
 
-        deploy_spec = workflow.create_workflow_spec_deploy(deployment, context)
+        deploy_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+            deployment, context)
         spiff_wf = workflow.create_workflow(
             deploy_spec, deployment, context, driver=self.select_driver(
                 deployment['id']), workflow_id=deployment['id'])
@@ -255,8 +257,7 @@ class Manager(base.ManagerBase):
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
         driver = self.select_driver(api_id)
-        result = orchestrator.run_workflow.delay(api_id, timeout=3600,
-                                                 driver=driver)
+        result = tasks.run_workflow.delay(api_id, timeout=3600, driver=driver)
         return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):
@@ -450,8 +451,9 @@ class Manager(base.ManagerBase):
         return deployment
 
     def deploy_add_nodes(self, deployment, context, tenant_id):
-        add_node_workflow_spec = workflow.create_workflow_spec_deploy(
-            deployment, context)
+        add_node_workflow_spec = (workflows.WorkflowSpec
+                                  .create_workflow_spec_deploy(deployment,
+                                                               context))
         add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
                                                      deployment, context,
                                                      driver=self.driver)

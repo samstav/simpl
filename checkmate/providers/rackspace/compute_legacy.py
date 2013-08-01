@@ -22,7 +22,6 @@ from checkmate.exceptions import (
 )
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
 from checkmate.utils import match_celery_logging, yaml_to_dict, get_class_name
-from checkmate.workflow import wait_for
 from openstack.compute.exceptions import OverLimit
 
 LOG = logging.getLogger(__name__)
@@ -280,9 +279,8 @@ class Provider(RackspaceComputeProviderBase):
             wait_on = []
         if getattr(self, 'prep_task', None):
             wait_on.append(self.prep_task)
-        join = wait_for(
-            wfspec,
-            create_server_task,
+
+        join = wfspec.wait_for(create_server_task,
             wait_on,
             name="Server %s (%s) Wait on Prerequisites" % (
                 key,

@@ -126,7 +126,6 @@ def get_status_info(errors, tenant_id, workflow_id):
     status_info = {}
     friendly_messages = []
     distinct_errors = _get_distinct_errors(errors)
-    print distinct_errors
     for error in distinct_errors:
         if 'friendly-message' in error:
             friendly_messages.append("%s. %s\n" %

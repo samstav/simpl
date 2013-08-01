@@ -125,50 +125,6 @@ class ProviderBaseWorkflowMixIn(object):
         LOG.debug("%s.%s.add_connection_tasks called, "
                   "but was not implemented", self.vendor, self.name)
 
-    @staticmethod
-    def find_task_specs(wfspec, **kwargs):
-        '''Find tasks in the workflow with matching properties.
-
-        :param wfspec: the SpiffWorkflow WorkflowSpec we are building
-        :param kwargs: properties to match (all must match)
-
-        Note: 'tag' is a special case where the tag only needs to exist in
-              the task_tags property. To match all tags, match against the
-              'task_tags' property
-
-        Example kwargs:
-            relation: the ID of the relation we are looking for
-            resource: the ID of the resource we are looking for
-            provider: the key of the provider we are looking for
-            tag: the tag for the task (root, final, create, etc..)
-        '''
-        tasks = []
-        for task in wfspec.task_specs.values():
-            match = True
-            if kwargs:
-                for key, value in kwargs.iteritems():
-                    if key == 'tag':
-                        if value is not None and value not in\
-                                (task.get_property('task_tags', []) or []):
-                            match = False
-                            break
-                    elif value is not None and task.get_property(key) != value:
-                        match = False
-                        break
-
-                    # Don't match if the task is tied to a relation and no
-                    # relation key was provided
-                    if 'relation' not in kwargs and \
-                            task.get_property('relation'):
-                        match = False
-                        break
-            if match:
-                tasks.append(task)
-        if not tasks:
-            LOG.debug("No tasks found in find_tasks for %s", ', '.join(
-                      ['%s=%s' % (k, v) for k, v in kwargs.iteritems() or {}]))
-        return tasks
-
     def get_host_ready_tasks(self, resource, wfspec, deployment):
         '''Get tasks to wait on host if this is hosted on another resource
 
@@ -177,10 +133,9 @@ class ProviderBaseWorkflowMixIn(object):
         if 'hosted_on' in resource:
             host_key = resource['hosted_on']
             host_resource = deployment['resources'][host_key]
-            host_final = self.find_task_specs(wfspec,
-                                         resource=host_key,
-                                         provider=host_resource['provider'],
-                                         tag='final')
+            host_final = wfspec.find_task_specs(
+                resource=host_key, provider=host_resource['provider'],
+                tag='final')
             return host_final
 
     def get_host_relation_final_tasks(self, wfspec, resource_key):
@@ -188,10 +143,10 @@ class ProviderBaseWorkflowMixIn(object):
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
         '''
-        relation_final = self.find_task_specs(wfspec, resource=resource_key,
-                                         relation='host',
-                                         provider=self.key,
-                                         tag=['final'])
+        relation_final = wfspec.find_task_specs(resource=resource_key,
+                                                relation='host',
+                                                provider=self.key,
+                                                tag=['final'])
         return relation_final
 
     def get_relation_final_tasks(self, wfspec, resource):
@@ -203,10 +158,8 @@ class ProviderBaseWorkflowMixIn(object):
         tasks = []
         for key, relation in resource.get('relations', {}).iteritems():
             if 'target' in relation:
-                relation_final = self.find_task_specs(wfspec,
-                                                 resource=resource['index'],
-                                                 relation=key,
-                                                 tag=['final'])
+                relation_final = wfspec.find_task_specs(
+                    resource=resource['index'], relation=key, tag=['final'])
                 if relation_final:
                     tasks.extend(relation_final)
         return tasks
@@ -215,9 +168,8 @@ class ProviderBaseWorkflowMixIn(object):
         '''Get the task tagged as 'complete' (if any) for the resource's
         host.
         '''
-        tasks = self.find_task_specs(wfspec,
-                                resource=resource.get('hosted_on', None),
-                                tag='complete')
+        tasks = wfspec.find_task_specs(
+            resource=resource.get('hosted_on', None), tag='complete')
         if tasks:  # should only be one
             return tasks[0]
 

@@ -4,9 +4,10 @@ import mox
 
 from SpiffWorkflow import Workflow as SpiffWorkflow
 from SpiffWorkflow.storage import DictionarySerializer
-from SpiffWorkflow.specs import WorkflowSpec, Simple, Merge
+from SpiffWorkflow.specs import Simple, Merge
 
 from checkmate import workflow
+from checkmate.workflows import WorkflowSpec
 
 
 class TestWorkflowTools(unittest.TestCase):
@@ -16,7 +17,7 @@ class TestWorkflowTools(unittest.TestCase):
         A = Simple(wf_spec, 'A')
         B = Simple(wf_spec, 'B')
 
-        workflow.wait_for(wf_spec, A, [B])
+        wf_spec.wait_for(A, [B])
         self.assertListEqual(A.inputs, [B])
 
     def test_insert_wait_for(self):
@@ -25,7 +26,7 @@ class TestWorkflowTools(unittest.TestCase):
         A = Simple(wf_spec, 'A')
         B = Simple(wf_spec, 'B')
         wf_spec.start.connect(A)
-        workflow.wait_for(wf_spec, A, [B])
+        wf_spec.wait_for(A, [B])
         wf_spec.start.connect(B)
         spiff_wf = SpiffWorkflow(wf_spec)
         expected = """
@@ -49,7 +50,7 @@ class TestWorkflowTools(unittest.TestCase):
         wf_spec.start.connect(A)
         wf_spec.start.connect(B)
 
-        workflow.wait_for(wf_spec, A, [B])
+        wf_spec.wait_for(A, [B])
         spiff_wf = SpiffWorkflow(wf_spec)
         expected = """
 1/0: Task of Root State: COMPLETED Children: 1
@@ -67,7 +68,7 @@ class TestWorkflowTools(unittest.TestCase):
         wf_spec = WorkflowSpec()
         A = Simple(wf_spec, 'A')
         B = Simple(wf_spec, 'B')
-        wf_spec.start.connect(workflow.wait_for(wf_spec, B, [A]))
+        wf_spec.start.connect(wf_spec.wait_for(B, [A]))
 
         spiff_wf = SpiffWorkflow(wf_spec)
         expected = """
@@ -81,7 +82,7 @@ class TestWorkflowTools(unittest.TestCase):
         """Test that adding a no wait_for returns task"""
         wf_spec = WorkflowSpec()
         A = Simple(wf_spec, 'A')
-        wf_spec.start.connect(workflow.wait_for(wf_spec, A, None))
+        wf_spec.start.connect(wf_spec.wait_for(A, None))
 
         spiff_wf = SpiffWorkflow(wf_spec)
         expected = """
@@ -100,7 +101,7 @@ class TestWorkflowTools(unittest.TestCase):
         wf_spec.start.connect(A2)
         wf_spec.start.connect(A3)
         B = Simple(wf_spec, 'B')
-        workflow.wait_for(wf_spec, B, [A1, A2, A3])
+        wf_spec.wait_for(B, [A1, A2, A3])
 
         spiff_wf = SpiffWorkflow(wf_spec)
         expected = """
@@ -128,7 +129,7 @@ class TestWorkflowTools(unittest.TestCase):
         A.follow(M)
         B.connect(M)
 
-        workflow.wait_for(wf_spec, A, [C])
+        wf_spec.wait_for(A, [C])
         self.assertListEqual(A.inputs, [M])
 
 

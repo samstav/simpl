@@ -32,7 +32,6 @@ from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
 from checkmate.providers.rackspace.dns import parse_domain
 from checkmate.utils import match_celery_logging, get_class_name
-from checkmate.workflow import wait_for
 
 
 LOG = logging.getLogger(__name__)
@@ -286,7 +285,7 @@ class Provider(ProviderBase):
         create_lb_task_tags = ['create', 'root', 'vip']
 
         #Find existing task which has created the vip
-        vip_tasks = self.find_task_specs(wfspec, provider=self.key, tag='vip')
+        vip_tasks = wfspec.find_task_specs(provider=self.key, tag='vip')
         parent_lb = None
 
         if vip_tasks:
@@ -507,10 +506,11 @@ class Provider(ProviderBase):
                     CheckmateException), BLUEPRINT_ERROR, '')
 
         # Get all tasks we need to precede the LB Add Node task
-        finals = self.find_task_specs(wfspec, resource=relation['target'],
-                                      tag='final')
-        lb_final_tasks = self.find_task_specs(wfspec, resource=key,
-                                              provider=self.key, tag='final')
+        finals = wfspec.find_task_specs(resource=relation['target'],
+                                        tag='final')
+        lb_final_tasks = wfspec.find_task_specs(resource=key,
+                                                provider=self.key,
+                                                tag='final')
         target_resource = deployment['resources'][relation['target']]
         if 'hosted_on' in target_resource:
             target = target_resource['hosted_on']
@@ -539,7 +539,7 @@ class Provider(ProviderBase):
         #Make it wait on all other provider completions
         if lb_final_tasks:
             finals.append(lb_final_tasks[0])
-        wait_for(wfspec, add_node_task, finals,
+        wfspec.wait_for(add_node_task, finals,
                  name="Wait before adding %s to LB %s" % (relation['target'],
                                                           key),
                  description="Wait for Load Balancer ID "

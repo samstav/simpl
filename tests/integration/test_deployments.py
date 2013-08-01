@@ -17,9 +17,9 @@ import checkmate
 from checkmate import (
     keys,
     operations,
-    orchestrator,
     utils,
     workflow,
+    workflows,
 )
 from checkmate.common import tasks as common_tasks
 from checkmate.deployment import (
@@ -43,6 +43,7 @@ from checkmate.inputs import Input
 from checkmate.providers import base
 from checkmate.providers.base import ProviderBase
 from checkmate.middleware import RequestContext
+from checkmate.workflows import tasks as wf_tasks
 from checkmate.utils import yaml_to_dict, get_time_string
 
 LOG = logging.getLogger(__name__)
@@ -1349,9 +1350,9 @@ class TestDeleteDeployments(unittest.TestCase):
         manager.get_deployment('1234').AndReturn(self._deployment)
         manager.select_driver('1234').AndReturn(mock_driver)
 
-        self._mox.StubOutWithMock(workflow,
+        self._mox.StubOutWithMock(workflows.WorkflowSpec,
                                   "create_delete_deployment_workflow_spec")
-        workflow.create_delete_deployment_workflow_spec(
+        workflows.WorkflowSpec.create_delete_deployment_workflow_spec(
             self._deployment, bottle.request.context).AndReturn(mock_spec)
         self._mox.StubOutWithMock(workflow,
                                   "create_workflow")
@@ -1363,9 +1364,9 @@ class TestDeleteDeployments(unittest.TestCase):
                                             driver=mock_driver)
         self._mox.StubOutWithMock(operations, "create")
         operations.create.delay('1234', 'w_id', 'DELETE', 'T1000')
-        self._mox.StubOutWithMock(orchestrator, "run_workflow")
-        orchestrator.run_workflow.delay('w_id', timeout=3600,
-                                        driver=mock_driver).AndReturn(4)
+        self._mox.StubOutWithMock(wf_tasks, "run_workflow")
+        wf_tasks.run_workflow.delay('w_id', timeout=3600,
+                                    driver=mock_driver).AndReturn(4)
 
         self._mox.ReplayAll()
         router.delete_deployment('1234', tenant_id="T1000")
@@ -1611,9 +1612,8 @@ class TestDeploymentAddNodes(unittest.TestCase):
         manager.save_deployment(self._deployment, api_id='1234',
                                 tenant_id='T1000').AndReturn(self._deployment)
         manager.select_driver('1234').AndReturn(mock_driver)
-        self._mox.StubOutWithMock(orchestrator, "run_workflow")
-        orchestrator.run_workflow.delay('w_id', timeout=3600,
-                                        driver=mock_driver)
+        self._mox.StubOutWithMock(wf_tasks, "run_workflow")
+        wf_tasks.run_workflow.delay('w_id', timeout=3600, driver=mock_driver)
 
         self._mox.ReplayAll()
         router.add_nodes("1234", tenant_id="T1000")

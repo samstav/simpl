@@ -853,10 +853,10 @@ class Deployment(morpheus.MorpheusDict):
                     if attribute in value:
                         result = value[attribute]
                 else:
-                    error_message = "Could not read attribute '%s' " \
-                              "while obtaining option '%s' " \
-                              "since value is of type %s" % (
-                              attribute, name, type(value).__name__)
+                    error_message = "Could not read attribute '%s' while " \
+                                    "obtaining option '%s' since value is " \
+                                    "of type %s" % (attribute, name,
+                                                    type(value).__name__)
                     raise CheckmateUserException(error_message,
                                                  utils.get_class_name(
                                                      CheckmateException),
@@ -977,7 +977,8 @@ class Deployment(morpheus.MorpheusDict):
             component = self.environment().find_component(service_component,
                                                           context)
             if not component:
-                error_message = "Could not resolve component '%s'" % service_component
+                error_message = ("Could not resolve component '%s'" %
+                                 service_component)
                 raise CheckmateUserException(error_message,
                                              utils.get_class_name(
                                                  CheckmateException),

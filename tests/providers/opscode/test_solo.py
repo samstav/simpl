@@ -24,6 +24,7 @@ from checkmate.providers.opscode import solo
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
+from checkmate import workflows
 
 
 LOG = logging.getLogger(__name__)
@@ -321,7 +322,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         '''Verify workflow task creation.'''
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
-        workflow_spec = cm_wf.create_workflow_spec_deploy(
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
             workflow_spec, self.deployment, context)
@@ -533,7 +534,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
 
-        workflow_spec = cm_wf.create_workflow_spec_deploy(
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
             workflow_spec, self.deployment, context)
@@ -663,7 +664,7 @@ interfaces/mysql/host
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow_spec = cm_wf.create_workflow_spec_deploy(
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
             workflow_spec, self.deployment, context)
@@ -980,7 +981,7 @@ interfaces/mysql/database_name
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow_spec = cm_wf.create_workflow_spec_deploy(
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
             workflow_spec, self.deployment, context)

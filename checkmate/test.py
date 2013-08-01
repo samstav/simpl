@@ -18,6 +18,7 @@ LOG = logging.getLogger(__name__)
 
 from checkmate.deployment import Deployment
 from checkmate import deployments
+from checkmate import workflows
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                                  'data')
@@ -31,8 +32,6 @@ from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary, \
     yaml_to_dict
 from checkmate.workflow import (
     init_spiff_workflow,
-    create_workflow_spec_deploy,
-    wait_for,
 )
 
 # Environment variables and safe alternatives
@@ -253,7 +252,8 @@ class StubbedWorkflowBase(unittest.TestCase):
         if self.deployment.get('status') == 'NEW':
             deployments.Manager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
-        workflow_spec = create_workflow_spec_deploy(self.deployment, context)
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+            self.deployment, context)
         workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
 
         if not expected_calls:
@@ -826,7 +826,7 @@ class TestProvider(ProviderBase):
                 task_tags=['create', 'final']
             )
         )
-        root = wait_for(wfspec, create_instance_task, wait_on)
+        root = wfspec.wait_for(create_instance_task, wait_on)
         if 'task_tags' in root.properties:
             root.properties['task_tags'].append('root')
         else:
@@ -866,8 +866,7 @@ class TestProvider(ProviderBase):
                 relation['target'], interface, field))
 
         # Get the final task for the target
-        target_final = self.find_task_specs(
-            wfspec,
+        target_final = wfspec.find_task_specs(
             provider=target['provider'],
             resource=relation['target'],
             tag='final'
@@ -917,16 +916,13 @@ class TestProvider(ProviderBase):
                 task_tags=['final'])
         )
         # When target is ready, compile data
-        wait_for(wfspec, compile_override, [target_final])
+        wfspec.wait_for(compile_override, [target_final])
         # Provide data to 'final' task
-        tasks = self.find_task_specs(
-            wfspec,
-            provider=resource['provider'],
-            resource=key, tag='final'
-        )
+        tasks = wfspec.find_task_specs(provider=resource['provider'],
+                                       resource=key, tag='final')
         if tasks:
             for task in tasks:
-                wait_for(wfspec, task, [compile_override])
+                wfspec.wait_for(task, [compile_override])
 
 
 class ProviderTester(unittest.TestCase):
