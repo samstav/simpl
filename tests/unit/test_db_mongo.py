@@ -153,12 +153,15 @@ class TestBuildFilters(TestMongoDB):
         expected_filters = {'name': 'foobar'}
         self.assertEqual(filters, expected_filters)
 
-    def test_create_filter_with_all_whitelist_fields_when_searching(self):
-        query = {'search': 'zoo', 'whitelist': ['foo', 'bar']}
+    @mock.patch.object(mongodb, '_parse_comparison')
+    def test_create_filter_with_all_whitelist_fields_when_searching(self, _parse_comparison):
+        _parse_comparison.return_value = 'zoo'
+        query = {'search': 'zoo', 'whitelist': ['search', 'foo', 'bar']}
         filters = self.driver._build_filters('deployments', None, True, None,
                                              query=query)
         expected_filters = {
             '$or': [
+                {'search': 'zoo'},
                 {'foo': 'zoo'},
                 {'bar': 'zoo'},
             ]
@@ -170,6 +173,25 @@ class TestBuildFilters(TestMongoDB):
         filters = self.driver._build_filters('deployments', None, True, None,
                                              query={'name': 'foobar'})
         _parse_comparison.assert_called_with('foobar')
+
+    @mock.patch.object(mongodb, '_parse_comparison')
+    def test_parse_start_date_with_greater_equal(self, _parse_comparison):
+        filters = self.driver._build_filters('deployments', None, True, None,
+                                             query={'start_date': 'foobar'})
+        _parse_comparison.assert_called_with('>=foobar')
+
+    @mock.patch.object(mongodb, '_parse_comparison')
+    def test_parse_end_date_maps_to_end_of_day(self, _parse_comparison):
+        filters = self.driver._build_filters('deployments', None, True, None,
+                                             query={'end_date': 'foobar'})
+        _parse_comparison.assert_called_with('<=foobar 23:59:59 +0000')
+
+    @mock.patch.object(mongodb, '_parse_comparison')
+    def test_force_regex_comparison_when_searching(self, _parse_comparison):
+        query = {'search': 'zoo', 'whitelist': ['search', 'foo']}
+        filters = self.driver._build_filters('deployments', None, True, None,
+                                             query=query)
+        _parse_comparison.assert_called_with('%'+'zoo')
 
 
 if __name__ == '__main__':

@@ -36,12 +36,45 @@ class TestAdminRouter(unittest.TestCase):
         self.manager.get_deployments.return_value = results
 
 
+class TestParamWhitelist(TestAdminRouter):
+
+    def setUp(self):
+        super(TestParamWhitelist, self).setUp()
+
+    def test_whitelist_length(self):
+        num_params = len(admin.Router.param_whitelist)
+        self.assertEqual(num_params, 7)
+
+    def test_search_is_whitelisted(self):
+        self.assertTrue('search' in admin.Router.param_whitelist)
+
+    def test_name_is_whitelisted(self):
+        self.assertTrue('name' in admin.Router.param_whitelist)
+
+    def test_blueprint_name_is_whitelisted(self):
+        self.assertTrue('blueprint.name' in admin.Router.param_whitelist)
+
+    def test_tenantId_is_whitelisted(self):
+        self.assertTrue('tenantId' in admin.Router.param_whitelist)
+
+    def test_status_is_whitelisted(self):
+        self.assertTrue('status' in admin.Router.param_whitelist)
+
+    def test_start_date_is_whitelisted(self):
+        self.assertTrue('start_date' in admin.Router.param_whitelist)
+
+    def test_end_date_is_whitelisted(self):
+        self.assertTrue('end_date' in admin.Router.param_whitelist)
+
 class TestGetDeployments(TestAdminRouter):
+
+    def setUp(self):
+        super(TestGetDeployments, self).setUp()
 
     @mock.patch.object(admin.router.utils.QueryParams, 'parse')
     def test_pass_query_params_to_manager(self, parse):
         parse.return_value = 'fake query'
-        self.router.get_deployments()
+        res = self.app.get('/admin/deployments')
         self.manager.get_deployments.assert_called_with(
             tenant_id=mock.ANY,
             offset=mock.ANY,
@@ -58,7 +91,7 @@ class TestGetDeploymentCount(TestAdminRouter):
     def test_pass_query_params_to_manager(self, parse):
         self.manager.count.return_value = 99
         parse.return_value = 'fake query'
-        self.router.get_deployment_count()
+        res = self.app.get('/admin/deployments/count')
         self.manager.count.assert_called_with(
             tenant_id=mock.ANY,
             status=mock.ANY,

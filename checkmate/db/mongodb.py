@@ -862,16 +862,22 @@ class Driver(common.DbBase):
                 if 'whitelist' in query:
                     whitelist = query['whitelist']
 
-                if 'search' in query:
-                    search_term = query['search']
-                    disjunction = []
-                    for attr in whitelist:
-                        condition = {attr: _parse_comparison(search_term)}
-                        disjunction.append(condition)
-                    filters['$or'] = disjunction
-                else:
-                    for key in whitelist:
-                        if key in query and query[key]:
+                for key in whitelist:
+                    if key in query and query[key]:
+                        if key == 'start_date':
+                            condition = _parse_comparison('>=' + query[key])
+                            filters['created'] = condition
+                        elif key == 'end_date':
+                            condition = _parse_comparison('<=' + query[key] + ' 23:59:59 +0000')
+                            filters['created'] = condition
+                        elif key == 'search':
+                            search_term = query['search']
+                            disjunction = []
+                            for attr in whitelist:
+                                condition = {attr: _parse_comparison('%' + search_term)}
+                                disjunction.append(condition)
+                            filters['$or'] = disjunction
+                        else:
                             condition = _parse_comparison(query[key])
                             filters[key] = condition
 
