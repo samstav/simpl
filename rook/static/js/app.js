@@ -1990,7 +1990,12 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.parse_org_url = function(url) {
     console.log('parse_org_url', url);
     $scope.loading_remote_blueprints = true;
-    $scope.remote = github.parse_org_url(url, $scope.load);
+    github.parse_org_url(url).then(
+      function(remote) {
+        $scope.remote = remote;
+        $scope.load();
+      }
+    );
   };
 
   $scope.remember_repo_url = function(remote_url) {
@@ -2506,7 +2511,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   };
 
   $scope.loadRemoteBlueprint = function(repo_url) {
-    var remote = github.parse_org_url(repo_url);
+    var remote = github.parse_url(repo_url);
     var u = URI(repo_url);
     var ref = u.fragment() || 'master';
     github.get_branch_from_name(remote, ref, function(branch) {
@@ -2686,7 +2691,10 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
 
   //Instead of parse_org_url
   $scope.loading_remote_blueprints = true;
-  $scope.remote = github.parse_org_url(blueprint, $scope.load);
+  github.parse_org_url(blueprint).then(function(remote) {
+    $scope.remote = remote;
+    $scope.load();
+  });
 }
 
 // Handles the option option and deployment launching

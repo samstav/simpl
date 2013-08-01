@@ -538,6 +538,11 @@ services.value('options', {
 
 /* Github APIs for blueprint parsing*/
 services.factory('github', ['$http', function($http) {
+  var set_remote_owner_type = function(remote, type) {
+    remote[type] = remote.owner;
+    return remote;
+  }
+
   var me = {
 
     // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
@@ -570,36 +575,34 @@ services.factory('github', ['$http', function($http) {
       remote.url = url.href();
       remote.api = this.get_api_details(url);
       remote.owner = first_path_part;
+      remote.repo = {};
       if (segments.length > 1) {
-        remote.repo = {name: segments[1]};
-      } else {
-        remote.repo = {};
+        remote.repo.name = segments[1];
       }
 
+      // Unknown at this point
+      remote.org = null;
+      remote.user = null;
+
       return remote;
     },
 
-    //Parse URL and returns the github components (org, user, repo) back
-    parse_org_url: function(url, callback) {
+    //Parse URL and returns a promise back with the github components (org, user, repo)
+    parse_org_url: function(url) {
       var remote = this.parse_url(url);
-      //Test if org
-      $http({method: 'HEAD', url: remote.api.url + 'orgs/' + remote.owner,
-          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        //This is an org
-        remote.org = remote.owner;
-        remote.user = null;
-        if(callback) callback();
-      }).
-      error(function(data, status, headers, config) {
-        //This is not an org (assume it is a user)
-        remote.org = null;
-        remote.user = remote.owner;
-        if(callback) callback();
-      });
-      return remote;
-    },
+      var api_call = remote.api.url + 'orgs/' + remote.owner;
+      var headers = {'X-Target-Url': remote.api.server, 'accept': 'application/json'};
 
+      return $http({method: 'HEAD', url: api_call, headers: headers}).
+        then(
+          function(response) { // If orgs call is successful
+            return set_remote_owner_type(remote, 'org');
+          },
+          function(response) { // Assume it's a user otherwise
+            return set_remote_owner_type(remote, 'user');
+          }
+        );
+    },
 
     //Load all repos for owner
     get_repos: function(remote) {
