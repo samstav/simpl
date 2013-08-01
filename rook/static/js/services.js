@@ -1408,14 +1408,18 @@ services.factory('pagination', function(){
         valid_limit,
         parsed_offset = parseInt(offset, 10),
         parsed_limit = parseInt(limit, 10),
-        DEFAULT_PAGE_LIMIT = 20;
+        DEFAULT_PAGE_LIMIT = 20,
+        MAX_LIMIT = 100;
 
+    // Limit
     if(parsed_limit && parsed_limit > 0) {
       valid_limit = parsed_limit;
     } else {
       valid_limit = DEFAULT_PAGE_LIMIT;
     }
+    if (valid_limit > MAX_LIMIT) valid_limit = MAX_LIMIT;
 
+    // Offset
     if(parsed_offset && parsed_offset > 0 && (parsed_offset % valid_limit) === 0) {
       valid_offset = parsed_offset;
     } else if(parsed_offset && parsed_offset > 0){

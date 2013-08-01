@@ -78,6 +78,11 @@ describe('pagination', function(){
       limit = null;
       expect(this.pagination.buildPaginator(offset, limit).limit).toEqual(20);
     });
+
+    it('should limit to 100 if limit if over 100', function() {
+      limit = 1000000;
+      expect(this.pagination.buildPaginator(offset, limit).limit).toEqual(100);
+    });
   });
 
   describe('getPagingInformation', function(){
