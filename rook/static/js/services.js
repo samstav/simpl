@@ -554,220 +554,220 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     return config;
   }
 
-  var me = {
+  var scope = {};
 
-    get_proxy_url: function(repo_url) {
+  scope.get_proxy_url = function(repo_url) {
       var uri = URI(repo_url);
       return '/githubproxy' + uri.path();
-    },
+  }
 
-    // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
-    get_api_details: function(uri) {
-      var api = {};
-      var host_parts = uri.host().split(':');
-      var domain = host_parts[0];
-      var port = host_parts.length > 1 ? ':'+ host_parts[1] : '';
+  // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
+  scope.get_api_details = function(uri) {
+    var api = {};
+    var host_parts = uri.host().split(':');
+    var domain = host_parts[0];
+    var port = host_parts.length > 1 ? ':'+ host_parts[1] : '';
 
-      if(/github\.com$/i.test(domain)) {
-        // The repo is on the Github website
-        api.server = uri.protocol() + '://' + 'api.github.com' + port;
-        api.url = (checkmate_server_base || '') + '/githubproxy/';
-        return api;
-      }
-
-      // The repo is on Github Enterprise
-      api.server = uri.protocol() + '://' + uri.host();
-      api.url = (checkmate_server_base || '') + '/githubproxy/api/v3/';
+    if(/github\.com$/i.test(domain)) {
+      // The repo is on the Github website
+      api.server = uri.protocol() + '://' + 'api.github.com' + port;
+      api.url = (checkmate_server_base || '') + '/githubproxy/';
       return api;
-    },
+    }
 
-    parse_url: function(url_string) {
-      var remote = {};
+    // The repo is on Github Enterprise
+    api.server = uri.protocol() + '://' + uri.host();
+    api.url = (checkmate_server_base || '') + '/githubproxy/api/v3/';
+    return api;
+  }
 
-      var url = URI(url_string);
-      var segments = url.path().substring(1).split('/');
-      var first_path_part = segments[0];
-      remote.server = url.protocol() + '://' + url.host(); //includes port
-      remote.url = url.href();
-      remote.api = this.get_api_details(url);
-      remote.owner = first_path_part;
-      remote.repo = {};
-      if (segments.length > 1) {
-        remote.repo.name = segments[1];
-      }
+  scope.parse_url = function(url_string) {
+    var remote = {};
 
-      // Unknown at this point
-      remote.org = null;
-      remote.user = null;
+    var url = URI(url_string);
+    var segments = url.path().substring(1).split('/');
+    var first_path_part = segments[0];
+    remote.server = url.protocol() + '://' + url.host(); //includes port
+    remote.url = url.href();
+    remote.api = scope.get_api_details(url);
+    remote.owner = first_path_part;
+    remote.repo = {};
+    if (segments.length > 1) {
+      remote.repo.name = segments[1];
+    }
 
-      return remote;
-    },
+    // Unknown at this point
+    remote.org = null;
+    remote.user = null;
 
-    //Parse URL and returns a promise back with the github components (org, user, repo)
-    parse_org_url: function(url) {
-      var remote = this.parse_url(url);
-      var api_call = remote.api.url + 'orgs/' + remote.owner;
-      var headers = {'X-Target-Url': remote.api.server, 'accept': 'application/json'};
+    return remote;
+  }
 
-      return $http({method: 'HEAD', url: api_call, headers: headers}).
-        then(
-          function(response) { // If orgs call is successful
-            return set_remote_owner_type(remote, 'org');
-          },
-          function(response) { // Assume it's a user otherwise
-            return set_remote_owner_type(remote, 'user');
-          }
-        );
-    },
+  //Parse URL and returns a promise back with the github components (org, user, repo)
+  scope.parse_org_url = function(url) {
+    var remote = scope.parse_url(url);
+    var api_call = remote.api.url + 'orgs/' + remote.owner;
+    var headers = {'X-Target-Url': remote.api.server, 'accept': 'application/json'};
 
-    //Load all repos for owner
-    get_repos: function(remote) {
-      var path = remote.api.url;
-      if (remote.org !== null) {
-        path += 'orgs/' + remote.org + '/repos';
-      } else
-        path += 'users/' + remote.user + '/repos';
-      console.log("Loading: " + path);
-      var config = {headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}};
-      return $http.get(path, config).then(
-        function(response) {
-          return response.data;
+    return $http({method: 'HEAD', url: api_call, headers: headers}).
+      then(
+        function(response) { // If orgs call is successful
+          return set_remote_owner_type(remote, 'org');
         },
-        function(response) {
-          return $q.reject(response);
+        function(response) { // Assume it's a user otherwise
+          return set_remote_owner_type(remote, 'user');
         }
       );
-    },
+  }
 
-    //Load one repo
-    get_repo: function(remote, repo_name, callback, error_callback) {
-      var path = remote.api.url + 'repos/' + remote.owner + '/' + repo_name;
-      console.log("Loading: " + path);
-      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+  //Load all repos for owner
+  scope.get_repos = function(remote) {
+    var path = remote.api.url;
+    if (remote.org !== null) {
+      path += 'orgs/' + remote.org + '/repos';
+    } else
+      path += 'users/' + remote.user + '/repos';
+    console.log("Loading: " + path);
+    var config = {headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}};
+    return $http.get(path, config).then(
+      function(response) {
+        return response.data;
+      },
+      function(response) {
+        return $q.reject(response);
+      }
+    );
+  }
+
+  //Load one repo
+  scope.get_repo = function(remote, repo_name, callback, error_callback) {
+    var path = remote.api.url + 'repos/' + remote.owner + '/' + repo_name;
+    console.log("Loading: " + path);
+    $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        callback(data);
+      }).
+      error(function(data, status, headers, config) {
+        var response = {data: data, status: status};
+        error_callback(response);
+      });
+  }
+
+  //Get all branches (and tags) for a repo
+  scope.get_branches = function(remote, callback, error_callback) {
+    $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
+        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      //Only branches and tags
+      var filtered = _.filter(data, function(item) {
+        return item.ref.indexOf('refs/heads/') === 0 || item.ref.indexOf('refs/tags/') === 0;
+      });
+      //Format the data (we need name, type, and sha only)
+      var transformed = _.map(filtered, function(item){
+        if (item.ref.indexOf('refs/heads/') === 0)
+          return {
+            type: 'branch',
+            name: item.ref.substring(11),
+            commit: item.object.sha
+            };
+        else if (item.ref.indexOf('refs/tags/') === 0)
+          return {
+            type: 'tag',
+            name: item.ref.substring(10),
+            commit: item.object.sha
+            };
+      });
+      callback(transformed);
+    }).
+    error(function(data, status, headers, config) {
+      var response = {data: data, status: status};
+      error_callback(response);
+    });
+  }
+
+  // Get a single branch or tag and return it as an object (with type, name, and commit)
+  scope.get_branch_from_name = function(remote, branch_name, callback, error_callback) {
+    $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
+        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      //Only branches and tags
+      var branch_ref = 'refs/heads/' + branch_name;
+      var tag_ref = 'refs/tags/' + branch_name;
+      var found = _.find(data, function(item) {
+        return item.ref == branch_ref || item.ref == tag_ref;
+      });
+      if (found === undefined) {
+        var response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
+        error_callback(response);
+        return;
+      }
+
+      //Format and return the data (we need name, type, and sha only)
+      if (found.ref == branch_ref)
+        callback({
+          type: 'branch',
+          name: found.ref.substring(11),
+          commit: found.object.sha
+          });
+      else if (found.ref == tag_ref)
+        callback({
+          type: 'tag',
+          name: found.ref.substring(10),
+          commit: found.object.sha
+          });
+    }).
+    error(function(data, status, headers, config) {
+      var response = {data: data, status: status};
+      error_callback(response);
+    });
+  }
+
+  scope.get_blueprint = function(remote, username, callback, error_callback) {
+    var repo_url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name;
+    $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit,
+        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
+      if (checkmate_yaml_file === undefined) {
+        error_callback("No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'");
+      } else {
+        $http({method: 'GET', url: repo_url + '/git/blobs/' + checkmate_yaml_file.sha,
+            headers: {'X-Target-Url': remote.api.server, 'Accept': 'application/vnd.github.v3.raw'}}).
         success(function(data, status, headers, config) {
-          callback(data);
+          var checkmate_yaml = {};
+          try {
+            checkmate_yaml = YAML.parse(data.replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name).replace('%username%', username || '%username%'));
+          } catch(err) {
+            if (err.name == "YamlParseException")
+              error_callback("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
+          }
+          callback(checkmate_yaml, remote);
         }).
         error(function(data, status, headers, config) {
           var response = {data: data, status: status};
           error_callback(response);
         });
-    },
+      }
+    }).
+    error(function(data, status, headers, config) {
+      var response = {data: data, status: status};
+      error_callback(response);
+    });
+  }
 
-    //Get all branches (and tags) for a repo
-    get_branches: function(remote, callback, error_callback) {
-      $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+  scope.get_contents = function(remote, url, content_item, callback){
+    var destination_path = URI(url).path();
+    var path = '/githubproxy' + destination_path + "/contents/" + content_item;
+    return $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
       success(function(data, status, headers, config) {
-        //Only branches and tags
-        var filtered = _.filter(data, function(item) {
-          return item.ref.indexOf('refs/heads/') === 0 || item.ref.indexOf('refs/tags/') === 0;
-        });
-        //Format the data (we need name, type, and sha only)
-        var transformed = _.map(filtered, function(item){
-          if (item.ref.indexOf('refs/heads/') === 0)
-            return {
-              type: 'branch',
-              name: item.ref.substring(11),
-              commit: item.object.sha
-              };
-          else if (item.ref.indexOf('refs/tags/') === 0)
-            return {
-              type: 'tag',
-              name: item.ref.substring(10),
-              commit: item.object.sha
-              };
-        });
-        callback(transformed);
+        callback(data);
       }).
-      error(function(data, status, headers, config) {
-        var response = {data: data, status: status};
-        error_callback(response);
+      error(function() {
+        console.log('Failed to retrieve ' + content_item + ' from ' + url);
       });
-    },
+  }
 
-    // Get a single branch or tag and return it as an object (with type, name, and commit)
-    get_branch_from_name: function(remote, branch_name, callback, error_callback) {
-      $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        //Only branches and tags
-        var branch_ref = 'refs/heads/' + branch_name;
-        var tag_ref = 'refs/tags/' + branch_name;
-        var found = _.find(data, function(item) {
-          return item.ref == branch_ref || item.ref == tag_ref;
-        });
-        if (found === undefined) {
-          var response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
-          error_callback(response);
-          return;
-        }
-
-        //Format and return the data (we need name, type, and sha only)
-        if (found.ref == branch_ref)
-          callback({
-            type: 'branch',
-            name: found.ref.substring(11),
-            commit: found.object.sha
-            });
-        else if (found.ref == tag_ref)
-          callback({
-            type: 'tag',
-            name: found.ref.substring(10),
-            commit: found.object.sha
-            });
-      }).
-      error(function(data, status, headers, config) {
-        var response = {data: data, status: status};
-        error_callback(response);
-      });
-    },
-
-    get_blueprint: function(remote, username, callback, error_callback) {
-      var repo_url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name;
-      $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit,
-          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
-        if (checkmate_yaml_file === undefined) {
-          error_callback("No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'");
-        } else {
-          $http({method: 'GET', url: repo_url + '/git/blobs/' + checkmate_yaml_file.sha,
-              headers: {'X-Target-Url': remote.api.server, 'Accept': 'application/vnd.github.v3.raw'}}).
-          success(function(data, status, headers, config) {
-            var checkmate_yaml = {};
-            try {
-              checkmate_yaml = YAML.parse(data.replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name).replace('%username%', username || '%username%'));
-            } catch(err) {
-              if (err.name == "YamlParseException")
-                error_callback("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
-            }
-            callback(checkmate_yaml, remote);
-          }).
-          error(function(data, status, headers, config) {
-            var response = {data: data, status: status};
-            error_callback(response);
-          });
-        }
-      }).
-      error(function(data, status, headers, config) {
-        var response = {data: data, status: status};
-        error_callback(response);
-      });
-    },
-
-    get_contents: function(remote, url, content_item, callback){
-      var destination_path = URI(url).path();
-      var path = '/githubproxy' + destination_path + "/contents/" + content_item;
-      return $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-        success(function(data, status, headers, config) {
-          callback(data);
-        }).
-        error(function() {
-          console.log('Failed to retrieve ' + content_item + ' from ' + url);
-        });
-    },
-  };
-  return me;
+  return scope;
 }]);
 
 /*
