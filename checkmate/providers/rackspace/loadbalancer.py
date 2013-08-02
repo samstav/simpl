@@ -988,6 +988,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     if api is None:
         api = Provider.connect(context, region)
 
+    dlb = None
     try:
         dlb = api.loadbalancers.get(lbid)
     except cloudlb.errors.NotFound:
