@@ -56,7 +56,8 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         request = mock.Mock()
         request.headers = {}
         with self.assertRaises(CheckmateValidationException) as expected:
-            router._content_to_deployment(request=request, deployment_id='>test',
+            router._content_to_deployment(request=request,
+                                          deployment_id='>test',
                                           tenant_id='Ttest')
         self.assertEqual("Invalid start character '>'. ID can start with any "
                          "of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU"
@@ -71,7 +72,8 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         request = mock.Mock()
         request.headers = {}
         with self.assertRaises(CheckmateValidationException) as expected:
-            router._content_to_deployment(request=request, deployment_id='t>est',
+            router._content_to_deployment(request=request,
+                                          deployment_id='t>est',
                                           tenant_id='Ttest')
         self.assertEqual("Invalid character '>'. Allowed characters are "
                          "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU"
@@ -156,7 +158,6 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
                 request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
         )
 
-
     @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_untrusted_request_but_no_github_config(
@@ -177,7 +178,6 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             'Cannot validate blueprint.',
             str(expected.exception)
         )
-
 
     @mock.patch('checkmate.common.config.current')
     @mock.patch('checkmate.blueprints.GitHubManager')

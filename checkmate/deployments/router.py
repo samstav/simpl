@@ -17,17 +17,17 @@ from checkmate.common import config
 from checkmate.common import tasks as common_tasks
 from checkmate import db
 from checkmate import deployment as cmdeploy
-from checkmate import operations
-from checkmate import utils
-from checkmate import workflow
-from checkmate import workflows
 from checkmate.deployments import tasks
-from checkmate.workflows import tasks as wf_tasks
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDoesNotExist,
     CheckmateValidationException,
 )
+from checkmate import operations
+from checkmate import utils
+from checkmate import workflow
+from checkmate import workflows
+from checkmate.workflows import tasks as wf_tasks
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -59,7 +59,7 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
         _validate_blueprint(entity)
         LOG.info("X-Source-Untrusted: Validating blueprint is "
                  "self-consistent.")
-        _validate_inputs_against_blueprint(entity, tenant_id)
+        _validate_blueprint_inputs(entity, tenant_id)
 
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
@@ -92,7 +92,7 @@ def _validate_blueprint(deployment):
         raise CheckmateValidationException('Invalid Blueprint.')
 
 
-def _validate_inputs_against_blueprint(deployment, tenant_id):
+def _validate_blueprint_inputs(deployment, tenant_id):
     """Only used for extra checking when X-Source-Unstrusted header found."""
     inputs = deployment.get('inputs', {})
     # Make sure 'blueprint' is the only key directly under 'inputs'
