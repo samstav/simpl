@@ -115,7 +115,7 @@ def _validate_blueprint_inputs(deployment, tenant_id):
 
     # Check valid options: value must be less than 4k characters
     for _, value in inputs['blueprint'].items():
-        if len(value) > 4096:
+        if isinstance(value, basestring) and len(value) > 4096:
             LOG.info('X-Source-Untrusted: value to large (%d characters). '
                      'Tenant ID: %s.', len(value), tenant_id)
             raise CheckmateValidationException(
