@@ -54,9 +54,12 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
         entity = entity['deployment']  # Unwrap if wrapped
 
     if request.headers and 'X-Source-Untrusted' in request.headers:
-        LOG.info("X-Source-Untrusted: Validating Blueprint against Checkmate's"
-                 "cached version.")
+        LOG.info("X-Source-Untrusted: Validating Blueprint against "
+                 "Checkmate's cached version.")
         _validate_blueprint(entity)
+        LOG.info("X-Source-Untrusted: Validating blueprint is "
+                 "self-consistent.")
+        _validate_inputs_against_blueprint(entity, tenant_id)
 
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
@@ -87,6 +90,36 @@ def _validate_blueprint(deployment):
         LOG.info("X-Source-Untrusted: Passed in Blueprint did not match "
                  "anything in Checkmate's cache.")
         raise CheckmateValidationException('Invalid Blueprint.')
+
+
+def _validate_inputs_against_blueprint(deployment, tenant_id):
+    """Only used for extra checking when X-Source-Unstrusted header found."""
+    inputs = deployment.get('inputs', {})
+    # Make sure 'blueprint' is the only key directly under 'inputs'
+    if not inputs.get('blueprint') or len(inputs) > 1:
+        LOG.info('X-Source-Untrusted: invalid input section. Tenant ID: %s.',
+                 tenant_id)
+        raise CheckmateValidationException(
+            'POST deployment: malformed inputs.')
+
+    # Make sure 'inputs->blueprint' only contains valid options
+    delta = (
+        set(inputs['blueprint'].keys()) -
+        set(deployment['blueprint']['options'].keys())
+    )
+    if delta:
+        LOG.info('X-Source-Untrusted: invalid blueprint options found. '
+                 'Tenant ID: %s.', tenant_id)
+        raise CheckmateValidationException(
+            'POST deployment: inputs not valid.')
+
+    # Check valid options: value must be less than 4k characters
+    for _, value in inputs['blueprint'].items():
+        if len(value) > 4096:
+            LOG.info('X-Source-Untrusted: value to large (%d characters). '
+                     'Tenant ID: %s.', len(value), tenant_id)
+            raise CheckmateValidationException(
+                'POST deployment: cannot parse values.')
 
 
 def write_deploy_headers(deployment_id, tenant_id=None):
