@@ -441,6 +441,26 @@ describe('DeploymentListController', function(){
       expect(typeof scope.filters).toBe("object");
     });
 
+    it('should contain a defaults object', function() {
+      expect(scope.filters.defaults).not.toBe(undefined);
+    });
+
+    describe('defaults', function() {
+      describe('default blueprint_branch', function() {
+        it('should have two branches', function() {
+          expect(scope.filters.defaults.blueprint_branch.length).toBe(2);
+        });
+
+        it('should contain master branch', function() {
+          expect(scope.filters.defaults.blueprint_branch).toContain('master');
+        });
+
+        it('should contain stable branch', function() {
+          expect(scope.filters.defaults.blueprint_branch).toContain('stable');
+        });
+      });
+    });
+
     describe('default tenant_tag', function() {
       it('should contain four default filters for tenant_tag', function() {
         expect(scope.filters.tenant_tag.length).toBe(4);
@@ -502,6 +522,34 @@ describe('DeploymentListController', function(){
     });
   });
 
+  describe('#build_filters', function() {
+    it('should build an empty filter if no query params or default values', function() {
+      var filter = scope.build_filter('custom_filter');
+      expect(filter).toEqual([]);
+    });
+
+    it('should build filter for default values', function() {
+      scope.filters.defaults.custom_filter = ['lorem'];
+      var filter = scope.build_filter('custom_filter');
+      expect(filter).toEqual([ { name: 'lorem', active: false } ]);
+    });
+
+    it('should use query params to mark filter as active', function() {
+      $location.search.returns({ 'custom_filter': 'lorem' })
+      var filter = scope.build_filter('custom_filter');
+      expect(filter).toEqual([ { name: 'lorem', active: true } ]);
+    });
+
+    it('should use query params to create filter not specified in default values', function() {
+      scope.filters.defaults.custom_filter = ['lorem'];
+      $location.search.returns({ 'custom_filter': 'ipsum' })
+      var filter = scope.build_filter('custom_filter');
+      expect(filter).toContain({ name: 'lorem', active: false });
+      expect(filter).toContain({ name: 'ipsum', active: true });
+    });
+
+  });
+
   describe('#applyFilters', function() {
     it('should cancel pending filter promise', function() {
       scope.filter_promise = 'old promise';
@@ -540,6 +588,12 @@ describe('DeploymentListController', function(){
       ];
       scope.filter_deployments();
       expect($location.search).toHaveBeenCalledWith({ status: ['foobar', 'mordor'] });
+    });
+
+    it('should filter by blueprint_branch', function() {
+      scope.filters.blueprint_branch = [ { name: 'master', active: true } ];
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ blueprint_branch: ['master'] });
     });
 
     it('should filter by tenant tag', function() {

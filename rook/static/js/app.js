@@ -2214,7 +2214,21 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     return { name: status, active: is_active };
   })
 
-  $scope.filters = {}
+  $scope.build_filter = function(filter_name) {
+    var default_values = $scope.filters.defaults[filter_name] || [];
+    var search_params = $location.search()[filter_name] || [];
+    var values = _.uniq(default_values.concat(search_params));
+
+    var filter = _.map(values, function(value) {
+      var is_active = (search_params == value || _.contains(search_params, value));
+      return { name: value, active: is_active };
+    });
+
+    return filter;
+  }
+
+  $scope.filters = {};
+  $scope.filters.defaults = {};
   $scope.default_tags = ['RackConnect', 'Managed', 'Racker', 'Internal'];
   $scope.filters.end_date = $location.search().end_date;
   $scope.filters.start_date = $location.search().start_date;
@@ -2222,6 +2236,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     var is_active = ($location.search().tenant_tag == tag || _.contains($location.search().tenant_tag, tag));
     return { name: tag, active: is_active };
   });
+  $scope.filters.defaults.blueprint_branch = ['master', 'stable'];
+  $scope.filters.blueprint_branch = $scope.build_filter('blueprint_branch');
 
   $scope.query = $location.search().search;
 
@@ -2236,10 +2252,14 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     }
 
     // Tenant Tag
-    var active_filters = _.where($scope.filters.tenant_tag, { active: true });
-    if (active_filters.length > 0) {
-      var filter_names = _.map(active_filters, function(f){ return f.name })
-      filters.tenant_tag = filter_names;
+    var filter_list = ['tenant_tag', 'blueprint_branch'];
+    for (var i=0 ; i<filter_list.length ; i++) {
+      var filter_name = filter_list[i];
+      var active_filters = _.where($scope.filters[filter_name], { active: true });
+      if (active_filters.length > 0) {
+        var filter_names = _.map(active_filters, function(f){ return f.name })
+        filters[filter_name] = filter_names;
+      }
     }
 
     // Dates
