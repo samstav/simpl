@@ -450,11 +450,30 @@ class Manager(base.ManagerBase):
                  deployment['id'], deployment['status'])
         return deployment
 
+    def delete_nodes(self, deployment, context, resource_ids, tenant_id):
+        '''
+        Delete the passed in resources from a deployment
+        :param deployment: Deployment to delete resources from
+        :param context: RequestContext
+        :param resource_ids: Resources to delete
+        :param tenant_id: TenantId of the customer
+        :return:
+        '''
+        driver = self.select_driver(deployment["id"])
+        wf_spec = workflows.WorkflowSpec.create_delete_node_spec(
+            deployment, resource_ids, context)
+        delete_node_workflow = workflow.create_workflow(wf_spec, deployment,
+                                                        context,
+                                                        driver=driver)
+        operations.add(deployment, delete_node_workflow, "SCALE DOWN",
+                       tenant_id)
+
     def deploy_add_nodes(self, deployment, context, tenant_id):
+        driver = self.select_driver(deployment["id"])
         add_node_workflow_spec = (workflows.WorkflowSpec
                                   .create_workflow_spec_deploy(deployment,
                                                                context))
         add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
                                                      deployment, context,
-                                                     driver=self.driver)
+                                                     driver=driver)
         operations.add(deployment, add_node_workflow, "SCALE UP", tenant_id)

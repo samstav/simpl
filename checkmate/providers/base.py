@@ -104,6 +104,25 @@ class ProviderBaseWorkflowMixIn(object):
                 CheckmateException), BLUEPRINT_ERROR, '')
         return wait_on, service_name, component
 
+    def add_delete_connection_tasks(self, wf_spec, context,
+                                    deployment, source_resource,
+                                    target_resource):
+        '''
+        Add tasks needed to delete a connection between resources
+
+        :param wf_spec: Workflow Spec
+        :param context: Context
+        :param deployment: Deployment
+        :param source_resource:
+        :param target_resource:
+        :return:
+        '''
+        LOG.debug("%s.%s.add_delete_connection_tasks called, "
+                  "but was not implemented", self.vendor, self.name)
+
+
+        pass
+
     # pylint: disable=R0913
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):

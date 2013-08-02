@@ -478,6 +478,27 @@ class Provider(ProviderBase):
             task_dict["root"].append(delete_record)
         return task_dict
 
+    def add_delete_connection_tasks(self, wf_spec, context,
+                                    deployment, source_resource,
+                                    target_resource):
+        source_key = source_resource['index']
+        target_key = target_resource['index']
+        delete_node = Celery(
+            wf_spec,
+            "Remove Node %s from LB %s" % (target_key, source_key),
+            "checkmate.providers.rackspace.loadbalancer.delete_node",
+            call_args=[
+                context.get_queued_task_dict(deployment=deployment['id'],
+                                             resource=source_key),
+                PathAttrib('instance:%s/id' % source_key),
+                PathAttrib('instance:%s/private_ip' % target_key),
+                source_resource['region']
+            ],
+            defines=dict(provider=self.key, resource=target_key,
+                         task_tags=['delete_connection']),
+            properties={'estimated_duration': 5})
+        wf_spec.start.connect(delete_node)
+
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
         interface = relation['interface']
@@ -498,10 +519,9 @@ class Provider(ProviderBase):
             protocol_option = options.get("protocol", {})
             protocols = protocol_option.get("choice", [])
             if interface not in protocols:
-                error_message = "'%s' is an invalid relation " \
-                             "interface for provider '%s'. Valid " \
-                             "options are: %s" % (
-                             interface, self.key, protocols)
+                error_message = ("'%s' is an invalid relation interface for "
+                                 "provider '%s'. Valid options are: %s"
+                                 % (interface, self.key, protocols))
                 raise CheckmateUserException(error_message, get_class_name(
                     CheckmateException), BLUEPRINT_ERROR, '')
 
@@ -539,14 +559,14 @@ class Provider(ProviderBase):
         #Make it wait on all other provider completions
         if lb_final_tasks:
             finals.append(lb_final_tasks[0])
-        wfspec.wait_for(add_node_task, finals,
-                 name="Wait before adding %s to LB %s" % (relation['target'],
-                                                          key),
-                 description="Wait for Load Balancer ID "
-                             "and for server to be fully configured before "
-                             "adding it to load balancer",
-                 defines=dict(relation=relation_key, provider=self.key,
-                              task_tags=['root']))
+        wfspec.wait_for(
+            add_node_task,
+            finals,
+            name="Wait before adding %s to LB %s" % (relation['target'], key),
+            description="Wait for Load Balancer ID and for server to be "
+                        "fully configured before adding it to load balancer",
+            defines=dict(relation=relation_key, provider=self.key,
+                         task_tags=['root']))
 
     def get_catalog(self, context, type_filter=None):
         '''Return stored/override catalog if it exists, else connect, build,
@@ -1194,7 +1214,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-def delete_node(context, lbid, ipaddr, port, region, api=None):
+def delete_node(context, lbid, ipaddr, region, api=None):
     '''Celery task to delete a node from a Cloud Load Balancer'''
     match_celery_logging(LOG)
 
@@ -1207,29 +1227,28 @@ def delete_node(context, lbid, ipaddr, port, region, api=None):
     loadbalancer = api.loadbalancers.get(lbid)
     node_to_delete = None
     for node in loadbalancer.nodes:
-        if node.address == ipaddr and node.port == port:
+        if node.address == ipaddr:
             node_to_delete = node
     if node_to_delete:
         try:
             node_to_delete.delete()
-            LOG.info('Removed %s:%s from load balancer %s', ipaddr, port,
-                     lbid)
+            LOG.info('Removed %s from load balancer %s', ipaddr, lbid)
         except cloudlb.errors.ResponseError, exc:
             if exc.status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "deleting %s:%s (%s %s)", lbid, ipaddr, port,
-                          exc.status, exc.reason)
+                          "deleting %s (%s %s)", lbid, ipaddr, exc.status,
+                          exc.reason)
                 delete_node.retry(exc=exc)
             LOG.debug('Response error from load balancer %d. Will retry '
-                      'deleting %s:%s (%s %s)', lbid, ipaddr, port, exc.status,
+                      'deleting %s (%s %s)', lbid, ipaddr, exc.status,
                       exc.reason)
             delete_node.retry(exc=exc)
         except Exception, exc:
-            LOG.debug("Error deleting %s:%s from load balancer %s. Error: %s. "
-                      "Retrying", ipaddr, port, lbid, str(exc))
+            LOG.debug("Error deleting %s from load balancer %s. Error: %s. "
+                      "Retrying", ipaddr, lbid, str(exc))
             delete_node.retry(exc=exc)
     else:
-        LOG.debug('No LB node matching %s:%s on LB %s', ipaddr, port, lbid)
+        LOG.debug('No LB node matching %s on LB %s', ipaddr, lbid)
 
 
 @task(default_retry_delay=10, max_retries=10)

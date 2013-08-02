@@ -1326,6 +1326,17 @@ class Deployment(morpheus.MorpheusDict):
                 planned_resources.update({resource_key: resource_value})
         return planned_resources
 
+    def get_non_deleted_resources(self):
+        '''
+        Return resources with status not equal to DELETED.
+        '''
+        resources = {}
+        for resource_key, resource_value in self.get(
+                "resources", {}).iteritems():
+            if resource_value.get("status", None) != "DELETED":
+                resources.update({resource_key: resource_value})
+        return resources
+
     def get_indexed_resources(self):
         '''Return a set of indexed resources.'''
         indexed_resources = {}

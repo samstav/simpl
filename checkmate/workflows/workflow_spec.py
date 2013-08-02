@@ -39,7 +39,8 @@ class WorkflowSpec(specs.WorkflowSpec):
                 properties={'estimated_duration': 10})
             wf_spec.start.connect(root_task)
 
-        for key, resource in deployment.get('resources', {}).iteritems():
+        for key, resource \
+                in deployment.get_non_deleted_resources().iteritems():
             if key not in ['connections', 'keys'] and 'provider' in resource:
                 provider = environment.get_provider(resource.get('provider'))
                 if not provider:
@@ -87,7 +88,8 @@ class WorkflowSpec(specs.WorkflowSpec):
         providers = {}  # Unique providers used in this deployment
 
         provider_keys = set()
-        for key, resource in deployment.get('resources', {}).iteritems():
+        non_deleted_resources = deployment.get_non_deleted_resources()
+        for key, resource in non_deleted_resources.iteritems():
             if (key not in ['connections', 'keys'] and 'provider' in
                     resource and resource['provider'] not in provider_keys):
                 provider_keys.add(resource['provider'])
@@ -175,15 +177,17 @@ class WorkflowSpec(specs.WorkflowSpec):
                         wf_spec.start.connect(provider_result['root'])
 
         # Do relations
-        for key, resource in deployment.get('resources', {}).iteritems():
+        for key, resource in non_deleted_resources.iteritems():
             if 'relations' in resource:
                 for name, relation in resource['relations'].iteritems():
                     # Process where this is a source (host relations done
                     # above)
-                    if ('target' in relation and name != 'host' and (
-                            relation['target'] in new_and_planned_resources
-                            .keys() or key in new_and_planned_resources
-                            .keys())):
+                    if ('target' in relation
+                        and name != 'host'
+                        and relation['target'] in non_deleted_resources
+                        and (relation['target'] in
+                        new_and_planned_resources.keys()
+                             or key in new_and_planned_resources.keys())):
                         provider = providers[resource['provider']]
                         provider_result = provider.add_connection_tasks(
                             resource, key, relation, name, wf_spec,
@@ -314,3 +318,90 @@ class WorkflowSpec(specs.WorkflowSpec):
                 return wait_set[0]
         else:
             return task
+
+    @staticmethod
+    def create_delete_node_spec(deployment, resources_to_delete, context):
+        LOG.debug("Creating workflow spec for deleting resources %s",
+                  resources_to_delete)
+        blueprint = deployment['blueprint']
+        dep_id = deployment["id"]
+        wf_spec = WorkflowSpec(name="Delete resources %s for deployment %s)" %
+                                    (dep_id, blueprint['name']))
+        resources = deployment.get('resources')
+        LOG.debug("[Delete Nodes] Attempting to delete %s",
+                  resources_to_delete)
+        LOG.debug("[Delete Nodes] Deployment resources %s",
+                  resources)
+
+        for resource_key in resources_to_delete:
+            wait_tasks = []
+            LOG.debug("[Delete Nodes] Resource Key %s", resource_key)
+            resource = resources.get(resource_key)
+            LOG.debug("[Delete Nodes] Resource from Deployment %s", resource)
+            #Process host-relations for resource
+            if 'hosts' in resource:
+                for host in resource['hosts']:
+                    WorkflowSpec._add_delete_tasks_for_resource_relation(
+                        wf_spec, deployment, host, context)
+                    wait_tasks.extend(wf_spec.find_task_specs(
+                        resource=host, tag="delete_connection"))
+
+            #Process relations for resource
+            WorkflowSpec._add_delete_tasks_for_resource_relation(wf_spec,
+                                                                 deployment,
+                                                                 resource_key,
+                                                                 context)
+            wait_tasks.extend(wf_spec.find_task_specs(resource=resource_key,
+                                                      tag="delete_connection"))
+
+            #Process resource to be deleted
+            provider_key = resource.get("provider")
+            environment = deployment.environment()
+            provider = environment.get_provider(provider_key)
+            del_tasks = provider.delete_resource_tasks(wf_spec, context,
+                                                       dep_id,
+                                                       resource,
+                                                       resource_key)
+            if del_tasks:
+                tasks = del_tasks.get('root')
+                if wait_tasks:
+                    if isinstance(tasks, list) and tasks:
+                        merge_task = wf_spec.wait_for(
+                            tasks[0], wait_tasks,
+                            name="Wait before deleting resource %s" %
+                                 resource_key)
+                        for task in tasks[1:]:
+                            merge_task.connect(task)
+                    else:
+                        wf_spec.wait_for(
+                            tasks, wait_tasks,
+                            name="Wait before deleting resource %s" %
+                                 resource_key)
+                else:
+                    if isinstance(tasks, list) and tasks:
+                        for task in tasks:
+                            wf_spec.start.connect(task)
+                    else:
+                        wf_spec.start.connect(tasks)
+        return wf_spec
+
+    @staticmethod
+    def _add_delete_tasks_for_resource_relation(wf_spec, deployment,
+                                                resource_key, context):
+        resources = deployment['resources']
+        resource = resources[resource_key]
+        if resource["status"] == "DELETED":
+            return
+        if 'relations' in resource:
+            environment = deployment.environment()
+            for relation_key, relation in resource['relations'].iteritems():
+                if relation_key != 'host' and 'source' in relation:
+                    source_resource = resources.get(relation["source"])
+                    if source_resource["status"] == "DELETED":
+                        continue
+                    source_provider_key = source_resource["provider"]
+                    source_provider = environment.get_provider(
+                        source_provider_key)
+                    source_provider.add_delete_connection_tasks(
+                        wf_spec, context, deployment, source_resource,
+                        resource)

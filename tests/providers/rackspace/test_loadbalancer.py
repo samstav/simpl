@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 import logging
-import unittest
+import re
 
 import cloudlb
 import mox
+import unittest
+
+from SpiffWorkflow import Workflow
 
 from checkmate import deployment as cm_dep
 from checkmate import deployments
@@ -17,6 +20,7 @@ from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
 from checkmate import workflows
+from checkmate.workflows import WorkflowSpec
 
 LOG = logging.getLogger(__name__)
 
@@ -28,6 +32,31 @@ class TestLoadBalancer(test.ProviderTester):
     def test_provider(self):
         provider = loadbalancer.Provider({})
         self.assertEqual(provider.key, 'rackspace.load-balancer')
+
+    def test_generate_delete_connection_tasks(self):
+        wf_spec = WorkflowSpec()
+        deployment = cm_dep.Deployment({
+            'id': 'TEST',
+
+        })
+        context = middleware.RequestContext()
+
+        resource_1 = {"index": "1", "region": "ORD"}
+        resource_2 = {"index": "2", }
+
+        provider = loadbalancer.Provider({})
+        provider.add_delete_connection_tasks(wf_spec,  context, deployment,
+                                             resource_1, resource_2)
+        workflow = Workflow(wf_spec)
+
+        expected_dump = re.sub("\s", "", """
+            1/0: Task of Root State: COMPLETED Children: 1
+            2/0: Task of Start State: READY Children: 1
+            3/0: Task of Remove Node 2 from LB 1 State: FUTURE Children: 0
+        """)
+        workflow_dump = re.sub("\s", "", workflow.get_dump())
+
+        self.assertEqual(expected_dump, workflow_dump)
 
     def verify_limits(self, max_lbs, max_nodes):
         """Test the verify_limits() method."""

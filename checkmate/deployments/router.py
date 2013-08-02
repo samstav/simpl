@@ -6,6 +6,7 @@ Handles API calls to /deployments and routes them appropriately
 import copy
 import logging
 import os
+import string
 import uuid
 
 import bottle  # pylint: disable=E0611
@@ -170,6 +171,8 @@ class Router(object):
                   self.deploy_deployment)
         app.route('/deployments/<api_id>/+add-nodes', ['POST', 'GET'],
                   self.add_nodes)
+        app.route('/deployments/<api_id>/+delete-nodes', ['POST', 'GET'],
+                  self.delete_nodes)
 
         # Secrets
         app.route('/deployments/<api_id>/secrets', 'GET',
@@ -327,9 +330,56 @@ class Router(object):
         return utils.write_body(results, bottle.request, bottle.response)
 
     @utils.with_tenant
+    def delete_nodes(self, api_id, tenant_id=None):
+        '''
+        Deletes nodes from a  deployment, based on the resource ids that are
+         to be provided in the request body
+        :param api_id:
+        :param tenant_id:
+        :return:
+        '''
+        if utils.is_simulation(api_id):
+            bottle.request.context.simulation = True
+        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
+                                                 with_secrets=True)
+        if not deployment:
+            raise CheckmateDoesNotExist("No deployment with id %s" % api_id)
+        deployment = cmdeploy.Deployment(deployment)
+        body = utils.read_body(bottle.request)
+
+        if "resource_ids" not in body:
+            bottle.abort(400, "Invalid input, \'resource_ids\' input "
+                              "parameter is not provided in the request")
+        resource_ids_raw = string.split(body["resource_ids"], ',')
+        resource_ids = map(lambda resource_id: resource_id.strip(),
+                           resource_ids_raw)
+        LOG.debug("Received request to delete resources %s for deployment "
+                  "%s", resource_ids, deployment["id"])
+        self.manager.delete_nodes(deployment, bottle.request.context,
+                                  resource_ids, tenant_id)
+
+        deployment = self.manager.save_deployment(deployment, api_id=api_id,
+                                                  tenant_id=tenant_id)
+        delete_nodes_wf_id = deployment['operation']['workflow-id']
+        wf_tasks.run_workflow.delay(delete_nodes_wf_id, timeout=3600)
+
+        # Set headers
+        location = "/deployments/%s" % api_id
+        link = "/workflows/%s" % delete_nodes_wf_id
+        if tenant_id:
+            location = "/%s%s" % (tenant_id, location)
+            link = "/%s%s" % (tenant_id, link)
+        bottle.response.set_header("Location", location)
+        bottle.response.set_header("Link", '<%s>; rel="workflow"; '
+                                   'title="Delete Nodes"' % link)
+        bottle.response.set_header("Location", location)
+
+        bottle.response.status = 202  # Accepted (i.e. not done yet)
+        return utils.write_body(deployment, bottle.request, bottle.response)
+
+    @utils.with_tenant
     def add_nodes(self, api_id, tenant_id=None):
         """Add nodes to deployment identified by api_id."""
-        LOG.debug("[AddNodes] Received a call to add_nodes")
         if utils.is_simulation(api_id):
             bottle.request.context.simulation = True
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
@@ -348,7 +398,7 @@ class Router(object):
         #Should error out if the deployment is building
         if not service_name or not count:
             bottle.abort(400, "Invalid input, service_name and count is not "
-                              "provided in the query string")
+                              "provided in the request body")
         deployment = self.manager.plan_add_nodes(deployment,
                                                  bottle.request.context,
                                                  service_name,
@@ -370,7 +420,7 @@ class Router(object):
             link = "/%s%s" % (tenant_id, link)
         bottle.response.set_header("Location", location)
         bottle.response.set_header("Link", '<%s>; rel="workflow"; '
-                                   'title="Delete Deployment"' % link)
+                                   'title="Add Nodes"' % link)
         bottle.response.set_header("Location", location)
 
         bottle.response.status = 202  # Accepted (i.e. not done yet)
