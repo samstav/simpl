@@ -767,6 +767,44 @@ services.factory('github', ['$http', '$q', function($http, $q) {
       });
   }
 
+  scope.get_refs = function(repos, type) {
+    var tags = [];
+    var promises = [];
+
+    if (!type) type = "";
+    else type = '/' + type;
+    if (!(repos instanceof Array)) {
+      repos = [repos];
+    }
+
+    for (var i=0 ; i<repos.length ; i++) {
+      var repo = repos[i];
+      var refs_url = repo.git_refs_url.replace('{/sha}', type);
+      var url = scope.get_proxy_url(refs_url);
+      var config = get_config(refs_url);
+      var promise = $http.get(url, config).then(
+        function(response) { // Success
+          tags.push(response.data);
+        },
+        function(response) { // Error
+          tags.push([]);
+        }
+      );
+      promises.push(promise);
+    }
+
+    return $q.all(promises).then(function() {
+      if (tags.length == 1)
+        tags = tags.pop();
+
+      return tags;
+    });
+  }
+
+  scope.get_tags = function(repos) {
+    return scope.get_refs(repos, 'tags');
+  }
+
   return scope;
 }]);
 
