@@ -31,36 +31,13 @@ import re
 gettext.install('checkmate')
 
 
-def _get_version():
-    '''Return version information from checkmate.cfg.'''
-    configfile = os.path.join(os.path.dirname(__file__), 'checkmate.cfg')
-    config = ConfigParser.ConfigParser()
-    config.read(configfile)
-    return config.get("checkmate", "version")
+configfile = os.path.join(os.path.dirname(__file__), 'checkmate.cfg')
+config = ConfigParser.ConfigParser()
+config.read(configfile)
 
-
-def _get_release():
-    '''Load release information from checkmate.cfg.'''
-    val = "unknown"
-    try:
-        import pkg_resources
-        try:
-            dist = pkg_resources.get_distribution("checkmate")
-            # pylint: disable=E1103
-            match = re.search(r'((\d+\.)+)(\D.+)', dist.version)
-            if match:
-                val = match.group(match.lastindex)
-        except pkg_resources.DistributionNotFound:
-            pass
-    except StandardError:
-        pass
-    return val
-
-
-__version__ = _get_version()
-__release__ = _get_release()
+__version__ = config.get("checkmate", "version")
 
 
 def version():
     '''Return checkmate server version as a string.'''
-    return "%s-%s" % (__version__, __release__)
+    return __version__
