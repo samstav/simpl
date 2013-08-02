@@ -28,12 +28,17 @@ because it always reports `task_name` as 'run'
 '''
 from __future__ import absolute_import
 
+import os
 import statsd
 
 from checkmate.common import config
 
 CONFIG = config.current()
 
+if os.environ.get('STATSD_HOST'):
+    CONFIG.statsd = True
+    CONFIG.statsd_host = os.environ['STATSD_HOST']
+    CONFIG.statsd_port = os.environ['STATSD_PORT'] or CONFIG.statsd_port
 
 def simple_decorator(decorator):
     '''Borrowed from:

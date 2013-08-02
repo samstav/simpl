@@ -158,20 +158,6 @@ def error_formatter(error):
         dict(error=output), bottle.request, bottle.response)
 
 
-def config_statsd():
-    '''Stores statsd config in checkmate.common.config.'''
-    user_values = CONFIG.statsd.split(':')
-    if (len(user_values) < 1 or len(user_values) > 2):
-        raise CheckmateException('statsd config required in format '
-                                 'server:port')
-    elif len(user_values) == 1:
-        CONFIG.statsd_port = 8125
-    else:
-        CONFIG.statsd_port = user_values[1]
-
-    CONFIG.statsd_host = user_values[0]
-
-
 def main():
     '''Start the server based on passed in arguments. Called by __main__.'''
     global LOG  # pylint: disable=W0603
@@ -199,9 +185,6 @@ def main():
                "files. However, it will block when performing background "
                "operations or responding to requests. To run a multi-threaded "
                "server start Checkmate with the '--eventlet' switch")
-
-    if CONFIG.statsd:
-        config_statsd()
 
     check_celery_config()
 
