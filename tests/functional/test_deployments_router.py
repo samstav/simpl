@@ -188,10 +188,18 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
                                                     mock_githubmgr,
                                                     mock_config):
         mock_read_body.return_value = {
-            'blueprint': {'id': 'abc123'},
-            'deployment': {
-                'tenantId': 'Ttest',
-                'includes': 'should be deleted'
+            'blueprint': {
+                'id': 'abc123',
+                'options': {
+                    'tenantId': '',
+                    'includes': '',
+                }
+            },
+            'inputs': {
+                'blueprint': {
+                    'tenantId': 'Ttest',
+                    'includes': 'should be deleted'
+                }
             }
         }
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
@@ -205,7 +213,26 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         config.github_api = 'http://some.valid.url.com'
         mock_config.return_value = config
         self.assertEqual(
-            self.expected_deployment(),
+            {
+                'blueprint': {
+                    'id': 'abc123',
+                    'options': {
+                        'includes': '',
+                        'tenantId': ''
+                    }
+                },
+                'inputs': {
+                    'blueprint': {
+                        'includes': 'should be deleted',
+                        'tenantId': 'Ttest'
+                    }
+                },
+                'created': '2013-07-15 21:07:00 +0000',
+                'tenantId': 'Ttest',
+                'status': 'NEW',
+                'created-by': 'Me',
+                'id': 'Dtest'
+            },
             router._content_to_deployment(
                 request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
         )
