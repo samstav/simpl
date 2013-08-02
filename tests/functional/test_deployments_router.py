@@ -56,7 +56,8 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         request = mock.Mock()
         request.headers = {}
         with self.assertRaises(CheckmateValidationException) as expected:
-            router._content_to_deployment(request=request, deployment_id='>test',
+            router._content_to_deployment(request=request,
+                                          deployment_id='>test',
                                           tenant_id='Ttest')
         self.assertEqual("Invalid start character '>'. ID can start with any "
                          "of 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU"
@@ -71,7 +72,8 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         request = mock.Mock()
         request.headers = {}
         with self.assertRaises(CheckmateValidationException) as expected:
-            router._content_to_deployment(request=request, deployment_id='t>est',
+            router._content_to_deployment(request=request,
+                                          deployment_id='t>est',
                                           tenant_id='Ttest')
         self.assertEqual("Invalid character '>'. Allowed characters are "
                          "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU"
@@ -156,7 +158,6 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
                 request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
         )
 
-
     @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_untrusted_request_but_no_github_config(
@@ -178,7 +179,6 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             str(expected.exception)
         )
 
-
     @mock.patch('checkmate.common.config.current')
     @mock.patch('checkmate.blueprints.GitHubManager')
     @mock.patch('checkmate.deployment.utils.get_time_string')
@@ -188,10 +188,18 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
                                                     mock_githubmgr,
                                                     mock_config):
         mock_read_body.return_value = {
-            'blueprint': {'id': 'abc123'},
-            'deployment': {
-                'tenantId': 'Ttest',
-                'includes': 'should be deleted'
+            'blueprint': {
+                'id': 'abc123',
+                'options': {
+                    'tenantId': '',
+                    'includes': '',
+                }
+            },
+            'inputs': {
+                'blueprint': {
+                    'tenantId': 'Ttest',
+                    'includes': 'should be deleted'
+                }
             }
         }
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
@@ -205,7 +213,26 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         config.github_api = 'http://some.valid.url.com'
         mock_config.return_value = config
         self.assertEqual(
-            self.expected_deployment(),
+            {
+                'blueprint': {
+                    'id': 'abc123',
+                    'options': {
+                        'includes': '',
+                        'tenantId': ''
+                    }
+                },
+                'inputs': {
+                    'blueprint': {
+                        'includes': 'should be deleted',
+                        'tenantId': 'Ttest'
+                    }
+                },
+                'created': '2013-07-15 21:07:00 +0000',
+                'tenantId': 'Ttest',
+                'status': 'NEW',
+                'created-by': 'Me',
+                'id': 'Dtest'
+            },
             router._content_to_deployment(
                 request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
         )
