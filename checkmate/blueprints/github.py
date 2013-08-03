@@ -423,6 +423,16 @@ class GitHubManager(base.ManagerBase):
         return (self._get_source(untrusted_p['chef-solo']) ==
                 self._get_source(trusted_p['chef-solo']))
 
+    def _clean_env(self, untrusted_env, trusted_env):
+        """Update all values in untrusted_env with thsoe from trusted_env."""
+        delta = set(untrusted_env.keys()) - set(trusted_env.keys())
+        if delta:
+            LOG.info('X-Source-Untrusted: invalid environment options found.')
+            raise CheckmateValidationException(
+                'POST deployment: environment not valid.')
+        for key in untrusted_env.keys():
+            untrusted_env[key] = trusted_env[key]
+
     def blueprint_is_invalid(self, untrusted_blueprint):
         """Returns true if passed-in blueprint does NOT pass validation."""
         return not self.blueprint_is_valid(untrusted_blueprint)
@@ -433,7 +443,8 @@ class GitHubManager(base.ManagerBase):
         for _, blueprint in self._blueprints.items():
             if self._sources_match(untrusted_blueprint, blueprint):
                 untrusted_blueprint['blueprint'] = blueprint['blueprint']
-                untrusted_blueprint['environment'] = blueprint['environment']
+                self._clean_env(untrusted_blueprint['environment'],
+                                blueprint['environment'])
                 return True
         return False
 
