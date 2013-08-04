@@ -417,7 +417,12 @@ class GitHubManager(base.ManagerBase):
     def _sources_match(self, untrusted, trusted):
         """If chef-solo's 'source' is the same in both, return True."""
         untrusted_p = untrusted['environment']['providers']
-        trusted_p = trusted['environment']['providers']
+        try:  # Something in `trusted` can sometimes be a float?!
+            trusted_p = trusted['environment']['providers']
+        except TypeError:  # Because float doesn't have a __getitem__
+            LOG.info('X-Source-Untrusted: something in cached blueprint '
+                     'should be a dict but is not. Blueprint: %s', trusted)
+            return False
         if not untrusted_p.get('chef-solo') or not trusted_p.get('chef-solo'):
             return False
         return (self._get_source(untrusted_p['chef-solo']) ==
