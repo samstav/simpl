@@ -537,212 +537,275 @@ services.value('options', {
 });
 
 /* Github APIs for blueprint parsing*/
-services.factory('github', ['$http', function($http) {
-  var me = {
+services.factory('github', ['$http', '$q', function($http, $q) {
+  var set_remote_owner_type = function(remote, type) {
+    remote[type] = remote.owner;
+    return remote;
+  }
 
-    // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
-    get_api_details: function(uri) {
-      var api = {};
-      var host_parts = uri.host().split(':');
-      var domain = host_parts[0];
-      var port = host_parts.length > 1 ? ':'+ host_parts[1] : '';
-
-      if(/github\.com$/i.test(domain)) {
-        // The repo is on the Github website
-        api.server = uri.protocol() + '://' + 'api.github.com' + port;
-        api.url = (checkmate_server_base || '') + '/githubproxy/';
-        return api;
+  var get_config = function(url) {
+    var config = {
+      headers: {
+        'X-Target-Url': url,
+        'accept': 'application/json'
       }
+    };
 
-      // The repo is on Github Enterprise
-      api.server = uri.protocol() + '://' + uri.host();
-      api.url = (checkmate_server_base || '') + '/githubproxy/api/v3/';
+    return config;
+  }
+
+  var scope = {};
+
+  scope.get_proxy_url = function(repo_url) {
+      var uri = URI(repo_url);
+      return '/githubproxy' + uri.path();
+  }
+
+  // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
+  scope.get_api_details = function(uri) {
+    var api = {};
+    var host_parts = uri.host().split(':');
+    var domain = host_parts[0];
+    var port = host_parts.length > 1 ? ':'+ host_parts[1] : '';
+
+    if(/github\.com$/i.test(domain)) {
+      // The repo is on the Github website
+      api.server = uri.protocol() + '://' + 'api.github.com' + port;
+      api.url = (checkmate_server_base || '') + '/githubproxy/';
       return api;
-    },
-
-    //Parse URL and returns the github components (org, user, repo) back
-    parse_org_url: function(url, callback) {
-      var results = {};
-      var u = URI(url);
-      var parts = u.path().substring(1).split('/');
-      var first_path_part = parts[0];
-      results.server = u.protocol() + '://' + u.host(); //includes port
-      results.url = u.href();
-      results.api = this.get_api_details(u);
-      results.owner = first_path_part;
-      if (parts.length > 1) {
-        results.repo = {name: parts[1]};
-      } else {
-        results.repo = {};
-      }
-      //Test if org
-      $http({method: 'HEAD', url: results.api.url + 'orgs/' + first_path_part,
-          headers: {'X-Target-Url': results.api.server, 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        //This is an org
-        results.org = first_path_part;
-        results.user = null;
-        if(callback) callback();
-      }).
-      error(function(data, status, headers, config) {
-        //This is not an org (assume it is a user)
-        results.org = null;
-        results.user = first_path_part;
-        if(callback) callback();
-      });
-      return results;
-    },
-
-
-    //Load all repos for owner
-    get_repos: function(remote, callback, error_callback) {
-      var path = remote.api.url;
-      if (remote.org !== null) {
-        path += 'orgs/' + remote.org + '/repos';
-      } else
-        path += 'users/' + remote.user + '/repos';
-      console.log("Loading: " + path);
-      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-        success(function(data, status, headers, config) {
-          console.log("Load repos returned");
-          callback(data);
-          console.log("Done loading repos");
-        }).
-        error(function(data, status, headers, config) {
-          var response = {data: data, status: status};
-          error_callback(response);
-        });
-    },
-
-    //Load one repo
-    get_repo: function(remote, repo_name, callback, error_callback) {
-      var path = remote.api.url + 'repos/' + remote.owner + '/' + repo_name;
-      console.log("Loading: " + path);
-      $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-        success(function(data, status, headers, config) {
-          callback(data);
-        }).
-        error(function(data, status, headers, config) {
-          var response = {data: data, status: status};
-          error_callback(response);
-        });
-    },
-
-    //Get all branches (and tags) for a repo
-    get_branches: function(remote, callback, error_callback) {
-      $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        //Only branches and tags
-        var filtered = _.filter(data, function(item) {
-          return item.ref.indexOf('refs/heads/') === 0 || item.ref.indexOf('refs/tags/') === 0;
-        });
-        //Format the data (we need name, type, and sha only)
-        var transformed = _.map(filtered, function(item){
-          if (item.ref.indexOf('refs/heads/') === 0)
-            return {
-              type: 'branch',
-              name: item.ref.substring(11),
-              commit: item.object.sha
-              };
-          else if (item.ref.indexOf('refs/tags/') === 0)
-            return {
-              type: 'tag',
-              name: item.ref.substring(10),
-              commit: item.object.sha
-              };
-        });
-        callback(transformed);
-      }).
-      error(function(data, status, headers, config) {
-        var response = {data: data, status: status};
-        error_callback(response);
-      });
-    },
-
-    // Get a single branch or tag and return it as an object (with type, name, and commit)
-    get_branch_from_name: function(remote, branch_name, callback, error_callback) {
-      $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        //Only branches and tags
-        var branch_ref = 'refs/heads/' + branch_name;
-        var tag_ref = 'refs/tags/' + branch_name;
-        var found = _.find(data, function(item) {
-          return item.ref == branch_ref || item.ref == tag_ref;
-        });
-        if (found === undefined) {
-          var response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
-          error_callback(response);
-          return;
-        }
-
-        //Format and return the data (we need name, type, and sha only)
-        if (found.ref == branch_ref)
-          callback({
-            type: 'branch',
-            name: found.ref.substring(11),
-            commit: found.object.sha
-            });
-        else if (found.ref == tag_ref)
-          callback({
-            type: 'tag',
-            name: found.ref.substring(10),
-            commit: found.object.sha
-            });
-      }).
-      error(function(data, status, headers, config) {
-        var response = {data: data, status: status};
-        error_callback(response);
-      });
-    },
-
-    get_blueprint: function(remote, username, callback, error_callback) {
-      var repo_url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name;
-      $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit,
-          headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
-        if (checkmate_yaml_file === undefined) {
-          error_callback("No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'");
-        } else {
-          $http({method: 'GET', url: repo_url + '/git/blobs/' + checkmate_yaml_file.sha,
-              headers: {'X-Target-Url': remote.api.server, 'Accept': 'application/vnd.github.v3.raw'}}).
-          success(function(data, status, headers, config) {
-            var checkmate_yaml = {};
-            try {
-              checkmate_yaml = YAML.parse(data.replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name).replace('%username%', username || '%username%'));
-            } catch(err) {
-              if (err.name == "YamlParseException")
-                error_callback("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
-            }
-            callback(checkmate_yaml, remote);
-          }).
-          error(function(data, status, headers, config) {
-            var response = {data: data, status: status};
-            error_callback(response);
-          });
-        }
-      }).
-      error(function(data, status, headers, config) {
-        var response = {data: data, status: status};
-        error_callback(response);
-      });
-    },
-
-    get_contents: function(remote, url, content_item, callback){
-      var destination_path = URI(url).path();
-      var path = '/githubproxy' + destination_path + "/contents/" + content_item;
-      return $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-        success(function(data, status, headers, config) {
-          callback(data);
-        }).
-        error(function() {
-          console.log('Failed to retrieve ' + content_item + ' from ' + url);
-        });
     }
-  };
-  return me;
+
+    // The repo is on Github Enterprise
+    api.server = uri.protocol() + '://' + uri.host();
+    api.url = (checkmate_server_base || '') + '/githubproxy/api/v3/';
+    return api;
+  }
+
+  scope.parse_url = function(url_string) {
+    var remote = {};
+
+    var url = URI(url_string);
+    var segments = url.path().substring(1).split('/');
+    var first_path_part = segments[0];
+    remote.server = url.protocol() + '://' + url.host(); //includes port
+    remote.url = url.href();
+    remote.api = scope.get_api_details(url);
+    remote.owner = first_path_part;
+    remote.repo = {};
+    if (segments.length > 1) {
+      remote.repo.name = segments[1];
+    }
+
+    // Unknown at this point
+    remote.org = null;
+    remote.user = null;
+
+    return remote;
+  }
+
+  //Parse URL and returns a promise back with the github components (org, user, repo)
+  scope.parse_org_url = function(url) {
+    var remote = scope.parse_url(url);
+    var api_call = remote.api.url + 'orgs/' + remote.owner;
+    var headers = {'X-Target-Url': remote.api.server, 'accept': 'application/json'};
+
+    return $http({method: 'HEAD', url: api_call, headers: headers}).
+      then(
+        function(response) { // If orgs call is successful
+          return set_remote_owner_type(remote, 'org');
+        },
+        function(response) { // Assume it's a user otherwise
+          return set_remote_owner_type(remote, 'user');
+        }
+      );
+  }
+
+  //Load all repos for owner
+  scope.get_repos = function(remote) {
+    var path = remote.api.url;
+    if (remote.org !== null) {
+      path += 'orgs/' + remote.org + '/repos';
+    } else
+      path += 'users/' + remote.user + '/repos';
+    console.log("Loading: " + path);
+    var config = {headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}};
+    return $http.get(path, config).then(
+      function(response) {
+        return response.data;
+      },
+      function(response) {
+        return $q.reject(response);
+      }
+    );
+  }
+
+  //Load one repo
+  scope.get_repo = function(remote, repo_name, callback, error_callback) {
+    var path = remote.api.url + 'repos/' + remote.owner + '/' + repo_name;
+    console.log("Loading: " + path);
+    $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        callback(data);
+      }).
+      error(function(data, status, headers, config) {
+        var response = {data: data, status: status};
+        error_callback(response);
+      });
+  }
+
+  //Get all branches (and tags) for a repo
+  scope.get_branches = function(remote, callback, error_callback) {
+    $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
+        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      //Only branches and tags
+      var filtered = _.filter(data, function(item) {
+        return item.ref.indexOf('refs/heads/') === 0 || item.ref.indexOf('refs/tags/') === 0;
+      });
+      //Format the data (we need name, type, and sha only)
+      var transformed = _.map(filtered, function(item){
+        if (item.ref.indexOf('refs/heads/') === 0)
+          return {
+            type: 'branch',
+            name: item.ref.substring(11),
+            commit: item.object.sha
+            };
+        else if (item.ref.indexOf('refs/tags/') === 0)
+          return {
+            type: 'tag',
+            name: item.ref.substring(10),
+            commit: item.object.sha
+            };
+      });
+      callback(transformed);
+    }).
+    error(function(data, status, headers, config) {
+      var response = {data: data, status: status};
+      error_callback(response);
+    });
+  }
+
+  // Get a single branch or tag and return it as an object (with type, name, and commit)
+  scope.get_branch_from_name = function(remote, branch_name, callback, error_callback) {
+    $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
+        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      //Only branches and tags
+      var branch_ref = 'refs/heads/' + branch_name;
+      var tag_ref = 'refs/tags/' + branch_name;
+      var found = _.find(data, function(item) {
+        return item.ref == branch_ref || item.ref == tag_ref;
+      });
+      if (found === undefined) {
+        var response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
+        error_callback(response);
+        return;
+      }
+
+      //Format and return the data (we need name, type, and sha only)
+      if (found.ref == branch_ref)
+        callback({
+          type: 'branch',
+          name: found.ref.substring(11),
+          commit: found.object.sha
+          });
+      else if (found.ref == tag_ref)
+        callback({
+          type: 'tag',
+          name: found.ref.substring(10),
+          commit: found.object.sha
+          });
+    }).
+    error(function(data, status, headers, config) {
+      var response = {data: data, status: status};
+      error_callback(response);
+    });
+  }
+
+  scope.get_blueprint = function(remote, username, callback, error_callback) {
+    var repo_url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name;
+    $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit,
+        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    success(function(data, status, headers, config) {
+      var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
+      if (checkmate_yaml_file === undefined) {
+        error_callback("No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'");
+      } else {
+        $http({method: 'GET', url: repo_url + '/git/blobs/' + checkmate_yaml_file.sha,
+            headers: {'X-Target-Url': remote.api.server, 'Accept': 'application/vnd.github.v3.raw'}}).
+        success(function(data, status, headers, config) {
+          var checkmate_yaml = {};
+          try {
+            checkmate_yaml = YAML.parse(data.replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name).replace('%username%', username || '%username%'));
+          } catch(err) {
+            if (err.name == "YamlParseException")
+              error_callback("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
+          }
+          callback(checkmate_yaml, remote);
+        }).
+        error(function(data, status, headers, config) {
+          var response = {data: data, status: status};
+          error_callback(response);
+        });
+      }
+    }).
+    error(function(data, status, headers, config) {
+      var response = {data: data, status: status};
+      error_callback(response);
+    });
+  }
+
+  scope.get_contents = function(remote, url, content_item, callback){
+    var destination_path = URI(url).path();
+    var path = '/githubproxy' + destination_path + "/contents/" + content_item;
+    return $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+      success(function(data, status, headers, config) {
+        callback(data);
+      }).
+      error(function() {
+        console.log('Failed to retrieve ' + content_item + ' from ' + url);
+      });
+  }
+
+  scope.get_refs = function(repos, type) {
+    var tags = [];
+    var promises = [];
+
+    if (!type) type = "";
+    else type = '/' + type;
+    if (!(repos instanceof Array)) {
+      repos = [repos];
+    }
+
+    for (var i=0 ; i<repos.length ; i++) {
+      var repo = repos[i];
+      var refs_url = repo.git_refs_url.replace('{/sha}', type);
+      var url = scope.get_proxy_url(refs_url);
+      var config = get_config(refs_url);
+      var promise = $http.get(url, config).then(
+        function(response) { // Success
+          tags.push(response.data);
+        },
+        function(response) { // Error
+          tags.push([]);
+        }
+      );
+      promises.push(promise);
+    }
+
+    return $q.all(promises).then(function() {
+      if (tags.length == 1)
+        tags = tags.pop();
+
+      return tags;
+    });
+  }
+
+  scope.get_tags = function(repos) {
+    return scope.get_refs(repos, 'tags');
+  }
+
+  return scope;
 }]);
 
 /*
@@ -975,7 +1038,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
             var params = { headers: response.headers, endpoint: endpoint };
             auth.context = auth.create_context(response.data, params);
             auth.identity = auth.create_identity(response.data, params);
-            auth.identity.context = _.clone(auth.context);
+            auth.identity.context = angular.copy(auth.context);
             if (auth.is_admin())
               auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
             auth.save();
@@ -1074,7 +1137,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         return tenant.username == context.username;
       });
 
-      auth.cache.tenants.unshift(_.clone(context));
+      auth.cache.tenants.unshift(angular.copy(context));
       if (auth.cache.tenants.length > 10)
         auth.cache.tenants.pop();
     },
@@ -1123,7 +1186,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     },
 
     exit_impersonation: function() {
-      auth.context = _.clone(auth.identity.context);
+      auth.context = angular.copy(auth.identity.context);
       auth.check_state();
       auth.save();
     },
@@ -1779,4 +1842,27 @@ angular.module('checkmate.services').factory('Deployment', function(){
 
   return { status: status,
            progress: progress };
+});
+
+angular.module('checkmate.services').factory('Cache', function() {
+  var scope = {};
+  var CACHE_STORAGE = 'cmcache';
+  var storage = JSON.parse(localStorage.getItem(CACHE_STORAGE) || "{}");
+
+  scope.get = function(cache_name) {
+    if (!storage[cache_name]) {
+      storage[cache_name] = {};
+    }
+
+    storage[cache_name].save = function() {
+      // Loads current cache to update only necessary values
+      var current_cache = JSON.parse(localStorage.getItem(CACHE_STORAGE) || "{}");
+      current_cache[cache_name] = storage[cache_name];
+      localStorage.setItem(CACHE_STORAGE, JSON.stringify(current_cache));
+    }
+
+    return storage[cache_name];
+  }
+
+  return scope;
 });

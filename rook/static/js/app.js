@@ -1584,7 +1584,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     }
 
     $scope.auto_refresh_promise = $timeout($scope.auto_refresh, $scope.auto_refresh_timeout.current);
-    $scope._task_states = _.clone($scope.taskStates);
+    $scope._task_states = angular.copy($scope.taskStates);
   }
 
   $scope.auto_refresh = function() {
@@ -1653,7 +1653,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.avoid_collision = function(nodes, current_position, axis, level) {
     level = level || 0;
-    var new_position = _.clone(current_position);
+    var new_position = angular.copy(current_position);
     var existing_node = _.findWhere(nodes, new_position);
     if (!existing_node) {
       return new_position;
@@ -1699,7 +1699,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.interpolate_nodes = function(nodes) {
-    var interpolated_nodes = _.clone(nodes);
+    var interpolated_nodes = angular.copy(nodes);
     var limits = $scope.get_limits(nodes);
 
     _.each(interpolated_nodes, function(node) {
@@ -1990,7 +1990,12 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.parse_org_url = function(url) {
     console.log('parse_org_url', url);
     $scope.loading_remote_blueprints = true;
-    $scope.remote = github.parse_org_url(url, $scope.load);
+    github.parse_org_url(url).then(
+      function(remote) {
+        $scope.remote = remote;
+        $scope.load();
+      }
+    );
   };
 
   $scope.remember_repo_url = function(remote_url) {
@@ -2104,9 +2109,11 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   $scope.load = function() {
     console.log("Starting load", $scope.remote.url);
     $scope.loading_remote_blueprints = true;
-    github.get_repos($scope.remote, $scope.receive_blueprints, function(data) {
-      $scope.loading_remote_blueprints = false;
-      $scope.show_error(data);
+    github.get_repos($scope.remote).then(
+      $scope.receive_blueprints, // Success
+      function(response) { // Error
+        $scope.loading_remote_blueprints = false;
+        $scope.show_error(response.data);
     });
   };
 
@@ -2207,7 +2214,21 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     return { name: status, active: is_active };
   })
 
-  $scope.filters = {}
+  $scope.build_filter = function(filter_name) {
+    var default_values = $scope.filters.defaults[filter_name] || [];
+    var search_params = $location.search()[filter_name] || [];
+    var values = _.uniq(default_values.concat(search_params));
+
+    var filter = _.map(values, function(value) {
+      var is_active = (search_params == value || _.contains(search_params, value));
+      return { name: value, active: is_active };
+    });
+
+    return filter;
+  }
+
+  $scope.filters = {};
+  $scope.filters.defaults = {};
   $scope.default_tags = ['RackConnect', 'Managed', 'Racker', 'Internal'];
   $scope.filters.end_date = $location.search().end_date;
   $scope.filters.start_date = $location.search().start_date;
@@ -2215,6 +2236,8 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     var is_active = ($location.search().tenant_tag == tag || _.contains($location.search().tenant_tag, tag));
     return { name: tag, active: is_active };
   });
+  $scope.filters.defaults.blueprint_branch = ['master', 'stable'];
+  $scope.filters.blueprint_branch = $scope.build_filter('blueprint_branch');
 
   $scope.query = $location.search().search;
 
@@ -2229,10 +2252,14 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     }
 
     // Tenant Tag
-    var active_filters = _.where($scope.filters.tenant_tag, { active: true });
-    if (active_filters.length > 0) {
-      var filter_names = _.map(active_filters, function(f){ return f.name })
-      filters.tenant_tag = filter_names;
+    var filter_list = ['tenant_tag', 'blueprint_branch'];
+    for (var i=0 ; i<filter_list.length ; i++) {
+      var filter_name = filter_list[i];
+      var active_filters = _.where($scope.filters[filter_name], { active: true });
+      if (active_filters.length > 0) {
+        var filter_names = _.map(active_filters, function(f){ return f.name })
+        filters[filter_name] = filter_names;
+      }
     }
 
     // Dates
@@ -2502,7 +2529,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   };
 
   $scope.loadRemoteBlueprint = function(repo_url) {
-    var remote = github.parse_org_url(repo_url);
+    var remote = github.parse_url(repo_url);
     var u = URI(repo_url);
     var ref = u.fragment() || 'master';
     github.get_branch_from_name(remote, ref, function(branch) {
@@ -2682,7 +2709,10 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
 
   //Instead of parse_org_url
   $scope.loading_remote_blueprints = true;
-  $scope.remote = github.parse_org_url(blueprint, $scope.load);
+  github.parse_org_url(blueprint).then(function(remote) {
+    $scope.remote = remote;
+    $scope.load();
+  });
 }
 
 // Handles the option option and deployment launching

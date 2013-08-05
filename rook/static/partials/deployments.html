@@ -20,9 +20,17 @@
           <span>{{filter.name | capitalize}}</span>
         </label>
 
-        <div ng-show="auth.is_admin()">
+        <div ng-show="auth.is_admin(true)">
           <h5> Tenant Tag</h5>
           <label class="filter" ng-repeat="filter in filters.tenant_tag">
+            <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
+            <span>{{filter.name | capitalize}}</span>
+          </label>
+        </div>
+
+        <div>
+          <h5>Blueprint Branch</h5>
+          <label class="filter" ng-repeat="filter in filters.blueprint_branch">
             <input type="checkbox" ng-model="filter.active" ng-click="applyFilters()">
             <span>{{filter.name | capitalize}}</span>
           </label>
