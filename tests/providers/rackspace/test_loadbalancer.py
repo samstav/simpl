@@ -276,8 +276,8 @@ class TestCeleryTasks(unittest.TestCase):
             }
         }
         api = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(loadbalancer, 'resource_postback')
-        loadbalancer.resource_postback.delay('1234', {
+        self.mox.StubOutWithMock(deployments, 'resource_postback')
+        deployments.resource_postback.delay('1234', {
             'instance:1': {
                 'status': 'DELETING',
                 'status-message': 'Waiting on resource deletion',
@@ -308,8 +308,8 @@ class TestCeleryTasks(unittest.TestCase):
             }
         }
         api = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(loadbalancer, 'resource_postback')
-        loadbalancer.resource_postback.delay('1234', {
+        self.mox.StubOutWithMock(deployments, 'resource_postback')
+        deployments.resource_postback.delay('1234', {
             'instance:1': {
                 'status': 'DELETING',
                 'status-message': "Cannot delete LoadBalancer load-balancer, "
@@ -343,8 +343,8 @@ class TestCeleryTasks(unittest.TestCase):
         m_lb = self.mox.CreateMockAnything()
         m_lb.status = 'DELETED'
         api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
-        self.mox.StubOutWithMock(loadbalancer, 'resource_postback')
-        loadbalancer.resource_postback.delay('1234', {
+        self.mox.StubOutWithMock(deployments, 'resource_postback')
+        deployments.resource_postback.delay('1234', {
             'instance:1': {
                 'status': 'DELETED',
                 'status-message': '',

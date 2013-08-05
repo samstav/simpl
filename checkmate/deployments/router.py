@@ -19,11 +19,7 @@ from checkmate.common import tasks as common_tasks
 from checkmate import db
 from checkmate import deployment as cmdeploy
 from checkmate.deployments import tasks
-from checkmate.exceptions import (
-    CheckmateBadState,
-    CheckmateDoesNotExist,
-    CheckmateValidationException,
-)
+from checkmate import exceptions
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow
@@ -65,14 +61,15 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
     if db.any_id_problems(entity['id']):
-        raise CheckmateValidationException(db.any_id_problems(entity['id']))
+        raise exceptions.CheckmateValidationException(
+            db.any_id_problems(entity['id']))
     deployment = cmdeploy.Deployment(entity)  # Also validates syntax
     if 'includes' in deployment:
         del deployment['includes']
     if 'tenantId' in deployment and tenant_id:
         if deployment['tenantId'] != tenant_id:
-            raise CheckmateValidationException("tenantId must match "
-                                               "with current tenant ID")
+            raise exceptions.CheckmateValidationException(
+                "tenantId must match with current tenant ID")
     else:
         assert tenant_id, "Tenant ID must be specified in deployment."
         deployment['tenantId'] = tenant_id
@@ -85,12 +82,13 @@ def _validate_blueprint(deployment):
     '''Someone could have tampered with the blueprint!'''
     curr_config = config.current()
     if curr_config.github_api is None:
-        raise CheckmateValidationException('Cannot validate blueprint.')
+        raise exceptions.CheckmateValidationException(
+            'Cannot validate blueprint.')
     github_manager = blueprints.GitHubManager(DRIVERS, curr_config)
     if github_manager.blueprint_is_invalid(deployment):
         LOG.info("X-Source-Untrusted: Passed in Blueprint did not match "
                  "anything in Checkmate's cache.")
-        raise CheckmateValidationException('Invalid Blueprint.')
+        raise exceptions.CheckmateValidationException('Invalid Blueprint.')
 
 
 def _validate_blueprint_inputs(deployment, tenant_id):
@@ -100,7 +98,7 @@ def _validate_blueprint_inputs(deployment, tenant_id):
     if not inputs.get('blueprint') or len(inputs) > 1:
         LOG.info('X-Source-Untrusted: invalid input section. Tenant ID: %s.',
                  tenant_id)
-        raise CheckmateValidationException(
+        raise exceptions.CheckmateValidationException(
             'POST deployment: malformed inputs.')
 
     # Make sure 'inputs->blueprint' only contains valid options
@@ -111,7 +109,7 @@ def _validate_blueprint_inputs(deployment, tenant_id):
     if delta:
         LOG.info('X-Source-Untrusted: invalid blueprint options found. '
                  'Tenant ID: %s.', tenant_id)
-        raise CheckmateValidationException(
+        raise exceptions.CheckmateValidationException(
             'POST deployment: inputs not valid.')
 
     # Check valid options: value must be less than 4k characters
@@ -119,7 +117,7 @@ def _validate_blueprint_inputs(deployment, tenant_id):
         if isinstance(value, basestring) and len(value) > 4096:
             LOG.info('X-Source-Untrusted: value to large (%d characters). '
                      'Tenant ID: %s.', len(value), tenant_id)
-            raise CheckmateValidationException(
+            raise exceptions.CheckmateValidationException(
                 'POST deployment: cannot parse values.')
 
 
@@ -294,7 +292,7 @@ class Router(object):
                 entity = self.manager.get_deployment(api_id, tenant_id,
                                                      with_secrets=False)
 
-        except CheckmateDoesNotExist:
+        except exceptions.CheckmateDoesNotExist:
             bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
@@ -311,7 +309,7 @@ class Router(object):
             deployment_id=api_id, tenant_id=tenant_id)
         try:
             entity = self.manager.get_deployment(api_id)
-        except CheckmateDoesNotExist:
+        except exceptions.CheckmateDoesNotExist:
             entity = None
         results = self.manager.save_deployment(deployment,
                                                api_id=api_id,
@@ -331,9 +329,8 @@ class Router(object):
 
     @utils.with_tenant
     def delete_nodes(self, api_id, tenant_id=None):
-        '''
-        Deletes nodes from a  deployment, based on the resource ids that are
-         to be provided in the request body
+        '''Deletes nodes from a  deployment, based on the resource ids that
+        are to be provided in the request body
         :param api_id:
         :param tenant_id:
         :return:
@@ -343,7 +340,8 @@ class Router(object):
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
                                                  with_secrets=True)
         if not deployment:
-            raise CheckmateDoesNotExist("No deployment with id %s" % api_id)
+            raise exceptions.CheckmateDoesNotExist(
+                "No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
         body = utils.read_body(bottle.request)
 
@@ -385,7 +383,8 @@ class Router(object):
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
                                                  with_secrets=True)
         if not deployment:
-            raise CheckmateDoesNotExist("No deployment with id %s" % api_id)
+            raise exceptions.CheckmateDoesNotExist(
+                "No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
         body = utils.read_body(bottle.request)
         if 'service_name' in body:
@@ -433,7 +432,8 @@ class Router(object):
             bottle.request.context.simulation = True
         deployment = self.manager.get_deployment(api_id)
         if not deployment:
-            raise CheckmateDoesNotExist("No deployment with id %s" % api_id)
+            raise exceptions.CheckmateDoesNotExist(
+                "No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
         if bottle.request.query.get('force') != '1':
             if not deployment.fsm.permitted('DELETED'):
@@ -491,11 +491,12 @@ class Router(object):
             bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id, with_secrets=True)
         if not entity:
-            raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
+            raise exceptions.CheckmateDoesNotExist(
+                'No deployment with id %s' % api_id)
         if entity.get('status', 'NEW') != 'NEW':
-            raise CheckmateBadState("Deployment '%s' is in '%s' status and "
-                                    "must be in 'NEW' to be planned" %
-                                    (api_id, entity.get('status')))
+            raise exceptions.CheckmateBadState(
+                "Deployment '%s' is in '%s' status and must be in 'NEW' to "
+                "be planned" % (api_id, entity.get('status')))
         deployment = cmdeploy.Deployment(entity)  # Also validates syntax
         planned_deployment = self.manager.plan(
             deployment, bottle.request.context)
@@ -511,7 +512,8 @@ class Router(object):
             bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id)
         if not entity:
-            raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
+            raise exceptions.CheckmateDoesNotExist(
+                'No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)
         context = bottle.request.context
         context['deployment'] = api_id
@@ -529,18 +531,20 @@ class Router(object):
     def deploy_deployment(self, api_id, tenant_id=None):
         '''Deploy a NEW or PLANNED deployment and save it as DEPLOYED.'''
         if db.any_id_problems(api_id):
-            raise CheckmateValidationException(db.any_id_problems(api_id))
+            raise exceptions.CheckmateValidationException(
+                db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id, with_secrets=True)
         if not entity:
-            CheckmateDoesNotExist('No deployment with id %s' % api_id)
+            exceptions.CheckmateDoesNotExist(
+                'No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)  # Also validates syntax
         if entity.get('status', 'NEW') == 'NEW':
             deployment = self.manager.plan(deployment, bottle.request.context)
         if entity.get('status') != 'PLANNED':
-            raise CheckmateBadState("Deployment '%s' is in '%s' status and "
-                                    "must be in 'PLANNED' or 'NEW' status to "
-                                    "be deployed" % (api_id,
-                                                     entity.get('status')))
+            raise exceptions.CheckmateBadState(
+                "Deployment '%s' is in '%s' status and must be in 'PLANNED' "
+                "or 'NEW' status to be deployed" % (api_id,
+                                                    entity.get('status')))
 
         # Create a 'new deployment' workflow
         self.manager.deploy(deployment, bottle.request.context)
@@ -556,7 +560,7 @@ class Router(object):
         '''Return deployment secrets.'''
         try:
             entity = self.manager.get_deployment(api_id, tenant_id=tenant_id)
-        except CheckmateDoesNotExist:
+        except exceptions.CheckmateDoesNotExist:
             bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
@@ -581,7 +585,7 @@ class Router(object):
             entity = self.manager.get_deployment(api_id,
                                                  tenant_id=tenant_id,
                                                  with_secrets=False)
-        except CheckmateDoesNotExist:
+        except exceptions.CheckmateDoesNotExist:
             bottle.abort(404)
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "

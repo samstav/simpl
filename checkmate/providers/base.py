@@ -5,21 +5,13 @@ import logging
 import celery
 from celery import exceptions as celery_exceptions
 
-from checkmate import component as cmcomp
-from checkmate import middleware
-from checkmate import utils
 from checkmate.common import schema
-from checkmate.exceptions import (
-    BLUEPRINT_ERROR,
-    CheckmateException,
-    CheckmateNoMapping,
-    CheckmateResumableException,
-    CheckmateValidationException,
-    CheckmateUserException,
-)
-from checkmate.providers.provider_base_planning_mixin import (
-    ProviderBasePlanningMixIn,
-)
+from checkmate import component as cmcomp
+from checkmate import exceptions
+from checkmate import middleware
+from checkmate.providers.provider_base_planning_mixin import \
+    ProviderBasePlanningMixIn
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
@@ -94,21 +86,23 @@ class ProviderBaseWorkflowMixIn(object):
         component_id = resource['component']
         component = self.get_component(context, component_id)
         if not component:
-            raise CheckmateNoMapping("Component '%s' not found" % component_id)
+            raise exceptions.CheckmateNoMapping("Component '%s' not found" %
+                                                component_id)
 
         # Get service
         service_name = resource['service']
         if not service_name:
             error_message = "Service not found for resource %s" % key
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException), BLUEPRINT_ERROR, '')
+            raise exceptions.CheckmateUserException(
+                error_message, utils.get_class_name(
+                    exceptions.CheckmateException), exceptions.BLUEPRINT_ERROR,
+                '')
         return wait_on, service_name, component
 
     def add_delete_connection_tasks(self, wf_spec, context,
                                     deployment, source_resource,
                                     target_resource):
-        '''
-        Add tasks needed to delete a connection between resources
+        '''Add tasks needed to delete a connection between resources
 
         :param wf_spec: Workflow Spec
         :param context: Context
@@ -119,8 +113,6 @@ class ProviderBaseWorkflowMixIn(object):
         '''
         LOG.debug("%s.%s.add_delete_connection_tasks called, "
                   "but was not implemented", self.vendor, self.name)
-
-
         pass
 
     # pylint: disable=R0913
@@ -299,8 +291,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         '''Catalog Validation.'''
         errors = schema.validate_catalog(catalog)
         if errors:
-            raise CheckmateValidationException("Invalid catalog: %s" %
-                                               '\n'.join(errors))
+            raise exceptions.CheckmateValidationException(
+                "Invalid catalog: %s" % '\n'.join(errors))
 
     def get_component(self, context, component_id):
         '''Get component by ID. Default implementation gets full catalog and
@@ -421,7 +413,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
     @staticmethod
     def proxy(path, request, tenant_id=None):
         '''Proxy request through to provider.'''
-        raise CheckmateException("Provider does not support call")
+        raise exceptions.CheckmateException("Provider does not support call")
 
     @staticmethod
     def parse_memory_setting(text):
@@ -433,7 +425,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         '''
 
         if not text or (isinstance(text, basestring) and text.strip()) == "":
-            raise CheckmateException("No memory privided")
+            raise exceptions.CheckmateException("No memory privided")
         if isinstance(text, int):
             return text
         number = ''.join([n for n in text.strip() if n.isdigit()]).strip()
@@ -449,8 +441,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             result = int(number) * 1024 * 1024
             unit = 'tb'
         elif len(unit):
-            raise CheckmateException("Unrecognized unit of memory: %s" %
-                                     unit)
+            raise exceptions.CheckmateException("Unrecognized unit of "
+                                                "memory: %s" % unit)
         else:
             result = int(number)
         LOG.debug("Parsed '%s' as '%s %s', and returned %s megabyte",
@@ -518,8 +510,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         '''Private method for Resource verification.'''
         if (resource.get('status') != "DELETED" and
                 resource.get("provider") != self.name):
-            raise CheckmateException("%s did not provide resource %s" % (
-                self.name, key))
+            raise exceptions.CheckmateException("%s did not provide resource"
+                                                " %s" % (self.name, key))
 
 
 def register_providers(providers):
@@ -568,8 +560,9 @@ class ProviderTask(celery.Task):
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
         elif not isinstance(context, middleware.RequestContext):
-            raise CheckmateException('Context passed into ProviderTask is an '
-                                     'unsupported type %s.' % type(context))
+            raise exceptions.CheckmateException(
+                'Context passed into ProviderTask is an unsupported type %s.'
+                % type(context))
         if context.region is None and 'region' in kwargs:
             context.region = kwargs.get('region')
 
@@ -577,7 +570,7 @@ class ProviderTask(celery.Task):
             self.api = kwargs.get('api') or self.provider.connect(
                 context, context.region)
         # TODO(Nate): Generalize exception raised in providers connect
-        except CheckmateValidationException:
+        except exceptions.CheckmateValidationException:
             raise
         except StandardError as exc:
             return self.retry(exc=exc)
@@ -588,7 +581,7 @@ class ProviderTask(celery.Task):
             data = self.run(context, *args, **kwargs)
         except celery_exceptions.RetryTaskError as exc:
             return self.retry(exc=exc)
-        except CheckmateResumableException as exc:
+        except exceptions.CheckmateResumableException as exc:
             return self.retry(exc=exc)
 
         self.callback(context, data)
