@@ -450,7 +450,7 @@ class Router(object):
             common_tasks.update_operation.delay(api_id, api_id, driver=driver,
                                                 action='PAUSE')
         delete_workflow_spec = (
-            workflows.WorkflowSpec.create_delete_deployment_workflow_spec(
+            workflows.WorkflowSpec.create_delete_dep_wf_spec(
                 deployment, bottle.request.context))
         spiff_workflow = workflow.create_workflow(
             delete_workflow_spec, deployment, bottle.request.context,

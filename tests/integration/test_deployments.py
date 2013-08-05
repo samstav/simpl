@@ -1351,8 +1351,8 @@ class TestDeleteDeployments(unittest.TestCase):
         manager.select_driver('1234').AndReturn(mock_driver)
 
         self._mox.StubOutWithMock(workflows.WorkflowSpec,
-                                  "create_delete_deployment_workflow_spec")
-        workflows.WorkflowSpec.create_delete_deployment_workflow_spec(
+                                  "create_delete_dep_wf_spec")
+        workflows.WorkflowSpec.create_delete_dep_wf_spec(
             self._deployment, bottle.request.context).AndReturn(mock_spec)
         self._mox.StubOutWithMock(workflow,
                                   "create_workflow")

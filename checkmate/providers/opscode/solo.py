@@ -203,9 +203,10 @@ class Provider(ProviderBase):
         # if we have a host task marked 'complete', make that wait on configure
         host_complete = self.get_host_complete_task(wfspec, resource)
         if host_complete:
-            wfspec.wait_for(host_complete, [configure_task],
-                     name='Wait for %s to be configured before completing '
-                     'host %s' %
+            wfspec.wait_for(
+                host_complete,
+                [configure_task],
+                name='Wait for %s to be configured before completing host %s' %
                      (service_name, resource.get('hosted_on', key)))
 
     def get_prep_tasks(self, wfspec, deployment, resource_key, component,

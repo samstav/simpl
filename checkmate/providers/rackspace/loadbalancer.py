@@ -50,8 +50,8 @@ REDIS = None
 if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     try:
         REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
-    except StandardError as exc:
-        LOG.warn("Error connecting to Redis: %s", exc)
+    except StandardError as exception:
+        LOG.warn("Error connecting to Redis: %s", exception)
 
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 from checkmate import db
@@ -472,7 +472,7 @@ class Provider(ProviderBase):
                                     target_resource):
         source_key = source_resource['index']
         target_key = target_resource['index']
-        delete_node = specs.Celery(
+        delete_node_task = specs.Celery(
             wf_spec,
             "Remove Node %s from LB %s" % (target_key, source_key),
             "checkmate.providers.rackspace.loadbalancer.delete_node",
@@ -486,7 +486,7 @@ class Provider(ProviderBase):
             defines=dict(provider=self.key, resource=target_key,
                          task_tags=['delete_connection']),
             properties={'estimated_duration': 5})
-        wf_spec.start.connect(delete_node)
+        wf_spec.start.connect(delete_node_task)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):

@@ -10,14 +10,14 @@ LOG = logging.getLogger(__name__)
 
 class WorkflowSpec(specs.WorkflowSpec):
     @staticmethod
-    def create_delete_deployment_workflow_spec(deployment, context):
+    def create_delete_dep_wf_spec(deployment, context):
         '''Creates a SpiffWorkflow spec for deleting a deployment
         :param deployment:
         :param context:
         :return: SpiffWorkflow.WorkflowSpec
         '''
-        LOG.info("Building workflow spec for deleting deployment '%s'"
-                 % deployment['id'])
+        LOG.info("Building workflow spec for deleting deployment '%s'",
+                 deployment['id'])
         blueprint = deployment['blueprint']
         environment = deployment.environment()
         dep_id = deployment["id"]
@@ -72,7 +72,7 @@ class WorkflowSpec(specs.WorkflowSpec):
 
         :return: SpiffWorkflow.WorkflowSpec
         """
-        LOG.info("Building workflow spec for deployment %s" % deployment['id'])
+        LOG.info("Building workflow spec for deployment %s", deployment['id'])
         blueprint = deployment['blueprint']
         environment = deployment.environment()
         new_and_planned_resources = deployment.get_new_and_planned_resources()
@@ -93,7 +93,7 @@ class WorkflowSpec(specs.WorkflowSpec):
             if (key not in ['connections', 'keys'] and 'provider' in
                     resource and resource['provider'] not in provider_keys):
                 provider_keys.add(resource['provider'])
-        LOG.debug("Obtained providers from resources: %s" %
+        LOG.debug("Obtained providers from resources: %s",
                   ', '.join(provider_keys))
 
         for key in provider_keys:
@@ -133,7 +133,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                 recursive_add_host(sorted_resources, key,
                                    deployment.get('resources'),
                                    [])
-        LOG.debug("Ordered resources: %s" % '->'.join(sorted_resources))
+        LOG.debug("Ordered resources: %s", '->'.join(sorted_resources))
 
         # Do resources
         for key in sorted_resources:
@@ -150,8 +150,9 @@ class WorkflowSpec(specs.WorkflowSpec):
             # Process hosting relationship before the hosted resource
             if 'hosts' in resource:
                 for index in resource['hosts']:
-                    hr = deployment['resources'][index]
-                    relations = [r for r in hr['relations'].values()
+                    hosted_resource = deployment['resources'][index]
+                    relations = [r for r in
+                                 hosted_resource['relations'].values()
                                  if (r.get('relation') == 'host'
                                      and r['target'] == key)]
                     if len(relations) > 1:
@@ -162,13 +163,10 @@ class WorkflowSpec(specs.WorkflowSpec):
                                 exceptions.CheckmateException),
                             exceptions.UNEXPECTED_ERROR, '')
                     relation = relations[0]
-                    provider = providers[hr['provider']]
-                    provider_result = provider.add_connection_tasks(hr, index,
-                                                                    relation,
-                                                                    'host',
-                                                                    wf_spec,
-                                                                    deployment,
-                                                                    context)
+                    provider = providers[hosted_resource['provider']]
+                    provider_result = provider.add_connection_tasks(
+                        hosted_resource, index, relation, 'host', wf_spec,
+                        deployment, context)
                     if (provider_result and provider_result.get('root') and
                             not provider_result['root'].inputs):
                         # Attach unattached tasks
@@ -321,6 +319,14 @@ class WorkflowSpec(specs.WorkflowSpec):
 
     @staticmethod
     def create_delete_node_spec(deployment, resources_to_delete, context):
+        '''
+        Create the workflow spec for deleting a node in a deployment
+        :param deployment: The deployment to delete the node from
+        :param resources_to_delete: Comma separated list of resource ids
+        which need to be deleted
+        :param context: RequestContext
+        :return: Workflow spec for delete of passed in resources
+        '''
         LOG.debug("Creating workflow spec for deleting resources %s",
                   resources_to_delete)
         blueprint = deployment['blueprint']
@@ -341,13 +347,13 @@ class WorkflowSpec(specs.WorkflowSpec):
             #Process host-relations for resource
             if 'hosts' in resource:
                 for host in resource['hosts']:
-                    WorkflowSpec._add_delete_tasks_for_resource_relation(
+                    WorkflowSpec._add_del_tasks_for_resource_relation(
                         wf_spec, deployment, host, context)
                     wait_tasks.extend(wf_spec.find_task_specs(
                         resource=host, tag="delete_connection"))
 
             #Process relations for resource
-            WorkflowSpec._add_delete_tasks_for_resource_relation(wf_spec,
+            WorkflowSpec._add_del_tasks_for_resource_relation(wf_spec,
                                                                  deployment,
                                                                  resource_key,
                                                                  context)
@@ -386,8 +392,17 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     @staticmethod
-    def _add_delete_tasks_for_resource_relation(wf_spec, deployment,
+    def _add_del_tasks_for_resource_relation(wf_spec, deployment,
                                                 resource_key, context):
+        '''
+        Adds the delete task for a resource relation
+        :param wf_spec: Workflow Spec to add the tasks to
+        :param deployment: The deployment from which the resourced need to
+        be deleted
+        :param resource_key: The resource key of the resource to be deleted
+        :param context: RequestContext
+        :return:
+        '''
         resources = deployment['resources']
         resource = resources[resource_key]
         if resource["status"] == "DELETED":
