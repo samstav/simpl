@@ -725,6 +725,13 @@ describe('auth Service', function(){
       var context = this.auth.cache_context({ username: 'fakeusername' });
       expect(context).toEqual({ username: 'fakeusername' });
     });
+
+    it('should it cache a copy of the context', function() {
+      var context = { tenantId: 666 }
+      this.auth.cache_context(context);
+      this.auth.cache.contexts[666].tenantId = 999;
+      expect(context.tenantId).toEqual(666);
+    });
   });
 
   describe('#get_cached_context', function() {
@@ -734,13 +741,20 @@ describe('auth Service', function(){
     });
 
     it('should return the context by tenantId', function() {
+      this.auth.cache.contexts = { 666: { tenantId: 666 } };
+      expect(this.auth.get_cached_context(666)).toEqual({tenantId: 666});
+    });
+
+    it('should return the context by username', function() {
       this.auth.cache.contexts = { 'fakeusername': { username: 'fakeusername' } };
       expect(this.auth.get_cached_context('fakeusername')).toEqual({username: 'fakeusername'});
     });
 
-    it('should return the context by username', function() {
-      this.auth.cache.contexts = { 666: { tenantId: 666 } };
-      expect(this.auth.get_cached_context(666)).toEqual({tenantId: 666});
+    it('should return a copy of the context object', function() {
+      this.auth.cache.contexts = { 'fakeusername': { username: 'fakeusername' } };
+      var cached_context = this.auth.get_cached_context('fakeusername');
+      cached_context.username = "something else";
+      expect(this.auth.cache.contexts.fakeusername.username).toEqual('fakeusername');
     });
   });
 });
