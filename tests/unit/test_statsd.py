@@ -50,13 +50,13 @@ class TestCollect(unittest.TestCase):
 
         self.assertTrue(statsd.collect(return_success)())
 
-        mock_counter.assert_called_with('root.tests.unit.test_statsd.status',
+        mock_counter.assert_called_with('tests.unit.test_statsd.status',
                                         connection)
         assert counter.increment.mock_calls == [
             mock.call('return_success.started'),
             mock.call('return_success.success')
         ]
-        mock_timer.assert_called_with('root.tests.unit.test_statsd.duration',
+        mock_timer.assert_called_with('tests.unit.test_statsd.duration',
                                       connection)
         timer.start.assert_called_with()
         timer.stop.assert_called_with('return_success.success')

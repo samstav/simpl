@@ -88,8 +88,7 @@ def collect(func):
         )
 
         task_name = func.__name__
-
-        stats_ns = 'root.' + func.__module__
+        stats_ns = func.__module__
 
         if kwargs.get('statsd_counter') is None:
             counter = statsd.counter.Counter(stats_ns+'.status', stats_conn)
