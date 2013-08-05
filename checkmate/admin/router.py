@@ -156,7 +156,8 @@ class Router(object):
     # Deployments
     #
     param_whitelist = ['search', 'name', 'blueprint.name', 'tenantId',
-                       'status', 'start_date', 'end_date']
+                       'status', 'start_date', 'end_date',
+                       'environment.providers.chef-solo.constraints.source']
 
     @utils.only_admins
     @utils.formatted_response('deployments', with_pagination=True)
@@ -175,6 +176,10 @@ class Router(object):
                 tenants['no-tenants-found'] = True
             params['tenantId'] = tenants.keys()
             params.pop('tenant_tag')
+        if 'blueprint_branch' in params:
+            attr = 'environment.providers.chef-solo.constraints.source'
+            params[attr] = map(lambda x: '%#' + x, params.pop('blueprint_branch'))
+
         query = utils.QueryParams.parse(params, self.param_whitelist)
 
         data = self.manager.get_deployments(
