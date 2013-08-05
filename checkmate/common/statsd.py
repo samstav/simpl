@@ -35,11 +35,6 @@ from checkmate.common import config
 
 CONFIG = config.current()
 
-if os.environ.get('STATSD_HOST'):
-    CONFIG.statsd = True
-    CONFIG.statsd_host = os.environ['STATSD_HOST']
-    CONFIG.statsd_port = os.environ['STATSD_PORT'] or CONFIG.statsd_port
-
 def simple_decorator(decorator):
     '''Borrowed from:
     http://wiki.python.org/moin/PythonDecoratorLibrary#Property_Definition
@@ -77,7 +72,10 @@ def collect(func):
     def collect_wrapper(*args, **kwargs):
         '''Replaces decorated function.'''
 
-        if not CONFIG.statsd:
+        if os.environ.get('STATSD_HOST'):
+            CONFIG.statsd_host = os.environ['STATSD_HOST']
+            CONFIG.statsd_port = os.environ['STATSD_PORT'] or CONFIG.statsd_port
+        else:
             return func(*args, **kwargs)
 
         stats_conn = statsd.connection.Connection(
@@ -88,15 +86,17 @@ def collect(func):
 
         task_name = func.__name__
 
+        stats_ns = 'root.' + func.__module__
+
         if kwargs.get('statsd_counter') is None:
-            counter = statsd.counter.Counter('celery.tasks.status', stats_conn)
+            counter = statsd.counter.Counter(stats_ns+'.status', stats_conn)
         else:
             counter = kwargs['statsd_counter']
 
         counter.increment('%s.started' % task_name)
 
         if kwargs.get('statsd_timer') is None:
-            timer = statsd.timer.Timer('celery.tasks.duration', stats_conn)
+            timer = statsd.timer.Timer(stats_ns+'.duration', stats_conn)
         else:
             timer = kwargs['statsd_timer']
 

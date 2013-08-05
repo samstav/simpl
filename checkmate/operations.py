@@ -12,6 +12,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import celeryglobal as celery
 from checkmate import db
+from checkmate.common import statsd
 from checkmate.deployment import Deployment
 from checkmate.utils import (
     get_time_string,
@@ -31,6 +32,7 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
 
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=2)
+@statsd.collect
 def create(dep_id, workflow_id, type, tenant_id=None):
     if is_simulation(dep_id):
         driver = SIMULATOR_DB
