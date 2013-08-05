@@ -405,7 +405,7 @@ class Manager(base.ManagerBase):
             }
         '''
 
-        deployment = self.driver.get_deployment(deployment_id,
+        deployment = self.select_driver(deployment_id).get_deployment(deployment_id,
                                                 with_secrets=True)
         deployment = Deployment(deployment)
 
