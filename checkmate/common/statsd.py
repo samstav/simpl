@@ -35,6 +35,7 @@ from checkmate.common import config
 
 CONFIG = config.current()
 
+
 def simple_decorator(decorator):
     '''Borrowed from:
     http://wiki.python.org/moin/PythonDecoratorLibrary#Property_Definition
@@ -50,13 +51,14 @@ def simple_decorator(decorator):
     docstring and function attributes of functions to which
     it is applied.
     '''
-    def new_decorator(f):
-        g = decorator(f)
-        g.__name__ = f.__name__
-        g.__module__ = f.__module__  # or celery throws a fit
-        g.__doc__ = f.__doc__
-        g.__dict__.update(f.__dict__)
-        return g
+    def new_decorator(func):
+        '''Inherit attributes from original method.'''
+        decorated = decorator(func)
+        decorated.__name__ = func.__name__
+        decorated.__module__ = func.__module__  # or celery throws a fit
+        decorated.__doc__ = func.__doc__
+        decorated.__dict__.update(func.__dict__)
+        return decorated
     # Now a few lines needed to make simple_decorator itself
     # be a well-behaved decorator.
     new_decorator.__name__ = decorator.__name__

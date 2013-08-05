@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,W0613
 from __future__ import absolute_import
 
 import logging
@@ -24,7 +24,7 @@ def return_failure(*args, **kwargs):
 
 class TestCollect(unittest.TestCase):
     '''Verifies the functionallity of statsd.collect.'''
-    
+
     @mock.patch.object(os.environ, 'get')
     def test_collect_no_config(self, mock_get):
         '''Test that statsd.collect does nothing if not configured.'''
@@ -36,7 +36,7 @@ class TestCollect(unittest.TestCase):
     @mock.patch.object(py_statsd.connection, 'Connection')
     @mock.patch.object(os, 'environ')
     def test_no_counter_no_timer(self, mock_environ, mock_conn, mock_counter,
-                                  mock_timer):
+                                 mock_timer):
         '''Verifies method calls with no counter or timer passed in.'''
         mock_environ.get = mock.MagicMock(return_value=True)
         mock_environ['STATSD_HOST'] = '111.222.222.111'
@@ -72,7 +72,7 @@ class TestCollect(unittest.TestCase):
         timer = mock.Mock()
 
         self.assertTrue(statsd.collect(return_success)(statsd_counter=counter,
-                                       statsd_timer=timer))
+                                                       statsd_timer=timer))
 
         assert counter.increment.mock_calls == [
             mock.call('return_success.started'),
@@ -90,10 +90,10 @@ class TestCollect(unittest.TestCase):
         mock_environ['STATSD_PORT'] = None
         counter = mock.Mock()
         timer = mock.Mock()
-        
+
         with self.assertRaises(StandardError):
             statsd.collect(return_failure)(statsd_counter=counter,
-                           statsd_timer=timer)
+                                           statsd_timer=timer)
 
         assert counter.increment.mock_calls == [
             mock.call('return_failure.started'),
@@ -103,6 +103,7 @@ class TestCollect(unittest.TestCase):
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
+    from checkmate import test
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    test.run_with_params(sys.argv[:])
