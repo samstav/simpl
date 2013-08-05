@@ -43,7 +43,7 @@ class TestParamWhitelist(TestAdminRouter):
 
     def test_whitelist_length(self):
         num_params = len(admin.Router.param_whitelist)
-        self.assertEqual(num_params, 7)
+        self.assertEqual(num_params, 8)
 
     def test_search_is_whitelisted(self):
         self.assertTrue('search' in admin.Router.param_whitelist)
@@ -66,23 +66,53 @@ class TestParamWhitelist(TestAdminRouter):
     def test_end_date_is_whitelisted(self):
         self.assertTrue('end_date' in admin.Router.param_whitelist)
 
+    def test_blueprint_source_is_whitelisted(self):
+        self.assertTrue('environment.providers.chef-solo.constraints.source'
+                        in admin.Router.param_whitelist)
+
+
 class TestGetDeployments(TestAdminRouter):
 
     def setUp(self):
         super(TestGetDeployments, self).setUp()
 
     @mock.patch.object(admin.router.utils.QueryParams, 'parse')
-    def test_pass_query_params_to_manager(self, parse):
-        parse.return_value = 'fake query'
+    def test_pass_query_params_to_manager(self, __parse):
+        __parse.return_value = 'fake query'
         res = self.app.get('/admin/deployments')
-        self.manager.get_deployments.assert_called_with(
-            tenant_id=mock.ANY,
-            offset=mock.ANY,
-            limit=mock.ANY,
-            with_deleted=mock.ANY,
-            status=mock.ANY,
-            query='fake query',
-        )
+        args = self.manager.get_deployments.call_args[1]
+        query = args['query']
+        self.assertEqual(query, 'fake query')
+
+    def test_parse_tenant_tag_before_sending_params_to_manager(self):
+        self.tenant_manager.list_tenants.return_value = { '123': { } }
+        res = self.app.get('/admin/deployments?tenant_tag=FOOBAR')
+        args = self.manager.get_deployments.call_args[1]
+        query = args['query']
+        self.assertEqual(query['tenantId'], '123')
+
+    def test_parse_tenant_tag_and_send_notenantsfound_query_to_manager(self):
+        self.tenant_manager.list_tenants.return_value = {}
+        res = self.app.get('/admin/deployments?tenant_tag=FOOBAR')
+        args = self.manager.get_deployments.call_args[1]
+        query = args['query']
+        self.assertEqual(query['tenantId'], 'no-tenants-found')
+
+    def test_remove_tenant_tag_before_sending_params_to_manager(self):
+        self.tenant_manager.list_tenants.return_value = { '123': { } }
+        res = self.app.get('/admin/deployments?tenant_tag=FOOBAR')
+        args = self.manager.get_deployments.call_args[1]
+        query = args['query']
+        self.assertTrue('tenant_tag' not in query)
+
+    def test_parse_blueprint_branch_before_sending_params_to_manager(self):
+        self.tenant_manager.list_tenants.return_value = { '123': { } }
+        res = self.app.get('/admin/deployments?blueprint_branch=FOOBAR')
+        args = self.manager.get_deployments.call_args[1]
+        query = args['query']
+        alias = 'environment.providers.chef-solo.constraints.source'
+        self.assertTrue(alias in query)
+        self.assertEqual(query[alias], '%#FOOBAR')
 
 
 class TestGetDeploymentCount(TestAdminRouter):
