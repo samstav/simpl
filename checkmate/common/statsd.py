@@ -74,7 +74,8 @@ def collect(func):
 
         if os.environ.get('STATSD_HOST'):
             CONFIG.statsd_host = os.environ['STATSD_HOST']
-            CONFIG.statsd_port = os.environ['STATSD_PORT'] or CONFIG.statsd_port
+            CONFIG.statsd_port = os.environ['STATSD_PORT'] or \
+                CONFIG.statsd_port
         else:
             return func(*args, **kwargs)
 

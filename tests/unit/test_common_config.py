@@ -19,7 +19,6 @@ class TestConfig(unittest.TestCase):
         self.assertIsNone(default.access_log)
 
         self.assertFalse(default.newrelic)
-        self.assertIsNone(default.statsd)
         self.assertIsNone(default.statsd_host)
         self.assertEqual(default.statsd_port, 8125)
 

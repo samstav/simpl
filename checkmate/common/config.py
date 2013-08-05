@@ -46,7 +46,6 @@ class Config(object):
     access_log = None
 
     newrelic = False
-    statsd = None
     statsd_port = 8125
     statsd_host = None
 
