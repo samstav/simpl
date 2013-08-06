@@ -796,8 +796,14 @@ class TestLoadBalancerProxy(unittest.TestCase):
         load_balancer.status = 'status'
         load_balancer.name = 'name'
         load_balancer.virtual_ips = []
-        mock_pyrax.cloud_loadbalancers.list.return_value = [load_balancer]
-        mock_pyrax.cloud_loadbalancers.region_name = 'region_name'
+        load_balancer.manager.api.region_name = 'region_name'
+        load_balancer.metadata = {}
+
+        lb_api = mock.Mock()
+        lb_api.list.return_value = [load_balancer]
+        mock_pyrax.connect_to_cloud_loadbalancers.return_value = lb_api
+        mock_pyrax.regions = ["DFW"]
+
         result = loadbalancer.Provider.proxy('list', request, 'tenant')[0]
 
         self.assertEqual(result['region'], 'region_name')
@@ -813,7 +819,13 @@ class TestLoadBalancerProxy(unittest.TestCase):
         vip.ip_version = 'IPV4'
         vip.address = '1.1.1.1'
         load_balancer.virtual_ips = [vip]
-        mock_pyrax.cloud_loadbalancers.list.return_value = [load_balancer]
+        load_balancer.metadata = {}
+
+        lb_api = mock.Mock()
+        lb_api.list.return_value = [load_balancer]
+        mock_pyrax.connect_to_cloud_loadbalancers.return_value = lb_api
+        mock_pyrax.regions = ['DFW']
+
         result = loadbalancer.Provider.proxy('list', request, 'tenant')
         instance = result[0]['instance']
         self.assertEqual(instance['public_ip'], '1.1.1.1')

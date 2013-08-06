@@ -667,11 +667,15 @@ class Provider(ProviderBase):
         if not pyrax.get_setting("identity_type"):
             pyrax.set_setting("identity_type", "rackspace")
 
+        load_balancers = []
         pyrax.auth_with_token(context.auth_token, tenant_name=context.tenant)
-        api = pyrax.cloud_loadbalancers
-        load_balancers = api.list()
+        for region in pyrax.regions:
+            api = pyrax.connect_to_cloud_loadbalancers(region=region)
+            load_balancers += api.list()
         results = {}
         for idx, lb in enumerate(load_balancers):
+            if 'RAX-CHECKMATE' in lb.metadata.keys():
+                continue
             vip = None
             for ip_data in lb.virtual_ips:
                 if ip_data.ip_version == 'IPV4' and ip_data.type == "PUBLIC":
@@ -681,7 +685,7 @@ class Provider(ProviderBase):
                 'status': lb.status,
                 'index': idx,
                 'service': 'lb',
-                'region': api.region_name,
+                'region': lb.manager.api.region_name,
                 'provider': 'load-balancer',
                 'component': 'http', #EH? IS THIS NECESSARY? WHATS THiS FoR?
                 'dns-name': lb.name,
