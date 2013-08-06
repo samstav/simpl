@@ -104,7 +104,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
     # Get the workflow
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
-    LOG.debug("Deserialized workflow %s" % w_id,
+    LOG.debug("Deserialized workflow %s", w_id,
               extra=dict(data=d_wf.get_dump()))
 
     # Prepare to run it
@@ -171,9 +171,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
                                                             deployment_status,
                                                             driver=driver)
 
-            LOG.debug("Workflow status: %s/%s (state=%s)" % (completed,
-                                                             total,
-                                                             workflow_status))
+            LOG.debug("Workflow status: %s/%s (state=%s)", completed, total,
+                      workflow_status)
             run_workflow.update_state(state="PROGRESS",
                                       meta={'complete': completed,
                                             'total': total})
@@ -181,9 +180,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
             # No progress made. So drop priority (to max of 20s wait)
             if wait < 20:
                 wait += 1
-            LOG.debug("Workflow '%s' did not make any progress. "
-                      "Deprioritizing it and waiting %s seconds to retry."
-                      % (w_id, wait))
+            LOG.debug("Workflow '%s' did not make any progress. Deprioritizing"
+                      " it and waiting %s seconds to retry.", w_id, wait)
 
     # Assess impact of run
     if d_wf.is_completed():
@@ -229,40 +227,41 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
         if not workflow:
             raise IndexError("Workflow %s not found" % workflow_id)
 
-        LOG.debug("Deserializing workflow '%s'" % workflow_id)
+        LOG.debug("Deserializing workflow '%s'", workflow_id)
         serializer = DictionarySerializer()
         d_wf = Workflow.deserialize(serializer, workflow)
-        task = d_wf.get_task(task_id)
-        original = serializer._serialize_task(task, skip_children=True)
-        if not task:
+        wf_task = d_wf.get_task(task_id)
+        original = serializer._serialize_task(wf_task, skip_children=True)
+        if not wf_task:
             raise IndexError("Task '%s' not found in Workflow '%s'" % (task_id,
                              workflow_id))
-        if task._is_finished():
+        if wf_task._is_finished():
             raise ValueError("Task '%s' is in state '%s' which cannot be "
-                             "executed" % (task.get_name(),
-                                           task.get_state_name()))
+                             "executed" % (wf_task.get_name(),
+                                           wf_task.get_state_name()))
 
-        if task._is_predicted() or task._has_state(Task.WAITING):
+        if wf_task._is_predicted() or wf_task._has_state(Task.WAITING):
             LOG.debug("Progressing task '%s' (%s)" % (task_id,
-                                                      task.get_state_name()))
+                                                      wf_task.get_state_name()))
             if isinstance(context, dict):
                 context = RequestContext(**context)
             # Refresh token if it exists in args[0]['auth_token]
-            if hasattr(task, 'args') and task.task_spec.args and \
-                    len(task.task_spec.args) > 0 and \
-                    isinstance(task.task_spec.args[0], dict) and \
-                    task.task_spec.args[0].get('auth_token') != \
+            if hasattr(wf_task, 'args') and wf_task.task_spec.args and \
+                    len(wf_task.task_spec.args) > 0 and \
+                    isinstance(wf_task.task_spec.args[0], dict) and \
+                    wf_task.task_spec.args[0].get('auth_token') != \
                     context.auth_token:
-                task.task_spec.args[0]['auth_token'] = context.auth_token
+                wf_task.task_spec.args[0]['auth_token'] = context.auth_token
                 LOG.debug("Updating task auth token with new caller token")
-            result = task.task_spec._update_state(task)
-        elif task._has_state(Task.READY):
+            result = wf_task.task_spec._update_state(wf_task)
+        elif wf_task._has_state(Task.READY):
             LOG.debug("Completing task '%s' (%s)" % (task_id,
-                      task.get_state_name()))
+                      wf_task.get_state_name()))
             result = d_wf.complete_task_from_id(task_id)
         else:
             LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
-                     "progressed", task_id, workflow_id, task.get_state_name())
+                     "progressed", task_id, workflow_id,
+                     wf_task.get_state_name())
             return False
         cm_workflow.update_workflow_status(d_wf,
                                            tenant_id=workflow.get('tenantId'))
@@ -336,11 +335,11 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
     d_wf = Workflow.deserialize(serializer, workflow)
     final_tasks = cm_workflow.find_tasks(d_wf, state=Task.WAITING, tag='final')
 
-    for task in final_tasks:
-        if (isinstance(task.task_spec, Celery) and
-                not cm_workflow.is_failed_task(task)):
-            task.task_spec._update_state(task)
-            if task._has_state(Task.WAITING):
+    for final_task in final_tasks:
+        if (isinstance(final_task.task_spec, Celery) and
+                not cm_workflow.is_failed_task(final_task)):
+            final_task.task_spec._update_state(final_task)
+            if final_task._has_state(Task.WAITING):
                 number_of_waiting_celery_tasks += 1
 
     LOG.debug("Workflow %s has %s waiting celery tasks", w_id,
