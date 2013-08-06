@@ -29,10 +29,7 @@ from eventlet.green import threading
 
 from checkmate import ssh
 from checkmate import utils
-from checkmate.common import (
-    config,
-    statsd,
-)
+from checkmate.common import config, statsd
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,

@@ -1,9 +1,7 @@
 # pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,W0613
 from __future__ import absolute_import
 
-import logging
 import mock
-import os
 import statsd as py_statsd
 import unittest
 
@@ -11,7 +9,6 @@ from checkmate.common import config
 from checkmate.common import statsd
 
 CONFIG = config.current()
-LOG = logging.getLogger(__name__)
 
 
 def return_success(*args, **kwargs):
@@ -25,22 +22,20 @@ def return_failure(*args, **kwargs):
 class TestCollect(unittest.TestCase):
     '''Verifies the functionallity of statsd.collect.'''
 
-    @mock.patch.object(os.environ, 'get')
-    def test_collect_no_config(self, mock_get):
+    @mock.patch.object(statsd, 'CONFIG')
+    def test_collect_no_config(self, mock_config):
         '''Test that statsd.collect does nothing if not configured.'''
-        mock_get.return_value = False
+        mock_config.statsd_host = None
         self.assertTrue(statsd.collect(return_success)())
 
+    @mock.patch.object(statsd, 'CONFIG')
     @mock.patch.object(py_statsd.timer, 'Timer')
     @mock.patch.object(py_statsd.counter, 'Counter')
     @mock.patch.object(py_statsd.connection, 'Connection')
-    @mock.patch.object(os, 'environ')
-    def test_no_counter_no_timer(self, mock_environ, mock_conn, mock_counter,
-                                 mock_timer):
+    def test_no_counter_no_timer(self, mock_conn, mock_counter, mock_timer,
+                                 mock_config):
         '''Verifies method calls with no counter or timer passed in.'''
-        mock_environ.get = mock.MagicMock(return_value=True)
-        mock_environ['STATSD_HOST'] = '111.222.222.111'
-        mock_environ['STATSD_PORT'] = None
+        mock_config.statsd_host = '111.222.222.111'
         connection = mock.Mock()
         mock_conn.return_value = connection
         counter = mock.Mock()
@@ -62,12 +57,10 @@ class TestCollect(unittest.TestCase):
         timer.stop.assert_called_with('return_success.success')
 
     @mock.patch.object(py_statsd.connection, 'Connection')
-    @mock.patch.object(os, 'environ')
-    def test_counter_timer(self, mock_environ, mock_conn):
+    @mock.patch.object(statsd, 'CONFIG')
+    def test_counter_timer(self, mock_config, mock_conn):
         '''Verifies method calls with counter and timer passed in.'''
-        mock_environ.get = mock.MagicMock(return_value=True)
-        mock_environ['STATSD_HOST'] = '111.222.222.111'
-        mock_environ['STATSD_PORT'] = None
+        mock_config.statsd_host = '111.222.222.111'
         counter = mock.Mock()
         timer = mock.Mock()
 
@@ -82,12 +75,10 @@ class TestCollect(unittest.TestCase):
         timer.stop.assert_called_with('return_success.success')
 
     @mock.patch.object(py_statsd.connection, 'Connection')
-    @mock.patch.object(os, 'environ')
-    def test_exception_raised(self, mock_environ, mock_conn):
+    @mock.patch.object(statsd, 'CONFIG')
+    def test_exception_raised(self, mock_config, mock_conn):
         '''Verifies method calls when exception raised during original run.'''
-        mock_environ.get = mock.MagicMock(return_value=True)
-        mock_environ['STATSD_HOST'] = '111.222.222.111'
-        mock_environ['STATSD_PORT'] = None
+        mock_config.statsd_host = '111.222.222.111'
         counter = mock.Mock()
         timer = mock.Mock()
 
