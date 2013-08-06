@@ -1876,7 +1876,7 @@ services.factory('urlBuilder', function(){
   return scope;
 });
 
-angular.module('checkmate.services').factory('Deployment', function(){
+angular.module('checkmate.services').factory('Deployment', ['$http', function($http) {
   var scope = {};
 
   scope.status = function(deployment) {
@@ -1899,8 +1899,25 @@ angular.module('checkmate.services').factory('Deployment', function(){
     return (deployment.operation.complete / deployment.operation.tasks) * 100;
   }
 
+  scope.add_nodes = function(deployment, service_name, num_nodes) {
+    var data = { service_name: service_name, count: num_nodes };
+    var tenant_id = deployment.tenantId;
+    var url = "/"+tenant_id+"/deployments/"+deployment.id+"/+add-nodes.json";
+    return $http.post(url, data);
+  }
+
+  scope.delete_nodes = function(deployment, resource_ids) {
+    if (!(resource_ids instanceof Array))
+      resource_ids = [resource_ids];
+
+    var data = { resource_ids: resource_ids.join(',') };
+    var tenant_id = deployment.tenantId;
+    var url = "/"+tenant_id+"/deployments/"+deployment.id+"/+delete-nodes.json";
+    return $http.post(url, data);
+  }
+
   return scope;
-});
+}]);
 
 angular.module('checkmate.services').factory('Cache', function() {
   var scope = {};
