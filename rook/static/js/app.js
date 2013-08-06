@@ -3259,6 +3259,8 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     lb: 0,
     master: 1,
     web: 1,
+    app: 1,
+    admin: 1,
     backend: 2,
 
     // Cassandra
