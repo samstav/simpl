@@ -855,7 +855,6 @@ function ActivityFeedController($scope, $http, items) {
       break;
     case 'CreateEvent':
       parsed.verb = 'created';
-      parsed.article = '';
       break;
     case 'PullRequestEvent':
       parsed.subject_type = '';
@@ -865,7 +864,6 @@ function ActivityFeedController($scope, $http, items) {
       parsed.article = 'to';
       break;
     case 'ForkEvent':
-      parsed.article = '';
       break;
     default:
     }
