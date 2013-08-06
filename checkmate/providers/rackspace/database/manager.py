@@ -246,6 +246,7 @@ class Manager(object):
         LOG.info('Created database %s on instance %s', name, instance_id)
         return results
 
+    @staticmethod
     def add_user(instance_id, databases, username, password,
                  api, callback, simulate=False):
         ''' Add a database user to an instance for one or more databases.
