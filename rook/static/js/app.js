@@ -843,7 +843,7 @@ function ActivityFeedController($scope, $http, items) {
     var actionArray = event.type.match(/[A-Z][a-z]+/g).slice(0,-1);
     if (!parsed.verb) {
       parsed.verb = actionArray[0].toLowerCase();
-      parsed.verb += action.charAt(action.length - 1) == 'e' ? 'd' : 'ed';
+      parsed.verb += parsed.verb.charAt(parsed.verb.length - 1) == 'e' ? 'd' : 'ed';
     }
     parsed.subject_type = actionArray.slice(1).join(' ').toLowerCase();
     parsed.article = '';
