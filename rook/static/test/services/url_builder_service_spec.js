@@ -98,4 +98,31 @@ describe('urlBuilder', function(){
       expect(this.urlBuilder.get_url('cloud_control', resource, tenantId, username)).toEqual(expected);
     });
   });
+
+  describe('#is_valid', function() {
+    it('should be valid if resource provider is nova', function() {
+      resource.provider = 'nova';
+      expect(this.urlBuilder.is_valid(resource)).toBe(true);
+    });
+
+    it('should be valid if resource provider is legacy', function() {
+      resource.provider = 'legacy';
+      expect(this.urlBuilder.is_valid(resource)).toBe(true);
+    });
+
+    it('should be valid if resource provider is load-balancer', function() {
+      resource.provider = 'load-balancer';
+      expect(this.urlBuilder.is_valid(resource)).toBe(true);
+    });
+
+    it('should be valid if resource provider is databases', function() {
+      resource.provider = 'databases';
+      expect(this.urlBuilder.is_valid(resource)).toBe(true);
+    });
+
+    it('should not be valid otherwise', function() {
+      resource.provider = 'custom';
+      expect(this.urlBuilder.is_valid(resource)).toBe(false);
+    });
+  });
 });
