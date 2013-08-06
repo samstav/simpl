@@ -11,8 +11,8 @@
       <div class='group'>
         <h5><i class="icon-filter"></i> Filters</h5>
 
-        <input ng-change="applyFilters()" ui-date ng-model="filters.start_date" ui-date-format="yy-mm-dd" placeholder="Start date" type="text" class="span10" />
-        <input ng-change="applyFilters()" ui-date ng-model="filters.end_date" ui-date-format="yy-mm-dd" placeholder="End date" type="text" class="span10" />
+        <input ng-change="applyFilters()" ui-date ng-model="filters.start_date" ui-date-format="yy-mm-dd" placeholder="Start date" type="text" class="span12" />
+        <input ng-change="applyFilters()" ui-date ng-model="filters.end_date" ui-date-format="yy-mm-dd" placeholder="End date" type="text" class="span12" />
 
         <h5> Status</h5>
         <label class="filter" ng-repeat="filter in filter_list">
@@ -38,8 +38,7 @@
 
         <h5> Search</h5>
         <form>
-          <input class="span10" type="text" placeholder="ex.: wordpress" ng-model="query" ng-change="applyFilters()" />
-          <i class="icon-question-sign pull-right" tooltip="Press &lt;return&gt; to apply filter to all results"></i>
+          <input class="span12" type="text" placeholder="ex.: wordpress" ng-model="query" ng-change="applyFilters()" />
         </form>
       </div>
 
