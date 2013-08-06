@@ -22,6 +22,12 @@ if CELERY_ALWAYS_EAGER:
     LOG.warning("Celery is running synchronously because the "
                 "CELERY_ALWAYS_EAGER setting is true")
 
+if 'CHECKMATE_CELERY_LOGCONFIG' in os.environ:
+    CHECKMATE_CELERY_LOGCONFIG = os.environ.get('CHECKMATE_CELERY_LOGCONFIG')
+else:
+    CHECKMATE_CELERY_LOGCONFIG = "/etc/default/checkmate-celeryqueue-log.conf"
+
+
 if 'CHECKMATE_BROKER_URL' in os.environ:
     BROKER_URL = os.environ['CHECKMATE_BROKER_URL']
 elif 'CHECKMATE_BROKER_HOST' in os.environ:
