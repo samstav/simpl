@@ -354,9 +354,9 @@ class WorkflowSpec(specs.WorkflowSpec):
 
             #Process relations for resource
             WorkflowSpec._add_del_tasks_for_resource_relation(wf_spec,
-                                                                 deployment,
-                                                                 resource_key,
-                                                                 context)
+                                                              deployment,
+                                                              resource_key,
+                                                              context)
             wait_tasks.extend(wf_spec.find_task_specs(resource=resource_key,
                                                       tag="delete_connection"))
 

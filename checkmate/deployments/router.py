@@ -6,7 +6,6 @@ Handles API calls to /deployments and routes them appropriately
 import copy
 import logging
 import os
-import string
 import uuid
 
 import bottle  # pylint: disable=E0611
@@ -346,11 +345,10 @@ class Router(object):
         body = utils.read_body(bottle.request)
 
         if "resource_ids" not in body:
-            bottle.abort(400, "Invalid input, \'resource_ids\' input "
+            bottle.abort(400, "Invalid input, 'resource_ids' input "
                               "parameter is not provided in the request")
-        resource_ids_raw = string.split(body["resource_ids"], ',')
-        resource_ids = map(lambda resource_id: resource_id.strip(),
-                           resource_ids_raw)
+
+        resource_ids = body["resource_ids"]
         LOG.debug("Received request to delete resources %s for deployment "
                   "%s", resource_ids, deployment["id"])
         self.manager.delete_nodes(deployment, bottle.request.context,

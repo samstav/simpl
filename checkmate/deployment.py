@@ -1333,7 +1333,7 @@ class Deployment(morpheus.MorpheusDict):
         resources = {}
         for resource_key, resource_value in self.get(
                 "resources", {}).iteritems():
-            if resource_value.get("status", None) != "DELETED":
+            if resource_value.get("status") != "DELETED":
                 resources.update({resource_key: resource_value})
         return resources
 
