@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,W0613
 from __future__ import absolute_import
 
 import mock
@@ -19,37 +19,82 @@ def return_failure(*args, **kwargs):
     raise StandardError()
 
 
-class TestStatsd(unittest.TestCase):
-    def test_collect_no_config(self):
+class TestCollect(unittest.TestCase):
+    '''Verifies the functionallity of statsd.collect.'''
+
+    @mock.patch.object(statsd, 'CONFIG')
+    def test_collect_no_config(self, mock_config):
         '''Test that statsd.collect does nothing if not configured.'''
+        mock_config.statsd_host = None
         self.assertTrue(statsd.collect(return_success)())
 
-    def test_collect_exception(self):
-        '''Tests that statsd raises exception with invalid arg.'''
-        CONFIG.statsd = '111.222.222.111:1234'
-        CONFIG.statsd_host = '111.222.222.111'
-        CONFIG.statsd_port = 1234
+    @mock.patch.object(statsd, 'CONFIG')
+    @mock.patch.object(py_statsd.timer, 'Timer')
+    @mock.patch.object(py_statsd.counter, 'Counter')
+    @mock.patch.object(py_statsd.connection, 'Connection')
+    def test_no_counter_no_timer(self, mock_conn, mock_counter, mock_timer,
+                                 mock_config):
+        '''Verifies method calls with no counter or timer passed in.'''
+        mock_config.statsd_host = '111.222.222.111'
+        connection = mock.Mock()
+        mock_conn.return_value = connection
+        counter = mock.Mock()
+        mock_counter.return_value = counter
+        timer = mock.Mock()
+        mock_timer.return_value = timer
 
-        mock_counter = py_statsd.counter.Counter('test')
-        mock_counter.increment = mock.MagicMock()
+        self.assertTrue(statsd.collect(return_success)())
 
-        mock_timer = py_statsd.timer.Timer('test')
-        mock_timer.start = mock.MagicMock()
+        mock_counter.assert_called_with('tests.unit.test_statsd.status',
+                                        connection)
+        assert counter.increment.mock_calls == [
+            mock.call('return_success.started'),
+            mock.call('return_success.success')
+        ]
+        mock_timer.assert_called_with('tests.unit.test_statsd.duration',
+                                      connection)
+        timer.start.assert_called_with()
+        timer.stop.assert_called_with('return_success.success')
+
+    @mock.patch.object(py_statsd.connection, 'Connection')
+    @mock.patch.object(statsd, 'CONFIG')
+    def test_counter_timer(self, mock_config, mock_conn):
+        '''Verifies method calls with counter and timer passed in.'''
+        mock_config.statsd_host = '111.222.222.111'
+        counter = mock.Mock()
+        timer = mock.Mock()
+
+        self.assertTrue(statsd.collect(return_success)(statsd_counter=counter,
+                                                       statsd_timer=timer))
+
+        assert counter.increment.mock_calls == [
+            mock.call('return_success.started'),
+            mock.call('return_success.success')
+        ]
+        timer.start.assert_called_with()
+        timer.stop.assert_called_with('return_success.success')
+
+    @mock.patch.object(py_statsd.connection, 'Connection')
+    @mock.patch.object(statsd, 'CONFIG')
+    def test_exception_raised(self, mock_config, mock_conn):
+        '''Verifies method calls when exception raised during original run.'''
+        mock_config.statsd_host = '111.222.222.111'
+        counter = mock.Mock()
+        timer = mock.Mock()
 
         with self.assertRaises(StandardError):
-            statsd.collect(return_failure)(statsd_counter=mock_counter,
-                                           statsd_timer=mock_timer)
+            statsd.collect(return_failure)(statsd_counter=counter,
+                                           statsd_timer=timer)
 
-        mock_counter.increment.assert_called_with('return_failure.exceptions')
-
-        mock_timer.start.assert_called_with()
-
-        # counter increment within except StandardError block
-        mock_counter.increment.assert_called_with('return_failure.exceptions')
+        assert counter.increment.mock_calls == [
+            mock.call('return_failure.started'),
+            mock.call('return_failure.exceptions')
+        ]
 
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
+    from checkmate import test
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    test.run_with_params(sys.argv[:])

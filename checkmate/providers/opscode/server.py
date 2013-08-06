@@ -10,6 +10,7 @@ import chef
 from SpiffWorkflow.operators import Attrib
 from SpiffWorkflow.specs import Celery, Merge, Transform
 
+from checkmate.common import statsd
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
 
@@ -195,6 +196,7 @@ def create_role_recipe_string(roles=None, recipes=None):
 
 
 @task
+@statsd.collect
 def register_node(deployment, name, runlist=None, attributes=None,
                   environment=None):
     match_celery_logging(LOG)
@@ -223,6 +225,7 @@ def register_node(deployment, name, runlist=None, attributes=None,
 
 
 @task
+@statsd.collect
 def bootstrap(
     deployment, name, ip, username='root', password=None, port=22,
     identity_file=None, run_roles=None, run_recipes=None,
@@ -261,6 +264,7 @@ def bootstrap(
 
 
 @task
+@statsd.collect
 def manage_databag(deployment, bagname, itemname, contents):
     match_celery_logging(LOG)
     try:
@@ -286,6 +290,7 @@ def manage_databag(deployment, bagname, itemname, contents):
 
 
 @task
+@statsd.collect
 def manage_role(deployment, name, desc=None, run_list=None,
                 default_attributes=None, override_attributes=None,
                 env_run_lists=None):
@@ -324,6 +329,7 @@ def manage_role(deployment, name, desc=None, run_list=None,
 
 
 @task
+@statsd.collect
 def manage_env(deployment, name, desc=None, versions=None,
                default_attributes=None, override_attributes=None):
     match_celery_logging(LOG)

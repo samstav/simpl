@@ -50,13 +50,14 @@ def simple_decorator(decorator):
     docstring and function attributes of functions to which
     it is applied.
     '''
-    def new_decorator(f):
-        g = decorator(f)
-        g.__name__ = f.__name__
-        g.__module__ = f.__module__  # or celery throws a fit
-        g.__doc__ = f.__doc__
-        g.__dict__.update(f.__dict__)
-        return g
+    def new_decorator(func):
+        '''Inherit attributes from original method.'''
+        decorated = decorator(func)
+        decorated.__name__ = func.__name__
+        decorated.__module__ = func.__module__  # or celery throws a fit
+        decorated.__doc__ = func.__doc__
+        decorated.__dict__.update(func.__dict__)
+        return decorated
     # Now a few lines needed to make simple_decorator itself
     # be a well-behaved decorator.
     new_decorator.__name__ = decorator.__name__
@@ -72,7 +73,7 @@ def collect(func):
     def collect_wrapper(*args, **kwargs):
         '''Replaces decorated function.'''
 
-        if not CONFIG.statsd:
+        if not CONFIG.statsd_host:
             return func(*args, **kwargs)
 
         stats_conn = statsd.connection.Connection(
@@ -82,16 +83,18 @@ def collect(func):
         )
 
         task_name = func.__name__
+        stats_ns = func.__module__
 
         if kwargs.get('statsd_counter') is None:
-            counter = statsd.counter.Counter('celery.tasks.status', stats_conn)
+            counter = statsd.counter.Counter('%s.status' % stats_ns,
+                                             stats_conn)
         else:
             counter = kwargs['statsd_counter']
 
         counter.increment('%s.started' % task_name)
 
         if kwargs.get('statsd_timer') is None:
-            timer = statsd.timer.Timer('celery.tasks.duration', stats_conn)
+            timer = statsd.timer.Timer('%s.duration' % stats_ns, stats_conn)
         else:
             timer = kwargs['statsd_timer']
 

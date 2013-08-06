@@ -29,6 +29,10 @@ ENV_MAP = {
     'CHECKMATE_CHEF_LOCAL_PATH': 'deployments_path',
     'CHECKMATE_CHEF_OMNIBUS_VERSION': 'omnibus_version',
     'BERKSHELF_PATH': 'berkshelf_path',
+
+    # Statsd
+    'STATSD_HOST': 'statsd_host',
+    'STATSD_PORT': 'statsd_port',
 }
 
 
@@ -46,7 +50,6 @@ class Config(object):
     access_log = None
 
     newrelic = False
-    statsd = None
     statsd_port = 8125
     statsd_host = None
 
