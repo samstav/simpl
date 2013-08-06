@@ -2953,7 +2953,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     var deployment = new Deployment({});
     if ($scope.deployment_name !== undefined && $scope.deployment_name.trim().length > 0)
         deployment.name = $scope.deployment_name;
-    deployment.blueprint = jQuery.extend({}, $scope.blueprint);  //Copy//{"services": {}, 'name': 'batman'};
+    deployment.blueprint = jQuery.extend({}, $scope.blueprint);  //Copy
     deployment.environment = jQuery.extend({}, $scope.environment);  //Copy
     deployment.inputs = {};
     deployment.inputs.blueprint = {};
@@ -3534,23 +3534,25 @@ function ResourcesController($scope, $resource, $location){
     }
   };
 
-  $scope.new_deployment = function(tenant_id){
+  $scope.get_new_deployment = function(tenant_id){
     var url = '/:tenantId/deployments';
     Deployment = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id});
     return new Deployment({});
   }
 
+  $scope.deployment = {};
+
   $scope.submit = function(){
     var url = '/:tenantId/deployments',
         tenant_id = $scope.auth.context.tenantId,
-        deployment = $scope.new_deployment(tenant_id);
+        deployment = $scope.get_new_deployment(tenant_id);
 
     deployment.resources = {};
     for (i=0; i<$scope.selected_resources.length; i++){
       deployment.resources[i] = $scope.selected_resources[i]
     }
-    deployment.blueprint = {"services": {}, 'name': 'batman'};
-    deployment.environment = { //will need to make this dynamic based on what kinds of resources are put into the deployment.  Static to nova servers now
+    deployment.blueprint = {"services": {}, 'name': $scope.deployment.name};
+    deployment.environment = { //TODO Make providers list dynamic based on resources
         "description": "This environment uses next-gen cloud servers.",
         "name": "Next-Gen Open Cloud",
         "providers": {

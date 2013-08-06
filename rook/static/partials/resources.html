@@ -25,6 +25,8 @@
     <div class='span9'>
       <form ng-submit='submit()'>
         <h4>Create a Deployment</h4>
+        <input type="text" ng-model="deployment.name">
+        </input>
         <ul>
           <li ng-repeat="resource in selected_resources" ng-click="remove_from_deployment(resource)">
             {{resource.instance}}

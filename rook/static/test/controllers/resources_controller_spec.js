@@ -51,7 +51,7 @@ describe('ResourcesController', function(){
       var data = {'id': '111'}
       var save_spy = sinon.spy();
       $scope.auth = {context: {tenantId: '123'}};
-      $scope.new_deployment = sinon.stub().returns({$save: save_spy})
+      $scope.get_new_deployment = sinon.stub().returns({$save: save_spy})
       $scope.submit();
 
       var success_callback = save_spy.getCall(0).args[0]
