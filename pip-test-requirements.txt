@@ -15,7 +15,7 @@ pep8==1.4.5
 flake8
 hacking  # plugins for enforcement of HACKING.rst
 mock
-pylint
+pylint==0.28.0
 nose
 nosexcover
 webtest
