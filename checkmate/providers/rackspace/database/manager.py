@@ -253,16 +253,14 @@ class Manager(object):
             Returns instance data.
         '''
 
-        assert api, "api is required in add_user"
-        assert callback, "callback is required in add_user"
-
+        assert instance_id, "Instance ID not supplied"
 
         # TODO(sam): cover only code necessary with this try/except block
         # -- pyrax ClientException?
         #try:
 
         if simulate:
-            instance = utils.Simulation(hostname='db1.rax.net', status='ACTIVE')
+            instance = utils.Simulation(hostname='srv0.rackdb.net', status='ACTIVE')
         else:
             try:
                 instance = api.get(instance_id)
@@ -276,7 +274,7 @@ class Manager(object):
             if instance.status != "ACTIVE":
                 raise CheckmateResumableException('Database instance is '
                                                   'not active.', 'help',
-                                                  'status error')
+                                                  'status error', '')
             #except ClientException as exc
 
             try:
