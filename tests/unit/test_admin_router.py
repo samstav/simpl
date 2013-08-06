@@ -41,9 +41,9 @@ class TestParamWhitelist(TestAdminRouter):
     def setUp(self):
         super(TestParamWhitelist, self).setUp()
 
-    def test_whitelist_length(self):
+    def test_there_are_9_items_being_whitelisted(self):
         num_params = len(admin.Router.param_whitelist)
-        self.assertEqual(num_params, 8)
+        self.assertEqual(num_params, 9)
 
     def test_search_is_whitelisted(self):
         self.assertTrue('search' in admin.Router.param_whitelist)
@@ -65,6 +65,9 @@ class TestParamWhitelist(TestAdminRouter):
 
     def test_end_date_is_whitelisted(self):
         self.assertTrue('end_date' in admin.Router.param_whitelist)
+
+    def test_created_by_is_whitelisted(self):
+        self.assertTrue('created-by' in admin.Router.param_whitelist)
 
     def test_blueprint_source_is_whitelisted(self):
         self.assertTrue('environment.providers.chef-solo.constraints.source'

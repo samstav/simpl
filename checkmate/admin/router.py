@@ -156,7 +156,7 @@ class Router(object):
     # Deployments
     #
     param_whitelist = ['search', 'name', 'blueprint.name', 'tenantId',
-                       'status', 'start_date', 'end_date',
+                       'status', 'start_date', 'end_date', 'created-by',
                        'environment.providers.chef-solo.constraints.source']
 
     @utils.only_admins
