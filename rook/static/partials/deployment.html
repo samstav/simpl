@@ -183,7 +183,7 @@ Priv Key: {{formatted_data.private_key}}
         <table class="table table-bordered table-condensed">
           <thead><tr><th>Name</th><th>Type</th><th>IP</th><th>Build Status</th></tr></thead>
           <tbody>
-            <tr ng-repeat="resource in data.resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
+            <tr ng-repeat="resource in resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
               <td ng-switch="resource.provider">
                 <div class="dropdown" ng-switch-when="nova">
                   <a class="dropdown-toggle">{{resource['dns-name']}}</a>

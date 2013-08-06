@@ -3120,6 +3120,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.load_workflow_stats(data.operation);
       data.display_status = Deployment.status(data);
       $scope.data = data;
+      $scope.resources = _.values($scope.data.resources);
       $scope.showCommands = $scope.auth.context.tenantId === $scope.data.tenantId;
       $scope.abs_url = $location.absUrl();
       $scope.clippy_element = "#deployment_summary_clipping";
