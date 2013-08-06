@@ -24,6 +24,34 @@ describe('urlBuilder', function(){
     };
   }));
 
+  describe('#get_url', function() {
+    it('should get URLs for Cloud Control', function() {
+      var url = this.urlBuilder.get_url('cloud_control', resource, tenantId, username);
+      expect(url).toContain('cloudcontrol.rackspacecloud.com');
+    });
+
+    it('should get URLs for My Cloud', function() {
+      var url = this.urlBuilder.get_url('my_cloud', resource, tenantId, username);
+      expect(url).toContain('mycloud.rackspace.com');
+    });
+
+    it('should get URLs for Nova Stats', function() {
+      var url = this.urlBuilder.get_url('nova_stats', resource, tenantId, username);
+      expect(url).toContain('reports.ohthree.com');
+    });
+
+    it('should get URLs for SSH', function() {
+      var url = this.urlBuilder.get_url('ssh', resource, tenantId, username);
+      expect(url).toContain('ssh://');
+    });
+
+    it('should not build a URL is resource is not valid', function() {
+      resource.provider = 'custom';
+      var url = this.urlBuilder.get_url('whatever', resource, tenantId, username);
+      expect(url).toBe(undefined);
+    });
+  });
+
   describe('novaStatsURL', function(){
     it('should build a nova stats url', function(){
       var expected = 'https://reports.ohthree.com/ord/instance/resource_id';

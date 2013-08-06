@@ -1843,10 +1843,10 @@ services.factory('urlBuilder', function(){
   }
 
   scope.get_url = function(service, resource, tenant_id, username) {
-    var resource_type = get_resource_type(resource);
-    if (!resource_type) return;
+    if (!scope.is_valid(resource)) return;
 
     var url;
+    var resource_type = get_resource_type(resource);
     var resource_id = resource.instance.id;
     var region = resource.region || resource.instance.region;
     var address = resource.instance.public_ip;
