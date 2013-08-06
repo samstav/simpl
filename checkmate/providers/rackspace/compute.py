@@ -702,7 +702,7 @@ class Provider(RackspaceComputeProviderBase):
 
         servers = []
         pyrax.auth_with_token(context.auth_token, tenant_name=context.tenant)
-        for region in Provider.find_all_regions(context.catalog):
+        for region in pyrax.regions:
             api = pyrax.connect_to_cloudservers(region=region)
             servers += api.list()
 
@@ -760,33 +760,24 @@ class Provider(RackspaceComputeProviderBase):
     @staticmethod
     def find_a_region(catalog):
         '''Any region.'''
-        return Provider.find_all_regions(catalog)[0]
-
-    @staticmethod
-    def find_all_regions(catalog):
-        '''All regions.'''
-        regions = []
-        fall_back = []
-        openstack_compatible = []
+        fall_back = None
+        openstack_compatible = None
         for service in catalog:
             if service['name'] == 'cloudServersOpenStack':
                 endpoints = service['endpoints']
                 for endpoint in endpoints:
-                    if 'region' in endpoint:
-                        regions.append(endpoint['region'])
+                    return endpoint['region']
             elif (service['type'] == 'compute' and
                   service['name'] != 'cloudServers'):
                 endpoints = service['endpoints']
                 for endpoint in endpoints:
-                    if 'region' in endpoint:
-                        fall_back.append(endpoint.get('region'))
+                    fall_back = endpoint.get('region')
             elif service['type'] == 'compute':
                 endpoints = service['endpoints']
                 for endpoint in endpoints:
-                    if 'region' in endpoint:
-                        openstack_compatible.append(endpoint.get('region'))
+                    openstack_compatible = endpoint.get('region')
 
-        return regions + fall_back + openstack_compatible
+        return fall_back or openstack_compatible
 
     @staticmethod
     def connect(context, region=None):
