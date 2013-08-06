@@ -401,8 +401,8 @@ class Manager(base.ManagerBase):
             }
         '''
 
-        deployment = self.select_driver(deployment_id).get_deployment(deployment_id,
-                                                with_secrets=True)
+        deployment = self.select_driver(
+            deployment_id).get_deployment(deployment_id, with_secrets=True)
         deployment = Deployment(deployment)
 
         if not isinstance(contents, dict):

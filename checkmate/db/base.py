@@ -18,6 +18,9 @@ TODO:
 - implement partial saves (formalize what we do in save_deployment)
 
 '''
+
+# pylint: disable=C0111
+
 import logging
 
 LOG = logging.getLogger()
@@ -176,6 +179,13 @@ class DbBase(object):  # pylint: disable=R0921
     }
 
     def convert_data(self, klass, data):
+        '''
+        Used to perform transformations on objects post reading them from
+        the DB.
+        :param klass:
+        :param data:
+        :return:
+        '''
         if klass == 'deployments':
             if 'status' in data:
                 if data['status'] in self.legacy_statuses:
