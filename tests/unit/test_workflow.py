@@ -299,7 +299,7 @@ class TestWorkflow(unittest.TestCase):
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
         workflow_spec = workflows.WorkflowSpec\
-            .create_delete_deployment_workflow_spec(
+            .create_delete_dep_wf_spec(
                 deployment_with_lb_provider, context)
         workflow = init_spiff_workflow(workflow_spec,
                                        deployment_with_lb_provider, context)
@@ -368,7 +368,7 @@ class TestWorkflow(unittest.TestCase):
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
         workflow_spec = workflows.WorkflowSpec\
-            .create_delete_deployment_workflow_spec(
+            .create_delete_dep_wf_spec(
                 deployment_with_lb_provider, context)
         workflow = init_spiff_workflow(workflow_spec,
                                        deployment_with_lb_provider, context)

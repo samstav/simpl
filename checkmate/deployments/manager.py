@@ -9,7 +9,6 @@ import logging
 import uuid
 
 import eventlet
-from SpiffWorkflow.storage import DictionarySerializer
 
 from .planner import Planner
 from checkmate import base
@@ -142,8 +141,7 @@ class Manager(base.ManagerBase):
         self.save_deployment(deployment)
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
-        '''
-        Get a single deployment by id.
+        '''Get a single deployment by id.
         '''
         entity = self.select_driver(api_id).get_deployment(api_id,
                                                            with_secrets=
@@ -178,8 +176,7 @@ class Manager(base.ManagerBase):
         return entity
 
     def get_deployment_secrets(self, api_id, tenant_id=None):
-        '''
-        Get the passwords and keys of a single deployment by id.
+        '''Get the passwords and keys of a single deployment by id.
         '''
         entity = self.select_driver(api_id).get_deployment(api_id,
                                                            with_secrets=True)
@@ -205,8 +202,7 @@ class Manager(base.ManagerBase):
         return data
 
     def update_deployment_secrets(self, api_id, data, tenant_id=None):
-        '''
-        Update the passwords and keys of a single deployment.
+        '''Update the passwords and keys of a single deployment.
         '''
         #FIXME: test this
         entity = self.get_deployment(api_id, tenant_id=tenant_id,
@@ -341,7 +337,7 @@ class Manager(base.ManagerBase):
         return deployment
 
     def reset_failed_resource(self, deployment_id, resource_id):
-        ''' Creates a copy of a failed resource and appends it at the end of
+        '''Creates a copy of a failed resource and appends it at the end of
         the resources collection.
 
         :param deployment_id:
@@ -405,8 +401,8 @@ class Manager(base.ManagerBase):
             }
         '''
 
-        deployment = self.select_driver(deployment_id).get_deployment(deployment_id,
-                                                with_secrets=True)
+        deployment = self.select_driver(
+            deployment_id).get_deployment(deployment_id, with_secrets=True)
         deployment = Deployment(deployment)
 
         if not isinstance(contents, dict):
@@ -450,11 +446,29 @@ class Manager(base.ManagerBase):
                  deployment['id'], deployment['status'])
         return deployment
 
+    def delete_nodes(self, deployment, context, resource_ids, tenant_id):
+        '''Delete the passed in resources from a deployment
+        :param deployment: Deployment to delete resources from
+        :param context: RequestContext
+        :param resource_ids: Resources to delete
+        :param tenant_id: TenantId of the customer
+        :return:
+        '''
+        driver = self.select_driver(deployment["id"])
+        wf_spec = workflows.WorkflowSpec.create_delete_node_spec(
+            deployment, resource_ids, context)
+        delete_node_workflow = workflow.create_workflow(wf_spec, deployment,
+                                                        context,
+                                                        driver=driver)
+        operations.add(deployment, delete_node_workflow, "SCALE DOWN",
+                       tenant_id)
+
     def deploy_add_nodes(self, deployment, context, tenant_id):
+        driver = self.select_driver(deployment["id"])
         add_node_workflow_spec = (workflows.WorkflowSpec
                                   .create_workflow_spec_deploy(deployment,
                                                                context))
         add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
                                                      deployment, context,
-                                                     driver=self.driver)
+                                                     driver=driver)
         operations.add(deployment, add_node_workflow, "SCALE UP", tenant_id)
