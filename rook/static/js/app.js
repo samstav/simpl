@@ -846,7 +846,7 @@ function ActivityFeedController($scope, $http, items) {
       parsed.verb += action.charAt(action.length - 1) == 'e' ? 'd' : 'ed';
     }
     parsed.subject_type = actionArray.slice(1).join(' ').toLowerCase();
-    parsed.article = ''
+    parsed.article = '';
     switch(event.type)
     {
     case 'IssueCommentEvent':
