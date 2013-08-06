@@ -560,9 +560,12 @@ environment:
 
 
 class TestDatabaseProxy(unittest.TestCase):
+    @mock.patch('checkmate.providers.rackspace.database.provider.pyrax')
     @mock.patch('checkmate.providers.rackspace.database.Provider.connect')
-    def test_proxy_returns_db_host_instances(self, mock_connect):
+    def test_proxy_returns_db_host_instances(self, mock_connect, mock_pyrax):
         request = mock.Mock()
+        mock_pyrax.identity.authenticated = True
+        mock_pyrax.regions = ["ORD"]
 
         db_host = mock.Mock()
         db_host.status = 'status'
@@ -571,6 +574,7 @@ class TestDatabaseProxy(unittest.TestCase):
         db_host.hostname = 'hostname'
         db_host.flavor.id = 'flavor'
         db_host.volume.size = 'size'
+        db_host.metadata = {}
 
         api = mock.Mock()
         api.region_name = 'region'

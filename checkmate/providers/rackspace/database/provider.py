@@ -493,10 +493,16 @@ class Provider(providers.ProviderBase):
         """Proxy request through to cloud database provider"""
         if path != 'list':
             raise CheckmateException("Not a valid Provider path")
-        api = Provider.connect(request.context)
-        db_hosts = api.list()
+        if not pyrax.identity.authenticated:
+            Provider.connect(request.context)
+        db_hosts = []
+        for region in pyrax.regions:
+            api = Provider.connect(request.context, region)
+            db_hosts += api.list()
         results = {}
         for idx, db_host in enumerate(db_hosts):
+            if 'RAX-CHECKMATE' in db_host.metadata.keys():
+                continue
             results[idx] = {
                 'status': db_host.status,
                 'index': idx,
