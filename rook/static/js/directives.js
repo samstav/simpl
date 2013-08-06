@@ -306,6 +306,7 @@ directives.directive('cmTreeView', function() {
 
   return {
     restrict: 'E',
+    template: '<div></div>',
     replace: true,
     scope: { data: '=' },
     link: function(scope, element, attrs) {
