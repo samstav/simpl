@@ -466,6 +466,17 @@ class TestNovaCompute(test.ProviderTester):
             catalog = json.load(_file)['access']['serviceCatalog']
         self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
 
+    def test_find_all_regions(self):
+        path = os.path.join(os.path.dirname(__file__),
+                            'test_compute_nova_auth_response.json')
+        north = {'region': 'North'}
+        south = {'region': 'South'}
+        catalog = [{'endpoints': [north, south],
+                    'name': 'cloudServersOpenStack'}]
+
+        self.assertItemsEqual(compute.Provider.find_all_regions(catalog),
+                              ['North', 'South'])
+
     def test_compute_sync_resource_task(self):
         """Tests compute sync_resource_task via mox."""
         #Mock server
@@ -742,18 +753,25 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 
 class TestNovaProxy(unittest.TestCase):
     """Test Nova Compute Provider's proxy function"""
+    @mock.patch('checkmate.providers.rackspace.compute.Provider.find_all_regions')
     @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
-    def test_proxy_returns_compute_instances(self, mock_pyrax, mock_get_ips):
+    def test_proxy_returns_compute_instances(self, mock_pyrax,
+                                             mock_get_ips,
+                                             mock_find_all_regions):
+        mock_find_all_regions.return_value = ["DFW"]
         request = mock.Mock()
         server = mock.Mock()
         server.name = 'server_name'
         server.status = 'server_status'
         server.flavor = {'id': 'server_flavor'}
         server.image = {'id': 'server_image'}
+        server.manager.api.client.region_name = 'region_name'
+        server.metadata = {}
 
-        mock_pyrax.cloudservers.list.return_value = [server]
-        mock_pyrax.cloudservers.client.region_name = 'region_name'
+        servers_response = mock.Mock()
+        servers_response.list.return_value = [server]
+        mock_pyrax.connect_to_cloudservers.return_value = servers_response
         mock_get_ips.return_value = {}
 
         result = compute.Provider.proxy('list', request, 'tenant')[0]
@@ -762,14 +780,21 @@ class TestNovaProxy(unittest.TestCase):
         self.assertEqual(result['instance']['image'], 'server_image')
         self.assertEqual(result['instance']['region'], 'region_name')
 
+    @mock.patch('checkmate.providers.rackspace.compute.Provider.find_all_regions')
     @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
-    def test_proxy_merges_ip_info(self, mock_pyrax, mock_get_ips):
+    def test_proxy_merges_ip_info(self, mock_pyrax,
+                                  mock_get_ips, mock_find_all_regions):
+        mock_find_all_regions.return_value = ['DFW']
         request = mock.Mock()
         server = mock.Mock()
         server.image = {'id': None}
         server.flavor = {'id': None}
-        mock_pyrax.cloudservers.list.return_value = [server]
+        server.metadata = {}
+
+        servers_response = mock.Mock()
+        servers_response.list.return_value = [server]
+        mock_pyrax.connect_to_cloudservers.return_value = servers_response
         mock_get_ips.return_value = {'ip': '1.1.1.1',
                                      'public_ip': '2.2.2.2',
                                      'private_ip': '3.3.3.3'}
@@ -794,6 +819,47 @@ class TestNovaProxy(unittest.TestCase):
             '3.3.3.3'
         )
 
+    @mock.patch('checkmate.providers.rackspace.compute.Provider.find_all_regions')
+    @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
+    @mock.patch('checkmate.providers.rackspace.compute.pyrax')
+    def test_proxy_returns_servers_not_in_checkmate(self,
+                                                    mock_pyrax,
+                                                    mock_get_ips,
+                                                    mock_find_all_regions):
+
+        request = mock.Mock()
+        mock_find_all_regions.return_value = ["DFW", "ORD", "SYD"]
+        server = mock.Mock()
+        server.image = {'id': 'gotit'}
+        server.flavor = {'id': None}
+        server.metadata = {}
+
+        server_in_checkmate = mock.Mock(metadata = {'RAX-CHECKMATE': 'yeah'})
+        mock_get_ips.return_value = {}
+
+        def fake_connect(**kwargs):
+            dfw_mock = mock.Mock(
+                list=mock.Mock(return_value=[server, server_in_checkmate])
+            )
+            empty_servers_mock = mock.Mock(
+                list=mock.Mock(return_value=[])
+            )
+            if kwargs['region'] == 'DFW':
+                return dfw_mock
+            if kwargs['region'] == 'ORD':
+                return empty_servers_mock
+            if kwargs['region'] == 'SYD':
+                return empty_servers_mock
+
+        mock_pyrax.connect_to_cloudservers.side_effect = fake_connect
+
+        servers_response = mock.Mock()
+        servers_response.servers.list.return_value = [server]
+        mock_pyrax.connect_to_cloudservers.return_value = servers_response
+
+        result = compute.Provider.proxy('list', request, 'tenant')
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['image'], 'gotit')
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
