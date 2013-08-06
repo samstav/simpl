@@ -86,14 +86,15 @@ def collect(func):
         stats_ns = func.__module__
 
         if kwargs.get('statsd_counter') is None:
-            counter = statsd.counter.Counter(stats_ns+'.status', stats_conn)
+            counter = statsd.counter.Counter('%s.status' % stats_ns,
+                                             stats_conn)
         else:
             counter = kwargs['statsd_counter']
 
         counter.increment('%s.started' % task_name)
 
         if kwargs.get('statsd_timer') is None:
-            timer = statsd.timer.Timer(stats_ns+'.duration', stats_conn)
+            timer = statsd.timer.Timer('%s.duration' % stats_ns, stats_conn)
         else:
             timer = kwargs['statsd_timer']
 
