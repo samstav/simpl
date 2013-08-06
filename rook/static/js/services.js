@@ -1768,6 +1768,9 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', 'auth', f
 }]);
 
 services.factory('urlBuilder', function(){
+
+  var scope = {};
+
   function cloudControlURL(resource_type, resource_id, region, tenant_id){
     if (!resource_id)
       return null;
@@ -1815,10 +1818,62 @@ services.factory('urlBuilder', function(){
     return 'ssh://root@' + address;
   }
 
-  return { cloudControlURL: cloudControlURL,
-           myCloudURL: myCloudURL,
-           novaStatsURL: novaStatsURL,
-           sshTo: sshTo };
+  function get_resource_type(resource) {
+    var resource_type;
+
+    switch(resource.provider) {
+      case 'nova':
+        resource_type = 'server';
+        break;
+      case 'legacy':
+        resource_type = 'legacy_server';
+        break;
+      case 'load-balancer':
+        resource_type = 'load_balancer';
+        break;
+      case 'databases':
+        resource_type = 'database';
+        break;
+      default:
+        resource_type = null;
+        break;
+    }
+
+    return resource_type;
+  }
+
+  scope.get_url = function(service, resource, tenant_id, username) {
+    var resource_type = get_resource_type(resource);
+    if (!resource_type) return;
+
+    var url;
+    var resource_id = resource.instance.id;
+    var region = resource.region || resource.instance.region;
+    var address = resource.instance.public_ip;
+
+    switch(service) {
+      case 'cloud_control':
+        url = cloudControlURL(resource_type, resource_id, region, tenant_id);
+        break;
+      case 'my_cloud':
+        url = myCloudURL(resource_type, username, region, resource_id);
+        break;
+      case 'nova_stats':
+        url = novaStatsURL(region, resource_id);
+        break;
+      case 'ssh':
+        url = sshTo(address);
+        break;
+    }
+
+    return url;
+  }
+
+  scope.is_valid = function(resource) {
+    return get_resource_type(resource) != null;
+  }
+
+  return scope;
 });
 
 angular.module('checkmate.services').factory('Deployment', function(){

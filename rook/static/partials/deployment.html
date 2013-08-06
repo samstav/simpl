@@ -184,66 +184,25 @@ Priv Key: {{formatted_data.private_key}}
           <thead><tr><th>Name</th><th>Type</th><th>IP</th><th>Build Status</th></tr></thead>
           <tbody>
             <tr ng-repeat="resource in resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
-              <td ng-switch="resource.provider">
-                <div class="dropdown" ng-switch-when="nova">
+              <td>
+                <div class="dropdown" ng-show="urlBuilder.is_valid(resource)">
                   <a class="dropdown-toggle">{{resource['dns-name']}}</a>
                   <ul class="dropdown-menu">
                     <li>
-                      <a target="_blank" ng-href="{{urlBuilder.cloudControlURL('server', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">Cloud Control</a>
+                      <a target="_blank" ng-href="{{urlBuilder.get_url('cloud_control', resource, data.tenantId, auth.context.username)}}">Cloud Control</a>
                     </li>
                     <li>
-                      <a target="_blank" ng-href="{{urlBuilder.myCloudURL('server', auth.context.username, resource.region || resource.instance.region, resource.instance.id)}}">My Cloud</a>
+                      <a target="_blank" ng-href="{{urlBuilder.get_url('my_cloud', resource, data.tenantId, auth.context.username)}}">My Cloud</a>
                     </li>
                     <li>
-                      <a target="_blank" ng-href="{{urlBuilder.novaStatsURL(resource.region || resource.instance.region, resource.instance.id)}}">Nova Stats</a>
+                      <a target="_blank" ng-href="{{urlBuilder.get_url('nova_stats', resource, data.tenantId, auth.context.username)}}">Nova Stats</a>
                     </li>
                     <li>
-                      <a ng-href="{{urlBuilder.sshTo(resource.instance.public_ip)}}">SSH</a>
+                      <a ng-href="{{urlBuilder.get_url('ssh', resource, data.tenantId, auth.context.username)}}">SSH</a>
                     </li>
                   </ul>
                 </div>
-                <div class="dropdown" ng-switch-when="legacy">
-                  <a class="dropdown-toggle">{{resource['dns-name']}}</a>
-                  <ul class="dropdown-menu">
-                    <li>
-                      <a target="_blank" ng-href="{{urlBuilder.cloudControlURL('legacy_server', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">Cloud Control</a>
-                    </li>
-                    <li>
-                      <a target="_blank" ng-href="{{urlBuilder.myCloudURL('legacy_server', auth.context.username, resource.region || resource.instance.region, resource.instance.id)}}">My Cloud</a>
-                    </li>
-                    <li>
-                      <a target="_blank" ng-href="{{urlBuilder.novaStatsURL(resource.region || resource.instance.region, resource.instance.id)}}">Nova Stats</a>
-                    </li>
-                    <li>
-                      <a ng-href="{{urlBuilder.sshTo(resource.instance.public_ip)}}">SSH</a>
-                    </li>
-                  </ul>
-                </div>
-
-                <div class="dropdown" ng-switch-when="load-balancer">
-                  <a class="dropdown-toggle">{{resource['dns-name']}}</a>
-                  <ul class="dropdown-menu">
-                    <li>
-                      <a target="_blank" ng-href="{{urlBuilder.cloudControlURL('load_balancer', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">Cloud Control</a>
-                    </li>
-                    <li>
-                      <a target="_blank" ng-href="{{urlBuilder.myCloudURL('load_balancer', auth.context.username, resource.region || resource.instance.region, resource.instance.id)}}">My Cloud</a>
-                    </li>
-                  </ul>
-                </div>
-
-                <div class="dropdown" ng-switch-when="databases">
-                  <a class="dropdown-toggle">{{resource['dns-name']}}</a>
-                  <ul class="dropdown-menu">
-                    <li>
-                      <a target="_blank" ng-href="{{urlBuilder.cloudControlURL('database', resource.instance.id, resource.region || resource.instance.region, data.tenantId)}}">Cloud Control</a>
-                    </li>
-                    <li>
-                      <a target="_blank" ng-href="{{urlBuilder.myCloudURL('database', auth.context.username, resource.region || resource.instance.region, resource.instance.id)}}">My Cloud</a>
-                    </li>
-                  </ul>
-                </div>
-                <span ng-switch-default>{{resource['dns-name']}} ({{resource.provider}})</a>
+                <span ng-hide="urlBuilder.is_valid(resource)">{{resource['dns-name']}} ({{resource.provider}})</a>
               </td>
               <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
               <td>{{resource.instance.public_ip}}</td>
