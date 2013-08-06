@@ -841,13 +841,17 @@ function ActivityFeedController($scope, $http, items) {
       parsed.verb = event.payload.action;
     }
     var actionArray = event.type.match(/[A-Z][a-z]+/g).slice(0,-1);
-    parsed.verb = parsed.verb || actionArray[0].toLowerCase() + 'ed';
+    if (!parsed.verb) {
+      parsed.verb = actionArray[0].toLowerCase();
+      parsed.verb += action.charAt(action.length - 1) == 'e' ? 'd' : 'ed';
+    }
     parsed.subject_type = actionArray.slice(1).join(' ').toLowerCase();
-    parsed.article = 'on';
+    parsed.article = ''
     switch(event.type)
     {
     case 'IssueCommentEvent':
       parsed.verb = 'issued';
+      parsed.article = 'on';
       break;
     case 'CreateEvent':
       parsed.verb = 'created';
@@ -855,6 +859,7 @@ function ActivityFeedController($scope, $http, items) {
       break;
     case 'PullRequestEvent':
       parsed.subject_type = '';
+      parsed.article = 'on';
       break;
     case 'PushEvent':
       parsed.article = 'to';
