@@ -622,13 +622,15 @@ services.factory('github', ['$http', '$q', function($http, $q) {
 
   //Load all repos for owner
   scope.get_repos = function(remote) {
-    var path = remote.api.url;
+    var path = remote.api.url,
+        GITHUB_MAX_PER_PAGE = 100;
     if (remote.org !== null) {
       path += 'orgs/' + remote.org + '/repos';
     } else
       path += 'users/' + remote.user + '/repos';
     console.log("Loading: " + path);
-    var config = {headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}};
+    var config = {headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'},
+                  params: {per_page: GITHUB_MAX_PER_PAGE}};
     return $http.get(path, config).then(
       function(response) {
         return response.data;
