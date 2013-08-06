@@ -323,6 +323,10 @@ def githubproxy(path=None):
         port = url.port or 80
     host = url.hostname
 
+    query = ''
+    if request.query.per_page:
+        query = "?per_page=" + request.query.per_page
+
     headers = {
         'Accept': request.get_header('Accept', ['application/json']),
     }
@@ -330,7 +334,7 @@ def githubproxy(path=None):
     data = None
     try:
         request_url = (url.scheme + '://' + host + ':' + str(port) +
-                       '/' + path)
+                       '/' + path + query)
         LOG.debug('Proxying github call to %s', request_url)
         req = urllib2.Request(request_url, data, headers)
         resp = urllib2.urlopen(req)
