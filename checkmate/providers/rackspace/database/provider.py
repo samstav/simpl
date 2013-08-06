@@ -501,12 +501,9 @@ class Provider(providers.ProviderBase):
             db_hosts += api.list()
         results = {}
         for idx, db_host in enumerate(db_hosts):
-            if 'RAX-CHECKMATE' in db_host.metadata.keys():
-                continue
             results[idx] = {
                 'status': db_host.status,
                 'index': idx,
-                'service': 'backend',
                 'region': api.region_name,
                 'provider': 'database',
                 'component': 'mysql_instance',

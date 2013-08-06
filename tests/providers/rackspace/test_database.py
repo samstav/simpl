@@ -574,7 +574,6 @@ class TestDatabaseProxy(unittest.TestCase):
         db_host.hostname = 'hostname'
         db_host.flavor.id = 'flavor'
         db_host.volume.size = 'size'
-        db_host.metadata = {}
 
         api = mock.Mock()
         api.region_name = 'region'
@@ -584,7 +583,6 @@ class TestDatabaseProxy(unittest.TestCase):
             0: {
                 'status': 'status',
                 'index': 0,
-                'service': 'backend',
                 'region': 'region',
                 'provider': 'database',
                 'component': 'mysql_instance',

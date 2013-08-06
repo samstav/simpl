@@ -714,7 +714,6 @@ class Provider(RackspaceComputeProviderBase):
             results[idx] = {
                 'status': server.status,
                 'index': idx,
-                'service': 'web',
                 'image': server.image['id'],
                 'provider': 'nova',
                 'dns-name': server.name,
@@ -727,8 +726,7 @@ class Provider(RackspaceComputeProviderBase):
                 },
                 'flavor': server.flavor['id'],
                 'type': 'compute',
-                'region': server.manager.api.client.region_name,
-                'metadata': server.metadata
+                'region': server.manager.api.client.region_name
             }
             merge_dictionary(results[idx]['instance'], get_ips_from_server(server, context.roles))
         return results
