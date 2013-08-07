@@ -310,8 +310,8 @@ def formatted_response(uripath, with_pagination=False):
             if with_pagination:
                 _write_pagination_headers(
                     data,
-                    kwargs.get('offset', 0),
-                    kwargs.get('limit', 100),
+                    kwargs.get('offset') or 0,
+                    kwargs.get('limit') or 100,
                     bottle.response,
                     uripath,
                     kwargs.get('tenant_id', bottle.request.context.tenant)
