@@ -8,6 +8,7 @@ import openstack.compute
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
+from checkmate.common import statsd
 from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
@@ -456,6 +457,7 @@ from checkmate.ssh import test_connection
 
 
 @task
+@statsd.collect
 def create_server(context, name, api_object=None, flavor=2, files=None,
                   image=119, ip_address_type='public', tags=None):
     """Create a Rackspace Cloud server.
@@ -555,6 +557,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 
 
 @task(default_retry_delay=30, max_retries=120)
+@statsd.collect
 def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
                   username='root', timeout=10, password=None,
                   identity_file=None, port=22, api_object=None,
@@ -695,6 +698,7 @@ def _convert_v1_adresses_to_v2(addresses):
 
 
 @task
+@statsd.collect
 def delete_server(context, serverid, api_object=None):
     match_celery_logging(LOG)
     if api_object is None:

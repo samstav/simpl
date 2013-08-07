@@ -15,6 +15,7 @@ import checkmate.providers.base
 
 from checkmate.common import (
     caching,
+    statsd,
 )
 from checkmate import utils
 from checkmate.exceptions import (
@@ -276,6 +277,7 @@ def parse_domain(domain_str):
 
 
 @task(default_retry_delay=10, max_retries=10)
+@statsd.collect
 def get_domains(context, limit=None, offset=None):
     '''Returns list of domains for an account.'''
     checkmate.utils.match_celery_logging(LOG)
@@ -290,6 +292,7 @@ def get_domains(context, limit=None, offset=None):
 
 
 @task(default_retry_delay=3, max_retries=20)
+@statsd.collect
 def create_domain(context, domain, email=None,
                   dom_ttl=300):
     '''Create zone.'''
@@ -320,6 +323,7 @@ def create_domain(context, domain, email=None,
 
 
 @task
+@statsd.collect
 def delete_domain(context, name):
     '''Find and delete the specified domain name.'''
     checkmate.utils.match_celery_logging(LOG)
@@ -349,6 +353,7 @@ def delete_domain(context, name):
 
 
 @task(default_retry_delay=3, max_retries=20)
+@statsd.collect
 def create_record(context, domain, name, dnstype, data,
                   rec_ttl=1800, makedomain=False,
                   email=None):
@@ -396,6 +401,7 @@ def create_record(context, domain, name, dnstype, data,
 
 
 @task(default_retry_delay=5, max_retries=12)
+@statsd.collect
 def delete_record_task(context, domain_id, record_id):
     '''Delete the specified record.'''
     checkmate.utils.match_celery_logging(LOG)
@@ -430,6 +436,7 @@ def delete_record_task(context, domain_id, record_id):
 
 
 @task(default_retry_delay=20, max_retries=10)
+@statsd.collect
 def delete_record_by_name(context, domain, name):
     '''Find the DNS record by name and delete it.'''
     checkmate.utils.match_celery_logging(LOG)

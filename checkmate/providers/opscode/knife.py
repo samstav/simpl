@@ -29,7 +29,7 @@ from eventlet.green import threading
 
 from checkmate import ssh
 from checkmate import utils
-from checkmate.common import config
+from checkmate.common import config, statsd
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,
@@ -451,6 +451,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
 
 
 @task
+@statsd.collect
 def write_databag(environment, bagname, itemname, contents, resource,
                   path=None, secret_file=None, merge=True,
                   kitchen_name='kitchen'):
@@ -599,6 +600,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
 
 
 @task(countdown=20, max_retries=3)
+@statsd.collect
 def cook(host, environment, resource, recipes=None, roles=None, path=None,
          username='root', password=None, identity_file=None, port=22,
          attributes=None, kitchen_name='kitchen'):
@@ -793,6 +795,7 @@ def _ensure_berkshelf_environment():
 
 #TODO: full search, fix module reference all below here!!
 @task
+@statsd.collect
 def create_environment(name, service_name, path=None, private_key=None,
                        public_key_ssh=None, secret_key=None, source_repo=None,
                        provider='chef-solo'):
@@ -895,6 +898,7 @@ def create_environment(name, service_name, path=None, private_key=None,
 
 
 @task(max_retries=3, soft_time_limit=600)
+@statsd.collect
 def register_node(host, environment, resource, path=None, password=None,
                   omnibus_version=None, attributes=None, identity_file=None,
                   kitchen_name='kitchen'):
@@ -1064,6 +1068,7 @@ def register_node(host, environment, resource, path=None, password=None,
 
 
 @task(countdown=20, max_retries=3)
+@statsd.collect
 def manage_role(name, environment, resource, path=None, desc=None,
                 run_list=None, default_attributes=None,
                 override_attributes=None, env_run_lists=None,
