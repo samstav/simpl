@@ -15,6 +15,8 @@ LOG = logging.getLogger(__name__)
 
 # Disable for accessing private attributes, long names, and number public meths
 # pylint: disable=W0212,C0103,R0904
+
+
 class TestDatabaseTasks(unittest.TestCase):
     'Class to test rackspace.database celery tasks.'
     def test_create_instance_sim_no_dbs(self):
@@ -248,7 +250,6 @@ class TestAddUser(unittest.TestCase):
         self.password = 'test_pass'
         self.region = 'ORD'
 
-
     def test_assert_instance_id(self):
         '''Verifies AssertionError raised when instance_id is None.'''
         self.assertRaises(AssertionError, database.add_user, self.context,
@@ -276,10 +277,12 @@ class TestAddUser(unittest.TestCase):
                 'password': 'test_pass'
             }
         }
-        results = database.add_user(self.context, self.instance_id, self.databases, self.username,
+        results = database.add_user(self.context, self.instance_id,
+                                    self.databases, self.username,
                                     self.password, self.region)
 
-        mock_LOG.assert_called_with('Added user %s to %s on instance %s', 'test_user', ['blah'], '12345')
+        mock_LOG.assert_called_with('Added user %s to %s on instance %s',
+                                    'test_user', ['blah'], '12345')
         mock_callback.assert_called_with(self.context, expected['instance:0'])
 
         self.assertEqual(results, expected)
@@ -293,8 +296,9 @@ class TestAddUser(unittest.TestCase):
         api.get = mock.MagicMock(side_effect=mock_exception)
         mock_retry.side_effect = AssertionError('retry')
 
-        self.assertRaisesRegexp(AssertionError, 'retry', database.add_user, self.context,
-                                self.instance_id, self.databases, self.username,
+        self.assertRaisesRegexp(AssertionError, 'retry', database.add_user,
+                                self.context, self.instance_id,
+                                self.databases, self.username,
                                 self.password, self.region, api=api)
 
         api.get.assert_called_with(self.instance_id)
@@ -309,11 +313,13 @@ class TestAddUser(unittest.TestCase):
         api.get = mock.Mock(return_value=instance)
         mock_retry.side_effect = AssertionError('retry')
 
-        self.assertRaisesRegexp(AssertionError, 'retry', database.add_user, self.context,
-                                self.instance_id, self.databases, self.username,
+        self.assertRaisesRegexp(AssertionError, 'retry', database.add_user,
+                                self.context, self.instance_id,
+                                self.databases, self.username,
                                 self.password, self.region, api=api)
 
-        mock_callback.assert_called_with(self.context, {'status': instance.status})
+        mock_callback.assert_called_with(self.context,
+                                         {'status': instance.status})
 
         api.get.assert_called_with(self.instance_id)
 
@@ -330,13 +336,16 @@ class TestAddUser(unittest.TestCase):
 
         mock_retry.side_effect = AssertionError('retry')
 
-        self.assertRaisesRegexp(AssertionError, 'retry', database.add_user, self.context,
-                                self.instance_id, self.databases, self.username,
+        self.assertRaisesRegexp(AssertionError, 'retry', database.add_user,
+                                self.context, self.instance_id,
+                                self.databases, self.username,
                                 self.password, self.region, api=api)
 
-        mock_callback.assert_called_with(self.context, {'status': instance.status})
+        mock_callback.assert_called_with(self.context,
+                                         {'status': instance.status})
         api.get.assert_called_with(self.instance_id)
-        instance.create_user.assert_called_with(self.username, self.password, self.databases)
+        instance.create_user.assert_called_with(self.username, self.password,
+                                                self.databases)
 
     @mock.patch.object(database._add_user, 'callback')
     def test_instance_create_user_gen_exc(self, mock_callback):
@@ -349,14 +358,16 @@ class TestAddUser(unittest.TestCase):
 
         #only CheckmateResumableException calls ProviderTask.retry
 
-        self.assertRaises(exceptions.CheckmateUserException, database.add_user, self.context,
+        self.assertRaises(exceptions.CheckmateUserException,
+                          database.add_user, self.context,
                           self.instance_id, self.databases, self.username,
                           self.password, self.region, api=api)
 
-        mock_callback.assert_called_with(self.context, {'status': instance.status})
+        mock_callback.assert_called_with(self.context,
+                                         {'status': instance.status})
         api.get.assert_called_with(self.instance_id)
-        instance.create_user.assert_called_with(self.username, self.password, self.databases)
-
+        instance.create_user.assert_called_with(self.username, self.password,
+                                                self.databases)
 
     @mock.patch.object(database.manager.LOG, 'info')
     @mock.patch.object(database._add_user.provider, 'connect')
@@ -386,14 +397,19 @@ class TestAddUser(unittest.TestCase):
                 'password': 'test_pass'
             }
         }
-        results = database.add_user(self.context, self.instance_id, self.databases, self.username,
+        results = database.add_user(self.context, self.instance_id,
+                                    self.databases, self.username,
                                     self.password, self.region, api=api)
         api.get.assert_called_with(self.instance_id)
-        instance.create_user.assert_called_with(self.username, self.password, self.databases)
-        mock_LOG.assert_called_with('Added user %s to %s on instance %s', 'test_user', ['blah'], '12345')
+        instance.create_user.assert_called_with(self.username,
+                                                self.password,
+                                                self.databases)
+        mock_LOG.assert_called_with('Added user %s to %s on instance %s',
+                                    'test_user', ['blah'], '12345')
         mock_callback.assert_called_with(self.context, expected['instance:0'])
 
         self.assertEqual(results, expected)
+
 
 class TestDeleteDatabaseItems(unittest.TestCase):
     '''Class to test delete_database, delete_user functionality on RSCDB.'''

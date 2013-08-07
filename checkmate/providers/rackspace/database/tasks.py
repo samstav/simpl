@@ -81,6 +81,8 @@ def create_database(context, name, region=None, character_set=None,
                                    collate=collate,
                                    instance_attrs=instance_attributes,
                                    simulate=context.simulation)
+
+
 @task(base=ProviderTask, default_retry_delay=10, max_retries=2,
       provider=Provider)
 def add_user(context, instance_id, databases, username, password,

@@ -72,11 +72,13 @@ def create_instance(context, instance_name, flavor, size, databases,
     return _create_instance(context, instance_name, flavor, size, databases,
                             region=region, api=api)
 
+
 @task(default_retry_delay=10, max_retries=10)
 def add_user(context, instance_id, databases, username, password, region,
              api=None):
     '''Add a database user to an instance for one or more databases.'''
-    return _add_user(context, instance_id, databases, username, password, api=api)
+    return _add_user(context, instance_id, databases, username, password,
+                     api=api)
 
 
 @task(default_retry_delay=15, max_retries=40)  # max 10 minute wait

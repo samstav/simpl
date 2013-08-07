@@ -189,7 +189,7 @@ class Manager(object):
             if not instance_attrs:
                 instance_attrs = {}
             instance_name, flavor, size = [instance_attrs.get(k, attrs[k]) for
-                k in ['name', 'flavor', 'size']]
+                                           k in ['name', 'flavor', 'size']]
 
             data = Manager.create_instance(instance_name, flavor, size,
                                            databases, context, api, callback)
@@ -256,14 +256,15 @@ class Manager(object):
         assert instance_id, "Instance ID not supplied"
 
         if simulate:
-            instance = utils.Simulation(hostname='srv0.rackdb.net', status='ACTIVE')
+            instance = utils.Simulation(hostname='srv0.rackdb.net',
+                                        status='ACTIVE')
         else:
             try:
                 instance = api.get(instance_id)
             except cdb_errors.ClientException as exc:
                 raise CheckmateResumableException(str(exc),
                                                   utils.get_class_name(exc),
-                                                  "Error occurred in db provider", "")
+                                                  "Error in db provider", "")
 
             callback({'status': instance.status})
 
@@ -274,13 +275,16 @@ class Manager(object):
             try:
                 instance.create_user(username, password, databases)
             except cdb_errors.ClientException as exc:
-                raise CheckmateResumableException(str(exc), utils.get_class_name(exc),
+                raise CheckmateResumableException(str(exc),
+                                                  utils.get_class_name(exc),
                                                   'RS_DB_ClientException', "")
             except Exception as exc:
-                raise CheckmateUserException(str(exc), utils.get_class_name(exc),
+                raise CheckmateUserException(str(exc),
+                                             utils.get_class_name(exc),
                                              UNEXPECTED_ERROR, '')
 
-        LOG.info('Added user %s to %s on instance %s', username, databases, instance_id)
+        LOG.info('Added user %s to %s on instance %s', username, databases,
+                 instance_id)
 
         results = {
             'username': username,
@@ -297,4 +301,3 @@ class Manager(object):
         }
 
         return results
-
