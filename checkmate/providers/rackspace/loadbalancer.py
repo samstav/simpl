@@ -15,7 +15,7 @@ from SpiffWorkflow import specs
 import cloudlb
 import redis
 
-from checkmate.common import caching, statsd
+from checkmate.common import caching
 from checkmate import deployments
 
 from checkmate.deployments.tasks import reset_failed_resource_task
@@ -743,7 +743,6 @@ PLACEHOLDER_IP = '1.2.3.4'
 # Celery tasks
 #
 @task
-@statsd.collect
 def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
                         tags=None,
@@ -888,7 +887,6 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
 
 
 @task
-@statsd.collect
 def collect_record_data(deployment_id, resource_key, record):
     assert deployment_id, "No deployment id specified"
     assert resource_key, "No resource key specified"
@@ -916,7 +914,6 @@ def collect_record_data(deployment_id, resource_key, record):
 
 
 @task
-@statsd.collect
 def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
@@ -968,7 +965,6 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
 
 @task
-@statsd.collect
 def delete_lb_task(context, key, lbid, region, api=None):
     """Celery task to delete a Cloud Load Balancer"""
     match_celery_logging(LOG)
@@ -1050,7 +1046,6 @@ def delete_lb_task(context, key, lbid, region, api=None):
 
 
 @task(default_retry_delay=2, max_retries=60)
-@statsd.collect
 def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
     match_celery_logging(LOG)
     inst_key = "instance:%s" % key
@@ -1114,7 +1109,6 @@ def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-@statsd.collect
 def add_node(context, lbid, ipaddr, region, resource, api=None):
     '''Celery task to add a node to a Cloud Load Balancer'''
     match_celery_logging(LOG)
@@ -1226,7 +1220,6 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-@statsd.collect
 def delete_node(context, lbid, ipaddr, region, api=None):
     '''Celery task to delete a node from a Cloud Load Balancer'''
     match_celery_logging(LOG)
@@ -1265,7 +1258,6 @@ def delete_node(context, lbid, ipaddr, region, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-@statsd.collect
 def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
                 timeout=10, attempts=3, body='(.*)',
                 status='^[234][0-9][0-9]$', api=None):
@@ -1311,7 +1303,6 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
 
 
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
-@statsd.collect
 def wait_on_build(context, lbid, region, api=None):
     '''Checks to see if a lb's status is ACTIVE, so we can change resource
     status in deployment

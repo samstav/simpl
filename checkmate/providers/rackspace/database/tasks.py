@@ -4,7 +4,6 @@ Rackspace Cloud Databases provider tasks
 """
 from celery.task import task
 
-from checkmate.common import statsd
 from checkmate.providers.base import ProviderTask
 from checkmate.providers.rackspace.database import Manager
 from checkmate.providers.rackspace.database import Provider
@@ -14,7 +13,6 @@ from checkmate.providers.rackspace.database import Provider
 # pylint: disable=W0613
 @task(base=ProviderTask, default_retry_delay=30, max_retries=120,
       acks_late=True, provider=Provider)
-@statsd.collect
 def wait_on_build(context, instance_id, region, api=None, callback=None):
     '''Checks db instance build succeeded.'''
     return Manager.wait_on_build(instance_id, wait_on_build.api,
@@ -25,7 +23,6 @@ def wait_on_build(context, instance_id, region, api=None, callback=None):
 # Disable on api and callback.  Suppress num args
 # pylint: disable=W0613
 @task(base=ProviderTask, provider=Provider)
-@statsd.collect
 def sync_resource_task(context, resource, api=None, callback=None):
     '''Task to handle syncing remote status with checkmate status.'''
     return Manager.sync_resource(resource, sync_resource_task.api,
@@ -36,7 +33,6 @@ def sync_resource_task(context, resource, api=None, callback=None):
 # pylint: disable=W0613
 @task(base=ProviderTask, default_retry_delay=10, max_retries=2,
       provider=Provider)
-@statsd.collect
 def create_instance(context, instance_name, flavor, size, databases, region,
                     api=None, callback=None):
     '''Creates a Cloud Database instance with optional initial databases.
@@ -56,7 +52,6 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
 @task(base=ProviderTask, default_retry_delay=15, max_retries=40,
       provider=Provider)
-@statsd.collect
 def create_database(context, name, region=None, character_set=None,
                     collate=None, instance_id=None, instance_attributes=None,
                     callback=None, api=None):
