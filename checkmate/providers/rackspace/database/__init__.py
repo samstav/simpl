@@ -13,6 +13,7 @@ from .tasks import (
     sync_resource_task as _sync_resource_task,
     wait_on_build as _wait_on_build,
     create_database as _create_database,
+    add_user as _add_user,
 )
 
 from checkmate.common import statsd
@@ -72,6 +73,14 @@ def create_instance(context, instance_name, flavor, size, databases,
                             region=region, api=api)
 
 
+@task(default_retry_delay=10, max_retries=10)
+def add_user(context, instance_id, databases, username, password, region,
+             api=None):
+    '''Add a database user to an instance for one or more databases.'''
+    return _add_user(context, instance_id, databases, username, password,
+                     api=api)
+
+
 @task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
 def create_database(context, name, region, character_set=None, collate=None,
                     instance_id=None, instance_attributes=None, api=None):
@@ -113,78 +122,6 @@ def add_databases(context, instance_id, databases, region, api=None):
         LOG.info('Added database(s) %s to instance %s', database.get('name'),
                  instance_id)
     return dict(database_names=dbnames)
-
-
-@task(default_retry_delay=10, max_retries=10)
-@statsd.collect
-def add_user(context, instance_id, databases, username, password, region,
-             api=None):
-    '''Add a database user to an instance for one or more databases.'''
-    match_celery_logging(LOG)
-
-    assert instance_id, "Instance ID not supplied"
-
-    instance_key = 'instance:%s' % context['resource']
-    if context.get('simulation') is True:
-        results = {
-            instance_key: {
-                'username': username,
-                'password': password,
-                'status': "ACTIVE",
-                'interfaces': {
-                    'mysql': {
-                        'host': "srv%s.rackdb.net" % context['resource'],
-                        'database_name': databases[0],
-                        'username': username,
-                        'password': password,
-                    }
-                }
-            }
-        }
-        # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
-        return results
-
-    results = {instance_key: {'status': "CONFIGURE"}}
-    resource_postback.delay(context['deployment'], results)
-
-    if not api:
-        api = Provider.connect(context, region)
-
-    LOG.debug('Obtaining instance %s', instance_id)
-    instance = api.get(instance_id)
-
-    try:
-        instance.create_user(username, password, databases)
-        LOG.info('Added user %s to %s on instance %s', username, databases,
-                 instance_id)
-    except ClientException as exc:
-        # This could be '422 Unprocessable Entity', meaning the instance is not
-        # up yet
-        if exc.code == 422:
-            current.retry(exc=exc)
-        else:
-            raise exc
-
-    results = {
-        instance_key: {
-            'username': username,
-            'password': password,
-            'status': "ACTIVE",
-            'interfaces': {
-                'mysql': {
-                    'host': instance.hostname,
-                    'database_name': databases[0],
-                    'username': username,
-                    'password': password,
-                }
-            }
-        }
-    }
-    # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
-
-    return results
 
 
 @task(default_retry_delay=2, max_retries=60)

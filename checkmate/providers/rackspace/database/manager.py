@@ -189,7 +189,7 @@ class Manager(object):
             if not instance_attrs:
                 instance_attrs = {}
             instance_name, flavor, size = [instance_attrs.get(k, attrs[k]) for
-                k in ['name', 'flavor', 'size']]
+                                           k in ['name', 'flavor', 'size']]
 
             data = Manager.create_instance(instance_name, flavor, size,
                                            databases, context, api, callback)
@@ -244,4 +244,60 @@ class Manager(object):
             }
         }
         LOG.info('Created database %s on instance %s', name, instance_id)
+        return results
+
+    @staticmethod
+    def add_user(instance_id, databases, username, password,
+                 api, callback, simulate=False):
+        ''' Add a database user to an instance for one or more databases.
+            Returns instance data.
+        '''
+
+        assert instance_id, "Instance ID not supplied"
+
+        if simulate:
+            instance = utils.Simulation(hostname='srv0.rackdb.net',
+                                        status='ACTIVE')
+        else:
+            try:
+                instance = api.get(instance_id)
+            except cdb_errors.ClientException as exc:
+                raise CheckmateResumableException(str(exc),
+                                                  utils.get_class_name(exc),
+                                                  "Error in db provider", "")
+
+            callback({'status': instance.status})
+
+            if instance.status != "ACTIVE":
+                raise CheckmateResumableException('Database instance is '
+                                                  'not active.', 'help',
+                                                  'status error', '')
+            try:
+                instance.create_user(username, password, databases)
+            except cdb_errors.ClientException as exc:
+                raise CheckmateResumableException(str(exc),
+                                                  utils.get_class_name(exc),
+                                                  'RS_DB_ClientException', "")
+            except Exception as exc:
+                raise CheckmateUserException(str(exc),
+                                             utils.get_class_name(exc),
+                                             UNEXPECTED_ERROR, '')
+
+        LOG.info('Added user %s to %s on instance %s', username, databases,
+                 instance_id)
+
+        results = {
+            'username': username,
+            'password': password,
+            'status': 'ACTIVE',
+            'interfaces': {
+                'mysql': {
+                    'host': instance.hostname,
+                    'database_name': databases[0],
+                    'username': username,
+                    'password': password,
+                }
+            }
+        }
+
         return results
