@@ -25,7 +25,6 @@ from SpiffWorkflow.specs import Celery
 
 from checkmate.common import (
     caching,
-    statsd,
 )
 from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
@@ -790,7 +789,6 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
 
 # pylint: disable=R0913
 @task
-@statsd.collect
 def create_server(context, name, region, api_object=None, flavor="2",
                   files=None, image=UBUNTU_12_04_IMAGE_ID, tags=None):
     '''Create a Rackspace Cloud server using novaclient.
@@ -906,7 +904,6 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
 
 @task
-@statsd.collect
 def sync_resource_task(context, resource, resource_key, api=None):
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
@@ -945,7 +942,6 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
 
 @task(default_retry_delay=30, max_retries=120)
-@statsd.collect
 def delete_server_task(context, api=None):
     '''Celery Task to delete a Nova compute instance.'''
     match_celery_logging(LOG)
@@ -1032,7 +1028,6 @@ def delete_server_task(context, api=None):
 
 
 @task(default_retry_delay=30, max_retries=120)
-@statsd.collect
 def wait_on_delete_server(context, api=None):
     '''Wait for a server resource to be deleted.'''
     match_celery_logging(LOG)
@@ -1109,7 +1104,6 @@ def wait_on_delete_server(context, api=None):
 # pylint: disable=W0613
 @task(default_retry_delay=30, max_retries=120,
       acks_late=True)
-@statsd.collect
 def wait_on_build(context, server_id, region, resource,
                   ip_address_type='public', verify_up=True, username='root',
                   timeout=10, password=None, identity_file=None, port=22,

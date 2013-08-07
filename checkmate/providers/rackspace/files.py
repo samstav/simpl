@@ -1,6 +1,5 @@
 import logging
 
-from checkmate.common import statsd
 from checkmate.exceptions import CheckmateNoTokenError
 from checkmate.providers import ProviderBase
 from checkmate.utils import match_celery_logging
@@ -47,7 +46,6 @@ def connect(context):
 
 
 @task
-@statsd.collect
 def create_container(context, name, api=None):
     """Creates a new container"""
     match_celery_logging(LOG)
@@ -72,7 +70,6 @@ def create_container(context, name, api=None):
 
 
 @task
-@statsd.collect
 def delete_container(deployment, name, api=None):
     """Deletes a container"""
     match_celery_logging(LOG)

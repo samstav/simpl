@@ -15,7 +15,6 @@ from .tasks import (
     create_database as _create_database,
 )
 
-from checkmate.common import statsd
 from checkmate.deployments import resource_postback
 from checkmate.exceptions import (
     CheckmateException,
@@ -116,7 +115,6 @@ def add_databases(context, instance_id, databases, region, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-@statsd.collect
 def add_user(context, instance_id, databases, username, password, region,
              api=None):
     '''Add a database user to an instance for one or more databases.'''
@@ -188,7 +186,6 @@ def add_user(context, instance_id, databases, username, password, region,
 
 
 @task(default_retry_delay=2, max_retries=60)
-@statsd.collect
 def delete_instance_task(context, api=None):
     '''Deletes a database server instance and its associated databases and
     users.
@@ -297,7 +294,6 @@ def delete_instance_task(context, api=None):
 
 
 @task(default_retry_delay=5, max_retries=60)
-@statsd.collect
 def wait_on_del_instance(context, api=None):
     '''Wait for the specified instance to be deleted.'''
 
@@ -390,7 +386,6 @@ def wait_on_del_instance(context, api=None):
 
 
 @task(default_retry_delay=2, max_retries=30)
-@statsd.collect
 def delete_database(context, api=None):
     '''Delete a database from an instance.'''
 
@@ -483,7 +478,6 @@ def delete_database(context, api=None):
 
 
 @task(default_retry_delay=10, max_retries=10)
-@statsd.collect
 def delete_user(context, instance_id, username, region, api=None):
     '''Delete a database user from an instance.'''
     match_celery_logging(LOG)

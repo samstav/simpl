@@ -10,7 +10,6 @@ from celery.task.sets import subtask
 from celery.task import task
 import paramiko
 
-from checkmate.common import statsd
 from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
@@ -28,7 +27,6 @@ class AcceptMissingHostKey(paramiko.client.MissingHostKeyPolicy):
 
 
 @task(default_retry_delay=10, max_retries=36)
-@statsd.collect
 def test_connection(context, ip, username, timeout=10, password=None,
                     identity_file=None, port=22, callback=None,
                     private_key=None):
@@ -70,7 +68,6 @@ def test_connection(context, ip, username, timeout=10, password=None,
 
 
 @task(default_retry_delay=10, max_retries=10)
-@statsd.collect
 def execute_2(context, ip_address, command, username, timeout=10,
               password=None, identity_file=None, port=22, private_key=None):
     '''Execute function that takes a context and handles simulations.'''
@@ -86,7 +83,6 @@ def execute_2(context, ip_address, command, username, timeout=10,
 
 
 @task(default_retry_delay=10, max_retries=10)
-@statsd.collect
 def execute(ip, command, username, timeout=10, password=None,
             identity_file=None, port=22, callback=None, private_key=None):
     """Executes an ssh command on a remote host and returns a dict with stdin

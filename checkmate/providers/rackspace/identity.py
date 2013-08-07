@@ -6,7 +6,6 @@ import httplib
 import json
 
 from celery.task import task
-from checkmate.common import statsd
 from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
@@ -45,7 +44,6 @@ def parse_region(context):
 
 # Celeryd functions
 @task
-@statsd.collect
 def get_token(context):
     """
     Authentication For Openstack API, Pulls the full Openstack Service

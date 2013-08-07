@@ -7,14 +7,12 @@ from celery.task import task
 from celery.task.sets import subtask
 from eventlet.green import socket
 
-from checkmate.common import statsd
 from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
 
 
 @task(default_retry_delay=10, max_retries=36)
-@statsd.collect
 def test_connection(context, host, port=3389, timeout=10, callback=None):
     '''Connect to a RDP server and verify that it responds.
 
