@@ -504,6 +504,23 @@ This will produce these headers:
 > WWW-Authenticate: Keystone uri="https://lon.identity.api.rackspacecloud.com/v2.0/tokens" realm="UK Cloud"
 
 
+Note: to make Checkmate work with iNova use the following to work around the
+      fact that iNova does not support validating tokens.
+
+```
+  {
+    "middleware": "checkmate.middleware.TokenAuthMiddleware",
+    "uri": "https://inova.dfw.ohthree.com:5000/v2.0/tokens",
+    "kwargs": {
+      "protocol": "Keystone",
+      "realm": "iNova",
+      "cache_catalog": true
+    }
+  }
+```
+and `export NOVA_INSECURE=True` because the catalog points to IPs instead of DNS names.
+
+
 **CHECKMATE_CONNECTION_STRING**: a sql-alchemy or mongodb connection string pointing to the database store for checkmate. Examples:
 
     sqlite:////var/checkmate/data/db.sqlite
