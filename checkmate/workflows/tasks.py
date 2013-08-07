@@ -65,8 +65,11 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
                                  "for workflow %s has elapsed. Please "
                                  "re-execute the workflow" % w_id,
                 "error-help": "",
+                "error-type": utils.get_class_name(exc),
                 "retriable": True,
-                "retry-link": "%s/workflows/%s/+execute" % (tenant_id, w_id)
+                "retry-link": "%s/workflows/%s/+execute" % (tenant_id, w_id),
+                "friendly-message": "There was a timeout while executing the"
+                                    " workflow"
             }]})
             LOG.warn("Workflow %s has reached the maximum number of "
                      "permissible retries!", w_id)
