@@ -710,6 +710,9 @@ def _get_images_and_types(api_endpoint, auth_token):
         #FIXME: hack to make our blueprints work with Private OpenStack
         if 'precise' in img['os']:
             img['os'] = 'Ubuntu 12.04'
+        #FIXME: hack to make our blueprints work with iNova
+        if 'LTS' in img['os']:
+            img['os'] = i.name.split('LTS')[0].strip()
         ret['types'][str(i.id)] = img
         ret['images'][i.id] = {'name': i.name}
     return ret

@@ -278,21 +278,23 @@ class TokenAuthMiddleware(object):
 
         if 'HTTP_X_AUTH_TOKEN' in environ:
             context = request.context
-            token = environ['HTTP_X_AUTH_TOKEN']
-            try:
-                if self.service_token:
-                    content = self._validate_keystone(token,
-                                                      tenant_id=context.tenant)
-                else:
-                    content = self.auth_keystone(context.tenant,
-                                                 self.endpoint['uri'],
-                                                 self.auth_header,
-                                                 token)
-                environ['HTTP_X_AUTHORIZED'] = "Confirmed"
-            except HTTPUnauthorized as exc:
-                return exc(environ, start_response)
-            context.auth_source = self.endpoint['uri']
-            context.set_context(content)
+            if context.authenticated is not True:
+                token = environ['HTTP_X_AUTH_TOKEN']
+                try:
+                    if self.service_token:
+                        content = self._validate_keystone(token,
+                                                          tenant_id=
+                                                          context.tenant)
+                    else:
+                        content = self.auth_keystone(context.tenant,
+                                                     self.endpoint['uri'],
+                                                     self.auth_header,
+                                                     token)
+                    environ['HTTP_X_AUTHORIZED'] = "Confirmed"
+                except HTTPUnauthorized as exc:
+                    return exc(environ, start_response)
+                context.auth_source = self.endpoint['uri']
+                context.set_context(content)
 
         return self.app(environ, start_response)
 
@@ -815,8 +817,8 @@ class AuthTokenRouterMiddleware(object):
                 if endpoint not in self.endpoints:
                     if 'middleware' not in endpoint:
                         error_message = "Required 'middleware' key " \
-                                     "not specified in endpoint: " \
-                                     "%s" % endpoint
+                                        "not specified in endpoint: " \
+                                        "%s" % endpoint
                         raise CheckmateUserException(error_message,
                                                      utils.get_class_name(
                                                          CheckmateException),
