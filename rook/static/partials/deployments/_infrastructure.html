@@ -22,7 +22,8 @@
             </li>
           </ul>
         </div>
-        <span ng-hide="urlBuilder.is_valid(resource)">{{resource['dns-name']}} ({{resource.provider}})</a>
+        <span ng-hide="urlBuilder.is_valid(resource)">{{resource['dns-name']}} ({{resource.provider}})</span>
+
       </td>
       <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
       <td>{{resource.instance.public_ip}}</td>
