@@ -567,6 +567,8 @@ In preliminary testing is the "mongodb" setting:
 
 **CHECKMATE_RESULT_DBURI**: defaults to 'sqlite://../data/celerydb.sqlite' under the checkmate directory. Use this to set an alternate location for the celery result store. This value is picked up from checkmate.celeryconfig. If you use an alternate config file, this variable may be ignored. See **CELERY_CONFIG_MODULE**.
 
+**CHECKMATE_OVERRIDE_URL**: If provided, will be used to override the base url that would normally be built using HTTP_HOST or SERVER_NAME. This can be used to 'hide' an internal URL.
+
 **CELERY_CONFIG_MODULE**: use checkmate.celeryconfig by default. See celery instructions for more detail. THis module also picks up the values from some of the other environment variables. If you use a different config module, the other checkmate variables may get ignored.
 
 **CELERY_ALWAYS_EAGER**: forces celery to run synchronously, in-process instead of using the message queue. May be useful for debugging, development, and troubleshooting.
