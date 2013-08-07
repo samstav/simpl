@@ -467,9 +467,9 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
 
     def test_compute_sync_resource_task(self):
-        """Tests compute sync_resource_task via mox."""
+        """Tests compute sync_resource_task via mock."""
         #Mock server
-        server = self.mox.CreateMockAnything()
+        server = mock.Mock()
         server.id = 'fake_server_id'
         server.status = "ERROR"
 
@@ -489,18 +489,58 @@ class TestNovaCompute(test.ProviderTester):
             'instance': {'id': 'fake_server_id'}
         }
 
-        openstack_api_mock = self.mox.CreateMockAnything()
-        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock = mock.Mock()
+        openstack_api_mock.servers = mock.Mock()
 
-        openstack_api_mock.servers.get(server.id).AndReturn(server)
+        openstack_api_mock.servers.get.return_value = server
 
         expected = {'instance:0': {"status": "ERROR"}}
 
-        self.mox.ReplayAll()
         results = compute.sync_resource_task(context, resource, resource_key,
                                              openstack_api_mock)
 
+        openstack_api_mock.servers.get.assert_called_once_with(server.id)
         self.assertDictEqual(results, expected)
+
+    def test_compute_sync_resource_task_adds_checkmate_metadata(self):
+        """Tests compute sync_resource_task adds checkmate metadata tag to
+           the given resource if it does not already have the tag."""
+        #Mock server
+        server = mock.Mock()
+        server.id = 'fake_server_id'
+        server.status = "status"
+        server.metadata = {}
+
+        resource_key = "0"
+
+        context = {
+            'deployment': 'DEP',
+            'resource': '0',
+            'tenant': 'TMOCK',
+            'base_url': 'http://MOCK'
+        }
+
+        resource = {
+            'index': '0',
+            'name': 'svr11.checkmate.local',
+            'provider': 'compute',
+            'status': 'ERROR',
+            'instance': {'id': 'fake_server_id'}
+        }
+
+        openstack_api_mock = mock.Mock()
+        openstack_api_mock.servers = mock.Mock()
+
+        openstack_api_mock.servers.get.return_value = server
+
+        with mock.patch.object(compute.Provider,
+                               'generate_resource_tag',
+                               return_value={"test": "me"}):
+            compute.sync_resource_task(context, resource, resource_key,
+                                       openstack_api_mock)
+
+        server.manager.set_meta.assert_called_once_with(server, {"test": "me"})
+
 
     def verify_limits(self, cores_used, ram_used):
         """Test the verify_limits() method."""

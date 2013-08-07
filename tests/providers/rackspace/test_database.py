@@ -585,7 +585,6 @@ class TestDatabaseProxy(unittest.TestCase):
                 'index': 0,
                 'region': 'region',
                 'provider': 'database',
-                'component': 'mysql_instance',
                 'dns-name': 'name',
                 'instance': {
                     'status': 'status',

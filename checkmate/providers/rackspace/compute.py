@@ -1165,6 +1165,19 @@ def sync_resource_task(context, resource, resource_key, api=None):
             raise CheckmateDoesNotExist("Instance is blank or has no ID")
         LOG.debug("About to query for server %s", instance_id)
         server = api.servers.get(instance_id)
+
+        try:
+            if "RAX-CHECKMATE" not in server.metadata.keys():
+                checkmate_tag=Provider.generate_resource_tag(
+                    context['base_url'], context['tenant'],
+                    context['deployment'], resource['index']
+                )
+                server.manager.set_meta(server, checkmate_tag)
+        except Exception as exc:
+            LOG.info("Could not set metadata tag "
+                     "on checkmate managed compute resource")
+            LOG.info(exc)
+
         return {
             key: {
                 'status': server.status
@@ -1483,7 +1496,7 @@ def wait_on_build(context, server_id, region, resource,
                 LOG.debug("Rack Connect server ready. Metadata found'")
             else:
                 msg = ("Rack Connect server 'rackconnect_automation_status' "
-                       "metadata tag is still not 'DEPLOPYED'. It is '%s'" %
+                       "metadata tag is still not 'DEPLOYED'. It is '%s'" %
                        server.metadata.get('rackconnect_automation_status'))
                 results['status-message'] = msg
                 resource_postback.delay(deployment_id,

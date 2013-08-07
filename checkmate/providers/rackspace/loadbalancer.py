@@ -676,9 +676,10 @@ class Provider(ProviderBase):
         for idx, lb in enumerate(load_balancers):
 
             is_checkmate_managed = False
-            for data in lb.metadata:
-                if data.get('key') == 'RAX-CHECKMATE':
-                    is_checkmate_managed = True
+            if hasattr(lb, 'metadata'):
+                for data in lb.metadata:
+                    if data.get('key') == 'RAX-CHECKMATE':
+                        is_checkmate_managed = True
             if is_checkmate_managed:
                 continue
 
@@ -692,7 +693,6 @@ class Provider(ProviderBase):
                 'index': idx,
                 'region': lb.manager.api.region_name,
                 'provider': 'load-balancer',
-                'component': 'http', #EH? IS THIS NECESSARY? WHATS THiS FoR?
                 'dns-name': lb.name,
                 'instance': {
                     'protocol': lb.protocol,

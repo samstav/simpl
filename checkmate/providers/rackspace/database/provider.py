@@ -493,7 +493,7 @@ class Provider(providers.ProviderBase):
         """Proxy request through to cloud database provider"""
         if path != 'list':
             raise CheckmateException("Not a valid Provider path")
-        if not pyrax.identity.authenticated:
+        if not (pyrax.identity and pyrax.identity.authenticated):
             Provider.connect(request.context)
         db_hosts = []
         for region in pyrax.regions:
@@ -506,7 +506,6 @@ class Provider(providers.ProviderBase):
                 'index': idx,
                 'region': api.region_name,
                 'provider': 'database',
-                'component': 'mysql_instance',
                 'dns-name': db_host.name,
                 'instance': {
                     'status': db_host.status,

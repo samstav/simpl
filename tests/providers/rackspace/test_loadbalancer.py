@@ -376,9 +376,9 @@ class TestCeleryTasks(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_lb_sync_resource_task(self):
-        """Tests db sync_resource_task via mox."""
+        """Tests db sync_resource_task via mock."""
         #Mock instance
-        lb = self.mox.CreateMockAnything()
+        lb = mock.Mock()
         lb.id = 'fake_lb_id'
         lb.name = 'fake_lb'
         lb.status = 'ERROR'
@@ -396,17 +396,52 @@ class TestCeleryTasks(unittest.TestCase):
             }
         }
 
-        lb_api_mock = self.mox.CreateMockAnything()
-        lb_api_mock.loadbalancers = self.mox.CreateMockAnything()
+        lb_api_mock = mock.Mock()
+        lb_api_mock.loadbalancers = mock.Mock()
 
-        lb_api_mock.loadbalancers.get(lb.id).AndReturn(lb)
+        lb_api_mock.loadbalancers.get.return_value = lb
 
         expected = {'instance:1': {"status": "ERROR"}}
 
-        self.mox.ReplayAll()
         results = loadbalancer.sync_resource_task(
             context, resource, resource_key, lb_api_mock)
 
+        lb_api_mock.loadbalancers.get.assert_called_once_with(lb.id)
+        self.assertDictEqual(results, expected)
+
+    def test_lb_sync_resource_task_adds_metadata(self):
+        """Tests lb sync_resource_task adds checkmate metadata tag to
+           the given resource if it does not already have the tag."""
+        #Mock instance
+        lb = mock.Mock()
+        lb.id = 'fake_lb_id'
+        lb.name = 'fake_lb'
+        lb.status = 'ERROR'
+
+        resource_key = "1"
+
+        context = dict(deployment='DEP', resource='1')
+
+        resource = {
+            'name': 'fake_lb',
+            'provider': 'load-balancers',
+            'status': 'ERROR',
+            'instance': {
+                'id': 'fake_lb_id'
+            }
+        }
+
+        lb_api_mock = mock.Mock()
+        lb_api_mock.loadbalancers = mock.Mock()
+
+        lb_api_mock.loadbalancers.get.return_value = lb
+
+        expected = {'instance:1': {"status": "ERROR"}}
+
+        results = loadbalancer.sync_resource_task(
+            context, resource, resource_key, lb_api_mock)
+
+        lb_api_mock.loadbalancers.get.assert_called_once_with(lb.id)
         self.assertDictEqual(results, expected)
 
 
