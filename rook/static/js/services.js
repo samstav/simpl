@@ -688,40 +688,46 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   }
 
   // Get a single branch or tag and return it as an object (with type, name, and commit)
-  scope.get_branch_from_name = function(remote, branch_name, callback, error_callback) {
-    $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      //Only branches and tags
-      var branch_ref = 'refs/heads/' + branch_name;
-      var tag_ref = 'refs/tags/' + branch_name;
-      var found = _.find(data, function(item) {
-        return item.ref == branch_ref || item.ref == tag_ref;
-      });
-      if (found === undefined) {
-        var response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
-        error_callback(response);
-        return;
-      }
+  scope.get_branch_from_name = function(remote, branch_name) {
+    var url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs';
+    var config = { headers: { 'X-Target-Url': remote.api.server } };
+    return $http.get(url, config)
+      .then(
+        // Success
+        function(response) {
+          var refs = response.data;
+          var ref = {};
 
-      //Format and return the data (we need name, type, and sha only)
-      if (found.ref == branch_ref)
-        callback({
-          type: 'branch',
-          name: found.ref.substring(11),
-          commit: found.object.sha
+          //Only branches and tags
+          var branch_ref = 'refs/heads/' + branch_name;
+          var tag_ref = 'refs/tags/' + branch_name;
+          var found = _.find(refs, function(item) {
+            return item.ref == branch_ref || item.ref == tag_ref;
           });
-      else if (found.ref == tag_ref)
-        callback({
-          type: 'tag',
-          name: found.ref.substring(10),
-          commit: found.object.sha
-          });
-    }).
-    error(function(data, status, headers, config) {
-      var response = {data: data, status: status};
-      error_callback(response);
-    });
+
+          // No Branch or Ref Found: Reject!
+          if (found === undefined) {
+            var not_found_response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
+            return $q.reject(not_found_response);
+          }
+
+          //Format and return the data (we need name, type, and sha only)
+          ref.commit = found.object.sha;
+          if (found.ref == branch_ref) {
+            ref.type = 'branch';
+            ref.name = found.ref.substring(11);
+          } else {
+            ref.type = 'tag';
+            ref.name = found.ref.substring(10);
+          }
+
+          return ref;
+        },
+        // Error
+        function(response) {
+          return $q.reject(response);
+        }
+      );
   }
 
   scope.get_blueprint = function(remote, username, callback, error_callback) {

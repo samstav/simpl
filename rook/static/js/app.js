@@ -2533,18 +2533,28 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
   $scope.loadRemoteBlueprint = function(repo_url) {
     var remote = github.parse_url(repo_url);
-    var u = URI(repo_url);
-    var ref = u.fragment() || 'master';
-    github.get_branch_from_name(remote, ref, function(branch) {
-      remote.branch = branch;
-      github.get_blueprint(remote, $scope.auth.identity.username, $scope.receive_blueprint, function(data) {
-        $scope.notify("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github: ' + JSON.stringify(data));
-        console.log("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github', data);
-      });
-    }, function(data) {
-        $scope.notify("Unable to find branch or tag '" + ref +  "' of " + remote.repo.name + ' from github: ' + JSON.stringify(data));
-        console.log("Unable to find branch or tag '" + ref +  "' of " + remote.repo.name + ' from github',  data);
-    });
+    var uri = URI(repo_url);
+    var ref = uri.fragment() || 'master';
+    github.get_branch_from_name(remote, ref)
+      .then(
+        // Success
+        function(branch) {
+          remote.branch = branch;
+          github.get_blueprint(remote, $scope.auth.identity.username,
+            // Success
+            $scope.receive_blueprint,
+            // Error
+            function(data) {
+              $scope.notify("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github: ' + JSON.stringify(data));
+              console.log("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github', data);
+            }
+          );
+        },
+        // Error
+        function(response) {
+          $scope.notify('['+response.status+'] ' + 'Unable to find branch or tag \''+ref+'\' of '+remote.repo.name+' from '+remote.server);
+        }
+      );
     mixpanel.track("Remote Blueprint Requested", {'blueprint': repo_url});
   };
 
