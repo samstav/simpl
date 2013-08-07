@@ -179,7 +179,8 @@ class Driver(common.DbBase):
         if self._database is None:
             self._database = self._get_client()[self.db_name]
             LOG.info("Connected to mongodb on %s (database=%s)",
-                     self.connection_string, self.db_name)
+                     self.remove_string_secrets(self.connection_string),
+                     self.db_name)
         return self._database
 
     def dump(self):

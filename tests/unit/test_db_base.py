@@ -113,6 +113,20 @@ class TestDbBase(unittest.TestCase):
         dbb.convert_data('resources', data)
         self.assertEqual(data, expected)
 
+    def test_remove_string_secrets_success(self):
+        '''Verifies secrets removed from url.'''
+        url = 'mongodb://username:secret_pass@localhost:8080/checkmate'
+        dbb = db.DbBase(url)
+        expected = 'mongodb://username@localhost:8080/checkmate'
+        results = dbb.remove_string_secrets(url)
+        self.assertEqual(expected, results)
+
+    def test_remove_string_secrets_invalid_data(self):
+        '''Verifies data passed in is returned if not a basestring type.'''
+        url = 12345
+        dbb = db.DbBase("connection-string://")
+        results = dbb.remove_string_secrets(url)
+        self.assertEqual(url, results)
 
 if __name__ == '__main__':
     # Any change here should be made in all test files

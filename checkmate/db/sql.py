@@ -208,7 +208,8 @@ class Driver(DbBase):
             print message
         else:
             self.engine = create_engine(connection_string)
-            LOG.info("Connected to '%s'", connection_string)
+            LOG.info("Connected to '%s'",
+                     self.remove_string_secrets(connection_string))
         self.session = scoped_session(sessionmaker(self.engine))
         BASE.metadata.create_all(self.engine)
 
@@ -230,7 +231,8 @@ class Driver(DbBase):
             print message
         else:
             self.engine = create_engine(self.connection_string)
-            LOG.info("Connected to '%s'", self.connection_string)
+            LOG.info("Connected to '%s'",
+                     self.remove_string_secrets(self.connection_string))
 
         self.session = scoped_session(sessionmaker(self.engine))
         BASE.metadata.create_all(self.engine)
