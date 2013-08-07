@@ -730,37 +730,58 @@ services.factory('github', ['$http', '$q', function($http, $q) {
       );
   }
 
-  scope.get_blueprint = function(remote, username, callback, error_callback) {
+  scope.get_blueprint = function(remote, username) {
     var repo_url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name;
-    $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit,
-        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
-      if (checkmate_yaml_file === undefined) {
-        error_callback("No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'");
-      } else {
-        $http({method: 'GET', url: repo_url + '/git/blobs/' + checkmate_yaml_file.sha,
-            headers: {'X-Target-Url': remote.api.server, 'Accept': 'application/vnd.github.v3.raw'}}).
-        success(function(data, status, headers, config) {
-          var checkmate_yaml = {};
-          try {
-            checkmate_yaml = YAML.parse(data.replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name).replace('%username%', username || '%username%'));
-          } catch(err) {
-            if (err.name == "YamlParseException")
-              error_callback("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
+    var commit_url = repo_url + '/git/trees/' + remote.branch.commit;
+    var config = { headers: { 'X-Target-Url': remote.api.server } };
+
+    return $http.get(commit_url, config)
+      .then(
+        // Success
+        function(response) {
+          var data = response.data;
+          var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
+
+          // No checkmate.yaml file was found: Reject!
+          if (checkmate_yaml_file === undefined) {
+            var not_found_response = {
+              data: "No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'",
+              status: 404
+            };
+            return $q.reject(not_found_response);
           }
-          callback(checkmate_yaml, remote);
-        }).
-        error(function(data, status, headers, config) {
-          var response = {data: data, status: status};
-          error_callback(response);
-        });
-      }
-    }).
-    error(function(data, status, headers, config) {
-      var response = {data: data, status: status};
-      error_callback(response);
-    });
+
+          var raw_url = repo_url + '/git/blobs/' + checkmate_yaml_file.sha;
+          var raw_config = { headers: { 'X-Target-Url': remote.api.server, 'Accept': 'application/vnd.github.v3.raw' } };
+          return $http.get(raw_url, raw_config)
+            .then(
+              // Success
+              function(response) {
+                var yaml_data = response.data;
+                var checkmate_yaml = {};
+                try {
+                  var yaml_string = yaml_data
+                                      .replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name)
+                                      .replace('%username%', username || '%username%');
+                  checkmate_yaml = YAML.parse(yaml_string);
+                } catch(err) {
+                  if (err.name == "YamlParseException") {
+                    var parse_error_response = {
+                      data: "YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'",
+                      status: 400
+                    };
+                    return $q.reject(parse_error_response);
+                  }
+                }
+                return checkmate_yaml;
+              },
+              // Error
+              $q.reject
+            );
+        },
+        // Error
+        $q.reject
+      );
   }
 
   scope.get_contents = function(remote, url, content_item, callback){

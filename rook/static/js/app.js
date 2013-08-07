@@ -2175,13 +2175,21 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
 
   $scope.loadBlueprint = function() {
-    github.get_blueprint($scope.remote, $scope.auth.identity.username, $scope.receive_blueprint, function(data) {
-      if (typeof data == 'string') {
-        $scope.notify(data);
-      } else {
-        $scope.show_error(data);
-      }
-    });
+    github.get_blueprint($scope.remote, $scope.auth.identity.username)
+      .then(
+        // Success
+        function(checkmate_yaml) {
+          $scope.receive_blueprint(checkmate_yaml, $scope.remote);
+        },
+        // Error
+        function(response) {
+          if (typeof data == 'string') {
+            $scope.notify(data);
+          } else {
+            $scope.show_error(data);
+          }
+        }
+      );
   };
 
   $scope.$watch('selected', function(newVal, oldVal, scope) {
@@ -2540,19 +2548,21 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
         // Success
         function(branch) {
           remote.branch = branch;
-          github.get_blueprint(remote, $scope.auth.identity.username,
-            // Success
-            $scope.receive_blueprint,
-            // Error
-            function(data) {
-              $scope.notify("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github: ' + JSON.stringify(data));
-              console.log("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github', data);
-            }
-          );
+          github.get_blueprint(remote, $scope.auth.identity.username)
+            .then(
+              // Success
+              function(checkmate_yaml) {
+                $scope.receive_blueprint(checkmate_yaml, remote);
+              },
+              // Error
+              function(response) {
+                $scope.notify('['+response.status+'] ' + 'Unable to load "'+ref+'" version of '+remote.repo.name+' from '+remote.server);
+              }
+            );
         },
         // Error
         function(response) {
-          $scope.notify('['+response.status+'] ' + 'Unable to find branch or tag \''+ref+'\' of '+remote.repo.name+' from '+remote.server);
+          $scope.notify('['+response.status+'] ' + 'Unable to find branch or tag "'+ref+'" of '+remote.repo.name+' from '+remote.server);
         }
       );
     mixpanel.track("Remote Blueprint Requested", {'blueprint': repo_url});
