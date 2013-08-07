@@ -543,11 +543,11 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     return remote;
   }
 
-  var get_config = function(url) {
+  var get_config = function(url, content_type) {
     var config = {
       headers: {
         'X-Target-Url': url,
-        'accept': 'application/json'
+        'Accept': content_type || 'application/json'
       }
     };
 
@@ -607,7 +607,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   scope.parse_org_url = function(url) {
     var remote = scope.parse_url(url);
     var api_call = remote.api.url + 'orgs/' + remote.owner;
-    var headers = {'X-Target-Url': remote.api.server, 'accept': 'application/json'};
+    var headers = get_config(remote.api.server);
 
     return $http({method: 'HEAD', url: api_call, headers: headers}).
       then(
@@ -629,8 +629,8 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     } else
       path += 'users/' + remote.user + '/repos';
     console.log("Loading: " + path);
-    var config = {headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'},
-                  params: {per_page: GITHUB_MAX_PER_PAGE}};
+    var config = get_config(remote.api.server);
+    config.params = { per_page: GITHUB_MAX_PER_PAGE };
     return $http.get(path, config).then(
       function(response) {
         return response.data;
@@ -645,7 +645,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   scope.get_repo = function(remote, repo_name, callback, error_callback) {
     var path = remote.api.url + 'repos/' + remote.owner + '/' + repo_name;
     console.log("Loading: " + path);
-    $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    $http.get(path, get_config(remote.api.server)).
       success(function(data, status, headers, config) {
         callback(data);
       }).
@@ -657,8 +657,8 @@ services.factory('github', ['$http', '$q', function($http, $q) {
 
   //Get all branches (and tags) for a repo
   scope.get_branches = function(remote, callback, error_callback) {
-    $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    var url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs';
+    $http.get(url, get_config(remote.api.server)).
     success(function(data, status, headers, config) {
       //Only branches and tags
       var filtered = _.filter(data, function(item) {
@@ -690,7 +690,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   // Get a single branch or tag and return it as an object (with type, name, and commit)
   scope.get_branch_from_name = function(remote, branch_name) {
     var url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs';
-    var config = { headers: { 'X-Target-Url': remote.api.server } };
+    var config = get_config(remote.api.server);
     return $http.get(url, config)
       .then(
         // Success
@@ -733,7 +733,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   scope.get_blueprint = function(remote, username) {
     var repo_url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name;
     var commit_url = repo_url + '/git/trees/' + remote.branch.commit;
-    var config = { headers: { 'X-Target-Url': remote.api.server } };
+    var config = get_config(remote.api.server);
 
     return $http.get(commit_url, config)
       .then(
@@ -752,7 +752,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
           }
 
           var raw_url = repo_url + '/git/blobs/' + checkmate_yaml_file.sha;
-          var raw_config = { headers: { 'X-Target-Url': remote.api.server, 'Accept': 'application/vnd.github.v3.raw' } };
+          var raw_config = get_config(remote.api.server, 'application/vnd.github.v3.raw');
           return $http.get(raw_url, raw_config)
             .then(
               // Success
@@ -787,7 +787,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   scope.get_contents = function(remote, url, content_item, callback){
     var destination_path = URI(url).path();
     var path = '/githubproxy' + destination_path + "/contents/" + content_item;
-    return $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    return $http.get(path, get_config(remote.api.server)).
       success(function(data, status, headers, config) {
         callback(data);
       }).
