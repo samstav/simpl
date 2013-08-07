@@ -13,7 +13,10 @@ from SpiffWorkflow.specs import Celery
 from checkmate import db
 from checkmate import workflow as cm_workflow
 from checkmate import utils
-from checkmate.common import tasks as common_tasks
+from checkmate.common import (
+    statsd,
+    tasks as common_tasks,
+)
 from checkmate.deployment import Deployment
 from checkmate.middleware import RequestContext
 from checkmate.operations import get_status_info
@@ -33,6 +36,7 @@ MANAGERS = {'workflows': Manager(DRIVERS)}
 
 
 @task(default_retry_delay=10, max_retries=300)
+@statsd.collect
 def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
@@ -211,6 +215,7 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
 
 
 @task
+@statsd.collect
 def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
     """Attempt to complete one task.
     returns True/False indicating if task completed"""
@@ -284,6 +289,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
 
 
 @task(default_retry_delay=10, max_retries=300)
+@statsd.collect
 def pause_workflow(w_id, driver=DB, retry_counter=0):
     '''
     Waits for all the waiting celery tasks to move to ready and then marks the
