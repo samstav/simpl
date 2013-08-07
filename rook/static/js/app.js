@@ -1703,7 +1703,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.interpolate_nodes = function(nodes) {
     var interpolated_nodes = angular.copy(nodes);
-    var limits = $scope.get_limits(nodes);
+    var limits = $scope.get_limits(interpolated_nodes);
 
     _.each(interpolated_nodes, function(node) {
       var new_x = ($scope.canvas.width - ($scope.padding * 2))  * (node.x - limits.min.x) / limits.size.x;
@@ -1714,7 +1714,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         node.y = $scope.canvas.height / 2;
     });
 
-    return nodes;
+    return interpolated_nodes;
   }
 
   $scope.buildNodes = function(specs) {
