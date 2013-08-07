@@ -317,73 +317,86 @@ class TestAddUser(unittest.TestCase):
 
         api.get.assert_called_with(self.instance_id)
 
-
-    """
-    @mock.patch.object(database.Provider, 'connect')
-    @mock.patch.object(database.resource_postback, 'delay')
-    def test_add_user_no_api_create_raise_exc(self, mock_postback,
-                                              mock_connect):
-        '''Validates methods and exc raised on add_user ClientException.'''
-        context = {'resource': '0', 'deployment': '123'}
-        instance_id = '12345'
-        databases = [123]
-        username = 'test_user'
-        password = 'test_pass'
-        region = 'ORD'
+    @mock.patch.object(database._add_user, 'callback')
+    @mock.patch.object(database._add_user, 'retry')
+    def test_instance_create_user_exc_retry(self, mock_retry, mock_callback):
+        '''Validates methods and retry called on add_user ClientException.'''
+        mock_exception = pyrax.exceptions.ClientException(code=422)
         api = mock.Mock()
         instance = mock.Mock()
-        mock_exception = pyrax.exceptions.ClientException(code=400)
+        instance.status = 'ACTIVE'
         instance.create_user = mock.MagicMock(side_effect=mock_exception)
         api.get = mock.Mock(return_value=instance)
-        mock_connect.return_value = api
 
-        self.assertRaises(pyrax.exceptions.ClientException, database.add_user,
-                          context, instance_id, databases, username, password,
-                          region)
+        mock_retry.side_effect = AssertionError('retry')
 
-        mock_postback.assert_called_with(
-            '123', {'instance:0': {'status': 'CONFIGURE'}})
-        mock_connect.assert_called_with(context, region)
-        api.get.assert_called_with(instance_id)
-        instance.create_user.assert_called_with(username, password, databases)
+        self.assertRaisesRegexp(AssertionError, 'retry', database.add_user, self.context,
+                                self.instance_id, self.databases, self.username,
+                                self.password, self.region, api=api)
 
-    @mock.patch.object(database.resource_postback, 'delay')
-    def test_add_user_api_success(self, mock_postback):
-        '''Validates methods and results called on add_user success.'''
-        context = {'resource': '0', 'deployment': '123'}
-        instance_id = '12345'
-        databases = [123]
-        username = 'test_user'
-        password = 'test_pass'
-        region = 'ORD'
+        mock_callback.assert_called_with(self.context, {'status': instance.status})
+        api.get.assert_called_with(self.instance_id)
+        instance.create_user.assert_called_with(self.username, self.password, self.databases)
+
+    @mock.patch.object(database._add_user, 'callback')
+    def test_instance_create_user_gen_exc(self, mock_callback):
+        '''Validates methods and exception condition for cdb create_user.'''
         api = mock.Mock()
         instance = mock.Mock()
+        instance.status = 'ACTIVE'
+        instance.create_user = mock.MagicMock(side_effect=Exception)
         api.get = mock.Mock(return_value=instance)
-        instance.create_user = mock.Mock()
-        instance.hostname = 'test_hostname'
+
+        #only CheckmateResumableException calls ProviderTask.retry
+
+        self.assertRaises(exceptions.CheckmateUserException, database.add_user, self.context,
+                          self.instance_id, self.databases, self.username,
+                          self.password, self.region, api=api)
+
+        mock_callback.assert_called_with(self.context, {'status': instance.status})
+        api.get.assert_called_with(self.instance_id)
+        instance.create_user.assert_called_with(self.username, self.password, self.databases)
+
+
+    @mock.patch.object(database.manager.LOG, 'info')
+    @mock.patch.object(database._add_user.provider, 'connect')
+    @mock.patch.object(database._add_user, 'callback')
+    @mock.patch.object(database._add_user, 'retry')
+    def test_add_user(self, mock_retry, mock_callback, mock_connect, mock_LOG):
+        '''Validates methods for add_user in normal mode.'''
+        api = mock.Mock()
+        instance = mock.Mock()
+        instance.status = 'ACTIVE'
+        instance.create_user = mock.MagicMock()
+        instance.hostname = 'srv0.rackdb.net'
+        api.get = mock.Mock(return_value=instance)
+
         expected = {
             'instance:0': {
+                'username': 'test_user',
+                'status': 'ACTIVE',
                 'interfaces': {
                     'mysql': {
-                        'database_name': 123,
-                        'host': 'test_hostname',
+                        'username': 'test_user',
+                        'host': 'srv0.rackdb.net',
                         'password': 'test_pass',
-                        'username': 'test_user'
+                        'database_name': 'blah'
                     }
                 },
-                'password': 'test_pass',
-                'status': 'ACTIVE',
-                'username': 'test_user'
+                'password': 'test_pass'
             }
         }
+        results = database.add_user(self.context, self.instance_id, self.databases, self.username,
+                                    self.password, self.region, api=api)
+        api.get.assert_called_with(self.instance_id)
+        instance.create_user.assert_called_with(self.username, self.password, self.databases)
+        mock_LOG.assert_called_with('Added user %s to %s on instance %s', 'test_user', ['blah'], '12345')
+        mock_callback.assert_called_with(self.context, expected['instance:0'])
 
-        results = database.add_user(context, instance_id, databases, username,
-                                    password, region, api)
-        mock_postback.assert_called_with('123', expected)
         self.assertEqual(results, expected)
 
-    """
-
+class TestDeleteDatabaseItems(unittest.TestCase):
+    '''Class to test delete_database, delete_user functionality on RSCDB.'''
 
     def test_delete_database_no_context_region(self):
         '''Validates an assert raised is thrown when region not in context.'''

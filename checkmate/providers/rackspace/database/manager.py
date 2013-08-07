@@ -255,10 +255,6 @@ class Manager(object):
 
         assert instance_id, "Instance ID not supplied"
 
-        # TODO(sam): cover only code necessary with this try/except block
-        # -- pyrax ClientException?
-        #try:
-
         if simulate:
             instance = utils.Simulation(hostname='srv0.rackdb.net', status='ACTIVE')
         else:
@@ -275,13 +271,11 @@ class Manager(object):
                 raise CheckmateResumableException('Database instance is '
                                                   'not active.', 'help',
                                                   'status error', '')
-            #except ClientException as exc
-
             try:
                 instance.create_user(username, password, databases)
             except cdb_errors.ClientException as exc:
-                raise CheckmateResumableException(exc.reason, str(exc.status),
-                                                  'RS_DB_ClientException')
+                raise CheckmateResumableException(str(exc), utils.get_class_name(exc),
+                                                  'RS_DB_ClientException', "")
             except Exception as exc:
                 raise CheckmateUserException(str(exc), utils.get_class_name(exc),
                                              UNEXPECTED_ERROR, '')
