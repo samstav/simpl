@@ -62,6 +62,8 @@ def init_db():
 
 FEEDBACK_DB = init_db()
 
+CATALOG_CACHE = {}  # mainly for iNova
+
 
 class BrowserMiddleware(object):
     '''Adds support for browser interaction and HTML content.
@@ -97,6 +99,13 @@ class BrowserMiddleware(object):
         This gets processed before the bottle routes
         '''
         handler = self.start_response_callback(handler)
+        try:
+            token = environ.get('HTTP_X_AUTH_TOKEN')
+            if token and token in CATALOG_CACHE:
+                cached_response = CATALOG_CACHE[token]
+                request.context.set_context(cached_response)
+        except StandardError as exc:
+            pass
         try:
             ROOK_API.match(environ)
             request.proxy_endpoints = self.proxy_endpoints
@@ -222,11 +231,13 @@ def authproxy(path=None):
               "endpoint.")
 
     url = urlparse(source)
-    domain = url.scheme + "://" + url.hostname
+    auth_root = url.scheme + "://" + url.hostname
     allowed_domain = False
-    for endpoint in request.proxy_endpoints:
-        if endpoint.startswith(domain):
+    cache_catalog = False
+    for uri, endpoint in request.proxy_endpoints.items():
+        if uri.startswith(auth_root):
             allowed_domain = True
+            cache_catalog = endpoint.get('kwargs', {}).get('cache_catalog')
             break
 
     if not allowed_domain:
@@ -294,6 +305,13 @@ def authproxy(path=None):
                         response.add_header('X-AuthZ-Admin', 'True')
     except StandardError as exc:
         LOG.debug("Ignored error checking roles: %s", exc)
+
+    # Cache the catalog
+    if cache_catalog and 'access' in content:
+        try:
+            CATALOG_CACHE[content['access']['token']['id']] = content
+        except StandardError as exc:
+            LOG.debug("Ignored error parsing response: %s", exc)
 
     return write_body(content, request, response)
 
