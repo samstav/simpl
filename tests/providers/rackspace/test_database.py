@@ -574,9 +574,9 @@ class TestDatabaseProxy(unittest.TestCase):
         db_host.hostname = 'hostname'
         db_host.flavor.id = 'flavor'
         db_host.volume.size = 'size'
+        db_host.manager.api.region_name = 'region'
 
         api = mock.Mock()
-        api.region_name = 'region'
         api.list.return_value = [db_host]
 
         expected = {

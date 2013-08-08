@@ -504,13 +504,13 @@ class Provider(providers.ProviderBase):
             results[idx] = {
                 'status': db_host.status,
                 'index': idx,
-                'region': api.region_name,
+                'region': db_host.manager.api.region_name,
                 'provider': 'database',
                 'dns-name': db_host.name,
                 'instance': {
                     'status': db_host.status,
                     'name': db_host.name,
-                    'region': api.region_name,
+                    'region': db_host.manager.api.region_name,
                     'id': db_host.id,
                     'interfaces': {
                         'mysql': {

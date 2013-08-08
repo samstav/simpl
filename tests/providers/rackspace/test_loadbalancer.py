@@ -423,12 +423,18 @@ class TestCeleryTasks(unittest.TestCase):
         lb.id = 'fake_lb_id'
         lb.name = 'fake_lb'
         lb.status = 'ERROR'
+        lb.get_metadata.return_value = {}
 
         resource_key = "1"
 
-        context = dict(deployment='DEP', resource='1')
+        context = { 'deployment': 'DEP',
+                    'resource': '1',
+                    'base_url': 'blah.com',
+                    'tenant': '123'
+                   }
 
         resource = {
+            'index': '0',
             'name': 'fake_lb',
             'provider': 'load-balancers',
             'status': 'ERROR',
