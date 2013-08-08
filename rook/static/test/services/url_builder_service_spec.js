@@ -143,6 +143,10 @@ describe('urlBuilder', function(){
       expect(urlBuilder.is_valid(resource)).toBe(true);
     });
 
+    it('should not be valid if resource if falsy', function() {
+      expect(urlBuilder.is_valid()).toBe(false);
+    });
+
     it('should not be valid otherwise', function() {
       resource.provider = 'custom';
       expect(urlBuilder.is_valid(resource)).toBe(false);

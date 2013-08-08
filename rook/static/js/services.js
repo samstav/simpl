@@ -1846,8 +1846,9 @@ services.factory('urlBuilder', function(){
   }
 
   function get_resource_type(resource) {
-    var resource_type;
+    if (!resource) return null;
 
+    var resource_type;
     switch(resource.provider) {
       case 'nova':
         resource_type = 'server';
