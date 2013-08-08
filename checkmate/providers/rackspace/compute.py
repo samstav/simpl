@@ -877,7 +877,8 @@ def create_server(context, name, region, api_object=None, flavor="2",
     instance_key = 'instance:%s' % context['resource']
     try:
         server = api_object.servers.create(name, image_object, flavor_object,
-                                           meta=meta, files=files)
+                                           meta=meta, files=files,
+                                           disk_config='AUTO')
     except OverLimit as exc:
         raise CheckmateRetriableException(str(exc),
                                           get_class_name(exc),

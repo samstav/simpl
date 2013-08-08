@@ -94,6 +94,8 @@ paramiko==1.7.7.2
 prettytable==0.6
 pycrypto==2.6
 pymongo==2.5
+python-novaclient==2.14.1
+pyrax==1.4.9
 python-keystoneclient==0.2.0
 python-statsd==1.6.0
 PyChef==0.2.1
@@ -104,6 +106,6 @@ simplefsm==0.1.3
 SQLAlchemy==0.8.1
 tldextract==1.1.2
 WebOb==1.2.2
-pyrax==1.4.7
+
 
 # All other needed requirements should work as specified through the setup.py file.
