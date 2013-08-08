@@ -440,8 +440,8 @@ class Provider(RackspaceComputeProviderBase):
         if preps:
             wait_on.append(preps)
         join = wfspec.wait_for(create_server_task, wait_on,
-                        name="Server Wait on:%s (%s)" % (key,
-                                                         resource['service']))
+                               name="Server Wait on:%s (%s)" % (key,
+                               resource['service']))
 
         return dict(
             root=join,
@@ -518,7 +518,7 @@ class Provider(RackspaceComputeProviderBase):
                      context.tenant, context.region)
         for ret in jobs:
             results.update(ret)
-        
+
         return results
 
     def get_catalog(self, context, type_filter=None):
@@ -563,7 +563,7 @@ class Provider(RackspaceComputeProviderBase):
                 images = vals['images']
 
         if type_filter is None or type_filter == 'compute':
-            #TODO: add regression tests - copy.copy was leaking across tenants
+            #TODO(any): add regression tests - copy.copy leaking across tenants
             results['compute'] = copy.deepcopy(CATALOG_TEMPLATE['compute'])
             linux = results['compute']['linux_instance']
             windows = results['compute']['windows_instance']
