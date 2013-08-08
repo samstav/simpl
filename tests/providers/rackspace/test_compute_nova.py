@@ -82,7 +82,8 @@ class TestNovaCompute(test.ProviderTester):
             meta={
                 'RAX-CHECKMATE':
                 'http://MOCK/TMOCK/deployments/DEP/resources/1'
-            }
+            },
+            disk_config='AUTO'
         ).AndReturn(server)
         openstack_api_mock.client.region_name = "NORTH"
 
