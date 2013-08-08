@@ -543,11 +543,11 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     return remote;
   }
 
-  var get_config = function(url) {
+  var get_config = function(url, content_type) {
     var config = {
       headers: {
         'X-Target-Url': url,
-        'accept': 'application/json'
+        'Accept': content_type || 'application/json'
       }
     };
 
@@ -607,7 +607,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   scope.parse_org_url = function(url) {
     var remote = scope.parse_url(url);
     var api_call = remote.api.url + 'orgs/' + remote.owner;
-    var headers = {'X-Target-Url': remote.api.server, 'accept': 'application/json'};
+    var headers = get_config(remote.api.server);
 
     return $http({method: 'HEAD', url: api_call, headers: headers}).
       then(
@@ -629,8 +629,8 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     } else
       path += 'users/' + remote.user + '/repos';
     console.log("Loading: " + path);
-    var config = {headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'},
-                  params: {per_page: GITHUB_MAX_PER_PAGE}};
+    var config = get_config(remote.api.server);
+    config.params = { per_page: GITHUB_MAX_PER_PAGE };
     return $http.get(path, config).then(
       function(response) {
         return response.data;
@@ -645,7 +645,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   scope.get_repo = function(remote, repo_name, callback, error_callback) {
     var path = remote.api.url + 'repos/' + remote.owner + '/' + repo_name;
     console.log("Loading: " + path);
-    $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    $http.get(path, get_config(remote.api.server)).
       success(function(data, status, headers, config) {
         callback(data);
       }).
@@ -657,8 +657,8 @@ services.factory('github', ['$http', '$q', function($http, $q) {
 
   //Get all branches (and tags) for a repo
   scope.get_branches = function(remote, callback, error_callback) {
-    $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    var url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs';
+    $http.get(url, get_config(remote.api.server)).
     success(function(data, status, headers, config) {
       //Only branches and tags
       var filtered = _.filter(data, function(item) {
@@ -688,79 +688,106 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   }
 
   // Get a single branch or tag and return it as an object (with type, name, and commit)
-  scope.get_branch_from_name = function(remote, branch_name, callback, error_callback) {
-    $http({method: 'GET', url: remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs',
-        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      //Only branches and tags
-      var branch_ref = 'refs/heads/' + branch_name;
-      var tag_ref = 'refs/tags/' + branch_name;
-      var found = _.find(data, function(item) {
-        return item.ref == branch_ref || item.ref == tag_ref;
-      });
-      if (found === undefined) {
-        var response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
-        error_callback(response);
-        return;
-      }
+  scope.get_branch_from_name = function(remote, branch_name) {
+    var url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/git/refs';
+    var config = get_config(remote.api.server);
+    return $http.get(url, config)
+      .then(
+        // Success
+        function(response) {
+          var refs = response.data;
+          var ref = {};
 
-      //Format and return the data (we need name, type, and sha only)
-      if (found.ref == branch_ref)
-        callback({
-          type: 'branch',
-          name: found.ref.substring(11),
-          commit: found.object.sha
+          //Only branches and tags
+          var branch_ref = 'refs/heads/' + branch_name;
+          var tag_ref = 'refs/tags/' + branch_name;
+          var found = _.find(refs, function(item) {
+            return item.ref == branch_ref || item.ref == tag_ref;
           });
-      else if (found.ref == tag_ref)
-        callback({
-          type: 'tag',
-          name: found.ref.substring(10),
-          commit: found.object.sha
-          });
-    }).
-    error(function(data, status, headers, config) {
-      var response = {data: data, status: status};
-      error_callback(response);
-    });
+
+          // No Branch or Ref Found: Reject!
+          if (found === undefined) {
+            var not_found_response = {data: "Branch or tag " + branch_name + " not found", status: "404"};
+            return $q.reject(not_found_response);
+          }
+
+          //Format and return the data (we need name, type, and sha only)
+          ref.commit = found.object.sha;
+          if (found.ref == branch_ref) {
+            ref.type = 'branch';
+            ref.name = found.ref.substring(11);
+          } else {
+            ref.type = 'tag';
+            ref.name = found.ref.substring(10);
+          }
+
+          return ref;
+        },
+        // Error
+        function(response) {
+          return $q.reject(response);
+        }
+      );
   }
 
-  scope.get_blueprint = function(remote, username, callback, error_callback) {
+  scope.get_blueprint = function(remote, username) {
     var repo_url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name;
-    $http({method: 'GET', url: repo_url + '/git/trees/' + remote.branch.commit,
-        headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
-    success(function(data, status, headers, config) {
-      var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
-      if (checkmate_yaml_file === undefined) {
-        error_callback("No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'");
-      } else {
-        $http({method: 'GET', url: repo_url + '/git/blobs/' + checkmate_yaml_file.sha,
-            headers: {'X-Target-Url': remote.api.server, 'Accept': 'application/vnd.github.v3.raw'}}).
-        success(function(data, status, headers, config) {
-          var checkmate_yaml = {};
-          try {
-            checkmate_yaml = YAML.parse(data.replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name).replace('%username%', username || '%username%'));
-          } catch(err) {
-            if (err.name == "YamlParseException")
-              error_callback("YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'");
+    var commit_url = repo_url + '/git/trees/' + remote.branch.commit;
+    var config = get_config(remote.api.server);
+
+    return $http.get(commit_url, config)
+      .then(
+        // Success
+        function(response) {
+          var data = response.data;
+          var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
+
+          // No checkmate.yaml file was found: Reject!
+          if (checkmate_yaml_file === undefined) {
+            var not_found_response = {
+              data: "No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'",
+              status: 404
+            };
+            return $q.reject(not_found_response);
           }
-          callback(checkmate_yaml, remote);
-        }).
-        error(function(data, status, headers, config) {
-          var response = {data: data, status: status};
-          error_callback(response);
-        });
-      }
-    }).
-    error(function(data, status, headers, config) {
-      var response = {data: data, status: status};
-      error_callback(response);
-    });
+
+          var raw_url = repo_url + '/git/blobs/' + checkmate_yaml_file.sha;
+          var raw_config = get_config(remote.api.server, 'application/vnd.github.v3.raw');
+          return $http.get(raw_url, raw_config)
+            .then(
+              // Success
+              function(response) {
+                var yaml_data = response.data;
+                var checkmate_yaml = {};
+                try {
+                  var yaml_string = yaml_data
+                                      .replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name)
+                                      .replace('%username%', username || '%username%');
+                  checkmate_yaml = YAML.parse(yaml_string);
+                } catch(err) {
+                  if (err.name == "YamlParseException") {
+                    var parse_error_response = {
+                      data: "YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'",
+                      status: 400
+                    };
+                    return $q.reject(parse_error_response);
+                  }
+                }
+                return checkmate_yaml;
+              },
+              // Error
+              $q.reject
+            );
+        },
+        // Error
+        $q.reject
+      );
   }
 
   scope.get_contents = function(remote, url, content_item, callback){
     var destination_path = URI(url).path();
     var path = '/githubproxy' + destination_path + "/contents/" + content_item;
-    return $http({method: 'GET', url: path, headers: {'X-Target-Url': remote.api.server, 'accept': 'application/json'}}).
+    return $http.get(path, get_config(remote.api.server)).
       success(function(data, status, headers, config) {
         callback(data);
       }).
@@ -1768,6 +1795,9 @@ angular.module('checkmate.services').factory('cmTenant', ['$resource', 'auth', f
 }]);
 
 services.factory('urlBuilder', function(){
+
+  var scope = {};
+
   function cloudControlURL(resource_type, resource_id, region, tenant_id){
     if (!resource_id)
       return null;
@@ -1815,14 +1845,68 @@ services.factory('urlBuilder', function(){
     return 'ssh://root@' + address;
   }
 
-  return { cloudControlURL: cloudControlURL,
-           myCloudURL: myCloudURL,
-           novaStatsURL: novaStatsURL,
-           sshTo: sshTo };
+  function get_resource_type(resource) {
+    var resource_type;
+
+    switch(resource.provider) {
+      case 'nova':
+        resource_type = 'server';
+        break;
+      case 'legacy':
+        resource_type = 'legacy_server';
+        break;
+      case 'load-balancer':
+        resource_type = 'load_balancer';
+        break;
+      case 'databases':
+        resource_type = 'database';
+        break;
+      default:
+        resource_type = null;
+        break;
+    }
+
+    return resource_type;
+  }
+
+  scope.get_url = function(service, resource, tenant_id, username) {
+    if (!scope.is_valid(resource)) return;
+
+    var url;
+    var resource_type = get_resource_type(resource);
+    var resource_id = resource.instance.id;
+    var region = resource.region || resource.instance.region;
+    var address = resource.instance.public_ip;
+
+    switch(service) {
+      case 'cloud_control':
+        url = cloudControlURL(resource_type, resource_id, region, tenant_id);
+        break;
+      case 'my_cloud':
+        url = myCloudURL(resource_type, username, region, resource_id);
+        break;
+      case 'nova_stats':
+        url = novaStatsURL(region, resource_id);
+        break;
+      case 'ssh':
+        url = sshTo(address);
+        break;
+    }
+
+    return url;
+  }
+
+  scope.is_valid = function(resource) {
+    return get_resource_type(resource) != null;
+  }
+
+  return scope;
 });
 
-angular.module('checkmate.services').factory('Deployment', function(){
-  function status(deployment) {
+angular.module('checkmate.services').factory('Deployment', ['$http', function($http) {
+  var scope = {};
+
+  scope.status = function(deployment) {
     var status = deployment.status;
     var stop_statuses = ['COMPLETE', 'ERROR'];
 
@@ -1834,17 +1918,33 @@ angular.module('checkmate.services').factory('Deployment', function(){
     return status;
   }
 
-  function progress(deployment){
-    if(status(deployment) === 'FAILED')
+  scope.progress = function(deployment){
+    if(scope.status(deployment) === 'FAILED')
       return 100;
     if(!deployment.operation)
       return 0;
     return (deployment.operation.complete / deployment.operation.tasks) * 100;
   }
 
-  return { status: status,
-           progress: progress };
-});
+  scope.add_nodes = function(deployment, service_name, num_nodes) {
+    var data = { service_name: service_name, count: num_nodes };
+    var tenant_id = deployment.tenantId;
+    var url = "/"+tenant_id+"/deployments/"+deployment.id+"/+add-nodes.json";
+    return $http.post(url, data);
+  }
+
+  scope.delete_nodes = function(deployment, resource_ids) {
+    if (!(resource_ids instanceof Array))
+      resource_ids = [resource_ids];
+
+    var data = { resource_ids: resource_ids.join(',') };
+    var tenant_id = deployment.tenantId;
+    var url = "/"+tenant_id+"/deployments/"+deployment.id+"/+delete-nodes.json";
+    return $http.post(url, data);
+  }
+
+  return scope;
+}]);
 
 angular.module('checkmate.services').factory('Cache', function() {
   var scope = {};

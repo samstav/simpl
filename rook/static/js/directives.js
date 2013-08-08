@@ -253,6 +253,10 @@ directives.directive('cmTreeView', function() {
       .data(_.values(vertex_data), function(d) { return d.id; });
 
     // Update
+    vertices
+      .attr('transform', function(d) {
+        return ['translate(', d.x, ',', d.y, ')'].join('');
+      });
     vertices.select('image')
       .attr('xlink:href', get_icon);
     vertices.select('circle')
@@ -286,13 +290,18 @@ directives.directive('cmTreeView', function() {
       .attr('y', '-16px')
       .attr('width', '32px')
       .attr('height', '32px');
-
     // Exit
     vertices.exit().remove();
 
     var edges = scope.svg.select('g.edges').selectAll('.edge')
       .data(new_data.edges);
 
+    // Enter
+    edges
+      .attr('x1', function(d) { return vertex_data[d.v1].x })
+      .attr('y1', function(d) { return vertex_data[d.v1].y })
+      .attr('x2', function(d) { return vertex_data[d.v2].x })
+      .attr('y2', function(d) { return vertex_data[d.v2].y });
     // Enter
     edges.enter()
       .append('svg:line')
@@ -302,10 +311,12 @@ directives.directive('cmTreeView', function() {
       .attr('x2', function(d) { return vertex_data[d.v2].x })
       .attr('y2', function(d) { return vertex_data[d.v2].y });
     // Exit
+    edges.exit().remove();
   }
 
   return {
     restrict: 'E',
+    template: '<div></div>',
     replace: true,
     scope: { data: '=' },
     link: function(scope, element, attrs) {

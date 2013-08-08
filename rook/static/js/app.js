@@ -1703,7 +1703,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.interpolate_nodes = function(nodes) {
     var interpolated_nodes = angular.copy(nodes);
-    var limits = $scope.get_limits(nodes);
+    var limits = $scope.get_limits(interpolated_nodes);
 
     _.each(interpolated_nodes, function(node) {
       var new_x = ($scope.canvas.width - ($scope.padding * 2))  * (node.x - limits.min.x) / limits.size.x;
@@ -1714,7 +1714,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
         node.y = $scope.canvas.height / 2;
     });
 
-    return nodes;
+    return interpolated_nodes;
   }
 
   $scope.buildNodes = function(specs) {
@@ -2175,13 +2175,21 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
   };
 
   $scope.loadBlueprint = function() {
-    github.get_blueprint($scope.remote, $scope.auth.identity.username, $scope.receive_blueprint, function(data) {
-      if (typeof data == 'string') {
-        $scope.notify(data);
-      } else {
-        $scope.show_error(data);
-      }
-    });
+    github.get_blueprint($scope.remote, $scope.auth.identity.username)
+      .then(
+        // Success
+        function(checkmate_yaml) {
+          $scope.receive_blueprint(checkmate_yaml, $scope.remote);
+        },
+        // Error
+        function(response) {
+          if (typeof data == 'string') {
+            $scope.notify(data);
+          } else {
+            $scope.show_error(data);
+          }
+        }
+      );
   };
 
   $scope.$watch('selected', function(newVal, oldVal, scope) {
@@ -2533,18 +2541,30 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
   $scope.loadRemoteBlueprint = function(repo_url) {
     var remote = github.parse_url(repo_url);
-    var u = URI(repo_url);
-    var ref = u.fragment() || 'master';
-    github.get_branch_from_name(remote, ref, function(branch) {
-      remote.branch = branch;
-      github.get_blueprint(remote, $scope.auth.identity.username, $scope.receive_blueprint, function(data) {
-        $scope.notify("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github: ' + JSON.stringify(data));
-        console.log("Unable to load '" + ref + "' version of " + remote.repo.name + ' from github', data);
-      });
-    }, function(data) {
-        $scope.notify("Unable to find branch or tag '" + ref +  "' of " + remote.repo.name + ' from github: ' + JSON.stringify(data));
-        console.log("Unable to find branch or tag '" + ref +  "' of " + remote.repo.name + ' from github',  data);
-    });
+    var uri = URI(repo_url);
+    var ref = uri.fragment() || 'master';
+    github.get_branch_from_name(remote, ref)
+      .then(
+        // Success
+        function(branch) {
+          remote.branch = branch;
+          github.get_blueprint(remote, $scope.auth.identity.username)
+            .then(
+              // Success
+              function(checkmate_yaml) {
+                $scope.receive_blueprint(checkmate_yaml, remote);
+              },
+              // Error
+              function(response) {
+                $scope.notify('['+response.status+'] ' + 'Unable to load "'+ref+'" version of '+remote.repo.name+' from '+remote.server);
+              }
+            );
+        },
+        // Error
+        function(response) {
+          $scope.notify('['+response.status+'] ' + 'Unable to find branch or tag "'+ref+'" of '+remote.repo.name+' from '+remote.server);
+        }
+      );
     mixpanel.track("Remote Blueprint Requested", {'blueprint': repo_url});
   };
 
@@ -3120,6 +3140,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.load_workflow_stats(data.operation);
       data.display_status = Deployment.status(data);
       $scope.data = data;
+      $scope.resources = _.values($scope.data.resources);
       $scope.showCommands = $scope.auth.context.tenantId === $scope.data.tenantId;
       $scope.abs_url = $location.absUrl();
       $scope.clippy_element = "#deployment_summary_clipping";
@@ -3259,6 +3280,8 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     lb: 0,
     master: 1,
     web: 1,
+    app: 1,
+    admin: 1,
     backend: 2,
 
     // Cassandra
