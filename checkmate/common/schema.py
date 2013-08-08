@@ -236,11 +236,13 @@ WORKFLOW_SCHEMA = [
 
 
 def validate_catalog(obj):
-    """Validates provider catalog"""
+    '''Validates provider catalog.'''
     errors = []
     if obj:
         for key, value in obj.iteritems():
             if key == 'lists':
+                pass
+            elif key == 'current_region':
                 pass
             elif key in RESOURCE_TYPES:
                 for instance in value.values():
@@ -252,12 +254,13 @@ def validate_catalog(obj):
 
 
 def validate(obj, schema):
-    """Validates an object
+    '''Validates an object
 
     :param obj: a dict of the object to validate
     :param schema: a schema to validate against (usually from this file)
 
-    This is a simple, initial attempt at validation"""
+    This is a simple, initial attempt at validation.
+    '''
     errors = []
     if obj:
         if schema:
@@ -269,7 +272,7 @@ def validate(obj, schema):
 
 
 def validate_inputs(deployment):
-    """Validates deployment inputs"""
+    '''Validates deployment inputs.'''
     errors = []
     if deployment:
         inputs = deployment.get('inputs') or {}
@@ -307,9 +310,9 @@ def validate_inputs(deployment):
 
 
 def validate_type_inputs(inputs):
-    """Validates deployment inputs in a type hierarchy
-
-    This is the structure under inputs/services and inputs/providers"""
+    '''Validates deployment inputs in a type hierarchy
+    This is the structure under inputs/services and inputs/providers.
+    '''
     errors = []
     if inputs:
         if isinstance(inputs, dict):
@@ -329,7 +332,7 @@ def validate_type_inputs(inputs):
 
 
 def validate_input(key, value):
-    """Validates a deployment input"""
+    '''Validates a deployment input.'''
     errors = []
     if value:
         if isinstance(value, dict):
@@ -339,7 +342,7 @@ def validate_input(key, value):
 
 
 def validate_url_input(key, value):
-    """Validates a deployment input of type url"""
+    '''Validates a deployment input of type url.'''
     errors = []
     if value:
         if isinstance(value, dict):
@@ -353,7 +356,7 @@ def validate_url_input(key, value):
 
 
 def validate_option(key, option):
-    """Validates a blueprint option"""
+    '''Validates a blueprint option.'''
     errors = []
     if option:
         if isinstance(option, dict):
@@ -369,7 +372,7 @@ def validate_option(key, option):
 
 
 def validate_options(options):
-    """Validates a blueprint's options"""
+    '''Validates a blueprint's options.'''
     errors = []
     if options:
         if isinstance(options, dict):

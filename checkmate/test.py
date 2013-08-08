@@ -960,6 +960,7 @@ class ProviderTester(unittest.TestCase):
                   - widget: bar
                   vendor: test
                   catalog:
+                    current_region: test_region
                     widget:
                       small_widget:
                         is: widget
@@ -971,8 +972,9 @@ class ProviderTester(unittest.TestCase):
                         - widget: bar
             """)
         provider = self.klass(override)
+        context = {'region': 'test_region'}
         self.assertListEqual(provider.provides(None), override['provides'])
-        self.assertDictEqual(provider.get_catalog(None), override['catalog'])
+        self.assertDictEqual(provider.get_catalog(context), override['catalog'])
 
     def test_provider_loads_unregistered(self):
         """Check that provider loads without registration"""

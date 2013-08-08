@@ -123,6 +123,11 @@ API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
 API_LIMITS_CACHE = {}
 REDIS = None
+REGION_MAP = {'dallas': 'DFW',
+              'chicago': 'ORD',
+              'london': 'LON',
+              'sydney': 'SYD'}
+
 if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     try:
         REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
@@ -220,8 +225,9 @@ class Provider(RackspaceComputeProviderBase):
             raise CheckmateUserException(message, get_class_name(
                 CheckmateException), BLUEPRINT_ERROR, '')
 
-        catalog = self.get_catalog(context)
+        context['region'] = region
 
+        catalog = self.get_catalog(context)
         # Find and translate image
         image = deployment.get_setting('os', resource_type=resource_type,
                                        service_name=service,
@@ -434,8 +440,8 @@ class Provider(RackspaceComputeProviderBase):
         if preps:
             wait_on.append(preps)
         join = wfspec.wait_for(create_server_task, wait_on,
-                        name="Server Wait on:%s (%s)" % (key,
-                                                         resource['service']))
+                               name="Server Wait on:%s (%s)" % (key,
+                               resource['service']))
 
         return dict(
             root=join,
@@ -500,18 +506,20 @@ class Provider(RackspaceComputeProviderBase):
     def _get_api_info(context):
         '''Get Flavors, Images and Types available in a given Region.'''
         results = {}
-        region = getattr(context, 'region', None)
-        if not region:
-            region = Provider.find_a_region(context.catalog)
-        url = Provider.find_url(context.catalog, region)
+        assert context['region'], "Region not found in context."
+        url = Provider.find_url(context.catalog, context.region)
         if url:
             jobs = eventlet.GreenPile(2)
             jobs.spawn(_get_flavors, url, context.auth_token)
-            jobs.spawn(_get_images_and_types, url, context.auth_token)
+            jobs.spawn(_get_images_and_types, url, context.region,
+                       context.auth_token)
             for ret in jobs:
                 results.update(ret)
         else:
-            LOG.info("Failed to find compute endpoint for %s", context.tenant)
+            LOG.info("Failed to find compute endpoint for %s in region %s",
+                     context.tenant, context.region)
+        
+
         return results
 
     def get_catalog(self, context, type_filter=None):
@@ -523,7 +531,7 @@ class Provider(RackspaceComputeProviderBase):
         results = RackspaceComputeProviderBase.get_catalog(self, context,
                                                            type_filter=
                                                            type_filter)
-        if results:
+        if results and context['region'] == results.get('current_region'):
             # We have a prexisting or overriding catalog stored
             return results
 
@@ -556,7 +564,7 @@ class Provider(RackspaceComputeProviderBase):
                 images = vals['images']
 
         if type_filter is None or type_filter == 'compute':
-            #TODO: add regression tests - copy.copy was leaking across tenants
+            #TODO(any): add regression tests - copy.copy leaking across tenants
             results['compute'] = copy.deepcopy(CATALOG_TEMPLATE['compute'])
             linux = results['compute']['linux_instance']
             windows = results['compute']['windows_instance']
@@ -589,6 +597,8 @@ class Provider(RackspaceComputeProviderBase):
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['images'] = images
+
+        results['current_region'] = context['region']
 
         self.validate_catalog(results)
         if type_filter is None:
@@ -690,7 +700,7 @@ class AuthPlugin(object):
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE,
                backing_store=REDIS, backing_store_key='rax.compute.images')
-def _get_images_and_types(api_endpoint, auth_token):
+def _get_images_and_types(api_endpoint, region, auth_token):
     '''Ask Nova for Images and Types.'''
     plugin = AuthPlugin(auth_token, api_endpoint)
     insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
@@ -760,11 +770,6 @@ def _get_limits(api_endpoint, auth_token):
             d[limit.name.encode('ascii')] = limit.value
         return d
     return limits_dict(api_limits.absolute)
-
-
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON'}
 
 
 def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
