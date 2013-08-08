@@ -15,8 +15,9 @@ import os
 
 from celery import Task
 from celery.exceptions import RetryTaskError
-from celery.signals import worker_process_init
+from celery import signals
 
+from checkmate.celeryconfig import CHECKMATE_CELERY_LOGCONFIG
 from checkmate.common import config
 from checkmate.db.common import InvalidKeyError, ObjectLockedError
 
@@ -25,7 +26,24 @@ LOG = logging.getLogger(__name__)
 CONFIG = config.current()
 
 
-@worker_process_init.connect  # pylint: disable=W0613
+def after_setup_logger_handler(sender=None, logger=None, loglevel=None,
+                               logfile=None, format=None, colorize=None,
+                               **kwds):
+    if (not CHECKMATE_CELERY_LOGCONFIG or
+            not os.path.exists(CHECKMATE_CELERY_LOGCONFIG)):
+        LOG.debug("'CHECKMATE_CELERY_LOGCONFIG' env is not configured, or is "
+                  "configured to a non-existent path.")
+        return
+
+    LOG.debug("Logging-Configuration file: %s" % CHECKMATE_CELERY_LOGCONFIG)
+    logging.config.fileConfig(CHECKMATE_CELERY_LOGCONFIG,
+                                  disable_existing_loggers=False)
+
+signals.after_setup_logger.connect(after_setup_logger_handler)
+signals.after_setup_task_logger.connect(after_setup_logger_handler)
+
+
+@signals.worker_process_init.connect  # pylint: disable=W0613
 def init_checkmate_worker(**kwargs):
     '''Initialize Configuration.'''
     LOG.info("Initializing Checkmate worker")
