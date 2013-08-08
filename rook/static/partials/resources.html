@@ -1,37 +1,92 @@
-<div>
+<div class='container-fluid mainContent entries'>
   <div class='row-fluid'>
-    <div class='span3'>
+    <div class='span6'>
+
       <h4 ng-init="get_servers()">Nova Servers</h4>
-      <ul>
-        <li ng-repeat="server in resources_by_provider.nova" ng-click="add_to_deployment(server)">
-          {{server.instance.ip}}
-        </li>
-      </ul>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>ID</th>
+            <th>Region</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="serv in resources_by_provider['nova']" ng-click="add_to_deployment(serv)">
+            <td>{{serv['dns-name']}}</td>
+            <td>{{serv['instance']['id']}}</td>
+            <td>{{serv['region']}}</td>
+            <td>{{serv['status']}}</td>
+          </tr>
+        </tbody>
+      </table>
 
       <h4 ng-init="get_databases()">Databases</h4>
-      <ul>
-        <li ng-repeat="db in resources_by_provider.database" ng-click="add_to_deployment(db)">
-          {{db.instance.id}}
-        </li>
-      </ul>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>ID</th>
+            <th>Region</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="db in resources_by_provider['database']" ng-click="add_to_deployment(db)">
+            <td>{{db['dns-name']}}</td>
+            <td>{{db['instance']['id']}}</td>
+            <td>{{db['region']}}</td>
+            <td>{{db['status']}}</td>
+          </tr>
+        </tbody>
+      </table>
 
       <h4 ng-init="get_load_balancers()">Load Balancers</h4>
-      <ul>
-        <li ng-repeat="lb in resources_by_provider['load-balancer']" ng-click="add_to_deployment(lb)">
-          {{lb.instance.id}}
-        </li>
-      </ul>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>ID</th>
+            <th>Region</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="lb in resources_by_provider['load-balancer']" ng-click="add_to_deployment(lb)">
+            <td>{{lb['dns-name']}}</td>
+            <td>{{lb['instance']['id']}}</td>
+            <td>{{lb['region']}}</td>
+            <td>{{lb['status']}}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    <div class='span9'>
+
+
+    <div class='span6'>
       <form ng-submit='submit()'>
         <h4>Create a Deployment</h4>
         <input type="text" ng-model="deployment.name">
         </input>
-        <ul>
-          <li ng-repeat="resource in selected_resources" ng-click="remove_from_deployment(resource)">
-            {{resource}}
-          </li>
-        </ul>
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>ID</th>
+              <th>Region</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="resource in selected_resources" ng-click="remove_from_deployment(resource)">
+              <td>{{resource['dns-name']}}</td>
+              <td>{{resource['instance']['id']}}</td>
+              <td>{{resource['region']}}</td>
+              <td>{{resource['status']}}</td>
+            </tr>
+          </tbody>
+        </table>
         <input type='submit' class='btn' value='Submit' />
       </form>
     </div>
