@@ -382,12 +382,18 @@ class TestCeleryTasks(unittest.TestCase):
         lb.id = 'fake_lb_id'
         lb.name = 'fake_lb'
         lb.status = 'ERROR'
+        lb.get_metadata.return_value = {}
 
         resource_key = "1"
 
-        context = dict(deployment='DEP', resource='1')
+        context = { 'deployment': 'DEP',
+                    'resource': '1',
+                    'base_url': 'blah.com',
+                    'tenant': '123'
+                   }
 
         resource = {
+            'index': '0',
             'name': 'fake_lb',
             'provider': 'load-balancers',
             'status': 'ERROR',
@@ -438,11 +444,15 @@ class TestCeleryTasks(unittest.TestCase):
 
         expected = {'instance:1': {"status": "ERROR"}}
 
-        results = loadbalancer.sync_resource_task(
-            context, resource, resource_key, lb_api_mock)
+        with mock.patch.object(loadbalancer.Provider,
+                               'generate_resource_tag',
+                               return_value={"test": "me"}):
+            results = loadbalancer.sync_resource_task(
+                context, resource, resource_key, lb_api_mock
+            )
 
         lb_api_mock.loadbalancers.get.assert_called_once_with(lb.id)
-        self.assertDictEqual(results, expected)
+        lb.set_metadata.assert_called_once_with({"test": "me"})
 
 
 class TestBasicWorkflow(test.StubbedWorkflowBase):

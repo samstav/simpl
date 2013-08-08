@@ -25,7 +25,11 @@ from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
 from checkmate.providers.rackspace.dns import parse_domain
-from checkmate.utils import match_celery_logging, get_class_name
+from checkmate.utils import (
+    match_celery_logging,
+    get_class_name,
+    merge_dictionary
+)
 
 
 LOG = logging.getLogger(__name__)
@@ -1012,6 +1016,21 @@ def sync_resource_task(context, resource, resource_key, api=None):
         #if hasattr(lb, 'port') and
         #   resource['instance']['protocol'] != lb.protocol:
         #    instance['protocol'] = lb.protocol
+
+        try:
+            meta = lb.get_metadata()
+            if "RAX-CHECKMATE" not in meta.keys():
+                checkmate_tag=Provider.generate_resource_tag(
+                    context['base_url'], context['tenant'],
+                    context['deployment'], resource['index']
+                )
+                new_meta = merge_dictionary(meta, checkmate_tag)
+                lb.set_metadata(new_meta)
+        except Exception as exc:
+            LOG.info("Could not set metadata tag "
+                     "on checkmate managed compute resource")
+            LOG.info(exc)
+
         LOG.info("Marking load balancer instance %s as %s", instance_id,
                  lb.status)
         return {
