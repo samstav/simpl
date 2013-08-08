@@ -48,7 +48,10 @@
       <table class="table table-striped">
         <thead>
           <tr>
-            <th class="id">ID</th>
+            <th class="id">
+              <input type="checkbox" ng-model="selected_deployments['all']" ng-click="select_toggle(items, selected_deployments['all'])">
+              ID
+            </th>
             <th>Name</th>
             <th>Blueprint</th>
             <th ng-show="is_admin(true)">Tenant</th>

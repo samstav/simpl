@@ -2314,7 +2314,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.error_message = null;
 
-  $scope.selected_deployments = {};
+  $scope.selected_deployments = { all: false };
   $scope.deployment_map = {};
 
   $scope.is_selected = function() {
@@ -2322,14 +2322,26 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     return keys.length != 0;
   }
 
-  $scope.select_toggle = function(deployment) {
-    if ($scope.selected_deployments[deployment.id]) {
-      delete $scope.selected_deployments[deployment.id];
-      delete $scope.deployment_map[deployment.id];
-    } else {
-      $scope.selected_deployments[deployment.id] = true;
-      $scope.deployment_map[deployment.id] = deployment;
+  $scope.select_toggle = function(deployments, status) {
+    if (!(deployments instanceof Array)) deployments = [deployments];
+    var fixed_status = (status != undefined);
+
+    for (var i=0 ; i< deployments.length ; i++) {
+      var deployment = deployments[i];
+      var toggle = !$scope.selected_deployments[deployment.id];
+      var state = (fixed_status) ? status : toggle;
+      if (state) {
+        $scope.selected_deployments[deployment.id] = true;
+        $scope.deployment_map[deployment.id] = deployment;
+      } else {
+        delete $scope.selected_deployments[deployment.id];
+        delete $scope.deployment_map[deployment.id];
+      }
     }
+
+    var num_selected_deployments = _.keys($scope.deployment_map).length;
+    $scope.selected_deployments.all = (num_selected_deployments == $scope.items.length);
+
   }
 
   $scope.sync_deployments = function() {
