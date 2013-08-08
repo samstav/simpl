@@ -513,6 +513,8 @@ class Router(object):
             raise exceptions.CheckmateDoesNotExist(
                 'No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)
+        if utils.is_simulation(api_id):
+            bottle.request.context.simulation = True
         context = bottle.request.context
         context['deployment'] = api_id
         statuses = deployment.get_statuses(bottle.request.context)
