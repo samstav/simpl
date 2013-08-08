@@ -504,7 +504,7 @@ class Provider(RackspaceComputeProviderBase):
 
     @staticmethod
     def _get_api_info(context):
-        '''Get Flavors, Images and Types available for all Regions.'''
+        '''Get Flavors, Images and Types available in a given Region.'''
         results = {}
         assert context['region'], "Region not found in context."
         url = Provider.find_url(context.catalog, context.region)
@@ -513,11 +513,12 @@ class Provider(RackspaceComputeProviderBase):
             jobs.spawn(_get_flavors, url, context.auth_token)
             jobs.spawn(_get_images_and_types, url, context.region,
                        context.auth_token)
+            for ret in jobs:
+                results.update(ret)
         else:
             LOG.info("Failed to find compute endpoint for %s in region %s",
                      context.tenant, context.region)
-        for ret in jobs:
-            results.update(ret)
+        
 
         return results
 
