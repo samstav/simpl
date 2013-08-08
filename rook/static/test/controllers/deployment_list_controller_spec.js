@@ -332,8 +332,12 @@ describe('DeploymentListController', function(){
   });
 
   describe('selected_deployments', function() {
-    it('should default to empty object', function() {
-      expect(scope.selected_deployments).toEqual({});
+    it('should default to object', function() {
+      expect(scope.selected_deployments instanceof Object).toEqual(true);
+    });
+
+    it('should have a property called all set to false', function() {
+      expect(scope.selected_deployments.all).toBe(false);
     });
   });
 
@@ -358,32 +362,90 @@ describe('DeploymentListController', function(){
   describe('#select_toggle', function() {
     var deployment;
     beforeEach(function() {
-      deployment = { id: 123, content: 'somecontent' };
+      deployment1 = { id: 123, content: 'somecontent1' };
+      deployment2 = { id: 124, content: 'somecontent2' };
+      deployment3 = { id: 125, content: 'somecontent3' };
+      scope.items = [deployment1, deployment2, deployment3];
     });
 
-    it('should remove deployment from selected list if deployment was there', function() {
-      scope.selected_deployments = { 123: true };
-      scope.deployment_map = { 123: deployment };
-      scope.select_toggle(deployment);
-      expect(scope.is_selected[123]).toBe(undefined);
+    describe('handling single deployment', function() {
+      it('should handle single deployment', function() {
+        scope.selected_deployments = {};
+        scope.select_toggle(deployment1);
+        expect(scope.selected_deployments[123]).not.toBe(undefined);
+      });
     });
 
-    describe('if deployment was not in selected list', function() {
+    describe('handling arrays', function() {
+      it('should handle list of deployments', function() {
+        scope.selected_deployments = {};
+        scope.select_toggle([deployment1, deployment2]);
+        expect(scope.selected_deployments[123]).not.toBe(undefined);
+        expect(scope.selected_deployments[124]).not.toBe(undefined);
+      });
+    });
+
+    describe('toggling ON:', function() {
       beforeEach(function() {
         scope.selected_deployments = {};
-        scope.select_toggle(deployment);
+        scope.select_toggle(deployment1);
       });
 
       it('should add deployment to selected list', function() {
-        expect(scope.selected_deployments[123]).not.toBe(undefined);
-      });
-
-      it('should set selected flag to true', function() {
         expect(scope.selected_deployments[123]).toBe(true);
       });
 
       it('should add deployment object to list', function() {
-        expect(scope.deployment_map[123]).toEqual({ id: 123, content: 'somecontent' });
+        expect(scope.deployment_map[123]).toEqual({ id: 123, content: 'somecontent1' });
+      });
+
+    });
+
+    describe('toggling OFF:', function() {
+      beforeEach(function() {
+        scope.selected_deployments = { 123: true };
+        scope.deployment_map = { 123: deployment1 };
+        scope.select_toggle(deployment1);
+      });
+
+      it('should remove deployment from selected list', function() {
+        expect(scope.selected_deployments[123]).toBe(undefined);
+      });
+
+      it('should remove deployment from deployment_map', function() {
+        expect(scope.deployment_map[123]).toBe(undefined);
+      });
+    });
+
+    describe('select ALL:', function() {
+      it('should set ALL flag to true if all deployments are selected', function() {
+        scope.deployment_map = { 123: deployment1, 124: deployment2 };
+        scope.selected_deployments = { 123: true, 124: true };
+        scope.selected_deployments.all = false;
+        scope.select_toggle(deployment3);
+        expect(scope.selected_deployments.all).toBe(true);
+      });
+
+      it('should set ALL flag to false if not all deployments are selected', function() {
+        scope.deployment_map = { 123: deployment1, 124: deployment2, 125: deployment3 };
+        scope.selected_deployments = { 123: true, 124: true, 125: true };
+        scope.selected_deployments.all = true;
+        scope.select_toggle(deployment3);
+        expect(scope.selected_deployments.all).toBe(false);
+      });
+    });
+
+    describe('force toggle', function() {
+      it('should set toggle status to true even if already true', function() {
+        scope.selected_deployments = { 123: true };
+        scope.select_toggle(deployment1, true);
+        expect(scope.selected_deployments[123]).toBe(true);
+      });
+
+      it('should set toggle to false even if already false', function() {
+        scope.selected_deployments = {};
+        scope.select_toggle(deployment1, false);
+        expect(scope.selected_deployments[123]).toBe(undefined);
       });
     });
   });
