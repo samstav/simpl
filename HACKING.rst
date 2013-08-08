@@ -107,14 +107,14 @@ Example::
 
 Docstrings
 ----------
-Use triple single-quotes (''' not """)
+Use triple double-quotes (""" not ''')
 
 Example::
 
-  '''A one line docstring looks like this and ends in a period.'''
+  """A one line docstring looks like this and ends in a period."""
 
 
-  '''A multi line docstring has a one-line summary, less than 80 characters.
+  """A multi line docstring has a one-line summary, less than 80 characters.
 
   Then a new paragraph after a newline that explains in more detail any
   general information about the function, class or method. Example usages
@@ -132,7 +132,7 @@ Example::
   :returns: return_type -- description of the return value
   :returns: description of the return value
   :raises: AttributeError, KeyError
-  '''
+  """
 
 
 Dictionaries/Lists
