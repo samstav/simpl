@@ -2430,6 +2430,18 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     );
   };
 
+
+  $scope.sync_success = function(returned, getHeaders){
+    if (returned !== undefined)
+      $scope.notify(Object.keys(returned).length + ' resources synced');
+  }
+
+  $scope.sync_failure = function(error){
+    $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                          message: "There was an error syncing your deployment"};
+    $scope.open_modal('error');
+  }
+
   // This also exists on DeploymentController - can be refactored
   $scope.sync = function(deployment) {
     var retry = function() {
@@ -2437,17 +2449,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     };
 
     if (auth.is_logged_in()) {
-      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
-      var thang = new klass();
-      thang.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, function(returned, getHeaders){
-          // Sync
-          if (returned !== undefined)
-              $scope.notify(Object.keys(returned).length + ' resources synced');
-        }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
-                  message: "There was an error syncing your deployment"};
-          $scope.open_modal('error');
-        });
+      Deployment.sync($scope.data, $scope.sync_success, $scope.sync_failure)
     } else {
       $scope.loginPrompt().then(retry);
     }
@@ -3258,21 +3260,22 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     }
   };
 
+  $scope.sync_success = function(returned, getHeaders){
+    $scope.load();
+    if (returned !== undefined)
+        $scope.notify(Object.keys(returned).length + ' resources synced');
+  }
+
+  $scope.sync_failure = function(error){
+    $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                          message: "There was an error syncing your deployment"};
+    $scope.open_modal('error');
+  }
+
   // This also exists on DeploymentListController - can be refactored
   $scope.sync = function() {
     if ($scope.auth.is_logged_in()) {
-      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
-      var thang = new klass();
-      thang.$get({tenantId: $scope.data.tenantId, deployment_id: $scope.data['id']}, function(returned, getHeaders){
-          // Sync
-          $scope.load();
-          if (returned !== undefined)
-              $scope.notify(Object.keys(returned).length + ' resources synced');
-        }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
-                  message: "There was an error syncing your deployment"};
-          $scope.open_modal('error');
-        });
+      Deployment.sync($scope.data, $scope.sync_success, $scope.sync_failure)
     } else {
       $scope.loginPrompt().then($scope.sync);
     }
@@ -3467,7 +3470,7 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   };
 }
 
-function ResourcesController($scope, $resource, $location){
+function ResourcesController($scope, $resource, $location, Deployment){
   $scope.selected_resources = [];
   $scope.resources_by_provider = {};
   $scope.resources_by_provider.nova = [];
@@ -3542,6 +3545,17 @@ function ResourcesController($scope, $resource, $location){
 
   $scope.deployment = {};
 
+  $scope.sync_success = function(returned, getHeaders){
+    if (returned !== undefined)
+      $scope.notify(Object.keys(returned).length + ' resources synced');
+  }
+
+  $scope.sync_failure = function(error){
+    $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                          message: "There was an error syncing your deployment"};
+    $scope.open_modal('error');
+  }
+
   $scope.submit = function(){
     var url = '/:tenantId/deployments',
         tenant_id = $scope.auth.context.tenantId,
@@ -3568,6 +3582,7 @@ function ResourcesController($scope, $resource, $location){
     deployment.inputs.blueprint = {};
     deployment.$save(function(result, getHeaders){
       console.log("Posted deployment");
+      Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure)
       $location.path('/' + tenant_id + '/deployments/' + result['id']);
     }, function(error){
       console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");

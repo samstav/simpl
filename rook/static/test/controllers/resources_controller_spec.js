@@ -1,13 +1,15 @@
 describe('ResourcesController', function(){
   var $scope,
       $resource,
-      $location;
+      $location,
+      Deployment;
 
   beforeEach(function(){
     $scope = {};
-    $resource = {};
+    $resource = sinon.stub().returns(emptyFunction);
     $location = {path: sinon.spy()};
-    controller = new ResourcesController($scope, $resource, $location);
+    Deployment = {sync: emptyFunction}
+    controller = new ResourcesController($scope, $resource, $location, Deployment);
   });
 
   it('should setup selected_resources', function(){
