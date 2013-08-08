@@ -242,6 +242,8 @@ def validate_catalog(obj):
         for key, value in obj.iteritems():
             if key == 'lists':
                 pass
+            elif key == 'current_region':
+                pass
             elif key in RESOURCE_TYPES:
                 for instance in value.values():
                     errors.extend(validate(instance, COMPONENT_SCHEMA) or [])

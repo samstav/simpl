@@ -228,7 +228,6 @@ class Provider(RackspaceComputeProviderBase):
         context['region'] = region
 
         catalog = self.get_catalog(context)
-
         # Find and translate image
         image = deployment.get_setting('os', resource_type=resource_type,
                                        service_name=service,
@@ -520,8 +519,6 @@ class Provider(RackspaceComputeProviderBase):
         for ret in jobs:
             results.update(ret)
         
-        results.update({'current_region': context['region']})
-        
         return results
 
     def get_catalog(self, context, type_filter=None):
@@ -599,6 +596,8 @@ class Provider(RackspaceComputeProviderBase):
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['images'] = images
+
+        results['current_region'] = context['region']
 
         self.validate_catalog(results)
         if type_filter is None:
