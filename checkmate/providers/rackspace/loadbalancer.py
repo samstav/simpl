@@ -674,15 +674,6 @@ class Provider(ProviderBase):
             load_balancers += api.list()
         results = {}
         for idx, lb in enumerate(load_balancers):
-
-            is_checkmate_managed = False
-            if hasattr(lb, 'metadata'):
-                for data in lb.metadata:
-                    if data.get('key') == 'RAX-CHECKMATE':
-                        is_checkmate_managed = True
-            if is_checkmate_managed:
-                continue
-
             vip = None
             for ip_data in lb.virtual_ips:
                 if ip_data.ip_version == 'IPV4' and ip_data.type == "PUBLIC":

@@ -832,7 +832,6 @@ class TestLoadBalancerProxy(unittest.TestCase):
         load_balancer.name = 'name'
         load_balancer.virtual_ips = []
         load_balancer.manager.api.region_name = 'region_name'
-        load_balancer.metadata = {}
 
         lb_api = mock.Mock()
         lb_api.list.return_value = [load_balancer]
@@ -854,7 +853,6 @@ class TestLoadBalancerProxy(unittest.TestCase):
         vip.ip_version = 'IPV4'
         vip.address = '1.1.1.1'
         load_balancer.virtual_ips = [vip]
-        load_balancer.metadata = [{}]
 
         lb_api = mock.Mock()
         lb_api.list.return_value = [load_balancer]
