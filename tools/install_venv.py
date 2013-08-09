@@ -25,6 +25,7 @@ virtualenv installation script
 import os
 import subprocess
 import sys
+import traceback
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -35,7 +36,7 @@ PY_VERSION = "python%s.%s" % (sys.version_info[0], sys.version_info[1])
 
 
 def die(message, *args):
-    print >>sys.stderr, message % args
+    print(message, args, traceback.format_exc())
     sys.exit(1)
 
 
@@ -61,7 +62,7 @@ def run_command(cmd, redirect_output=True, check_exit_code=True):
     return output
 
 
-HAS_EASY_INSTALL = bool(run_command(['which', 'easy_install'],
+HAS_EASY_INSTALL = bool(run_command(['which', 'pip'],
                         check_exit_code=False).strip())
 HAS_VIRTUALENV = bool(run_command(['which', 'virtualenv'],
                       check_exit_code=False).strip())
@@ -73,11 +74,11 @@ def check_dependencies():
     print 'Checking for virtualenv...'
     if not HAS_VIRTUALENV:
         print 'not found.'
-        # Try installing it via easy_install...
+        # Try installing it via pip...
         if HAS_EASY_INSTALL:
-            print 'Installing virtualenv via easy_install...',
-            if not (run_command(['which', 'easy_install']) and
-                    run_command(['easy_install', 'virtualenv'])):
+            print 'Installing virtualenv via pip...',
+            if not (run_command(['which', 'pip']) and
+                    run_command(['pip', 'install', 'virtualenv'])):
                 print 'Installing virtualenv may need sudo'
                 die('ERROR: virtualenv not found.\n\nThis script'
                     ' requires virtualenv, please install it using your'
@@ -94,7 +95,7 @@ def create_virtualenv(venv=VENV):
     run_command(['virtualenv', '-q', '--no-site-packages', VENV])
     print 'done.'
     print 'Installing pip in virtualenv...',
-    if not run_command(['tools/with_venv.sh', 'easy_install', 'pip']).strip():
+    if not run_command(['tools/with_venv.sh', 'pip', 'install', 'pip']).strip():
         die("Failed to install pip.")
     print 'done.'
 
