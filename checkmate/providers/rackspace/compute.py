@@ -1195,11 +1195,11 @@ def wait_on_build(context, server_id, region, resource,
         chain(delete_server_task.si(context), wait_on_delete_server.si(
             context)).apply_async()
 
-        raise CheckmateRetriableException(results['status-message'],
-                                          get_class_name(
-                                              CheckmateServerBuildFailed()),
-                                          results['status-message'],
-                                          '')
+        raise CheckmateRetriableException(
+            results[instance_key]['status-message'],
+            get_class_name(CheckmateServerBuildFailed()),
+            results[instance_key]['status-message'],
+            '')
 
     if server.status == 'BUILD':
         results['progress'] = server.progress
