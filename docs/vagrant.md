@@ -30,6 +30,38 @@ directory, and need to update the VirtualBox image. To update the image, follow 
 
 You may also need to remove the directory `vagrant`.
 
+Note that you can also use "vagrant-libvirt". If you are working on a Linux or compatible KVM System.
+To get this to work with Vagrant-libvirt you will need to perform the following :
+
+  $ vagrant plugin install vagrant-libvirt
+
+Now you will need to download the image reference for the checkmate environment which can be found at : http://files.vagrantup.com/precise64.box
+To get this box image you will need to execute :
+
+  $ vagrant box add precise64 http://files.vagrantup.com/precise64.box
+
+Then you will need to edit the newly downloaded box image such that it can be imported via vagrant-libvirt.
+The process is faily easy though consumes a bunch of space on your system. If you navigate to the folder where the new box image was downloaded you can begin the process to create your own libvirt box for vagrant. There are Five easy steps to the process.
+
+1. Convert the image your downloaded to a qcow2 `qemu-img convert -f vmdk -O qcow2 ~/.vagrant.d/boxes/precise64/virtualbox/box-disk1.img ~/box.img`.
+2. Create metadata.json with the following `echo '{"provider": "libvirt", "format": "qcow2", "virtual_size": 80}' > metadata.json`
+3. Create the base VagrantFile with the following 
+
+        Vagrant.configure("2") do |config|
+          config.vm.provider :libvirt do |libvirt|
+            libvirt.driver = "qemu"
+            libvirt.host = "localhost"
+            libvirt.connect_via_ssh = false
+            libvirt.username = "root"
+            libvirt.storage_pool_name = "default"
+          end
+        end
+
+4. Now tar all the things together to make your box. `tar cvzf precise.box ./metadata.json ./Vagrantfile ./box.img`
+5. Finally add the new box to your vagrant environment `vagrant box add precise file:////location/to/the/tar/precise.box`
+
+You may also need to remove the directory `vagrant`.
+
 ## Working with Vagrant
 
 Once you are in the virtual machine, the checkmate repo is mounted at /vagrant.

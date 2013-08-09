@@ -3,8 +3,7 @@ import unittest
 import httplib
 import json
 import mox
-
-from checkmate.providers.rackspace import identity
+from checkmate.providers.os_auth import identity
 
 from checkmate import test
 
@@ -64,30 +63,30 @@ class TestIdentity(test.ProviderTester):
             }
         })
         self.rax_servicecat = json.dumps({
-            "access": {
-                "token": {
-                    "RAX-AUTH:authenticatedBy": ["APIKEY"],
-                    "expires": "2013-08-01T20:35:04.450-05:00",
-                    "id": "12345678901234567890",
-                    "tenant": {
-                        "id": "123456",
-                        "name": "123456"
+            u"access": {
+                u"token": {
+                    u"RAX-AUTH:authenticatedBy": [u"APIKEY"],
+                    u"expires": u"2013-08-01T20:35:04.450-05:00",
+                    u"id": u"12345678901234567890",
+                    u"tenant": {
+                        u"id": u"123456",
+                        u"name": u"123456"
                     }
                 }
             }
         })
         self.pri_servicecat = json.dumps({
-            "access": {
-                "token": {
-                    "expires": "2013-08-02T19:36:42Z",
-                    "id": "12345678901234567890"
+            u"access": {
+                u"token": {
+                    u"expires": u"2013-08-02T19:36:42Z",
+                    u"id": u"12345678901234567890"
                 },
-                "user": {
-                    "username": "admin",
-                    "roles_links": [],
-                    "id": "1234567890",
-                    "roles": [],
-                    "name": "admin"
+                u"user": {
+                    u"username": u"admin",
+                    u"roles_links": [],
+                    u"id": u"1234567890",
+                    u"roles": [],
+                    u"name": u"admin"
                 }
             }
         })
@@ -102,28 +101,28 @@ class TestIdentity(test.ProviderTester):
         """Test Region Test for Ord."""
 
         ctx = {'region': 'ord'}
-        self.assertEqual(identity.parse_region(context=ctx),
+        self.assertEqual(identity.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
     def test_parse_region_dfw(self):
         """Test Region Test for dfw."""
 
         ctx = {'region': 'dfw'}
-        self.assertEqual(identity.parse_region(context=ctx),
+        self.assertEqual(identity.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
     def test_parse_region_syd(self):
         """Test Region Test for syd."""
 
         ctx = {'region': 'syd'}
-        self.assertEqual(identity.parse_region(context=ctx),
+        self.assertEqual(identity.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
     def test_parse_region_lon(self):
         """Test Region Test for lon."""
 
         ctx = {'region': 'lon'}
-        self.assertEqual(identity.parse_region(context=ctx),
+        self.assertEqual(identity.parse_region(auth_dict=ctx),
                          ('lon.identity.api.rackspacecloud.com', True))
 
     def test_parse_region_pri(self):
@@ -131,7 +130,7 @@ class TestIdentity(test.ProviderTester):
 
         ctx = {'region': 'RegionOne',
                'auth_url': 'http://someauthurl.something'}
-        self.assertEqual(identity.parse_region(context=ctx),
+        self.assertEqual(identity.parse_region(auth_dict=ctx),
                          ('http://someauthurl.something', False))
 
     def test_parse_region_nourl(self):
@@ -139,23 +138,25 @@ class TestIdentity(test.ProviderTester):
 
         ctx = {'region': 'RegionOne'}
         with self.assertRaises(AttributeError):
-            identity.parse_region(context=ctx)
+            identity.os_authenticate(auth_dict=ctx)
 
     def test_parse_region_no(self):
         """Test Region Test for No Region."""
 
-        with self.assertRaises(AttributeError):
-            identity.parse_region(context=None)
+        ctx = {'username': 'testuser',
+               'apikey': 'testkey'}
+        self.assertEqual(identity.parse_region(auth_dict=ctx),
+                         ('identity.api.rackspacecloud.com', True))
 
-    def test_get_token_nokey(self):
+    def test_os_authenticate_nokey(self):
         """Test Get Token for Without a Key/Password."""
 
         ctx = {'region': 'ord',
                'username': 'testuser'}
         with self.assertRaises(AttributeError):
-            identity.get_token(context=ctx)
+            identity.os_authenticate(auth_dict=ctx)
 
-    def test_get_token_inv(self):
+    def test_os_authenticate_inv(self):
         """Test Get Token For Invalid Reply."""
 
         ctx = {'region': 'ord',
@@ -176,9 +177,9 @@ class TestIdentity(test.ProviderTester):
 
         self.mox.ReplayAll()
         with self.assertRaises(identity.NoTenatIdFound):
-            identity.get_token(context=ctx)
+            identity.os_authenticate(auth_dict=ctx)
 
-    def test_get_token_rax(self):
+    def test_os_authenticate_rax(self):
         """Test Get Token For RAX."""
 
         ctx = {'region': 'ord',
@@ -198,13 +199,16 @@ class TestIdentity(test.ProviderTester):
         httplib.HTTPConnection.close()
 
         self.mox.ReplayAll()
-        self.assertEqual(identity.get_token(context=ctx),
-                         '12345678901234567890')
+        self.assertEqual(identity.os_authenticate(auth_dict=ctx),
+                         (u'12345678901234567890',
+                          u'123456',
+                          u'testuser',
+                          json.loads(self.rax_servicecat)))
 
-    def test_get_token_pri(self):
+    def test_os_authenticate_pri(self):
         """Test Get Token For Openstack."""
 
-        ctx = {'region': 'ord',
+        ctx = {'auth_url': 'http://someauthurl.something',
                'username': 'testuser',
                'password': 'testkey'}
 
@@ -219,10 +223,24 @@ class TestIdentity(test.ProviderTester):
                                        mox.IgnoreArg())
         httplib.HTTPConnection.getresponse().AndReturn(response)
         httplib.HTTPConnection.close()
+        self.mox.ReplayAll()
+        self.assertEqual(identity.os_authenticate(auth_dict=ctx),
+                         (u'12345678901234567890',
+                          u'admin',
+                          u'testuser',
+                          json.loads(self.pri_servicecat)))
+
+    def test_get_token(self):
+        """Test Get Token Return on field 0."""
+
+        ctx = {'region': 'testregion',
+               'username': 'testuser',
+               'password': 'testkey'}
+        self.mox.StubOutWithMock(identity, 'get_token')
+        identity.get_token(context=ctx).AndReturn('token')
 
         self.mox.ReplayAll()
-        self.assertEqual(identity.get_token(context=ctx),
-                         '12345678901234567890')
+        self.assertEqual(identity.get_token(context=ctx), 'token')
 
 
 if __name__ == '__main__':

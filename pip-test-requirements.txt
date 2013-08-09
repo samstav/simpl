@@ -20,10 +20,10 @@ nose
 nosexcover
 webtest
 mongobox
+virtualenv
 
 # pymox
 #  Upstream: http://pymox.googlecode.com/svn/trunk/
 #  Notes:    mox hasn't had a commit in 1.5 years. We lock it down to revision
 #            r75 just to be safe.
 -e svn+http://pymox.googlecode.com/svn/trunk@r75#egg=mox
-
