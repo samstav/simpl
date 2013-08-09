@@ -247,8 +247,9 @@ class Deployment(morpheus.MorpheusDict):
                 value = self.legacy_statuses[value]
             if value != self.fsm.current:
                 try:
-                    LOG.info("Deployment %s going from %s to %s",
-                             self.get('id'), self.get('status'), value)
+                    LOG.info("Tenant: %s - Deployment %s going from %s to %s",
+                             self.get('tenantId'), self.get('id'),
+                             self.get('status'), value)
                     self.fsm.change_to(value)
                 except InvalidStateError as error:
                     raise CheckmateBadState(str(error))
