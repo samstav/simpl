@@ -16,13 +16,9 @@ environment:
       - compute: linux
       - compute: windows
       vendor: rackspace
-
 """
 
 from checkmate.providers import register_providers as rps
-
-# for celery
-import checkmate.providers.os_auth.identity
 
 def register():
     from checkmate.providers.rackspace.compute_legacy import (
@@ -34,5 +30,4 @@ def register():
     from checkmate.providers.rackspace.database import Provider as database
     from checkmate.providers.rackspace.dns import Provider as dns
     from checkmate.providers.rackspace.files import Provider as files
-    from checkmate.providers.os_auth.identity import os_authenticate as auth
-    rps([legacy, nova, loadbalancer, database, dns, files, auth])
+    rps([legacy, nova, loadbalancer, database, dns, files])
