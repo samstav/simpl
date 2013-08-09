@@ -283,20 +283,21 @@ class TokenAuthMiddleware(object):
 
         if 'HTTP_X_AUTH_TOKEN' in environ:
             context = request.context
-            token = environ['HTTP_X_AUTH_TOKEN']
-            try:
-                if self.service_token:
-                    content = self._validate_keystone(token,
+            if context.authenticated is not True:
+                token = environ['HTTP_X_AUTH_TOKEN']
+                try:
+                    if self.service_token:
+                        cnt = self._validate_keystone(token,
                                                       tenant_id=context.tenant)
-                else:
-                    content = self.auth_keystone(context=context.tenant,
+                    else:
+                        cnt = self.auth_keystone(context=context.tenant,
                                                  auth_url=self.endpoint['uri'],
                                                  token=token)
-                environ['HTTP_X_AUTHORIZED'] = "Confirmed"
-            except HTTPUnauthorized as exc:
-                return exc(environ, start_response)
-            context.auth_source = self.endpoint['uri']
-            context.set_context(content)
+                    environ['HTTP_X_AUTHORIZED'] = "Confirmed"
+                except HTTPUnauthorized as exc:
+                    return exc(environ, start_response)
+                context.auth_source = self.endpoint['uri']
+                context.set_context(cnt)
 
         return self.app(environ, start_response)
 
@@ -776,9 +777,9 @@ class AuthTokenRouterMiddleware(object):
             for endpoint in endpoints:
                 if endpoint not in self.endpoints:
                     if 'middleware' not in endpoint:
-                        error_message = "Required 'middleware' key " \
-                                     "not specified in endpoint: " \
-                                     "%s" % endpoint
+                        error_message = ("Required 'middleware' key "
+                                         "not specified in endpoint: "
+                                         "%s" % endpoint)
                         raise CheckmateUserException(error_message,
                                                      utils.get_class_name(
                                                          CheckmateException),
