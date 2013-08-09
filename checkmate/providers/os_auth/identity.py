@@ -42,7 +42,8 @@ def parse_region(auth_dict):
         rax = True
     elif any([region == 'DFW',
               region == 'ORD',
-              region == 'SYD']):
+              region == 'SYD',
+              region == 'IAD']):
         url = auth_dict.get('auth_url', '%s' % authurl)
         rax = True
     else:
