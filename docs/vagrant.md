@@ -45,17 +45,17 @@ The process is faily easy though consumes a bunch of space on your system. If yo
 
 1. Convert the image your downloaded to a qcow2 `qemu-img convert -f vmdk -O qcow2 ~/.vagrant.d/boxes/precise64/virtualbox/box-disk1.img ~/box.img`.
 2. Create metadata.json with the following `echo '{"provider": "libvirt", "format": "qcow2", "virtual_size": 80}' > metadata.json`
-3. Create the base VagrantFile with the following :
+3. Create the base VagrantFile with the following 
 
-    Vagrant.configure("2") do |config|
-      config.vm.provider :libvirt do |libvirt|
-        libvirt.driver = "qemu"
-        libvirt.host = "localhost"
-        libvirt.connect_via_ssh = false
-        libvirt.username = "root"
-        libvirt.storage_pool_name = "default"
-      end
-    end
+        Vagrant.configure("2") do |config|
+          config.vm.provider :libvirt do |libvirt|
+            libvirt.driver = "qemu"
+            libvirt.host = "localhost"
+            libvirt.connect_via_ssh = false
+            libvirt.username = "root"
+            libvirt.storage_pool_name = "default"
+          end
+        end
 
 4. Now tar all the things together to make your box. `tar cvzf precise.box ./metadata.json ./Vagrantfile ./box.img`
 5. Finally add the new box to your vagrant environment `vagrant box add precise file:////location/to/the/tar/precise.box`
