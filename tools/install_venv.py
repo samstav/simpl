@@ -62,8 +62,8 @@ def run_command(cmd, redirect_output=True, check_exit_code=True):
     return output
 
 
-HAS_EASY_INSTALL = bool(run_command(['which', 'pip'],
-                        check_exit_code=False).strip())
+HAS_PIP = bool(run_command(['which', 'pip'],
+               check_exit_code=False).strip())
 HAS_VIRTUALENV = bool(run_command(['which', 'virtualenv'],
                       check_exit_code=False).strip())
 
@@ -75,7 +75,7 @@ def check_dependencies():
     if not HAS_VIRTUALENV:
         print 'not found.'
         # Try installing it via pip...
-        if HAS_EASY_INSTALL:
+        if HAS_PIP:
             print 'Installing virtualenv via pip...',
             if not (run_command(['which', 'pip']) and
                     run_command(['pip', 'install', 'virtualenv'])):
