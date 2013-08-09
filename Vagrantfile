@@ -8,22 +8,20 @@ Vagrant.configure("2") do |config|
   config.vm.define :cm_vm do |cm_vm|
     # Every Vagrant virtual environment requires a box to build off of.
     cm_vm.vm.box = "precise"
-
-    # UnComment for use with Libvirt/KVM Vagrant, YOU MUST COMMENT THE OTHER "box_url"
-    # cm_vm.vm.box_url = "https://dl.dropboxusercontent.com/u/50757999/libvirtubuntubox.box"
-
     cm_vm.vm.box_url = "http://files.vagrantup.com/precise64.box"
     cm_vm.vm.network :private_network, :ip => "192.168.122.69"
+    
+    config.vm.provider :libvirt do |libvirt, override|
+      override.vm.box_url = "https://dl.dropboxusercontent.com/u/50757999/libvirtubuntubox.box"
+      #NOTE the IP address should be relevant to your system
+      override.vm.network :private_network, :ip => "192.168.122.69"
+      libvirt.driver = "qemu"
+      libvirt.host = %x[hostname].strip
+      libvirt.connect_via_ssh = false
+      libvirt.username = "root"
+      libvirt.storage_pool_name = "default"
+    end
   end
-
-  # UnComment this block to make use of vagrant-libvirt
-  #config.vm.provider :libvirt do |libvirt|
-  #  libvirt.driver = "qemu"
-  #  libvirt.host = "THIS-THE-HYPERVISORS-HOSTNAME"
-  #  libvirt.connect_via_ssh = false
-  #  libvirt.username = "root"
-  #  libvirt.storage_pool_name = "default"
-  #end
 
   config.omnibus.chef_version = :latest
   config.berkshelf.enabled = true
