@@ -8,13 +8,14 @@ For tests, we don't care about:
     W0212 - Access to protected member of a client class
     W0232 - Class has no __init__ method
 '''
-
+import mock
 import unittest
 
 import mox
 
 from checkmate.deployment import (
     Deployment,
+    LOG,
     update_deployment_status_new,
 )
 from checkmate.exceptions import (
@@ -109,6 +110,13 @@ class TestDeploymentStateTransitions(unittest.TestCase):
 
         deployment.fsm.change_to('DELETED')
         self.assertEquals('DELETED', deployment.fsm.current)
+
+    @mock.patch.object(LOG, 'info')
+    def test_deployment_status_logging(self, mock_logger):
+        deployment = Deployment({'id': 'test', 'status': 'NEW', 'tenantId': 9})
+        deployment['status'] = 'PLANNED'
+        mock_logger.assert_called_with('Tenant: %s - Deployment %s going from '
+                                       '%s to %s', 9, 'test', 'NEW', 'PLANNED')
 
 
 class TestDeployments(unittest.TestCase):
