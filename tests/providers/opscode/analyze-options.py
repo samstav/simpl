@@ -78,9 +78,10 @@ class AnalyzeOptionsLogic(StubbedWorkflowBase):
             if ARGS.tenant:
                 self.context.tenant = ARGS.tenant
             middleware = TokenAuthMiddleware(None, ARGS.endpoint)
-            content = middleware._auth_keystone(
-                self.context, token=ARGS.token,
-                username=ARGS.username, apikey=ARGS.apikey
+            content = middleware.auth_keystone(tenant=self.context,
+                                               token=ARGS.token,
+                                               username=ARGS.username,
+                                               apikey=ARGS.apikey
             )
             self.context.set_context(content)
         # Load deployment
