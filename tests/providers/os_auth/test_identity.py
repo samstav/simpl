@@ -63,30 +63,30 @@ class TestIdentity(test.ProviderTester):
             }
         })
         self.rax_servicecat = json.dumps({
-            "access": {
-                "token": {
-                    "RAX-AUTH:authenticatedBy": ["APIKEY"],
-                    "expires": "2013-08-01T20:35:04.450-05:00",
-                    "id": "12345678901234567890",
-                    "tenant": {
-                        "id": "123456",
-                        "name": "123456"
+            u"access": {
+                u"token": {
+                    u"RAX-AUTH:authenticatedBy": [u"APIKEY"],
+                    u"expires": u"2013-08-01T20:35:04.450-05:00",
+                    u"id": u"12345678901234567890",
+                    u"tenant": {
+                        u"id": u"123456",
+                        u"name": u"123456"
                     }
                 }
             }
         })
         self.pri_servicecat = json.dumps({
-            "access": {
-                "token": {
-                    "expires": "2013-08-02T19:36:42Z",
-                    "id": "12345678901234567890"
+            u"access": {
+                u"token": {
+                    u"expires": u"2013-08-02T19:36:42Z",
+                    u"id": u"12345678901234567890"
                 },
-                "user": {
-                    "username": "admin",
-                    "roles_links": [],
-                    "id": "1234567890",
-                    "roles": [],
-                    "name": "admin"
+                u"user": {
+                    u"username": u"admin",
+                    u"roles_links": [],
+                    u"id": u"1234567890",
+                    u"roles": [],
+                    u"name": u"admin"
                 }
             }
         })
@@ -143,6 +143,8 @@ class TestIdentity(test.ProviderTester):
     def test_parse_region_no(self):
         """Test Region Test for No Region."""
 
+        ctx = {'username': 'testuser',
+               'apikey': 'testkey'}
         self.assertEqual(identity.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
@@ -198,12 +200,15 @@ class TestIdentity(test.ProviderTester):
 
         self.mox.ReplayAll()
         self.assertEqual(identity.os_authenticate(auth_dict=ctx),
-                         '12345678901234567890')
+                         (u'12345678901234567890',
+                          u'123456',
+                          u'testuser',
+                          json.loads(self.rax_servicecat)))
 
     def test_os_authenticate_pri(self):
         """Test Get Token For Openstack."""
 
-        ctx = {'region': 'ord',
+        ctx = {'auth_url': 'http://someauthurl.something',
                'username': 'testuser',
                'password': 'testkey'}
 
@@ -218,10 +223,12 @@ class TestIdentity(test.ProviderTester):
                                        mox.IgnoreArg())
         httplib.HTTPConnection.getresponse().AndReturn(response)
         httplib.HTTPConnection.close()
-
         self.mox.ReplayAll()
         self.assertEqual(identity.os_authenticate(auth_dict=ctx),
-                         '12345678901234567890')
+                         (u'12345678901234567890',
+                          u'admin',
+                          u'testuser',
+                          json.loads(self.pri_servicecat)))
 
     def test_get_token(self):
         """Test Get Token Return on field 0."""
@@ -230,7 +237,7 @@ class TestIdentity(test.ProviderTester):
                'username': 'testuser',
                'password': 'testkey'}
         self.mox.StubOutWithMock(identity, 'get_token')
-        identity.get_token().AndReturn('token')
+        identity.get_token(context=ctx).AndReturn('token')
 
         self.mox.ReplayAll()
         self.assertEqual(identity.get_token(context=ctx), 'token')
