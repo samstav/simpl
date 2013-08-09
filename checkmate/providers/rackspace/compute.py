@@ -1188,9 +1188,13 @@ def wait_on_build(context, server_id, region, resource,
     instance_key = 'instance:%s' % context['resource']
 
     if server.status == 'ERROR':
-        results = {'status': 'ERROR',
-                   'status-message': "Server %s build failed" % server_id}
-        results = {instance_key: results}
+        results = {
+            instance_key: {
+                'status': 'ERROR',
+                'status-message': "Server %s build failed" % server_id,
+            }
+        }
+
         resource_postback.delay(context['deployment'], results)
         chain(delete_server_task.si(context), wait_on_delete_server.si(
             context)).apply_async()
