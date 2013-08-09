@@ -9,7 +9,6 @@ Vagrant.configure("2") do |config|
     # Every Vagrant virtual environment requires a box to build off of.
     cm_vm.vm.box = "precise"
     cm_vm.vm.box_url = "http://files.vagrantup.com/precise64.box"
-    cm_vm.vm.network :private_network, :ip => "192.168.122.69"
     
     config.vm.provider :libvirt do |libvirt, override|
       override.vm.box_url = "https://dl.dropboxusercontent.com/u/50757999/libvirtubuntubox.box"
