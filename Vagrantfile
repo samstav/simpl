@@ -5,9 +5,25 @@ Vagrant.configure("2") do |config|
   # Lets lower the memory consumption some
   #config.vm.customize ["modifyvm", :id, "--memory", 256]
 
-  # Every Vagrant virtual environment requires a box to build off of.
-  config.vm.box = "precise"
-  config.vm.box_url = "http://files.vagrantup.com/precise64.box"
+  config.vm.define :cm_vm do |cm_vm|
+    # Every Vagrant virtual environment requires a box to build off of.
+    cm_vm.vm.box = "precise"
+
+    # UnComment for use with Libvirt/KVM Vagrant, YOU MUST COMMENT THE OTHER "box_url"
+    # cm_vm.vm.box_url = "https://dl.dropboxusercontent.com/u/50757999/libvirtubuntubox.box"
+
+    cm_vm.vm.box_url = "http://files.vagrantup.com/precise64.box"
+    cm_vm.vm.network :private_network, :ip => "192.168.122.69"
+  end
+
+  # UnComment this block to make use of vagrant-libvirt
+  #config.vm.provider :libvirt do |libvirt|
+  #  libvirt.driver = "qemu"
+  #  libvirt.host = "THIS-THE-HYPERVISORS-HOSTNAME"
+  #  libvirt.connect_via_ssh = false
+  #  libvirt.username = "root"
+  #  libvirt.storage_pool_name = "default"
+  #end
 
   config.omnibus.chef_version = :latest
   config.berkshelf.enabled = true
@@ -40,7 +56,7 @@ Vagrant.configure("2") do |config|
         :installer_url => "https://raw.github.com/wayneeseguin/rvm/master/binscripts/rvm-installer",
         :user_installs => [{
           :user => 'vagrant',
-          :default_ruby => 'ruby-1.9.3-p125@checkmate',
+          :default_ruby => 'ruby-1.9.3@checkmate',
           :gems => {
             'ruby-1.9.3-p125@checkmate' => [
               { 'name' => 'bundler' },

@@ -13,6 +13,7 @@ import os
 
 # some distros install as PAM (Ubuntu, SuSE)
 # https://bugs.launchpad.net/keystone/+bug/938801
+from checkmate.providers.os_auth import identity
 
 try:
     import pam
@@ -35,7 +36,6 @@ from checkmate.exceptions import (
     CheckmateUserException,
 )
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -50,12 +50,14 @@ def generate_response(self, environ, start_response):
         body = self.html_body(environ)
     elif accept and 'yaml' in accept:
         content_type = 'application/x-yaml'
-        data = dict(error=dict(explanation=self.__str__(), code=self.code,
+        data = dict(error=dict(explanation=self.__str__(),
+                               code=self.code,
                                description=self.title))
         body = utils.to_yaml(data)
     elif accept and 'json' in accept:
         content_type = 'application/json'
-        data = dict(error=dict(explanation=self.__str__(), code=self.code,
+        data = dict(error=dict(explanation=self.__str__(),
+                               code=self.code,
                                description=self.title))
         body = utils.to_json(data)
     else:
@@ -64,7 +66,8 @@ def generate_response(self, environ, start_response):
     extra_kw = {}
     if isinstance(body, unicode):
         extra_kw.update(charset='utf-8')
-    resp = webob.Response(body, status=self.status,
+    resp = webob.Response(body,
+                          status=self.status,
                           headerlist=headerlist,
                           content_type=content_type,
                           **extra_kw)
@@ -256,7 +259,9 @@ class TokenAuthMiddleware(object):
         # FIXME: temporary logic. Make this get a new token when needed
         if self.service_username:
             try:
-                result = self._auth_keystone(RequestContext(),
+                _rqc = RequestContext()
+                LOG.debug('REQUESTED CONTEXT INFORMATION %s' % _rqc)
+                result = self._auth_keystone(_rqc,
                                              username=self.service_username,
                                              password=self.service_password)
                 self.service_token = result['access']['token']['id']
@@ -270,7 +275,7 @@ class TokenAuthMiddleware(object):
         '''Authenticate calls with X-Auth-Token to the source auth service.'''
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
-        if self.anonymous_paths and root in self.anonymous_paths:
+        if all([self.anonymous_paths, root in self.anonymous_paths]):
             # Allow anything marked as anonymous
             return self.app(environ, start_response)
 
@@ -278,23 +283,21 @@ class TokenAuthMiddleware(object):
 
         if 'HTTP_X_AUTH_TOKEN' in environ:
             context = request.context
-            if context.authenticated is not True:
-                token = environ['HTTP_X_AUTH_TOKEN']
-                try:
-                    if self.service_token:
-                        content = self._validate_keystone(token,
-                                                          tenant_id=
-                                                          context.tenant)
-                    else:
-                        content = self.auth_keystone(context.tenant,
-                                                     self.endpoint['uri'],
-                                                     self.auth_header,
-                                                     token)
-                    environ['HTTP_X_AUTHORIZED'] = "Confirmed"
-                except HTTPUnauthorized as exc:
-                    return exc(environ, start_response)
-                context.auth_source = self.endpoint['uri']
-                context.set_context(content)
+            token = environ['HTTP_X_AUTH_TOKEN']
+            try:
+                if self.service_token:
+                    content = self._validate_keystone(token,
+                                                      tenant_id=context.tenant)
+                else:
+                    content = self.auth_keystone(context.tenant,
+                                                 self.endpoint['uri'],
+                                                 self.auth_header,
+                                                 token)
+                environ['HTTP_X_AUTHORIZED'] = "Confirmed"
+            except HTTPUnauthorized as exc:
+                return exc(environ, start_response)
+            context.auth_source = self.endpoint['uri']
+            context.set_context(content)
 
         return self.app(environ, start_response)
 
@@ -309,61 +312,29 @@ class TokenAuthMiddleware(object):
                                   password=password)
 
     @caching.CacheMethod(sensitive_kwargs=['token', 'apikey', 'password'],
-                         timeout=600, cache_exceptions=True)
+                         timeout=600,
+                         cache_exceptions=True)
     def auth_keystone(self, tenant, auth_url, auth_header, token=None,
                       username=None, apikey=None, password=None):
-        '''Authenticates to keystone.'''
-        url = urlparse(auth_url)
-        if url.scheme == 'https':
-            port = url.port or 443
-            http = httplib.HTTPSConnection(url.hostname, port)
-        else:
-            port = url.port or 80
-            http = httplib.HTTPConnection(url.hostname, port)
+        """Authenticates to rax/openstack api.
 
-        if token:
-            body = {"auth": {"token": {"id": token}}}
-        elif password:
-            body = {"auth": {"passwordCredentials": {
-                    "username": username, 'password': password}}}
-        elif apikey:
-            body = {"auth": {"RAX-KSKEY:apiKeyCredentials": {
-                    "username": username, 'apiKey': apikey}}}
+        :param tenant:
+        :param auth_url:
+        :param auth_header:
+        :param token:
+        :param username:
+        :param apikey:
+        :param password:
+        """
 
-        if tenant:
-            auth = body['auth']
-            auth['tenantId'] = tenant
-            LOG.debug("Authenticating to tenant '%s'", tenant)
-        headers = {
-            'Content-type': 'application/json',
-            'Accept': 'application/json',
-        }
-        try:
-            LOG.debug('Authenticating to %s', auth_url)
-            http.request('POST', url.path, body=json.dumps(body),
-                         headers=headers)
-            resp = http.getresponse()
-            body = resp.read()
-        except Exception as exc:
-            LOG.error('HTTP connection exception: %s', exc)
-            raise HTTPUnauthorized('Unable to communicate with %s' %
-                                   auth_url)
-        finally:
-            http.close()
-
-        if resp.status != 200:
-            LOG.debug('Invalid token for tenant %s on %s: %s', tenant,
-                      auth_url, resp.reason)
-            raise HTTPUnauthorized("Token invalid or not valid for this "
-                                   "tenant (%s)" % resp.reason,
-                                   [('WWW-Authenticate', auth_header)])
-
-        try:
-            return json.loads(body)
-        except ValueError:
-            msg = 'Keystone did not return json-encoded body'
-            LOG.debug(msg)
-            raise HTTPUnauthorized(msg)
+        auth_base = {'auth_url': auth_url,
+                     'username': username,
+                     'tenant': tenant,
+                     'apikey': apikey,
+                     'password': password,
+                     'token': str(token)}
+        LOG.debug('Authentication DATA dict == %s' % auth_base)
+        return identity.os_authenticate(auth_dict=auth_base)[3]
 
     @caching.CacheMethod(sensitive_args=[0], timeout=600)
     def _validate_keystone(self, token, tenant_id=None):
@@ -817,8 +788,8 @@ class AuthTokenRouterMiddleware(object):
                 if endpoint not in self.endpoints:
                     if 'middleware' not in endpoint:
                         error_message = "Required 'middleware' key " \
-                                        "not specified in endpoint: " \
-                                        "%s" % endpoint
+                                     "not specified in endpoint: " \
+                                     "%s" % endpoint
                         raise CheckmateUserException(error_message,
                                                      utils.get_class_name(
                                                          CheckmateException),
