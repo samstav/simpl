@@ -1,12 +1,7 @@
-import crypt
-from Crypto import Random
+from passlib.hash import sha512_crypt
 
 
 def HashSHA512(value, salt=None):
     if not salt:
-        Random.atfork()
-        salt = "$6$" + Random.get_random_bytes(6).encode('base64')[:-1].\
-               replace('+', '.') + "$"
-    else:
-        salt = "$6$" + salt + "$"
-    return crypt.crypt(value, salt)
+        return sha512_crypt.encrypt(value)
+    return sha512_crypt.encrypt(value, salt=salt)

@@ -8,9 +8,9 @@ class TestEnvironments(unittest.TestCase):
     def test_hashSHA512(self):
         """Test the get_setting function"""
         hashed_value = keys.hash_SHA512('test', salt="abcdefgh")
-        self.assertEqual(hashed_value, '$6$abcdefgh$3rj1vTLX64btReFsM4MQ22otcD'
-                                       '40l7vbtw7qCyr0dxc4kxNmgx53xVM8gWiLYbCq'
-                                       'THTbXFaVFU7ZT28pnvdyu0')
+        self.assertEqual(hashed_value, '$6$rounds=60000$abcdefgh$deeGhChT2CWz3'
+                                       'emQf1CisUjqgaxE5tJdyzF1HH3aBHy3KuwJeLj'
+                                       'LRIPJtPWr4Nu2sVZ3cvdM/ZRDRT.mtBIxr0')
 
     def test_hashMD5(self):
         """Test the get_setting function"""
