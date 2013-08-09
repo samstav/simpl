@@ -2018,9 +2018,8 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
             chef_map.get_attributes('foo', None),
             {
                 'here':
-                '$6$ahem$cf866f39224e26521d6ac5575225c0ac4933ec3d47bc'
-                'ee136c3ceef8341343b4530858b8bca85e33e1e4ccf297f8b096'
-                'fcebe978f5e0d6e8188445dc89cc66cf'
+                '$6$ahem$Hr/A1U.7/hAsafdom.ncqTDL/dxtSOX2WrIa58dzZiUb'
+                'DQAv7uaWW/b2AoctM/3tOKEPb3WhIo5VwfPW4FetQ/'
             }
         )
 
