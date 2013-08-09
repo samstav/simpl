@@ -39,7 +39,8 @@ def hash_SHA512(value, salt=None):
     """Create random SHA512 hashed value"""
     if not salt:
         Random.atfork()
-        salt = "$6$" + Random.get_random_bytes(6).encode('base64')[:-1].replace('+', '.') + "$"
+        salt = "$6$" + Random.get_random_bytes(6).encode('base64')[:-1].\
+               replace('+', '.') + "$"
     else:
         salt = "$6$" + salt + "$"
     return crypt.crypt(value, salt)
@@ -49,7 +50,8 @@ def hash_MD5(value, salt=None):
     """Create random MD5 hashed value"""
     if not salt:
         Random.atfork()
-        salt = "$1$" + Random.get_random_bytes(6).encode('base64')[:-1].replace('+', '.') + "$"
+        salt = "$1$" + Random.get_random_bytes(6).encode('base64')[:-1].\
+               replace('+', '.') + "$"
     else:
         salt = "$1$" + salt + "$"
     return crypt.crypt(value, salt)
