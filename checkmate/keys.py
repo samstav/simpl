@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import crypt
 import logging
 
 from Crypto.PublicKey import RSA  # pip install pycrypto
