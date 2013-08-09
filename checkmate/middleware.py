@@ -290,7 +290,7 @@ class TokenAuthMiddleware(object):
                         cnt = self._validate_keystone(token,
                                                       tenant_id=context.tenant)
                     else:
-                        cnt = self.auth_keystone(context=context.tenant,
+                        cnt = self.auth_keystone(tenant=context.tenant,
                                                  auth_url=self.endpoint['uri'],
                                                  token=token)
                     environ['HTTP_X_AUTHORIZED'] = "Confirmed"
