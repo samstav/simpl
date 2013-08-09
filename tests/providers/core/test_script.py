@@ -1,32 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+'''Tests for script provider'''
 
-"""Tests for script provider"""
-
-import __builtin__
-import json
 import logging
-import os
-import unittest2 as unittest
-from urlparse import urlunparse
+import unittest
 
-import mox
-from mox import In, IsA, And, IgnoreArg, ContainsKeyValue, Not
-
-# Init logging before we load the database, 3rd party, and 'noisy' modules
-
-from checkmate.utils import init_console_logging
-from unittest.case import skip
-import checkmate
-init_console_logging()
-LOG = logging.getLogger(__name__)
-
-from checkmate import test, utils
-from checkmate.deployments import Deployment, plan
-from checkmate.middleware import RequestContext
-from checkmate.providers import base, register_providers
+from checkmate import test
 from checkmate.providers.core import script
-from checkmate.workflows import create_workflow_deploy
+
+LOG = logging.getLogger(__name__)
 
 
 class TestScriptProvider(test.ProviderTester):

@@ -1,13 +1,14 @@
-"""Core Provider
+'''Core Provider
 
 Defined:
-script   - ca script configuration provider
+script   - a script configuration provider
 
-"""
+'''
 
-from checkmate.providers import register_providers
+from checkmate import providers
 
 
 def register():
-    from checkmate.providers.core.script import Provider as script
-    register_providers([script])
+    '''Register package providers.'''
+    from checkmate.providers.core import script
+    providers.register_providers([script.Provider])
