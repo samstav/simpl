@@ -261,9 +261,9 @@ class TokenAuthMiddleware(object):
             try:
                 _rqc = RequestContext()
                 LOG.debug('REQUESTED CONTEXT INFORMATION %s' % _rqc)
-                result = self._auth_keystone(_rqc,
-                                             username=self.service_username,
-                                             password=self.service_password)
+                result = self.auth_keystone(tenant=_rqc.tenant,
+                                            username=self.service_username,
+                                            password=self.service_password)
                 self.service_token = result['access']['token']['id']
             except Exception:
                 LOG.error("Unable to authenticate as a service. Endpoint '%s' "
@@ -289,10 +289,9 @@ class TokenAuthMiddleware(object):
                     content = self._validate_keystone(token,
                                                       tenant_id=context.tenant)
                 else:
-                    content = self.auth_keystone(context.tenant,
-                                                 self.endpoint['uri'],
-                                                 self.auth_header,
-                                                 token)
+                    content = self.auth_keystone(context=context.tenant,
+                                                 auth_url=self.endpoint['uri'],
+                                                 token=token)
                 environ['HTTP_X_AUTHORIZED'] = "Confirmed"
             except HTTPUnauthorized as exc:
                 return exc(environ, start_response)
@@ -301,21 +300,11 @@ class TokenAuthMiddleware(object):
 
         return self.app(environ, start_response)
 
-    def _auth_keystone(self, context, token=None, username=None, apikey=None,
-                       password=None):
-        return self.auth_keystone(context.tenant,
-                                  self.endpoint['uri'],
-                                  self.auth_header,
-                                  token=token,
-                                  username=username,
-                                  apikey=apikey,
-                                  password=password)
-
     @caching.CacheMethod(sensitive_kwargs=['token', 'apikey', 'password'],
                          timeout=600,
                          cache_exceptions=True)
-    def auth_keystone(self, tenant, auth_url, auth_header, token=None,
-                      username=None, apikey=None, password=None):
+    def auth_keystone(self, tenant, auth_url, token=None, username=None,
+                      apikey=None, password=None):
         """Authenticates to rax/openstack api.
 
         :param tenant:
