@@ -20,6 +20,7 @@ nose
 nosexcover
 webtest
 mongobox
+virtualenv
 
 # pymox
 #  Upstream: http://pymox.googlecode.com/svn/trunk/
