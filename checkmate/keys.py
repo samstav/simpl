@@ -1,9 +1,11 @@
 #!/usr/bin/env python
-import crypt
 import logging
 
 from Crypto.PublicKey import RSA  # pip install pycrypto
 from Crypto import Random
+from passlib.hash import md5_crypt
+from passlib.hash import sha512_crypt
+
 
 LOG = logging.getLogger(__name__)
 
@@ -38,20 +40,12 @@ def get_public_key(private_key):
 def hash_SHA512(value, salt=None):
     """Create random SHA512 hashed value"""
     if not salt:
-        Random.atfork()
-        salt = "$6$" + Random.get_random_bytes(6).encode('base64')[:-1].\
-               replace('+', '.') + "$"
-    else:
-        salt = "$6$" + salt + "$"
-    return crypt.crypt(value, salt)
+        return sha512_crypt.encrypt(value)
+    return sha512_crypt.encrypt(value, salt=salt)
 
 
 def hash_MD5(value, salt=None):
     """Create random MD5 hashed value"""
     if not salt:
-        Random.atfork()
-        salt = "$1$" + Random.get_random_bytes(6).encode('base64')[:-1].\
-               replace('+', '.') + "$"
-    else:
-        salt = "$1$" + salt + "$"
-    return crypt.crypt(value, salt)
+        return md5_crypt.encrypt(value)
+    return md5_crypt.encrypt(value, salt=salt)

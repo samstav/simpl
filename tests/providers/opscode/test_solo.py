@@ -2010,7 +2010,7 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
         chef_map._raw = '''
             id: foo
             maps:
-            - value: {{ hash('password', salt='ahem') }}
+            - value: {{ hash('password', salt='ahem1234') }}
               targets:
               - attributes://here
         '''
@@ -2018,8 +2018,9 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
             chef_map.get_attributes('foo', None),
             {
                 'here':
-                '$6$ahem$Hr/A1U.7/hAsafdom.ncqTDL/dxtSOX2WrIa58dzZiUb'
-                'DQAv7uaWW/b2AoctM/3tOKEPb3WhIo5VwfPW4FetQ/'
+                '$6$rounds=60000$ahem1234$6SJb7IPwxFdrqAKZIK4Q3yAxkHc'
+                'VCGXgwE2Onzrxwgzsb3LANHxMdrGlS05MYjT/ncgo6xIH1Pm1dqS'
+                'tJWqoY/'
             }
         )
 
