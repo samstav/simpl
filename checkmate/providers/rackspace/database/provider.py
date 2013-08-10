@@ -53,7 +53,8 @@ class Provider(providers.ProviderBase):
         'BUILD': 'BUILD',
         'REBOOT': 'CONFIGURE',
         'RESIZE': 'CONFIGURE',
-        'SHUTDOWN': 'CONFIGURE'
+        'SHUTDOWN': 'CONFIGURE',
+        'ERROR': 'ERROR',
     }
 
     def generate_template(self, deployment, resource_type, service, context,
