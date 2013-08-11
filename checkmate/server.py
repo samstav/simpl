@@ -189,10 +189,18 @@ def main():
     check_celery_config()
 
     # Register built-in providers
-    from checkmate.providers import rackspace
-    rackspace.register()
-    from checkmate.providers import opscode
-    opscode.register()
+    LOG.info("Loading checkmate providers")
+    provider_path = '%s/providers' % (checkmate.__path__[0])
+    #import all providers in providers dir
+    for p in (os.walk(provider_path).next()[1]):
+        try:
+            LOG.info("Registering provider %s" % (p))
+            provider = __import__("checkmate.providers.%s" % (p),
+                                  globals(), locals(), ['object'], -1)
+            register_method = getattr(provider, 'register')()
+        except ImportError as exc:
+            LOG.error("Cant load % provider" % (provider) )
+            LOG.exception(exc)
 
     # Load routes from other modules
     LOG.info("Loading Checkmate API")
