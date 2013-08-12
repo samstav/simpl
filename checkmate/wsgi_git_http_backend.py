@@ -1,28 +1,30 @@
-'''Utility functions to invoke git-http-backend in a Bottle context.
-   Original Author+Credit: Walker Hale IV <walker.hale.iv@gmail.com>
-   Repo source: https://github.com/walkerh/wsgi-git-http-backend
-   Date of code taken: Mar 21, 2013 (sha: cc1a93b091)
-   Revision Author: Zak Jones <zak.jones@rackspace.com>
-   License: None observed by original author.
-'''
+"""Utility functions to invoke git-http-backend in a Bottle context.
 
-from eventlet.green import threading, subprocess
+Original Author+Credit: Walker Hale IV <walker.hale.iv@gmail.com>
+Repo source: https://github.com/walkerh/wsgi-git-http-backend
+Date of code taken: Mar 21, 2013 (sha: cc1a93b091)
+Revision Author: Zak Jones <zak.jones@rackspace.com>
+License: None observed by original author.
+"""
+
+from eventlet.green import subprocess
+from eventlet.green import threading
 
 DEFAULT_CHUNK_SIZE = 0x8000
 DEFAULT_MAX_HEADER_SIZE = 0X20000  # No header should ever be this large.
-# TODO: expose these sizes to API
+# TODO(any): expose these sizes to API
 CRLF = b'\r\n'
 HEADER_END = CRLF * 2
 
 
 def wsgi_to_git_http_backend(wsgi_environ, user=None):
-    '''
-    Convenience wrapper for how a WSGI application can use this
-    module to handle a request.
+    """Convenience wrapper for a WSGI application.
+
+    A WSGI application can use this module to handle a request.
     See build_cgi_environ regarding git_project_root and user.
     See run_git_http_backend for requirements for wsgi.input
     and wsgi.errors.
-    '''
+    """
 
     cgi_environ = build_cgi_environ(wsgi_environ, user)
     input_stream = wsgi_environ['wsgi.input']
@@ -39,9 +41,9 @@ def wsgi_to_git_http_backend(wsgi_environ, user=None):
 
 
 def run_git_http_backend(cgi_environ, input_stream, error_stream):
-    '''
-    Execute "git http-backend" as a CGI script, using the supplied
-    environment and the file-like object input_stream.
+    """Execute "git http-backend" as a CGI script.
+
+    Uses the supplied environment and the file-like object input_stream.
 
     See build_cgi_environ() and git documentation for the requirements
     for cgi_environ .
@@ -59,7 +61,7 @@ def run_git_http_backend(cgi_environ, input_stream, error_stream):
 
     Raise EnvironmentError (errno 1) if a CGI/HTTP header is not returned
     from git http-backend.
-    '''
+    """
 
     input_length = int(cgi_environ.get('CONTENT_LENGTH', '') or 0)
     proc = subprocess.Popen(
@@ -77,8 +79,7 @@ def run_git_http_backend(cgi_environ, input_stream, error_stream):
 
 
 def build_cgi_environ(wsgi_environ, user=None):
-    '''
-    Build a CGI environ from a WSGI environment:
+    """Build a CGI environ from a WSGI environment:
 
     CONTENT_TYPE
     GIT_PROJECT_ROOT = directory containing bare repos
@@ -96,7 +97,7 @@ def build_cgi_environ(wsgi_environ, user=None):
 
     If REMOTE_USER is set in wsgi_environ, you should normally leave user
     alone.
-    '''
+    """
 
     cgi_environ = dict(wsgi_environ)
     for key, value in cgi_environ.items():  # NOT iteritems, due to "del"
@@ -108,11 +109,11 @@ def build_cgi_environ(wsgi_environ, user=None):
 
 
 def parse_cgi_header(cgi_header):
-    '''
+    """Adapts the CGI header to WSGI conventions.
+
     Given the raw header returned by the CGI, return
-    (status_line, list_of_headers). This adapts the CGI header
-    to WSGI conventions.
-    '''
+    (status_line, list_of_headers).
+    """
     header_dict = {}
     names = []  # to preserve order
     raw_lines = cgi_header.split(CRLF)
@@ -129,8 +130,8 @@ def parse_cgi_header(cgi_header):
 
 
 def _communicate_with_git(proc, input_stream, input_length):
-    '''
-    Given a subprocess.Popen object:
+    """Given a subprocess.Popen object:
+
     * Start writing request data
     * Start reading stdout and possibly stderr
     * Extract the cgi_header
@@ -138,7 +139,7 @@ def _communicate_with_git(proc, input_stream, input_length):
     * Return (cgi_header, response_body_generator)
     (The generator is responsible for extracting all data and cleaning up.)
     Raise EnvironmentError (errno 1) if header is not returned from proc.
-    '''
+    """
 
     threading.Thread(target=_input_data_pump,
                      args=(proc, input_stream, input_length)).start()
@@ -170,11 +171,10 @@ def _communicate_with_git(proc, input_stream, input_length):
 
 
 def _input_data_pump(proc, input_stream, input_length):
-    '''
-    Thread for feeding input to git
-    TODO: Currently using threads due to lack of universal standard for
-    async event loops in web applications.
-    '''
+    """Thread for feeding input to git."""
+
+    # TODO(any): Currently using threads due to lack of universal standard for
+    # async event loops in web applications.
     bytes_read = 0
     while bytes_read < input_length:
         bytes_to_read = min(DEFAULT_CHUNK_SIZE, input_length - bytes_read)
@@ -185,13 +185,14 @@ def _input_data_pump(proc, input_stream, input_length):
 
 
 def _find_header_end_in_2_chunks(chunk0, chunk1):
-    '''
+    """Adapts the CGI header end to WSGI conventions.
+
     Search for the 4-byte HEADER_END in either the end of the first chunk
     (with the 4-byte boundary stretching into the second chunk) or within
     the second chunk starting at 0.
     Return as (header_end_on_boundary, index_within_chunk).
     Return None if header end not found.
-    '''
+    """
 
     boundary_string = chunk0[-3:] + chunk1[:3]
     header_end = _search_str_for_header_end(boundary_string)
@@ -204,12 +205,12 @@ def _find_header_end_in_2_chunks(chunk0, chunk1):
 
 
 def _search_str_for_header_end(data_str):
-    '''Return index of header end or -1.'''
+    """Return index of header end or -1."""
     return data_str.find(HEADER_END)
 
 
 def _separate_header(chunks, header_end_on_boundary, index_within_chunk):
-    # Return header, remainder
+    """Return header, remainder."""
     if header_end_on_boundary:
         # Header ends within chunks[-2]
         header_chunks = chunks[:-2]
@@ -228,15 +229,15 @@ def _separate_header(chunks, header_end_on_boundary, index_within_chunk):
 
 
 def _response_body_generator(remainder, proc):
-    '''
-    The generator returned up the stack to the WSGI application.
+    """The generator returns up the stack to the WSGI application.
+
     Yields chunks of data from the subprocess output.
-    '''
+    """
     yield remainder
     current_data = proc.stdout.read(DEFAULT_CHUNK_SIZE)
     while current_data:
         yield current_data
         current_data = proc.stdout.read(DEFAULT_CHUNK_SIZE)
-    # TODO: Do we need this?
+    # TODO(any): Do we need this?
     while proc.poll() is None:
         yield ''
