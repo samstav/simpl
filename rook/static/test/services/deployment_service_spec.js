@@ -1,14 +1,21 @@
-describe('deployment', function(){
+describe('Deployment service', function(){
   var Deployment,
       deployment,
-      operation;
+      operation,
+      $httpBackend;
 
   beforeEach(module('checkmate.services'));
-  beforeEach(inject(['Deployment', function(deployment_service){
-    Deployment = deployment_service;
+  beforeEach(inject(function($injector) {
+    Deployment = $injector.get('Deployment');
+    $httpBackend = $injector.get('$httpBackend');
     deployment = {};
     operation = {};
-  }]));
+  }));
+
+  afterEach(function() {
+    $httpBackend.verifyNoOutstandingExpectation();
+    $httpBackend.verifyNoOutstandingRequest();
+  });
 
   describe('status', function(){
     it('should return the deployment status', function(){
