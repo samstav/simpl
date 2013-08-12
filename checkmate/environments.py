@@ -224,6 +224,7 @@ def get_provider_catalog(provider_id, tenant_id=None):
         provider = environment.get_provider(provider_id)
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
+    bottle.request.context['region'] = bottle.request.query.get('region')
     if 'type' in bottle.request.query:
         catalog = (provider.get_catalog(bottle.request.context,
                    type_filter=bottle.request.query['type']))
@@ -247,6 +248,7 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
         provider = environment.get_provider(provider_id)
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
+    bottle.request.context['region'] = bottle.request.query.get('region')
     component = provider.get_component(bottle.request.context, component_id)
     if component:
         return utils.write_body(
