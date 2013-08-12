@@ -199,7 +199,7 @@ def main():
                                   globals(), locals(), ['object'], -1)
             register_method = getattr(provider, 'register')()
         except ImportError as exc:
-            LOG.error("Failed to load % provider" % (prvder) )
+            LOG.error("Failed to load %s provider" % (prvder) )
             LOG.exception(exc)
             pass
         except AttributeError as exc:
