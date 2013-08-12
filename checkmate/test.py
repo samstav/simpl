@@ -960,7 +960,6 @@ class ProviderTester(unittest.TestCase):
                   - widget: bar
                   vendor: test
                   catalog:
-                    current_region: test_region
                     widget:
                       small_widget:
                         is: widget

@@ -252,8 +252,6 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 for key, type_category in data.iteritems():
                     if key == 'lists':
                         continue
-                    if key == 'current_region':
-                        continue
                     for _, component in type_category.iteritems():
                         if 'provides' in component:
                             for entry in component['provides']:
@@ -285,7 +283,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if type_filter and type_filter in catalog:
                 result = {type_filter: catalog[type_filter]}
             else:
-                result = self._dict['catalog']
+                result = catalog
         return result
 
     @staticmethod
@@ -306,8 +304,6 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         catalog = self.get_catalog(context)
         for key, value in catalog.iteritems():
             if key == 'lists':
-                continue
-            if key == 'current_region':
                 continue
             if component_id in value:
                 result = value[component_id]
@@ -386,8 +382,6 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         for key, components in catalog.iteritems():
             if key == 'lists':
                 continue  # ignore lists, we are looking for components
-            if key == 'current_region':
-                continue
             for iter_id, component in components.iteritems():
                 if component_id and component_id != iter_id:
                     continue  # ID specified and does not match
