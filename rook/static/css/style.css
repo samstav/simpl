@@ -510,7 +510,6 @@ text.nodetext {
 #deployment_tree {
   width: 256px;
   height: 256px;
-  float: right;
 }
 
 #deployment_tree .edge {
@@ -597,4 +596,25 @@ th.id { min-width: 160px; }
 
 tr.messages td {
   text-align: center;
+}
+
+.action,
+.action:hover {
+  text-decoration: none;
+}
+.action-add {
+  color: #080;
+}
+.action-delete,
+.action-delete:hover {
+  color: #F00;
+}
+.off-table-left {
+  width: 25px;
+  margin-left: -25px;
+  display: none;
+}
+.off-table-left:hover,
+tr:hover .off-table-left {
+  display: block;
 }
