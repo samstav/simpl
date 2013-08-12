@@ -1,5 +1,5 @@
 """
-Celery tasks to authenticate against the Rackspace Cloud
+Celery tasks to authenticate against OpenStack Keystone
 """
 import logging
 import httplib
@@ -7,16 +7,17 @@ import json
 
 from celery.task import task
 from checkmate.common import statsd
-from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
 
 
-class NoTenatIdFound(Exception):
+class NoTenantIdFound(Exception):
+    '''Tenant not foubd.'''
     pass
 
 
 class AuthenticationFailure(Exception):
+    '''Authentication Failed.'''
     pass
 
 
@@ -102,7 +103,7 @@ def authenticate(auth_dict):
     authurl = _url.strip('http?s://')
     url_data = authurl.split('/')
     aurl = url_data[0]
-    LOG.debug('POST == DICT > JSON DUMP %s' % auth_json)
+    LOG.debug('POST == DICT > JSON DUMP %s', auth_json)
     authjsonreq = json.dumps(auth_json)
     headers = {'Content-Type': 'application/json'}
     tokenurl = '/v2.0/tokens'
@@ -141,9 +142,8 @@ def authenticate(auth_dict):
     elif 'user' in jra:
         tenantid = jra.get('user').get('name')
     else:
-        raise NoTenatIdFound('When attempting to grab the tenant/user ',
-                             ' nothing was found.')
-    LOG.debug('Auth token for user %s is %s (tenant %s)' % (username,
-                                                            token,
-                                                            tenantid))
+        raise NoTenantIdFound('When attempting to grab the tenant/user '
+                              'nothing was found.')
+    LOG.debug('Auth token for user %s is %s (tenant %s)', username, token,
+              tenantid)
     return token, tenantid, username, jrp
