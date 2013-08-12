@@ -192,15 +192,20 @@ def main():
     LOG.info("Loading checkmate providers")
     provider_path = '%s/providers' % (checkmate.__path__[0])
     #import all providers in providers dir
-    for p in (os.walk(provider_path).next()[1]):
+    for prvder in (os.walk(provider_path).next()[1]):
         try:
-            LOG.info("Registering provider %s" % (p))
-            provider = __import__("checkmate.providers.%s" % (p),
+            LOG.info("Registering provider %s" % (prvder))
+            provider = __import__("checkmate.providers.%s" % (prvder),
                                   globals(), locals(), ['object'], -1)
             register_method = getattr(provider, 'register')()
         except ImportError as exc:
-            LOG.error("Cant load % provider" % (provider) )
+            LOG.error("Failed to load % provider" % (prvder) )
             LOG.exception(exc)
+            pass
+        except AttributeError as exc:
+            LOG.error("%s has no register method " % (prvder) )
+            LOG.exception(exc)
+            pass
 
     # Load routes from other modules
     LOG.info("Loading Checkmate API")
