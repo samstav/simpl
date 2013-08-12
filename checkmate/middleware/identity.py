@@ -23,7 +23,7 @@ class AuthenticationFailure(Exception):
 
 def parse_region(auth_dict):
     """
-    Pull region/auth url information from conext.
+    Pull region/auth url information from context.
 
     :param auth_dict:
     """
@@ -73,9 +73,9 @@ def authenticate(auth_dict):
     Username and Key/Password "osauth" has a Built in Rackspace Method for
     Authentication
 
-    Set a DC Endpoint and Authentication URL for the Open Stack environment
+    Set a DC Endpoint and Authentication URL for the OpenStack environment
 
-    :param auth_dict:
+    :param auth_dict: required parameters are auth_url
     """
 
     _url, _rax = parse_region(auth_dict=auth_dict)
@@ -85,16 +85,16 @@ def authenticate(auth_dict):
     # username and setup are only used in APIKEY/PASSWORD Authentication
     username = auth_dict.get('username')
     setup = {'username': username}
-    if auth_dict.get('token'):
-        auth_json = {'auth': {'token': {'id': auth_dict.get('token')},
+    if 'token' in auth_dict:
+        auth_json = {'auth': {'token': {'id': auth_dict['token']},
                               'tenantId': auth_dict.get('tenant')}}
-    elif auth_dict.get('apikey'):
+    elif 'apikey' in auth_dict:
         prefix = 'RAX-KSKEY:apiKeyCredentials'
-        setup['apiKey'] = auth_dict.get('apikey')
+        setup['apiKey'] = auth_dict['apikey']
         auth_json = {'auth': {prefix: setup}}
-    elif auth_dict.get('password'):
+    elif 'password' in auth_dict:
         prefix = 'passwordCredentials'
-        setup['password'] = auth_dict.get('password')
+        setup['password'] = auth_dict['password']
         auth_json = {'auth': {prefix: setup}}
     else:
         raise AttributeError('No Password or APIKey/Password Specified')
@@ -117,8 +117,9 @@ def authenticate(auth_dict):
         # Make the request for authentication
         conn.request('POST', tokenurl, authjsonreq, headers)
         resp = conn.getresponse()
-    except Exception, exc:
-        raise AttributeError("Failure to perform Authentication %s" % exc)
+    except Exception as exc:
+        LOG.error('HTTP connection exception: %s', exc)
+        raise AuthenticationFailure('Unable to communicate with %s' % authurl)
     else:
         resp_read = resp.read()
         status_code = resp.status
@@ -129,21 +130,21 @@ def authenticate(auth_dict):
         conn.close()
 
     try:
-        jrp = json.loads(resp_read)
+        parsed_response = json.loads(resp_read)
     except ValueError, exp:
         raise httplib.HTTPException('JSON Decode Failure. %s' % exp)
     else:
-        jra = jrp.get('access')
-        token = jra.get('token').get('id')
+        access = parsed_response.get('access')
+        token = access.get('token').get('id')
 
     # Tenant ID set as it was originally in the method, but its not used
-    if 'tenant' in jra.get('token'):
-        tenantid = jra.get('token').get('tenant').get('id')
-    elif 'user' in jra:
-        tenantid = jra.get('user').get('name')
+    if 'tenant' in access.get('token'):
+        tenantid = access.get('token').get('tenant').get('id')
+    elif 'user' in access:
+        tenantid = access.get('user').get('name')
     else:
         raise NoTenantIdFound('When attempting to grab the tenant/user '
                               'nothing was found.')
     LOG.debug('Auth token for user %s is %s (tenant %s)', username, token,
               tenantid)
-    return token, tenantid, username, jrp
+    return token, tenantid, username, parsed_response
