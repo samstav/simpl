@@ -605,7 +605,10 @@ class ProviderTask(celery.Task):
             }
         }
         if 'status' in data:
+            status = data['status']
             results['resources'][context['resource']]['status'] = \
-                self.provider.translate_status(data['status'])
+                self.provider.translate_status(status)
+            if status == "ERROR":
+                results['status'] = "FAILED"
 
         deployment_tasks.postback(context['deployment'], results)

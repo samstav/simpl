@@ -51,7 +51,7 @@ class Manager(object):
             callback(data)
             raise CheckmateRetriableException(data['status-message'],
                                               utils.get_class_name(
-                                                  CheckmateException),
+                                                  CheckmateException()),
                                               data['status-message'], '')
         elif data['status'] in ['ACTIVE', 'DELETED']:
             data['status-message'] = ''
