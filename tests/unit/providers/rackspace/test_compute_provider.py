@@ -38,7 +38,7 @@ class TestGetCatalog(unittest.TestCase):
         self.base._catalog_cache['SYD'] = expected
         results = self.base.get_catalog(self.context)
         self.assertEqual(results, expected)
-        
+
     @mock.patch.object(compute.ProviderBase, 'get_catalog')
     def test_region_in_catalog_cache_w_filters(self, mock_get_catalog):
         '''Verifies None returned if region not in catalog cache.'''

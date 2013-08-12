@@ -152,7 +152,7 @@ get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 class RackspaceComputeProviderBase(ProviderBase):
     '''Generic functions for rackspace Compute providers.'''
     vendor = 'rackspace'
-    
+
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
         #kwargs added to server creation calls (contain things like ssh keys)
