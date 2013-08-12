@@ -867,10 +867,10 @@ services.factory('github', ['$http', '$q', function($http, $q) {
  *
 **/
 services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($http, $resource, $rootScope, $q) {
-  var auth = {
+  var auth = {};
 
     // Stores the user's identity and necessary credential info
-    identity: {
+  auth.identity = {
       username: null,
       auth_url: null,
       token: null,
@@ -880,10 +880,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       loggedIn: false,
       user: null,
       tenants: null
-    },
+  };
     // Stores the current context (when impersonating, it's a tenant user and
     // context when not, it's just a mirror of the current identity)
-    context: {
+  auth.context = {
       username: null,
       auth_url: null, // US, UK, etc...
       token: null, // token object with id, expires, and tenant info
@@ -893,25 +893,25 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       impersonated: false,
       regions: null,
       user: null
-    },
-    endpoints: [],
+  };
+  auth.endpoints = [];
 
-    error_message: "",
-    selected_endpoint: null,
+  auth.error_message = "";
+  auth.selected_endpoint = null;
 
-    is_admin: function(strict) {
+  auth.is_admin = function(strict) {
       var is_admin = auth.identity.is_admin;
       if (strict) {
         is_admin = is_admin && !auth.is_impersonating();
       }
       return is_admin;
-    },
+  }
 
-    is_logged_in: function() {
+  auth.is_logged_in = function() {
       return auth.identity.loggedIn;
-    },
+  }
 
-    generate_auth_data: function(token, tenant, apikey, pin_rsa, username, password, scheme) {
+  auth.generate_auth_data = function(token, tenant, apikey, pin_rsa, username, password, scheme) {
       var data = {};
       if (token) {
         data = {
@@ -968,9 +968,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         return false;
       }
       return JSON.stringify(data);
-    },
+  }
 
-    fetch_identity_tenants: function(endpoint, token) {
+  auth.fetch_identity_tenants = function(endpoint, token) {
       var headers = {
         'X-Auth-Source': endpoint['uri'],
         'X-Auth-Token': token.id
@@ -985,9 +985,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         auth.identity.tenants = response.tenants;
         auth.save();
       });
-    },
+  }
 
-    create_identity: function(response, params) {
+  auth.create_identity = function(response, params) {
       //Populate identity
       var identity = {};
       var endpoint = params.endpoint;
@@ -1006,18 +1006,18 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       identity.is_admin = (is_admin === 'True');
 
       return identity;
-    },
+  }
 
-    get_regions: function(response) {
+  auth.get_regions = function(response) {
       // TODO: un-minify this :P
       //Parse region list
       var regions = _.union.apply(this, _.map(response.access.serviceCatalog, function(o) {return _.map(o.endpoints, function(e) {return e.region;});}));
       if ('RAX-AUTH:defaultRegion' in response.access.user && regions.indexOf(response.access.user['RAX-AUTH:defaultRegion']) == -1)
         regions.push(response.access.user['RAX-AUTH:defaultRegion']);
       return _.compact(regions);
-    },
+  }
 
-    create_context: function(response, params) {
+  auth.create_context = function(response, params) {
       //Populate context
       var context = {};
       context.username = response.access.user.name || response.access.user.id; // auth.identity.username;
@@ -1042,13 +1042,13 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       }
 
       return context;
-    },
+  }
 
     // Authenticate
-    authenticate: function(endpoint, username, apikey, password, token, pin_rsa, tenant) {
+  auth.authenticate = function(endpoint, username, apikey, password, token, pin_rsa, tenant) {
       var headers,
           target = endpoint['uri'],
-          data = this.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, endpoint.scheme);
+          data = auth.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, endpoint.scheme);
       if (!data) return $q.reject({ status: 401, message: 'No auth data was supplied' });
 
       if (target === undefined || target === null || target.length === 0) {
@@ -1085,9 +1085,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
             return $q.reject(response);
           }
         );
-    },
+  }
 
-    logOut: function(broadcast) {
+  auth.logOut = function(broadcast) {
       if (broadcast === undefined) broadcast = true;
       auth.clear();
       localStorage.removeItem('auth');
@@ -1095,9 +1095,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
       if (broadcast)
         $rootScope.$broadcast('logOut');
-    },
+  }
 
-    get_tenant_id: function(username, token) {
+  auth.get_tenant_id = function(username, token) {
       var url = is_chrome_extension ? auth.context.auth_url : "/authproxy/v2.0/tenants";
       var config = { headers: { 'X-Auth-Token': token } };
       return $http.get(url, config)
@@ -1113,15 +1113,15 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
             console.log("Error fetching tenant ID:\n" + response);
             return $q.reject(response);
           });
-    },
+  }
 
-    re_authenticate: function(token, tenant) {
+  auth.re_authenticate = function(token, tenant) {
       var url = is_chrome_extension ? auth.context.auth_url : "/authproxy/v2.0/tokens";
-      var data = this.generate_auth_data(token, tenant);
+      var data = auth.generate_auth_data(token, tenant);
       return $http.post(url, data);
-    },
+  }
 
-    generate_impersonation_data: function(username, endpoint_type) {
+  auth.generate_impersonation_data = function(username, endpoint_type) {
       var data = {};
       if (endpoint_type == 'GlobalAuth') {
         data = {
@@ -1141,9 +1141,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         };
       } */
       return JSON.stringify(data);
-    },
+  }
 
-    get_impersonation_url: function(endpoint_type) {
+  auth.get_impersonation_url = function(endpoint_type) {
       var impersonation_url = "";
       switch(endpoint_type) {
         case 'GlobalAuth':
@@ -1154,11 +1154,11 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           break;
       }
       return impersonation_url;
-    },
+  }
 
-    cache: {},
+  auth.cache = {};
 
-    cache_tenant: function(context) {
+  auth.cache_tenant = function(context) {
       if (!auth.cache.tenants)
         auth.cache.tenants = [];
 
@@ -1169,9 +1169,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       auth.cache.tenants.unshift(angular.copy(context));
       if (auth.cache.tenants.length > 10)
         auth.cache.tenants.pop();
-    },
+  }
 
-    get_cached_tenant: function(username_or_tenant_id) {
+  auth.get_cached_tenant = function(username_or_tenant_id) {
       if (!username_or_tenant_id) return false;
       if (!auth.cache.tenants) return false;
 
@@ -1184,9 +1184,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       }
 
       return false;
-    },
+  }
 
-    is_valid: function(context) {
+  auth.is_valid = function(context) {
       if (!context) return false;
       if (!context.token) return false;
 
@@ -1194,9 +1194,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       var context_expiration = new Date(context.token.expires || null);
 
       return context_expiration > now;
-    },
+  }
 
-    cache_context: function(context) {
+  auth.cache_context = function(context) {
       if (!context) return;
 
       if (!auth.cache.contexts)
@@ -1207,25 +1207,25 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       if (context.tenantId) auth.cache.contexts[context.tenantId] = cached_context;
 
       return context;
-    },
+  }
 
-    get_cached_context: function(username_or_tenant_id) {
+  auth.get_cached_context = function(username_or_tenant_id) {
       if (!auth.cache.contexts) return;
       return angular.copy(auth.cache.contexts[username_or_tenant_id]);
-    },
+  }
 
-    exit_impersonation: function() {
+  auth.exit_impersonation = function() {
       auth.context = angular.copy(auth.identity.context);
       auth.check_state();
       auth.save();
-    },
+  }
 
-    is_impersonating: function() {
+  auth.is_impersonating = function() {
       return auth.identity.username != auth.context.username;
-    },
+  }
 
-    impersonate_success: function(username, response, deferred, temporarily) {
-      this.get_tenant_id(username, response.data.access.token.id).then(
+  auth.impersonate_success = function(username, response, deferred, temporarily) {
+      auth.get_tenant_id(username, response.data.access.token.id).then(
         // Success
         function(tenant_id) {
           auth.re_authenticate(response.data.access.token.id, tenant_id).then(
@@ -1258,14 +1258,14 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         }
       );
       return deferred;
-    },
+  }
 
-    impersonate_error: function(response, deferred) {
+  auth.impersonate_error = function(response, deferred) {
       console.log("Impersonation error: " + response);
       return deferred.reject(response);
-    },
+  }
 
-    impersonate: function(username, temporarily) {
+  auth.impersonate = function(username, temporarily) {
       var deferred = $q.defer();
       var previous_context = auth.get_cached_context(username);
       if (previous_context && auth.is_valid(previous_context)) {
@@ -1296,10 +1296,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         });
 
       return deferred.promise;
-    },
+  }
 
     //Check all auth data and update state
-    check_state: function() {
+  auth.check_state = function() {
       if ('identity' in auth && auth.identity.expiration !== null) {
         var expires = new Date(auth.identity.expiration);
         var now = new Date();
@@ -1313,16 +1313,16 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         }
       } else
         auth.clear();
-    },
+  }
 
-    clear: function() {
+  auth.clear = function() {
       auth.identity = {};
       auth.context = {};
       auth.cache = {};
-    },
+  }
 
     //Save to local storage
-    save: function() {
+  auth.save = function() {
       var data = {auth: {identity: auth.identity, context: auth.context, endpoints: auth.endpoints, cache: auth.cache}};
       localStorage.setItem('auth', JSON.stringify(data));
 
@@ -1330,10 +1330,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         return _.pick(tenant, 'username', 'tenantId'); // remove sensitive information
       });
       localStorage.setItem('previous_tenants', JSON.stringify(previous_tenants || "[]"));
-    },
+  }
 
     //Restore from local storage
-    restore: function() {
+  auth.restore = function() {
       var data = localStorage.getItem('auth');
       if (data !== undefined && data !== null)
         data = JSON.parse(data);
@@ -1350,9 +1350,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           auth.check_state();
         }
       }
-    },
+  }
 
-    parseWWWAuthenticateHeaders: function(headers) {
+  auth.parseWWWAuthenticateHeaders = function(headers) {
       headers = headers.split(',');
       var parsed = _.map(headers, function(entry) {
         var endpoint = {};
@@ -1389,8 +1389,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
           return (x < y) ? (-1) : (x > y ? 1 : 0);
         }
       });
-    }
-  };
+  }
 
   // Restore login from session
   auth.restore();
