@@ -20,6 +20,7 @@ environment:
 
 from checkmate.providers import register_providers as rps
 
+
 def register():
     from checkmate.providers.rackspace.compute_legacy import (
         Provider as legacy)

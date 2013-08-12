@@ -1,12 +1,12 @@
-import logging
-import unittest
 import httplib
 import json
+import logging
+import unittest
+
 import mox
-from checkmate.providers.os_auth import identity
 
+from checkmate.middleware import identity
 from checkmate import test
-
 
 LOG = logging.getLogger(__name__)
 
@@ -176,7 +176,7 @@ class TestIdentity(test.ProviderTester):
         httplib.HTTPConnection.close()
 
         self.mox.ReplayAll()
-        with self.assertRaises(identity.NoTenatIdFound):
+        with self.assertRaises(identity.NoTenantIdFound):
             identity.authenticate(auth_dict=ctx)
 
     def test_authenticate_rax(self):
