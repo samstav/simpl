@@ -285,7 +285,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             if type_filter and type_filter in catalog:
                 result = {type_filter: catalog[type_filter]}
             else:
-                result = self._dict['catalog']
+                result = catalog
         return result
 
     @staticmethod

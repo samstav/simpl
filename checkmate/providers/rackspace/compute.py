@@ -152,7 +152,7 @@ get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 class RackspaceComputeProviderBase(ProviderBase):
     '''Generic functions for rackspace Compute providers.'''
     vendor = 'rackspace'
-
+    
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
         #kwargs added to server creation calls (contain things like ssh keys)
@@ -161,6 +161,23 @@ class RackspaceComputeProviderBase(ProviderBase):
                                "managed_cloud",
                                "delay.sh")) as open_file:
             self.managed_cloud_script = open_file.read()
+        self._catalog_cache = {}
+
+    # pylint: disable=W0613
+    def get_catalog(self, context, type_filter=None):
+        '''Overrides base catalog and handles multiple regions.'''
+        result = ProviderBase.get_catalog(self, context,
+                                          type_filter=type_filter)
+        if result:
+            return result
+        region = context.get('region')
+        if region in self._catalog_cache:
+            catalog = self._catalog_cache[region]
+            if type_filter and type_filter in catalog:
+                result = {type_filter: catalog[type_filter]}
+            else:
+                result = catalog
+        return result
 
     def prep_environment(self, wfspec, deployment, context):
         keys = set()
@@ -224,10 +241,10 @@ class Provider(RackspaceComputeProviderBase):
             message = "Could not identify which region to create servers in"
             raise CheckmateUserException(message, get_class_name(
                 CheckmateException), BLUEPRINT_ERROR, '')
+        local_context = copy.deepcopy(context)
+        local_context['region'] = region
 
-        context['region'] = region
-
-        catalog = self.get_catalog(context)
+        catalog = self.get_catalog(local_context)
         # Find and translate image
         image = deployment.get_setting('os', resource_type=resource_type,
                                        service_name=service,
@@ -518,7 +535,6 @@ class Provider(RackspaceComputeProviderBase):
         else:
             LOG.info("Failed to find compute endpoint for %s in region %s",
                      context.tenant, context.region)
-        
 
         return results
 
@@ -531,7 +547,7 @@ class Provider(RackspaceComputeProviderBase):
         results = RackspaceComputeProviderBase.get_catalog(self, context,
                                                            type_filter=
                                                            type_filter)
-        if results and context['region'] == results.get('current_region'):
+        if results:
             # We have a prexisting or overriding catalog stored
             return results
 
@@ -598,11 +614,9 @@ class Provider(RackspaceComputeProviderBase):
                 results['lists'] = {}
             results['lists']['images'] = images
 
-        results['current_region'] = context['region']
-
         self.validate_catalog(results)
         if type_filter is None:
-            self._dict['catalog'] = results
+            self._cache_catalog[context.get('region')] = results
         return results
 
     @staticmethod
