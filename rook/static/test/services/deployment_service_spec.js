@@ -71,4 +71,91 @@ describe('Deployment service', function(){
       expect(Deployment.progress(deployment)).toBe(100);
     });
   });
+
+  describe('#add_nodes', function() {
+    it('should post deployment information to server', function() {
+      var deployment = { id: 987, tenantId: 123 };
+      var service_name = 'web';
+      var num_nodes = 3;
+      $httpBackend.expectPOST('/123/deployments/987/+add-nodes.json', { service_name: 'web', count: 3 }).respond(200, '');
+      Deployment.add_nodes(deployment, service_name, num_nodes);
+      $httpBackend.flush();
+    });
+  });
+
+  describe('#delete_nodes', function() {
+    var deployment, resources;
+    beforeEach(function() {
+      resources = {};
+      resources = [
+        { index: '0', service: 'web' },
+        { index: '1', service: 'web' },
+        { index: '2', service: 'web' },
+      ];
+
+      deployment = { id: 987, tenantId: 123, service: 'web' };
+      deployment.plan = { services: { web: { component: { instances: ['0', '1', '2'] } } } };
+      deployment.resources = {
+        '0': resources[0],
+        '1': resources[1],
+        '2': resources[2],
+      };
+    });
+
+    afterEach(function() {
+      $httpBackend.flush();
+    })
+
+    it('should post a list of comma separated resource ids', function() {
+      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { resource_ids: "0,1,2" }).respond(200, '');
+      Deployment.delete_nodes(deployment, resources);
+    });
+
+    it('should include only resources in service plan', function() {
+      deployment.plan.services.web.component.instances = ['0', '2'];
+      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { resource_ids: "0,2" }).respond(200, '');
+      Deployment.delete_nodes(deployment, resources);
+    });
+
+    describe('if resource not in deployment plan', function() {
+      it('should find parent to delete', function() {
+        resources = [
+          { index: '1', service: 'web', hosted_on: '0' },
+        ];
+        deployment.plan.services.web.component.instances = ['0'];
+        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { resource_ids: "0" }).respond(200, '');
+        Deployment.delete_nodes(deployment, resources);
+      });
+
+      it('should find child to delete', function() {
+        resources = [
+          { index: '1', service: 'web', hosts: ['0'] },
+        ];
+        deployment.plan.services.web.component.instances = ['0'];
+        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { resource_ids: "0" }).respond(200, '');
+        Deployment.delete_nodes(deployment, resources);
+      });
+    });
+  });
+
+  describe('#available_services', function() {
+    var deployment, count_setting;
+    beforeEach(function() {
+      deployment = {};
+      count_setting = { setting: 'count' }
+    });
+
+    it('should return list of services with count contraint', function() {
+      deployment.blueprint = { services: {
+        web: { constraints: [ count_setting ] },
+        app: { constraints: [ { other: 'custom' }, count_setting ] },
+      } };
+      expect(Deployment.available_services(deployment)).toContain('web');
+      expect(Deployment.available_services(deployment)).toContain('app');
+    });
+
+    it('should return an empty list otherwise', function() {
+      expect(Deployment.available_services(deployment)).toEqual([]);
+    });
+  });
 });

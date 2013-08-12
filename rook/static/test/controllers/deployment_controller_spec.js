@@ -8,6 +8,7 @@ describe('DeploymentController', function(){
       $http,
       urlBuilder,
       controller,
+      Deployment,
       workflow;
 
   beforeEach(function(){
@@ -352,6 +353,62 @@ describe('DeploymentController', function(){
       controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow);
       $scope.load_workflow_stats(operation);
       expect(resource.getCall(0).args[0]).toEqual('5555/workflows/2saidjfio.json');
+    });
+  });
+
+  describe('#available_services', function() {
+    it('should forward calls to Deployment service', function() {
+      var deployment = 'fake deployment';
+      Deployment.available_services = sinon.spy();
+      $scope.available_services(deployment);
+      expect(Deployment.available_services).toHaveBeenCalledWith('fake deployment');
+    });
+  });
+
+  describe('#add_nodes', function() {
+    var promise;
+    beforeEach(function() {
+      promise = { then: sinon.spy() };
+      Deployment.add_nodes = sinon.stub().returns(promise);
+      $scope.load = 'fake load';
+      $scope.show_error = 'fake show error';
+      $scope.add_nodes('deployment', 'service', 'num_nodes');
+    });
+
+    it('should forward calls to Deployment service', function() {
+      expect(Deployment.add_nodes).toHaveBeenCalledWith('deployment', 'service', 'num_nodes');
+    });
+
+    it('should load() when call is successful', function() {
+      expect(promise.then.getCall(0).args[0]).toEqual('fake load');
+    });
+
+    it('should show_error() when call is not successful', function() {
+      expect(promise.then.getCall(0).args[1]).toEqual('fake show error');
+    });
+  });
+
+  describe('#delete_nodes', function() {
+    var promise;
+    beforeEach(function() {
+      promise = { then: sinon.spy() };
+      Deployment.delete_nodes = sinon.stub().returns(promise);
+      $scope.load = 'fake load';
+      $scope.show_error = 'fake show error';
+      var resource = { index: 'fake index' };
+      $scope.delete_nodes('deployment', resource);
+    });
+
+    it('should forward calls to Deployment service', function() {
+      expect(Deployment.delete_nodes).toHaveBeenCalledWith('deployment', { index: 'fake index' });
+    });
+
+    it('should load() when call is successful', function() {
+      expect(promise.then.getCall(0).args[0]).toEqual('fake load');
+    });
+
+    it('should show_error() when call is not successful', function() {
+      expect(promise.then.getCall(0).args[1]).toEqual('fake show error');
     });
   });
 });

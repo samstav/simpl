@@ -3170,6 +3170,20 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     });
   };
 
+  $scope.available_services = function(deployment) {
+    return Deployment.available_services(deployment);
+  }
+
+  $scope.add_nodes = function(deployment, service, num_nodes) {
+    Deployment.add_nodes(deployment, service, num_nodes)
+      .then($scope.load, $scope.show_error);
+  };
+
+  $scope.delete_nodes = function(deployment, resources) {
+    Deployment.delete_nodes(deployment, resources)
+      .then($scope.load, $scope.show_error);
+  };
+
   $scope.display_progress_bar = function() {
     return ($scope.data.operation && $scope.data.operation.status != 'COMPLETE');
   };

@@ -1907,6 +1907,87 @@ services.factory('urlBuilder', function(){
 angular.module('checkmate.services').factory('Deployment', ['$http', function($http) {
   var scope = {};
 
+  var get_resource_possible_ids = function(all_resources, current_resources, host_type) {
+    var instance_ids = [];
+
+    if (!current_resources)
+      return instance_ids;
+
+    if (!host_type) {
+      instance_ids = instance_ids.concat( get_resource_possible_ids(all_resources, current_resources, 'hosts') );
+      instance_ids = instance_ids.concat( get_resource_possible_ids(all_resources, current_resources, 'hosted_on') );
+      return instance_ids;
+    }
+
+    if (!(current_resources instanceof Array))
+      current_resources = [current_resources];
+
+    for (var i=0 ; i<current_resources.length ; i++) {
+      var resource = current_resources[i];
+
+      if (resource) {
+        instance_ids.push(resource.index);
+        var nested_resources = resource[host_type];
+        if (!nested_resources) continue;
+
+        if (host_type == 'hosts') {
+          for (var j=0 ; j<nested_resources.length ; j++) {
+            var idx = nested_resources[j];
+            instance_ids = instance_ids.concat( get_resource_possible_ids(all_resources, all_resources[idx], host_type) )
+          }
+        } else {
+          instance_ids = instance_ids.concat( get_resource_possible_ids(all_resources, all_resources[nested_resources], host_type) )
+        }
+      }
+    }
+
+    return instance_ids;
+  }
+
+  var get_plan_instance_ids = function(deployment, service_name) {
+    var instance_ids;
+
+    try {
+      instance_ids = deployment.plan.services[service_name].component.instances;
+    } catch (err) {
+      instance_ids = [];
+    }
+
+    return instance_ids;
+  }
+
+  var get_valid_resource_ids = function(deployment, resources) {
+    var ids = []
+    var all_resources = deployment.resources;
+
+    for (var i=0 ; i<resources.length ; i++) {
+      var resource = resources[i];
+      var service_name = resource.service;
+      var instance_ids = get_plan_instance_ids(deployment, service_name);
+      var possible_ids = get_resource_possible_ids(all_resources, resources);
+
+      for (var j=0 ; j<instance_ids.length ; j++) {
+        var id = instance_ids[j];
+        if (possible_ids.indexOf(id) > -1)
+          ids.push(id);
+      }
+
+    }
+
+    return _.uniq(ids);
+  }
+
+  var get_deployment_url = function(deployment, action) {
+    var url = '/'+deployment.tenantId+'/deployments/'+deployment.id;
+
+    if (action) {
+      url += '/' + action;
+    }
+
+    url += '.json';
+    return url;
+  }
+
   scope.status = function(deployment) {
     var status = deployment.status;
     var stop_statuses = ['COMPLETE', 'ERROR'];
@@ -1929,19 +2010,43 @@ angular.module('checkmate.services').factory('Deployment', ['$http', function($h
 
   scope.add_nodes = function(deployment, service_name, num_nodes) {
     var data = { service_name: service_name, count: num_nodes };
-    var tenant_id = deployment.tenantId;
-    var url = "/"+tenant_id+"/deployments/"+deployment.id+"/+add-nodes.json";
+    var url = get_deployment_url(deployment, '+add-nodes');
     return $http.post(url, data);
   }
 
-  scope.delete_nodes = function(deployment, resource_ids) {
-    if (!(resource_ids instanceof Array))
-      resource_ids = [resource_ids];
+  scope.delete_nodes = function(deployment, resources) {
+    if (!(resources instanceof Array))
+      resources = [resources];
+
+    var resource_ids = get_valid_resource_ids(deployment, resources);
 
     var data = { resource_ids: resource_ids.join(',') };
-    var tenant_id = deployment.tenantId;
-    var url = "/"+tenant_id+"/deployments/"+deployment.id+"/+delete-nodes.json";
+    var url = get_deployment_url(deployment, '+delete-nodes');
     return $http.post(url, data);
+  }
+
+  scope.available_services = function(deployment) {
+    var available_services = [];
+    var services;
+    try {
+      services = deployment.blueprint.services;
+    } catch (err) {}
+    if (!services) return available_services;
+
+    for (service_name in services) {
+      var service = services[service_name];
+      var constraints = service.constraints;
+      if (!constraints) continue;
+
+      for (var i=0 ; i<constraints.length ; i++) {
+        var constraint = constraints[i];
+        if ('setting' in constraint && constraint.setting == 'count') {
+          available_services.push(service_name)
+        }
+      }
+    }
+
+    return available_services;
   }
 
   return scope;
