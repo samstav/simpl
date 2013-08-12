@@ -61,11 +61,11 @@ def get_token(context):
     :param context:
     """
 
-    return os_authenticate(auth_dict=context)[0]
+    return authenticate(auth_dict=context)[0]
 
 
 @statsd.collect
-def os_authenticate(auth_dict):
+def authenticate(auth_dict):
     """Authentication For Openstack API.
 
     Pulls the full Openstack Service Catalog Credentials are the Users API
