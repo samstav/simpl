@@ -616,7 +616,7 @@ class Provider(RackspaceComputeProviderBase):
 
         self.validate_catalog(results)
         if type_filter is None:
-            self._cache_catalog[context.get('region')] = results
+            self._catalog_cache[context.get('region')] = results
         return results
 
     @staticmethod

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import copy
 import json
 import logging
 import os
@@ -628,9 +629,11 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = cm_mid.RequestContext()
+        context2 = cm_mid.RequestContext(**{'region': 'ORD'})
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls
+        self.mox.StubOutWithMock(copy, 'deepcopy')
         self.mox.StubOutWithMock(provider, 'get_catalog')
 
         self.deployment.get_setting('region', resource_type='compute',
@@ -657,7 +660,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             'region': 'ORD'
         }]
 
-        provider.get_catalog(context).AndReturn(catalog)
+        copy.deepcopy(context).AndReturn(context2)
+        provider.get_catalog(context2).AndReturn(catalog)
 
         self.mox.ReplayAll()
         results = provider.generate_template(self.deployment, 'compute',
@@ -692,10 +696,11 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         provider = compute.Provider({})
 
         context = cm_mid.RequestContext()
+        context2 = cm_mid.RequestContext(**{'region': 'ORD'})
 
         #Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
-
+        self.mox.StubOutWithMock(copy, 'deepcopy')
         self.deployment.get_setting(
             'region', resource_type='compute',
             service_name='master', provider_key=provider.key
@@ -710,7 +715,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                                     provider_key=provider.key, default=512) \
             .AndReturn('512')
 
-        provider.get_catalog(context).AndReturn(catalog)
+        copy.deepcopy(context).AndReturn(context2)
+        provider.get_catalog(context2).AndReturn(catalog)
 
         self.mox.ReplayAll()
         try:
