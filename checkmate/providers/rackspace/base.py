@@ -29,7 +29,8 @@ class RackspaceProviderBase(base.ProviderBase):
                 result = catalog
         return result
 
-    def get_catalog_regions(self, catalog, service_name):
+    @staticmethod
+    def get_regions(catalog, service_name):
         """Returns a list of available regions for service_name."""
         regions = []
         for service in catalog:

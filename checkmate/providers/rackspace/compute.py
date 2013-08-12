@@ -47,10 +47,11 @@ from checkmate.providers.rackspace import base
 import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import (
-    match_celery_logging,
-    isUUID,
-    yaml_to_dict,
     get_class_name,
+    isUUID,
+    match_celery_logging,
+    merge_dictionary,
+    yaml_to_dict,
 )
 
 
@@ -506,18 +507,26 @@ class Provider(RackspaceComputeProviderBase):
     def _get_api_info(context):
         '''Get Flavors, Images and Types available in a given Region.'''
         results = {}
-        assert context['region'], "Region not found in context."
-        url = Provider.find_url(context.catalog, context.region)
-        if url:
-            jobs = eventlet.GreenPile(2)
-            jobs.spawn(_get_flavors, url, context.auth_token)
-            jobs.spawn(_get_images_and_types, url, context.region,
-                       context.auth_token)
-            for ret in jobs:
-                results.update(ret)
+        urls = {}
+        if context.get('region'):
+            urls[context['region']] = Provider.find_url(context.catalog,
+                                                        context.region)
         else:
+            for region in Provider.get_regions(context.catalog,
+                                               'cloudServersOpenStack'):
+                urls[region] = Provider.find_url(context.catalog, region)
+
+        if not urls:
             LOG.info("Failed to find compute endpoint for %s in region %s",
                      context.tenant, context.region)
+
+        for region, url in urls.items():
+            jobs = eventlet.GreenPile(2)
+            jobs.spawn(_get_flavors, url, context.auth_token)
+            jobs.spawn(_get_images_and_types, url, region,
+                       context.auth_token)
+            for ret in jobs:
+                results = merge_dictionary(results, ret)
 
         return results
 
