@@ -722,7 +722,7 @@ class TestCeleryTasks(unittest.TestCase):
         update_deployment_status_new('1234', 'DOWN', driver=db)
         self.mox.VerifyAll()
 
-    def test_on_postback(self):
+    def test_on_postback_for_resource(self):
         """ Test on_postback dict merge and validation """
         deployment = Deployment({
             'id': 'test',
@@ -742,6 +742,28 @@ class TestCeleryTasks(unittest.TestCase):
         self.assertEqual("UP", deployment.get('status'))
         self.assertDictEqual(updates.get('resources'),
                              deployment.get('resources'))
+
+    def test_on_postback_for_failed_deployment(self):
+        deployment = Deployment({
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'status': 'PLANNED',
+        })
+        updates = {'status': 'FAILED'}
+        deployment.on_postback(updates)
+        self.assertEqual("FAILED", deployment.get('status'))
+
+    def test_on_postback_for_non_permitted_status_for_deployment(self):
+        deployment = Deployment({
+            'id': 'test',
+            'name': 'test',
+            'inputs': {},
+            'status': 'UP',
+        })
+        updates = {'status': 'FAILED'}
+        deployment.on_postback(updates)
+        self.assertEqual("UP", deployment.get('status'))
 
 
 if __name__ == '__main__':

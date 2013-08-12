@@ -1219,6 +1219,9 @@ class Deployment(morpheus.MorpheusDict):
 
         if not isinstance(contents, dict):
             raise CheckmateException("Postback value was not a dictionary")
+        status = contents.get('status')
+        if status and not target.fsm.permitted(status):
+            contents.pop('status')
 
         allowed = ['resources', 'operation', 'status']
         updated = {key: contents[key] for key in allowed if key in contents}
