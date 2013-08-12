@@ -197,7 +197,7 @@ def main():
             LOG.info("Registering provider %s" % (prvder))
             provider = __import__("checkmate.providers.%s" % (prvder),
                                   globals(), locals(), ['object'], -1)
-            register_method = getattr(provider, 'register')()
+            getattr(provider, 'register')()
         except ImportError as exc:
             LOG.error("Failed to load %s provider" % (prvder) )
             LOG.exception(exc)
