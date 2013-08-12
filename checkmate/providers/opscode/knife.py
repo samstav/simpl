@@ -473,29 +473,29 @@ def write_databag(environment, bagname, itemname, contents, resource,
     #TODO: add context
     if utils.is_simulation(environment):
         return
+    instance_key = "instance:%s" % resource.get('index')
+    host_key = "instance:%s" % resource.get('hosted_on')
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         '''Handle task failure.'''
         if args and len(args) >= 3:
-            resource = args[2]
-            dep_id = args[1]
-            host = args[0]
+            resource = args[4]
+            dep_id = args[0]
             if resource:
-                k = "instance:%s" % resource.get('index')
-                host_k = "instance:%s" % resource.get('hosted_on')
                 ret = {}
                 ret.update({
-                    k: {
+                    instance_key: {
                         'status': 'ERROR',
                         'error-message': (
                             'Error writing software configuration '
-                            'to host %s: %s' % (host, exc.args[0])
+                            'to host %s: %s' % (resource.get('hosted_on'),
+                                                exc.args[0])
                         )
                     }
                 })
-                if host_k:
+                if host_key:
                     ret.update({
-                        host_k: {
+                        host_key: {
                             'status': 'ERROR',
                             'error-message': (
                                 'Error installing software resource %s' %
@@ -597,6 +597,16 @@ def write_databag(environment, bagname, itemname, contents, resource,
             LOG.debug(result)
         else:
             LOG.warning("write_databag was called with no contents")
+    results = {
+        instance_key: {
+            'data-bags': {
+                bagname: {
+                    itemname: contents
+                }
+            }
+        }
+    }
+    resource_postback.delay(environment, results)
 
 
 @task(countdown=20, max_retries=3)
@@ -611,15 +621,13 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     if utils.is_simulation(environment):
         pb_res = {}
         # Update status of host resource to ACTIVE
-        host_results = {}
-        host_results['status'] = "ACTIVE"
+        host_results = {'status': "ACTIVE"}
         host_key = 'instance:%s' % resource['hosted_on']
         host_results = {host_key: host_results}
         pb_res.update(host_results)
 
         # Update status of current resource to ACTIVE
-        results = {}
-        results['status'] = "ACTIVE"
+        results = {'status': "ACTIVE"}
         instance_key = 'instance:%s' % resource['index']
         results = {instance_key: results}
         pb_res.update(results)
@@ -666,15 +674,13 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     # configured twice, so we need to do this update anyway just to be safe
     # Update status of host resource to CONFIGURE
     res = {}
-    host_results = {}
-    host_results['status'] = "CONFIGURE"
+    host_results = {'status': "CONFIGURE"}
     host_key = 'instance:%s' % resource['hosted_on']
     host_results = {host_key: host_results}
     res.update(host_results)
 
     # Update status of current resource to BUILD
-    results = {}
-    results['status'] = "BUILD"
+    results = {'status': "BUILD"}
     instance_key = 'instance:%s' % resource['index']
     results = {instance_key: results}
     res.update(results)
@@ -926,15 +932,13 @@ def register_node(host, environment, resource, path=None, password=None,
     #TODO: add context
     if utils.is_simulation(environment):
         res = {}
-        host_results = {}
-        host_results['status'] = "CONFIGURE"
+        host_results = {'status': "CONFIGURE"}
         host_key = 'instance:%s' % resource['hosted_on']
         host_results = {host_key: host_results}
         res.update(host_results)
 
         # Update status of current resource to BUILD
-        results = {}
-        results['status'] = "BUILD"
+        results = {'status': "BUILD"}
         instance_key = 'instance:%s' % resource['index']
         results = {instance_key: results}
         res.update(results)
@@ -982,27 +986,22 @@ def register_node(host, environment, resource, path=None, password=None,
     # configured twice, so we need to do this update anyway just to be safe
     # Update status of host resource to CONFIGURE
     res = {}
-    host_results = {}
-    host_results['status'] = "CONFIGURE"
+    host_results = {'status': "CONFIGURE"}
     host_key = 'instance:%s' % resource['hosted_on']
     host_results = {host_key: host_results}
     res.update(host_results)
 
     # Update status of current resource to BUILD
-    results = {}
-    results['status'] = "BUILD"
+    results = {'status': "BUILD"}
     instance_key = 'instance:%s' % resource['index']
     results = {instance_key: results}
     res.update(results)
 
     resource_postback.delay(environment, res)
 
-    results = {}
-
     # Get path
     root = _get_root_environments_path(environment, path)
     kitchen_path = os.path.join(root, environment, kitchen_name)
-    results = {}
     if not os.path.exists(kitchen_path):
         message = "Kitchen path %s does not exist!" % kitchen_path
         raise CheckmateUserException(message, utils.get_class_name(
@@ -1061,6 +1060,12 @@ def register_node(host, environment, resource, path=None, password=None,
                 json.dump(node, node_file_w)
             LOG.info("Node attributes written in %s", node_path, extra=dict(
                      data=node))
+            results = {
+                instance_key: {
+                    'node-attributes': node
+                }
+            }
+            resource_postback.delay(environment, results)
         except StandardError, exc:
             raise exc
         finally:
