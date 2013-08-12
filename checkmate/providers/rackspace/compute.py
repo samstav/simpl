@@ -42,7 +42,8 @@ from checkmate.exceptions import (
     UNEXPECTED_ERROR,
 )
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase, user_has_access
+from checkmate.providers import user_has_access
+from checkmate.providers.rackspace import base
 import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import (
@@ -149,35 +150,17 @@ MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
-class RackspaceComputeProviderBase(ProviderBase):
+class RackspaceComputeProviderBase(base.RackspaceProviderBase):
     '''Generic functions for rackspace Compute providers.'''
-    vendor = 'rackspace'
 
     def __init__(self, provider, key=None):
-        ProviderBase.__init__(self, provider, key=key)
+        base.RackspaceProviderBase.__init__(self, provider, key=key)
         #kwargs added to server creation calls (contain things like ssh keys)
         self._kwargs = {}
         with open(os.path.join(os.path.dirname(__file__),
                                "managed_cloud",
                                "delay.sh")) as open_file:
             self.managed_cloud_script = open_file.read()
-        self._catalog_cache = {}
-
-    # pylint: disable=W0613
-    def get_catalog(self, context, type_filter=None):
-        '''Overrides base catalog and handles multiple regions.'''
-        result = ProviderBase.get_catalog(self, context,
-                                          type_filter=type_filter)
-        if result:
-            return result
-        region = context.get('region')
-        if region in self._catalog_cache:
-            catalog = self._catalog_cache[region]
-            if type_filter and type_filter in catalog:
-                result = {type_filter: catalog[type_filter]}
-            else:
-                result = catalog
-        return result
 
     def prep_environment(self, wfspec, deployment, context):
         keys = set()
