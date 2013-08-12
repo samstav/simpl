@@ -12,9 +12,6 @@ import logging
 import os
 
 # some distros install as PAM (Ubuntu, SuSE)
-# https://bugs.launchpad.net/keystone/+bug/938801
-from checkmate.providers.os_auth import identity
-
 try:
     import pam
 except ImportError:
@@ -35,6 +32,8 @@ from checkmate.exceptions import (
     CheckmateException,
     CheckmateUserException,
 )
+# https://bugs.launchpad.net/keystone/+bug/938801
+from checkmate.providers.openstack import identity
 
 LOG = logging.getLogger(__name__)
 
@@ -260,7 +259,7 @@ class TokenAuthMiddleware(object):
         if self.service_username:
             try:
                 _rqc = RequestContext()
-                LOG.debug('REQUESTED CONTEXT INFORMATION %s' % _rqc)
+                LOG.debug('REQUESTED CONTEXT INFORMATION %s', _rqc)
                 result = self.auth_keystone(tenant=_rqc.tenant,
                                             username=self.service_username,
                                             password=self.service_password)
@@ -283,7 +282,10 @@ class TokenAuthMiddleware(object):
 
         if 'HTTP_X_AUTH_TOKEN' in environ:
             context = request.context
-            if context.authenticated is not True:
+            if context.authenticated is True:
+                #Auth has been handled by some other middleware
+                pass
+            else:
                 token = environ['HTTP_X_AUTH_TOKEN']
                 try:
                     if self.service_token:
@@ -296,6 +298,10 @@ class TokenAuthMiddleware(object):
                     environ['HTTP_X_AUTHORIZED'] = "Confirmed"
                 except HTTPUnauthorized as exc:
                     return exc(environ, start_response)
+                except identity.AuthenticationFailure as exc:
+                    raise HTTPUnauthorized(str(exc))
+                except StandardError as exc:
+                    raise HTTPUnauthorized(str(exc))
                 context.auth_source = self.endpoint['uri']
                 context.set_context(cnt)
 
@@ -317,14 +323,16 @@ class TokenAuthMiddleware(object):
         :param password:
         """
 
-        auth_base = {'auth_url': auth_url,
-                     'username': username,
-                     'tenant': tenant,
-                     'apikey': apikey,
-                     'password': password,
-                     'token': str(token)}
-        LOG.debug('Authentication DATA dict == %s' % auth_base)
-        return identity.os_authenticate(auth_dict=auth_base)[3]
+        auth_base = {
+            'auth_url': auth_url,
+            'username': username,
+            'tenant': tenant,
+            'apikey': apikey,
+            'password': password,
+            'token': str(token),
+        }
+        LOG.debug('Authentication DATA dict == %s', auth_base)
+        return identity.authenticate(auth_dict=auth_base)[3]
 
     @caching.CacheMethod(sensitive_args=[0], timeout=600)
     def _validate_keystone(self, token, tenant_id=None):
