@@ -48,7 +48,7 @@ def authenticate(auth_dict):
 
     # remove the prefix for the Authentication URL if Found
     username = auth_dict.get('username')
-    LOG.debug('POST == DICT > JSON DUMP %s', auth_json)
+    LOG.debug('POST == REQUEST DICT > JSON DUMP %s', auth_json)
     auth_json_req = json.dumps(auth_json)
     headers = {'Content-Type': 'application/json'}
     token_url = '/v2.0/tokens'
@@ -98,10 +98,12 @@ def auth_token_validate(auth_dict):
                'Accept': 'application/json'}
 
     request = ('GET', path, None, headers)
+    LOG.debug('GET == REQUEST DICT > %s', request)
     resp_read = auth_utils.request_process(aurl=aurl,
                                            req=request,
                                            https=protocol)
     try:
+        LOG.debug('TOKEN Validation Data: %s', resp_read)
         return json.loads(resp_read)
     except ValueError, exp:
         LOG.error('ValueError Decoding JSON: %s ERROR: %s', resp_read, exp)
