@@ -3,6 +3,6 @@ Base Exceptions that are used by the Identity Provider
 """
 
 
-class NoTenatIdFound(Exception):
+class NoTenantIdFound(Exception):
     """Tenant not found."""
     pass
