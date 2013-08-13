@@ -17,21 +17,21 @@ def parse_reqtype(auth_body):
     """
 
     setup = {'username': auth_body.get('username')}
-    if 'token' in auth_body:
+    if auth_body.get('token') is not None:
         auth_body = {'auth': {'token': {'id': auth_body.get('token')},
                               'tenantId': auth_body.get('tenant')}}
-    elif 'apikey' in auth_body:
+    elif auth_body.get('apikey') is not None:
         prefix = 'RAX-KSKEY:apiKeyCredentials'
         setup['apiKey'] = auth_body.get('apikey')
         auth_body = {'auth': {prefix: setup}}
-    elif 'password' in auth_body:
+    elif auth_body.get('password') is not None:
         prefix = 'passwordCredentials'
         setup['password'] = auth_body.get('password')
         auth_body = {'auth': {prefix: setup}}
     else:
         LOG.error(traceback.format_exc())
         raise AttributeError('No Password or APIKey/Password Specified')
-
+    LOG.debug('AUTH Request Type > %s', auth_body)
     return auth_body
 
 
@@ -143,7 +143,8 @@ def request_process(aurl, req, https=True):
         resp = conn.getresponse()
     except Exception, exc:
         LOG.error('Not able to perform Request ERROR: %s', exc)
-        raise AttributeError("Failure to perform Authentication %s" % exc)
+        raise AttributeError("Failure to perform Authentication %s ERROR:\n%s"
+                             % (exc, traceback.format_exc()))
     else:
         resp_read = resp.read()
         status_code = resp.status
@@ -153,7 +154,8 @@ def request_process(aurl, req, https=True):
                       resp_read, status_code, traceback.format_exc())
             raise HTTPUnauthorized('Failed to authenticate %s' % status_code)
 
-        LOG.debug('Connection successful MSG: %s - STATUS: %s', resp.reason)
+        LOG.debug('Connection successful MSG: %s - STATUS: %s', resp.reason,
+                  resp.status)
         return resp_read
     finally:
         conn.close()
