@@ -1,8 +1,8 @@
 import httplib
 import logging
 
-from checkmate.providers.os_auth import exceptions
-from checkmate.middleware import HTTPUnauthorized
+from checkmate.middleware.os_auth import exceptions
+from webob.exc import HTTPUnauthorized
 
 
 LOG = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ def request_process(aurl, req, https=True):
         conn.request(method=_method, url=_url, body=_body, headers=_headers)
         resp = conn.getresponse()
     except Exception, exc:
-        LOG.error('Not able to perform Request ERROR: %s', srv_cata)
+        LOG.error('Not able to perform Request ERROR: %s', exc)
         raise AttributeError("Failure to perform Authentication %s" % exc)
     else:
         resp_read = resp.read()
