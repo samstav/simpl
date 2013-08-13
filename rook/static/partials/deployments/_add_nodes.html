@@ -1,0 +1,23 @@
+<div class="dropdown offset3" ng-show="data.status == 'UP' && available_services(data).length > 0">
+  <button class="dropdown-toggle btn">
+    <i class="icon-plus-sign action action-add"></i>
+    Add Nodes
+  </button>
+  <ul class="dropdown-menu" ng-init="num_nodes=1">
+    <li class="nav-header" cm-stop-click-propagation>
+      Service: <br />
+      <div ng-repeat="service in available_services(data)">
+        <input ng-model="$parent.selected_service" name="service" value="{{service}}" type="radio" /> {{service | capitalize}}<br />
+      <div>
+    </li>
+
+    <li class="nav-header" cm-stop-click-propagation>
+      Number of Nodes: <br />
+      <input ng-model="num_nodes" type="number" min="1" max="8" class="span12" />
+    </li>
+
+    <li class="nav-header">
+      <button class="btn btn-primary" ng-click="add_nodes(data, selected_service, num_nodes)">Add resources</button>
+    </li>
+  </ul>
+</div>
