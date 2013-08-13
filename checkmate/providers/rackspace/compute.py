@@ -504,14 +504,16 @@ class Provider(RackspaceComputeProviderBase):
         return {'root': delete_server}
 
     @staticmethod
-    def _get_api_info(context):
+    def _get_api_info(context, **kwargs):
         '''Get Flavors, Images and Types available in a given Region.'''
         results = {}
         urls = {}
-        if context.get('region'):
-            urls[context['region']] = Provider.find_url(context.catalog,
-                                                        context.region)
+        LOG.info('kwargs values %s', kwargs)
+        if context.get('region') or kwargs.get('region'):
+            region = context.get('region') or kwargs.get('region').upper()
+            urls[region] = Provider.find_url(context.catalog, region)
         else:
+            LOG.warning('Region not found in context or kwargs.')
             for region in Provider.get_regions(context.catalog,
                                                'cloudServersOpenStack'):
                 urls[region] = Provider.find_url(context.catalog, region)
@@ -520,17 +522,17 @@ class Provider(RackspaceComputeProviderBase):
             LOG.info("Failed to find compute endpoint for %s in region %s",
                      context.tenant, context.region)
 
+        jobs = eventlet.GreenPile(min(len(urls)*2, 16)) 
         for region, url in urls.items():
-            jobs = eventlet.GreenPile(2)
             jobs.spawn(_get_flavors, url, context.auth_token)
             jobs.spawn(_get_images_and_types, url, region,
                        context.auth_token)
-            for ret in jobs:
-                results = merge_dictionary(results, ret)
+        for ret in jobs:
+            results = merge_dictionary(results, ret, extend_lists=True)
 
         return results
 
-    def get_catalog(self, context, type_filter=None):
+    def get_catalog(self, context, type_filter=None, **kwargs):
         '''Return stored/override catalog if it exists, else connect, build,
         and return one.
         '''
@@ -549,7 +551,7 @@ class Provider(RackspaceComputeProviderBase):
         flavors = None
         types = None
 
-        vals = self._get_api_info(context)
+        vals = self._get_api_info(context, **kwargs)
 
         if type_filter is None or type_filter == 'regions':
             regions = {}

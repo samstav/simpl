@@ -561,7 +561,7 @@ class Provider(ProviderBase):
             defines=dict(relation=relation_key, provider=self.key,
                          task_tags=['root']))
 
-    def get_catalog(self, context, type_filter=None):
+    def get_catalog(self, context, type_filter=None, **kwargs):
         '''Return stored/override catalog if it exists, else connect, build,
         and return one.
         '''

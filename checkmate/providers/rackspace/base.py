@@ -2,7 +2,12 @@
 """
 Rackspace Provider base module.
 """
+import logging
+
 from checkmate.providers import base
+
+LOG = logging.getLogger(__name__)
+
 
 class RackspaceProviderBase(base.ProviderBase):
     """Provides shared methods for Rackspace providers."""
@@ -38,5 +43,7 @@ class RackspaceProviderBase(base.ProviderBase):
                 for endpoint in service.get('endpoints', []):
                     if endpoint.get('region'):
                         regions.append(endpoint['region'])
+        if not regions:
+            LOG.warning('No regions found for service name %s', service_name)
         return regions
         

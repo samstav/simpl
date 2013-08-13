@@ -297,7 +297,7 @@ class Provider(RackspaceComputeProviderBase):
         return dict(root=join, final=build_wait_task,
                     create=create_server_task)
 
-    def get_catalog(self, context, type_filter=None):
+    def get_catalog(self, context, type_filter=None, **kwargs):
         """Return stored/override catalog if it exists, else connect, build,
         and return one"""
         # TODO: maybe implement this an on_get_catalog so we don't have to do
