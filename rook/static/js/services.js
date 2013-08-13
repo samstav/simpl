@@ -912,6 +912,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     return auth.identity.loggedIn;
   }
 
+  auth.is_current_tenant = function(tenant_id) {
+    return auth.context.tenantId === tenant_id;
+  }
+
   auth.generate_auth_data = function(token, tenant, apikey, pin_rsa, username, password, scheme) {
     var data = {};
     if (token) {

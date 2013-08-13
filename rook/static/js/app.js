@@ -3153,7 +3153,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       data.display_status = Deployment.status(data);
       $scope.data = data;
       $scope.resources = _.values($scope.data.resources);
-      $scope.showCommands = $scope.auth.context.tenantId === $scope.data.tenantId;
+      $scope.showCommands = $scope.auth.is_current_tenant($scope.data.tenantId);
       $scope.abs_url = $location.absUrl();
       $scope.clippy_element = "#deployment_summary_clipping";
       try {
@@ -3230,7 +3230,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       return c.CodeMirror.getTextArea().id == 'source';
       });
 
-    if ($scope.auth.identity.loggedIn) {
+    if ($scope.auth.is_logged_in()) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'get': {method:'GET'}, 'save': {method:'PUT'}});
       var thang = new klass(JSON.parse(editor.CodeMirror.getValue()));
       thang.$save($routeParams, function(returned, getHeaders){
@@ -3258,7 +3258,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     } else {
       $scope.close_modal('delete_warning');
     }
-    if ($scope.auth.identity.loggedIn) {
+    if ($scope.auth.is_logged_in()) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'save': {method:'PUT'}});
       var thang = new klass();
       var params = jQuery.extend({}, $routeParams);
@@ -3282,7 +3282,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
 
   // This also exists on DeploymentListController - can be refactored
   $scope.sync = function() {
-    if ($scope.auth.identity.loggedIn) {
+    if ($scope.auth.is_logged_in()) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
       var thang = new klass();
       thang.$get({tenantId: $scope.data.tenantId, deployment_id: $scope.data['id']}, function(returned, getHeaders){

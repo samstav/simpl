@@ -69,6 +69,20 @@ describe('auth Service', function(){
     });
   });
 
+  describe('#is_current_tenant', function() {
+    beforeEach(function() {
+      this.auth.context.tenantId = 123
+    });
+
+    it('should return true if tenant ID matches current context tenant', function() {
+      expect(this.auth.is_current_tenant(123)).toBe(true);
+    });
+
+    it('should return false otherwise', function() {
+      expect(this.auth.is_current_tenant(666)).toBe(false);
+    });
+  });
+
   describe('create_identity', function(){
     it('should create an identity object based on response, and params', function(){
       expect(this.auth.create_identity(response, params)).not.toBe(null);

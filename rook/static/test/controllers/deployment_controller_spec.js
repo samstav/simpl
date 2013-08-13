@@ -12,7 +12,7 @@ describe('DeploymentController', function(){
       workflow;
 
   beforeEach(function(){
-    $scope = { $watch: sinon.spy(), auth: { context: {} } };
+    $scope = { $watch: sinon.spy(), auth: { is_current_tenant: sinon.stub() } };
     location = { path: emptyFunction, absUrl: emptyFunction };
     resource = sinon.stub().returns({ get: emptyFunction });
     routeParams = undefined;
@@ -100,7 +100,7 @@ describe('DeploymentController', function(){
 
         resource.returns(resource_result);
         $scope.load()
-        $scope.auth = { context: { tenantId: 12345 } };
+        $scope.auth.context = { tenantId: 12345 };
         var callback = resource_result.get.getCall(0).args[1];
         callback(data, emptyFunction);
         expect($scope.data).toEqual(data);
