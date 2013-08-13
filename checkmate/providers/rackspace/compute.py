@@ -42,14 +42,16 @@ from checkmate.exceptions import (
     UNEXPECTED_ERROR,
 )
 from checkmate.middleware import RequestContext
-from checkmate.providers import ProviderBase, user_has_access
+from checkmate.providers.rackspace import base
+from checkmate.providers import user_has_access
 import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import (
-    match_celery_logging,
-    isUUID,
-    yaml_to_dict,
     get_class_name,
+    isUUID,
+    match_celery_logging,
+    merge_dictionary,
+    yaml_to_dict,
 )
 
 
@@ -131,8 +133,8 @@ REGION_MAP = {'dallas': 'DFW',
 if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     try:
         REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
-    except StandardError as exc:
-        LOG.warn("Error connecting to Redis: %s", exc)
+    except StandardError as exception:
+        LOG.warn("Error connecting to Redis: %s", exception)
 
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 from checkmate import db
@@ -149,35 +151,17 @@ MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
-class RackspaceComputeProviderBase(ProviderBase):
+class RackspaceComputeProviderBase(base.RackspaceProviderBase):
     '''Generic functions for rackspace Compute providers.'''
-    vendor = 'rackspace'
 
     def __init__(self, provider, key=None):
-        ProviderBase.__init__(self, provider, key=key)
+        base.RackspaceProviderBase.__init__(self, provider, key=key)
         #kwargs added to server creation calls (contain things like ssh keys)
         self._kwargs = {}
         with open(os.path.join(os.path.dirname(__file__),
                                "managed_cloud",
                                "delay.sh")) as open_file:
             self.managed_cloud_script = open_file.read()
-        self._catalog_cache = {}
-
-    # pylint: disable=W0613
-    def get_catalog(self, context, type_filter=None):
-        '''Overrides base catalog and handles multiple regions.'''
-        result = ProviderBase.get_catalog(self, context,
-                                          type_filter=type_filter)
-        if result:
-            return result
-        region = context.get('region')
-        if region in self._catalog_cache:
-            catalog = self._catalog_cache[region]
-            if type_filter and type_filter in catalog:
-                result = {type_filter: catalog[type_filter]}
-            else:
-                result = catalog
-        return result
 
     def prep_environment(self, wfspec, deployment, context):
         keys = set()
@@ -519,25 +503,33 @@ class Provider(RackspaceComputeProviderBase):
         return {'root': delete_server}
 
     @staticmethod
-    def _get_api_info(context):
+    def _get_api_info(context, **kwargs):
         '''Get Flavors, Images and Types available in a given Region.'''
         results = {}
-        assert context['region'], "Region not found in context."
-        url = Provider.find_url(context.catalog, context.region)
-        if url:
-            jobs = eventlet.GreenPile(2)
-            jobs.spawn(_get_flavors, url, context.auth_token)
-            jobs.spawn(_get_images_and_types, url, context.region,
-                       context.auth_token)
-            for ret in jobs:
-                results.update(ret)
+        urls = {}
+        if context.get('region') or kwargs.get('region'):
+            region = context.get('region') or kwargs.get('region').upper()
+            urls[region] = Provider.find_url(context.catalog, region)
         else:
-            LOG.info("Failed to find compute endpoint for %s in region %s",
-                     context.tenant, context.region)
+            LOG.warning('Region not found in context or kwargs.')
+            for region in Provider.get_regions(context.catalog,
+                                               'cloudServersOpenStack'):
+                urls[region] = Provider.find_url(context.catalog, region)
+
+        jobs = eventlet.GreenPile(min(len(urls)*2, 16))
+        for region, url in urls.items():
+            if not url:
+                LOG.warning("Failed to find compute endpoint for %s in region "
+                            "%s", context.tenant, region)
+            jobs.spawn(_get_flavors, url, context.auth_token)
+            jobs.spawn(_get_images_and_types, url, region,
+                       context.auth_token)
+        for ret in jobs:
+            results = merge_dictionary(results, ret, extend_lists=True)
 
         return results
 
-    def get_catalog(self, context, type_filter=None):
+    def get_catalog(self, context, type_filter=None, **kwargs):
         '''Return stored/override catalog if it exists, else connect, build,
         and return one.
         '''
@@ -556,7 +548,7 @@ class Provider(RackspaceComputeProviderBase):
         flavors = None
         types = None
 
-        vals = self._get_api_info(context)
+        vals = self._get_api_info(context, **kwargs)
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -866,6 +858,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handles task failure."""
         action = "creating"
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
@@ -930,6 +923,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 @task
 @statsd.collect
 def sync_resource_task(context, resource, resource_key, api=None):
+    """Syncs resource status with provider status."""
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
     if context.get('simulation') is True:
@@ -978,6 +972,7 @@ def delete_server_task(context, api=None):
     assert 'resource' in context, "No resource definition provided"
 
     def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handles task failure."""
         action = "deleting"
         method = "delete_server_task"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
@@ -1064,6 +1059,7 @@ def wait_on_delete_server(context, api=None):
     assert 'resource' in context, "No resource definition provided"
 
     def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handles task failure."""
         action = "while waiting on"
         method = "wait_on_delete_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)

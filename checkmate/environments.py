@@ -215,6 +215,7 @@ def get_providers(tenant_id=None):
 def get_provider_catalog(provider_id, tenant_id=None):
     """Return the catalog of a specific provider."""
     vendor = None
+    type_filter = None
     if "." in provider_id:
         vendor = provider_id.split(".")[0]
         provider_id = provider_id.split(".")[1]
@@ -224,11 +225,17 @@ def get_provider_catalog(provider_id, tenant_id=None):
         provider = environment.get_provider(provider_id)
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
+
     if 'type' in bottle.request.query:
+        type_filter = bottle.request.query.pop('type')
+    if type_filter:
         catalog = (provider.get_catalog(bottle.request.context,
-                   type_filter=bottle.request.query['type']))
+                   type_filter=type_filter))
     else:
-        catalog = provider.get_catalog(bottle.request.context)
+        if len(bottle.request.query) > 16:
+            bottle.abort(403, "Invalid url parameters.")
+        catalog = provider.get_catalog(bottle.request.context,
+                                       **bottle.request.query)
 
     return utils.write_body(catalog, bottle.request, bottle.response)
 
@@ -247,6 +254,8 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
         provider = environment.get_provider(provider_id)
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
+    if len(bottle.request.query) > 16:
+        bottle.abort(403, "Invalid url parameters.")
     component = provider.get_component(bottle.request.context, component_id)
     if component:
         return utils.write_body(

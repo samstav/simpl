@@ -268,7 +268,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         return filtered
 
     # pylint: disable=W0613
-    def get_catalog(self, context, type_filter=None):
+    def get_catalog(self, context, type_filter=None, **kwargs):
         '''Returns catalog (filterable by type) for this provider.
 
         Catalogs display the types of resources that can be created by this
@@ -294,14 +294,14 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             raise exceptions.CheckmateValidationException(
                 "Invalid catalog: %s" % '\n'.join(errors))
 
-    def get_component(self, context, component_id):
+    def get_component(self, context, component_id, **kwargs):
         '''Get component by ID. Default implementation gets full catalog and
         searches for ID. Override with a more efficient implementation in your
         provider code.
         '''
         LOG.debug("Default get_component implementation being used for '%s'. "
                   "Override with more efficient implementation.", self.key)
-        catalog = self.get_catalog(context)
+        catalog = self.get_catalog(context, **kwargs)
         for key, value in catalog.iteritems():
             if key == 'lists':
                 continue
@@ -550,6 +550,7 @@ def user_has_access(context, roles):
     return False
 
 
+# pylint: disable=E1101
 class ProviderTask(celery.Task):
     '''Celery Task for providers.'''
     abstract = True
