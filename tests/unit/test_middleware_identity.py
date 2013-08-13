@@ -5,8 +5,8 @@ import unittest
 
 import mox
 
-from checkmate import test
-from checkmate.middleware.os_auth import identity, auth_utils
+from checkmate.middleware.os_auth import identity, auth_utils, exceptions
+
 
 LOG = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class FakeHttpResponse(object):
         return self.headers
 
 
-class TestIdentity(test.base):
+class TestIdentity(unittest.TestCase):
     """Test Identity Provider."""
 
     def setUp(self):
@@ -55,10 +55,10 @@ class TestIdentity(test.base):
         self.mox.StubOutWithMock(httplib.HTTPConnection, 'getresponse')
         self.mox.StubOutWithMock(httplib.HTTPConnection, 'close')
         self.inv_servicecat = json.dumps({
-            "access": {
-                "token": {
-                    "expires": "2013-08-02T19:36:42Z",
-                    "id": "12345678901234567890"
+            u"access": {
+                u"token": {
+                    u"expires": u"2013-08-02T19:36:42Z",
+                    u"id": u"12345678901234567890"
                 }
             }
         })
@@ -96,6 +96,133 @@ class TestIdentity(test.base):
 
         super(TestIdentity, self).tearDown()
         self.mox.UnsetStubs()
+
+    def test_is_https_true_rax(self):
+        """If URL is https or HTTP."""
+
+        url = 'https://identity.api.rackspacecloud.com'
+        rax = True
+        self.assertEqual(auth_utils.is_https(url=url, rax=rax), True)
+
+    def test_is_https_false_rax(self):
+        """If URL is https or HTTP."""
+
+        url = 'http://identity.api.rackspacecloud.com'
+        rax = True
+        self.assertEqual(auth_utils.is_https(url=url, rax=rax), True)
+
+    def test_is_https_true_pri(self):
+        """If URL is https or HTTP."""
+
+        url = 'https://something.else'
+        rax = False
+        self.assertEqual(auth_utils.is_https(url=url, rax=rax), True)
+
+    def test_is_https_false_pri(self):
+        """If URL is https or HTTP."""
+
+        url = 'http://something.else'
+        rax = False
+        self.assertEqual(auth_utils.is_https(url=url, rax=rax), False)
+
+    def test_parse_url_https(self):
+        """If URL is https or HTTP."""
+
+        url = 'https://identity.api.rackspacecloud.com'
+        self.assertEqual(auth_utils.parse_url(url=url),
+                         'identity.api.rackspacecloud.com')
+
+    def test_parse_url_http(self):
+        """If URL is https or HTTP."""
+
+        url = 'http://identity.api.rackspacecloud.com'
+        self.assertEqual(auth_utils.parse_url(url=url),
+                         'identity.api.rackspacecloud.com')
+
+    def test_parse_srvcatalog_rax(self):
+        """Parse Service Catalog and return TenantID and Token."""
+
+        url = 'http://something.else'
+        self.assertEqual(auth_utils.parse_url(url=url), 'something.else')
+
+    def test_parse_srvcatalog_inv(self):
+        """Parse Service Catalog and return TenantID and Token."""
+
+        parsed_response = json.loads(self.inv_servicecat)
+        with self.assertRaises(exceptions.NoTenantIdFound):
+            auth_utils.parse_srvcatalog(srv_cata=parsed_response)
+
+    def test_parse_srvcatalog_pri(self):
+        """Parse Service Catalog and return TenantID and Token."""
+
+        parsed_response = json.loads(self.pri_servicecat)
+        self.assertEqual(auth_utils.parse_srvcatalog(srv_cata=parsed_response),
+                         ('12345678901234567890', 'admin'))
+
+    def test_parse_srvcatalog_rax(self):
+        """Parse Service Catalog and return TenantID and Token."""
+
+        parsed_response = json.loads(self.rax_servicecat)
+        self.assertEqual(auth_utils.parse_srvcatalog(srv_cata=parsed_response),
+                         ('12345678901234567890', '123456'))
+
+    def test_parse_reqtype_inv(self):
+        auth_dict = {'auth_url': 'identity.api.rackspacecloud.com',
+                     'username': 'TestUser',
+                     'tenant': '123456',
+                     'apikey': None,
+                     'password': None,
+                     'token': None}
+        with self.assertRaises(AttributeError):
+            auth_utils.parse_reqtype(auth_body=auth_dict)
+
+    def test_parse_reqtype_token(self):
+        auth_dict = {'auth_url': 'identity.api.rackspacecloud.com',
+                     'username': 'TestUser',
+                     'tenant': '123456',
+                     'apikey': None,
+                     'password': None,
+                     'token': '12345678901234567890'}
+        auth_body = {'auth': {
+            'tenantId': '123456',
+            'token': {
+                'id': '12345678901234567890'},
+        }}
+        self.assertEqual(auth_utils.parse_reqtype(auth_body=auth_dict),
+                         auth_body)
+
+    def test_parse_reqtype_password(self):
+        auth_dict = {'auth_url': 'identity.api.rackspacecloud.com',
+                     'username': 'TestUser',
+                     'tenant': '123456',
+                     'apikey': None,
+                     'password': 'password1234',
+                     'token': None}
+        auth_body = {'auth': {
+            'passwordCredentials': {
+                'username': 'TestUser',
+                'password': 'password1234'
+            }
+        }}
+
+        self.assertEqual(auth_utils.parse_reqtype(auth_body=auth_dict),
+                         auth_body)
+
+    def test_parse_reqtype_apikey(self):
+        auth_dict = {'auth_url': 'identity.api.rackspacecloud.com',
+                     'username': 'TestUser',
+                     'tenant': '123456',
+                     'apikey': 'ThisIsAnApiKey1234567890',
+                     'password': None,
+                     'token': None}
+        auth_body = {'auth': {
+            'RAX-KSKEY:apiKeyCredentials': {
+                'username': 'TestUser',
+                'apiKey': 'ThisIsAnApiKey1234567890'}
+        }}
+
+        self.assertEqual(auth_utils.parse_reqtype(auth_body=auth_dict),
+                         auth_body)
 
     def test_parse_region_ord(self):
         """Test Region Test for Ord."""
@@ -148,6 +275,99 @@ class TestIdentity(test.base):
         self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
+    def test_request_invalid_url(self):
+        """Test Get Token For Invalid Reply."""
+
+        self.mox.ReplayAll()
+        with self.assertRaises(identity.HTTPUnauthorized):
+            auth_utils.request_process(aurl='http://thisisnotaurl.things',
+                                       req=(None, None, None, None))
+
+    def test_request_invalid_reponse(self):
+        """Test Get Token For Invalid Reply."""
+
+        httplib.HTTPConnection.connect()
+        httplib.HTTPConnection.request(method=mox.IgnoreArg(),
+                                       url=mox.IgnoreArg(),
+                                       body=mox.IgnoreArg(),
+                                       headers=mox.IgnoreArg())
+        httplib.HTTPConnection.getresponse().AndReturn(None)
+        httplib.HTTPConnection.close()
+
+        self.mox.ReplayAll()
+        with self.assertRaises(AttributeError):
+            auth_utils.request_process(aurl='identity.api.rackspacecloud.com',
+                                       req=(None, None, None, None))
+
+    def test_request_bad_status_code(self):
+        """Test Get Token For RAX."""
+
+        message = json.dumps({'message': 'Go Away bad person'})
+        response = FakeHttpResponse(status=401,
+                                    reason='NotAuthorized',
+                                    headers=[('Foo', 'Bar')],
+                                    body=message)
+
+        httplib.HTTPConnection.connect()
+        httplib.HTTPConnection.request(method=mox.IgnoreArg(),
+                                       url=mox.IgnoreArg(),
+                                       body=mox.IgnoreArg(),
+                                       headers=mox.IgnoreArg())
+        httplib.HTTPConnection.getresponse().AndReturn(response)
+        httplib.HTTPConnection.close()
+
+        self.mox.ReplayAll()
+        with self.assertRaises(auth_utils.HTTPUnauthorized):
+            auth_utils.request_process(aurl='identity.api.rackspacecloud.com',
+                                       req=(None, None, None, None))
+
+    def test_request_pri(self):
+        """Test Get Token For RAX."""
+
+        response = FakeHttpResponse(status=200,
+                                    reason='OK',
+                                    headers=[('Foo', 'Bar')],
+                                    body=self.pri_servicecat)
+
+        httplib.HTTPConnection.connect()
+        httplib.HTTPConnection.request(method=mox.IgnoreArg(),
+                                       url=mox.IgnoreArg(),
+                                       body=mox.IgnoreArg(),
+                                       headers=mox.IgnoreArg())
+        httplib.HTTPConnection.getresponse().AndReturn(response)
+        httplib.HTTPConnection.close()
+
+        self.mox.ReplayAll()
+        self.assertEqual(
+            auth_utils.request_process(aurl='someauthurl.something',
+                                       req=(None, None, None, None),
+                                       https=False),
+            self.pri_servicecat
+        )
+
+    def test_request_rax(self):
+        """Test Get Token For RAX."""
+
+        response = FakeHttpResponse(status=200,
+                                    reason='OK',
+                                    headers=[('Foo', 'Bar')],
+                                    body=self.rax_servicecat)
+
+        httplib.HTTPConnection.connect()
+        httplib.HTTPConnection.request(method=mox.IgnoreArg(),
+                                       url=mox.IgnoreArg(),
+                                       body=mox.IgnoreArg(),
+                                       headers=mox.IgnoreArg())
+        httplib.HTTPConnection.getresponse().AndReturn(response)
+        httplib.HTTPConnection.close()
+
+        self.mox.ReplayAll()
+        self.assertEqual(
+            auth_utils.request_process(aurl='identity.api.rackspacecloud.com',
+                                       req=(None, None, None, None)),
+            self.rax_servicecat
+        )
+
     def test_authenticate_nokey(self):
         """Test Get Token for Without a Key/Password."""
 
@@ -156,45 +376,23 @@ class TestIdentity(test.base):
         with self.assertRaises(AttributeError):
             identity.authenticate(auth_dict=ctx)
 
-    def test_authenticate_inv(self):
-        """Test Get Token For Invalid Reply."""
-
-        ctx = {'region': 'ord',
-               'username': 'testuser',
-               'apikey': 'testkey'}
-
-        response = FakeHttpResponse(status=200,
-                                    reason='OK',
-                                    headers=[('Foo', 'Bar')],
-                                    body=self.inv_servicecat)
-        httplib.HTTPConnection.connect()
-        httplib.HTTPConnection.request(mox.IgnoreArg(),
-                                       mox.IgnoreArg(),
-                                       mox.IgnoreArg(),
-                                       mox.IgnoreArg())
-        httplib.HTTPConnection.getresponse().AndReturn(response)
-        httplib.HTTPConnection.close()
-
-        self.mox.ReplayAll()
-        with self.assertRaises(identity.HTTPUnauthorized):
-            identity.authenticate(auth_dict=ctx)
-
     def test_authenticate_rax(self):
-        """Test Get Token For RAX."""
+        """Test Authenticate for Rackspace."""
 
-        ctx = {'region': 'ord',
+        ctx = {'auth_url': 'identity.api.rackspacecloud.com',
                'username': 'testuser',
-               'apikey': 'testkey'}
+               'password': 'testkey'}
 
         response = FakeHttpResponse(status=200,
                                     reason='OK',
                                     headers=[('Foo', 'Bar')],
                                     body=self.rax_servicecat)
+
         httplib.HTTPConnection.connect()
-        httplib.HTTPConnection.request(mox.IgnoreArg(),
-                                       mox.IgnoreArg(),
-                                       mox.IgnoreArg(),
-                                       mox.IgnoreArg())
+        httplib.HTTPConnection.request(method=mox.IgnoreArg(),
+                                       url=mox.IgnoreArg(),
+                                       body=mox.IgnoreArg(),
+                                       headers=mox.IgnoreArg())
         httplib.HTTPConnection.getresponse().AndReturn(response)
         httplib.HTTPConnection.close()
 
@@ -205,8 +403,9 @@ class TestIdentity(test.base):
                           u'testuser',
                           json.loads(self.rax_servicecat)))
 
+
     def test_authenticate_pri(self):
-        """Test Get Token For Openstack."""
+        """Test Authenticate For Openstack."""
 
         ctx = {'auth_url': 'http://someauthurl.something',
                'username': 'testuser',
@@ -217,10 +416,10 @@ class TestIdentity(test.base):
                                     headers=[('Foo', 'Bar')],
                                     body=self.pri_servicecat)
         httplib.HTTPConnection.connect()
-        httplib.HTTPConnection.request(mox.IgnoreArg(),
-                                       mox.IgnoreArg(),
-                                       mox.IgnoreArg(),
-                                       mox.IgnoreArg())
+        httplib.HTTPConnection.request(method=mox.IgnoreArg(),
+                                       url=mox.IgnoreArg(),
+                                       body=mox.IgnoreArg(),
+                                       headers=mox.IgnoreArg())
         httplib.HTTPConnection.getresponse().AndReturn(response)
         httplib.HTTPConnection.close()
         self.mox.ReplayAll()
@@ -243,6 +442,55 @@ class TestIdentity(test.base):
         self.mox.ReplayAll()
         self.assertEqual(identity.get_token(context=ctx), 'token')
 
+    def test_auth_token_validate_valid(self):
+        """Test Token Validation Openstack."""
+
+        ctx = {'auth_url': 'the.auth.url.something',
+               'token': '12345678901234567890',
+               'tenant': '123456',
+               'service_token': '09876543210987654321'}
+
+        response = FakeHttpResponse(status=200,
+                                    reason='OK',
+                                    headers=[('Foo', 'Bar')],
+                                    body=self.pri_servicecat)
+
+        httplib.HTTPConnection.connect()
+        httplib.HTTPConnection.request(method=mox.IgnoreArg(),
+                                       url=mox.IgnoreArg(),
+                                       body=mox.IgnoreArg(),
+                                       headers=mox.IgnoreArg())
+        httplib.HTTPConnection.getresponse().AndReturn(response)
+        httplib.HTTPConnection.close()
+
+        self.mox.ReplayAll()
+        self.assertEqual(identity.auth_token_validate(auth_dict=ctx),
+                         json.loads(self.pri_servicecat))
+
+    def test_auth_token_validate_inv(self):
+        """Test Token Validation Openstack."""
+
+        ctx = {'auth_url': 'the.auth.url.something',
+               'token': '12345678901234567890',
+               'tenant': '123456',
+               'service_token': '09876543210987654321'}
+
+        response = FakeHttpResponse(status=200,
+                                    reason='OK',
+                                    headers=[('Foo', 'Bar')],
+                                    body='NOTJSON')
+
+        httplib.HTTPConnection.connect()
+        httplib.HTTPConnection.request(method=mox.IgnoreArg(),
+                                       url=mox.IgnoreArg(),
+                                       body=mox.IgnoreArg(),
+                                       headers=mox.IgnoreArg())
+        httplib.HTTPConnection.getresponse().AndReturn(response)
+        httplib.HTTPConnection.close()
+
+        self.mox.ReplayAll()
+        with self.assertRaises(identity.HTTPUnauthorized):
+            identity.auth_token_validate(auth_dict=ctx)
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
