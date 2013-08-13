@@ -8,7 +8,7 @@
       <td>
         <div class="dropdown" ng-show="urlBuilder.is_valid(resource)">
 
-          <ng-include src="'/partials/deployments/_delete_node.html'"></ng-include>
+          <ng-include ng-show="available_services(data).indexOf(resource.service) > -1" src="'/partials/deployments/_delete_node.html'"></ng-include>
 
           <a class="dropdown-toggle">{{resource['dns-name']}}</a>
           <ul class="dropdown-menu">
