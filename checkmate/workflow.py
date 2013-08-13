@@ -79,7 +79,8 @@ def reset_task_tree(task):
         parent_task = task.parent
 
         if 'root' in tags or not parent_task:
-            task._state = Task.WAITING
+            task._state = Task.FUTURE
+            task.task_spec._update_state(task)
             break
         task = parent_task
 

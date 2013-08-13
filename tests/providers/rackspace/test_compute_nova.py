@@ -54,14 +54,14 @@ class TestNovaCompute(test.ProviderTester):
         flavor.id = '2'
 
         context = {
-            'deployment': 'DEP',
-            'resource': '1',
+            'deployment_id': 'DEP',
+            'resource_key': '1',
             'tenant': 'TMOCK',
             'base_url': 'http://MOCK'
         }
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
-        tasks.reset_failed_resource_task.delay(context['deployment'],
-                                               context['resource'])
+        tasks.reset_failed_resource_task.delay(context['deployment_id'],
+                                               context['resource_key'])
 
         #Stub out postback call
         self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
@@ -101,7 +101,7 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        cm_deps.resource_postback.delay(context['deployment'],
+        cm_deps.resource_postback.delay(context['deployment_id'],
                                         expected).AndReturn(True)
 
         self.mox.ReplayAll()
@@ -112,8 +112,8 @@ class TestNovaCompute(test.ProviderTester):
                                         tags=provider.generate_resource_tag(
                                             context['base_url'],
                                             context['tenant'],
-                                            context['deployment'],
-                                            context['resource']
+                                            context['deployment_id'],
+                                            context['resource_key']
                                         ))
 
         self.assertDictEqual(results, expected)
@@ -126,8 +126,8 @@ class TestNovaCompute(test.ProviderTester):
         exc.__str__().AndReturn('some message')
         task_id = "1234"
         args = [{
-                'deployment': '4321',
-                'resource': '0'
+                'deployment_id': '4321',
+                'resource_key': '0'
                 }]
         kwargs = {}
         einfo = self.mox.CreateMockAnything()
@@ -191,11 +191,12 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.servers = self.mox.CreateMockAnything()
         openstack_api_mock.servers.find(id=server.id).AndReturn(server)
 
-        context = dict(deployment='DEP', resource='1', roles=['rack_connect'])
+        context = dict(deployment_id='DEP', resource_key='1',
+                       roles=['rack_connect'])
         ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
                             password=None, identity_file=None, port=22,
                             private_key=None).AndReturn(True)
-        cm_deps.resource_postback.delay(context['deployment'],
+        cm_deps.resource_postback.delay(context['deployment_id'],
                                         mox.IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
@@ -249,7 +250,8 @@ class TestNovaCompute(test.ProviderTester):
         image_mock.metadata = {'os_type': 'linux'}
         openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
-        context = dict(deployment='DEP', resource='1', roles=['rack_connect'])
+        context = dict(deployment_id='DEP', resource_key='1',
+                       roles=['rack_connect'])
         ssh.test_connection(context, "8.8.8.8", "root", timeout=10,
                             password=None, identity_file=None, port=22,
                             private_key=None).AndReturn(True)
@@ -276,7 +278,7 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        cm_deps.resource_postback.delay(context['deployment'],
+        cm_deps.resource_postback.delay(context['deployment_id'],
                                         expected).AndReturn(True)
 
         self.mox.ReplayAll()
@@ -332,7 +334,7 @@ class TestNovaCompute(test.ProviderTester):
         image_mock.metadata = {'os_type': 'linux'}
         openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
-        context = dict(deployment='DEP', resource='1', roles=[])
+        context = dict(deployment_id='DEP', resource_key='1', roles=[])
         ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
                             password=None, identity_file=None, port=22,
                             private_key=None).AndReturn(True)
@@ -359,7 +361,7 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        cm_deps.resource_postback.delay(context['deployment'],
+        cm_deps.resource_postback.delay(context['deployment_id'],
                                         expected).AndReturn(True)
 
         self.mox.ReplayAll()
