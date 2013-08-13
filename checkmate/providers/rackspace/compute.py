@@ -42,8 +42,8 @@ from checkmate.exceptions import (
     UNEXPECTED_ERROR,
 )
 from checkmate.middleware import RequestContext
-from checkmate.providers import user_has_access
 from checkmate.providers.rackspace import base
+from checkmate.providers import user_has_access
 import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import (
