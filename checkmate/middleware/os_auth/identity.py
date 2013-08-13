@@ -3,6 +3,7 @@ Celery tasks to authenticate against OpenStack Keystone
 """
 import logging
 import json
+import traceback
 
 from celery.task import task
 from checkmate.common import statsd
@@ -41,7 +42,7 @@ def authenticate(auth_dict):
 
     # Setup the request variables
     _url, _rax = auth_utils.parse_region(auth_dict=auth_dict)
-    aurl = auth_utils.is_https(url=_url, rax=_rax)
+    aurl = auth_utils.parse_url(url=_url)
     protocol = auth_utils.is_https(url=_url, rax=_rax)
     auth_json = auth_utils.parse_reqtype(auth_body=auth_dict)
 
@@ -57,10 +58,12 @@ def authenticate(auth_dict):
     resp_read = auth_utils.request_process(aurl=aurl,
                                            req=request,
                                            https=protocol)
+    LOG.debug('POST Authentication Response %s', resp_read)
     try:
         parsed_response = json.loads(resp_read)
     except ValueError, exp:
-        LOG.error('Authentication Failure %s' % exp)
+        LOG.error('Authentication Failure %s\n%s'
+                  % (exp, traceback.format_exc()))
         raise HTTPUnauthorized('JSON Decode Failure. ERROR: %s - RESP %s'
                                % (exp, resp_read))
     else:
