@@ -328,14 +328,13 @@ class TokenAuthMiddleware(object):
         :return dict:
         """
 
-        auth_base = {
-            'auth_url': auth_url,
-            'username': username,
-            'tenant': tenant,
-            'apikey': apikey,
-            'password': password,
-            'token': token,
-        }
+        auth_base = {'auth_url': auth_url,
+                     'username': username,
+                     'tenant': tenant,
+                     'apikey': apikey,
+                     'password': password,
+                     'token': token}
+
         LOG.debug('Authentication DATA dict == %s', auth_base)
         return identity.authenticate(auth_dict=auth_base)[3]
 
