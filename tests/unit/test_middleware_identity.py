@@ -1,12 +1,12 @@
-import logging
-import unittest
 import httplib
 import json
+import logging
+import unittest
+
 import mox
-from checkmate.providers.os_auth import identity
 
+from checkmate.middleware import identity
 from checkmate import test
-
 
 LOG = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ class TestIdentity(test.ProviderTester):
 
         ctx = {'region': 'RegionOne'}
         with self.assertRaises(AttributeError):
-            identity.os_authenticate(auth_dict=ctx)
+            identity.authenticate(auth_dict=ctx)
 
     def test_parse_region_no(self):
         """Test Region Test for No Region."""
@@ -148,15 +148,15 @@ class TestIdentity(test.ProviderTester):
         self.assertEqual(identity.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
-    def test_os_authenticate_nokey(self):
+    def test_authenticate_nokey(self):
         """Test Get Token for Without a Key/Password."""
 
         ctx = {'region': 'ord',
                'username': 'testuser'}
         with self.assertRaises(AttributeError):
-            identity.os_authenticate(auth_dict=ctx)
+            identity.authenticate(auth_dict=ctx)
 
-    def test_os_authenticate_inv(self):
+    def test_authenticate_inv(self):
         """Test Get Token For Invalid Reply."""
 
         ctx = {'region': 'ord',
@@ -176,10 +176,10 @@ class TestIdentity(test.ProviderTester):
         httplib.HTTPConnection.close()
 
         self.mox.ReplayAll()
-        with self.assertRaises(identity.NoTenatIdFound):
-            identity.os_authenticate(auth_dict=ctx)
+        with self.assertRaises(identity.NoTenantIdFound):
+            identity.authenticate(auth_dict=ctx)
 
-    def test_os_authenticate_rax(self):
+    def test_authenticate_rax(self):
         """Test Get Token For RAX."""
 
         ctx = {'region': 'ord',
@@ -199,13 +199,13 @@ class TestIdentity(test.ProviderTester):
         httplib.HTTPConnection.close()
 
         self.mox.ReplayAll()
-        self.assertEqual(identity.os_authenticate(auth_dict=ctx),
+        self.assertEqual(identity.authenticate(auth_dict=ctx),
                          (u'12345678901234567890',
                           u'123456',
                           u'testuser',
                           json.loads(self.rax_servicecat)))
 
-    def test_os_authenticate_pri(self):
+    def test_authenticate_pri(self):
         """Test Get Token For Openstack."""
 
         ctx = {'auth_url': 'http://someauthurl.something',
@@ -224,7 +224,7 @@ class TestIdentity(test.ProviderTester):
         httplib.HTTPConnection.getresponse().AndReturn(response)
         httplib.HTTPConnection.close()
         self.mox.ReplayAll()
-        self.assertEqual(identity.os_authenticate(auth_dict=ctx),
+        self.assertEqual(identity.authenticate(auth_dict=ctx),
                          (u'12345678901234567890',
                           u'admin',
                           u'testuser',
