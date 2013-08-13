@@ -1049,6 +1049,28 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     return context;
   }
 
+  var _authenticate_success = function(response) {
+    var params = { headers: response.headers, endpoint: endpoint };
+    auth.context = auth.create_context(response.data, params);
+    auth.identity = auth.create_identity(response.data, params);
+    auth.identity.context = angular.copy(auth.context);
+    if (auth.is_admin())
+      auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
+    auth.save();
+    auth.check_state();
+
+    $rootScope.$broadcast('logIn');
+    $rootScope.$broadcast('contextChanged');
+    return response;
+  }
+
+  var _authenticate_error = function(response) {
+    console.log("Authentication Error:");
+    console.log(response.data);
+    response.message = 'Your credentials could not be verified';
+    return $q.reject(response);
+  }
+
   auth.authenticate = function(endpoint, username, apikey, password, token, pin_rsa, tenant) {
     var headers,
         target = endpoint['uri'],
@@ -1065,30 +1087,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     var url = is_chrome_extension ? target : "/authproxy";
     var config = { headers: headers };
     return $http.post(url, data, config)
-      .then(
-        // Success
-        function(response) {
-          var params = { headers: response.headers, endpoint: endpoint };
-          auth.context = auth.create_context(response.data, params);
-          auth.identity = auth.create_identity(response.data, params);
-          auth.identity.context = angular.copy(auth.context);
-          if (auth.is_admin())
-            auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
-          auth.save();
-          auth.check_state();
-
-          $rootScope.$broadcast('logIn');
-          $rootScope.$broadcast('contextChanged');
-          return response;
-        },
-        // Error
-        function(response) {
-          console.log("Authentication Error:");
-          console.log(response.data);
-          response.message = 'Your credentials could not be verified';
-          return $q.reject(response);
-        }
-      );
+      .then(_authenticate_success, _authenticate_error);
   }
 
   auth.logOut = function(broadcast) {
