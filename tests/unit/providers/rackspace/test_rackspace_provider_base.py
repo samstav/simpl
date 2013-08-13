@@ -56,7 +56,7 @@ class TestGetCatalog(unittest.TestCase):
 
 class TestGetRegions(unittest.TestCase):
     """Class for testsing get_regions from RackspaceProviderBase."""
-    
+
     def setUp(self):
         """Sets up catalog for re-use."""
         self.catalog = [{
@@ -82,7 +82,6 @@ class TestGetRegions(unittest.TestCase):
         results = rs_base.RackspaceProviderBase.get_regions(self.catalog,
                                                             'test_service')
         self.assertEqual(results, expected)
-        
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0201,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,R0201,R0903,R0904,W0212,W0232,W0201
 # encoding: utf-8
 '''Module for testing Rackspace Compute Provider.'''
 import mock
@@ -7,9 +7,10 @@ import unittest
 from checkmate.providers import base
 from checkmate.providers.rackspace import compute
 
+
 class TestGetApiInfo(unittest.TestCase):
     """Class for testing _get_api_info method."""
-    
+
     def setUp(self):
         """Sets up context and kwargs for re-use."""
         self.context = base.middleware.RequestContext(**{'region': 'SYD'})
@@ -34,7 +35,6 @@ class TestGetApiInfo(unittest.TestCase):
                 'images': {
                     u'09149fae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'Windows Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     }
                 }
             }
@@ -45,17 +45,16 @@ class TestGetApiInfo(unittest.TestCase):
                 'linux_instance': {
                     'id': 'linux_instance'
                 }
-            }, 
+            },
             'lists': {
                 'images': {
                     u'09149fae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'Windows Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     }
                 }
             }
         }
-        
+
         results = compute.Provider._get_api_info(self.context)
         self.assertEqual(results, expected)
         mock_find_url.assert_called_with(None, self.context['region'])
@@ -81,7 +80,6 @@ class TestGetApiInfo(unittest.TestCase):
                 'images': {
                     u'09149fae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'Windows Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     }
                 }
             }
@@ -92,12 +90,11 @@ class TestGetApiInfo(unittest.TestCase):
                 'linux_instance': {
                     'id': 'linux_instance'
                 }
-            }, 
+            },
             'lists': {
                 'images': {
                     u'09149fae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'Windows Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     }
                 }
             }
@@ -134,7 +131,6 @@ class TestGetApiInfo(unittest.TestCase):
                 'images': {
                     u'09149fae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'Windows Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     }
                 }
             }
@@ -151,7 +147,6 @@ class TestGetApiInfo(unittest.TestCase):
                 'images': {
                     u'asdfae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'Linux Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     }
                 }
             }
@@ -168,7 +163,6 @@ class TestGetApiInfo(unittest.TestCase):
                 'images': {
                     u'poiuyae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'FreeBSD Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     }
                 }
             }
@@ -190,17 +184,13 @@ class TestGetApiInfo(unittest.TestCase):
                 'images': {
                     u'09149fae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'Windows Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     },
                     u'asdfae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'Linux Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     },
                     u'poiuyae-2236-42d6-9b4c-ba34a53a2d70': {
                         'name': u'FreeBSD Server 2012 + SQL Server 2012 '
-                                 'Standard SP1'
                     }
-                    
                 }
             }
         }
@@ -212,6 +202,7 @@ class TestGetApiInfo(unittest.TestCase):
         results = compute.Provider._get_api_info(self.context, **self.kwargs)
         mock_eventlet.assert_called_with(6)
         mock_get_regions.assert_called_with(None, 'cloudServersOpenStack')
+        mock_logger.assert_called_with('Region not found in context or kwargs.')
         self.assertEqual(mock_find_url.mock_calls, expected_find_urls)
         self.assertEqual(mock_jobs.spawn.call_count, 6)
         self.assertEqual(results, expected)
@@ -226,8 +217,8 @@ class TestGetApiInfo(unittest.TestCase):
         mock_jobs.spawn = mock.Mock()
         mock_eventlet.return_value = mock_jobs
         compute.Provider._get_api_info(self.context)
-        mock_logger.assert_called_with('Failed to find compute endpoint for %s '
-                                       'in %s', None, 'SYD')
+        mock_logger.assert_called_with('Failed to find compute endpoint for '
+                                       '%s in region %s', None, 'SYD')
 
 
 class EventletGreenpile(list):

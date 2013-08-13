@@ -12,7 +12,7 @@ LOG = logging.getLogger(__name__)
 class RackspaceProviderBase(base.ProviderBase):
     """Provides shared methods for Rackspace providers."""
     vendor = 'rackspace'
-    
+
     def __init__(self, provider, key=None):
         """Init for Rackspace provider base."""
         base.ProviderBase.__init__(self, provider, key=key)
@@ -46,4 +46,3 @@ class RackspaceProviderBase(base.ProviderBase):
         if not regions:
             LOG.warning('No regions found for service name %s', service_name)
         return regions
-        
