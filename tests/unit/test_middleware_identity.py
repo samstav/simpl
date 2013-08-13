@@ -5,8 +5,8 @@ import unittest
 
 import mox
 
-from checkmate.middleware import identity
 from checkmate import test
+from checkmate.middleware.os_auth import identity, auth_utils
 
 LOG = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class FakeHttpResponse(object):
         return self.headers
 
 
-class TestIdentity(test.ProviderTester):
+class TestIdentity(test.base):
     """Test Identity Provider."""
 
     def setUp(self):
@@ -101,28 +101,28 @@ class TestIdentity(test.ProviderTester):
         """Test Region Test for Ord."""
 
         ctx = {'region': 'ord'}
-        self.assertEqual(identity.parse_region(auth_dict=ctx),
+        self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
     def test_parse_region_dfw(self):
         """Test Region Test for dfw."""
 
         ctx = {'region': 'dfw'}
-        self.assertEqual(identity.parse_region(auth_dict=ctx),
+        self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
     def test_parse_region_syd(self):
         """Test Region Test for syd."""
 
         ctx = {'region': 'syd'}
-        self.assertEqual(identity.parse_region(auth_dict=ctx),
+        self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
     def test_parse_region_lon(self):
         """Test Region Test for lon."""
 
         ctx = {'region': 'lon'}
-        self.assertEqual(identity.parse_region(auth_dict=ctx),
+        self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
                          ('lon.identity.api.rackspacecloud.com', True))
 
     def test_parse_region_pri(self):
@@ -130,7 +130,7 @@ class TestIdentity(test.ProviderTester):
 
         ctx = {'region': 'RegionOne',
                'auth_url': 'http://someauthurl.something'}
-        self.assertEqual(identity.parse_region(auth_dict=ctx),
+        self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
                          ('http://someauthurl.something', False))
 
     def test_parse_region_nourl(self):
@@ -145,7 +145,7 @@ class TestIdentity(test.ProviderTester):
 
         ctx = {'username': 'testuser',
                'apikey': 'testkey'}
-        self.assertEqual(identity.parse_region(auth_dict=ctx),
+        self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
 
     def test_authenticate_nokey(self):
@@ -176,7 +176,7 @@ class TestIdentity(test.ProviderTester):
         httplib.HTTPConnection.close()
 
         self.mox.ReplayAll()
-        with self.assertRaises(identity.NoTenantIdFound):
+        with self.assertRaises(identity.HTTPUnauthorized):
             identity.authenticate(auth_dict=ctx)
 
     def test_authenticate_rax(self):
@@ -236,6 +236,7 @@ class TestIdentity(test.ProviderTester):
         ctx = {'region': 'testregion',
                'username': 'testuser',
                'password': 'testkey'}
+
         self.mox.StubOutWithMock(identity, 'get_token')
         identity.get_token(context=ctx).AndReturn('token')
 
