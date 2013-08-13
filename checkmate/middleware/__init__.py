@@ -12,15 +12,14 @@ import logging
 import os
 
 # some distros install as PAM (Ubuntu, SuSE)
-from checkmate.middleware.os_auth import identity
-
 try:
     import pam
 except ImportError:
-    import PAM  # pylint: disable=W0611,F0401,W0402
-from urlparse import urlparse
+    import PAM as pam
 
-from bottle import get, request, response, abort  # pylint: disable=E0611
+from checkmate.middleware.os_auth import identity
+
+from bottle import get, request, response, abort
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized
@@ -31,10 +30,8 @@ from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,
-    CheckmateUserException,
+    CheckmateUserException
 )
-
-# https://bugs.launchpad.net/keystone/+bug/938801
 
 
 LOG = logging.getLogger(__name__)
@@ -298,17 +295,16 @@ class TokenAuthMiddleware(object):
                                                  auth_url=self.endpoint['uri'],
                                                  token=token)
                     environ['HTTP_X_AUTHORIZED'] = "Confirmed"
-                except HTTPUnauthorized as exc:
+                except HTTPUnauthorized, exc:
                     return exc(environ, start_response)
-                except identity.AuthenticationFailure as exc:
-                    raise HTTPUnauthorized(str(exc))
-                except StandardError as exc:
+                except StandardError, exc:
                     raise HTTPUnauthorized(str(exc))
                 context.auth_source = self.endpoint['uri']
                 context.set_context(cnt)
 
         return self.app(environ, start_response)
 
+    # Extranious Method required due to Decorator
     @caching.CacheMethod(sensitive_kwargs=['token', 'apikey', 'password'],
                          timeout=600,
                          cache_exceptions=True)
@@ -323,6 +319,7 @@ class TokenAuthMiddleware(object):
         :param username:
         :param apikey:
         :param password:
+        :return dict:
         """
 
         auth_base = {
@@ -336,16 +333,21 @@ class TokenAuthMiddleware(object):
         LOG.debug('Authentication DATA dict == %s', auth_base)
         return identity.authenticate(auth_dict=auth_base)[3]
 
+    # Extranious Method required due to Decorator
     @caching.CacheMethod(sensitive_args=[0], timeout=600)
     def _validate_keystone(self, token, tenant_id=None):
-        """Validates a Keystone Auth Token using a service token."""
+        """Validates a Keystone Auth Token using a service token.
+
+        :param token:
+        :param tenant_id:
+        :return dict:
+        """
 
         auth_dict = {'auth_url': self.endpoint['uri'],
                      'token': token,
                      'tenant': tenant_id,
                      'service_token': self.service_token}
         return identity.os_token_validate(auth_dict=auth_dict)
-
 
     def start_response_callback(self, start_response):
         '''Intercepts upstream start_response and adds our headers.'''
