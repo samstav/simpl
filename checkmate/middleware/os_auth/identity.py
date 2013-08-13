@@ -75,11 +75,12 @@ def auth_token_validate(auth_dict):
 
     :param auth_dict: Dictionary of Authentication Variables."""
 
-
+    # Setup the request variables
     _url, _rax = auth_utils.parse_region(auth_dict=auth_dict)
     aurl = auth_utils.parse_url(url=_url)
     protocol = auth_utils.is_https(url=_url, rax=_rax)
 
+    # Get variables from the auth_dict
     token = auth_dict.get('token')
     tenant_id = auth_dict.get('tenant')
     service_token = auth_dict.get('service_token')
@@ -100,7 +101,6 @@ def auth_token_validate(auth_dict):
     try:
         return json.loads(resp_read)
     except ValueError, exp:
-        LOG.error('Value Error When Decoding JSON: %s ERROR: %s', resp_read,
-                  exp)
+        LOG.error('ValueError Decoding JSON: %s ERROR: %s', resp_read, exp)
         raise HTTPUnauthorized('No Json was Returned, MSG: "%s" - ERROR: "%s"'
                                % (resp_read, exp))
