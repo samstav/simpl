@@ -920,51 +920,51 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     var data = {};
     if (token) {
       data = {
-        "auth": {
-          "token": { "id": token },
-          "tenantId": tenant
+        auth: {
+          token: { id: token },
+          tenantId: tenant
           }
         };
     } else if (apikey) {
        data = {
-        "auth": {
+        auth: {
           "RAX-KSKEY:apiKeyCredentials": {
-            "username": username,
-            "apiKey": apikey
+            username: username,
+            apiKey: apikey
           }
         }
       };
     } else if (pin_rsa) {
       data = {
-        "auth": {
+        auth: {
           "RAX-AUTH:domain": {
-            "name": "Rackspace"
+            name: "Rackspace"
           },
           "RAX-AUTH:rsaCredentials": {
-            "username": username,
-            "tokenKey": pin_rsa
+            username: username,
+            tokenKey: pin_rsa
           }
         }
       };
     } else if (password) {
       if (scheme == "GlobalAuth") {
         data = {
-            "auth": {
+            auth: {
               "RAX-AUTH:domain": {
-              "name": "Rackspace"
+              name: "Rackspace"
               },
-              "passwordCredentials": {
-                "username": username,
-                "password": password
+              passwordCredentials: {
+                username: username,
+                password: password
               }
             }
           };
       } else {
         data = {
-          "auth": {
-            "passwordCredentials": {
-              "username": username,
-              "password": password
+          auth: {
+            passwordCredentials: {
+              username: username,
+              password: password
             }
           }
         };
@@ -1123,7 +1123,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     if (endpoint_type == 'GlobalAuth') {
       data = {
         "RAX-AUTH:impersonation": {
-          "user": {"username": username},
+          user: {username: username},
           "expire-in-seconds": 10800
         }
       };
@@ -1131,8 +1131,8 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     /* For Private Clouds, in the future
     else if (endpoint_type == 'Keystone') {
       data = {
-        "auth": {
-          "token": { "id": auth.identity.token.id },
+        auth: {
+          token: { id: auth.identity.token.id },
           'tenantId': username
         }
       };
