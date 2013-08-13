@@ -550,6 +550,7 @@ def user_has_access(context, roles):
     return False
 
 
+# pylint: disable=E1101
 class ProviderTask(celery.Task):
     '''Celery Task for providers.'''
     abstract = True

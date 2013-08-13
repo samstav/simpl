@@ -133,8 +133,8 @@ REGION_MAP = {'dallas': 'DFW',
 if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     try:
         REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
-    except StandardError as exc:
-        LOG.warn("Error connecting to Redis: %s", exc)
+    except StandardError as exception:
+        LOG.warn("Error connecting to Redis: %s", exception)
 
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 from checkmate import db
@@ -858,6 +858,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handles task failure."""
         action = "creating"
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
@@ -923,6 +924,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
 @task
 @statsd.collect
 def sync_resource_task(context, resource, resource_key, api=None):
+    """Syncs resource status with provider status."""
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
     if context.get('simulation') is True:
@@ -971,6 +973,7 @@ def delete_server_task(context, api=None):
     assert 'resource' in context, "No resource definition provided"
 
     def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handles task failure."""
         action = "deleting"
         method = "delete_server_task"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
@@ -1057,6 +1060,7 @@ def wait_on_delete_server(context, api=None):
     assert 'resource' in context, "No resource definition provided"
 
     def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handles task failure."""
         action = "while waiting on"
         method = "wait_on_delete_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
