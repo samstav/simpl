@@ -1,3 +1,7 @@
+"""
+Utilities For Authenticating against All Openstack / Rax Clouds.
+"""
+
 import httplib
 import logging
 import traceback
