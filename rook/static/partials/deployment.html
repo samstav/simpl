@@ -87,10 +87,12 @@ Priv Key: {{formatted_data.private_key}}
             Workflows
           </li>
           <li ng-repeat="operation in data['operations-history'].reverse() | filter:{ link: '!canvas' }">
-            <a href="{{operation.link}}">{{operation.type | capitalize}}</a>
+            <a ng-show="showCommands" href="{{operation.link}}">{{operation.type | capitalize}}</a>
+            <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this">{{operation.type | capitalize}}</a>
           </li>
           <li>
-            <a href="{{data.operation.link}}">{{data.operation.type | capitalize}}</a>
+            <a ng-show="showCommands" href="{{data.operation.link}}">{{data.operation.type | capitalize}}</a>
+            <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this">{{data.operation.type | capitalize}}</a>
           </li>
         </ul>
       </div>
