@@ -972,7 +972,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     } else {
       return false;
     }
-    return JSON.stringify(data);
+    return data;
   }
 
   auth.fetch_identity_tenants = function(endpoint, token) {
@@ -1020,39 +1020,38 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
   }
 
   auth.create_context = function(response, params) {
-    //Populate context
     var context = {};
     context.username = response.access.user.name || response.access.user.id; // auth.identity.username;
     context.user = response.access.user;
     context.token = response.access.token;
     context.auth_url = params.endpoint['uri'];
     context.regions = auth.get_regions(response);
+    context.tenantId = null;
+    context.catalog = {};
+    context.impersonated = false;
 
-    if (params.endpoint['scheme'] == "GlobalAuth") {
-      context.tenantId = null;
-      context.catalog = {};
-      context.impersonated = false;
-    } else {
+    if (params.endpoint['scheme'] !== "GlobalAuth") {
       if ('tenant' in response.access.token)
         context.tenantId = response.access.token.tenant.id;
-      else {
-        context.tenantId = null;
-        auth.fetch_identity_tenants(params.endpoint, context.token);
-      }
       context.catalog = response.access.serviceCatalog;
-      context.impersonated = false;
     }
 
     return context;
   }
 
   var _authenticate_success = function(response) {
+    var endpoint = auth.selected_endpoint;
     var params = { headers: response.headers, endpoint: endpoint };
     auth.context = auth.create_context(response.data, params);
     auth.identity = auth.create_identity(response.data, params);
     auth.identity.context = angular.copy(auth.context);
+
+    if (auth.context.tenantId === null && endpoint.scheme !== "GlobalAuth")
+      auth.fetch_identity_tenants(endpoint, auth.context.token);
+
     if (auth.is_admin())
       auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
+
     auth.save();
     auth.check_state();
 
@@ -1069,17 +1068,15 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
   }
 
   auth.authenticate = function(endpoint, username, apikey, password, token, pin_rsa, tenant) {
-    var headers,
+    var headers = {},
         target = endpoint['uri'],
         data = auth.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, endpoint.scheme);
     if (!data) return $q.reject({ status: 401, message: 'No auth data was supplied' });
-
-    if (target === undefined || target === null || target.length === 0) {
-      headers = {};  // Not supported on server, but we should do it
-    } else {
-      headers = {"X-Auth-Source": target};
-    }
     auth.selected_endpoint = endpoint;
+
+    if (target && target !== "") {
+      headers["X-Auth-Source"] = target;
+    }
 
     var url = is_chrome_extension ? target : "/authproxy";
     var config = { headers: headers };
