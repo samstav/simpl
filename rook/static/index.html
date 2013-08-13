@@ -80,42 +80,8 @@
             <img class="loading" ng-show="hasPendingRequests()" src="/img/ajax-loader-white.gif" />
             Checkmate
           </a>
-          <!--TODO: collapsing not yet clean -->
-          <div id="user_control" class="nav pull-right">
-            <ul class="nav">
-              <li class="divider-vertical"></li>
 
-              <li class="pull-right" ng-cloak ng-hide="auth.identity.loggedIn">
-                <a href="#" ng-click="loginPrompt()">
-                  <i class="icon-user icon-white"></i> Log In
-                </a>
-                <ng-include src="'/partials/app/login_prompt.html'"></ng-include>
-              </li>
-
-              <li class="dropdown pull-right" ng-cloak ng-show="auth.identity.loggedIn" title="Token expires {{auth.context.token.expires | formattedDate}}">
-                <a href="#" class="dropdown-toggle" id="user_button">
-                      <i class="icon-user icon-white"></i> {{auth.context.username}}
-                      <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
-                      <b class="caret"></b>
-                </a>
-                <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
-                  <li ng-show="auth.is_admin()" class="nav-header">TENANTS</li>
-                  <li ng-show="auth.is_admin()">
-                    <form id="impersonate" ng-submit="impersonate(impersonation.username)">
-                      <input ng-model="impersonation.username" type="text" placeholder="Username" cm-stop-click-propagation />
-                    </form>
-                  </li>
-                  <li role="presentation" ng-repeat="tenant in auth.cache.tenants">
-                      <a role="menutitem" ng-click="impersonate(tenant.username)">{{tenant.username}} ({{tenant.tenantId}})</a>
-                  </li>
-                  <li ng-show="is_impersonating()" class="divider"></li>
-                  <li><a ng-show="is_impersonating()" ng-click="exit_impersonation()">Exit Impersonation</a></li>
-                  <li ng-show="auth.cache.tenants" class="divider"></li>
-                  <li><a ng-click="logOut()">Log Out</a></li>
-                </ul>
-              </li>
-            </ul>
-          </div>
+          <ng-include src="'/partials/index/_user_menu.html'"></ng-include>
 
           <div collapse="collapse_navbar" class="nav-collapse">
             <ul id="nav-elements" class="nav" ng-cloak ng-show="auth.context.tenantId">
