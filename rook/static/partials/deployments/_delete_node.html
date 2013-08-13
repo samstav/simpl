@@ -1,0 +1,32 @@
+<a ng-click="open_modal('delete_resource_' + resource['$$hashKey'])" class="action action-delete off-table-left pull-left" tooltip="Delete Resource">
+  <i class="icon-remove"></i>
+</a>
+<!-- delete_resource -->
+<div modal="modal_window['delete_resource_' + resource['$$hashKey']]" close="close_modal('delete_resource_' + resource['$$hashKey'])" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="delete_resource_title" aria-hidden="true">
+  <div class="modal-header">
+    <h3 id="delete_resource_title" class="alert alert-danger">Warning! Data Destructive Task!</h3>
+  </div>
+  <div class="modal-body">
+    <p>You are about to delete the following resource and all data in it:</p>
+
+    <dl class="dl-horizontal">
+      <dt>Name</dt>
+      <dd>{{resource['dns-name']}}</dd>
+
+      <dt>Type</dt>
+      <dd>{{resource.type}}{{resource.service | prepend: ' - '}}</dd>
+
+      <dt>IP</dt>
+      <dd>{{resource.instance.public_ip}}</dd>
+
+      <dt>Status</dt>
+      <dd>{{resource.status}}</dd>
+    </dl>
+
+    <p>Are you sure you want to continue?</p>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-primary" ng-click="delete_nodes(data, resource); close_modal('delete_resource_' + resource['$$hashKey']);">Go ahead and Delete</button>
+    <button class="btn" ng-click="close_modal('delete_resource_' + resource['$$hashKey'])">Cancel</button>
+  </div>
+</div>
