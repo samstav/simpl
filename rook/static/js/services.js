@@ -976,18 +976,15 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
   }
 
   auth.fetch_identity_tenants = function(endpoint, token) {
-    var headers = {
-      'X-Auth-Source': endpoint['uri'],
-      'X-Auth-Token': token.id
+    var url = is_chrome_extension ? endpoint['uri'] : "/authproxy/v2.0/tenants";
+    var config = {
+      headers: {
+        'X-Auth-Source': endpoint['uri'],
+        'X-Auth-Token': token.id
+      }
     };
-    $.ajax({
-      type: "GET",
-      contentType: "application/json; charset=utf-8",
-      headers: headers,
-      dataType: "json",
-      url: is_chrome_extension ? endpoint['uri'] : "/authproxy/v2.0/tenants"
-    }).success(function(response, textStatus, request) {
-      auth.identity.tenants = response.tenants;
+    return $http.get(url, config).then(function(response) {
+      auth.identity.tenants = response.data.tenants;
       auth.save();
     });
   }
