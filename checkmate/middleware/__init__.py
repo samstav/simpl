@@ -12,6 +12,8 @@ import logging
 import os
 
 # some distros install as PAM (Ubuntu, SuSE)
+from checkmate.middleware.os_auth import identity
+
 try:
     import pam
 except ImportError:
@@ -19,7 +21,6 @@ except ImportError:
 from urlparse import urlparse
 
 from bottle import get, request, response, abort  # pylint: disable=E0611
-from eventlet.green import httplib
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized
@@ -32,8 +33,9 @@ from checkmate.exceptions import (
     CheckmateException,
     CheckmateUserException,
 )
+
 # https://bugs.launchpad.net/keystone/+bug/938801
-from checkmate.middleware import identity  # temporary
+
 
 LOG = logging.getLogger(__name__)
 
@@ -336,50 +338,14 @@ class TokenAuthMiddleware(object):
 
     @caching.CacheMethod(sensitive_args=[0], timeout=600)
     def _validate_keystone(self, token, tenant_id=None):
-        '''Validates a Keystone Auth Token using a service token.'''
-        url = urlparse(self.endpoint['uri'])
-        if url.scheme == 'https':
-            http_class = httplib.HTTPSConnection
-            port = url.port or 443
-        else:
-            http_class = httplib.HTTPConnection
-            port = url.port or 80
-        host = url.hostname
+        """Validates a Keystone Auth Token using a service token."""
 
-        path = os.path.join(url.path, token)
-        if tenant_id:
-            path = "%s?belongsTo=%s" % (path, tenant_id)
-            LOG.debug("Validating on tenant '%s'", tenant_id)
-        headers = {
-            'X-Auth-Token': self.service_token,
-            'Accept': 'application/json',
-        }
-        LOG.debug('Validating token with %s', self.endpoint['uri'])
-        http = http_class(host, port, timeout=10)
-        try:
-            http.request('GET', path, headers=headers)
-            resp = http.getresponse()
-            body = resp.read()
-        except StandardError as exc:
-            LOG.error('HTTP connection exception: %s', exc)
-            raise HTTPUnauthorized('Unable to communicate with %s' %
-                                   self.endpoint['uri'])
-        finally:
-            http.close()
+        auth_dict = {'auth_url': self.endpoint['uri'],
+                     'token': token,
+                     'tenant': tenant_id,
+                     'service_token': self.service_token}
+        return identity.os_token_validate(auth_dict=auth_dict)
 
-        if resp.status != 200:
-            LOG.debug('Invalid token for tenant: %s', resp.reason)
-            raise HTTPUnauthorized("Token invalid or not valid for this "
-                                   "tenant (%s)" % resp.reason,
-                                   [('WWW-Authenticate', self.auth_header)])
-
-        try:
-            content = json.loads(body)
-        except ValueError:
-            msg = 'Keystone did not return json-encoded body'
-            LOG.debug(msg)
-            raise HTTPUnauthorized(msg)
-        return content
 
     def start_response_callback(self, start_response):
         '''Intercepts upstream start_response and adds our headers.'''
