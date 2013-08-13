@@ -133,7 +133,7 @@ def request_process(aurl, req, https=True):
             conn = httplib.HTTPSConnection(aurl)
         else:
             conn = httplib.HTTPConnection(aurl)
-    except httplib.InvalidURL, exc:
+    except httplib.InvalidURL as exc:
         raise HTTPUnauthorized('Failed to open connection %s' % exc)
 
     try:
@@ -141,7 +141,7 @@ def request_process(aurl, req, https=True):
         _method, _url, _body, _headers = req
         conn.request(method=_method, url=_url, body=_body, headers=_headers)
         resp = conn.getresponse()
-    except Exception, exc:
+    except Exception as exc:
         LOG.error('Not able to perform Request ERROR: %s', exc)
         raise AttributeError("Failure to perform Authentication %s ERROR:\n%s"
                              % (exc, traceback.format_exc()))
