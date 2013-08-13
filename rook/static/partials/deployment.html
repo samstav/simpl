@@ -23,25 +23,25 @@ Priv Key: {{formatted_data.private_key}}
             Commands
           </li>
           <li>
-            <a ng-click="save()" tooltip="Save any edits of the JSON. The JSON on the right is editable!">
+            <a ng-click="save()" tooltip="Save any edits of the JSON. The JSON on the right is editable!" tooltip-placement="right">
               <i class="icon-ok"></i>
               Save
             </a>
           </li>
 
           <li>
-            <a ng-show="auth.is_admin()" ng-click="sync()" tooltip="Sync the deployment resources">
+            <a ng-show="auth.is_admin()" ng-click="sync()" tooltip="Sync the deployment resources" tooltip-placement="right">
               <i class="icon-retweet"></i>
               Sync
             </a>
           </li>
 
           <li>
-            <a ng-show="showCommands" ng-click="open_modal('delete_warning')" tooltip="Delete Resources and Deployment">
+            <a ng-show="showCommands" ng-click="open_modal('delete_warning')" tooltip="Delete Resources and Deployment" tooltip-placement="right">
               <i class="icon-remove"></i>
               Delete
             </a>
-            <a ng-hide="showCommands" tooltip="You must impersonate this user to use this" class="muted">
+            <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this" tooltip-placement="right">
               <i class="icon-remove"></i>
               Delete
             </a>
@@ -61,10 +61,10 @@ Priv Key: {{formatted_data.private_key}}
           </li>
 
           <li>
-            <a ng-show="showCommands" ng-click="open_modal('force_delete_warning')" tooltip="Delete Resources and Deployment even if status does not allow it">
+            <a ng-show="showCommands" ng-click="open_modal('force_delete_warning')" tooltip="Delete Resources and Deployment even if status does not allow it" tooltip-placement="right">
               <i class="icon-remove"></i> Force Delete
             </a>
-            <a ng-hide="showCommands" tooltip="You must impersonate this user to use this" class="muted">
+            <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this" tooltip-placement="right">
               <i class="icon-remove"></i> Force Delete
             </a>
             <!-- forceDeleteWarning -->
@@ -88,11 +88,11 @@ Priv Key: {{formatted_data.private_key}}
           </li>
           <li ng-repeat="operation in data['operations-history'].reverse() | filter:{ link: '!canvas' }">
             <a ng-show="showCommands" href="{{operation.link}}">{{operation.type | capitalize}}</a>
-            <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this">{{operation.type | capitalize}}</a>
+            <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this" tooltip-placement="right">{{operation.type | capitalize}}</a>
           </li>
           <li>
             <a ng-show="showCommands" href="{{data.operation.link}}">{{data.operation.type | capitalize}}</a>
-            <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this">{{data.operation.type | capitalize}}</a>
+            <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this" tooltip-placement="right">{{data.operation.type | capitalize}}</a>
           </li>
         </ul>
       </div>
