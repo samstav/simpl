@@ -348,12 +348,12 @@ class TokenAuthMiddleware(object):
         :return dict:
         """
 
-        auth_dict = {'auth_url': self.endpoint['uri'],
+        auth_base = {'auth_url': self.endpoint['uri'],
                      'token': token,
                      'tenant': tenant_id,
                      'service_token': self.service_token}
         LOG.debug('Token Validation DATA dict == %s', auth_base)
-        return identity.os_token_validate(auth_dict=auth_dict)
+        return identity.os_token_validate(auth_dict=auth_base)
 
     def start_response_callback(self, start_response):
         '''Intercepts upstream start_response and adds our headers.'''
