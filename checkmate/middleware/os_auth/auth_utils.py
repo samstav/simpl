@@ -1,5 +1,6 @@
 import httplib
 import logging
+import traceback
 
 from checkmate.middleware.os_auth import exceptions
 from webob.exc import HTTPUnauthorized
@@ -28,6 +29,7 @@ def parse_reqtype(auth_body):
         setup['password'] = auth_body.get('password')
         auth_body = {'auth': {prefix: setup}}
     else:
+        LOG.error(traceback.format_exc())
         raise AttributeError('No Password or APIKey/Password Specified')
 
     return auth_body
@@ -48,7 +50,8 @@ def parse_srvcatalog(srv_cata):
     elif 'user' in access:
         tenantid = access.get('user').get('name')
     else:
-        LOG.error('No Token Found to Parse Here is the DATA: %s', srv_cata)
+        LOG.error('No Token Found to Parse Here is the DATA: %s\n%s',
+                  srv_cata, traceback.format_exc())
         raise exceptions.NoTenantIdFound('When attempting to grab the '
                                          'tenant/user nothing was found.')
     return token, tenantid
@@ -123,13 +126,17 @@ def request_process(aurl, req, https=True):
     :return:
     """
 
+    LOG.debug('REQUEST DATA %s %s %s', aurl, req, https)
     try:
         # Setup the Authentication URL for HTTP(S)
         if https:
             conn = httplib.HTTPSConnection(aurl)
         else:
             conn = httplib.HTTPConnection(aurl)
+    except httplib.InvalidURL, exc:
+        raise HTTPUnauthorized('Failed to open connection %s' % exc)
 
+    try:
         # Make the request for authentication
         _method, _url, _body, _headers = req
         conn.request(method=_method, url=_url, body=_body, headers=_headers)
@@ -142,10 +149,11 @@ def request_process(aurl, req, https=True):
         status_code = resp.status
         if status_code >= 300:
             LOG.error('HTTP connection exception: '
-                      'Response %s - Response Code %s', resp_read, status_code)
+                      'Response %s - Response Code %s\n%s',
+                      resp_read, status_code, traceback.format_exc())
             raise HTTPUnauthorized('Failed to authenticate %s' % status_code)
 
-        LOG.debug('Connection successful MSG:%s - STATUS: %s', resp.reason)
+        LOG.debug('Connection successful MSG: %s - STATUS: %s', resp.reason)
         return resp_read
     finally:
         conn.close()
