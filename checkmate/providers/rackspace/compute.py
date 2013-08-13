@@ -508,7 +508,6 @@ class Provider(RackspaceComputeProviderBase):
         '''Get Flavors, Images and Types available in a given Region.'''
         results = {}
         urls = {}
-        LOG.info('kwargs values %s', kwargs)
         if context.get('region') or kwargs.get('region'):
             region = context.get('region') or kwargs.get('region').upper()
             urls[region] = Provider.find_url(context.catalog, region)
@@ -528,6 +527,7 @@ class Provider(RackspaceComputeProviderBase):
             jobs.spawn(_get_images_and_types, url, region,
                        context.auth_token)
         for ret in jobs:
+            LOG.info('ret value %s', ret)
             results = merge_dictionary(results, ret, extend_lists=True)
 
         return results
