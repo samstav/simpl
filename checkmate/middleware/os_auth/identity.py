@@ -1,6 +1,7 @@
 """
 Celery tasks to authenticate against OpenStack Keystone
 """
+
 import json
 import logging
 import traceback
