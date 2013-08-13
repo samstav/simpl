@@ -7,7 +7,7 @@ import json
 from celery.task import task
 from checkmate.common import statsd
 from checkmate.middleware.os_auth import auth_utils
-from checkmate.middleware import HTTPUnauthorized
+from webob.exc import HTTPUnauthorized
 
 
 LOG = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def authenticate(auth_dict):
     """
 
     # Setup the request variables
-    _url, _rax = parse_region(auth_dict=auth_dict)
+    _url, _rax = auth_utils.parse_region(auth_dict=auth_dict)
     aurl = auth_utils.is_https(url=_url, rax=_rax)
     protocol = auth_utils.is_https(url=_url, rax=_rax)
     auth_json = auth_utils.parse_reqtype(auth_body=auth_dict)
@@ -89,8 +89,8 @@ def auth_token_validate(auth_dict):
     if tenant_id:
         path = "%s?belongsTo=%s" % (path, tenant_id)
         LOG.debug("Validating on tenant '%s'", tenant_id)
-
     LOG.debug('Validating token with %s', path)
+
     headers = {'X-Auth-Token': service_token,
                'Accept': 'application/json'}
 
