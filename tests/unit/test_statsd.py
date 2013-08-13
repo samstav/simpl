@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,W0613
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,E1101,E1103
 from __future__ import absolute_import
 
 import mock

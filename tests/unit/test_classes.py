@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,E1101,E1103
 import unittest
 
 from checkmate.classes import ExtensibleDict
