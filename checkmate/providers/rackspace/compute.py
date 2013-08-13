@@ -517,17 +517,15 @@ class Provider(RackspaceComputeProviderBase):
                                                'cloudServersOpenStack'):
                 urls[region] = Provider.find_url(context.catalog, region)
 
-        if not urls:
-            LOG.info("Failed to find compute endpoint for %s in region %s",
-                     context.tenant, context.region)
-
         jobs = eventlet.GreenPile(min(len(urls)*2, 16)) 
         for region, url in urls.items():
+            if not url:
+                LOG.warning("Failed to find compute endpoint for %s in %s",
+                            context.tenant, region)
             jobs.spawn(_get_flavors, url, context.auth_token)
             jobs.spawn(_get_images_and_types, url, region,
                        context.auth_token)
         for ret in jobs:
-            LOG.info('ret value %s', ret)
             results = merge_dictionary(results, ret, extend_lists=True)
 
         return results
