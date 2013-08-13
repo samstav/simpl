@@ -102,6 +102,7 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
 
 
 class Provider(RackspaceComputeProviderBase):
+    """Rackspace Cloud Servers Legacy Provider."""
     name = 'legacy'
 
     def generate_template(self, deployment, resource_type, service, context,
@@ -144,10 +145,10 @@ class Provider(RackspaceComputeProviderBase):
                 else:
                     LOG.warning("Region %s specified in deployment, but no "
                                 "regions are specified in the Legacy Compute "
-                                "catalog" % region)
+                                "catalog", region)
             else:
                 LOG.warning("Region %s specified in deployment, but not in "
-                            "Legacy Compute catalog" % region)
+                            "Legacy Compute catalog", region)
 
         image = deployment.get_setting('os',
                                        resource_type=resource_type,
@@ -160,7 +161,7 @@ class Provider(RackspaceComputeProviderBase):
             # Assume it is an OS name and find it
             for key, value in catalog['lists']['types'].iteritems():
                 if image == value['name'] or image == value['os']:
-                    LOG.debug("Mapping image from '%s' to '%s'" % (image, key))
+                    LOG.debug("Mapping image from '%s' to '%s'", image, key)
                     image = key
                     break
         if image not in catalog['lists']['types']:
@@ -184,7 +185,7 @@ class Provider(RackspaceComputeProviderBase):
         match = str(min(matches))
         for key, value in catalog['lists']['sizes'].iteritems():
             if match == str(value['memory']):
-                LOG.debug("Mapping flavor from '%s' to '%s'" % (memory, key))
+                LOG.debug("Mapping flavor from '%s' to '%s'", memory, key)
                 flavor = key
                 break
         if not flavor:
@@ -426,6 +427,7 @@ class Provider(RackspaceComputeProviderBase):
         api.client.auth_token = context.auth_token
 
         def find_url(catalog):
+            """Return url endpoint."""
             for service in catalog:
                 if service['name'] == 'cloudServers':
                     endpoints = service['endpoints']
@@ -435,18 +437,18 @@ class Provider(RackspaceComputeProviderBase):
         url = find_url(context.catalog)
         api.client.management_url = url
         LOG.debug("Connected to legacy cloud servers using token of length %s "
-                  "and url of %s" % (len(api.client.auth_token), url))
+                  "and url of %s", len(api.client.auth_token), url)
         return api
 
-"""
-  Celery tasks to manipulate Rackspace Cloud Servers.
-"""
+
+# Celery tasks to manipulate Rackspace Cloud Servers.
+
 from celery.task import task  # @UnresolvedImport
 
 from checkmate.ssh import test_connection
 
 
-""" Celeryd tasks """
+# Celeryd tasks
 
 
 @task
@@ -489,14 +491,14 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     reset_failed_resource_task.delay(context["deployment"],
                                      context["resource"])
 
-    LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s' % (
-              image, flavor, name, files))
+    LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor, name,
+              files)
 
     # Check image and flavor IDs (better descriptions if we error here)
     image_object = api_object.images.find(id=int(image))
-    LOG.debug("Image id %s found. Name=%s" % (image, image_object.name))
+    LOG.debug("Image id %s found. Name=%s", image, image_object.name)
     flavor_object = api_object.flavors.find(id=int(flavor))
-    LOG.debug("Flavor id %s found. Name=%s" % (flavor, flavor_object.name))
+    LOG.debug("Flavor id %s found. Name=%s", flavor, flavor_object.name)
 
     # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
@@ -511,9 +513,8 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
         )
         create_server.update_state(state="PROGRESS",
                                    meta={"server.id": server.id})
-        LOG.debug(
-            'Created server %s (%s).  Admin pass = %s' % (
-            name, server.id, server.adminPass))
+        LOG.debug('Created server %s (%s).  Admin pass = %s', name, server.id,
+                  server.adminPass)
     except openstack.compute.exceptions.Unauthorized:
         LOG.debug(
             'Cannot create server.  Bad username and apikey/authtoken '
@@ -531,9 +532,8 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
                                           "team to increase your limit",
                                           "")
     except Exception, exc:
-        LOG.debug(
-            'Error creating server %s (image: %s, flavor: %s) Error: %s' % (
-            name, image, flavor, str(exc)))
+        LOG.debug('Error creating server %s (image: %s, flavor: %s) Error: %s',
+                  name, image, flavor, str(exc))
         raise
 
     ip_address = str(server.addresses[ip_address_type][0])
@@ -566,7 +566,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         api_object = Provider.connect(context)
 
     assert server_id, "ID must be provided"
-    LOG.debug("Getting server %s" % server_id)
+    LOG.debug("Getting server %s", server_id)
     server = api_object.servers.find(id=server_id)
     results = {
         'id': server_id,
@@ -619,13 +619,13 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         # It often, if not usually takes at least 30 seconds after a server
         # hits 100% before it will be "ACTIVE".  We used to use % left as a
         # countdown value, but reverting to the above configured countdown.
-        LOG.debug("Server %s progress is %s. Retrying after 30 seconds" % (
-                  server_id, server.progress))
+        LOG.debug("Server %s progress is %s. Retrying after 30 seconds",
+                  server_id, server.progress)
         return wait_on_build.retry()
 
     if server.status != 'ACTIVE':
         LOG.warning("Server %s status is %s, which is not recognized. "
-                    "Assuming it is active" % (server_id, server.status))
+                    "Assuming it is active", server_id, server.status)
 
     if not ip:
         error_message = "Could not find IP of server %s" % server_id
@@ -636,7 +636,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
                              password=password, identity_file=identity_file,
                              port=port, private_key=private_key)
         if up:
-            LOG.info("Server %s is up" % server_id)
+            LOG.info("Server %s is up", server_id)
             results['status'] = "ACTIVE"
             instance_key = 'instance:%s' % context['resource']
             results = {instance_key: results}
@@ -693,6 +693,7 @@ def _convert_v1_adresses_to_v2(addresses):
 @task
 @statsd.collect
 def delete_server(context, serverid, api_object=None):
+    """Task to delete legacy cloud server."""
     match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider.connect(context)
