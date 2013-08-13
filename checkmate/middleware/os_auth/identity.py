@@ -76,7 +76,8 @@ def authenticate(auth_dict):
 def auth_token_validate(auth_dict):
     """Attempt to Validate a Token as an Admin.
 
-    :param auth_dict: Dictionary of Authentication Variables."""
+    :param auth_dict: Dictionary of Authentication Variables.
+    """
 
     # Setup the request variables
     _url, _rax = auth_utils.parse_region(auth_dict=auth_dict)
