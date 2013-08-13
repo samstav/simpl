@@ -10,6 +10,7 @@ import copy
 import json
 import logging
 import os
+import traceback
 
 # some distros install as PAM (Ubuntu, SuSE)
 try:
@@ -296,11 +297,16 @@ class TokenAuthMiddleware(object):
                                                  token=token)
                     environ['HTTP_X_AUTHORIZED'] = "Confirmed"
                 except HTTPUnauthorized, exc:
+                    LOG.error('ERROR FAILURE IN AUTH: %s\n%s', exc,
+                              traceback.format_exc())
                     return exc(environ, start_response)
-                except StandardError, exc:
-                    raise HTTPUnauthorized(str(exc))
-                context.auth_source = self.endpoint['uri']
-                context.set_context(cnt)
+                except Exception, exc:
+                    LOG.error('NOTE - GENERAL ERROR: %s\n%s',
+                              exc, traceback.format_exc())
+                    raise HTTPUnauthorized(exc)
+                else:
+                    context.auth_source = self.endpoint['uri']
+                    context.set_context(cnt)
 
         return self.app(environ, start_response)
 
@@ -328,7 +334,7 @@ class TokenAuthMiddleware(object):
             'tenant': tenant,
             'apikey': apikey,
             'password': password,
-            'token': str(token),
+            'token': token,
         }
         LOG.debug('Authentication DATA dict == %s', auth_base)
         return identity.authenticate(auth_dict=auth_base)[3]
@@ -347,6 +353,7 @@ class TokenAuthMiddleware(object):
                      'token': token,
                      'tenant': tenant_id,
                      'service_token': self.service_token}
+        LOG.debug('Token Validation DATA dict == %s', auth_base)
         return identity.os_token_validate(auth_dict=auth_dict)
 
     def start_response_callback(self, start_response):
