@@ -1,3 +1,7 @@
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+'''
+Test core provider package
+'''
 import unittest
 
 from checkmate.providers import core

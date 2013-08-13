@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
 '''Tests for script provider'''
 
 import logging

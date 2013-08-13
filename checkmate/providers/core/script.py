@@ -47,12 +47,14 @@ def register_scheme(scheme):
     Use this to register a new scheme with urlparse and have it be
     parsed in the same way as http is parsed
     '''
+    # pylint: disable=W0110,W0141
     for method in filter(lambda s: s.startswith('uses_'), dir(urlparse)):
         getattr(urlparse, method).append(scheme)
 
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
+# pylint: disable=R0904
 class Provider(providers.ProviderBase):
     '''Implements a script configuration management provider.'''
     name = 'script'
@@ -66,10 +68,11 @@ class Provider(providers.ProviderBase):
         if self.prep_task:
             return  # already prepped
 
+    # pylint: disable=R0913,R0914
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         '''Create and write settings, generate run_list, and call cook.'''
-        wait_on, service_name, component = self._add_resource_tasks_helper(
+        wait_on, service_name, _ = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
         service_name = resource.get('service')
         resource_type = resource.get('type')
@@ -110,6 +113,7 @@ class Provider(providers.ProviderBase):
 
         return dict(root=join or execute_task, final=execute_task)
 
+    # pylint: disable=R0913
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
         '''Generate tasks for a connection.'''
