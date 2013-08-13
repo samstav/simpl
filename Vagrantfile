@@ -13,7 +13,10 @@ Vagrant.configure("2") do |config|
     config.vm.provider :libvirt do |libvirt, override|
       override.vm.box_url = "https://dl.dropboxusercontent.com/u/50757999/libvirtubuntubox.box"
       #NOTE the IP address should be relevant to your system
-      override.vm.network :private_network, :ip => "192.168.122.69"
+      # override.vm.network :private_network, :ip => "192.168.122.69"
+      libvirt.memory = 2048
+      libvirt.cpus = 2
+      libvirt.nested = true
       libvirt.driver = "qemu"
       libvirt.host = %x[hostname].strip
       libvirt.connect_via_ssh = false
