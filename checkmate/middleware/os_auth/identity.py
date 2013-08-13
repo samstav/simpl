@@ -24,7 +24,7 @@ def get_token(context):
     :param context:
     """
     token = authenticate(auth_dict=context)[0]
-    LOG.debug('Current User Token' % token)
+    LOG.debug('Current User Token %s', token)
     return token
 
 
@@ -63,8 +63,8 @@ def authenticate(auth_dict):
     try:
         parsed_response = json.loads(resp_read)
     except ValueError as exp:
-        LOG.error('Authentication Failure %s\n%s'
-                  % (exp, traceback.format_exc()))
+        LOG.error('Authentication Failure %s\n%s', exp,
+                  traceback.format_exc())
         raise HTTPUnauthorized('JSON Decode Failure. ERROR: %s - RESP %s'
                                % (exp, resp_read))
     else:
