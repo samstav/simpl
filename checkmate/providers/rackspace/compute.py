@@ -371,13 +371,14 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO(any): use environment keys instead of private key
         '''
+        queued_task_dict = context.get_queued_task_dict(
+            deployment_id=deployment['id'], resource_key=key,
+            region=resource['region'], resource=resource)
         create_server_task = Celery(
             wfspec, 'Create Server %s (%s)' % (key, resource['service']),
             'checkmate.providers.rackspace.compute.create_server',
             call_args=[
-                context.get_queued_task_dict(deployment=deployment['id'],
-                                             resource=key,
-                                             region=resource['region']),
+                queued_task_dict,
                 resource.get('dns-name'),
                 resource['region']
             ],
@@ -398,8 +399,7 @@ class Provider(RackspaceComputeProviderBase):
 
         kwargs = dict(
             call_args=[
-                context.get_queued_task_dict(deployment=deployment['id'],
-                                             resource=key),
+                queued_task_dict,
                 PathAttrib('instance:%s/id' % key),
                 resource['region'],
                 resource
@@ -432,8 +432,7 @@ class Provider(RackspaceComputeProviderBase):
                                                           resource['service']),
                 'checkmate.ssh.execute_2',
                 call_args=[
-                    context.get_queued_task_dict(deployment=deployment['id'],
-                                                 resource=key),
+                    queued_task_dict,
                     PathAttrib("instance:%s/public_ip" % key),
                     "touch /tmp/checkmate-complete",
                     "root",
@@ -788,8 +787,8 @@ def _get_limits(api_endpoint, auth_token):
 
 def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
     '''Handle task failure.'''
-    dep_id = args[0].get('deployment')
-    key = args[0].get('resource')
+    dep_id = args[0].get('deployment_id')
+    key = args[0].get('resource_key')
     if dep_id and key:
         k = "instance:%s" % key
         ret = {
@@ -849,9 +848,10 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     '''
 
-    deployment_id = context["deployment"]
+    deployment_id = context["deployment_id"]
+    resource_key = context['resource_key']
+    instance_key = 'instance:%s' % resource_key
     if context.get('simulation') is True:
-        resource_key = context['resource']
         results = {
             'instance:%s' % resource_key: {
                 'id': str(1000 + int(resource_key)),
@@ -860,7 +860,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
             }
         }
         # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
+        resource_postback.delay(deployment_id, results)
         return results
 
     match_celery_logging(LOG)
@@ -870,7 +870,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
-    reset_failed_resource_task.delay(deployment_id, context["resource"])
+    reset_failed_resource_task.delay(deployment_id, resource_key)
     create_server.on_failure = on_failure
 
     if api_object is None:
@@ -888,7 +888,6 @@ def create_server(context, name, region, api_object=None, flavor="2",
     # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
     meta = tags or context.get("metadata", None)
-    instance_key = 'instance:%s' % context['resource']
     try:
         server = api_object.servers.create(name, image_object, flavor_object,
                                            meta=meta, files=files,
@@ -924,7 +923,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     }
 
     # Send data back to deployment
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(deployment_id, results)
     return results
 
 
@@ -1146,11 +1145,13 @@ def wait_on_build(context, server_id, region, resource,
     :returns: False when build not ready. Dict with ip addresses when done.
     '''
     match_celery_logging(LOG)
+    deployment_id = context["deployment_id"]
+    resource_key = context['resource_key']
+    instance_key = 'instance:%s' % resource_key
 
     if context.get('simulation') is True:
-        resource_key = context['resource']
         results = {
-            'instance:%s' % resource_key: {
+            instance_key: {
                 'status': "ACTIVE",
                 'status-message': "",
                 'ip': '4.4.4.%s' % resource_key,
@@ -1177,7 +1178,7 @@ def wait_on_build(context, server_id, region, resource,
             }
         }
         # Send data back to deployment
-        resource_postback.delay(context['deployment'], results)
+        resource_postback.delay(deployment_id, results)
         return results
 
     if api_object is None:
@@ -1199,7 +1200,6 @@ def wait_on_build(context, server_id, region, resource,
         'addresses': server.addresses,
         'region': api_object.client.region_name,
     }
-    instance_key = 'instance:%s' % context['resource']
 
     if server.status == 'ERROR':
         results = {
@@ -1209,7 +1209,8 @@ def wait_on_build(context, server_id, region, resource,
             }
         }
 
-        resource_postback.delay(context['deployment'], results)
+        resource_postback.delay(deployment_id, results)
+        context["instance_id"] = server_id
         chain(delete_server_task.si(context), wait_on_delete_server.si(
             context)).apply_async()
 
@@ -1236,7 +1237,7 @@ def wait_on_build(context, server_id, region, resource,
                server_id, server.progress))
         LOG.debug(msg)
         results['progress'] = server.progress
-        resource_postback.delay(context['deployment'], {instance_key: results})
+        resource_postback.delay(deployment_id, {instance_key: results})
         return wait_on_build.retry(exc=CheckmateException(msg))
 
     if server.status != 'ACTIVE':
@@ -1246,7 +1247,7 @@ def wait_on_build(context, server_id, region, resource,
         msg = ("Server '%s' status is %s, which is not recognized. "
                "Not assuming it is active" % (server_id, server.status))
         results['status-message'] = msg
-        resource_postback.delay(context['deployment'], {instance_key: results})
+        resource_postback.delay(deployment_id, {instance_key: results})
         return wait_on_build.retry(exc=CheckmateException(msg))
 
     # if a rack_connect account, wait for rack_connect configuration to finish
@@ -1255,7 +1256,7 @@ def wait_on_build(context, server_id, region, resource,
             msg = ("Rack Connect server still does not have the "
                    "'rackconnect_automation_status' metadata tag")
             results['status-message'] = msg
-            resource_postback.delay(context['deployment'],
+            resource_postback.delay(deployment_id,
                                     {instance_key: results})
             wait_on_build.retry(exc=CheckmateException(msg))
         else:
@@ -1266,7 +1267,7 @@ def wait_on_build(context, server_id, region, resource,
                        "metadata tag is still not 'DEPLOPYED'. It is '%s'" %
                        server.metadata.get('rackconnect_automation_status'))
                 results['status-message'] = msg
-                resource_postback.delay(context['deployment'],
+                resource_postback.delay(deployment_id,
                                         {instance_key: results})
                 wait_on_build.retry(exc=CheckmateException(msg))
 
@@ -1326,7 +1327,7 @@ def wait_on_build(context, server_id, region, resource,
         if not isup:
             # try again in half a second but only wait for another 2 minutes
             results['status-message'] = msg
-            resource_postback.delay(context['deployment'],
+            resource_postback.delay(deployment_id,
                                     {instance_key: results})
             raise wait_on_build.retry(exc=CheckmateException(msg),
                                       countdown=0.5,
@@ -1341,7 +1342,6 @@ def wait_on_build(context, server_id, region, resource,
     # else:
     results['status'] = "ACTIVE"
     results['status-message'] = ''
-    instance_key = 'instance:%s' % context['resource']
     results = {instance_key: results}
-    resource_postback.delay(context['deployment'], results)
+    resource_postback.delay(deployment_id, results)
     return results
