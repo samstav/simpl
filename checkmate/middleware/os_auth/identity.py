@@ -61,7 +61,7 @@ def authenticate(auth_dict):
     LOG.debug('POST Authentication Response %s', resp_read)
     try:
         parsed_response = json.loads(resp_read)
-    except ValueError, exp:
+    except ValueError as exp:
         LOG.error('Authentication Failure %s\n%s'
                   % (exp, traceback.format_exc()))
         raise HTTPUnauthorized('JSON Decode Failure. ERROR: %s - RESP %s'
@@ -106,7 +106,7 @@ def auth_token_validate(auth_dict):
     try:
         LOG.debug('TOKEN Validation Data: %s', resp_read)
         return json.loads(resp_read)
-    except ValueError, exp:
+    except ValueError as exp:
         LOG.error('ValueError Decoding JSON: %s ERROR: %s', resp_read, exp)
         raise HTTPUnauthorized('No Json was Returned, MSG: "%s" - ERROR: "%s"'
                                % (resp_read, exp))
