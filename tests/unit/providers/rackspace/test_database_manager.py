@@ -4,18 +4,15 @@ import unittest
 
 from pyrax import exceptions as cdb_errors
 
-from checkmate.exceptions import (
-    CheckmateResumableException,
-    CheckmateRetriableException,
-)
-from checkmate.providers.rackspace.database import Manager
+from checkmate import exceptions as cmexc
+from checkmate.providers.rackspace import database as cmdb
 
 
 class TestDatabaseManager(unittest.TestCase):
-    '''Test Rackspace Database Manager functions.'''
+    """Test Rackspace Database Manager functions."""
 
     def test_wait_on_build_success(self):
-        '''Verifies method calls and returns instance data.'''
+        """Verifies method calls and returns instance data."""
         instance_id = 1234
         api = mock.Mock()
         instance = mock.Mock()
@@ -28,7 +25,7 @@ class TestDatabaseManager(unittest.TestCase):
         api.get = mock.MagicMock(return_value=instance)
         callback = mock.MagicMock(return_value=True)
 
-        results = Manager.wait_on_build(instance_id, api, callback)
+        results = cmdb.Manager.wait_on_build(instance_id, api, callback)
 
         api.get.assert_called_with(instance_id)
         #callback.assert_called_with({'status': 'ACTIVE'})
@@ -36,7 +33,7 @@ class TestDatabaseManager(unittest.TestCase):
         self.assertEqual(results, expected)
 
     def test_wait_on_build_resumable(self):
-        '''Verifies method calls and raises CheckmateResumableException.'''
+        """Verifies method calls and raises CheckmateResumableException."""
         instance_id = 1234
         api = mock.Mock()
 
@@ -45,14 +42,14 @@ class TestDatabaseManager(unittest.TestCase):
                                  123, "message"))
         callback = mock.MagicMock(return_value=True)
         try:
-            Manager.wait_on_build(instance_id, api, callback)
-        except CheckmateResumableException as exc:
+            cmdb.Manager.wait_on_build(instance_id, api, callback)
+        except cmexc.CheckmateResumableException as exc:
             self.assertEqual(exc.error_message, 'message (HTTP 123)')
             self.assertEqual(exc.friendly_message, 'Error occurred in db '
                                                    'provider')
 
     def test_wait_on_build_error(self):
-        '''Verifies method calls and raises StandardError after callback.'''
+        """Verifies method calls and raises StandardError after callback."""
         instance_id = 1234
         api = mock.Mock()
         expected = {
@@ -64,12 +61,12 @@ class TestDatabaseManager(unittest.TestCase):
         api.get = mock.MagicMock(side_effect=StandardError())
         callback = mock.MagicMock()
         try:
-            Manager.wait_on_build(instance_id, api, callback)
+            cmdb.Manager.wait_on_build(instance_id, api, callback)
         except StandardError:
             callback.assert_called_with(expected)
 
     def test_wait_on_build_retriable(self):
-        '''Verifies method calls and raises CheckmateRetriableException.'''
+        """Verifies method calls and raises CheckmateRetriableException."""
         instance_id = 1234
         api = mock.Mock()
         instance = mock.Mock()
@@ -83,14 +80,15 @@ class TestDatabaseManager(unittest.TestCase):
         api.get = mock.MagicMock(return_value=instance)
         callback = mock.MagicMock()
 
-        self.assertRaises(CheckmateRetriableException, Manager.wait_on_build,
+        self.assertRaises(cmexc.CheckmateRetriableException,
+                          cmdb.Manager.wait_on_build,
                           instance_id, api, callback)
 
         api.get.assert_called_with(instance_id)
         callback.assert_called_with(expected)
 
     def test_sync_resource_success(self):
-        '''Verifies method calls and returns success results.'''
+        """Verifies method calls and returns success results."""
         resource = {
             'instance': {
                 'id': '123'
@@ -102,12 +100,12 @@ class TestDatabaseManager(unittest.TestCase):
         expected = {'status': 'ACTIVE'}
         api.get = mock.MagicMock(return_value=database)
 
-        results = Manager.sync_resource(resource, api)
+        results = cmdb.Manager.sync_resource(resource, api)
         api.get.assert_called_with('123')
         self.assertEqual(results, expected)
 
     def test_sync_resource_not_found(self):
-        '''Verifies method calls and returns deleted results.'''
+        """Verifies method calls and returns deleted results."""
         resource = {
             'instance': {
                 'id': '123'
@@ -117,18 +115,18 @@ class TestDatabaseManager(unittest.TestCase):
         expected = {'status': 'DELETED'}
         api.get = mock.MagicMock(side_effect=cdb_errors.ClientException(
                                  "test", "message"))
-        results = Manager.sync_resource(resource, api)
+        results = cmdb.Manager.sync_resource(resource, api)
         api.get.assert_called_with('123')
         self.assertEqual(results, expected)
 
     def test_sync_resource_missing_id(self):
-        '''Verifies method calls and returns deleted results for missing id.'''
+        """Verifies method calls and returns deleted results for missing id."""
         resource = {
             'instance': {}
         }
         api = mock.Mock()
         expected = {'status': 'DELETED'}
-        results = Manager.sync_resource(resource, api)
+        results = cmdb.Manager.sync_resource(resource, api)
         self.assertEqual(results, expected)
 
 
