@@ -176,7 +176,7 @@ class Provider(checkmate.providers.ProviderBase):
         )
         return dict(root=create_dns_task, final=create_dns_task)
 
-    def get_catalog(self, context, type_filter=None):
+    def get_catalog(self, context, type_filter=None, **kwargs):
         #TODO: add more than just regions
         results = {}
 
