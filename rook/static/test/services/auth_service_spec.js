@@ -159,7 +159,7 @@ describe('auth Service', function(){
     });
 
     it('should generate token and tenant auth body', function() {
-      auth_body = {auth:{token:{id:"faketoken"},tenantId:"faketenant"}};
+      auth_body = {auth:{token:{id:"faketoken"},tenantName:"faketenant"}};
       expect(this.auth.generate_auth_data(token, tenant, null, null, null, null, null)).toEqual(auth_body);
     });
 
@@ -202,7 +202,7 @@ describe('auth Service', function(){
       response = {
         access: {
           user: { name: 'fakename' },
-          token: { tenant: { id: 'fakeid' } },
+          token: { tenant: { id: 'fakeid', name: 'fakename' } },
           serviceCatalog: {},
         }
       };
@@ -219,7 +219,7 @@ describe('auth Service', function(){
     });
 
     it('should set context token according to response object', function() {
-      expect(this.auth.create_context(response, params).token).toEqual({ tenant: { id: 'fakeid' } });
+      expect(this.auth.create_context(response, params).token).toEqual({ tenant: { id: 'fakeid', name: 'fakename' } });
     });
 
     it('should set context auth_url according to response object', function() {
@@ -236,7 +236,7 @@ describe('auth Service', function(){
       expect(this.auth.create_context(response, params).username).toEqual('fakeuserid');
     });
 
-    describe('#context and endpoint schemes', function() {
+    describe('- context and endpoint schemes', function() {
       it('should set context based on GlobalAuth', function() {
         params.endpoint.scheme = 'GlobalAuth';
         var context = this.auth.create_context(response, params);
@@ -249,7 +249,7 @@ describe('auth Service', function(){
         var context = this.auth.create_context(response, params);
         expect(context.impersonated).toBe(false);
         expect(context.catalog).toEqual({});
-        expect(context.tenantId).toEqual('fakeid');
+        expect(context.tenantId).toEqual('fakename');
       });
 
       it('should set context based on different endpoint schemes without tenant', function() {

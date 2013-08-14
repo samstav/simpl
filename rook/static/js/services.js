@@ -927,13 +927,13 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     }
   }
 
-  auth.generate_auth_data = function(token, tenant, apikey, pin_rsa, username, password, scheme) {
+  auth.generate_auth_data = function(token, tenant_name, apikey, pin_rsa, username, password, scheme) {
     var data = {};
     if (token) {
       data = {
         auth: {
           token: { id: token },
-          tenantId: tenant
+          tenantName: tenant_name
           }
         };
     } else if (apikey) {
@@ -1042,7 +1042,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 
     if (params.endpoint['scheme'] !== "GlobalAuth") {
       if ('tenant' in response.access.token)
-        context.tenantId = response.access.token.tenant.id;
+        context.tenantId = response.access.token.tenant.name;
       context.catalog = response.access.serviceCatalog;
     }
 
@@ -1100,10 +1100,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     return $q.reject(response);
   }
 
-  auth.authenticate = function(endpoint, username, apikey, password, token, pin_rsa, tenant) {
+  auth.authenticate = function(endpoint, username, apikey, password, token, pin_rsa, tenant_name) {
     var headers = {},
         target = endpoint['uri'],
-        data = auth.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, endpoint.scheme);
+        data = auth.generate_auth_data(token, tenant_name, apikey, pin_rsa, username, password, endpoint.scheme);
     if (!data) return $q.reject({ status: 401, message: 'No auth data was supplied' });
     auth.selected_endpoint = endpoint;
 
@@ -1134,9 +1134,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       .then(
         // Success
         function(response) {
-          var numbers = /^\d+$/;
-          var tenant = _.find(response.data.tenants, function(tenant) { return tenant.id.match(numbers); });
-          return tenant.id;
+          var mosso_name = /^MossoCloudFS/;
+          var tenant = _.find(response.data.tenants, function(tenant) { return !tenant.name.match(mosso_name) });
+          return tenant.name;
         },
         // Error
         function(response) {
@@ -1145,9 +1145,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         });
   }
 
-  auth.re_authenticate = function(token, tenant_id) {
+  auth.re_authenticate = function(token, tenant_name) {
     var url = is_chrome_extension ? auth.context.auth_url : "/authproxy/v2.0/tokens";
-    var data = auth.generate_auth_data(token, tenant_id);
+    var data = auth.generate_auth_data(token, tenant_name);
     return $http.post(url, data);
   }
 
