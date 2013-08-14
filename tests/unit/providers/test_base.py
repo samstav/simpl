@@ -3,10 +3,7 @@ import celery
 import mock
 import unittest
 
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateResumableException,
-)
+from checkmate import exceptions as cmexc
 from checkmate import middleware
 from checkmate.providers import base as cm_base
 from checkmate.providers.rackspace import database
@@ -104,7 +101,8 @@ class TestProviderTask(unittest.TestCase):
         context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
         do_something.run = mock.Mock()
         do_something.retry = mock.MagicMock()
-        do_something.run.side_effect = CheckmateResumableException(1, 2, 3, 4)
+        do_something.run.side_effect = cmexc.CheckmateResumableException(
+            1, 2, 3, 4)
 
         do_something(context, 'test', api='test_api')
 
@@ -116,7 +114,7 @@ class TestProviderTask(unittest.TestCase):
         context = 'invalid'
         try:
             do_something(context, 'test', 'api')
-        except CheckmateException as exc:
+        except cmexc.CheckmateException as exc:
             self.assertEqual(str(exc), "Context passed into ProviderTask is "
                              "an unsupported type <type 'str'>.")
 
@@ -156,8 +154,6 @@ class TestProviderTask(unittest.TestCase):
         mocked_lib.postback.assert_called_with({}, expected_postback)
 
 
-# Disabling on context and region being unused.
-# pylint: disable=W0613
 @celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
 def do_something(context, name, api, region=None):
     return {
