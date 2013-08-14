@@ -1050,7 +1050,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
   }
 
   var _get_tenant_token = function(tenant, config) {
-    config.data.auth.tenantId = tenant.id;
+    config.data.auth.tenantName = tenant.name;
     return $http(config).then(function(response) {
       var params = { endpoint: auth.selected_endpoint };
       return auth.create_context(response.data, params);
