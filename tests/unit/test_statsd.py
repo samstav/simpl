@@ -20,11 +20,11 @@ def return_failure(*args, **kwargs):
 
 
 class TestCollect(unittest.TestCase):
-    '''Verifies the functionallity of statsd.collect.'''
+    """Verifies the functionallity of statsd.collect."""
 
     @mock.patch.object(statsd, 'CONFIG')
     def test_collect_no_config(self, mock_config):
-        '''Test that statsd.collect does nothing if not configured.'''
+        """Test that statsd.collect does nothing if not configured."""
         mock_config.statsd_host = None
         self.assertTrue(statsd.collect(return_success)())
 
@@ -34,7 +34,7 @@ class TestCollect(unittest.TestCase):
     @mock.patch.object(py_statsd.connection, 'Connection')
     def test_no_counter_no_timer(self, mock_conn, mock_counter, mock_timer,
                                  mock_config):
-        '''Verifies method calls with no counter or timer passed in.'''
+        """Verifies method calls with no counter or timer passed in."""
         mock_config.statsd_host = '111.222.222.111'
         connection = mock.Mock()
         mock_conn.return_value = connection
@@ -59,7 +59,7 @@ class TestCollect(unittest.TestCase):
     @mock.patch.object(py_statsd.connection, 'Connection')
     @mock.patch.object(statsd, 'CONFIG')
     def test_counter_timer(self, mock_config, mock_conn):
-        '''Verifies method calls with counter and timer passed in.'''
+        """Verifies method calls with counter and timer passed in."""
         mock_config.statsd_host = '111.222.222.111'
         counter = mock.Mock()
         timer = mock.Mock()
@@ -77,7 +77,7 @@ class TestCollect(unittest.TestCase):
     @mock.patch.object(py_statsd.connection, 'Connection')
     @mock.patch.object(statsd, 'CONFIG')
     def test_exception_raised(self, mock_config, mock_conn):
-        '''Verifies method calls when exception raised during original run.'''
+        """Verifies method calls when exception raised during original run."""
         mock_config.statsd_host = '111.222.222.111'
         counter = mock.Mock()
         timer = mock.Mock()

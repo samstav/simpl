@@ -7,7 +7,7 @@ from checkmate import admin
 
 
 class TenantTagsTests(unittest.TestCase):
-    '''Test tenant manager'''
+    """Test tenant manager"""
 
     def setUp(self):
         unittest.TestCase.setUp(self)

@@ -33,7 +33,7 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
 class TestProviderBase(unittest.TestCase):
 
     def test_translate_status_success(self):
-        '''Test checkmate status schema entry returned.'''
+        """Test checkmate status schema entry returned."""
         class Testing(cm_base.ProviderBase):
             __status_mapping__ = {
                 'ACTIVE': 'ACTIVE',
@@ -48,7 +48,7 @@ class TestProviderBase(unittest.TestCase):
         self.assertEqual('ERROR', results)
 
     def test_translate_status_fail(self):
-        '''Test checkmate status schema UNDEFINED returned.'''
+        """Test checkmate status schema UNDEFINED returned."""
         class Testing(cm_base.ProviderBase):
             __status_mapping__ = {
                 'ACTIVE': 'ACTIVE',
@@ -64,7 +64,7 @@ class TestProviderBase(unittest.TestCase):
 
 
 class TestProviderTask(unittest.TestCase):
-    '''Tests ProviderTask functionality.'''
+    """Tests ProviderTask functionality."""
 
     def setUp(self):
         self._run = do_something.run
@@ -77,7 +77,6 @@ class TestProviderTask(unittest.TestCase):
         do_something.callback = self._callback
 
     def test_provider_task_success(self):
-        '''Tests success run.'''
         context = middleware.RequestContext(**{'region': 'ORD',
                                             'resource': '1', 'deployment': {}})
         expected = {
@@ -97,7 +96,6 @@ class TestProviderTask(unittest.TestCase):
         assert do_something.partial, 'Partial attr should be set'
 
     def test_provider_task_retry(self):
-        '''Tests retry is called.'''
         context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
         do_something.run = mock.Mock()
         do_something.retry = mock.MagicMock()
@@ -110,7 +108,6 @@ class TestProviderTask(unittest.TestCase):
             exc=do_something.run.side_effect)
 
     def test_provider_task_invalid_context(self):
-        '''Verifies exception raised when context is invalid type.'''
         context = 'invalid'
         try:
             do_something(context, 'test', 'api')
@@ -119,7 +116,6 @@ class TestProviderTask(unittest.TestCase):
                              "an unsupported type <type 'str'>.")
 
     def test_provider_task_context_region_kwargs(self):
-        '''Verifies context.region is assigned from kwargs if is None.'''
         context = middleware.RequestContext(**{})
         do_something.run = mock.Mock()
         do_something.callback = mock.MagicMock(return_value=True)
@@ -131,7 +127,6 @@ class TestProviderTask(unittest.TestCase):
 
     @mock.patch('checkmate.deployments.tasks')
     def test_provider_task_callback(self, mocked_lib):
-        '''Validates postback data in callback.'''
         context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
 
         expected_postback = {

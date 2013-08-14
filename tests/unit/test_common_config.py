@@ -84,12 +84,12 @@ class TestArgParser(unittest.TestCase):
         self.assertTrue(parsed.eventlet)
 
     def test_ignore_start(self):
-        '''Ignore unused/old START position'''
+        """Ignore unused/old START position"""
         parsed = config.parse_arguments(['/prog', 'START', '-e'])
         self.assertTrue(parsed.eventlet)
 
     def test_start_as_address(self):
-        '''Ensure START is not picked up as address'''
+        """Ensure START is not picked up as address"""
         parsed = config.parse_arguments(['/prog', 'START', '-e'])
         self.assertEqual(parsed.address, '127.0.0.1:8080')
 
@@ -115,7 +115,7 @@ class TestEnvParser(unittest.TestCase):
         self.assertEqual(parsed['deployments_path'], '/tmp/not_default')
 
     def test_applying_config(self):
-        '''Check that we can take an env and apply it as a config.'''
+        """Check that we can take an env and apply it as a config."""
         current = config.current()
         self.assertEqual(current.deployments_path,
                          '/var/local/checkmate/deployments')
@@ -126,7 +126,7 @@ class TestEnvParser(unittest.TestCase):
 
     @unittest.skip('No conflicts yet')
     def test_argument_wins(self):
-        '''Check that command-line arguments win over environemnt variables.'''
+        """Check that command-line arguments win over environemnt variables."""
         pass  # TODO: write this test whn we start the first conflict
 
 

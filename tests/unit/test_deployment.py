@@ -404,7 +404,7 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual(deployment['status'], 'DELETED')
 
     def test_legacy_to_new_maps_are_valid(self):
-        '''Test the assumption thatlegacy_statuses maps to valid statuses'''
+        """Test the assumption thatlegacy_statuses maps to valid statuses"""
         for new_status in Deployment.legacy_statuses.values():
             self.assertIn(new_status, Deployment.FSM_TRANSITIONS)
 
@@ -648,7 +648,7 @@ class TestCalculateOutputs(unittest.TestCase):
     """))
 
     def test_calculate_outputs_none(self):
-        '''Tests empty dict is returned if no display-outputs'''
+        """Tests empty dict is returned if no display-outputs"""
         deployment = Deployment({
             'id': 'test',
             'name': 'test',

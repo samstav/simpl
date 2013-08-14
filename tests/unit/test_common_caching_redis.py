@@ -19,7 +19,7 @@ def sample_method(*args, **kwargs):
 
 @unittest.skipIf(SKIP, REASON)
 class TestRedisFunctionality(unittest.TestCase):
-    '''Test that Redis operates as we expect it to'''
+    """Test that Redis operates as we expect it to"""
     def setUp(self):
         self.redis = fakeredis.FakeRedis()
 
@@ -63,12 +63,10 @@ class TestRedisCache(unittest.TestCase):
     def test_shared_caching(self):
 
         def increment():
-            '''For testing'''
             increment.calls += 1
             return increment.calls
 
         def increment2():
-            '''For testing'''
             return 0
 
         # No caching
@@ -99,15 +97,13 @@ class TestRedisCache(unittest.TestCase):
         self.assertIn(key, cache2._store)
 
     def test_shared_caching_unique(self):
-        '''Test that we can use extra key data to separate Redis caches.'''
+        """Test that we can use extra key data to separate Redis caches."""
 
         def increment():
-            '''For testing'''
             increment.calls += 1
             return increment.calls
 
         def increment2():
-            '''For testing'''
             return 0
 
         # No caching

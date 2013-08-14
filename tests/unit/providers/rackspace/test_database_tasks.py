@@ -218,7 +218,6 @@ class TestDatabaseTasks(unittest.TestCase):
         self.assertEqual(results, expected)
 
     def test_create_instance_invalid_api(self):
-        '''Verifies exception thrown when invalid api object passed in.'''
         context = {'resource': '0', 'deployment': 0}
         try:
             database.create_instance(context, 'test_instance', '1', '1',
@@ -230,11 +229,7 @@ class TestDatabaseTasks(unittest.TestCase):
 
 
 class TestAddUser(unittest.TestCase):
-    '''Class to test add_user functionality for rackspace cloud DB.'''
-
     def setUp(self):
-        '''setup common args for add_user call.'''
-
         self.context = middleware.RequestContext(**{
             'resource': '0',
             'deployment': '0'
@@ -247,7 +242,6 @@ class TestAddUser(unittest.TestCase):
         self.region = 'ORD'
 
     def test_assert_instance_id(self):
-        '''Verifies AssertionError raised when instance_id is None.'''
         self.assertRaises(AssertionError, database.add_user, self.context,
                           None, self.databases, self.username, self.password,
                           self.region, "api")
@@ -256,7 +250,6 @@ class TestAddUser(unittest.TestCase):
     @mock.patch.object(database._add_user, 'callback')
     @mock.patch.object(database._add_user.provider, 'connect')
     def test_add_user_sim(self, mock_connect, mock_callback, mock_LOG):
-        '''Validates all methods in add_user in simulation mode.'''
         self.context['simulation'] = True
         expected = {
             'instance:0': {
@@ -285,7 +278,6 @@ class TestAddUser(unittest.TestCase):
 
     @mock.patch.object(database._add_user, 'retry')
     def test_api_get_exc_retry(self, mock_retry):
-        '''Validates methods and retry called on add_user ClientException.'''
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code=422)
         api.get = mock.MagicMock(side_effect=mock_exception)
@@ -301,7 +293,6 @@ class TestAddUser(unittest.TestCase):
     @mock.patch.object(database._add_user, 'callback')
     @mock.patch.object(database._add_user, 'retry')
     def test_instance_status_exc_retry(self, mock_retry, mock_callback):
-        '''Validates methods and retry called on add_user ClientException.'''
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'ERROR'
@@ -321,7 +312,6 @@ class TestAddUser(unittest.TestCase):
     @mock.patch.object(database._add_user, 'callback')
     @mock.patch.object(database._add_user, 'retry')
     def test_instance_create_user_exc_retry(self, mock_retry, mock_callback):
-        '''Validates methods and retry called on add_user ClientException.'''
         mock_exception = pyrax.exceptions.ClientException(code=422)
         api = mock.Mock()
         instance = mock.Mock()
@@ -344,7 +334,6 @@ class TestAddUser(unittest.TestCase):
 
     @mock.patch.object(database._add_user, 'callback')
     def test_instance_create_user_gen_exc(self, mock_callback):
-        '''Validates methods and exception condition for cdb create_user.'''
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'ACTIVE'
@@ -367,7 +356,6 @@ class TestAddUser(unittest.TestCase):
     @mock.patch.object(database.manager.LOG, 'info')
     @mock.patch.object(database._add_user, 'callback')
     def test_add_user(self, mock_callback, mock_LOG):
-        '''Validates methods for add_user in normal mode.'''
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'ACTIVE'
@@ -405,22 +393,17 @@ class TestAddUser(unittest.TestCase):
 
 
 class TestDeleteDatabaseItems(unittest.TestCase):
-    '''Class to test delete_database, delete_user functionality on RSCDB.'''
-
     def test_delete_database_no_context_region(self):
-        '''Validates an assert raised is thrown when region not in context.'''
         context = {}
         self.assertRaisesRegexp(AssertionError, 'Region not supplied in '
                                 'context', database.delete_database, context)
 
     def test_delete_database_no_context_resource(self):
-        '''Validates an assert raised is thrown when region not in context.'''
         context = {'region': 'ORD'}
         self.assertRaisesRegexp(AssertionError, 'Resource not supplied in '
                                 'context', database.delete_database, context)
 
     def test_delete_database_no_resource_index(self):
-        '''Validates an assert raised is thrown when region not in context.'''
         context = {'region': 'ORD', 'resource': {}}
         self.assertRaisesRegexp(AssertionError, 'Resource does not have an '
                                 'index', database.delete_database, context)
@@ -430,9 +413,6 @@ class TestDeleteDatabaseItems(unittest.TestCase):
     def test_delete_database_no_api_no_instance_host_instance(self,
                                                               mock_connect,
                                                               mock_postback):
-        '''Validates database delete postback when no instance or host_instance
-        in context resource.
-        '''
         context = {
             'region': 'ORD',
             'resource': {
@@ -460,8 +440,6 @@ class TestDeleteDatabaseItems(unittest.TestCase):
 
     @mock.patch.object(database.delete_database, 'retry')
     def test_delete_database_api_get_exception(self, mock_retry):
-        '''Validates exception raised and task retried on get.
-        '''
         context = {
             'region': 'ORD',
             'resource': {
@@ -487,7 +465,6 @@ class TestDeleteDatabaseItems(unittest.TestCase):
             exc=mock_exception)
 
     def test_delete_database_api_get_no_instance(self):
-        '''Validates database marked as deleted when get returns None.'''
         context = {
             'region': 'ORD',
             'resource': {
@@ -516,7 +493,6 @@ class TestDeleteDatabaseItems(unittest.TestCase):
         self.assertEqual(results, expected)
 
     def test_delete_database_api_get_instance_build(self):
-        '''Validates task retry on build status.'''
         context = {
             'region': 'ORD',
             'resource': {
@@ -541,7 +517,6 @@ class TestDeleteDatabaseItems(unittest.TestCase):
                                 database.delete_database, context, api)
 
     def test_delete_database_api_delete_exception_retry(self):
-        '''Validates task retry on delete exception.'''
         context = {
             'region': 'ORD',
             'resource': {
@@ -572,7 +547,6 @@ class TestDeleteDatabaseItems(unittest.TestCase):
 
     @mock.patch.object(database.resource_postback, 'delay')
     def test_delete_database_success(self, mock_postback):
-        '''Validates delete_database success.'''
         context = {
             'region': 'ORD',
             'resource': {
@@ -600,7 +574,6 @@ class TestDeleteDatabaseItems(unittest.TestCase):
 
     @mock.patch.object(database.Provider, 'connect')
     def test_delete_user_no_api(self, mock_connect):
-        '''Verifies Provider connect is called in delete user with no api.'''
         context = {}
         instance_id = 12345
         username = 'test_user'
@@ -615,7 +588,6 @@ class TestDeleteDatabaseItems(unittest.TestCase):
         mock_connect.assert_called_with(context, region)
 
     def test_delete_user_api_success(self):
-        '''Verifies all method calls in the delete_user task.'''
         context = {}
         instance_id = 12345
         username = 'test_user'
@@ -631,10 +603,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
 
 
 class DeleteInstanceTaskTest(unittest.TestCase):
-    '''Class for testing delete instance task.'''
-
     def setUp(self):
-        '''Sets up valid args passed into delete_instance_task.'''
         self.context = {
             'deployment_id': '12345',
             'region': 'ORD',
@@ -648,25 +617,21 @@ class DeleteInstanceTaskTest(unittest.TestCase):
         }
 
     def test_delete_instance_no_dep_id(self):
-        '''Verifies assertion raised on dep id missing from context.'''
         self.context.pop('deployment_id')
         self.assertRaisesRegexp(AssertionError, 'No deployment id in context',
                                 database.delete_instance_task, self.context)
 
     def test_delete_instance_no_region(self):
-        '''Verifies assertion raised on region missing from context.'''
         self.context.pop('region')
         self.assertRaisesRegexp(AssertionError, 'No region defined in context',
                                 database.delete_instance_task, self.context)
 
     def test_delete_instance_no_resource_key(self):
-        '''Verifies assertion raised on resource key missing from context.'''
         self.context.pop('resource_key')
         self.assertRaisesRegexp(AssertionError, 'No resource key in context',
                                 database.delete_instance_task, self.context)
 
     def test_delete_instance_no_resource(self):
-        '''Verifies assertion raised on resource missing from context.'''
         self.context.pop('resource')
         self.assertRaisesRegexp(AssertionError, 'No resource defined in '
                                 'context', database.delete_instance_task,
@@ -675,7 +640,6 @@ class DeleteInstanceTaskTest(unittest.TestCase):
     @mock.patch.object(database.LOG, 'info')
     @mock.patch.object(database.resource_postback, 'delay')
     def test_no_instance_id_no_hosts(self, mock_postback, mock_logger):
-        '''Verifies data returned when no instance id in context resource.'''
         self.context['resource']['instance']['id'] = None
         expected = {'instance:0': {'status': 'DELETED'}}
         results = database.delete_instance_task(self.context)
@@ -689,7 +653,6 @@ class DeleteInstanceTaskTest(unittest.TestCase):
 
     @mock.patch.object(database.resource_postback, 'delay')
     def test_no_instance_id_with_hosts(self, mock_postback):
-        '''Verifies data returned when no instance id and hosts in resource.'''
         self.context['resource']['instance']['id'] = None
         self.context['resource']['hosts'] = ['1', '2']
         expected = {
@@ -709,7 +672,6 @@ class DeleteInstanceTaskTest(unittest.TestCase):
 
     @mock.patch.object(database.resource_postback, 'delay')
     def test_simulation_no_hosts(self, mock_postback):
-        '''Verifies simulation postback data with no hosts.'''
         self.context['simulation'] = True
         expected = {'instance:0': {'status': 'DELETED'}}
         results = database.delete_instance_task(self.context)
@@ -719,7 +681,6 @@ class DeleteInstanceTaskTest(unittest.TestCase):
 
     @mock.patch.object(database.resource_postback, 'delay')
     def test_simulation_with_hosts(self, mock_postback):
-        '''Verifies simulation postback data with hosts.'''
         self.context['simulation'] = True
         self.context['resource']['hosts'] = ['1', '2']
         expected = {
@@ -737,7 +698,6 @@ class DeleteInstanceTaskTest(unittest.TestCase):
     @mock.patch.object(database.Provider, 'connect')
     def test_no_api_no_hosts_success(self, mock_connect, mock_postback,
                                      mock_logger):
-        '''Verifies api and method calls on delete_instance_task success.'''
         api = mock.Mock()
         api.delete = mock.Mock()
         mock_connect.return_value = api
@@ -754,7 +714,6 @@ class DeleteInstanceTaskTest(unittest.TestCase):
     @mock.patch.object(database.resource_postback, 'delay')
     @mock.patch.object(database.delete_instance_task, 'retry')
     def test_api_client_exception_400(self, mock_retry, mock_postback):
-        '''Verifies task retried when ClientException.code not 401,402,403.'''
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code=400)
         api.delete = mock.MagicMock(side_effect=mock_exception)
@@ -763,7 +722,6 @@ class DeleteInstanceTaskTest(unittest.TestCase):
 
     @mock.patch.object(database.resource_postback, 'delay')
     def test_api_client_exception_401_no_hosts(self, mock_postback):
-        '''Verifies task return and postback when exception code 401.'''
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code=401)
         api.delete = mock.MagicMock(side_effect=mock_exception)
@@ -775,7 +733,6 @@ class DeleteInstanceTaskTest(unittest.TestCase):
 
     @mock.patch.object(database.resource_postback, 'delay')
     def test_api_client_exception_401_with_hosts(self, mock_postback):
-        '''Verifies return data with exception code 401 and hosts.'''
         self.context['resource']['hosts'] = ['1', '2']
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code=401)
@@ -793,7 +750,6 @@ class DeleteInstanceTaskTest(unittest.TestCase):
     @mock.patch.object(database.resource_postback, 'delay')
     @mock.patch.object(database.delete_instance_task, 'retry')
     def test_api_client_exception_retry(self, mock_retry, mock_postback):
-        '''Verifies task retried when ClientException.code not 401,402,403.'''
         api = mock.Mock()
         mock_exception = Exception('retry')
         api.delete = mock.MagicMock(side_effect=mock_exception)
@@ -802,10 +758,7 @@ class DeleteInstanceTaskTest(unittest.TestCase):
 
 
 class TestWaitOnDelInstance(unittest.TestCase):
-    '''Class to exercise database.wait_on_del_instance task.'''
-
     def setUp(self):
-        '''Sets up valid args passed into wait_on_del_instance.'''
         self.context = {
             'deployment_id': '1234',
             'region': 'DFW',
@@ -819,19 +772,16 @@ class TestWaitOnDelInstance(unittest.TestCase):
         }
 
     def test_region_assert(self):
-        '''Verifies assert called when region not in context.'''
         self.context.pop('region')
         self.assertRaisesRegexp(AssertionError, 'No region defined in context',
                                 database.wait_on_del_instance, self.context)
 
     def test_resource_key_assert(self):
-        '''Verifies assert called when resource key not in context.'''
         self.context.pop('resource_key')
         self.assertRaisesRegexp(AssertionError, 'No resource key in context',
                                 database.wait_on_del_instance, self.context)
 
     def test_resource_assert(self):
-        '''Verifies assert called when resource not in context.'''
         self.context.pop('resource')
         self.assertRaisesRegexp(AssertionError, 'No resource defined in '
                                 'context', database.wait_on_del_instance,
@@ -840,7 +790,6 @@ class TestWaitOnDelInstance(unittest.TestCase):
     @mock.patch.object(database.LOG, 'info')
     @mock.patch.object(database.resource_postback, 'delay')
     def test_no_instance_id(self, mock_postback, mock_logger):
-        '''Verifies method calls and none returned on no instance id.'''
         self.context['resource']['instance']['id'] = None
         expected = {
             'instance:4': {
@@ -862,7 +811,6 @@ class TestWaitOnDelInstance(unittest.TestCase):
     @mock.patch.object(database.LOG, 'info')
     @mock.patch.object(database.resource_postback, 'delay')
     def test_simulation(self, mock_postback, mock_logger):
-        '''Verifies method calls and none returned on simulation.'''
         self.context['simulation'] = True
         expected = {
             'instance:4': {
@@ -885,9 +833,6 @@ class TestWaitOnDelInstance(unittest.TestCase):
     @mock.patch.object(database.Provider, 'connect')
     def test_no_api_get_client_exception_no_hosts(self, mock_connect,
                                                   mock_postback):
-        '''Verifies method calls with no api and ClientException raised on
-        get.
-        '''
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code=404)
         api.get = mock.MagicMock(side_effect=mock_exception)
@@ -906,7 +851,6 @@ class TestWaitOnDelInstance(unittest.TestCase):
 
     @mock.patch.object(database.resource_postback, 'delay')
     def test_api_instance_status_deleted_with_hosts(self, mock_postback):
-        '''Verifies method calls and return data on instance status deleted.'''
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'DELETED'
@@ -935,7 +879,6 @@ class TestWaitOnDelInstance(unittest.TestCase):
     @mock.patch.object(database.wait_on_del_instance, 'retry')
     @mock.patch.object(database.resource_postback, 'delay')
     def test_api_task_retry(self, mock_postback, mock_retry):
-        '''Verifies all method calls when instance status != DELETED.'''
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'ACTIVE'
@@ -954,8 +897,6 @@ class TestWaitOnDelInstance(unittest.TestCase):
 
 
 class TestCreateDatabase(unittest.TestCase):
-    '''Class for testing the create_database task.'''
-
     def setUp(self):
         self.context = middleware.RequestContext(**{
             'resource': '2',
@@ -969,7 +910,6 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database._create_database.provider, 'connect')
     def test_create_database_sim_no_instance_id(self, mock_connect,
                                                 mock_callback):
-        '''Verifies create database simulation is working.'''
         self.context.simulation = True
         expected = {
             'instance:2': {
@@ -997,7 +937,6 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database._create_database.provider, 'connect')
     def test_create_database_sim_instance_id(self, mock_connect,
                                              mock_callback):
-        '''Verifies create database simulation is working.'''
         self.context.simulation = True
         expected = {
             'instance:2': {
@@ -1028,7 +967,6 @@ class TestCreateDatabase(unittest.TestCase):
     def test_create_databaseno_api_no_iid_no_attrs(self, mock_connect,
                                                    mock_create, mock_wob,
                                                    mock_callback):
-        '''Verifies method calls with no api instance id or attrs.'''
         instance = {
             'id': '12345',
             'databases': {
@@ -1073,9 +1011,6 @@ class TestCreateDatabase(unittest.TestCase):
                                                             mock_create,
                                                             mock_wob,
                                                             mock_callback):
-        '''Verifies method calls with no api instance id or attrs w/ latin
-        charset.
-        '''
         instance = {
             'id': '12345',
             'databases': {
@@ -1121,8 +1056,6 @@ class TestCreateDatabase(unittest.TestCase):
                                                             mock_create,
                                                             mock_wob,
                                                             mock_callback):
-        '''Verifies method calls with no api instance id or attrs w/ collate.
-        '''
         instance = {
             'id': '12345',
             'databases': {
@@ -1167,7 +1100,6 @@ class TestCreateDatabase(unittest.TestCase):
     def test_create_database_no_api_no_iid_with_attrs(self, mock_connect,
                                                       mock_create, mock_wob,
                                                       mock_callback):
-        '''Verifies method calls with no api instance id with attrs.'''
         instance = {
             'id': '12345',
             'databases': {
@@ -1209,7 +1141,6 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database._create_database.provider, 'connect')
     def test_instance_not_active_retry(self, mock_connect, mock_callback,
                                        mock_retry):
-        '''Verifies method calls when instance is not ACTIVE.'''
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'BUILD'
@@ -1224,7 +1155,6 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database.manager.LOG, 'info')
     @mock.patch.object(database._create_database, 'callback')
     def test_success_char_set(self, mock_postback, mock_logger, mock_connect):
-        '''Verifies method calls with successful db creation and charset.'''
         api = mock.Mock()
         instance = mock.Mock()
         instance.id = self.instance_id
@@ -1267,7 +1197,6 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database._create_database, 'callback')
     def test_client_exception_400(self, mock_callback, mock_connect,
                                   mock_logger):
-        '''Verifies method calls with ClientException(400).'''
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code=400)
         instance = mock.Mock()
@@ -1285,7 +1214,6 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database._create_database, 'callback')
     def test_client_exception_not_400(self, mock_callback, mock_connect,
                                       mock_logger):
-        '''Verifies method calls with ClientException(402).'''
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code=402)
         instance = mock.Mock()
@@ -1301,7 +1229,6 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database._create_database.provider, 'connect')
     @mock.patch.object(database._create_database, 'callback')
     def test_exception_on_create_database(self, mock_callback, mock_connect):
-        '''Verifies method calls with Exception thrown on create.'''
         api = mock.Mock()
         mock_exception = Exception('testing')
         instance = mock.Mock()
@@ -1318,9 +1245,6 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database.Manager, 'create_instance')
     def test_no_instance_id_wob_resumable(self, mock_create, mock_wob,
                                           mock_logger):
-        '''Verifies LOG.info called when wait on build throws resumable
-        exception.
-        '''
         data = {'status': 'BUILD'}
         mock_create.return_value = data
         mock_logger.side_effect = Exception('testing')

@@ -14,8 +14,6 @@ LOG = logging.getLogger(__name__)
 
 
 class TestAdminDeploymentCounts(unittest.TestCase):
-    ''''Tests getting deployment numbers.'''
-
     def setUp(self):
         self._mox = mox.Mox()
 
@@ -81,8 +79,6 @@ class TestAdminDeploymentCounts(unittest.TestCase):
 
 
 class TestAdminTenants(unittest.TestCase):
-    ''''Tests tenant calls.'''
-
     def setUp(self):
         self._mox = mox.Mox()
 

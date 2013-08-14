@@ -28,7 +28,7 @@ class TestCaching(unittest.TestCase):
     def test_caching(self):
 
         def increment():
-            '''For testing'''
+            """For testing"""
             increment.counter += 1
             return increment.counter
 
@@ -57,7 +57,7 @@ class TestCaching(unittest.TestCase):
     def test_caching_limits(self):
 
         def increment(x):
-            '''For testing'''
+            """For testing"""
             increment.counter += 1
             return increment.counter
 
@@ -73,7 +73,7 @@ class TestCaching(unittest.TestCase):
     def test_caching_timeout(self):
 
         def increment():
-            '''For testing'''
+            """For testing"""
             increment.counter += 1
             return increment.counter
 
@@ -143,7 +143,7 @@ class TestCachingMocked(unittest.TestCase):
 
     def test_caching_reaping(self):
         def increment():
-            '''For testing'''
+            """For testing"""
             increment.counter += 1
             return increment.counter
 
