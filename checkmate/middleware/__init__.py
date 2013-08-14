@@ -20,19 +20,21 @@ except ImportError:
 
 from checkmate.middleware.os_auth import identity
 
-from bottle import get, request, response, abort
+from bottle import abort
+from bottle import get
+from bottle import request
+from bottle import response
+
 import webob
 import webob.dec
-from webob.exc import HTTPNotFound, HTTPUnauthorized
+import webob.exc as webexc
 
-from checkmate import utils
 from checkmate.common import caching
 from checkmate.db import any_tenant_id_problems
-from checkmate.exceptions import (
-    BLUEPRINT_ERROR,
-    CheckmateException,
-    CheckmateUserException
-)
+from checkmate.exceptions import BLUEPRINT_ERROR
+from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import CheckmateUserException
+from checkmate import utils
 
 
 LOG = logging.getLogger(__name__)
@@ -102,11 +104,12 @@ class TenantMiddleware(object):
                 pass  # Not a tenant call
             else:
                 if len(tenant) > 32:
-                    return HTTPUnauthorized("Invalid tenant")(environ,
-                                                              start_response)
+                    return webexc.HTTPUnauthorized(
+                        "Invalid tenant"
+                    )(environ, start_response)
                 errors = any_tenant_id_problems(tenant)
                 if errors:
-                    return HTTPNotFound(errors)(environ, start_response)
+                    return webexc.HTTPNotFound(errors)(environ, start_response)
                 context = request.context
                 rewrite = "/%s" % '/'.join(path_parts[2:])
                 LOG.debug("Rewrite for tenant %s from '%s' to '%s'", tenant,
@@ -203,8 +206,9 @@ class PAMAuthMiddleware(object):
                     # TODO(any): maybe implement some caching?
                     if not pam.authenticate(login, passwd, service='login'):
                         LOG.debug('PAM failing request because of bad creds')
-                        return (HTTPUnauthorized("Invalid credentials")
-                                (environ, start_response))
+                        return (webexc.HTTPUnauthorized(
+                            "Invalid credentials"
+                        )(environ, start_response))
                     LOG.debug("PAM authenticated '%s' as admin", login)
                     context.domain = self.domain
                     context.username = username
@@ -261,13 +265,14 @@ class TokenAuthMiddleware(object):
                 _rqc = RequestContext()
                 LOG.debug('REQUESTED CONTEXT INFORMATION %s', _rqc)
                 result = self.auth_keystone(tenant=_rqc.tenant,
+                                            auth_url=self.endpoint['uri'],
                                             username=self.service_username,
                                             password=self.service_password)
                 self.service_token = result['access']['token']['id']
-            except Exception:
+            except Exception as exc:
                 LOG.error("Unable to authenticate as a service. Endpoint '%s' "
-                          "will be auth using client token",
-                          endpoint.get('kwargs', {}).get('realm'))
+                          "will be auth using client token - ERROR %s",
+                          endpoint.get('kwargs', {}).get('realm'), exc)
         LOG.info("Listening for Keystone auth for %s", self.endpoint['uri'])
 
     def __call__(self, environ, start_response):
@@ -296,14 +301,16 @@ class TokenAuthMiddleware(object):
                                                  auth_url=self.endpoint['uri'],
                                                  token=token)
                     environ['HTTP_X_AUTHORIZED'] = "Confirmed"
-                except HTTPUnauthorized, exc:
+                except webexc.HTTPUnauthorized as exc:
                     LOG.error('ERROR FAILURE IN AUTH: %s\n%s', exc,
                               traceback.format_exc())
                     return exc(environ, start_response)
-                except Exception, exc:
+                except Exception as exc:
                     LOG.error('NOTE - GENERAL ERROR: %s\n%s',
                               exc, traceback.format_exc())
-                    return HTTPUnauthorized(exc)(environ, start_response)
+                    return webexc.HTTPUnauthorized(
+                        exc
+                    )(environ, start_response)
                 else:
                     context.auth_source = self.endpoint['uri']
                     context.set_context(cnt)
@@ -353,7 +360,7 @@ class TokenAuthMiddleware(object):
                      'tenant': tenant_id,
                      'service_token': self.service_token}
         LOG.debug('Token Validation DATA dict == %s', auth_base)
-        return identity.os_token_validate(auth_dict=auth_base)
+        return identity.auth_token_validate(auth_dict=auth_base)
 
     def start_response_callback(self, start_response):
         '''Intercepts upstream start_response and adds our headers.'''
@@ -400,19 +407,21 @@ class AuthorizationMiddleware(object):
             # Authorize tenant calls
             if not context.authenticated:
                 LOG.debug('Authentication required for this resource')
-                return HTTPUnauthorized()(environ, start_response)
+                return webexc.HTTPUnauthorized()(environ, start_response)
             if not context.allowed_to_access_tenant():
                 LOG.debug('Access to tenant not allowed')
-                return (HTTPUnauthorized("Access to tenant not allowed")
-                        (environ, start_response))
+                return (webexc.HTTPUnauthorized(
+                    "Access to tenant not allowed"
+                )(environ, start_response))
             return self.app(environ, start_response)
 
         LOG.debug('Auth-Z failed. Returning 401.')
-        return HTTPUnauthorized()(environ, start_response)
+        return webexc.HTTPUnauthorized()(environ, start_response)
 
     def start_response_callback(self, start_response):
-        '''Intercepts upstream start_response and adds auth-z headers.'''
+        """Intercepts upstream start_response and adds auth-z headers."""
         def callback(status, headers, exc_info=None):
+            """Call Back with headers."""
             # Add our headers to response
             header = ('X-AuthZ-Admin', "True")
             if header not in headers:
@@ -505,21 +514,21 @@ class ExceptionMiddleware(object):
         try:
             return self.app(environ, start_response)
         except CheckmateException as exc:
-            print "*** ERROR ***"
+            print("*** ERROR ***")
             LOG.exception(exc)
             resp = webob.Response()
             resp.status = "500 Server Error"
             resp.body = {'Error': exc.__str__()}
             return resp
         except AssertionError as exc:
-            print "*** %s ***" % exc
+            print("*** %s ***" % exc)
             LOG.exception(exc)
             resp = webob.Response()
             resp.status = "406 Bad Request"
             resp.body = json.dumps({'Error': exc.__str__()})
             return resp
         except Exception as exc:
-            print "*** %s ***" % exc
+            print("*** %s ***" % exc)
             LOG.exception(exc)
             raise exc
 
@@ -783,31 +792,11 @@ class AuthTokenRouterMiddleware(object):
         self.middleware = {}
         self.default_middleware = None
         self.anonymous_paths = anonymous_paths
-
         self.last_status = None
         self.last_headers = None
         self.last_exc_info = None
-
         self.response_headers = []
-
-        # For each endpoint, instantiate a middleware instance to process its
-        # token auth calls. We'll route to it when appropriate
-        for endpoint in self.endpoints:
-            if 'middleware_instance' not in endpoint:
-                middleware = utils.import_class(endpoint['middleware'])
-                instance = middleware(app, endpoint,
-                                      anonymous_paths=self.anonymous_paths)
-                endpoint['middleware'] = instance
-                self.middleware[endpoint['uri']] = instance
-                if endpoint is self.default_endpoint:
-                    self.default_middleware = instance
-                header = ('WWW-Authenticate', instance.auth_header)
-                if header not in self.response_headers:
-                    self.response_headers.append(header)
-
-        if self.default_endpoint and self.default_middleware is None:
-            self.default_middleware = (TokenAuthMiddleware(app,
-                                       endpoint=self.default_endpoint))
+        self._router(app)
 
     def __call__(self, environ, start_response):
         start_response = self.start_response_callback(start_response)
@@ -816,8 +805,9 @@ class AuthTokenRouterMiddleware(object):
                 source = environ['HTTP_X_AUTH_SOURCE']
                 if source not in self.middleware:
                     LOG.info("Untrusted Auth Source supplied: %s", source)
-                    return (HTTPUnauthorized("Untrusted Auth Source")
-                            (environ, start_response))
+                    return (webexc.HTTPUnauthorized(
+                        "Untrusted Auth Source"
+                    )(environ, start_response))
 
                 sources = {source: self.middleware[source]}
             else:
@@ -853,9 +843,36 @@ class AuthTokenRouterMiddleware(object):
 
         return self.app(environ, start_response)
 
+    def _router(self, app):
+        """For each endpoint, instantiate a middleware instance.
+
+        This is to process its token auth calls. We'll route to it when
+        appropriate
+        """
+
+        for endpoint in self.endpoints:
+            if 'middleware_instance' not in endpoint:
+                middleware = utils.import_class(endpoint['middleware'])
+                instance = middleware(app,
+                                      endpoint,
+                                      anonymous_paths=self.anonymous_paths)
+                endpoint['middleware'] = instance
+                self.middleware[endpoint['uri']] = instance
+                if endpoint is self.default_endpoint:
+                    self.default_middleware = instance
+                header = ('WWW-Authenticate', instance.auth_header)
+                if header not in self.response_headers:
+                    self.response_headers.append(header)
+
+        if self.default_endpoint and self.default_middleware is None:
+            self.default_middleware = (
+                TokenAuthMiddleware(app, endpoint=self.default_endpoint)
+            )
+
     def start_response_intercept(self, start_response):
-        '''Intercepts upstream start_response and remembers status.'''
+        """Intercepts upstream start_response and remembers status."""
         def callback(status, headers, exc_info=None):
+            """Call Back Method."""
             self.last_status = status
             self.last_headers = headers
             self.last_exc_info = exc_info
@@ -866,6 +883,7 @@ class AuthTokenRouterMiddleware(object):
     def start_response_callback(self, start_response):
         '''Intercepts upstream start_response and adds our headers.'''
         def callback(status, headers, exc_info=None):
+            """Call Back Method."""
             # Add our headers to response
             for header in self.response_headers:
                 if header not in headers:
@@ -876,12 +894,17 @@ class AuthTokenRouterMiddleware(object):
 
 
 class CatchAll404(object):
-    '''Facilitates 404 responses for any path not defined elsewhere.  Kept in
-       separate class to facilitate adding gui before this catchall definition
-       is added.
-    '''
+    """Facilitates 404 responses for any path not defined elsewhere.
+
+    Kept in separate class to facilitate adding gui before this catchall
+    definition is added.
+    """
 
     def __init__(self, app):
+        """From app catch everything that we can.
+
+        :param app:
+        """
         self.app = app
         LOG.info("initializing CatchAll404")
 
@@ -890,9 +913,10 @@ class CatchAll404(object):
         # code)
         @get('<path:path>')
         def extensions(path):  # pylint: disable=W0612
-            '''Catch-all unmatched paths (so we know we got the request, but
-               didn't match it).
-            '''
+            """Catch-all unmatched paths.
+
+            We know we got the request, but didn't match it.
+            """
             abort(404, "Path '%s' not recognized" % path)
 
     def __call__(self, environ, start_response):
