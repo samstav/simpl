@@ -516,7 +516,7 @@ class Provider(RackspaceComputeProviderBase):
                                                'cloudServersOpenStack'):
                 urls[region] = Provider.find_url(context.catalog, region)
 
-        jobs = eventlet.GreenPile(min(len(urls)*2, 16))
+        jobs = eventlet.GreenPile(min(len(urls) * 2, 16))
         for region, url in urls.items():
             if not url:
                 LOG.warning("Failed to find compute endpoint for %s in region "
@@ -714,20 +714,44 @@ def _get_images_and_types(api_endpoint, region, auth_token):
                         auth_plugin=plugin)
     ret = {'images': {}, 'types': {}}
     LOG.info("Calling Nova to get images for %s", api_endpoint)
-    images = api.images.list()
+    images = api.images.list(detailed=True)
     for i in images:
         if 'LAMP' in i.name:
             continue
+        metadata = i.metadata or {}
+        os_name = None
+        if 'os_distro' in metadata and 'os_version' in metadata:
+            os_name = '%s %s' % (metadata['os_distro'].title(),
+                                 metadata['os_version'])
+            LOG.debug("Identified image by os_distro: %s", os_name)
+        elif ('org.openstack__1__os_distro' in metadata and
+              'openstack__1__os_version' in metadata):
+            os_name = '%s %s' % (metadata['openstack__1__os_distro'].title(),
+                                 metadata['openstack__1__os_vrsion'])
+            LOG.debug("Identified image by openstack key: %s", os_name)
+        else:
+            #NOTE: hack to make our blueprints work with Private OpenStack
+            if 'precise' in i.name.lower():
+                os_name = 'Ubuntu 12.04'
+                LOG.debug("Identified image as 'precise': %s", os_name)
+            if not os_name:
+                #NOTE: hack to make our blueprints work with iNova
+                if 'LTS' in i.name:
+                    os_name = i.name.split('LTS')[0].strip()
+                    LOG.debug("Identified image by iNova name: %s", os_name)
+            if not os_name:
+                #NOTE: hack to find some images by name in Rackspace
+                os_name = i.name.split(' LTS ')[0].split(' (')[0]
+                LOG.debug("Identified image by name split: %s", os_name)
+            if not os_name:
+                LOG.debug("Could not identify image: %s", i.name,
+                          extra={'data': i.__dict__})
+
         img = {
             'name': i.name,
-            'os': i.name.split(' LTS ')[0].split(' (')[0]
+            'os': os_name
         }
-        #FIXME: hack to make our blueprints work with Private OpenStack
-        if 'precise' in img['os']:
-            img['os'] = 'Ubuntu 12.04'
-        #FIXME: hack to make our blueprints work with iNova
-        if 'LTS' in img['os']:
-            img['os'] = i.name.split('LTS')[0].strip()
+
         ret['types'][str(i.id)] = img
         ret['images'][i.id] = {'name': i.name}
     return ret
