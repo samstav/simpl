@@ -309,7 +309,7 @@ class TokenAuthMiddleware(object):
                     LOG.error('NOTE - GENERAL ERROR: %s\n%s',
                               exc, traceback.format_exc())
                     return webexc.HTTPUnauthorized(
-                        exc
+                        str(exc)
                     )(environ, start_response)
                 else:
                     context.auth_source = self.endpoint['uri']
@@ -615,7 +615,7 @@ class RequestContext(object):
 
         def essex():
             '''Essex puts the tenant ID and name on the token.'''
-            return token['tenant']['id']
+            return token['tenant']['name']
 
         def pre_diablo():
             '''Pre-diablo, Keystone only provided tenantId.'''

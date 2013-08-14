@@ -23,7 +23,7 @@ def parse_reqtype(auth_body):
     setup = {'username': auth_body.get('username')}
     if auth_body.get('token') is not None:
         auth_body = {'auth': {'token': {'id': auth_body.get('token')},
-                              'tenantId': auth_body.get('tenant')}}
+                              'tenantName': auth_body.get('tenant')}}
     elif auth_body.get('apikey') is not None:
         prefix = 'RAX-KSKEY:apiKeyCredentials'
         setup['apiKey'] = auth_body.get('apikey')
