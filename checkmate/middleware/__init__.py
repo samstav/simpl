@@ -269,10 +269,10 @@ class TokenAuthMiddleware(object):
                                             username=self.service_username,
                                             password=self.service_password)
                 self.service_token = result['access']['token']['id']
-            except Exception:
+            except Exception as exc:
                 LOG.error("Unable to authenticate as a service. Endpoint '%s' "
-                          "will be auth using client token",
-                          endpoint.get('kwargs', {}).get('realm'))
+                          "will be auth using client token - ERROR %s",
+                          endpoint.get('kwargs', {}).get('realm'), exc)
         LOG.info("Listening for Keystone auth for %s", self.endpoint['uri'])
 
     def __call__(self, environ, start_response):
