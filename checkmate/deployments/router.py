@@ -454,6 +454,8 @@ class Router(object):
             delete_workflow_spec, deployment, bottle.request.context,
             driver=driver)
         workflow_id = spiff_workflow.attributes.get('id')
+        LOG.debug("Workflow %s created for deleting deployment %s",
+                  workflow_id, api_id)
         operations.create.delay(api_id, workflow_id, "DELETE", tenant_id)
         wf_tasks.run_workflow.delay(workflow_id, timeout=3600, driver=driver)
         # Set headers

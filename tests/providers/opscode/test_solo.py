@@ -12,7 +12,8 @@ import yaml
 
 import mox
 
-import checkmate
+from SpiffWorkflow.specs import Celery
+
 from checkmate import deployment as cm_dep
 from checkmate import deployments
 from checkmate import middleware
@@ -185,6 +186,26 @@ class TestChefSoloProvider(test.ProviderTester):
         self.assertEqual(output['component'], "RandomPass")
         self.assertEqual(output['blueprint'], "randp2")
         self.mox.VerifyAll()
+
+    def test_cleanup_environment(self):
+        wf_spec = workflows.WorkflowSpec()
+        provider = solo.Provider({})
+        cleanup_result = provider.cleanup_environment(wf_spec,
+                                                      {'id': 'DEP1'}, None)
+        cleanup_task_spec = cleanup_result['root']
+        self.assertIsInstance(cleanup_task_spec, Celery)
+        self.assertEqual(cleanup_task_spec.args, ['DEP1'])
+        defines = {'provider': provider.key}
+        properties = {
+            'estimated_duration': 1,
+            'task_tags': ['cleanup'],
+        }
+        properties.update(defines)
+        self.assertDictEqual(cleanup_task_spec.defines, defines)
+        self.assertDictEqual(cleanup_task_spec.properties, properties)
+        self.assertEqual(
+            cleanup_task_spec.call, 'checkmate.providers.opscode.knife'
+                                    '.delete_environment')
 
 
 class TestCeleryTasks(unittest.TestCase):
@@ -1716,8 +1737,7 @@ class TestTransform(unittest.TestCase):
                           database_name: db1
             ''')
 
-        self.mox.StubOutWithMock(
-            checkmate.deployments.resource_postback, "delay")
+        self.mox.StubOutWithMock(deployments.resource_postback, "delay")
         fxn = solo.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
@@ -1725,8 +1745,8 @@ class TestTransform(unittest.TestCase):
         spec.get_property('chef_options', {}).AndReturn({})
         spec.get_property('chef_output').AndReturn(output or {})
         spec.get_property('deployment').AndReturn(1)
-        checkmate.deployments.resource_postback.delay(
-            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
+        deployments.resource_postback.delay(mox.IgnoreArg(),
+                                            mox.IgnoreArg()).AndReturn(None)
         results = {}
         task.attributes = results
         self.mox.ReplayAll()
