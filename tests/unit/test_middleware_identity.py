@@ -1,4 +1,6 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# Not sure why but "No value passed for parameter 'self'" throughout test
+# pylint: disable=E1120
 import httplib
 import json
 import logging
@@ -6,7 +8,9 @@ import unittest
 
 import mox
 
-from checkmate.middleware.os_auth import identity, auth_utils, exceptions
+from checkmate.middleware.os_auth import auth_utils
+from checkmate.middleware.os_auth import exceptions
+from checkmate.middleware.os_auth import identity
 
 
 LOG = logging.getLogger(__name__)
@@ -16,8 +20,7 @@ class FakeHttpResponse(object):
     """Setup a FAKE http response."""
 
     def __init__(self, status, reason, headers, body):
-        """
-        Accept user input and return a response for HTTP
+        """Accept user input and return a response for HTTP
 
         :param status:
         :param reason:
@@ -139,12 +142,6 @@ class TestIdentity(unittest.TestCase):
         url = 'http://identity.api.rackspacecloud.com'
         self.assertEqual(auth_utils.parse_url(url=url),
                          'identity.api.rackspacecloud.com')
-
-    def test_parse_srvcatalog_rax(self):
-        """Parse Service Catalog and return TenantID and Token."""
-
-        url = 'http://something.else'
-        self.assertEqual(auth_utils.parse_url(url=url), 'something.else')
 
     def test_parse_srvcatalog_inv(self):
         """Parse Service Catalog and return TenantID and Token."""
@@ -403,7 +400,6 @@ class TestIdentity(unittest.TestCase):
                           u'123456',
                           u'testuser',
                           json.loads(self.rax_servicecat)))
-
 
     def test_authenticate_pri(self):
         """Test Authenticate For Openstack."""
