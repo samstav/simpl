@@ -303,7 +303,7 @@ class TokenAuthMiddleware(object):
                 except Exception, exc:
                     LOG.error('NOTE - GENERAL ERROR: %s\n%s',
                               exc, traceback.format_exc())
-                    raise HTTPUnauthorized(exc)
+                    return HTTPUnauthorized(exc)(environ, start_response)
                 else:
                     context.auth_source = self.endpoint['uri']
                     context.set_context(cnt)
