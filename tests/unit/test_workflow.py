@@ -289,9 +289,8 @@ class TestWorkflow(unittest.TestCase):
         deployments.Manager.plan(deployment_with_lb_provider, context)
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
-        workflow_spec = workflows.WorkflowSpec\
-            .create_delete_dep_wf_spec(
-                deployment_with_lb_provider, context)
+        workflow_spec = workflows.WorkflowSpec.create_delete_dep_wf_spec(
+            deployment_with_lb_provider, context)
         workflow = init_spiff_workflow(workflow_spec,
                                        deployment_with_lb_provider, context)
         workflow_dump = re.sub("\s", "", workflow.get_dump())

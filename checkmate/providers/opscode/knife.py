@@ -793,6 +793,22 @@ def _ensure_berkshelf_environment():
         LOG.info("Created berkshelf_path: %s", berkshelf_path)
 
 
+@task
+def delete_environment(name, path=None):
+    root = _get_root_environments_path(name, path)
+    full_path = os.path.join(root, name)
+    try:
+        shutil.rmtree(full_path)
+        LOG.debug("Removed environment directory: %s", full_path)
+    except OSError as ose:
+        if ose.errno == errno.ENOENT:
+            LOG.warn("Environment directory %s does not exist", full_path,
+                     exc_info=True)
+        else:
+            msg = "Could not delete environment %s", full_path
+            raise CheckmateUserException(msg, utils.get_class_name(
+                CheckmateException), UNEXPECTED_ERROR, '')
+
 #TODO: full search, fix module reference all below here!!
 @task
 @statsd.collect

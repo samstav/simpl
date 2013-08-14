@@ -39,15 +39,37 @@ class WorkflowSpec(specs.WorkflowSpec):
                 properties={'estimated_duration': 10})
             wf_spec.start.connect(root_task)
 
-        for key, resource \
-                in deployment.get_non_deleted_resources().iteritems():
-            if key not in ['connections', 'keys'] and 'provider' in resource:
-                provider = environment.get_provider(resource.get('provider'))
+        provider_keys = set()
+        providers = {}
+
+        non_deleted_resources = deployment.get_non_deleted_resources()
+        for key, resource in non_deleted_resources.iteritems():
+            if (key not in ['connections', 'keys'] and 'provider' in
+                    resource and resource['provider'] not in provider_keys):
+                provider = environment.get_provider(resource['provider'])
                 if not provider:
                     LOG.warn("Deployment %s resource %s has an unknown "
                              "provider: %s", dep_id, key,
                              resource.get("provider"))
                     continue
+                provider_keys.add(resource['provider'])
+                providers[provider.key] = provider
+        LOG.debug("Obtained providers from resources: %s",
+                  ', '.join(provider_keys))
+
+        for provider_key in provider_keys:
+            provider = providers[provider_key]
+            cleanup_result = provider.cleanup_environment(wf_spec,
+                                                          deployment,
+                                                          context)
+            # Wire up tasks if not wired in somewhere
+            if cleanup_result and not cleanup_result['root'].inputs:
+                wf_spec.start.connect(cleanup_result['root'])
+
+        for key, resource \
+                in deployment.get_non_deleted_resources().iteritems():
+            if key not in ['connections', 'keys'] and 'provider' in resource:
+                provider = providers[resource['provider']]
                 del_tasks = provider.delete_resource_tasks(wf_spec, context,
                                                            dep_id, resource,
                                                            key)

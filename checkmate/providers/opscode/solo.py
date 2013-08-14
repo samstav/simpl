@@ -109,6 +109,19 @@ class Provider(ProviderBase):
 
         return {'root': self.prep_task, 'final': self.prep_task}
 
+    def cleanup_environment(self, wfspec, deployment, context):
+        task_name = 'checkmate.providers.opscode.knife.delete_environment'
+        defines = {'provider': self.key}
+        properties = {'estimated_duration': 1, 'task_tags': ['cleanup']}
+        cleanup_task = Celery(wfspec,
+                              'Delete Chef Environment',
+                              task_name,
+                              call_args=[deployment['id']],
+                              defines=defines,
+                              properties=properties)
+
+        return {'root': cleanup_task, 'final': cleanup_task}
+
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         '''Create and write settings, generate run_list, and call cook.'''
