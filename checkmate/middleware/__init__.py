@@ -10,16 +10,17 @@ import copy
 import json
 import logging
 import os
+import traceback
 
 # some distros install as PAM (Ubuntu, SuSE)
 try:
     import pam
 except ImportError:
-    import PAM  # pylint: disable=W0611,F0401,W0402
-from urlparse import urlparse
+    import PAM as pam
 
-from bottle import get, request, response, abort  # pylint: disable=E0611
-from eventlet.green import httplib
+from checkmate.middleware.os_auth import identity
+
+from bottle import get, request, response, abort
 import webob
 import webob.dec
 from webob.exc import HTTPNotFound, HTTPUnauthorized
@@ -30,10 +31,9 @@ from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,
-    CheckmateUserException,
+    CheckmateUserException
 )
-# https://bugs.launchpad.net/keystone/+bug/938801
-from checkmate.middleware import identity  # temporary
+
 
 LOG = logging.getLogger(__name__)
 
@@ -296,17 +296,21 @@ class TokenAuthMiddleware(object):
                                                  auth_url=self.endpoint['uri'],
                                                  token=token)
                     environ['HTTP_X_AUTHORIZED'] = "Confirmed"
-                except HTTPUnauthorized as exc:
+                except HTTPUnauthorized, exc:
+                    LOG.error('ERROR FAILURE IN AUTH: %s\n%s', exc,
+                              traceback.format_exc())
                     return exc(environ, start_response)
-                except identity.AuthenticationFailure as exc:
-                    raise HTTPUnauthorized(str(exc))
-                except StandardError as exc:
-                    raise HTTPUnauthorized(str(exc))
-                context.auth_source = self.endpoint['uri']
-                context.set_context(cnt)
+                except Exception, exc:
+                    LOG.error('NOTE - GENERAL ERROR: %s\n%s',
+                              exc, traceback.format_exc())
+                    raise HTTPUnauthorized(exc)
+                else:
+                    context.auth_source = self.endpoint['uri']
+                    context.set_context(cnt)
 
         return self.app(environ, start_response)
 
+    # Extranious Method required due to Decorator
     @caching.CacheMethod(sensitive_kwargs=['token', 'apikey', 'password'],
                          timeout=600,
                          cache_exceptions=True)
@@ -321,65 +325,35 @@ class TokenAuthMiddleware(object):
         :param username:
         :param apikey:
         :param password:
+        :return dict:
         """
 
-        auth_base = {
-            'auth_url': auth_url,
-            'username': username,
-            'tenant': tenant,
-            'apikey': apikey,
-            'password': password,
-            'token': str(token),
-        }
+        auth_base = {'auth_url': auth_url,
+                     'username': username,
+                     'tenant': tenant,
+                     'apikey': apikey,
+                     'password': password,
+                     'token': token}
+
         LOG.debug('Authentication DATA dict == %s', auth_base)
         return identity.authenticate(auth_dict=auth_base)[3]
 
+    # Extranious Method required due to Decorator
     @caching.CacheMethod(sensitive_args=[0], timeout=600)
     def _validate_keystone(self, token, tenant_id=None):
-        '''Validates a Keystone Auth Token using a service token.'''
-        url = urlparse(self.endpoint['uri'])
-        if url.scheme == 'https':
-            http_class = httplib.HTTPSConnection
-            port = url.port or 443
-        else:
-            http_class = httplib.HTTPConnection
-            port = url.port or 80
-        host = url.hostname
+        """Validates a Keystone Auth Token using a service token.
 
-        path = os.path.join(url.path, token)
-        if tenant_id:
-            path = "%s?belongsTo=%s" % (path, tenant_id)
-            LOG.debug("Validating on tenant '%s'", tenant_id)
-        headers = {
-            'X-Auth-Token': self.service_token,
-            'Accept': 'application/json',
-        }
-        LOG.debug('Validating token with %s', self.endpoint['uri'])
-        http = http_class(host, port, timeout=10)
-        try:
-            http.request('GET', path, headers=headers)
-            resp = http.getresponse()
-            body = resp.read()
-        except StandardError as exc:
-            LOG.error('HTTP connection exception: %s', exc)
-            raise HTTPUnauthorized('Unable to communicate with %s' %
-                                   self.endpoint['uri'])
-        finally:
-            http.close()
+        :param token:
+        :param tenant_id:
+        :return dict:
+        """
 
-        if resp.status != 200:
-            LOG.debug('Invalid token for tenant: %s', resp.reason)
-            raise HTTPUnauthorized("Token invalid or not valid for this "
-                                   "tenant (%s)" % resp.reason,
-                                   [('WWW-Authenticate', self.auth_header)])
-
-        try:
-            content = json.loads(body)
-        except ValueError:
-            msg = 'Keystone did not return json-encoded body'
-            LOG.debug(msg)
-            raise HTTPUnauthorized(msg)
-        return content
+        auth_base = {'auth_url': self.endpoint['uri'],
+                     'token': token,
+                     'tenant': tenant_id,
+                     'service_token': self.service_token}
+        LOG.debug('Token Validation DATA dict == %s', auth_base)
+        return identity.os_token_validate(auth_dict=auth_base)
 
     def start_response_callback(self, start_response):
         '''Intercepts upstream start_response and adds our headers.'''
