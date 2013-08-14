@@ -615,7 +615,7 @@ class RequestContext(object):
 
         def essex():
             '''Essex puts the tenant ID and name on the token.'''
-            return token['tenant']['id']
+            return token['tenant']['name']
 
         def pre_diablo():
             '''Pre-diablo, Keystone only provided tenantId.'''

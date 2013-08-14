@@ -182,7 +182,7 @@ class TestIdentity(unittest.TestCase):
                      'password': None,
                      'token': '12345678901234567890'}
         auth_body = {'auth': {
-            'tenantId': '123456',
+            'tenantName': '123456',
             'token': {
                 'id': '12345678901234567890'},
         }}
