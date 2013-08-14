@@ -309,7 +309,7 @@ class TokenAuthMiddleware(object):
                     LOG.error('NOTE - GENERAL ERROR: %s\n%s',
                               exc, traceback.format_exc())
                     return webexc.HTTPUnauthorized(
-                        exc
+                        str(exc)
                     )(environ, start_response)
                 else:
                     context.auth_source = self.endpoint['uri']
