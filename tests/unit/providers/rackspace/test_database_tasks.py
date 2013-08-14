@@ -1,5 +1,4 @@
-# pylint: disable=C0103,C0111,C0302,R0201,R0903,R0904,R0913,W0212,W0232,W0613
-'Tests to exercise database celery tasks.'
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import functools
 import logging
 import mock

@@ -1,7 +1,5 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''
-
-Base class for testing database drivers
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+'''Base class for testing database drivers
 
 This performs a full suite of tests on a driver to make sure it conforms to the
 expected interface.
@@ -18,8 +16,6 @@ class TestMyDriver(TestDBDriver):
 
     def test_your_extra_tests(self):
         pass
-
-
 '''
 import copy
 import uuid
