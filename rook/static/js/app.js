@@ -2255,6 +2255,15 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   $scope.filter_deployments = function() {
     var filters = {};
 
+    // Pagination
+    var params = ['limit', 'offset'];
+    var current_params = $location.search();
+    for (var i=0 ; i<params.length ; i++) {
+      var param = params[i];
+      var param_value = current_params[param];
+      if (param_value) filters[param] = param_value;
+    }
+
     // Status
     var active_filters = _.where($scope.filter_list, { active: true });
     if (active_filters.length > 0) {

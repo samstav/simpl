@@ -916,13 +916,24 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     return auth.context.tenantId === tenant_id;
   }
 
-  auth.generate_auth_data = function(token, tenant, apikey, pin_rsa, username, password, scheme) {
+  auth.get_tenants = function() {
+    return _.values(auth.identity.tenants);
+  }
+
+  auth.switch_tenant = function(tenant_id) {
+    var new_context = auth.identity.tenants[tenant_id];
+    if (new_context) {
+      auth.context = angular.copy(new_context);
+    }
+  }
+
+  auth.generate_auth_data = function(token, tenant_name, apikey, pin_rsa, username, password, scheme) {
     var data = {};
     if (token) {
       data = {
         auth: {
           token: { id: token },
-          tenantId: tenant
+          tenantName: tenant_name
           }
         };
     } else if (apikey) {
@@ -984,8 +995,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       }
     };
     return $http.get(url, config).then(function(response) {
-      auth.identity.tenants = response.data.tenants;
-      auth.save();
+      return response.data.tenants;
     });
   }
 
@@ -1032,11 +1042,19 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 
     if (params.endpoint['scheme'] !== "GlobalAuth") {
       if ('tenant' in response.access.token)
-        context.tenantId = response.access.token.tenant.id;
+        context.tenantId = response.access.token.tenant.name;
       context.catalog = response.access.serviceCatalog;
     }
 
     return context;
+  }
+
+  var _get_tenant_token = function(tenant, config) {
+    config.data.auth.tenantName = tenant.name;
+    return $http(config).then(function(response) {
+      var params = { endpoint: auth.selected_endpoint };
+      return auth.create_context(response.data, params);
+    });
   }
 
   var _authenticate_success = function(response) {
@@ -1046,8 +1064,23 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     auth.identity = auth.create_identity(response.data, params);
     auth.identity.context = angular.copy(auth.context);
 
-    if (auth.context.tenantId === null && endpoint.scheme !== "GlobalAuth")
-      auth.fetch_identity_tenants(endpoint, auth.context.token);
+    if (auth.context.tenantId === null && endpoint.scheme !== "GlobalAuth") {
+      auth.fetch_identity_tenants(endpoint, auth.context.token)
+        .then(function(tenants) {
+          auth.identity.tenants = {};
+          var promises = [];
+          angular.forEach(tenants, function(tenant) {
+            var deferred = $q.defer();
+            promises.push(deferred.promise);
+            _get_tenant_token(tenant, response.config).then(function(context) {
+              var id = context.tenantId;
+              auth.identity.tenants[id] = context;
+              deferred.resolve(context);
+            });
+          });
+          $q.all(promises).then(auth.save);
+        });
+    }
 
     if (auth.is_admin())
       auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
@@ -1067,10 +1100,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     return $q.reject(response);
   }
 
-  auth.authenticate = function(endpoint, username, apikey, password, token, pin_rsa, tenant) {
+  auth.authenticate = function(endpoint, username, apikey, password, token, pin_rsa, tenant_name) {
     var headers = {},
         target = endpoint['uri'],
-        data = auth.generate_auth_data(token, tenant, apikey, pin_rsa, username, password, endpoint.scheme);
+        data = auth.generate_auth_data(token, tenant_name, apikey, pin_rsa, username, password, endpoint.scheme);
     if (!data) return $q.reject({ status: 401, message: 'No auth data was supplied' });
     auth.selected_endpoint = endpoint;
 
@@ -1101,9 +1134,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       .then(
         // Success
         function(response) {
-          var numbers = /^\d+$/;
-          var tenant = _.find(response.data.tenants, function(tenant) { return tenant.id.match(numbers); });
-          return tenant.id;
+          var mosso_name = /^MossoCloudFS/;
+          var tenant = _.find(response.data.tenants, function(tenant) { return !tenant.name.match(mosso_name) });
+          return tenant.name;
         },
         // Error
         function(response) {
@@ -1112,9 +1145,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         });
   }
 
-  auth.re_authenticate = function(token, tenant) {
+  auth.re_authenticate = function(token, tenant_name) {
     var url = is_chrome_extension ? auth.context.auth_url : "/authproxy/v2.0/tokens";
-    var data = auth.generate_auth_data(token, tenant);
+    var data = auth.generate_auth_data(token, tenant_name);
     return $http.post(url, data);
   }
 

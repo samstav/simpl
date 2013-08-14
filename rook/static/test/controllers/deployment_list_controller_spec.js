@@ -691,6 +691,18 @@ describe('DeploymentListController', function(){
       scope.filter_deployments();
       expect($location.search).toHaveBeenCalledWith({ search: 'fake query' });
     });
+
+    it('should keep pagination limit value when available', function() {
+      $location.search.returns({ limit: 2 });
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ limit: 2 });
+    });
+
+    it('should keep pagination offset value when available', function() {
+      $location.search.returns({ offset: 2 });
+      scope.filter_deployments();
+      expect($location.search).toHaveBeenCalledWith({ offset: 2 });
+    });
   });
 
   describe('#has_pending_results', function() {
