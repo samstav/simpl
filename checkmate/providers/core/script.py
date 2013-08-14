@@ -7,19 +7,6 @@ environment:
   providers:
     script:
       vendor: core
-      constraints:
-      - source: '%repo_url%'
-      - script: |
-          apt-get update
-          apt-get install -y git
-          git clone git://github.com/openstack-dev/devstack.git
-          cd devstack
-          echo 'DATABASE_PASSWORD=simple' > localrc
-          echo 'RABBIT_PASSWORD=simple' >> localrc
-          echo 'SERVICE_TOKEN=1111' >> localrc
-          echo 'SERVICE_PASSWORD=simple' >> localrc
-          echo 'ADMIN_PASSWORD=simple' >> localrc
-          ./stack.sh > stack.out
       catalog:
         application:
           openstack:
@@ -27,7 +14,18 @@ environment:
             - application: http
             requires:
             - host: linux
-
+            dependencies:
+              script: |
+                apt-get update
+                apt-get install -y git
+                git clone git://github.com/openstack-dev/devstack.git
+                cd devstack
+                echo 'DATABASE_PASSWORD=simple' > localrc
+                echo 'RABBIT_PASSWORD=simple' >> localrc
+                echo 'SERVICE_TOKEN=1111' >> localrc
+                echo 'SERVICE_PASSWORD=simple' >> localrc
+                echo 'ADMIN_PASSWORD=simple' >> localrc
+                ./stack.sh > stack.out
 
 '''
 import logging
@@ -72,23 +70,22 @@ class Provider(providers.ProviderBase):
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         '''Create and write settings, generate run_list, and call cook.'''
-        wait_on, service_name, _ = self._add_resource_tasks_helper(
+        wait_on, _, component = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
-        service_name = resource.get('service')
-        resource_type = resource.get('type')
-        script_source = deployment.get_setting('script',
-                                               resource_type=resource_type,
-                                               service_name=service_name,
-                                               provider_key=self.key)
+        script_source = component.get('dependencies', {}).get('script')
         task_name = 'Execute Script %s (%s)' % (key, resource['hosted_on'])
         host_ip_path = "instance:%s/public_ip" % resource['hosted_on']
         password_path = 'instance:%s/password' % resource['hosted_on']
         private_key = deployment.settings().get('keys', {}).get(
             'deployment', {}).get('private_key')
+        queued_task_dict = context.get_queued_task_dict(
+            deployment_id=deployment['id'], resource_key=key,
+            resource=resource)
         execute_task = Celery(wfspec,
                               task_name,
-                              'checkmate.ssh.execute',
-                              call_args=[operators.PathAttrib(host_ip_path),
+                              'checkmate.ssh.execute_2',
+                              call_args=[queued_task_dict,
+                                         operators.PathAttrib(host_ip_path),
                                          script_source,
                                          "root"],
                               password=operators.PathAttrib(password_path),
