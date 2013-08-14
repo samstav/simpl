@@ -1,7 +1,7 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import sys
 
-import base  # pylint: disable=W0403
+from tests.integration import base
 import unittest
 import checkmate.db.sql
 from checkmate.db.sql import Deployment
@@ -26,5 +26,5 @@ class TestDBSQL(base.DBDriverTests, unittest.TestCase):
 
 if __name__ == '__main__':
     # Any change here should be made in all test files
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+    from checkmate import cmtest
+    cmtest.run_with_params(sys.argv[:])

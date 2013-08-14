@@ -2,7 +2,7 @@
 import logging
 import sys
 import unittest
-import base  # pylint: disable=W0403
+from tests.integration import base
 
 LOG = logging.getLogger(__name__)
 try:
@@ -100,7 +100,6 @@ class TestMongoDBCapabilities(unittest.TestCase):
 
     These tests are optional. If MongoDB is not installed, they will be
     skipped.
-
     '''
     #pylint: disable=W0603
     @classmethod

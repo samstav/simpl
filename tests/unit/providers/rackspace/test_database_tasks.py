@@ -1,4 +1,5 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=W0613
 import functools
 import logging
 import mock
@@ -11,10 +12,6 @@ from checkmate import middleware
 from checkmate.providers.rackspace import database
 
 LOG = logging.getLogger(__name__)
-
-# Disable for accessing private attributes, long names, and number public meths
-# pylint: disable=W0212,C0103,R0904
-
 
 class TestDatabaseTasks(unittest.TestCase):
     'Class to test rackspace.database celery tasks.'
@@ -286,9 +283,8 @@ class TestAddUser(unittest.TestCase):
 
         self.assertEqual(results, expected)
 
-    @mock.patch.object(database._add_user, 'callback')
     @mock.patch.object(database._add_user, 'retry')
-    def test_api_get_exc_retry(self, mock_retry, mock_callback):
+    def test_api_get_exc_retry(self, mock_retry):
         '''Validates methods and retry called on add_user ClientException.'''
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code=422)
@@ -369,10 +365,8 @@ class TestAddUser(unittest.TestCase):
                                                 self.databases)
 
     @mock.patch.object(database.manager.LOG, 'info')
-    @mock.patch.object(database._add_user.provider, 'connect')
     @mock.patch.object(database._add_user, 'callback')
-    @mock.patch.object(database._add_user, 'retry')
-    def test_add_user(self, mock_retry, mock_callback, mock_connect, mock_LOG):
+    def test_add_user(self, mock_callback, mock_LOG):
         '''Validates methods for add_user in normal mode.'''
         api = mock.Mock()
         instance = mock.Mock()
@@ -971,8 +965,8 @@ class TestCreateDatabase(unittest.TestCase):
         self.region = 'ORD'
         self.instance_id = '12345'
 
-    @mock.patch.object(database._create_database.provider, 'connect')
     @mock.patch.object(database._create_database, 'callback')
+    @mock.patch.object(database._create_database.provider, 'connect')
     def test_create_database_sim_no_instance_id(self, mock_connect,
                                                 mock_callback):
         '''Verifies create database simulation is working.'''
@@ -999,8 +993,8 @@ class TestCreateDatabase(unittest.TestCase):
                                            instance_id=self.instance_id)
         self.assertEqual(expected, results)
 
-    @mock.patch.object(database._create_database.provider, 'connect')
     @mock.patch.object(database._create_database, 'callback')
+    @mock.patch.object(database._create_database.provider, 'connect')
     def test_create_database_sim_instance_id(self, mock_connect,
                                              mock_callback):
         '''Verifies create database simulation is working.'''
@@ -1304,11 +1298,9 @@ class TestCreateDatabase(unittest.TestCase):
                           self.region, instance_id=self.instance_id, api=api)
         mock_logger.assert_called_with(mock_exception)
 
-    @mock.patch.object(database.manager.LOG, 'exception')
     @mock.patch.object(database._create_database.provider, 'connect')
     @mock.patch.object(database._create_database, 'callback')
-    def test_exception_on_create_database(self, mock_callback, mock_connect,
-                                          mock_logger):
+    def test_exception_on_create_database(self, mock_callback, mock_connect):
         '''Verifies method calls with Exception thrown on create.'''
         api = mock.Mock()
         mock_exception = Exception('testing')
@@ -1324,10 +1316,8 @@ class TestCreateDatabase(unittest.TestCase):
     @mock.patch.object(database.manager.LOG, 'info')
     @mock.patch.object(database.Manager, 'wait_on_build')
     @mock.patch.object(database.Manager, 'create_instance')
-    @mock.patch.object(database._create_database.provider, 'connect')
-    @mock.patch.object(database._create_database, 'callback')
-    def test_no_instance_id_wob_resumable(self, mock_callback, mock_connect,
-                                          mock_create, mock_wob, mock_logger):
+    def test_no_instance_id_wob_resumable(self, mock_create, mock_wob,
+                                          mock_logger):
         '''Verifies LOG.info called when wait on build throws resumable
         exception.
         '''

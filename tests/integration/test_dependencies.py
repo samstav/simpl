@@ -34,8 +34,7 @@ class TestDependencies(unittest.TestCase):
 
     def test_pam_version(self):
         """Test that we can instantiate PAM"""
-        # pylint: disable=W0612,R0201
-        import pam
+        import pam  # pylint: disable=W0612
 
     def test_celery_version(self):
         """Test that we can instantiate YAML"""
