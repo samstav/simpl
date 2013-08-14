@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''Developer (non-UI) tests belong here'''
+"""Developer (non-UI) tests belong here."""
 
 import os
 # isolate tests from environment

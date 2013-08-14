@@ -1,7 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,E1101,E1103
-'''
-Test Tenant Manager
-'''
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import unittest
 
 import mox
@@ -10,7 +7,7 @@ from checkmate import admin
 
 
 class TenantTagsTests(unittest.TestCase):
-    '''Test tenant manager'''
+    """Test tenant manager"""
 
     def setUp(self):
         unittest.TestCase.setUp(self)

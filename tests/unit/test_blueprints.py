@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import copy
 import unittest
 
@@ -187,37 +187,37 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.assertIsInstance(GitHubManager({}, conf), GitHubManager)
 
     def test_failsafe_returns_master(self):
-        '''Retrun master by default'''
+        """Retrun master by default"""
         self._manager._ref = None
         self.assertEqual(self._manager.get_tenant_tag('A', []), 'master')
 
     def test_default_returns_ref(self):
-        '''Retrun master by default'''
+        """Retrun master by default"""
         self._manager._ref = 'blah'
         self.assertEqual(self._manager.get_tenant_tag('A', []), 'blah')
 
     def test_preview_falls_back_to_ref(self):
-        '''Retrun master by default'''
+        """Retrun master by default"""
         self._manager._ref = 'safe'
         self._manager._preview_ref = None
         self._manager._preview_tenants = ['X']
         self.assertEqual(self._manager.get_tenant_tag('X', []), 'safe')
 
     def test_preview_returns_preview_ref(self):
-        '''Retrun master by default'''
+        """Retrun master by default"""
         self._manager._preview_ref = 'coming-soon'
         self._manager._preview_tenants = ['X']
         self.assertEqual(self._manager.get_tenant_tag('X', []), 'coming-soon')
 
     def test_preview_negative(self):
-        '''Retrun master by default'''
+        """Retrun master by default"""
         self._manager._ref = 'plain'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
         self.assertEqual(self._manager.get_tenant_tag('Y', []), 'plain')
 
     def test_groups_no_match(self):
-        '''Retrun master by default'''
+        """Retrun master by default"""
         self._manager._ref = 'ref'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
@@ -226,7 +226,7 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.assertEqual(self._manager.get_tenant_tag('Y', ['Hacks']), 'ref')
 
     def test_groups_single_match(self):
-        '''Retrun master by default'''
+        """Retrun master by default"""
         self._manager._ref = 'ref'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
@@ -235,7 +235,7 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.assertEqual(self._manager.get_tenant_tag('Y', ['Hacks']), 'new')
 
     def test_groups_multiple_match(self):
-        '''Retrun master by default'''
+        """Retrun master by default"""
         self._manager._ref = 'ref'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']

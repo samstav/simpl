@@ -1,12 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''
-For tests, we don't care about:
-    C0103 - Invalid name (method names too long)
-    C0111 - Missing docstring
-    R0903 - Too few public methods
-    R0904 - Too many public methods
-    W0212 - Access to protected member of a client class
-    W0232 - Class has no __init__ method '''
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import copy
 import json
 import os
@@ -295,7 +287,7 @@ class TestSecrets(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_get_deployment_hides_secrets(self):
-        '''Check that GET deployment responds without secrets.'''
+        """Check that GET deployment responds without secrets."""
         self.driver.get_deployment('1', with_secrets=False)\
             .AndReturn(self.deployment)
         self.mox.ReplayAll()
@@ -311,7 +303,7 @@ class TestSecrets(unittest.TestCase):
         self.assertIn('value', outputs['Public Key'])
 
     def test_locked_secrets_not_returned(self):
-        '''Check that locked secrets are not returned'''
+        """Check that locked secrets are not returned"""
         self.driver.get_deployment('1', with_secrets=True)\
             .AndReturn(self.deployment)
 
@@ -338,7 +330,7 @@ class TestSecrets(unittest.TestCase):
         self.assertEquals(dep['secrets'], 'GENERATING')
 
     def test_get_secrets_works_when_blank(self):
-        '''Check that GET deployment secrets wotks if there are no secrets.'''
+        """Check that GET deployment secrets wotks if there are no secrets."""
         del self.deployment['display-outputs']
         self.driver.get_deployment('1', with_secrets=False)\
             .AndReturn(self.deployment)
@@ -354,7 +346,7 @@ class TestSecrets(unittest.TestCase):
         self.assertEquals(dep['secrets'], 'NO SECRETS')
 
     def test_status_available_trumps_locked(self):
-        '''New secrets should be flagged as available.'''
+        """New secrets should be flagged as available."""
         del self.deployment['display-outputs']['Future Password']
         self.driver.get_deployment('1', with_secrets=False)\
             .AndReturn(self.deployment)

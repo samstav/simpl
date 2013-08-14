@@ -1,5 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''Unit tests for functions in sql.py'''
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import mock
 import unittest
 

@@ -1,6 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''Tests the Cache and CacheMethod decorators'''
-
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import time
 import unittest
 
@@ -30,7 +28,7 @@ class TestCaching(unittest.TestCase):
     def test_caching(self):
 
         def increment():
-            '''For testing'''
+            """For testing"""
             increment.counter += 1
             return increment.counter
 
@@ -59,7 +57,7 @@ class TestCaching(unittest.TestCase):
     def test_caching_limits(self):
 
         def increment(x):
-            '''For testing'''
+            """For testing"""
             increment.counter += 1
             return increment.counter
 
@@ -75,7 +73,7 @@ class TestCaching(unittest.TestCase):
     def test_caching_timeout(self):
 
         def increment():
-            '''For testing'''
+            """For testing"""
             increment.counter += 1
             return increment.counter
 
@@ -145,7 +143,7 @@ class TestCachingMocked(unittest.TestCase):
 
     def test_caching_reaping(self):
         def increment():
-            '''For testing'''
+            """For testing"""
             increment.counter += 1
             return increment.counter
 

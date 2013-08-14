@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import logging
 import os
 import unittest
@@ -47,7 +47,7 @@ class TestDatabase(unittest.TestCase):
         }
 
     def _decode_dict(self, dictionary):
-        ''' Helper method to recursively change all data elements to ints '''
+        """Helper method to recursively change all data elements to ints."""
         decoded_dict = {}
         for key, value in dictionary.iteritems():
             if isinstance(key, unicode):
@@ -335,7 +335,7 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(final, original)
 
     def test_unlock_safety(self):
-        '''Make sure we don't do update, but do $set'''
+        """Make sure we don't do update, but do $set"""
         klass = Workflow
         obj_id = 1
         original = {

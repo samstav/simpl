@@ -1,13 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''
-For tests, we don't care about:
-    C0103 - Invalid name (method names too long)
-    C0111 - Missing docstring
-    R0903 - Too few public methods
-    R0904 - Too many public methods
-    W0212 - Access to protected member of a client class
-    W0232 - Class has no __init__ method
-'''
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import mock
 import unittest
 
@@ -413,7 +404,7 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual(deployment['status'], 'DELETED')
 
     def test_legacy_to_new_maps_are_valid(self):
-        '''Test the assumption thatlegacy_statuses maps to valid statuses'''
+        """Test the assumption thatlegacy_statuses maps to valid statuses"""
         for new_status in Deployment.legacy_statuses.values():
             self.assertIn(new_status, Deployment.FSM_TRANSITIONS)
 
@@ -657,7 +648,7 @@ class TestCalculateOutputs(unittest.TestCase):
     """))
 
     def test_calculate_outputs_none(self):
-        '''Tests empty dict is returned if no display-outputs'''
+        """Tests empty dict is returned if no display-outputs"""
         deployment = Deployment({
             'id': 'test',
             'name': 'test',

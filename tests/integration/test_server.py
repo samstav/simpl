@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import json
 import os
 import sys
@@ -103,7 +103,7 @@ class TestServer(unittest.TestCase):
         self.assertIn(id2, data)
 
     def rest_tenant_exercise(self, model_name):
-        '''Check CRUD on tenants'''
+        """Check CRUD on tenants"""
         id1 = uuid.uuid4().hex[0:7]
         id2 = uuid.uuid4().hex[0:4]
 
@@ -111,7 +111,7 @@ class TestServer(unittest.TestCase):
         entity = "%s: &e1\n    id: '%s'" % (model_name, id1)
         res = self.app.put('/T1000/%ss/%s' % (model_name, id1), entity,
                            content_type='application/x-yaml')
-        #TODO: make tests clean so we can predict if we get a 200 or 201
+        #TODO(any): make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'], res)
         self.assertEqual(res.content_type, 'application/json')
 
@@ -191,7 +191,7 @@ class TestServer(unittest.TestCase):
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
     def test_unwrapped_deployment(self):
-        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             id: '%s'
@@ -201,7 +201,7 @@ class TestServer(unittest.TestCase):
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
     def test_wrapped_deployment(self):
-        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:
@@ -212,7 +212,7 @@ class TestServer(unittest.TestCase):
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
     def test_put_deployment_with_no_id_in_body(self):
-        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:
@@ -224,7 +224,7 @@ class TestServer(unittest.TestCase):
         self.assertIn('"id": "%s"' % id1, res.body)
 
     def test_put_deployment_with_includes(self):
-        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:
@@ -237,7 +237,7 @@ class TestServer(unittest.TestCase):
         self.assertNotIn('"includes":', res.body)
 
     def test_put_deployment_tenant_id_mismatch(self):
-        '''Using PUT /deployments/<oid> to exercise _content_to_deployment'''
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
         self.root_app.error_handler = {500: error_formatter}
         self.root_app.catchall = True
         id1 = uuid.uuid4().hex[0:7]
@@ -257,7 +257,7 @@ class TestServer(unittest.TestCase):
         self.assertIn('tenantId must match with current tenant ID', res.body)
 
     def test_get_deployment_secrets(self):
-        '''Check that GET /secrets responds'''
+        """Check that GET /secrets responds"""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:
@@ -276,7 +276,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(res.status, '404 Not Found')
 
     def test_lock_deployment_secrets(self):
-        '''Check that POST /secrets responds'''
+        """Check that POST /secrets responds"""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:

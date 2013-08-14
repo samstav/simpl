@@ -1,6 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''Tests for chef-solo provider'''
-
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import __builtin__
 import hashlib
 import json
@@ -133,7 +131,6 @@ class TestChefSoloProvider(test.ProviderTester):
         self.assertListEqual(result, expected)
 
     def test_get_map_with_context_defaults(self):
-        '''Make sure defaults get evaluated correctly.'''
         provider = solo.Provider({})
         deployment = cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
@@ -191,7 +188,6 @@ class TestChefSoloProvider(test.ProviderTester):
 
 
 class TestCeleryTasks(unittest.TestCase):
-    '''Test Celery tasks.'''
     def setUp(self):
         self.mox = mox.Mox()
         self.original_local_path = os.environ.get('CHECKMATE_CHEF_LOCAL_PATH')
@@ -206,7 +202,6 @@ class TestCeleryTasks(unittest.TestCase):
             os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
 
     def test_cook(self):
-        '''Test that cook task picks up run_list and attributes.'''
         root_path = os.environ['CHECKMATE_CHEF_LOCAL_PATH']
         environment_path = os.path.join(root_path, "env_test")
         kitchen_path = os.path.join(environment_path, "kitchen")
@@ -276,11 +271,11 @@ class TestCeleryTasks(unittest.TestCase):
 
 
 class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
-    '''Test that cookbooks can be used without a map file (only catalog)
+    """Test that cookbooks can be used without a map file (only catalog)
 
     This test is done using the MySQL cookbook. This is a very commonly used
     cookbook.
-    '''
+    """
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         providers.base.PROVIDER_CLASSES = {}
@@ -319,7 +314,6 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         deployments.Manager.plan(self.deployment, context)
 
     def test_workflow_task_generation(self):
-        '''Verify workflow task creation.'''
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
@@ -342,12 +336,9 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_completion(self):
-        '''Verify workflow sequence and data flow.'''
-
         expected = []
 
         # Create Chef Environment
-
         expected.append({
             # Use chef-solo tasks for now
             # Use only one kitchen. Call it "kitchen" like we used to
@@ -417,7 +408,6 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 })
 
                 # build-essential (now just cook with bootstrap.json)
-
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.cook',
                     'args': [
@@ -440,7 +430,6 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             else:
 
                 # Cook with cookbook (special mysql handling calls server role)
-
                 expected.append({
                     'call': 'checkmate.providers.opscode.knife.cook',
                     'args': [
@@ -461,18 +450,14 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 })
 
         self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
-
         self.mox.ReplayAll()
-
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(),
                         'Workflow did not complete')
-
         self.mox.VerifyAll()
 
 
 class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
-    '''Test that map file works without maps (was 'checkmate.json').'''
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         providers.base.PROVIDER_CLASSES = {}
@@ -522,8 +507,6 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
             '''
 
     def test_workflow_task_generation(self):
-        '''Verify workflow sequence and data flow.'''
-
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
@@ -558,7 +541,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
 
 
 class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
-    '''Test workflow for a single service works
+    """Test workflow for a single service works
 
     We're looking to:
     - test using a map file to generate outputs (map and template)
@@ -567,7 +550,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
     - test routing data from requires (host/ip) to provides (mysql/host)
     - have a simple, one component test to test the basics if one of the more
       complex tests fails
-    '''
+    """
     def setUp(self):
         self.maxDiff = 1000
         test.StubbedWorkflowBase.setUp(self)
@@ -655,7 +638,6 @@ interfaces/mysql/host
             '''
 
     def test_workflow_task_creation(self):
-        '''Verify workflow sequence and data flow.'''
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
@@ -689,8 +671,6 @@ interfaces/mysql/host
         self.assertIn("hash", resources['admin']['instance'])
 
     def test_workflow_execution(self):
-        '''Verify workflow executes.'''
-
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
@@ -864,7 +844,7 @@ def do_nothing(self, my_task):
 
 
 class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
-    '''Test complex workflows
+    """Test complex workflows
 
     We're looking to test:
     - workflows with multiple service that all use map files
@@ -876,7 +856,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     - multiple components in one service (count>1)
     - use conceptual (foo, bar, widget, etc) catalog, not mysql
     - check client mappings
-    '''
+    """
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         providers.base.PROVIDER_CLASSES = {}
@@ -972,7 +952,6 @@ interfaces/mysql/database_name
             '''
 
     def test_workflow_task_creation(self):
-        '''Verify workflow sequence and data flow.'''
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
@@ -1103,8 +1082,6 @@ interfaces/mysql/database_name
         self.assertListEqual(role.kwargs['run_list'], expected)
 
     def test_workflow_execution(self):
-        '''Verify workflow executes.'''
-
         self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
         chefmap = solo.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
@@ -1360,7 +1337,6 @@ interfaces/mysql/database_name
 
 
 class TestChefMap(unittest.TestCase):
-    '''Test ChefMap Class.'''
     def setUp(self):
         self.mox = mox.Mox()
         knife.CONFIG = self.mox.CreateMockAnything()
@@ -1384,7 +1360,6 @@ class TestChefMap(unittest.TestCase):
             shutil.rmtree('/tmp/checkmate-chefmap')
 
     def test_get_map_file_hit_cache(self):
-        '''Test remote map file retrieval (cache hit).'''
         os.makedirs(os.path.join(self.cache_path, ".git"))
         LOG.info("Created '%s'", self.cache_path)
 
@@ -1416,7 +1391,6 @@ class TestChefMap(unittest.TestCase):
             self.mox.VerifyAll()
 
     def test_get_map_file_miss_cache(self):
-        '''Test remote map file retrieval (cache miss).'''
         os.makedirs(os.path.join(self.cache_path, ".git"))
         LOG.info("Created '%s'", self.cache_path)
 
@@ -1452,7 +1426,6 @@ class TestChefMap(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_get_map_file_no_cache(self):
-        '''Test remote map file retrieval (not cached).'''
         chefmap = solo.ChefMap()
 
         def fake_clone(url=None, path=None, branch=None):
@@ -1478,7 +1451,6 @@ class TestChefMap(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_get_map_file_local(self):
-        '''Test local map file retrieval.'''
         blueprint = os.path.join(self.local_path, "blueprint")
         os.makedirs(blueprint)
 
@@ -1705,8 +1677,6 @@ class TestChefMap(unittest.TestCase):
 
 
 class TestTransform(unittest.TestCase):
-    '''Test Transform functionality.'''
-
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -1737,7 +1707,6 @@ class TestTransform(unittest.TestCase):
         self.assertDictEqual(results, expected)
 
     def test_write_output_template(self):
-        '''Test that an output template written as output.'''
         output = utils.yaml_to_dict('''
                   'instance:0':
                     name: test
@@ -1776,7 +1745,6 @@ class TestTransform(unittest.TestCase):
 
 
 class TestChefMapEvaluator(unittest.TestCase):
-    '''Test ChefMap Mapping Evaluation.'''
     def test_scalar_evaluation(self):
         chefmap = solo.ChefMap(parsed="")
         result = chefmap.evaluate_mapping_source({'value': 10}, None)
@@ -1804,7 +1772,6 @@ class TestChefMapEvaluator(unittest.TestCase):
 
 
 class TestChefMapApplier(unittest.TestCase):
-    '''Test ChefMap Mapping writing to targets.'''
     def test_output_writing(self):
         chefmap = solo.ChefMap(parsed="")
         mapping = {'targets': ['outputs://ip']}
@@ -1814,7 +1781,6 @@ class TestChefMapApplier(unittest.TestCase):
 
 
 class TestChefMapResolver(unittest.TestCase):
-    '''Test ChefMap Mapping writing to targets.'''
     def test_resolve_ready_maps(self):
         maps = utils.yaml_to_dict('''
                 - value: 1
@@ -1846,8 +1812,6 @@ class TestChefMapResolver(unittest.TestCase):
 
 
 class TestTemplating(unittest.TestCase):
-    '''Test that templating engine handles the use cases we need.'''
-
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -1855,8 +1819,6 @@ class TestTemplating(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_remote_catalog_sourcing(self):
-        '''Test source constraint picks up remote catalog.'''
-
         provider = \
             solo.Provider(utils.yaml_to_dict('''
                 vendor: opscode
@@ -1877,7 +1839,6 @@ class TestTemplating(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_parsing_scalar(self):
-        '''Test parsing with simple, scalar variables.'''
         chef_map = solo.ChefMap('')
         chef_map._raw = '''
             {% set id = 'foo' %}
@@ -1890,7 +1851,6 @@ class TestTemplating(unittest.TestCase):
         self.assertDictEqual(chef_map.get_attributes('foo', None), {'here': 1})
 
     def test_parsing_functions_parse_url(self):
-        '''Test 'parse_url' function use in parsing.'''
         chef_map = solo.ChefMap('')
         chef_map._raw = '''
             id: foo
@@ -1926,7 +1886,6 @@ class TestTemplating(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_parse_url_Input(self):
-        '''Test 'parse_url' function use in parsing of Inputs.'''
         chef_map = solo.ChefMap('')
         chef_map._raw = '''
             id: foo
@@ -1959,7 +1918,6 @@ class TestTemplating(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_url_certificate(self):
-        '''Test 'parse_url' function use in parsing of Inputs.'''
         cert = """-----BEGIN CERTIFICATE-----
 MIICkjCCAfsCAgXeMA0GCSqGSIb3DQEBBQUAMIG2MQswCQYDVQQGEwJVUzEOMAwG
 A1UECBMFVGV4YXMxFDASBgNVBAcTC1NhbiBBbnRvbmlvMRIwEAYDVQQKEwlSYWNr
@@ -2005,7 +1963,6 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
         self.assertEqual(data['maps'][0]['value'], cert)
 
     def test_parsing_functions_hash(self):
-        '''Test 'hash' function use in parsing.'''
         chef_map = solo.ChefMap('')
         chef_map._raw = '''
             id: foo
@@ -2025,7 +1982,6 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
         )
 
     def test_yaml_escaping_simple(self):
-        '''Test parsing with simple strings that don't break YAML.'''
         chef_map = solo.ChefMap('')
         template = "id: {{ setting('password') }}"
         deployment = cm_dep.Deployment({
@@ -2041,7 +1997,6 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
         self.assertEqual(data, {'id': 'Password1'})
 
     def test_yaml_escaping_at(self):
-        '''Test parsing with YAML-breaking values: @.'''
         chef_map = solo.ChefMap('')
         template = "id: {{ setting('password') }}"
         deployment = cm_dep.Deployment({

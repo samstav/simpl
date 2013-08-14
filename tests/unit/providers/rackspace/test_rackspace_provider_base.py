@@ -1,6 +1,4 @@
-# pylint: disable=C0103,C0111,R0201,R0903,R0904,W0212,W0232
-# encoding: utf-8
-'''Module for testing Rackspace Provider Base.'''
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import mock
 import unittest
 
@@ -21,7 +19,6 @@ class TestGetCatalog(unittest.TestCase):
 
     @mock.patch.object(base.ProviderBase, 'get_catalog')
     def test_ProviderBase_catalog_injection(self, mock_get_catalog):
-        '''Verifies catalog returned from ProviderBase.'''
         expected = {'catalog': {}}
         mock_get_catalog.return_value = expected
         results = self.base.get_catalog(self.context)
@@ -29,14 +26,12 @@ class TestGetCatalog(unittest.TestCase):
 
     @mock.patch.object(base.ProviderBase, 'get_catalog')
     def test_region_not_in_catalog_cache(self, mock_get_catalog):
-        """Verifies None returned if region not in catalog cache."""
         mock_get_catalog.return_value = None
         results = self.base.get_catalog(self.context)
         self.assertEqual(results, None)
 
     @mock.patch.object(base.ProviderBase, 'get_catalog')
     def test_region_in_catalog_cache(self, mock_get_catalog):
-        """Verifies results in catalog cache."""
         expected = {'catalog': {}}
         mock_get_catalog.return_value = None
         self.base._catalog_cache['SYD'] = expected
@@ -45,7 +40,6 @@ class TestGetCatalog(unittest.TestCase):
 
     @mock.patch.object(base.ProviderBase, 'get_catalog')
     def test_region_in_catalog_cache_w_filters(self, mock_get_catalog):
-        """Verifies results from catalog_cache with filters."""
         expected = {'lists': {'images': {}}}
         catalog = {'compute': {'linux_instance': {}}, 'lists': {'images': {}}}
         mock_get_catalog.return_value = None
@@ -55,10 +49,7 @@ class TestGetCatalog(unittest.TestCase):
 
 
 class TestGetRegions(unittest.TestCase):
-    """Class for testsing get_regions from RackspaceProviderBase."""
-
     def setUp(self):
-        """Sets up catalog for re-use."""
         self.catalog = [{
             'name': 'test_service',
             'endpoints': [
@@ -69,7 +60,6 @@ class TestGetRegions(unittest.TestCase):
 
     @mock.patch.object(rs_base.LOG, 'warning')
     def test_no_regions(self, mock_logger):
-        """Verifies Log and [] returned when no regions found."""
         results = rs_base.RackspaceProviderBase.get_regions(self.catalog,
                                                             'invalid')
         mock_logger.assert_called_with('No regions found for service name %s',
@@ -77,7 +67,6 @@ class TestGetRegions(unittest.TestCase):
         self.assertEqual(results, [])
 
     def test_success(self):
-        """Verifies conditionals and results returned."""
         expected = ['SYD', 'ORD']
         results = rs_base.RackspaceProviderBase.get_regions(self.catalog,
                                                             'test_service')

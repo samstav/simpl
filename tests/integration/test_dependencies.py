@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import sys
 import unittest
 
@@ -34,8 +34,7 @@ class TestDependencies(unittest.TestCase):
 
     def test_pam_version(self):
         """Test that we can instantiate PAM"""
-        # pylint: disable=W0612,R0201
-        import pam
+        import pam  # pylint: disable=W0612
 
     def test_celery_version(self):
         """Test that we can instantiate YAML"""

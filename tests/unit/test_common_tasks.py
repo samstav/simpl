@@ -1,12 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''
-For tests, we don't care about:
-    C0103 - Invalid name (method names too long)
-    C0111 - Missing docstring
-    R0903 - Too few public methods
-    R0904 - Too many public methods
-    W0212 - Access to protected member of a client class
-    W0232 - Class has no __init__ method '''
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import logging
 from checkmate.db.mongodb import Driver
 import mox
@@ -30,7 +22,7 @@ LOG = logging.getLogger(__name__)
 class TestCommonTasks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        '''Fire up a sandboxed mongodb instance'''
+        """Fire up a sandboxed mongodb instance"""
         try:
             cls.box = MongoBox()
             cls.box.start()
@@ -47,7 +39,7 @@ class TestCommonTasks(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        '''Stop the sanboxed mongodb instance'''
+        """Stop the sanboxed mongodb instance"""
         if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
             if cls.box.running() is True:
                 cls.box.stop()

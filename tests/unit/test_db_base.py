@@ -1,13 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
-'''
-For tests, we don't care about:
-    C0103 - Invalid name (method names too long)
-    C0111 - Missing docstring
-    R0903 - Too few public methods
-    R0904 - Too many public methods
-    W0212 - Access to protected member of a client class
-    W0232 - Class has no __init__ method '''
-
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import pickle
 import unittest
 
@@ -114,7 +105,7 @@ class TestDbBase(unittest.TestCase):
         self.assertEqual(data, expected)
 
     def test_remove_string_secrets_success(self):
-        '''Verifies secrets removed from url.'''
+        """Verifies secrets removed from url."""
         url = 'mongodb://username:secret_pass@localhost:8080/checkmate'
         dbb = db.DbBase(url)
         expected = 'mongodb://username@localhost:8080/checkmate'
@@ -122,7 +113,7 @@ class TestDbBase(unittest.TestCase):
         self.assertEqual(expected, results)
 
     def test_remove_string_secrets_invalid_data(self):
-        '''Verifies data passed in is returned if not a basestring type.'''
+        """Verifies data passed in is returned if not a basestring type."""
         url = 12345
         dbb = db.DbBase("connection-string://")
         results = dbb.remove_string_secrets(url)

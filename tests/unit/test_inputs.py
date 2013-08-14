@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import unittest
 
 from checkmate.inputs import Input
@@ -19,7 +19,6 @@ class TestInput(unittest.TestCase):
         self.assertEqual(Input('1') + Input('2'), '12')
         self.assertEqual(Input(1) + Input(2), 3)
 
-    # pylint: disable=E1101
     def test_url_handling(self):
         data = {
             'url': 'http://example.com',
@@ -34,7 +33,6 @@ class TestInput(unittest.TestCase):
         self.assertTrue(hasattr(url, 'certificate'))
         self.assertEqual(url.certificate, '----- BEGIN ....')
 
-    # pylint: disable=E1101
     def test_url_parsing(self):
         url = Input('https://example.com:80/path')
         url.parse_url()
@@ -59,7 +57,6 @@ class TestInput(unittest.TestCase):
         self.assertTrue(hasattr(url, 'private_key'))
         self.assertTrue(hasattr(url, 'intermediate_key'))
 
-    # pylint: disable=E1101
     def test_non_standard_urls(self):
         url = Input('git://github.com')
         url.parse_url()

@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232,E1101,E1103
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import json
 import logging
 import unittest
@@ -14,8 +14,6 @@ LOG = logging.getLogger(__name__)
 
 
 class TestAdminDeploymentCounts(unittest.TestCase):
-    ''''Tests getting deployment numbers.'''
-
     def setUp(self):
         self._mox = mox.Mox()
 
@@ -81,8 +79,6 @@ class TestAdminDeploymentCounts(unittest.TestCase):
 
 
 class TestAdminTenants(unittest.TestCase):
-    ''''Tests tenant calls.'''
-
     def setUp(self):
         self._mox = mox.Mox()
 

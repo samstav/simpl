@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W023
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import logging
 import mox
 import unittest
@@ -19,8 +19,6 @@ LOG = logging.getLogger(__name__)
 
 
 class TestDatabase(test.ProviderTester):
-    '''Test Database Provider.'''
-
     def setUp(self):
         self.mox = mox.Mox()
         self.deployment = self.mox.CreateMockAnything()
@@ -207,7 +205,6 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_template_generation_compute_sizing(self):
-        '''Test that flavor and volume selection pick >-= sizes.'''
         catalog = {
             'compute': {
                 'mysql_instance': {
@@ -279,7 +276,6 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def verify_limits(self, volume_size_used):
-        '''Test the verify_limits() method.'''
         context = middleware.RequestContext()
         resources = [
             {'component': 'mysql_database',
@@ -338,21 +334,14 @@ class TestDatabase(test.ProviderTester):
         return result
 
     def test_verify_limits_negative(self):
-        '''Test that verify_limits() returns warnings if limits are not
-        okay.
-        '''
         result = self.verify_limits(100)  # Will be 200 total (2 instances)
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
 
     def test_verify_limits_positive(self):
-        '''Test that verify_limits() returns warnings if limits are not
-        okay.
-        '''
         result = self.verify_limits(1)
         self.assertEqual(result, [])
 
     def test_verify_access_positive(self):
-        '''Test that verify_access() returns ACCESS-OK if user has access.'''
         context = middleware.RequestContext()
         context.roles = 'identity:user-admin'
         provider = database.Provider({})
@@ -366,7 +355,6 @@ class TestDatabase(test.ProviderTester):
         self.assertEqual(result['type'], 'ACCESS-OK')
 
     def test_verify_access_negative(self):
-        '''Test that verify_access() returns ACCESS-OK if user has access.'''
         context = middleware.RequestContext()
         context.roles = 'dbaas:observer'
         provider = database.Provider({})
@@ -481,8 +469,6 @@ class TestCatalog(unittest.TestCase):
 
 
 class TestDBWorkflow(test.StubbedWorkflowBase):
-    '''Test MySQL and DBaaS Resource Creation Workflow.'''
-
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
@@ -558,10 +544,7 @@ environment:
         self.workflow = self._get_stubbed_out_workflow()
 
     def test_workflow_completion(self):
-        '''Verify workflow sequence and data flow.'''
-
         self.mox.ReplayAll()
-
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(), "Workflow did not "
                         "complete")

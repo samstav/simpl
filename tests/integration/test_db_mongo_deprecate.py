@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import copy
 import logging
 import mox
@@ -27,12 +27,10 @@ LOG = logging.getLogger(__name__)
 
 
 class TestDatabase(unittest.TestCase):
-    """ Test Mongo Database code """
-
     #pylint: disable=W0603
     @classmethod
     def setUpClass(cls):
-        '''Fire up a sandboxed mongodb instance'''
+        """Fire up a sandboxed mongodb instance"""
         try:
             cls.box = MongoBox()
             cls.box.start()
@@ -49,7 +47,7 @@ class TestDatabase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        '''Stop the sanboxed mongodb instance'''
+        """Stop the sanboxed mongodb instance"""
         if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
             if cls.box.running() is True:
                 cls.box.stop()
@@ -337,7 +335,7 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_unlock_safety(self):
-        '''Make sure we don't do update, but do $set'''
+        """Make sure we don't do update, but do $set"""
         klass = 'workflows'
         obj_id = 1
         original = {

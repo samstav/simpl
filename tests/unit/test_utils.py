@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import copy
 import re
 import string
@@ -261,11 +261,11 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(source.startswith("source = utils"))
 
         source = utils.get_source_body(self.dummy_static)
-        self.assertTrue(source.startswith("'''used for get_source_body"))
+        self.assertTrue(source.startswith('"""used for get_source_body'))
 
     @staticmethod
     def dummy_static():
-        '''used for get_source_body test'''
+        """used for get_source_body test"""
         pass
 
     def test_isUUID_blanks(self):
@@ -511,11 +511,9 @@ class TestUtils(unittest.TestCase):
                          "'@starts_with_at'")
 
     def test_escape_yaml_simple_string_multi_line(self):
-        '''Verify multi-line strings are not escaped (breaks cert parsing)'''
         self.assertEqual(utils.escape_yaml_simple_string('A\nB'), 'A\nB')
 
     def test_escape_yaml_simple_string_object(self):
-        '''Verify objects are bypassed'''
         self.assertEqual(utils.escape_yaml_simple_string({'A': 1}), {'A': 1})
 
 

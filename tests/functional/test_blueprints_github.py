@@ -1,4 +1,4 @@
-# pylint: disable=C0103,C0111,R0903,R0904,W0212,W0232
+# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import base64
 import os
 import unittest
@@ -11,8 +11,6 @@ from checkmate.common.config import Config
 
 
 class TestGitHubManager(unittest.TestCase):
-    '''Tests GitHubManager.'''
-
     def setUp(self):
         self.mox = mox.Mox()
         self.config = Config({
@@ -27,7 +25,6 @@ class TestGitHubManager(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_get_blueprint_bad_yaml(self):
-        '''Test _get_blueprint handles invalid YAML and returns None.'''
         yaml = '@'
         tag = self.config.ref
         repo = self.mox.CreateMock(gh.Repository.Repository)
@@ -46,7 +43,6 @@ class TestGitHubManager(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_get_blueprint_yaml_sans_blueprint(self):
-        '''Test _get_blueprint handles file with no blueprint.'''
         yaml = 'inputs: {}'
         tag = self.config.ref
         repo = self.mox.CreateMock(gh.Repository.Repository)
@@ -65,7 +61,6 @@ class TestGitHubManager(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_get_blueprint_bad_escape(self):
-        '''Test _get_blueprint handles invalid YAML escapes.'''
         yaml = ('- regex: "[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+ Za-z0-9!#$%&''*+/='
                 '?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+')
         tag = self.config.ref
@@ -85,7 +80,6 @@ class TestGitHubManager(unittest.TestCase):
         self.assertIsNone(result)
 
     def test_write_cache_no_dir_access(self):
-        '''Test cannot write to cache file.'''
         self.mox.StubOutWithMock(github, 'REDIS')
         github.REDIS = None
 
