@@ -13,7 +13,6 @@ TEST_PATH = '/tmp/checkmate/test'
 
 
 class TestGitPython(unittest.TestCase):
-    '''Test that GitPython works as we expect'''
     def setUp(self):
         self.repo_path = os.path.join(TEST_PATH, uuid.uuid4().hex)
         os.makedirs(self.repo_path)
@@ -40,7 +39,6 @@ class TestGitPython(unittest.TestCase):
 
 
 class TestGitPythonSubmodules(unittest.TestCase):
-    '''Test that GitPython works as we expect with submodules'''
     def setUp(self):
         self.repo_path = os.path.join(TEST_PATH, uuid.uuid4().hex)
         os.makedirs(self.repo_path)
@@ -63,7 +61,6 @@ class TestGitPythonSubmodules(unittest.TestCase):
         shutil.rmtree(self.repo_path)
 
     def test_git_repo_add_submodule(self):
-        '''Confirm .gitmodule change + commit adds submodule'''
         repo = git.Repo.init(self.repo_path)
         submodules = {'subthing': 'https://localhost/repo.git'}
         manager._add_submodules_to_config(self.repo_path, submodules)
@@ -76,7 +73,6 @@ class TestGitPythonSubmodules(unittest.TestCase):
         self.assertEqual(config, expected)
 
     def test_git_repo_add_submodules(self):
-        '''Test that adding submodules with git.add works mor than once'''
         repo = git.Repo.init(self.repo_path)
 
         submodules = {'subthing': 'https://localhost/repo.git'}
@@ -100,11 +96,11 @@ class TestGitPythonSubmodules(unittest.TestCase):
         self.assertEqual(config, '%s%s' % (expected, expected2))
 
     def test_git_repo_add_gitpython(self):
-        '''Could not find a way to write ignore=dirty into config
+        """Could not find a way to write ignore=dirty into config
 
         So not using submodules. Keeping this for future reference. Works, but
         without ignore=dirty
-        '''
+        """
         repo = git.Repo.init(self.repo_path)
 
         repo.git.submodule('add',  # '--ignore=dirty',
@@ -205,7 +201,6 @@ class TestGitDirWithData(unittest.TestCase):
 
 
 class TestGitRepo(unittest.TestCase):
-    '''Repo is already a repo (no submodules)'''
     def setUp(self):
         self.repo_path = os.path.join(TEST_PATH, uuid.uuid4().hex)
         os.makedirs(self.repo_path)

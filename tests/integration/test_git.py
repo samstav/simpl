@@ -51,9 +51,9 @@ class TestCloneSimple(unittest.TestCase):
         self.assertEqual(res.status, '404 Not Found')
 
     def test_backend_clone_first_call(self):
-        '''Test:
-        GIT_CURL_VERBOSE=1 git clone http://localhost:8080/557366/deployments/08af2c9e979e4c0c9e2561791a745794.git
-        '''
+        """GIT_CURL_VERBOSE=1
+        git clone http://localhost:8080/557366/deployments/08af2c9e979e4c0c9e2561791a745794.git
+        """
         os.environ['REQUEST_METHOD'] = 'GET'
         os.environ['GIT_PROJECT_ROOT'] = self.repo_path
         os.environ['PATH_INFO'] = '/info/refs'

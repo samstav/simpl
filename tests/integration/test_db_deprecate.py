@@ -47,7 +47,7 @@ class TestDatabase(unittest.TestCase):
         }
 
     def _decode_dict(self, dictionary):
-        ''' Helper method to recursively change all data elements to ints '''
+        """Helper method to recursively change all data elements to ints."""
         decoded_dict = {}
         for key, value in dictionary.iteritems():
             if isinstance(key, unicode):
@@ -335,7 +335,7 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(final, original)
 
     def test_unlock_safety(self):
-        '''Make sure we don't do update, but do $set'''
+        """Make sure we don't do update, but do $set"""
         klass = Workflow
         obj_id = 1
         original = {

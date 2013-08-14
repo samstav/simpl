@@ -9,8 +9,6 @@ from checkmate.db.sql import Tenant
 
 
 class TestDBSQL(base.DBDriverTests, unittest.TestCase):
-    '''SQLAlchemy Driver Canned Tests'''
-
     @property
     def connection_string(self):
         return "sqlite://"

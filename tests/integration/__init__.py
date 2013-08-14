@@ -1,2 +1,2 @@
 #!/usr/bin/env python
-'''Tests that require external resources go here'''
+"""Tests that require external resources go here."""
