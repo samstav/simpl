@@ -3,9 +3,13 @@
 <table class="table table-bordered table-condensed">
   <thead><tr><th>Name</th><th>Type</th><th>IP</th><th>Build Status</th></tr></thead>
   <tbody>
+
     <tr ng-repeat="resource in resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
       <td>
         <div class="dropdown" ng-show="urlBuilder.is_valid(resource)">
+
+          <ng-include ng-show="false && available_services(data).indexOf(resource.service) > -1" src="'/partials/deployments/_delete_node.html'"></ng-include>
+
           <a class="dropdown-toggle">{{resource['dns-name']}}</a>
           <ul class="dropdown-menu">
             <li>
@@ -23,12 +27,12 @@
           </ul>
         </div>
         <span ng-hide="urlBuilder.is_valid(resource)">{{resource['dns-name']}} ({{resource.provider}})</span>
-
       </td>
       <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
       <td>{{resource.instance.public_ip}}</td>
       <td>{{resource.status}} <span ng-show="resource['status-message']">({{resource['status-message']}})</span><span ng-show="resource['error-message']">({{resource['error-message']}})</span></td>
     </tr>
+
   </tbody>
 </table>
 

@@ -69,6 +69,20 @@ describe('auth Service', function(){
     });
   });
 
+  describe('#is_current_tenant', function() {
+    beforeEach(function() {
+      this.auth.context.tenantId = 123
+    });
+
+    it('should return true if tenant ID matches current context tenant', function() {
+      expect(this.auth.is_current_tenant(123)).toBe(true);
+    });
+
+    it('should return false otherwise', function() {
+      expect(this.auth.is_current_tenant(666)).toBe(false);
+    });
+  });
+
   describe('create_identity', function(){
     it('should create an identity object based on response, and params', function(){
       expect(this.auth.create_identity(response, params)).not.toBe(null);
@@ -113,23 +127,23 @@ describe('auth Service', function(){
     });
 
     it('should generate token and tenant auth body', function() {
-      auth_body = '{"auth":{"token":{"id":"faketoken"},"tenantId":"faketenant"}}';
+      auth_body = {auth:{token:{id:"faketoken"},tenantId:"faketenant"}};
       expect(this.auth.generate_auth_data(token, tenant, null, null, null, null, null)).toEqual(auth_body);
     });
 
     it('should generate username and apikey auth body', function() {
-      auth_body = '{"auth":{"RAX-KSKEY:apiKeyCredentials":{"username":"fakeusername","apiKey":"fakeapikey"}}}';
+      auth_body = {auth:{"RAX-KSKEY:apiKeyCredentials":{username:"fakeusername",apiKey:"fakeapikey"}}};
       expect(this.auth.generate_auth_data(null, null, apikey, null, username, null, null)).toEqual(auth_body);
     });
 
     it('should generate username and password auth body for specific scheme', function() {
       scheme = "GlobalAuth";
-      auth_body = '{"auth":{"RAX-AUTH:domain":{"name":"Rackspace"},"passwordCredentials":{"username":"fakeusername","password":"fakepassword"}}}';
+      auth_body = {auth:{"RAX-AUTH:domain":{name:"Rackspace"},passwordCredentials:{username:"fakeusername",password:"fakepassword"}}};
       expect(this.auth.generate_auth_data(null, null, null, null, username, password, scheme)).toEqual(auth_body);
     });
 
     it('should generate username and password auth body for generic schemes', function() {
-      auth_body = '{"auth":{"passwordCredentials":{"username":"fakeusername","password":"fakepassword"}}}';
+      auth_body = {auth:{passwordCredentials:{username:"fakeusername",password:"fakepassword"}}};
       expect(this.auth.generate_auth_data(null, null, null, null, username, password, scheme)).toEqual(auth_body);
     });
 
@@ -214,7 +228,6 @@ describe('auth Service', function(){
         expect(context.impersonated).toBe(false);
         expect(context.catalog).toEqual({});
         expect(context.tenantId).toEqual(null);
-        expect(this.auth.fetch_identity_tenants).toHaveBeenCalled();
       });
     });
 
