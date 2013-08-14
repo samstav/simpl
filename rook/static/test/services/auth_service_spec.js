@@ -83,6 +83,38 @@ describe('auth Service', function(){
     });
   });
 
+  describe('#get_tenants', function() {
+    it('should return an array of the current users tenants', function() {
+      this.auth.identity.tenants = { 1: {tenantId: 1}, 2: {tenantId: 2} };
+      var tenants = this.auth.get_tenants();
+      expect(tenants).toContain({tenantId: 1});
+      expect(tenants).toContain({tenantId: 2});
+    });
+  });
+
+  describe('#switch_tenant', function() {
+    beforeEach(function() {
+      this.auth.context = { tenantId: 999 };
+      this.auth.identity.tenants = { 1: {tenantId: 1}, 2: {tenantId: 2} };
+    });
+
+    it('should switch current context with one of the available ones', function() {
+      this.auth.switch_tenant(1);
+      expect(this.auth.context).toEqual({tenantId: 1});
+    });
+
+    it('should use a copy of the context to be switched to', function() {
+      this.auth.switch_tenant(1);
+      this.auth.context.tenantId = 'changed!';
+      expect(this.auth.identity.tenants[1].tenantId).toBe(1);
+    });
+
+    it('should not change contexts if no such context exists', function() {
+      this.auth.switch_tenant('does not exist');
+      expect(this.auth.context.tenantId).toBe(999);
+    });
+  });
+
   describe('create_identity', function(){
     it('should create an identity object based on response, and params', function(){
       expect(this.auth.create_identity(response, params)).not.toBe(null);
@@ -161,7 +193,6 @@ describe('auth Service', function(){
       var expected_json = '{"RAX-AUTH:impersonation":{"user":{"username":"fakeusername"},"expire-in-seconds":10800}}';
       expect(this.auth.generate_impersonation_data(username, endpoint_type )).toBe(expected_json);
     });
-
   });
 
   describe('#create_context', function() {

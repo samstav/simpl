@@ -916,6 +916,17 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     return auth.context.tenantId === tenant_id;
   }
 
+  auth.get_tenants = function() {
+    return _.values(auth.identity.tenants);
+  }
+
+  auth.switch_tenant = function(tenant_id) {
+    var new_context = auth.identity.tenants[tenant_id];
+    if (new_context) {
+      auth.context = angular.copy(new_context);
+    }
+  }
+
   auth.generate_auth_data = function(token, tenant, apikey, pin_rsa, username, password, scheme) {
     var data = {};
     if (token) {
@@ -984,8 +995,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
       }
     };
     return $http.get(url, config).then(function(response) {
-      auth.identity.tenants = response.data.tenants;
-      auth.save();
+      return response.data.tenants;
     });
   }
 
@@ -1039,6 +1049,14 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     return context;
   }
 
+  var _get_tenant_token = function(tenant, config) {
+    config.data.auth.tenantId = tenant.id;
+    return $http(config).then(function(response) {
+      var params = { endpoint: auth.selected_endpoint };
+      return auth.create_context(response.data, params);
+    });
+  }
+
   var _authenticate_success = function(response) {
     var endpoint = auth.selected_endpoint;
     var params = { headers: response.headers, endpoint: endpoint };
@@ -1046,8 +1064,23 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     auth.identity = auth.create_identity(response.data, params);
     auth.identity.context = angular.copy(auth.context);
 
-    if (auth.context.tenantId === null && endpoint.scheme !== "GlobalAuth")
-      auth.fetch_identity_tenants(endpoint, auth.context.token);
+    if (auth.context.tenantId === null && endpoint.scheme !== "GlobalAuth") {
+      auth.fetch_identity_tenants(endpoint, auth.context.token)
+        .then(function(tenants) {
+          auth.identity.tenants = {};
+          var promises = [];
+          angular.forEach(tenants, function(tenant) {
+            var deferred = $q.defer();
+            promises.push(deferred.promise);
+            _get_tenant_token(tenant, response.config).then(function(context) {
+              var id = context.tenantId;
+              auth.identity.tenants[id] = context;
+              deferred.resolve(context);
+            });
+          });
+          $q.all(promises).then(auth.save);
+        });
+    }
 
     if (auth.is_admin())
       auth.cache.tenants = JSON.parse( localStorage.previous_tenants || "[]" );
@@ -1112,9 +1145,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
         });
   }
 
-  auth.re_authenticate = function(token, tenant) {
+  auth.re_authenticate = function(token, tenant_id) {
     var url = is_chrome_extension ? auth.context.auth_url : "/authproxy/v2.0/tokens";
-    var data = auth.generate_auth_data(token, tenant);
+    var data = auth.generate_auth_data(token, tenant_id);
     return $http.post(url, data);
   }
 

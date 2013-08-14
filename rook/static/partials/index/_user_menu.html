@@ -20,6 +20,13 @@
             <i class="caret"></i>
       </a>
       <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
+        <!-- User Tenants -->
+        <li ng-show="auth.get_tenants().length > 0" class="nav-header">Tenants</li>
+        <li role="presentation" ng-repeat="tenant in auth.get_tenants()">
+            <a role="menutitem" ng-click="auth.switch_tenant(tenant.tenantId)">{{tenant.username}}</a>
+        </li>
+        <li ng-show="auth.get_tenants().length > 0" class="divider"></li>
+
         <!-- Impersonation -->
         <li ng-show="auth.is_admin()" class="nav-header">Impersonation</li>
         <li ng-show="auth.is_admin()">
