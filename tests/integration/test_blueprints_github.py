@@ -2,18 +2,17 @@
 import json
 import unittest
 
+import bottle
 from eventlet.green import socket
 import mox
 
+from checkmate.blueprints import blueprint as cmbp
 from checkmate.blueprints import github
 from checkmate.common.config import Config
 
 
 @unittest.skip("Not migrated from CrossCheck fully")
 class TestGitHubManager(unittest.TestCase):
-    '''Tests GitHubManager.'''
-
-    # pylint: disable=C0103
     def setUp(self):
         self.config = Config({
             'github_api': 'https://github.rackspace.com/api/v3',
@@ -23,15 +22,11 @@ class TestGitHubManager(unittest.TestCase):
         self._gm = github.GitHubManager({}, self.config)
 
     def test_get_blueprints(self):
-        '''Test get_blueprints method.'''
-
         blueprints = self._gm.get_blueprints("v0.5")
         self.assertIsNotNone(blueprints)
         self.assertTrue(len(blueprints.keys()) > 0)
 
     def test_get_blueprint_and_verify_documentation_section(self):
-        '''Test get_blueprints method.'''
-
         blueprints = self._gm.get_blueprints("v0.5")
         self.assertIsNotNone(blueprints)
         self.assertTrue(len(blueprints) > 1)
@@ -41,8 +36,6 @@ class TestGitHubManager(unittest.TestCase):
         self.assertIsNotNone(blueprint['blueprint']['documentation'])
 
     def test_get_blueprint(self):
-        '''Test get_blueprint method.'''
-
         blueprints = self._gm.get_blueprints("v0.5")
         self.assertIsNotNone(blueprints)
         self.assertTrue(len(blueprints) > 1)
@@ -66,7 +59,6 @@ class TestWebhookRouter(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_do_post(self):
-        '''Test do_post method.'''
         new_2 = {
             "deployment": {
                 "name": "Modified deployment",
@@ -77,9 +69,7 @@ class TestWebhookRouter(unittest.TestCase):
             }
         }
 
-        # pylint: disable=W0613
-        def mock_refresh(repo):
-            ''' Simulate update from our repo '''
+        def mock_refresh():
             self._manager._templates["2"] = new_2
 
         self.request._headers = {"mock": "Header"}
@@ -97,13 +87,12 @@ class TestWebhookRouter(unittest.TestCase):
         self.mox.ReplayAll()
         self.handler.on_post(self.request, self.response)
         self.assertEqual(200, self.response.status)
-        template_res = Blueprint(self._manager)
+        template_res = cmbp.Blueprint(self._manager)
         template_res.on_get(self.request, self.response, "T1000", "2")
         self.assertEqual(200, self.response.status)
         self.assertDictEqual(new_2, json.loads(self.response.body))
 
     def test_not_allowed(self):
-        '''Tests that calls from illegal hosts are rejected.'''
         self.request._headers = {"mock": "Header"}
         self.request.get_header("X-Forwarded-Host").AndReturn(None)
         self.request.get_header("X-Remote-Host").AndReturn("github.com")
@@ -111,7 +100,7 @@ class TestWebhookRouter(unittest.TestCase):
         self.mox.ReplayAll()
         try:
             self.handler.on_post(self.request, self.response)
-        except HTTPError as htpe:
+        except bottle.HTTPError as htpe:
             self.assertEqual(403, htpe.status)
 
 
