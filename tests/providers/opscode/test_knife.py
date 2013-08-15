@@ -9,6 +9,7 @@ import uuid
 
 import mox
 
+from checkmate.deployments import resource_postback
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.opscode import knife
 
@@ -61,7 +62,7 @@ class TestKnife(unittest.TestCase):
             'a': 1,
             'b': '2',
             'boolean': False,
-            'blank': None,
+            'blank': '',
             'multi-level': {
                 'ml_stays': "I'm here!",
                 'ml_goes': 'Bye!',
@@ -72,6 +73,7 @@ class TestKnife(unittest.TestCase):
             'hosted_on': 'rackspace'
         }
         bag = uuid.uuid4().hex
+        self.mox.StubOutWithMock(resource_postback, 'delay')
         knife.write_databag(self.deploymentId, bag, 'test', original, resource)
         params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                   'json']
@@ -114,6 +116,7 @@ class TestKnife(unittest.TestCase):
             'index': 1234,
             'hosted_on': "rackspace"
         }
+        self.mox.StubOutWithMock(resource_postback, 'delay')
         knife.write_databag(self.deploymentId, bag, 'test', original, resource)
         knife.write_databag(self.deploymentId, bag, 'test', merge, resource,
                             merge=True)
