@@ -23,12 +23,12 @@ class TenantTagsTests(unittest.TestCase):
     def test_add_tags(self):
         self.db.add_tenant_tags('1234', 'foo', 'bar', 'baz')
         self.mox.ReplayAll()
-        self.controller.add_tenant_tags('1234', ['foo', 'bar', 'baz'])
+        self.controller.add_tenant_tags('1234', 'foo', 'bar', 'baz')
 
     def test_add_notags(self):
         self.db.add_tenant_tags('1234')
         self.mox.ReplayAll()
-        self.controller.add_tenant_tags('1234', [])
+        self.controller.add_tenant_tags('1234')
 
     def test_get_tenant(self):
         self.db.get_tenant('1234').AndReturn({'id': '1234'})
