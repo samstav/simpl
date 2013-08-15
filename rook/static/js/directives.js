@@ -342,8 +342,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   }
 
   var update_svg = function(new_specs, old_specs, scope) {
-    var streams = WorkflowSpec.to_streams(new_specs);
-    console.log(streams);
+    var data = WorkflowSpec.to_streams(new_specs);
+    console.log(data);
   }
 
   var link_fn = function(scope, element, attrs) {
