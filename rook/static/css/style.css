@@ -626,3 +626,5 @@ tr:hover .off-table-left {
   height: 10%;
   min-height: 250px; /* For Safari */
 }
+.cm-workflow .stream.even rect { fill: #DDD; }
+.cm-workflow .stream.odd rect { fill: #EEE; }

@@ -341,8 +341,30 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     return svg;
   }
 
+  var _even_odd = function(num) {
+    return num % 2 == 0 ? 'even' : 'odd';
+  }
+
   var update_svg = function(new_specs, old_specs, scope) {
     var data = WorkflowSpec.to_streams(new_specs);
+    var percentage = 100 / data.all.length;
+
+    var streams = scope.svg.streams.selectAll('.stream').data(data.all);
+    // Update
+    // Enter
+    var stream = streams.enter()
+      .append('svg:g')
+      .attr('class', function(d) { return 'stream ' + _even_odd(d.position); })
+      .attr('transform', function(d) {
+        return ['translate(', 0, ',', d.position * percentage, ')'].join('');
+      });
+    stream.append('svg:rect')
+      .attr('class', 'border')
+      .attr('width', '100%')
+      .attr('height', function(d) { return percentage + '%'; });
+    // Exit
+    streams.exit().remove();
+
     console.log(data);
   }
 
