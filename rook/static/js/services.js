@@ -2109,3 +2109,44 @@ angular.module('checkmate.services').factory('Cache', function() {
 
   return scope;
 });
+
+angular.module('checkmate.services').factory('WorkflowSpec', [function() {
+  var DEFAULTS = {
+    NO_RESOURCE: 999
+  };
+
+  var _is_invalid = function(spec) {
+    return (!spec.properties || spec.inputs.length == 0);
+  }
+
+  var scope = {};
+
+  scope.get_resource = function(spec, specs) {
+    var resource;
+
+    if (spec.properties.resource)
+      resource = spec.properties.resource || DEFAULTS.NO_RESOURCE;
+    else {
+      resource = specs[spec.inputs[0]].properties.resource || DEFAULTS.NO_RESOURCE;
+    }
+
+    return resource;
+  }
+
+  scope.to_streams = function(specs) {
+    var streams = {};
+
+    for (var key in specs) {
+      var spec = specs[key];
+      if (_is_invalid(spec)) continue;
+
+      var resource = scope.get_resource(spec, specs);
+      if (!streams[resource]) streams[resource] = [];
+      streams[resource].push(spec);
+    }
+
+    return streams;
+  }
+
+  return scope;
+}]);

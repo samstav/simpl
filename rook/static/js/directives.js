@@ -326,7 +326,7 @@ directives.directive('cmTreeView', function() {
   };
 });
 
-directives.directive('cmWorkflow', [function() {
+directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   var create_svg = function(element, attrs) {
     var svg = {};
     svg.width = attrs.width || 300;
@@ -341,8 +341,14 @@ directives.directive('cmWorkflow', [function() {
     return svg;
   }
 
+  var update_svg = function(new_specs, old_specs, scope) {
+    var streams = WorkflowSpec.to_streams(new_specs);
+    console.log(streams);
+  }
+
   var link_fn = function(scope, element, attrs) {
     scope.svg = create_svg(element, attrs);
+    scope.$watch('specs', update_svg);
   }
 
   return {
