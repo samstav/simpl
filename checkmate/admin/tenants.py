@@ -32,7 +32,7 @@ class Manager(base.ManagerBase):
                 raise CheckmateDoesNotExist('No tenant %s' % tenant_id)
             return tenant
 
-    def add_tenant_tags(self, tenant_id, tags):
+    def add_tenant_tags(self, tenant_id, *tags):
         '''Add a set of tags to an individual tenant.'''
         if tenant_id:
             if tags is None:
