@@ -327,6 +327,19 @@ directives.directive('cmTreeView', function() {
 });
 
 directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
+  var _even_odd = function(num) {
+    return num % 2 == 0 ? 'even' : 'odd';
+  }
+
+  var _update_specs = function(new_value, old_value, scope) {
+    scope.specs = new_value;
+    update_svg(scope);
+  }
+
+  var _update_deployment = function(new_value, old_value, scope) {
+    scope.deployment = new_value;
+  }
+
   var create_svg = function(element, attrs) {
     var svg = {};
     svg.width = attrs.width || 300;
@@ -339,19 +352,6 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     svg.streams = svg.element.append('svg:g').attr('class', 'streams');
 
     return svg;
-  }
-
-  var _even_odd = function(num) {
-    return num % 2 == 0 ? 'even' : 'odd';
-  }
-
-  var _update_specs = function(new_value, old_value, scope) {
-    scope.specs = new_value;
-    update_svg(scope);
-  }
-
-  var _update_deployment = function(new_value, old_value, scope) {
-    scope.deployment = new_value;
   }
 
   var update_svg = function(scope) {
