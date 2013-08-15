@@ -618,3 +618,11 @@ tr.messages td {
 tr:hover .off-table-left {
   display: block;
 }
+
+
+/* cm-workflow */
+.cm-workflow svg {
+  width: 100%;
+  height: 10%;
+  min-height: 250px; /* For Safari */
+}

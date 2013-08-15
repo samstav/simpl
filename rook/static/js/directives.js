@@ -327,13 +327,27 @@ directives.directive('cmTreeView', function() {
 });
 
 directives.directive('cmWorkflow', [function() {
+  var create_svg = function(element, attrs) {
+    var svg = {};
+    svg.width = attrs.width || 300;
+    svg.height = attrs.height || 100;
+
+    svg.element = d3.select(element[0])
+      .append('svg:svg')
+      .attr('viewBox', [0, 0, svg.width, svg.height].join(' '));
+
+    svg.streams = svg.element.append('svg:g').attr('class', 'streams');
+
+    return svg;
+  }
+
   var link_fn = function(scope, element, attrs) {
-    element.text("new workflow");
+    scope.svg = create_svg(element, attrs);
   }
 
   return {
     restrict: 'E',
-    template: '<div></div>',
+    template: '<div class="cm-workflow"></div>',
     replace: true,
     scope: { specs: '=' },
     link: link_fn
