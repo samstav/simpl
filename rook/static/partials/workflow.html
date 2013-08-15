@@ -73,7 +73,10 @@
 
       <div class="span9">
         <ul class="nav nav-tabs">
-          <li ng-repeat="task in current_spec_tasks" ng-include="'task.html'" ng-class="{active: task.id==current_task_index}"></li>
+          <li ng-repeat="task in current_spec_tasks" ng-class="{active: task.id==current_task_index}">
+            <a href="#" ng-click="selectTask(task.id)"> Task {{task.id}}
+            <span tooltip="{{task.description}}" ng-class="state_class(task)">{{state_name(task)}}</span></a>
+          </li>
         </ul>
 
         <div ng-show="current_task_index">
@@ -126,8 +129,3 @@
     </div>
   </div>
 </div>
-
-<script type="text/ng-template" id="task.html">
-<a href="#" ng-click="selectTask(task.id)"> Task {{task.id}}
-<span tooltip="{{task.description}}" ng-class="state_class(task)">{{state_name(task)}}</span></a>
-</script>
