@@ -5,6 +5,7 @@ Utilities For Authenticating against All Openstack / Rax Clouds.
 import httplib
 import logging
 import traceback
+import urlparse
 
 from checkmate.middleware.os_auth import exceptions
 from webob.exc import HTTPUnauthorized
@@ -68,10 +69,11 @@ def parse_url(url):
     :return aurl:
     """
 
-    authurl = url.strip('http?s://')
-    url_data = authurl.split('/')
-    return url_data[0]
-
+    if any([url.startswith('http://'), url.startswith('https://')]):
+        _authurl = urlparse.urlparse(url)
+        return _authurl.netloc
+    else:
+        return url.split('/')[0]
 
 def is_https(url, rax):
     """Check URL to determine the Connection type.
