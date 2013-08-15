@@ -356,12 +356,16 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .append('svg:g')
       .attr('class', function(d) { return 'stream ' + _even_odd(d.position); })
       .attr('transform', function(d) {
-        return ['translate(', 0, ',', d.position * percentage, ')'].join('');
+        var transformations = [
+          'translate(0, '+ d.position * percentage +')',
+          'scale(1, '+ percentage / 100 +')'
+        ];
+        return transformations.join(' ');
       });
     stream.append('svg:rect')
       .attr('class', 'border')
       .attr('width', '100%')
-      .attr('height', function(d) { return percentage + '%'; });
+      .attr('height', '100%');
     // Exit
     streams.exit().remove();
 
