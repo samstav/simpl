@@ -345,8 +345,17 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     return num % 2 == 0 ? 'even' : 'odd';
   }
 
-  var update_svg = function(new_specs, old_specs, scope) {
-    var data = WorkflowSpec.to_streams(new_specs);
+  var _update_specs = function(new_value, old_value, scope) {
+    scope.specs = new_value;
+    update_svg(scope);
+  }
+
+  var _update_deployment = function(new_value, old_value, scope) {
+    scope.deployment = new_value;
+  }
+
+  var update_svg = function(scope) {
+    var data = WorkflowSpec.to_streams(scope.specs);
     var percentage = 100 / data.all.length;
 
     var streams = scope.svg.streams.selectAll('.stream').data(data.all);
@@ -374,14 +383,18 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
   var link_fn = function(scope, element, attrs) {
     scope.svg = create_svg(element, attrs);
-    scope.$watch('specs', update_svg);
+    scope.$watch('specs', _update_specs);
+    scope.$watch('deployment', _update_deployment);
   }
 
   return {
     restrict: 'E',
     template: '<div class="cm-workflow"></div>',
     replace: true,
-    scope: { specs: '=' },
+    scope: {
+      specs: '=',
+      deployment: '='
+    },
     link: link_fn
   };
 }]);
