@@ -9,39 +9,7 @@
     <h2>{{current_spec.name}}</h2>
     <h5>{{current_spec.description}} &nbsp;</h5>
 
-    <div id="spec" class="row-fluid">
-      <div class="span3">
-        <ul class="nav nav-list">
-          <li class="nav-header">Task Spec</li>
-
-          <li><a href="#" ng-click="save_spec()" tooltip-placement='left' tooltip="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
-
-          <li class="nav-header">Preceding Tasks</li>
-
-          <li ng-repeat="input in current_spec.inputs">
-            <span><span ng-class="state_class({state: spec_status(input)})">&nbsp;</span>
-                <a href="#{{input}}" ng-click="selectSpec(input)">{{input}}</a></span></li>
-
-          <li class="nav-header">Following Tasks</li>
-          <li ng-repeat="output in current_spec.outputs">
-            <span><span ng-class="state_class({state: spec_status(output)})">&nbsp;</span>
-                <a href="#{{output}}" ng-click="selectSpec(output)">{{output}}</a></span></li>
-        </ul>
-      </div>
-
-      <div class="span9">
-        <textarea id="spec_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="current_spec_json">
-        </textarea>
-        <alert type="alert.type" close="$parent.hide_alert('overwrite_secrets')" ng-show="$parent.display_alert('overwrite_secrets')">
-          <strong>Warning!</strong> If your updates include any 'secret' values
-          (like password or private keys) and you have not opened this screen
-          with a <code>?with_secrets</code> query parameter, then any existing
-          secrets will be overwritten and lost.
-        </alert>
-        <br>
-      </div>
-    </div>
-
+    <ng-include src="'/partials/workflows/_spec.html'"></ng-include>
 
     <div id="task" class="row-fluid">
       <div class="span3">
