@@ -24,7 +24,9 @@ Components
 ```yaml
 
 id: a unique identifier (not necessarily a UUID, but a string) within the provider that provides that component.
-    Temporary assertion: the id for wordpress is wordpress always (in puppet, chef, etc....). And we will maintain a list of those ids. Precedents for this are OpsCode cookbooks and Juju charms (http://jujucharms.com/charms/precise).
+    Temporary assertion: the id for wordpress is wordpress always (in puppet, chef, etc....). And we will maintain
+    a list of those ids. Precedents for this are OpsCode cookbooks and Juju charms
+    (http://jujucharms.com/charms/precise).
     **Action item/future consideration**: create our own catalog (or use Charms/cookbooks)
 
 name: user friendliness (*mssql vs Microsoft SQL Server)
@@ -37,13 +39,17 @@ role: Allows you to specify the role of this component.
 
 version: for versioning...!
 
-description: comes from Juju, a short description. (we could have named it description, but decided not to diverge from something already out there...)
-    **Action item**: switch to description from summary, more universally used.
+description: comes from Juju, a short description. (we could have named it description, but decided not to diverge
+             from something already out there...)
+             **Action item**: switch to description from summary, more universally used.
 
-is: describes the type of resource based on a list of primitives (compute, database, load-balancer, application, ...) - coming from OpenStack.
+is: describes the type of resource based on a list of primitives (compute, database, load-balancer, application, ...)
+    coming from OpenStack.
     **Unseconded proposal** to change to type.
 
-requires: what this resource needs. The needs can be specific or general. General would be anything with a mysql interface (for WordPress). Specific would be I need a host compute resource that is an Ubuntu 12.04 or later machine.
+requires: what this resource needs. The needs can be specific or general. General would be anything with a mysql
+          interface (for WordPress). Specific would be I need a host compute resource that is an Ubuntu 12.04 or
+          later machine.
 Syntax (two options, long an short form):
     type: interface. Example: database: mysql - short syntax is resource_type:interface. By design.
     name: hash (key/value pairs) for more specific stuff. Name is arbitrary.
@@ -51,12 +57,15 @@ Syntax (two options, long an short form):
         server: (this is the arbitrary key - the label of this requirement)
             type: compute
             interface: debian (this says I expect to be able to do apt-get, vs yum)
-            relation: host (this says I am hosted on this resource. I cannot exist without it. I am down when it is down). "host" is a keyword.
+            relation: host (this says I am hosted on this resource. I cannot exist without it. I am down when it is
+                      down). "host" is a keyword.
             constraint:
             - 'os': ['debian', 'redhat']
-The name+key/value syntax allows for requiring more than one of the same resource (ex. log and data mysql databases) as well as adding additional constraints, etc....
+The name+key/value syntax allows for requiring more than one of the same resource (ex. log and data mysql databases)
+as well as adding additional constraints, etc....
 
-provides: array of resource_type:interface entries (array can be represented in YAML with entries preceded with dashes). For example, let's say we get a CLoud Sites API that provides a "site" resource. Site could provide:
+provides: array of resource_type:interface entries (array can be represented in YAML with entries preceded with
+dashes). For example, let's say we get a CLoud Sites API that provides a "site" resource. Site could provide:
 - database: mysql
 - application: php
 
@@ -68,7 +77,9 @@ username:
         * Action Items: How can we tie this to a "list" from the provider
     label: User Name (used for display friendliness)
     description: ...
-    source_field_name: the name as it is known by the underlying provider. Ex. wordpress/database/db_user for OpsCode Chef. We need this currently since we dynamically generate component definitions and we need to be able to map things back after they've flowed through checkmate.
+    source_field_name: the name as it is known by the underlying provider. Ex. wordpress/database/db_user for OpsCode
+                       Chef. We need this currently since we dynamically generate component definitions and we need
+                       to be able to map things back after they've flowed through checkmate.
         * Should be able to get rid of this in the future with clean, reversible mapping logic in providers.
     type: string
     regex: for validation
