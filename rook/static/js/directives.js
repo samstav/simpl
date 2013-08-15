@@ -326,6 +326,20 @@ directives.directive('cmTreeView', function() {
   };
 });
 
+directives.directive('cmWorkflow', [function() {
+  var link_fn = function(scope, element, attrs) {
+    element.text("new workflow");
+  }
+
+  return {
+    restrict: 'E',
+    template: '<div></div>',
+    replace: true,
+    scope: { specs: '=' },
+    link: link_fn
+  };
+}]);
+
 angular.module('checkmate.directives').directive('cmNotifications', ['$rootScope', function($rootScope) {
   var flush_notifications = function(new_messages, old_messages, scope) {
     if (!new_messages) return;
