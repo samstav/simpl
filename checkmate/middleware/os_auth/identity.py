@@ -7,9 +7,10 @@ import logging
 import traceback
 
 from celery.task import task
+from webob.exc import HTTPUnauthorized
+
 from checkmate.common import statsd
 from checkmate.middleware.os_auth import auth_utils
-from webob.exc import HTTPUnauthorized
 
 
 LOG = logging.getLogger(__name__)
@@ -68,9 +69,8 @@ def authenticate(auth_dict):
         raise HTTPUnauthorized('JSON Decode Failure. ERROR: %s - RESP %s'
                                % (exp, resp_read))
     else:
-        token, tenantid, username = auth_utils.parse_srvcatalog(
-            srv_cata=parsed_response
-        )
+        token, tenantid, username = auth_utils.parse_auth_response(
+            parsed_response)
         LOG.debug('Auth token for user %s is %s [tenant %s]', username, token,
                   tenantid)
         return token, tenantid, username, parsed_response

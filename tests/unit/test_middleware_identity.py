@@ -99,18 +99,38 @@ class TestIdentity(unittest.TestCase):
                 }
             }
         })
-        self.pri_servicecat = json.dumps({
+        self.unscoped_response = json.dumps({
+            u"access": {
+                u"token": {
+                    u"expires": u"2013-08-02T19:36:42Z",
+                    u"id": u"12345678901234567890",
+                },
+                u"user": {
+                    u"username": u"testuser",
+                    u"roles_links": [],
+                    u"id": u"1234567890",
+                    u"roles": [],
+                    u"name": u"testuser"
+                }
+            }
+        })
+        self.scoped_response = json.dumps({
             u"access": {
                 u"token": {
                     u"expires": u"2013-08-02T19:36:42Z",
                     u"id": u"12345678901234567890",
                     u"tenant": {
+                        u"description": u"Test Tenant",
+                        u"enabled": True,
                         u"id": u"3b2602019a73496485dd87d11e720e39",
-                        u"name": u"admin"
-                    }
+                        u"name": u"T1000"
+                    },
                 },
                 u"user": {
+                    u"username": u"testuser",
+                    u"roles_links": [],
                     u"id": u"1234567890",
+                    u"roles": [],
                     u"name": u"testuser"
                 }
             }
@@ -164,32 +184,32 @@ class TestIdentity(unittest.TestCase):
         self.assertEqual(auth_utils.parse_url(url=url),
                          'identity.api.rackspacecloud.com')
 
-    def test_parse_srvcatalog_inv_no_user(self):
-        """Parse Service Catalog and return TenantID and Token."""
+    def test_parse_auth_response_negative(self):
+        """Parse Auth Response and return Token, TenantID and Username."""
 
         parsed_response = json.loads(self.nouser_servicecat)
         with self.assertRaises(exceptions.NoTenantIdFound):
-            auth_utils.parse_srvcatalog(srv_cata=parsed_response)
+            auth_utils.parse_auth_response(parsed_response)
 
-    def test_parse_srvcatalog_inv(self):
-        """Parse Service Catalog and return TenantID and Token."""
+    def test_parse_auth_response_unscoped(self):
+        """Parse Auth Response and return Token, TenantID and Username."""
 
-        parsed_response = json.loads(self.inv_servicecat)
-        self.assertEqual(auth_utils.parse_srvcatalog(srv_cata=parsed_response),
+        parsed_response = json.loads(self.unscoped_response)
+        self.assertEqual(auth_utils.parse_auth_response(parsed_response),
                          ('12345678901234567890', None, 'testuser'))
 
-    def test_parse_srvcatalog_pri(self):
-        """Parse Service Catalog and return TenantID and Token."""
+    def test_parse_auth_response_scoped(self):
+        """Parse Auth Response and return Token, TenantID and Username."""
 
-        parsed_response = json.loads(self.pri_servicecat)
-        self.assertEqual(auth_utils.parse_srvcatalog(srv_cata=parsed_response),
-                         ('12345678901234567890', 'admin', 'testuser'))
+        parsed_response = json.loads(self.scoped_response)
+        self.assertEqual(auth_utils.parse_auth_response(parsed_response),
+                         ('12345678901234567890', 'T1000', 'testuser'))
 
-    def test_parse_srvcatalog_rax(self):
-        """Parse Service Catalog and return TenantID and Token."""
+    def test_parse_auth_response_rax(self):
+        """Parse Auth Response and return Token, TenantID and Username."""
 
         parsed_response = json.loads(self.rax_servicecat)
-        self.assertEqual(auth_utils.parse_srvcatalog(srv_cata=parsed_response),
+        self.assertEqual(auth_utils.parse_auth_response(parsed_response),
                          ('12345678901234567890', '123456', 'testuser'))
 
     def test_parse_reqtype_inv(self):
@@ -353,7 +373,7 @@ class TestIdentity(unittest.TestCase):
         response = FakeHttpResponse(status=200,
                                     reason='OK',
                                     headers=[('Foo', 'Bar')],
-                                    body=self.pri_servicecat)
+                                    body=self.unscoped_response)
 
         httplib.HTTPConnection.connect()
         httplib.HTTPConnection.request(method=mox.IgnoreArg(),
@@ -368,7 +388,7 @@ class TestIdentity(unittest.TestCase):
             auth_utils.request_process(aurl='someauthurl.something',
                                        req=(None, None, None, None),
                                        https=False),
-            self.pri_servicecat
+            self.unscoped_response
         )
 
     def test_request_rax(self):
@@ -429,7 +449,7 @@ class TestIdentity(unittest.TestCase):
                           u'testuser',
                           json.loads(self.rax_servicecat)))
 
-    def test_authenticate_pri(self):
+    def test_authenticate_unscoped(self):
         """Test Authenticate For Openstack."""
 
         ctx = {'auth_url': 'http://someauthurl.something',
@@ -439,7 +459,7 @@ class TestIdentity(unittest.TestCase):
         response = FakeHttpResponse(status=200,
                                     reason='OK',
                                     headers=[('Foo', 'Bar')],
-                                    body=self.pri_servicecat)
+                                    body=self.unscoped_response)
         httplib.HTTPConnection.connect()
         httplib.HTTPConnection.request(method=mox.IgnoreArg(),
                                        url=mox.IgnoreArg(),
@@ -450,9 +470,35 @@ class TestIdentity(unittest.TestCase):
         self.mox.ReplayAll()
         self.assertEqual(identity.authenticate(auth_dict=ctx),
                          (u'12345678901234567890',
-                          u'admin',
+                          None,
                           u'testuser',
-                          json.loads(self.pri_servicecat)))
+                          json.loads(self.unscoped_response)))
+
+    def test_authenticate_scoped(self):
+        """Test Authenticate For Openstack."""
+
+        ctx = {'auth_url': 'http://someauthurl.something',
+               'username': 'testuser',
+               'password': 'testkey',
+               'tenant': 'T1000'}
+
+        response = FakeHttpResponse(status=200,
+                                    reason='OK',
+                                    headers=[('Foo', 'Bar')],
+                                    body=self.scoped_response)
+        httplib.HTTPConnection.connect()
+        httplib.HTTPConnection.request(method=mox.IgnoreArg(),
+                                       url=mox.IgnoreArg(),
+                                       body=mox.IgnoreArg(),
+                                       headers=mox.IgnoreArg())
+        httplib.HTTPConnection.getresponse().AndReturn(response)
+        httplib.HTTPConnection.close()
+        self.mox.ReplayAll()
+        self.assertEqual(identity.authenticate(auth_dict=ctx),
+                         (u'12345678901234567890',
+                          u'T1000',
+                          u'testuser',
+                          json.loads(self.scoped_response)))
 
     def test_get_token(self):
         """Test Get Token Return on field 0."""
@@ -478,7 +524,7 @@ class TestIdentity(unittest.TestCase):
         response = FakeHttpResponse(status=200,
                                     reason='OK',
                                     headers=[('Foo', 'Bar')],
-                                    body=self.pri_servicecat)
+                                    body=self.unscoped_response)
 
         httplib.HTTPConnection.connect()
         httplib.HTTPConnection.request(method=mox.IgnoreArg(),
@@ -490,7 +536,7 @@ class TestIdentity(unittest.TestCase):
 
         self.mox.ReplayAll()
         self.assertEqual(identity.auth_token_validate(auth_dict=ctx),
-                         json.loads(self.pri_servicecat))
+                         json.loads(self.unscoped_response))
 
     def test_auth_token_validate_inv(self):
         """Test Token Validation Openstack."""
@@ -516,6 +562,7 @@ class TestIdentity(unittest.TestCase):
         self.mox.ReplayAll()
         with self.assertRaises(identity.HTTPUnauthorized):
             identity.auth_token_validate(auth_dict=ctx)
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately
