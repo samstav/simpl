@@ -242,6 +242,7 @@ class TokenAuthMiddleware(object):
     def __init__(self, app, endpoint, anonymous_paths=None):
         self.app = app
         self.endpoint = endpoint
+        self.endpoint_uri = endpoint.get('uri')
         self.anonymous_paths = anonymous_paths
         self.auth_header = 'Keystone uri="%s"' % endpoint['uri']
         if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
@@ -809,14 +810,20 @@ class AuthTokenRouterMiddleware(object):
                         "Untrusted Auth Source"
                     )(environ, start_response))
 
+                LOG.debug("Routing to provided source %s", source)
                 sources = {source: self.middleware[source]}
             else:
+                LOG.warning("No X-Auth-Source header provided. Routing to all "
+                            "sources")
                 sources = self.middleware
 
             sr_intercept = self.start_response_intercept(start_response)
             for source in sources.itervalues():
+                LOG.debug("Authenticating against %s", source.endpoint_uri)
                 result = source.__call__(environ, sr_intercept)
                 if self.last_status:
+                    LOG.debug("%s returned %s", source.endpoint_uri,
+                              self.last_status)
                     if self.last_status.startswith('401 '):
                         # Unauthorized, let's try next route
                         continue
