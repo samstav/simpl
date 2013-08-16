@@ -47,7 +47,7 @@ class TestNovaCompute(test.ProviderTester):
 
         #Mock image
         image = self.mox.CreateMockAnything()
-        image.id = compute.UBUNTU_12_04_IMAGE_ID
+        image.id = '00000000-0000-0000-0000-000000000000'
 
         #Mock flavor
         flavor = self.mox.CreateMockAnything()
@@ -108,7 +108,7 @@ class TestNovaCompute(test.ProviderTester):
         results = compute.create_server(context, 'fake_server', "North",
                                         api_object=openstack_api_mock,
                                         flavor='2', files=None,
-                                        image=compute.UBUNTU_12_04_IMAGE_ID,
+                                        image=image.id,
                                         tags=provider.generate_resource_tag(
                                             context['base_url'],
                                             context['tenant'],
@@ -616,7 +616,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                     }
                 },
                 'types': {
-                    compute.UBUNTU_12_04_IMAGE_ID: {
+                    '00000000-0000-0000-0000-000000000000': {
                         'os': 'Ubuntu 12.04',
                         'name': 'Ubuntu 12.04 LTS'
                     }
@@ -658,7 +658,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             'provider': provider.key,
             'flavor': '2',
             'service': 'master',
-            'image': compute.UBUNTU_12_04_IMAGE_ID,
+            'image': '00000000-0000-0000-0000-000000000000',
             'region': 'ORD'
         }]
 
@@ -688,7 +688,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                     'ORD': 'http://some.endpoint'
                 },
                 'types': {
-                    compute.UBUNTU_12_04_IMAGE_ID: {
+                    '00000000-0000-0000-0000-000000000000': {
                         'os': 'Ubuntu 12.04',
                         'name': 'Ubuntu 12.04 LTS'
                     }

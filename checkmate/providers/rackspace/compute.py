@@ -56,7 +56,6 @@ from checkmate.utils import (
 
 
 LOG = logging.getLogger(__name__)
-UBUNTU_12_04_IMAGE_ID = "5cebb13a-f783-4f8c-8058-c4182c724ccd"
 IMAGE_MAP = {
     'precise': 'Ubuntu 12.04',
     'squeeze': 'Debian 6',
@@ -391,7 +390,7 @@ class Provider(RackspaceComputeProviderBase):
                 resource.get('dns-name'),
                 resource['region']
             ],
-            image=resource.get('image', UBUNTU_12_04_IMAGE_ID),
+            image=resource.get('image'),
             flavor=resource.get('flavor', "2"),
             files=self._kwargs.get('files', None),
             tags=self.generate_resource_tag(
@@ -918,7 +917,7 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
 @task
 @statsd.collect
 def create_server(context, name, region, api_object=None, flavor="2",
-                  files=None, image=UBUNTU_12_04_IMAGE_ID, tags=None):
+                  files=None, image=None, tags=None):
     '''Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
