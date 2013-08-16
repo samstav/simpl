@@ -1383,14 +1383,15 @@ def wait_on_build(context, server_id, region, resource,
     ip = None
     if server.addresses:
         # Get requested IP
-        if ip_address_type != 'public':
-            addresses = server.addresses.get(ip_address_type or 'public', [])
-            for address in addresses:
-                if address['version'] == 4:
-                    ip = address['addr']
-                    break
-        else:
+        addresses = server.addresses.get(ip_address_type or 'public', [])
+        for address in addresses:
+            if address['version'] == 4:
+                ip = address['addr']
+                break
+        if ((ip_address_type != 'public' and server.accessIPv4) or
+                'rack_connect' in context['roles']):
             ip = server.accessIPv4
+            LOG.info("Using accessIPv4 to connect: %s", ip)
         results['ip'] = ip
 
         # Get public (default) IP
@@ -1417,7 +1418,9 @@ def wait_on_build(context, server_id, region, resource,
     if verify_up:
         isup = False
         image_details = api_object.images.find(id=server.image['id'])
-        if image_details.metadata['os_type'] == 'linux':
+        metadata = image_details.metadata
+        if ((metadata and metadata['os_type'] == 'linux') or
+                ('windows' not in image_details.name.lower())):
             msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
                   "to connect." % (server_id, username, ip, port)
             isup = checkmate.ssh.test_connection(context, ip, username,
