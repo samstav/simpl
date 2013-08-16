@@ -62,11 +62,6 @@ def authenticate(auth_dict):
     LOG.debug('POST Authentication Response %s', resp_read)
     try:
         parsed_response = json.loads(resp_read)
-        if not username:
-            try:
-                username = parsed_response['access']['user']['name']
-            except Exception:
-                pass
     except ValueError as exp:
         LOG.error('Authentication Failure %s\n%s', exp,
                   traceback.format_exc())
