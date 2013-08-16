@@ -62,18 +62,15 @@ def authenticate(auth_dict):
     LOG.debug('POST Authentication Response %s', resp_read)
     try:
         parsed_response = json.loads(resp_read)
-        if not username:
-            try:
-                username = parsed_response['access']['user']['name']
-            except Exception:
-                pass
     except ValueError as exp:
         LOG.error('Authentication Failure %s\n%s', exp,
                   traceback.format_exc())
         raise HTTPUnauthorized('JSON Decode Failure. ERROR: %s - RESP %s'
                                % (exp, resp_read))
     else:
-        token, tenantid = auth_utils.parse_srvcatalog(srv_cata=parsed_response)
+        token, tenantid, username = auth_utils.parse_srvcatalog(
+            srv_cata=parsed_response
+        )
         LOG.debug('Auth token for user %s is %s [tenant %s]', username, token,
                   tenantid)
         return token, tenantid, username, parsed_response
