@@ -22,7 +22,6 @@ from checkmate.exceptions import (
 from checkmate import middleware
 from checkmate import providers
 from checkmate import utils
-from checkmate import workflow
 
 LOG = logging.getLogger(__name__)
 
@@ -103,9 +102,9 @@ class Provider(providers.ProviderBase):
                                             service_name=service,
                                             provider_key=self.key)
             if not region:
-                message = "Could not identify which region to " \
-                              "create database in"
-                raise CheckmateUserException(message,utils.get_class_name(
+                message = ("Could not identify which region to create "
+                           "database in")
+                raise CheckmateUserException(message, utils.get_class_name(
                     CheckmateException), BLUEPRINT_ERROR, '')
 
             for template in templates:
@@ -136,7 +135,7 @@ class Provider(providers.ProviderBase):
         instances_used = len(instances)
         volume_size_used = 0
         for instance in instances:
-            volume_size_used += instance.volume['size']
+            volume_size_used += instance.volume.size
 
         instances_available = instance_limit - instances_used
         volume_size_available = volume_size_limit - volume_size_used
@@ -224,8 +223,8 @@ class Provider(providers.ProviderBase):
             if password:
                 start_with = string.ascii_uppercase + string.ascii_lowercase
                 if password[0] not in start_with:
-                    error_message = "Database password must start " \
-                                   "with one of '%s'" % start_with
+                    error_message = ("Database password must start with one "
+                                     "of '%s'" % start_with)
                     raise CheckmateUserException(error_message,
                                                  utils.get_class_name(
                                                      CheckmateUserException),
@@ -340,8 +339,8 @@ class Provider(providers.ProviderBase):
             wait_task.follow(create_instance_task)
             return dict(root=root, final=wait_task)
         else:
-            error_message = "Unsupported component type '%s' for " \
-                   "provider %s" % (component['is'], self.key)
+            error_message = ("Unsupported component type '%s' for  provider "
+                             "%s" % (component['is'], self.key))
             raise CheckmateUserException(error_message, utils.get_class_name(
                 CheckmateException), UNEXPECTED_ERROR, '')
 
@@ -370,8 +369,8 @@ class Provider(providers.ProviderBase):
             return self._delete_comp_res_tasks(wf_spec, context, key)
         if resource.get('type') == 'database':
             return self._delete_db_res_tasks(wf_spec, context, key)
-        message = "Cannot provide delete tasks for resource %s:" \
-                " Invalid resource type '%s'" % (key, resource.get('type'))
+        message = ("Cannot provide delete tasks for resource %s: Invalid "
+                   "resource type '%s'" % (key, resource.get('type')))
         raise CheckmateUserException(message, utils.get_class_name(
             CheckmateException), UNEXPECTED_ERROR, '')
 
@@ -514,8 +513,8 @@ class Provider(providers.ProviderBase):
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
         elif not isinstance(context, middleware.RequestContext):
-            message = 'Context passed into connect is an ' \
-                       'unsupported type %s.' % type(context)
+            message = ("Context passed into connect is an unsupported type "
+                       "%s." % type(context))
             raise CheckmateException(message)
         if not context.auth_token:
             raise CheckmateNoTokenError()

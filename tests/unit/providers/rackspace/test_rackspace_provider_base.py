@@ -60,16 +60,16 @@ class TestGetRegions(unittest.TestCase):
 
     @mock.patch.object(rs_base.LOG, 'warning')
     def test_no_regions(self, mock_logger):
-        results = rs_base.RackspaceProviderBase.get_regions(self.catalog,
-                                                            'invalid')
-        mock_logger.assert_called_with('No regions found for service name %s',
-                                       'invalid')
+        results = rs_base.RackspaceProviderBase.get_regions(
+            self.catalog, service_name='invalid')
+        mock_logger.assert_called_with('No regions found for type %s and '
+                                       'service name %s', '*', 'invalid')
         self.assertEqual(results, [])
 
     def test_success(self):
-        expected = ['SYD', 'ORD']
-        results = rs_base.RackspaceProviderBase.get_regions(self.catalog,
-                                                            'test_service')
+        expected = ['ORD', 'SYD']
+        results = rs_base.RackspaceProviderBase.get_regions(
+            self.catalog, service_name='test_service')
         self.assertEqual(results, expected)
 
 

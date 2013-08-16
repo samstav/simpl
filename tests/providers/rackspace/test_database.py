@@ -319,9 +319,11 @@ class TestDatabase(test.ProviderTester):
              'type': 'compute'}
         ]
         instance1 = self.mox.CreateMockAnything()
-        instance1.volume = {'size': volume_size_used}
+        instance1.volume = self.mox.CreateMockAnything()
+        instance1.volume.size = volume_size_used
         instance2 = self.mox.CreateMockAnything()
-        instance2.volume = {'size': volume_size_used}
+        instance2.volume = self.mox.CreateMockAnything()
+        instance2.volume.size = volume_size_used
         instances = [instance1, instance2]
         self.mox.StubOutWithMock(database.Provider, 'connect')
         cdb = self.mox.CreateMockAnything()

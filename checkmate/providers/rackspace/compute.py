@@ -56,7 +56,31 @@ from checkmate.utils import (
 
 
 LOG = logging.getLogger(__name__)
-UBUNTU_12_04_IMAGE_ID = "5cebb13a-f783-4f8c-8058-c4182c724ccd"
+IMAGE_MAP = {
+    'precise': 'Ubuntu 12.04',
+    'squeeze': 'Debian 6',
+    'wheezy': 'Debian 7',
+    'beefy miracle': 'Fedora 17',
+    'spherical cow': 'Fedora 18',
+    'schroedinger': 'Fedora 19',
+    'lucid': 'Ubuntu 10.04',
+    'quantal': 'Ubuntu 12.10',
+    'ringtail': 'Ubuntu 13.04',
+    'saucy': 'Ubuntu 13.10',
+}
+KNOWN_OSES = {
+    'ubuntu': ['10.04', '10.12', '11.04', '11.10', '12.04', '12.10', '13.04',
+               '13.10'],
+    'centos': ['6.4'],
+    'cirros': ['0.3'],
+    'debian': ['6', '7'],
+    'fedora': ['17', '18', '19'],
+}
+RACKSPACE_DISTRO_KEY = 'os_distro'
+RACKSPACE_VERSION_KEY = 'os_version'
+
+OPENSTACK_DISTRO_KEY = 'org.openstack__1__os_distro'
+OPENSTACK_VERSION_KEY = 'org.openstack__1__os_version'
 CATALOG_TEMPLATE = yaml_to_dict("""compute:
   linux_instance:
     id: linux_instance
@@ -366,7 +390,7 @@ class Provider(RackspaceComputeProviderBase):
                 resource.get('dns-name'),
                 resource['region']
             ],
-            image=resource.get('image', UBUNTU_12_04_IMAGE_ID),
+            image=resource.get('image'),
             flavor=resource.get('flavor', "2"),
             files=self._kwargs.get('files', None),
             tags=self.generate_resource_tag(
@@ -512,9 +536,20 @@ class Provider(RackspaceComputeProviderBase):
             urls[region] = Provider.find_url(context.catalog, region)
         else:
             LOG.warning('Region not found in context or kwargs.')
-            for region in Provider.get_regions(context.catalog,
-                                               'cloudServersOpenStack'):
+            rax_regions = Provider.get_regions(
+                context.catalog, service_name='cloudServersOpenStack',
+                resource_type='compute')
+            if rax_regions:
+                regions = rax_regions
+                LOG.debug("Found Rackspace compute regions: %s", rax_regions)
+            else:
+                regions = Provider.get_regions(context.catalog,
+                                               resource_type='compute')
+                LOG.debug("Found generic compute regions: %s", regions)
+            for region in regions:
                 urls[region] = Provider.find_url(context.catalog, region)
+        if not urls:
+            return results
 
         jobs = eventlet.GreenPile(min(len(urls) * 2, 16))
         for region, url in urls.items():
@@ -614,6 +649,7 @@ class Provider(RackspaceComputeProviderBase):
     def find_url(catalog, region):
         '''Get the Public URL of a service.'''
         fall_back = None
+        openstack_compatible = None
         for service in catalog:
             if service['name'] == 'cloudServersOpenStack':
                 endpoints = service['endpoints']
@@ -626,12 +662,18 @@ class Provider(RackspaceComputeProviderBase):
                 for endpoint in endpoints:
                     if endpoint.get('region') == region:
                         fall_back = endpoint['publicURL']
-        return fall_back
+            elif service['type'] == 'compute':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        openstack_compatible = endpoint['publicURL']
+        return fall_back or openstack_compatible
 
     @staticmethod
     def find_a_region(catalog):
         '''Any region.'''
         fall_back = None
+        openstack_compatible = None
         for service in catalog:
             if service['name'] == 'cloudServersOpenStack':
                 endpoints = service['endpoints']
@@ -642,7 +684,11 @@ class Provider(RackspaceComputeProviderBase):
                 endpoints = service['endpoints']
                 for endpoint in endpoints:
                     fall_back = endpoint.get('region')
-        return fall_back
+            elif service['type'] == 'compute':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    openstack_compatible = endpoint.get('region')
+        return fall_back or openstack_compatible
 
     @staticmethod
     def connect(context, region=None):
@@ -716,45 +762,84 @@ def _get_images_and_types(api_endpoint, region, auth_token):
     LOG.info("Calling Nova to get images for %s", api_endpoint)
     images = api.images.list(detailed=True)
     for i in images:
-        if 'LAMP' in i.name:
-            continue
         metadata = i.metadata or {}
-        os_name = None
-        if 'os_distro' in metadata and 'os_version' in metadata:
-            os_name = '%s %s' % (metadata['os_distro'].title(),
-                                 metadata['os_version'])
-            LOG.debug("Identified image by os_distro: %s", os_name)
-        elif ('org.openstack__1__os_distro' in metadata and
-              'openstack__1__os_version' in metadata):
-            os_name = '%s %s' % (metadata['openstack__1__os_distro'].title(),
-                                 metadata['openstack__1__os_vrsion'])
-            LOG.debug("Identified image by openstack key: %s", os_name)
-        else:
-            #NOTE: hack to make our blueprints work with Private OpenStack
-            if 'precise' in i.name.lower():
-                os_name = 'Ubuntu 12.04'
-                LOG.debug("Identified image as 'precise': %s", os_name)
-            if not os_name:
-                #NOTE: hack to make our blueprints work with iNova
-                if 'LTS' in i.name:
-                    os_name = i.name.split('LTS')[0].strip()
-                    LOG.debug("Identified image by iNova name: %s", os_name)
-            if not os_name:
-                #NOTE: hack to find some images by name in Rackspace
-                os_name = i.name.split(' LTS ')[0].split(' (')[0]
-                LOG.debug("Identified image by name split: %s", os_name)
-            if not os_name:
-                LOG.debug("Could not identify image: %s", i.name,
-                          extra={'data': i.__dict__})
+        os_name = detect_image(i.name, metadata=metadata)
+        if os_name:
+            img = {
+                'name': i.name,
+                'os': os_name
+            }
 
-        img = {
-            'name': i.name,
-            'os': os_name
-        }
-
-        ret['types'][str(i.id)] = img
-        ret['images'][i.id] = {'name': i.name}
+            ret['types'][str(i.id)] = img
+            ret['images'][i.id] = {'name': i.name}
     return ret
+
+
+def detect_image(name, metadata=None):
+    '''Attempt to detect OS from name and/or metadata.
+
+    :returns: string of OS and version (ex. Ubuntu 12.04) in Checkmate format.
+    '''
+    if 'LAMP' in name:
+        return None
+    os_name = None
+    # Try metadata
+    if metadata:
+        if (RACKSPACE_DISTRO_KEY in metadata and
+                RACKSPACE_VERSION_KEY in metadata):
+            os_name = '%s %s' % (metadata[RACKSPACE_DISTRO_KEY].title(),
+                                 metadata[RACKSPACE_VERSION_KEY])
+            LOG.debug("Identified image by os_distro: %s", os_name)
+            return os_name
+
+        if (OPENSTACK_DISTRO_KEY in metadata and
+                OPENSTACK_VERSION_KEY in metadata):
+            os_name = '%s %s' % (metadata[OPENSTACK_DISTRO_KEY].title(),
+                                 metadata[OPENSTACK_VERSION_KEY])
+            LOG.debug("Identified image by openstack key: %s", os_name)
+            return os_name
+
+    #Look for keywords like 'precise'
+    lower_name = name.lower()
+    for hint, mapped_os in IMAGE_MAP.iteritems():
+        if hint in lower_name:
+            os_name = mapped_os
+            LOG.debug("Identified image as '%s': %s", hint, os_name)
+            return os_name
+
+    #Look for Checkmate name
+    for mapped_os in IMAGE_MAP.itervalues():
+        if mapped_os.lower() in lower_name:
+            os_name = mapped_os
+            LOG.debug("Identified image as '%s': %s", mapped_os,
+                      os_name)
+            return os_name
+
+    #Parse for known OSes and versions
+    for os_lower, versions in KNOWN_OSES.iteritems():
+        if os_lower in lower_name:
+            for version in versions:
+                if version.lower() in lower_name:
+                    os_name = '%s %s' % (os_lower.title(), version)
+                    LOG.debug("Identified image as known OS: %s", os_name)
+                    return os_name
+
+    if ' LTS ' in name:
+        #NOTE: hack to find some images by name in Rackspace
+        os_name = name.split(' LTS ')[0].split(' (')[0]
+        LOG.debug("Identified image by name split: %s", os_name)
+        return os_name
+
+    #NOTE: hack to make our blueprints work with iNova
+    if 'LTS' in name:
+        os_name = name.split('LTS')[0].strip()
+        LOG.debug("Identified image by iNova name: %s", os_name)
+        return os_name
+
+    if not os_name:
+        LOG.debug("Could not identify image: %s", name,
+                  extra={'metadata': metadata})
+    return os_name
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE,
@@ -768,7 +853,7 @@ def _get_flavors(api_endpoint, auth_token):
                         auth_plugin=plugin)
     LOG.info("Calling Nova to get flavors for %s", api_endpoint)
     flavors = api.flavors.list()
-    return {
+    result = {
         'flavors': {
             str(f.id): {
                 'name': f.name,
@@ -778,6 +863,9 @@ def _get_flavors(api_endpoint, auth_token):
             } for f in flavors
         }
     }
+    LOG.debug("Identified flavors: %s", result['flavors'].keys(),
+              extra={'data': result})
+    return result
 
 
 @caching.Cache(timeout=1800, sensitive_args=[1], store=API_LIMITS_CACHE,
@@ -829,7 +917,7 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
 @task
 @statsd.collect
 def create_server(context, name, region, api_object=None, flavor="2",
-                  files=None, image=UBUNTU_12_04_IMAGE_ID, tags=None):
+                  files=None, image=None, tags=None):
     '''Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
@@ -1295,14 +1383,15 @@ def wait_on_build(context, server_id, region, resource,
     ip = None
     if server.addresses:
         # Get requested IP
-        if ip_address_type != 'public':
-            addresses = server.addresses.get(ip_address_type or 'public', [])
-            for address in addresses:
-                if address['version'] == 4:
-                    ip = address['addr']
-                    break
-        else:
+        addresses = server.addresses.get(ip_address_type or 'public', [])
+        for address in addresses:
+            if address['version'] == 4:
+                ip = address['addr']
+                break
+        if ((ip_address_type != 'public' and server.accessIPv4) or
+                'rack_connect' in context['roles']):
             ip = server.accessIPv4
+            LOG.info("Using accessIPv4 to connect: %s", ip)
         results['ip'] = ip
 
         # Get public (default) IP
@@ -1329,7 +1418,9 @@ def wait_on_build(context, server_id, region, resource,
     if verify_up:
         isup = False
         image_details = api_object.images.find(id=server.image['id'])
-        if image_details.metadata['os_type'] == 'linux':
+        metadata = image_details.metadata
+        if ((metadata and metadata['os_type'] == 'linux') or
+                ('windows' not in image_details.name.lower())):
             msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
                   "to connect." % (server_id, username, ip, port)
             isup = checkmate.ssh.test_connection(context, ip, username,

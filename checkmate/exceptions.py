@@ -12,11 +12,11 @@ This is important to allow exceptions to flow back from the message queue
 tasks.
 '''
 
-''' Error message constants '''
-BLUEPRINT_ERROR = "There is a possible problem in the " \
-                                  "Blueprint provided - Please contact support"
-UNEXPECTED_ERROR = "There was an unexpected error executing your deployment -" \
-                   " Please contact support"
+#Error message constants
+BLUEPRINT_ERROR = ("There is a possible problem in the Blueprint provided - "
+                   "Please contact support")
+UNEXPECTED_ERROR = ("There was an unexpected error executing your deployment "
+                    "- Please contact support")
 
 
 class CheckmateException(Exception):

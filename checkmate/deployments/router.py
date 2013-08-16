@@ -62,18 +62,18 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
     if db.any_id_problems(entity['id']):
         raise exceptions.CheckmateValidationException(
             db.any_id_problems(entity['id']))
-    deployment = cmdeploy.Deployment(entity)  # Also validates syntax
-    if 'includes' in deployment:
-        del deployment['includes']
-    if 'tenantId' in deployment and tenant_id:
-        if deployment['tenantId'] != tenant_id:
+    if 'includes' in entity:
+        del entity['includes']
+    if 'tenantId' in entity and tenant_id:
+        if entity['tenantId'] != tenant_id:
             raise exceptions.CheckmateValidationException(
                 "tenantId must match with current tenant ID")
     else:
         assert tenant_id, "Tenant ID must be specified in deployment."
-        deployment['tenantId'] = tenant_id
-    if 'created-by' not in deployment:
-        deployment['created-by'] = request.context.username
+        entity['tenantId'] = tenant_id
+    if 'created-by' not in entity:
+        entity['created-by'] = request.context.username
+    deployment = cmdeploy.Deployment(entity)  # Also validates syntax
     return deployment
 
 

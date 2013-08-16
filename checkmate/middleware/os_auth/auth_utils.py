@@ -51,7 +51,7 @@ def parse_srvcatalog(srv_cata):
 
     # Tenant ID set as it was originally in the method, but its not used
     if 'tenant' in access.get('token'):
-        tenantid = access.get('token').get('tenant').get('id')
+        tenantid = access.get('token').get('tenant').get('name')
     elif 'user' in access:
         tenantid = access.get('user').get('name')
     else:
