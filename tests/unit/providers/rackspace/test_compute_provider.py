@@ -222,6 +222,45 @@ class TestGetApiInfo(unittest.TestCase):
                                        '%s in region %s', None, 'SYD')
 
 
+class TestImageDetection(unittest.TestCase):
+    def test_blank(self):
+        detected = compute.detect_image('')
+        self.assertIsNone(detected)
+
+    def test_rackspace_metadata(self):
+        metadata = {'os_distro': 'ubuntu', 'os_version': '12.04'}
+        detected = compute.detect_image('', metadata=metadata)
+        self.assertEqual(detected, 'Ubuntu 12.04')
+
+    def test_openstack_metadata(self):
+        metadata = {
+            'org.openstack__1__os_distro': 'ubuntu',
+            'org.openstack__1__os_version': '12.04',
+        }
+        detected = compute.detect_image('', metadata=metadata)
+        self.assertEqual(detected, 'Ubuntu 12.04')
+
+    def test_name_codename(self):
+        detected = compute.detect_image("My 'precise' image")
+        self.assertEqual(detected, 'Ubuntu 12.04')
+
+    def test_name_fullname(self):
+        detected = compute.detect_image("Ubuntu 12.04 image")
+        self.assertEqual(detected, 'Ubuntu 12.04')
+
+    def test_known_name_version(self):
+        detected = compute.detect_image("vagrant-ubuntu-x64-13.10")
+        self.assertEqual(detected, 'Ubuntu 13.10')
+
+    def test_rackspace_image(self):
+        detected = compute.detect_image("OtherOS 10.4 LTS (code red)")
+        self.assertEqual(detected, 'OtherOS 10.4')
+
+    def test_inova_image(self):
+        detected = compute.detect_image("OtherOS 10.4 LTS")
+        self.assertEqual(detected, 'OtherOS 10.4')
+
+
 class EventletGreenpile(list):
     """Class to facilitate testing greenpile jobs iteration."""
     pass
