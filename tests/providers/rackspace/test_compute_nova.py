@@ -631,7 +631,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         #Mock Base Provider, context and deployment
         RackspaceComputeProviderBase = self.mox.CreateMockAnything()
         context = cm_mid.RequestContext()
-        context2 = cm_mid.RequestContext(**{'region': 'ORD'})
+        context2 = cm_mid.RequestContext(region='ORD')
         RackspaceComputeProviderBase.generate_template.AndReturn(True)
 
         #Stub out provider calls

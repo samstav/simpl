@@ -199,7 +199,9 @@ class TestGetApiInfo(unittest.TestCase):
         ]
         results = compute.Provider._get_api_info(self.context, **self.kwargs)
         mock_eventlet.assert_called_with(6)
-        mock_get_regions.assert_called_with(None, 'cloudServersOpenStack')
+        mock_get_regions.assert_called_with(
+            None, resource_type='compute',
+            service_name='cloudServersOpenStack')
         mock_logger.assert_called_with('Region not found in context or '
                                        'kwargs.')
         self.assertEqual(mock_find_url.mock_calls, expected_find_urls)

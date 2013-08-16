@@ -35,14 +35,20 @@ class RackspaceProviderBase(base.ProviderBase):
         return result
 
     @staticmethod
-    def get_regions(catalog, service_name):
-        """Returns a list of available regions for service_name."""
-        regions = []
+    def get_regions(catalog, service_name=None, resource_type=None):
+        """Returns a list of available regions.
+
+        Optionally filter by service name and/or resource type.
+        """
+        regions = set()
         for service in catalog:
-            if service.get('name') == service_name:
+            if ((service_name is None or service.get('name') == service_name)
+                    and (resource_type is None or
+                         service.get('type') == resource_type)):
                 for endpoint in service.get('endpoints', []):
                     if endpoint.get('region'):
-                        regions.append(endpoint['region'])
+                        regions.add(endpoint['region'])
         if not regions:
-            LOG.warning('No regions found for service name %s', service_name)
-        return regions
+            LOG.warning('No regions found for type %s and service name %s',
+                        resource_type or '*', service_name or '*')
+        return list(regions)

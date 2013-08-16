@@ -512,9 +512,20 @@ class Provider(RackspaceComputeProviderBase):
             urls[region] = Provider.find_url(context.catalog, region)
         else:
             LOG.warning('Region not found in context or kwargs.')
-            for region in Provider.get_regions(context.catalog,
-                                               'cloudServersOpenStack'):
+            rax_regions = Provider.get_regions(
+                context.catalog, service_name='cloudServersOpenStack',
+                resource_type='compute')
+            if rax_regions:
+                regions = rax_regions
+                LOG.debug("Found Rackspace compute regions: %s", rax_regions)
+            else:
+                regions = Provider.get_regions(context.catalog,
+                                               resource_type='compute')
+                LOG.debug("Found generic compute regions: %s", regions)
+            for region in regions:
                 urls[region] = Provider.find_url(context.catalog, region)
+        if not urls:
+            return results
 
         jobs = eventlet.GreenPile(min(len(urls) * 2, 16))
         for region, url in urls.items():
@@ -614,6 +625,7 @@ class Provider(RackspaceComputeProviderBase):
     def find_url(catalog, region):
         '''Get the Public URL of a service.'''
         fall_back = None
+        openstack_compatible = None
         for service in catalog:
             if service['name'] == 'cloudServersOpenStack':
                 endpoints = service['endpoints']
@@ -626,12 +638,18 @@ class Provider(RackspaceComputeProviderBase):
                 for endpoint in endpoints:
                     if endpoint.get('region') == region:
                         fall_back = endpoint['publicURL']
-        return fall_back
+            elif service['type'] == 'compute':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    if endpoint.get('region') == region:
+                        openstack_compatible = endpoint['publicURL']
+        return fall_back or openstack_compatible
 
     @staticmethod
     def find_a_region(catalog):
         '''Any region.'''
         fall_back = None
+        openstack_compatible = None
         for service in catalog:
             if service['name'] == 'cloudServersOpenStack':
                 endpoints = service['endpoints']
@@ -642,7 +660,11 @@ class Provider(RackspaceComputeProviderBase):
                 endpoints = service['endpoints']
                 for endpoint in endpoints:
                     fall_back = endpoint.get('region')
-        return fall_back
+            elif service['type'] == 'compute':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    openstack_compatible = endpoint.get('region')
+        return fall_back or openstack_compatible
 
     @staticmethod
     def connect(context, region=None):
