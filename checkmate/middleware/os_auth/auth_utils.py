@@ -40,25 +40,27 @@ def parse_reqtype(auth_body):
     return auth_body
 
 
-def parse_srvcatalog(srv_cata):
-    """Parse the service catalog and return the tenantID and token.
+def parse_auth_response(auth_response):
+    """Parse the auth reponse and return the tenant, token, and username.
 
-    :param srv_cata:
+    :param auth_response: the full object returned from an auth call
+    :returns: tuple of token, tenant identifier, and username
     """
 
-    access = srv_cata.get('access')
+    access = auth_response.get('access')
     token = access.get('token').get('id')
 
-    # Tenant ID set as it was originally in the method, but its not used
     if 'tenant' in access.get('token'):
+        # Scoped token (has tenant)
         tenantid = access.get('token').get('tenant').get('name')
         username = access.get('user').get('name')
     elif 'user' in access:
+        # Unscoped token (no tenant)
         tenantid = None
         username = access.get('user').get('name')
     else:
         LOG.error('No Token Found to Parse Here is the DATA: %s\n%s',
-                  srv_cata, traceback.format_exc())
+                  auth_response, traceback.format_exc())
         raise exceptions.NoTenantIdFound('When attempting to grab the '
                                          'tenant or user nothing was found.')
     return token, tenantid, username
@@ -76,6 +78,7 @@ def parse_url(url):
         return _authurl.netloc
     else:
         return url.split('/')[0]
+
 
 def is_https(url, rax):
     """Check URL to determine the Connection type.
