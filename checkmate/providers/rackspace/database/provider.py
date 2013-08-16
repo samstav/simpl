@@ -136,7 +136,7 @@ class Provider(providers.ProviderBase):
         instances_used = len(instances)
         volume_size_used = 0
         for instance in instances:
-            volume_size_used += instance.volume['size']
+            volume_size_used += instance.volume.size
 
         instances_available = instance_limit - instances_used
         volume_size_available = volume_size_limit - volume_size_used
