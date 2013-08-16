@@ -574,8 +574,7 @@ class Planner(classes.ExtensibleDict):
                     resource['hosted_on'], target['index'])
                 )
                 raise CheckmateUserException(error_message,
-                                             utils.get_class_name(
-                                                 CheckmateException),
+                                             'CheckmateException',
                                              BLUEPRINT_ERROR, '')
 
             resource['hosted_on'] = target['index']
@@ -598,7 +597,17 @@ class Planner(classes.ExtensibleDict):
             definition = service['component']
             LOG.debug("Identifying component '%s' for service '%s'",
                       definition, service_name)
-            component = self.identify_component(definition, context)
+            try:
+                component = self.identify_component(definition, context)
+            except Exception as exc:
+                LOG.info("Error resolving component: %s", exc)
+                raise CheckmateUserException(
+                    exc,
+                    utils.get_class_name(exc),
+                    "Could not find a provider that can create a component in "
+                    "the %s service" % service.get('display-name',
+                                                   service_name),
+                    '')
             LOG.debug("Component '%s' identified as '%s' for service '%s'",
                       definition, component['id'], service_name)
             self['services'][service_name]['component'] = component
