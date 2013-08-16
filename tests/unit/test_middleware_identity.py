@@ -58,11 +58,26 @@ class TestIdentity(unittest.TestCase):
         self.mox.StubOutWithMock(httplib.HTTPConnection, 'request')
         self.mox.StubOutWithMock(httplib.HTTPConnection, 'getresponse')
         self.mox.StubOutWithMock(httplib.HTTPConnection, 'close')
+
+        # All Service Catalogs
+        self.nouser_servicecat = json.dumps({
+            u"access": {
+                u"token": {
+                    u"expires": u"2013-08-02T19:36:42Z",
+                    u"id": u"12345678901234567890"
+                }
+            }
+        })
         self.inv_servicecat = json.dumps({
             u"access": {
                 u"token": {
                     u"expires": u"2013-08-02T19:36:42Z",
                     u"id": u"12345678901234567890"
+                },
+                u"user": {
+                    u"RAX-AUTH:defaultRegion": u"SOMEREGION",
+                    u"id": u"123456",
+                    u"name": u"testuser"
                 }
             }
         })
@@ -76,6 +91,11 @@ class TestIdentity(unittest.TestCase):
                         u"id": u"123456",
                         u"name": u"123456"
                     }
+                },
+                u"user": {
+                    u"RAX-AUTH:defaultRegion": u"SOMEREGION",
+                    u"id": u"123456",
+                    u"name": u"testuser"
                 }
             }
         })
@@ -83,14 +103,15 @@ class TestIdentity(unittest.TestCase):
             u"access": {
                 u"token": {
                     u"expires": u"2013-08-02T19:36:42Z",
-                    u"id": u"12345678901234567890"
+                    u"id": u"12345678901234567890",
+                    u"tenant": {
+                        u"id": u"3b2602019a73496485dd87d11e720e39",
+                        u"name": u"admin"
+                    }
                 },
                 u"user": {
-                    u"username": u"admin",
-                    u"roles_links": [],
                     u"id": u"1234567890",
-                    u"roles": [],
-                    u"name": u"admin"
+                    u"name": u"testuser"
                 }
             }
         })
@@ -143,26 +164,33 @@ class TestIdentity(unittest.TestCase):
         self.assertEqual(auth_utils.parse_url(url=url),
                          'identity.api.rackspacecloud.com')
 
+    def test_parse_srvcatalog_inv_no_user(self):
+        """Parse Service Catalog and return TenantID and Token."""
+
+        parsed_response = json.loads(self.nouser_servicecat)
+        with self.assertRaises(exceptions.NoTenantIdFound):
+            auth_utils.parse_srvcatalog(srv_cata=parsed_response)
+
     def test_parse_srvcatalog_inv(self):
         """Parse Service Catalog and return TenantID and Token."""
 
         parsed_response = json.loads(self.inv_servicecat)
-        with self.assertRaises(exceptions.NoTenantIdFound):
-            auth_utils.parse_srvcatalog(srv_cata=parsed_response)
+        self.assertEqual(auth_utils.parse_srvcatalog(srv_cata=parsed_response),
+                         ('12345678901234567890', None, 'testuser'))
 
     def test_parse_srvcatalog_pri(self):
         """Parse Service Catalog and return TenantID and Token."""
 
         parsed_response = json.loads(self.pri_servicecat)
         self.assertEqual(auth_utils.parse_srvcatalog(srv_cata=parsed_response),
-                         ('12345678901234567890', 'admin'))
+                         ('12345678901234567890', 'admin', 'testuser'))
 
     def test_parse_srvcatalog_rax(self):
         """Parse Service Catalog and return TenantID and Token."""
 
         parsed_response = json.loads(self.rax_servicecat)
         self.assertEqual(auth_utils.parse_srvcatalog(srv_cata=parsed_response),
-                         ('12345678901234567890', '123456'))
+                         ('12345678901234567890', '123456', 'testuser'))
 
     def test_parse_reqtype_inv(self):
         auth_dict = {'auth_url': 'identity.api.rackspacecloud.com',

@@ -52,14 +52,16 @@ def parse_srvcatalog(srv_cata):
     # Tenant ID set as it was originally in the method, but its not used
     if 'tenant' in access.get('token'):
         tenantid = access.get('token').get('tenant').get('name')
+        username = access.get('user').get('name')
     elif 'user' in access:
-        tenantid = access.get('user').get('name')
+        tenantid = None
+        username = access.get('user').get('name')
     else:
         LOG.error('No Token Found to Parse Here is the DATA: %s\n%s',
                   srv_cata, traceback.format_exc())
         raise exceptions.NoTenantIdFound('When attempting to grab the '
-                                         'tenant/user nothing was found.')
-    return token, tenantid
+                                         'tenant or user nothing was found.')
+    return token, tenantid, username
 
 
 def parse_url(url):
