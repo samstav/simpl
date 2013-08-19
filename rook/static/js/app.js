@@ -865,6 +865,8 @@ function ActivityFeedController($scope, $http, items) {
       break;
     case 'ForkEvent':
       break;
+    case 'WatchEvent':
+      parsed.verb = 'starred';
     default:
     }
     return parsed;
