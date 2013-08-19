@@ -16,8 +16,11 @@ class ProviderBasePlanningMixIn(object):
         if service:
             if deployment._constrained_to_one(service):
                 name = "%s.%s" % (service, domain)
+            elif isinstance(index, int) or (isinstance(index, basestring) and
+                                            index.isdigit()):
+                name = "%s%02d.%s" % (service, int(index), domain)
             else:
-                name = "%s%02d.%s" % (service, index, domain)
+                name = "%s%s.%s" % (service, index, domain)
         else:
             name = "shared%s.%s" % (resource_type, domain)
         return name

@@ -21,9 +21,9 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
         resource_type = 'test_type'
         service_name = 'testService'
         self.deployment.get_setting('domain', provider_key=provider_key,
-                                        resource_type=resource_type,
-                                        service_name=service_name,
-                                        default='checkmate.local')\
+                                    resource_type=resource_type,
+                                    service_name=service_name,
+                                    default='checkmate.local')\
             .AndReturn('test.checkmate')
         self.deployment._constrained_to_one(service_name).AndReturn(True)
         self.deployment_mocker.ReplayAll()
@@ -59,6 +59,16 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
         self.deployment_mocker.ReplayAll()
 
         resource_name = ProviderBasePlanningMixIn()\
+            .get_resource_name(deployment, "testDomain", "1", service, None)
+        self.assertEqual("testService01.testDomain", resource_name)
+
+    def test_get_resource_name_with_integer_index(self):
+        deployment = self.deployment_mocker.CreateMock(Deployment)
+        service = 'testService'
+        deployment._constrained_to_one(service).AndReturn(False)
+        self.deployment_mocker.ReplayAll()
+
+        resource_name = ProviderBasePlanningMixIn()\
             .get_resource_name(deployment, "testDomain", 1, service, None)
         self.assertEqual("testService01.testDomain", resource_name)
 
@@ -68,8 +78,19 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
             .get_resource_name(None, "testDomain", 1, None, resource_type)
         self.assertEqual("shared%s.testDomain" % resource_type, resource_name)
 
+    def test_get_resource_name_when_index_is_not_digit(self):
+        deployment = self.deployment_mocker.CreateMock(Deployment)
+        service = 'testService'
+        deployment._constrained_to_one(service).AndReturn(False)
+        self.deployment_mocker.ReplayAll()
+
+        resource_name = ProviderBasePlanningMixIn()\
+            .get_resource_name(deployment, "testDomain", "A", service, None)
+        self.assertEqual("testServiceA.testDomain", resource_name)
+
     def tearDown(self):
         self.deployment_mocker.VerifyAll()
+
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters seprately
