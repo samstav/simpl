@@ -259,9 +259,10 @@ class Provider(RackspaceComputeProviderBase):
                                        provider_key=self.key,
                                        default='Ubuntu 12.04')
 
+        image_types = catalog['lists'].get('types', {})
         if not isUUID(image):
             # Assume it is an OS name and find it
-            for key, value in catalog['lists'].get('types', {}).iteritems():
+            for key, value in image_types.iteritems():
                 if image == value['name'] or image == value['os']:
                     LOG.debug("Mapping image from '%s' to '%s'", image, key)
                     image = key
@@ -269,10 +270,11 @@ class Provider(RackspaceComputeProviderBase):
 
         if not isUUID(image):
             # Sounds like we did not match an image
+            LOG.debug("%s not found in: %s", image, image_types.keys())
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                                      image, self.name))
 
-        if image not in catalog['lists'].get('types', {}):
+        if image not in image_types:
             raise CheckmateNoMapping("Image '%s' not found in '%s'" % (
                                      image, self.name))
 
@@ -464,8 +466,8 @@ class Provider(RackspaceComputeProviderBase):
         if preps:
             wait_on.append(preps)
         join = wfspec.wait_for(create_server_task, wait_on,
-                               name="Server Wait on:%s (%s)" % (key,
-                               resource['service']))
+                               name="Server Wait on:%s (%s)" % (key, resource[
+                                                                'service']))
 
         return dict(
             root=join,
@@ -547,8 +549,10 @@ class Provider(RackspaceComputeProviderBase):
                                                resource_type='compute')
                 LOG.debug("Found generic compute regions: %s", regions)
             for region in regions:
-                urls[region] = Provider.find_url(context.catalog, region)
+                if region:
+                    urls[region] = Provider.find_url(context.catalog, region)
         if not urls:
+            LOG.warning('No compute endpoints found.')
             return results
 
         if CONFIG.eventlet:
@@ -761,27 +765,35 @@ class AuthPlugin(object):
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE,
                backing_store=REDIS, backing_store_key='rax.compute.images')
-def _get_images_and_types(api_endpoint, region, auth_token):
+def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types.'''
+    assert api_endpoint, "No API endpoint specified when getting images"
     plugin = AuthPlugin(auth_token, api_endpoint)
     insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
-    api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
-                        insecure=insecure, auth_system="rackspace",
-                        auth_plugin=plugin)
-    ret = {'images': {}, 'types': {}}
-    LOG.info("Calling Nova to get images for %s", api_endpoint)
-    images = api.images.list(detailed=True)
-    for i in images:
-        metadata = i.metadata or {}
-        os_name = detect_image(i.name, metadata=metadata)
-        if os_name:
-            img = {
-                'name': i.name,
-                'os': os_name
-            }
+    try:
+        api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
+                            insecure=insecure, auth_system="rackspace",
+                            auth_plugin=plugin)
+        ret = {'images': {}, 'types': {}}
+        LOG.info("Calling Nova to get images for %s", api_endpoint)
+        images = api.images.list(detailed=True)
+        LOG.debug("Parsing image list: %s", images.__dict__)
+        for i in images:
+            metadata = i.metadata or {}
+            os_name = detect_image(i.name, metadata=metadata)
+            if os_name:
+                img = {
+                    'name': i.name,
+                    'os': os_name
+                }
 
-            ret['types'][str(i.id)] = img
-            ret['images'][i.id] = {'name': i.name}
+                ret['types'][str(i.id)] = img
+                ret['images'][i.id] = {'name': i.name}
+        LOG.debug("Found images %s: %s", api_endpoint, ret['images'].keys())
+    except Exception as exc:
+        LOG.error("Error retrieving Cloud Server images from %s: %s",
+                  api_endpoint, exc)
+        raise
     return ret
 
 
