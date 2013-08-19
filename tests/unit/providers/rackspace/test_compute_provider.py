@@ -231,40 +231,78 @@ class TestGetApiInfo(unittest.TestCase):
 class TestImageDetection(unittest.TestCase):
     def test_blank(self):
         detected = compute.detect_image('')
-        self.assertIsNone(detected)
+        self.assertEqual(detected, {})
 
     def test_rackspace_metadata(self):
-        metadata = {'os_distro': 'ubuntu', 'os_version': '12.04'}
+        metadata = {
+            'os_distro': 'ubuntu',
+            'os_version': '12.04',
+        }
         detected = compute.detect_image('', metadata=metadata)
-        self.assertEqual(detected, 'Ubuntu 12.04')
+        self.assertEqual(detected['os'], 'Ubuntu 12.04')
+        self.assertEqual(detected['type'], 'linux')
 
     def test_openstack_metadata(self):
         metadata = {
-            'org.openstack__1__os_distro': 'ubuntu',
+            'org.openstack__1__os_distro': 'org.ubuntu',
             'org.openstack__1__os_version': '12.04',
         }
         detected = compute.detect_image('', metadata=metadata)
-        self.assertEqual(detected, 'Ubuntu 12.04')
+        self.assertEqual(detected['os'], 'Ubuntu 12.04')
+        self.assertEqual(detected['type'], 'linux')
+
+    def test_openstack_metadata_bad_case(self):
+        metadata = {
+            'org.openstack__1__os_distro': 'Org.Ubuntu',
+            'org.openstack__1__os_version': '12.04',
+        }
+        detected = compute.detect_image('', metadata=metadata)
+        self.assertEqual(detected['os'], 'Ubuntu 12.04')
+        self.assertEqual(detected['type'], 'linux')
+
+    def test_openstack_metadata_windows_r2(self):
+        metadata = {
+            'org.openstack__1__os_distro': 'org.microsoft.server',
+            'org.openstack__1__os_version': '2008.2',
+        }
+        detected = compute.detect_image('', metadata=metadata)
+        self.assertEqual(detected['os'],
+                         'Microsoft Windows Server 2008 R2 SP1')
+        self.assertEqual(detected['type'], 'windows')
+
+    def test_openstack_metadata_windows(self):
+        metadata = {
+            'org.openstack__1__os_distro': 'org.microsoft.server',
+            'org.openstack__1__os_version': '2012',
+        }
+        detected = compute.detect_image('', metadata=metadata)
+        self.assertEqual(detected['os'], 'Microsoft Windows Server 2012')
+        self.assertEqual(detected['type'], 'windows')
 
     def test_name_codename(self):
         detected = compute.detect_image("My 'precise' image")
-        self.assertEqual(detected, 'Ubuntu 12.04')
+        self.assertEqual(detected['os'], 'Ubuntu 12.04')
+        self.assertEqual(detected['type'], 'linux')
 
     def test_name_fullname(self):
         detected = compute.detect_image("Ubuntu 12.04 image")
-        self.assertEqual(detected, 'Ubuntu 12.04')
+        self.assertEqual(detected['os'], 'Ubuntu 12.04')
+        self.assertEqual(detected['type'], 'linux')
 
     def test_known_name_version(self):
         detected = compute.detect_image("vagrant-ubuntu-x64-13.10")
-        self.assertEqual(detected, 'Ubuntu 13.10')
+        self.assertEqual(detected['os'], 'Ubuntu 13.10')
+        self.assertEqual(detected['type'], 'linux')
 
     def test_rackspace_image(self):
         detected = compute.detect_image("OtherOS 10.4 LTS (code red)")
-        self.assertEqual(detected, 'OtherOS 10.4')
+        self.assertEqual(detected['os'], 'OtherOS 10.4')
+        self.assertEqual(detected['type'], 'linux')
 
     def test_inova_image(self):
         detected = compute.detect_image("OtherOS 10.4 LTS")
-        self.assertEqual(detected, 'OtherOS 10.4')
+        self.assertEqual(detected['os'], 'OtherOS 10.4')
+        self.assertEqual(detected['type'], 'linux')
 
 
 class EventletGreenpile(list):

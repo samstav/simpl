@@ -58,15 +58,16 @@ LOG = logging.getLogger(__name__)
 CONFIG = config.current()
 IMAGE_MAP = {
     'precise': 'Ubuntu 12.04',
+    'lucid': 'Ubuntu 10.04',
+    'quantal': 'Ubuntu 12.10',
+    'ringtail': 'Ubuntu 13.04',
+    'saucy': 'Ubuntu 13.10',
     'squeeze': 'Debian 6',
     'wheezy': 'Debian 7',
     'beefy miracle': 'Fedora 17',
     'spherical cow': 'Fedora 18',
     'schroedinger': 'Fedora 19',
-    'lucid': 'Ubuntu 10.04',
-    'quantal': 'Ubuntu 12.10',
-    'ringtail': 'Ubuntu 13.04',
-    'saucy': 'Ubuntu 13.10',
+    'opensuse': 'openSUSE',
 }
 KNOWN_OSES = {
     'ubuntu': ['10.04', '10.12', '11.04', '11.10', '12.04', '12.10', '13.04',
@@ -149,10 +150,13 @@ API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
 API_LIMITS_CACHE = {}
 REDIS = None
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON',
-              'sydney': 'SYD'}
+REGION_MAP = {
+    'dallas': 'DFW',
+    'chicago': 'ORD',
+    'virginia': 'IAD',
+    'london': 'LON',
+    'sydney': 'SYD',
+}
 
 if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     try:
@@ -627,7 +631,7 @@ class Provider(RackspaceComputeProviderBase):
             if types:
                 for image in types.values():
                     choice = dict(name=image['name'], value=image['os'])
-                    if 'Windows' in image['os']:
+                    if image['type'] == 'windows':
                         windows['options']['os']['choice'].append(choice)
                     else:
                         linux['options']['os']['choice'].append(choice)
@@ -777,14 +781,15 @@ def _get_images_and_types(api_endpoint, auth_token):
         ret = {'images': {}, 'types': {}}
         LOG.info("Calling Nova to get images for %s", api_endpoint)
         images = api.images.list(detailed=True)
-        LOG.debug("Parsing image list: %s", images.__dict__)
+        LOG.debug("Parsing image list: %s", images)
         for i in images:
             metadata = i.metadata or {}
-            os_name = detect_image(i.name, metadata=metadata)
-            if os_name:
+            detected = detect_image(i.name, metadata=metadata)
+            if detected:
                 img = {
                     'name': i.name,
-                    'os': os_name
+                    'os': detected['os'],
+                    'type': detected['type'],
                 }
 
                 ret['types'][str(i.id)] = img
@@ -812,30 +817,42 @@ def detect_image(name, metadata=None):
             os_name = '%s %s' % (metadata[RACKSPACE_DISTRO_KEY].title(),
                                  metadata[RACKSPACE_VERSION_KEY])
             LOG.debug("Identified image by os_distro: %s", os_name)
-            return os_name
+            return {'name': name, 'os': os_name, 'type': 'linux'}
 
         if (OPENSTACK_DISTRO_KEY in metadata and
                 OPENSTACK_VERSION_KEY in metadata):
-            os_name = '%s %s' % (metadata[OPENSTACK_DISTRO_KEY].title(),
-                                 metadata[OPENSTACK_VERSION_KEY])
-            LOG.debug("Identified image by openstack key: %s", os_name)
-            return os_name
+            parsed_name = key = metadata[OPENSTACK_DISTRO_KEY].lower()
+            version = metadata[OPENSTACK_VERSION_KEY]
+            os_type = 'linux'
+            if "microsoft.server" in key:
+                os_type = 'windows'
+                parsed_name = "Microsoft Windows Server"
+                if '.0' in version:
+                    version = version.split('.')[0]
+                elif '.2' in version:
+                    version = '%s R2 SP1' % version.split('.')[0]
+            elif '.' in parsed_name:
+                parsed_name = ' '.join(parsed_name.split('.')[1:])
+            os_name = '%s %s' % (parsed_name.title(), version)
+            LOG.debug("Identified image by openstack key '%s': %s", key,
+                      os_name, extra={'data': metadata})
+            return {'name': name, 'os': os_name, 'type': os_type}
 
     #Look for keywords like 'precise'
     lower_name = name.lower()
     for hint, mapped_os in IMAGE_MAP.iteritems():
         if hint in lower_name:
             os_name = mapped_os
-            LOG.debug("Identified image as '%s': %s", hint, os_name)
-            return os_name
+            LOG.debug("Identified image using hint '%s': %s", hint, os_name)
+            return {'name': name, 'os': os_name, 'type': 'linux'}
 
     #Look for Checkmate name
     for mapped_os in IMAGE_MAP.itervalues():
         if mapped_os.lower() in lower_name:
             os_name = mapped_os
-            LOG.debug("Identified image as '%s': %s", mapped_os,
+            LOG.debug("Identified image using name '%s': %s", mapped_os,
                       os_name)
-            return os_name
+            return {'name': name, 'os': os_name, 'type': 'linux'}
 
     #Parse for known OSes and versions
     for os_lower, versions in KNOWN_OSES.iteritems():
@@ -844,49 +861,55 @@ def detect_image(name, metadata=None):
                 if version.lower() in lower_name:
                     os_name = '%s %s' % (os_lower.title(), version)
                     LOG.debug("Identified image as known OS: %s", os_name)
-                    return os_name
+                    return {'name': name, 'os': os_name, 'type': 'linux'}
 
     if ' LTS ' in name:
         #NOTE: hack to find some images by name in Rackspace
         os_name = name.split(' LTS ')[0].split(' (')[0]
         LOG.debug("Identified image by name split: %s", os_name)
-        return os_name
+        return {'name': name, 'os': os_name, 'type': 'linux'}
 
     #NOTE: hack to make our blueprints work with iNova
     if 'LTS' in name:
         os_name = name.split('LTS')[0].strip()
         LOG.debug("Identified image by iNova name: %s", os_name)
-        return os_name
+        return {'name': name, 'os': os_name, 'type': 'linux'}
 
     if not os_name:
         LOG.debug("Could not identify image: %s", name,
                   extra={'metadata': metadata})
-    return os_name
+    return {}
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE,
                backing_store=REDIS, backing_store_key='rax.compute.flavors')
 def _get_flavors(api_endpoint, auth_token):
     '''Ask Nova for Flavors (RAM, CPU, HDD) options.'''
+    assert api_endpoint, "No API endpoint specified when getting flavors"
     plugin = AuthPlugin(auth_token, api_endpoint)
     insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
-    api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
-                        insecure=insecure, auth_system="rackspace",
-                        auth_plugin=plugin)
-    LOG.info("Calling Nova to get flavors for %s", api_endpoint)
-    flavors = api.flavors.list()
-    result = {
-        'flavors': {
-            str(f.id): {
-                'name': f.name,
-                'memory': f.ram,
-                'disk': f.disk,
-                'cores': f.vcpus,
-            } for f in flavors
+    try:
+        api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
+                            insecure=insecure, auth_system="rackspace",
+                            auth_plugin=plugin)
+        LOG.info("Calling Nova to get flavors for %s", api_endpoint)
+        flavors = api.flavors.list()
+        result = {
+            'flavors': {
+                str(f.id): {
+                    'name': f.name,
+                    'memory': f.ram,
+                    'disk': f.disk,
+                    'cores': f.vcpus,
+                } for f in flavors
+            }
         }
-    }
-    LOG.debug("Identified flavors: %s", result['flavors'].keys(),
-              extra={'data': result})
+        LOG.debug("Identified flavors: %s", result['flavors'].keys(),
+                  extra={'data': result})
+    except Exception as exc:
+        LOG.error("Error retrieving Cloud Server flavors from %s: %s",
+                  api_endpoint, exc)
+        raise
     return result
 
 
