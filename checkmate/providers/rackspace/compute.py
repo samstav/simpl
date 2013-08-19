@@ -23,10 +23,9 @@ import redis
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.common import (
-    caching,
-    statsd,
-)
+from checkmate.common import caching
+from checkmate.common import config
+from checkmate.common import statsd
 from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
@@ -56,6 +55,7 @@ from checkmate.utils import (
 
 
 LOG = logging.getLogger(__name__)
+CONFIG = config.current()
 IMAGE_MAP = {
     'precise': 'Ubuntu 12.04',
     'squeeze': 'Debian 6',
@@ -551,17 +551,27 @@ class Provider(RackspaceComputeProviderBase):
         if not urls:
             return results
 
-        jobs = eventlet.GreenPile(min(len(urls) * 2, 16))
-        for region, url in urls.items():
-            if not url:
-                LOG.warning("Failed to find compute endpoint for %s in region "
-                            "%s", context.tenant, region)
-            jobs.spawn(_get_flavors, url, context.auth_token)
-            jobs.spawn(_get_images_and_types, url, region,
-                       context.auth_token)
-        for ret in jobs:
-            results = merge_dictionary(results, ret, extend_lists=True)
-
+        if CONFIG.eventlet:
+            jobs = eventlet.GreenPile(min(len(urls) * 2, 16))
+            for region, url in urls.items():
+                if not url and len(urls) == 1:
+                    LOG.warning("Failed to find compute endpoint for %s in "
+                                "region %s", context.tenant, region)
+                jobs.spawn(_get_flavors, url, context.auth_token)
+                jobs.spawn(_get_images_and_types, url, context.auth_token)
+            for ret in jobs:
+                results = merge_dictionary(results, ret, extend_lists=True)
+        else:
+            for region, url in urls.items():
+                if not url:
+                    if len(urls) == 1:
+                        LOG.warning("Failed to find compute endpoint for %s "
+                                    "in region %s", context.tenant, region)
+                    continue
+                flavors = _get_flavors(url, context.auth_token)
+                images = _get_images_and_types(url, context.auth_token)
+                results = merge_dictionary(results, flavors, extend_lists=True)
+                results = merge_dictionary(results, images, extend_lists=True)
         return results
 
     def get_catalog(self, context, type_filter=None, **kwargs):

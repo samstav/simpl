@@ -16,7 +16,8 @@ class TestGetApiInfo(unittest.TestCase):
 
     @mock.patch.object(compute.eventlet, 'GreenPile')
     @mock.patch.object(compute.Provider, 'find_url')
-    def test_context_success(self, mock_find_url, mock_eventlet):
+    @mock.patch.object(compute.CONFIG, 'eventlet')
+    def test_context_success(self, mock_config, mock_find_url, mock_eventlet):
         """Verifies method calls on success with context['region']."""
         mock_find_url.return_value = 'http://testurl.com'
         mock_jobs = EventletGreenpile()
@@ -32,11 +33,12 @@ class TestGetApiInfo(unittest.TestCase):
             'lists': {
                 'images': {
                     u'09149fae-2236-42d6-9b4c-ba34a53a2d70': {
-                        'name': u'Windows Server 2012 + SQL Server 2012 '
+                        'name': u'Windows Server 2012 + SQL Server 2012'
                     }
                 }
             }
         })
+        mock_config.return_value = True
         mock_eventlet.return_value = mock_jobs
         expected = {
             'compute': {
@@ -47,7 +49,7 @@ class TestGetApiInfo(unittest.TestCase):
             'lists': {
                 'images': {
                     u'09149fae-2236-42d6-9b4c-ba34a53a2d70': {
-                        'name': u'Windows Server 2012 + SQL Server 2012 '
+                        'name': u'Windows Server 2012 + SQL Server 2012'
                     }
                 }
             }
@@ -61,7 +63,8 @@ class TestGetApiInfo(unittest.TestCase):
 
     @mock.patch.object(compute.eventlet, 'GreenPile')
     @mock.patch.object(compute.Provider, 'find_url')
-    def test_kwargs_success(self, mock_find_url, mock_eventlet):
+    @mock.patch.object(compute.CONFIG, 'eventlet')
+    def test_kwargs_success(self, mock_config, mock_find_url, mock_eventlet):
         """Verifies method calls on success with kwargs['region']."""
         mock_find_url.return_value = 'http://testurl.com'
         mock_jobs = EventletGreenpile()
@@ -82,6 +85,7 @@ class TestGetApiInfo(unittest.TestCase):
                 }
             }
         })
+        mock_config.return_value = True
         mock_eventlet.return_value = mock_jobs
         expected = {
             'compute': {
@@ -108,13 +112,15 @@ class TestGetApiInfo(unittest.TestCase):
     @mock.patch.object(compute.Provider, 'find_url')
     @mock.patch.object(compute.Provider, 'get_regions')
     @mock.patch.object(compute.LOG, 'warning')
-    def test_no_region(self, mock_logger, mock_get_regions, mock_find_url,
-                       mock_eventlet):
+    @mock.patch.object(compute.CONFIG, 'eventlet')
+    def test_no_region(self, mock_config, mock_logger, mock_get_regions,
+                       mock_find_url, mock_eventlet):
         """Verifies method calls with no region and dicts merged."""
         self.context['region'] = None
         self.kwargs['region'] = None
         mock_get_regions.return_value = ['ORD', 'DFW', 'IAD']
         mock_find_url.return_value = 'http://testurl.com'
+        mock_config.return_value = True
         mock_jobs = EventletGreenpile()
         mock_jobs.spawn = mock.Mock()
         mock_jobs.append({
