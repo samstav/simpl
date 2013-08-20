@@ -50,10 +50,11 @@ class Provider(providers.ProviderBase):
         'ACTIVE': 'ACTIVE',
         'BLOCKED': 'ERROR',
         'BUILD': 'BUILD',
+        'DELETED': 'DELETED',
+        'ERROR': 'ERROR',
         'REBOOT': 'CONFIGURE',
         'RESIZE': 'CONFIGURE',
         'SHUTDOWN': 'CONFIGURE',
-        'ERROR': 'ERROR',
     }
 
     def generate_template(self, deployment, resource_type, service, context,
