@@ -324,6 +324,18 @@ describe('DeploymentController', function(){
         $scope.data = { operation: { link: '/111/workflows/some_id', status: 'DELETED' } };
         expect($scope.shouldDisplayWorkflowStatus()).toBe(false);
       });
+
+      it('should return false if there is no operation link such as in deployments created from existing resources', function(){
+        controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow);
+        $scope.data = { operation: { status: 'IN PROGRESS' } };
+        expect($scope.shouldDisplayWorkflowStatus()).toBe(false);
+      });
+
+      it('should return false if there is no status', function(){
+        controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow);
+        $scope.data = { operation: { link: '/111/blah' } };
+        expect($scope.shouldDisplayWorkflowStatus()).toBe(false);
+      });
     });
 
     describe('operation is not a workflow operation', function(){
@@ -343,6 +355,13 @@ describe('DeploymentController', function(){
 
     it('should not do anything if the operation has canvases in its link', function(){
       operation = { link: '5555/canvases/2saidjfio' };
+      controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow);
+      $scope.load_workflow_stats(operation);
+      expect(resource).not.toHaveBeenCalled();
+    });
+
+    it('should not do anything if the operation does not have a link such as deployments created from existing resources', function(){
+      operation = {};
       controller = new DeploymentController($scope, location, resource, routeParams, dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow);
       $scope.load_workflow_stats(operation);
       expect(resource).not.toHaveBeenCalled();

@@ -3079,7 +3079,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
 
   $scope.shouldDisplayWorkflowStatus = function() {
     var operation = $scope.data.operation;
-    if(operation){
+    if(operation && operation.status && operation.link){
       var is_workflow_operation = operation.link.split('/').indexOf('workflows') !== -1;
       return (operation.status == 'NEW' || operation.status == 'IN PROGRESS' || operation.status == 'PAUSED') && is_workflow_operation;
     } else {
@@ -3107,7 +3107,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   };
 
   $scope.load_workflow_stats = function(operation){
-    if(!operation || (operation.link && !(operation.link.indexOf('canvases') === -1)))
+    if(!operation || (operation.link && !(operation.link.indexOf('canvases') === -1)) || !operation.link)
       return null;
 
     var workflows = $resource((checkmate_server_base || '') + operation.link + '.json')
@@ -3591,8 +3591,7 @@ function ResourcesController($scope, $resource, $location, Deployment){
             }
         }
     };
-    deployment.inputs = {};
-    deployment.inputs.blueprint = {};
+    deployment.status = 'UP'
     deployment.$save(function(result, getHeaders){
       console.log("Posted deployment");
       Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure)
