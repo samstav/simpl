@@ -1910,16 +1910,16 @@ services.factory('urlBuilder', function(){
 
     switch(service) {
       case 'cloud_control':
-        url = cloudControlURL(resource_type, resource_id, region, tenant_id);
+        url = scope.cloudControlURL(resource_type, resource_id, region, tenant_id);
         break;
       case 'my_cloud':
-        url = myCloudURL(resource_type, username, region, resource_id);
+        url = scope.myCloudURL(resource_type, username, region, resource_id);
         break;
       case 'nova_stats':
-        url = novaStatsURL(region, resource_id);
+        url = scope.novaStatsURL(region, resource_id);
         break;
       case 'ssh':
-        url = sshTo(address);
+        url = scope.sshTo(address);
         break;
     }
 
