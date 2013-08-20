@@ -3494,11 +3494,14 @@ function ResourcesController($scope, $resource, $location, Deployment){
       var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
       lb_api.query(function(results) {
         $scope.resources_by_provider['load-balancer'] = results;
+        if(results.length === 0){
+          $scope.no_lbs = true;
+        }
+        $scope.lbs_loaded = true;
       },
       function(response) {
-        if (!('data' in response))
-          response.data = {};
-        response.data.description = "Error loading load balancer list";
+        $scope.lbs_error = "Error loading load balancer list";
+        $scope.lbs_loaded = true;
       });
     }
   };
@@ -3510,11 +3513,14 @@ function ResourcesController($scope, $resource, $location, Deployment){
       var server_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
       server_api.query(function(results) {
         $scope.resources_by_provider.nova = results;
+        if(results.length === 0){
+          $scope.no_servers = true;
+        }
+        $scope.servers_loaded = true;
       },
       function(response) {
-        if (!('data' in response))
-          response.data = {};
-        response.data.description = "Error loading server list";
+        $scope.servers_error = "Error loading server list";
+        $scope.servers_loaded = true;
       });
     }
   };
@@ -3525,14 +3531,15 @@ function ResourcesController($scope, $resource, $location, Deployment){
       var url = '/:tenantId/providers/rackspace.database/proxy/list';
       var db_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
       var results = db_api.query(function() {
-        for(var i=0; i<results.length; i++){
-          $scope.resources_by_provider.database.push(results[i]);
+        $scope.resources_by_provider.database = results;
+        if(results.length === 0){
+          $scope.no_dbs = true;
         }
+        $scope.dbs_loaded = true;
       },
       function(response) {
-        if (!('data' in response))
-          response.data = {};
-        response.data.description = "Error loading database list";
+        $scope.dbs_error = "Error loading database list";
+        $scope.dbs_loaded = true;
       });
     }
   };
