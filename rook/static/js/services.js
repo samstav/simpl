@@ -1827,7 +1827,7 @@ services.factory('urlBuilder', function(){
 
   var scope = {};
 
-  function cloudControlURL(resource_type, resource_id, region, tenant_id){
+  scope.cloudControlURL = function(resource_type, resource_id, region, tenant_id){
     if (!resource_id)
       return null;
 
@@ -1851,7 +1851,7 @@ services.factory('urlBuilder', function(){
     return host + path;
   }
 
-  function myCloudURL(resource_type, username, region, resource_id){
+  scope.myCloudURL = function(resource_type, username, region, resource_id){
     if (!resource_id)
       return null;
 
@@ -1865,12 +1865,12 @@ services.factory('urlBuilder', function(){
     return 'https://mycloud.rackspace.com/a/' + username + RESOURCE_PATHS[resource_type] + region + '/' + resource_id;
   }
 
-  function novaStatsURL(region, resource_id){
+  scope.novaStatsURL = function(region, resource_id){
     if(region)
       return 'https://reports.ohthree.com/' + region.toLowerCase() + '/instance/' + resource_id;
   }
 
-  function sshTo(address){
+  scope.sshTo = function(address){
     return 'ssh://root@' + address;
   }
 
