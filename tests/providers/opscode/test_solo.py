@@ -12,7 +12,10 @@ import yaml
 
 import mox
 
-from SpiffWorkflow.specs import Celery
+from SpiffWorkflow.specs import (
+    Celery,
+    TaskSpec,
+)
 
 from checkmate import deployment as cm_dep
 from checkmate import deployments
@@ -190,8 +193,7 @@ class TestChefSoloProvider(test.ProviderTester):
     def test_cleanup_environment(self):
         wf_spec = workflows.WorkflowSpec()
         provider = solo.Provider({})
-        cleanup_result = provider.cleanup_environment(wf_spec,
-                                                      {'id': 'DEP1'}, None)
+        cleanup_result = provider.cleanup_environment(wf_spec, {'id': 'DEP1'})
         cleanup_task_spec = cleanup_result['root']
         self.assertIsInstance(cleanup_task_spec, Celery)
         self.assertEqual(cleanup_task_spec.args, ['DEP1'])
@@ -206,6 +208,40 @@ class TestChefSoloProvider(test.ProviderTester):
         self.assertEqual(
             cleanup_task_spec.call, 'checkmate.providers.opscode.knife'
                                     '.delete_environment')
+
+    def test_cleanup_temp_files(self):
+        wf_spec = workflows.WorkflowSpec()
+        self.mox.StubOutWithMock(wf_spec, "find_task_specs")
+        self.mox.StubOutWithMock(wf_spec, "wait_for")
+        mock_task_spec = self.mox.CreateMock(TaskSpec)
+        mock_final_task_spec = self.mox.CreateMock(TaskSpec)
+        provider = solo.Provider({})
+        wf_spec.find_task_specs(
+            provider=provider.key,
+            tag='client-ready').AndReturn([mock_task_spec])
+        wf_spec.find_task_specs(
+            provider=provider.key,
+            tag='final').AndReturn([mock_final_task_spec])
+        wf_spec.task_specs = dict()
+        wf_spec.wait_for(mox.IgnoreArg(), [mock_task_spec,
+                                           mock_final_task_spec],
+                         name="Wait before deleting cookbooks",
+                         provider=provider.key)
+        self.mox.ReplayAll()
+        result = provider.cleanup_temp_files(wf_spec, {'id': 'DEP1'})
+        cleanup_task_spec = result['final']
+        self.assertIsInstance(cleanup_task_spec, Celery)
+        self.assertEqual(cleanup_task_spec.args, ['DEP1', 'kitchen'])
+        defines = {'provider': provider.key}
+        properties = {
+            'estimated_duration': 1,
+        }
+        properties.update(defines)
+        self.assertDictEqual(cleanup_task_spec.defines, defines)
+        self.assertDictEqual(cleanup_task_spec.properties, properties)
+        self.assertEqual(
+            cleanup_task_spec.call, 'checkmate.providers.opscode.knife'
+                                    '.delete_cookbooks')
 
 
 class TestCeleryTasks(unittest.TestCase):
@@ -351,7 +387,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'Pre-Configure Server 1 (db)',
                     'Register Server 1 (db)',
                     'After server 1 (db) is registered and options are ready',
-                    'Configure mysql: 0 (db)']
+                    'Configure mysql: 0 (db)',
+                    'Delete Cookbooks']
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
@@ -383,6 +420,12 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 '/var/tmp/%s/checkmate.pub' % self.deployment['id'],
                 'public_key': test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'],
             },
+        })
+        expected.append({
+            'call': 'checkmate.providers.opscode.knife.delete_cookbooks',
+            'args': [self.deployment['id'], 'kitchen'],
+            'result': None,
+            'kwargs': None
         })
 
         for key, resource in self.deployment['resources'].iteritems():
@@ -553,6 +596,8 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
             'Create Chef Environment',
             'Configure bar: 1 (backend)',
             'Configure foo: 0 (frontend)',
+            'Wait before deleting cookbooks',
+            'Delete Cookbooks',
         ]
         task_list.sort()
         expected.sort()
@@ -681,6 +726,7 @@ interfaces/mysql/host
                     'Pre-Configure Server 1 (db)',
                     'Collect Chef Data for 0',
                     'Configure mysql: 0 (db)',
+                    'Delete Cookbooks',
                     ]
         task_list.sort()
         expected.sort()
@@ -725,7 +771,13 @@ interfaces/mysql/host
                 'public_key':
                 test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
             }
-        }]
+        }, {
+            'call': 'checkmate.providers.opscode.knife.delete_cookbooks',
+            'args': [self.deployment['id'], 'kitchen'],
+            'result': None,
+            'kwargs': None
+        },
+        ]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
                 attributes = {
@@ -1006,6 +1058,8 @@ interfaces/mysql/database_name
             'Configure foo: 0 (frontend)',
             'Reconfig Chef Data for 2',
             'Reconfigure bar: client ready',
+            'Wait before deleting cookbooks',
+            'Delete Cookbooks',
         ]
         task_list.sort()
         expected.sort()
@@ -1137,7 +1191,13 @@ interfaces/mysql/database_name
                 'public_key':
                 test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
             }
-        }]
+        }, {
+            'call': 'checkmate.providers.opscode.knife.delete_cookbooks',
+            'args': [self.deployment['id'], 'kitchen'],
+            'result': None,
+            'kwargs': None
+        },
+        ]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
                 expected_calls.extend([

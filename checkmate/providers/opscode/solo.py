@@ -109,18 +109,42 @@ class Provider(ProviderBase):
 
         return {'root': self.prep_task, 'final': self.prep_task}
 
-    def cleanup_environment(self, wfspec, deployment, context):
-        task_name = 'checkmate.providers.opscode.knife.delete_environment'
+    def cleanup_environment(self, wfspec, deployment):
+        call = 'checkmate.providers.opscode.knife.delete_environment'
         defines = {'provider': self.key}
         properties = {'estimated_duration': 1, 'task_tags': ['cleanup']}
         cleanup_task = Celery(wfspec,
                               'Delete Chef Environment',
-                              task_name,
+                              call,
                               call_args=[deployment['id']],
                               defines=defines,
                               properties=properties)
 
         return {'root': cleanup_task, 'final': cleanup_task}
+
+    def cleanup_temp_files(self, wfspec, deployment):
+
+        '''Cleans up temporary files created during a deployment
+        :param wfspec: workflow spec
+        :param deployment: deployment being worked on
+        :return: root and final tasks for cleaning up the environment
+        '''
+        client_ready_tasks = wfspec.find_task_specs(provider=self.key,
+                                                    tag='client-ready')
+        final_tasks = wfspec.find_task_specs(provider=self.key, tag='final')
+        client_ready_tasks.extend(final_tasks)
+        call = 'checkmate.providers.opscode.knife.delete_cookbooks'
+        cleanup_task = Celery(wfspec,
+                              'Delete Cookbooks',
+                              call,
+                              call_args=[deployment['id'], 'kitchen'],
+                              defines={'provider': self.key},
+                              properties={'estimated_duration': 1})
+        root = wfspec.wait_for(cleanup_task, client_ready_tasks,
+                               name="Wait before deleting cookbooks",
+                               provider=self.key)
+
+        return {'root': root, 'final': cleanup_task}
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):

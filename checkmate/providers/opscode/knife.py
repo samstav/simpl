@@ -815,6 +815,34 @@ def delete_environment(name, path=None):
             raise CheckmateUserException(msg, utils.get_class_name(
                 CheckmateException), UNEXPECTED_ERROR, '')
 
+
+@task
+def delete_cookbooks(name, service_name, path=None):
+    root = _get_root_environments_path(name, path)
+    kitchen_path = os.path.join(root, name, service_name)
+    cookbook_config_exists = os.path.exists(
+        os.path.join(kitchen_path, 'Berksfile')) or os.path.exists(
+            os.path.join(kitchen_path, 'Cheffile'))
+    if cookbook_config_exists:
+        cookbooks_path = os.path.join(kitchen_path, 'cookbooks')
+        # site_cookbooks_path = os.path.join(kitchen_path, 'site-cookbooks')
+        for path in [cookbooks_path]:
+            try:
+                shutil.rmtree(path)
+                LOG.debug("Removed cookbooks directory: %s", path)
+            except OSError as ose:
+                if ose.errno == errno.ENOENT:
+                    LOG.warn("Cookbooks directory %s does not exist", path,
+                             exc_info=True)
+                else:
+                    msg = "Could not delete cookbooks directory %s", path
+                    raise CheckmateUserException(msg, utils.get_class_name(
+                        CheckmateException), UNEXPECTED_ERROR, '')
+    else:
+        LOG.warn("Berksfile or Cheffile not found. Cookbooks were not "
+                 "deleted")
+
+
 #TODO: full search, fix module reference all below here!!
 @task
 @statsd.collect

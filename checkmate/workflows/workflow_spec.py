@@ -60,8 +60,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         for provider_key in provider_keys:
             provider = providers[provider_key]
             cleanup_result = provider.cleanup_environment(wf_spec,
-                                                          deployment,
-                                                          context)
+                                                          deployment)
             # Wire up tasks if not wired in somewhere
             if cleanup_result and not cleanup_result['root'].inputs:
                 wf_spec.start.connect(cleanup_result['root'])
@@ -218,6 +217,12 @@ class WorkflowSpec(specs.WorkflowSpec):
                             LOG.debug("Attaching '%s' to 'Start'",
                                       provider_result['root'].name)
                             wf_spec.start.connect(provider_result['root'])
+
+        for key, provider in providers.iteritems():
+            cleanup_result = provider.cleanup_temp_files(wf_spec, deployment)
+            # Wire up tasks if not wired in somewhere
+            if cleanup_result and not cleanup_result['root'].inputs:
+                wf_spec.start.connect(cleanup_result['root'])
 
         # Check that we have a at least one task. Workflow fails otherwise.
         if not wf_spec.start.outputs:
