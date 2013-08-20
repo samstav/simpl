@@ -103,5 +103,5 @@ class Resource(dict):
         '''The Desired State section of a Resource'''
         __schema__ = [
             'region', 'flavor', 'image', 'disk', 'protocol',
-            'port', 'status', 'databases'
+            'port', 'status', 'databases', 'os-type'
         ]

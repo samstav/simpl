@@ -93,7 +93,8 @@ class TestResource(unittest.TestCase):
                 'protocol': 'Kyoto',
                 'port': 'Sydney Harbor',
                 'status': 'INSTANCE STATUS',
-                'databases': {}
+                'databases': {},
+                'os-type': 'typos',
             }
         })
 
