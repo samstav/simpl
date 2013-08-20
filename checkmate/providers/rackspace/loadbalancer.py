@@ -581,6 +581,9 @@ class Provider(ProviderBase):
         if not region:
             region = Provider.find_a_region(context.catalog)
         api_endpoint = Provider.find_url(context.catalog, region)
+        if not api_endpoint:
+            LOG.warning("No Cloud Load Balancer endpoint in region %s", region)
+            return {}
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
@@ -712,11 +715,20 @@ class Provider(ProviderBase):
 def _get_algorithms(api_endpoint, auth_token):
     '''Ask CLB for Algorithms.'''
     # the region must be supplied but is not used
-    api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
-    api.client.auth_token = auth_token
-    api.client.region_account_url = api_endpoint
-    LOG.info("Calling Cloud Load Balancers to get algorithms for %s",
-             api.client.region_account_url)
+    try:
+        api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
+        api.client.auth_token = auth_token
+        api.client.region_account_url = api_endpoint
+        LOG.info("Calling Cloud Load Balancers to get algorithms for %s",
+                 api.client.region_account_url)
+        results = api.get_algorithms()
+        LOG.debug("Found Load Balancer algorithms for %s: %s", api_endpoint,
+                  results)
+    except Exception as exc:
+        LOG.error("Error retrieving Load Balancer algorithms from %s: %s",
+                  api_endpoint, exc)
+        raise
+    return results
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE,
@@ -724,14 +736,20 @@ def _get_algorithms(api_endpoint, auth_token):
 def _get_protocols(api_endpoint, auth_token):
     '''Ask CLB for Protocols.'''
     # the region must be supplied but is not used
-    api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
-    api.client.auth_token = auth_token
-    api.client.region_account_url = api_endpoint
-    LOG.info("Calling Cloud Load Balancers to get protocols for %s",
-             api.client.region_account_url)
-
-    return api.get_protocols()
-
+    try:
+        api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
+        api.client.auth_token = auth_token
+        api.client.region_account_url = api_endpoint
+        LOG.info("Calling Cloud Load Balancers to get protocols for %s",
+                 api.client.region_account_url)
+        results = api.get_protocols()
+        LOG.debug("Found Load Balancer protocols for %s: %s", api_endpoint,
+                  results)
+    except Exception as exc:
+        LOG.error("Error retrieving Load Balancer protocols from %s: %s",
+                  api_endpoint, exc)
+        raise
+    return results
 
 # Cloud Load Balancers needs an IP for all load balancers. To create one we
 # sometimes need a dummy node. This is the IP address we use for the dummy

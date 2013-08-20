@@ -23,10 +23,9 @@ import redis
 from SpiffWorkflow.operators import PathAttrib
 from SpiffWorkflow.specs import Celery
 
-from checkmate.common import (
-    caching,
-    statsd,
-)
+from checkmate.common import caching
+from checkmate.common import config
+from checkmate.common import statsd
 from checkmate.deployments import resource_postback
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate.exceptions import (
@@ -56,17 +55,19 @@ from checkmate.utils import (
 
 
 LOG = logging.getLogger(__name__)
+CONFIG = config.current()
 IMAGE_MAP = {
     'precise': 'Ubuntu 12.04',
+    'lucid': 'Ubuntu 10.04',
+    'quantal': 'Ubuntu 12.10',
+    'ringtail': 'Ubuntu 13.04',
+    'saucy': 'Ubuntu 13.10',
     'squeeze': 'Debian 6',
     'wheezy': 'Debian 7',
     'beefy miracle': 'Fedora 17',
     'spherical cow': 'Fedora 18',
     'schroedinger': 'Fedora 19',
-    'lucid': 'Ubuntu 10.04',
-    'quantal': 'Ubuntu 12.10',
-    'ringtail': 'Ubuntu 13.04',
-    'saucy': 'Ubuntu 13.10',
+    'opensuse': 'openSUSE',
 }
 KNOWN_OSES = {
     'ubuntu': ['10.04', '10.12', '11.04', '11.10', '12.04', '12.10', '13.04',
@@ -149,10 +150,13 @@ API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
 API_LIMITS_CACHE = {}
 REDIS = None
-REGION_MAP = {'dallas': 'DFW',
-              'chicago': 'ORD',
-              'london': 'LON',
-              'sydney': 'SYD'}
+REGION_MAP = {
+    'dallas': 'DFW',
+    'chicago': 'ORD',
+    'virginia': 'IAD',
+    'london': 'LON',
+    'sydney': 'SYD',
+}
 
 if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     try:
@@ -259,9 +263,10 @@ class Provider(RackspaceComputeProviderBase):
                                        provider_key=self.key,
                                        default='Ubuntu 12.04')
 
+        image_types = catalog['lists'].get('types', {})
         if not isUUID(image):
             # Assume it is an OS name and find it
-            for key, value in catalog['lists'].get('types', {}).iteritems():
+            for key, value in image_types.iteritems():
                 if image == value['name'] or image == value['os']:
                     LOG.debug("Mapping image from '%s' to '%s'", image, key)
                     image = key
@@ -269,10 +274,11 @@ class Provider(RackspaceComputeProviderBase):
 
         if not isUUID(image):
             # Sounds like we did not match an image
+            LOG.debug("%s not found in: %s", image, image_types.keys())
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                                      image, self.name))
 
-        if image not in catalog['lists'].get('types', {}):
+        if image not in image_types:
             raise CheckmateNoMapping("Image '%s' not found in '%s'" % (
                                      image, self.name))
 
@@ -464,8 +470,8 @@ class Provider(RackspaceComputeProviderBase):
         if preps:
             wait_on.append(preps)
         join = wfspec.wait_for(create_server_task, wait_on,
-                               name="Server Wait on:%s (%s)" % (key,
-                               resource['service']))
+                               name="Server Wait on:%s (%s)" % (key, resource[
+                                                                'service']))
 
         return dict(
             root=join,
@@ -547,21 +553,33 @@ class Provider(RackspaceComputeProviderBase):
                                                resource_type='compute')
                 LOG.debug("Found generic compute regions: %s", regions)
             for region in regions:
-                urls[region] = Provider.find_url(context.catalog, region)
+                if region:
+                    urls[region] = Provider.find_url(context.catalog, region)
         if not urls:
+            LOG.warning('No compute endpoints found.')
             return results
 
-        jobs = eventlet.GreenPile(min(len(urls) * 2, 16))
-        for region, url in urls.items():
-            if not url:
-                LOG.warning("Failed to find compute endpoint for %s in region "
-                            "%s", context.tenant, region)
-            jobs.spawn(_get_flavors, url, context.auth_token)
-            jobs.spawn(_get_images_and_types, url, region,
-                       context.auth_token)
-        for ret in jobs:
-            results = merge_dictionary(results, ret, extend_lists=True)
-
+        if CONFIG.eventlet:
+            jobs = eventlet.GreenPile(min(len(urls) * 2, 16))
+            for region, url in urls.items():
+                if not url and len(urls) == 1:
+                    LOG.warning("Failed to find compute endpoint for %s in "
+                                "region %s", context.tenant, region)
+                jobs.spawn(_get_flavors, url, context.auth_token)
+                jobs.spawn(_get_images_and_types, url, context.auth_token)
+            for ret in jobs:
+                results = merge_dictionary(results, ret, extend_lists=True)
+        else:
+            for region, url in urls.items():
+                if not url:
+                    if len(urls) == 1:
+                        LOG.warning("Failed to find compute endpoint for %s "
+                                    "in region %s", context.tenant, region)
+                    continue
+                flavors = _get_flavors(url, context.auth_token)
+                images = _get_images_and_types(url, context.auth_token)
+                results = merge_dictionary(results, flavors, extend_lists=True)
+                results = merge_dictionary(results, images, extend_lists=True)
         return results
 
     def get_catalog(self, context, type_filter=None, **kwargs):
@@ -613,7 +631,7 @@ class Provider(RackspaceComputeProviderBase):
             if types:
                 for image in types.values():
                     choice = dict(name=image['name'], value=image['os'])
-                    if 'Windows' in image['os']:
+                    if image['type'] == 'windows':
                         windows['options']['os']['choice'].append(choice)
                     else:
                         linux['options']['os']['choice'].append(choice)
@@ -751,27 +769,36 @@ class AuthPlugin(object):
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_IMAGE_CACHE,
                backing_store=REDIS, backing_store_key='rax.compute.images')
-def _get_images_and_types(api_endpoint, region, auth_token):
+def _get_images_and_types(api_endpoint, auth_token):
     '''Ask Nova for Images and Types.'''
+    assert api_endpoint, "No API endpoint specified when getting images"
     plugin = AuthPlugin(auth_token, api_endpoint)
     insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
-    api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
-                        insecure=insecure, auth_system="rackspace",
-                        auth_plugin=plugin)
-    ret = {'images': {}, 'types': {}}
-    LOG.info("Calling Nova to get images for %s", api_endpoint)
-    images = api.images.list(detailed=True)
-    for i in images:
-        metadata = i.metadata or {}
-        os_name = detect_image(i.name, metadata=metadata)
-        if os_name:
-            img = {
-                'name': i.name,
-                'os': os_name
-            }
+    try:
+        api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
+                            insecure=insecure, auth_system="rackspace",
+                            auth_plugin=plugin)
+        ret = {'images': {}, 'types': {}}
+        LOG.info("Calling Nova to get images for %s", api_endpoint)
+        images = api.images.list(detailed=True)
+        LOG.debug("Parsing image list: %s", images)
+        for i in images:
+            metadata = i.metadata or {}
+            detected = detect_image(i.name, metadata=metadata)
+            if detected:
+                img = {
+                    'name': i.name,
+                    'os': detected['os'],
+                    'type': detected['type'],
+                }
 
-            ret['types'][str(i.id)] = img
-            ret['images'][i.id] = {'name': i.name}
+                ret['types'][str(i.id)] = img
+                ret['images'][i.id] = {'name': i.name}
+        LOG.debug("Found images %s: %s", api_endpoint, ret['images'].keys())
+    except Exception as exc:
+        LOG.error("Error retrieving Cloud Server images from %s: %s",
+                  api_endpoint, exc)
+        raise
     return ret
 
 
@@ -790,30 +817,42 @@ def detect_image(name, metadata=None):
             os_name = '%s %s' % (metadata[RACKSPACE_DISTRO_KEY].title(),
                                  metadata[RACKSPACE_VERSION_KEY])
             LOG.debug("Identified image by os_distro: %s", os_name)
-            return os_name
+            return {'name': name, 'os': os_name, 'type': 'linux'}
 
         if (OPENSTACK_DISTRO_KEY in metadata and
                 OPENSTACK_VERSION_KEY in metadata):
-            os_name = '%s %s' % (metadata[OPENSTACK_DISTRO_KEY].title(),
-                                 metadata[OPENSTACK_VERSION_KEY])
-            LOG.debug("Identified image by openstack key: %s", os_name)
-            return os_name
+            parsed_name = key = metadata[OPENSTACK_DISTRO_KEY].lower()
+            version = metadata[OPENSTACK_VERSION_KEY]
+            os_type = 'linux'
+            if "microsoft.server" in key:
+                os_type = 'windows'
+                parsed_name = "Microsoft Windows Server"
+                if '.0' in version:
+                    version = version.split('.')[0]
+                elif '.2' in version:
+                    version = '%s R2 SP1' % version.split('.')[0]
+            elif '.' in parsed_name:
+                parsed_name = ' '.join(parsed_name.split('.')[1:])
+            os_name = '%s %s' % (parsed_name.title(), version)
+            LOG.debug("Identified image by openstack key '%s': %s", key,
+                      os_name, extra={'data': metadata})
+            return {'name': name, 'os': os_name, 'type': os_type}
 
     #Look for keywords like 'precise'
     lower_name = name.lower()
     for hint, mapped_os in IMAGE_MAP.iteritems():
         if hint in lower_name:
             os_name = mapped_os
-            LOG.debug("Identified image as '%s': %s", hint, os_name)
-            return os_name
+            LOG.debug("Identified image using hint '%s': %s", hint, os_name)
+            return {'name': name, 'os': os_name, 'type': 'linux'}
 
     #Look for Checkmate name
     for mapped_os in IMAGE_MAP.itervalues():
         if mapped_os.lower() in lower_name:
             os_name = mapped_os
-            LOG.debug("Identified image as '%s': %s", mapped_os,
+            LOG.debug("Identified image using name '%s': %s", mapped_os,
                       os_name)
-            return os_name
+            return {'name': name, 'os': os_name, 'type': 'linux'}
 
     #Parse for known OSes and versions
     for os_lower, versions in KNOWN_OSES.iteritems():
@@ -822,49 +861,55 @@ def detect_image(name, metadata=None):
                 if version.lower() in lower_name:
                     os_name = '%s %s' % (os_lower.title(), version)
                     LOG.debug("Identified image as known OS: %s", os_name)
-                    return os_name
+                    return {'name': name, 'os': os_name, 'type': 'linux'}
 
     if ' LTS ' in name:
         #NOTE: hack to find some images by name in Rackspace
         os_name = name.split(' LTS ')[0].split(' (')[0]
         LOG.debug("Identified image by name split: %s", os_name)
-        return os_name
+        return {'name': name, 'os': os_name, 'type': 'linux'}
 
     #NOTE: hack to make our blueprints work with iNova
     if 'LTS' in name:
         os_name = name.split('LTS')[0].strip()
         LOG.debug("Identified image by iNova name: %s", os_name)
-        return os_name
+        return {'name': name, 'os': os_name, 'type': 'linux'}
 
     if not os_name:
         LOG.debug("Could not identify image: %s", name,
                   extra={'metadata': metadata})
-    return os_name
+    return {}
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE,
                backing_store=REDIS, backing_store_key='rax.compute.flavors')
 def _get_flavors(api_endpoint, auth_token):
     '''Ask Nova for Flavors (RAM, CPU, HDD) options.'''
+    assert api_endpoint, "No API endpoint specified when getting flavors"
     plugin = AuthPlugin(auth_token, api_endpoint)
     insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1', 'true']
-    api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
-                        insecure=insecure, auth_system="rackspace",
-                        auth_plugin=plugin)
-    LOG.info("Calling Nova to get flavors for %s", api_endpoint)
-    flavors = api.flavors.list()
-    result = {
-        'flavors': {
-            str(f.id): {
-                'name': f.name,
-                'memory': f.ram,
-                'disk': f.disk,
-                'cores': f.vcpus,
-            } for f in flavors
+    try:
+        api = client.Client('fake-user', 'fake-pass', 'fake-tenant',
+                            insecure=insecure, auth_system="rackspace",
+                            auth_plugin=plugin)
+        LOG.info("Calling Nova to get flavors for %s", api_endpoint)
+        flavors = api.flavors.list()
+        result = {
+            'flavors': {
+                str(f.id): {
+                    'name': f.name,
+                    'memory': f.ram,
+                    'disk': f.disk,
+                    'cores': f.vcpus,
+                } for f in flavors
+            }
         }
-    }
-    LOG.debug("Identified flavors: %s", result['flavors'].keys(),
-              extra={'data': result})
+        LOG.debug("Identified flavors: %s", result['flavors'].keys(),
+                  extra={'data': result})
+    except Exception as exc:
+        LOG.error("Error retrieving Cloud Server flavors from %s: %s",
+                  api_endpoint, exc)
+        raise
     return result
 
 
