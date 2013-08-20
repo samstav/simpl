@@ -169,6 +169,16 @@ class TestAPICalls(unittest.TestCase):
                     tenant_id='T1000'
             )
 
+    @mock.patch.object(utils, 'write_body')
+    def test_update_deployment_wont_get_deployment_if_no_api_id(self,
+                                                                mock_write):
+        '''Test that update does not make an unnecessary database call
+        when no api_id is given.
+        '''
+        self.router.update_deployment(None)
+        assert not self.manager.get_deployment.called, \
+            'get_deploment should not be called'
+
 
 
 class TestDeploymentRouter(unittest.TestCase):

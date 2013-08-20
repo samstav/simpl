@@ -147,6 +147,7 @@ class Router(object):
         # Deployment list
         app.route('/deployments', 'GET', self.get_deployments)
         app.route('/deployments', 'POST', self.post_deployment)
+        app.route('/deployments', 'PUT', self.update_deployment)
         app.route('/deployments/simulate', 'POST', self.simulate)
         app.route('/deployments/count', 'GET', self.get_count)
         app.route('/deployments/+parse', 'POST', self.parse_deployment)
@@ -302,14 +303,18 @@ class Router(object):
         return utils.write_body(entity, bottle.request, bottle.response)
 
     @utils.with_tenant
-    def update_deployment(self, api_id, tenant_id=None):
+    def update_deployment(self, api_id=None, tenant_id=None):
         '''Store a deployment on this server'''
         deployment = _content_to_deployment(
             deployment_id=api_id, tenant_id=tenant_id)
-        try:
-            entity = self.manager.get_deployment(api_id)
-        except exceptions.CheckmateDoesNotExist:
+        if api_id is None:
             entity = None
+        else:
+            try:
+                entity = self.manager.get_deployment(api_id)
+            except exceptions.CheckmateDoesNotExist:
+                entity = None
+
         results = self.manager.save_deployment(deployment,
                                                api_id=api_id,
                                                tenant_id=tenant_id)
