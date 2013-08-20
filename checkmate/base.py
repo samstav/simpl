@@ -21,6 +21,7 @@ Base Class
 from checkmate import utils
 
 
+# pylint: disable=R0903
 class ManagerBase(object):
     """Handles interface between API and database."""
 
