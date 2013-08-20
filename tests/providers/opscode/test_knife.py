@@ -10,7 +10,10 @@ import uuid
 import mox
 
 from checkmate.deployments import resource_postback
-from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import (
+    CheckmateException,
+    CheckmateUserException,
+)
 from checkmate.providers.opscode import knife
 
 LOG = logging.getLogger(__name__)
@@ -32,21 +35,21 @@ class TestKnife(unittest.TestCase):
         # Fake a call to create_environment
         url = 'https://example.com/checkmate/app.git'
         cache_path = knife._get_blueprints_cache_path(url)
-        environment_path = os.path.join(TEST_PATH, self.deploymentId)
-        kitchen_path = os.path.join(environment_path, 'kitchen')
+        self.environment_path = os.path.join(TEST_PATH, self.deploymentId)
+        self.kitchen_path = os.path.join(self.environment_path, 'kitchen')
 
-        if not os.path.exists(kitchen_path):
-            os.makedirs(kitchen_path)
-            knife._create_kitchen(
-                self.deploymentId, 'kitchen', environment_path)
-            LOG.info("Created kitchen '%s'", kitchen_path)
+        if not os.path.exists(self.kitchen_path):
+            os.makedirs(self.kitchen_path)
+            knife._create_kitchen(self.deploymentId, 'kitchen',
+                                  self.environment_path)
+            LOG.info("Created kitchen '%s'", self.kitchen_path)
 
-        databag_path = os.path.join(kitchen_path, "data_bags")
+        databag_path = os.path.join(self.kitchen_path, "data_bags")
         if not os.path.exists(databag_path):
             os.makedirs(databag_path)
-        with open(os.path.join(kitchen_path, "Cheffile"), 'w') as f:
+        with open(os.path.join(self.kitchen_path, "Cheffile"), 'w') as f:
             f.write(CHEFFILE)
-        with open(os.path.join(kitchen_path, "Berksfile"), 'w') as f:
+        with open(os.path.join(self.kitchen_path, "Berksfile"), 'w') as f:
             f.write(BERKSFILE)
         if not os.path.exists(cache_path):
             os.makedirs(os.path.join(cache_path, ".git"))
@@ -54,7 +57,28 @@ class TestKnife(unittest.TestCase):
     def tearDown(self):
         self.mox.UnsetStubs()
         os.chdir(self.orignal_dir)  # restore what knife may have changed
-        shutil.rmtree(os.path.join(TEST_PATH, self.deploymentId))
+        shutil.rmtree(self.environment_path)
+
+    def test_delete_environment(self):
+        self.mox.StubOutWithMock(shutil, "rmtree")
+        shutil.rmtree(self.environment_path)
+        self.mox.ReplayAll()
+        knife.delete_environment(self.deploymentId)
+
+    def test_delete_environment_exception_handling(self):
+        self.mox.StubOutWithMock(shutil, "rmtree")
+        shutil.rmtree("/tmp/foo/%s" % self.deploymentId).AndRaise(
+            CheckmateUserException("", "", "", ""))
+        self.mox.ReplayAll()
+        self.assertRaises(CheckmateUserException, knife.delete_environment,
+                          self.deploymentId, path="/tmp/foo")
+
+    def test_delete_cookbooks(self):
+        self.mox.StubOutWithMock(shutil, "rmtree")
+        shutil.rmtree(os.path.join(self.kitchen_path, "cookbooks"))
+        shutil.rmtree(os.path.join(self.kitchen_path, "site-cookbooks"))
+        self.mox.ReplayAll()
+        knife.delete_cookbooks(self.deploymentId, 'kitchen')
 
     def test_databag_create(self):
         """Test databag item creation (with checkmate filling in ID)"""

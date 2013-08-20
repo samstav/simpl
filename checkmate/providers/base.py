@@ -47,7 +47,7 @@ class ProviderBaseWorkflowMixIn(object):
         LOG.debug("%s.%s.prep_environment called, but was not implemented",
                   self.vendor, self.name)
 
-    def cleanup_environment(self, wfspec, deployment, context):
+    def cleanup_environment(self, wfspec, deployment):
         '''Add any tasks that are needed for cleaning up environment
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
@@ -56,6 +56,17 @@ class ProviderBaseWorkflowMixIn(object):
                 'final': the task that signifies readiness (work is done)
         '''
         LOG.debug("%s.%s.cleanup_environment called, but was not implemented",
+                  self.vendor, self.name)
+
+    def cleanup_temp_files(self, wfspec, deployment):
+        '''Creates tasks for cleaning up temp files after a deployment
+
+        :param wfspec: the SpiffWorkflow WorkflowSpec we are building
+        :returns: a hash (dict) of relevant tasks. The hash keys are:
+                'root': the root task in the sequence
+                'final': the task that signifies readiness (work is done)
+        '''
+        LOG.debug("%s.%s.cleanup_temp_files called, but was not implemented",
                   self.vendor, self.name)
 
     # pylint: disable=W0613,R0913
