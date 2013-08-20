@@ -544,9 +544,10 @@ class RackspaceSSOAuthMiddleware(object):
         if self.service_username and self.service_token is None:
             self._get_service_token()
         headers = {
-            'X-Auth-Token': self.service_token,
             'Accept': 'application/json',
         }
+        if self.service_token:
+            headers['X-Auth-Token'] = self.service_token
         # TODO: implement some caching to not overload auth
         try:
             LOG.debug('Validating token with %s', self.endpoint_uri)
@@ -561,6 +562,7 @@ class RackspaceSSOAuthMiddleware(object):
             http.close()
 
         if resp.status == 200:
+            LOG.debug('Token validated against %s', self.endpoint_uri)
             try:
                 content = json.loads(body)
                 return content
