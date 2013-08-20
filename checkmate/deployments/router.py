@@ -344,15 +344,27 @@ class Router(object):
         deployment = cmdeploy.Deployment(deployment)
         body = utils.read_body(bottle.request)
 
-        if "resource_ids" not in body:
-            bottle.abort(400, "Invalid input, 'resource_ids' input "
-                              "parameter is not provided in the request")
+        if 'service_name' in body:
+            service_name = body['service_name']
+        if 'count' in body:
+            count = int(body['count'])
 
-        resource_ids = body["resource_ids"]
-        LOG.debug("Received request to delete resources %s for deployment "
-                  "%s", resource_ids, deployment["id"])
+        LOG.debug("Received request to delete %s nodes for service %s for "
+                  "deployment %s", count, service_name, deployment['id'])
+
+        #Should error out if the deployment is building
+        if not service_name or not count:
+            bottle.abort(400, "Invalid input, service_name and count is not "
+                              "provided in the request body")
+        victim_list = []
+        if "victim-list" in body:
+            victim_list = body['victim-list']
+        if len(victim_list) > count:
+            bottle.abort(400, "The victim list has more elements then the "
+                              "count")
+
         self.manager.delete_nodes(deployment, bottle.request.context,
-                                  resource_ids, tenant_id)
+                                  service_name, count, victim_list, tenant_id)
 
         deployment = self.manager.save_deployment(deployment, api_id=api_id,
                                                   tenant_id=tenant_id)

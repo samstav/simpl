@@ -28,15 +28,22 @@ class TestManager(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_delete_nodes(self):
-        deployment = {"id": "DEP_ID"}
+        resources = {
+            '0': {},
+            '1': {},
+            '2': {},
+            '3': {},
+        }
+        deployment = Deployment({'id': 'DEP_ID'})
+        self._mox.StubOutWithMock(deployment, 'get_resources_for_service')
+        deployment.get_resources_for_service('web').AndReturn(resources)
         mock_context = self._mox.CreateMockAnything()
         mock_spec = self._mox.CreateMockAnything()
         mock_wf = self._mox.CreateMockAnything()
-        resource_ids = [1, 2]
         self._mox.StubOutWithMock(workflows.WorkflowSpec,
                                   "create_delete_node_spec")
         workflows.WorkflowSpec.create_delete_node_spec(
-            deployment, resource_ids, mock_context).AndReturn(mock_spec)
+            deployment, ['1', '2'], mock_context).AndReturn(mock_spec)
         self._mox.StubOutWithMock(workflow, "create_workflow")
         workflow.create_workflow(
             mock_spec, deployment, mock_context, driver=self.controller.driver
@@ -44,8 +51,8 @@ class TestManager(unittest.TestCase):
         self._mox.StubOutWithMock(operations, "add")
         operations.add(deployment, mock_wf, "SCALE DOWN", "T_ID")
         self._mox.ReplayAll()
-        self.controller.delete_nodes(deployment, mock_context, resource_ids,
-                                     "T_ID")
+        self.controller.delete_nodes(deployment, mock_context, 'web', 2,
+                                     ['1', '2'], "T_ID")
 
     def test_deploy_add_nodes(self):
         deployment = {"id": "DEP_ID"}

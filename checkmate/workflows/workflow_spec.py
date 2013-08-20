@@ -356,28 +356,17 @@ class WorkflowSpec(specs.WorkflowSpec):
         '''
         LOG.debug("Creating workflow spec for deleting resources %s",
                   resources_to_delete)
-        blueprint = deployment['blueprint']
         dep_id = deployment["id"]
-        wf_spec = WorkflowSpec(name="Delete resources %s for deployment %s)" %
-                                    (dep_id, blueprint['name']))
+        wf_spec = WorkflowSpec(name="Delete nodes %s for deployment %s)" %
+                                    (resources_to_delete, dep_id))
         resources = deployment.get('resources')
         LOG.debug("[Delete Nodes] Attempting to delete %s",
                   resources_to_delete)
-        LOG.debug("[Delete Nodes] Deployment resources %s",
-                  resources)
 
         for resource_key in resources_to_delete:
             wait_tasks = []
-            LOG.debug("[Delete Nodes] Resource Key %s", resource_key)
             resource = resources.get(resource_key)
-            LOG.debug("[Delete Nodes] Resource from Deployment %s", resource)
-            #Process host-relations for resource
-            if 'hosts' in resource:
-                for host in resource['hosts']:
-                    WorkflowSpec._add_del_tasks_for_resource_relation(
-                        wf_spec, deployment, host, context)
-                    wait_tasks.extend(wf_spec.find_task_specs(
-                        resource=host, tag="delete_connection"))
+            resource_ids_to_delete = [resource_key]
 
             #Process relations for resource
             WorkflowSpec._add_del_tasks_for_resource_relation(wf_spec,
@@ -387,40 +376,45 @@ class WorkflowSpec(specs.WorkflowSpec):
             wait_tasks.extend(wf_spec.find_task_specs(resource=resource_key,
                                                       tag="delete_connection"))
 
+            #Process host-relations for resource
+            if 'hosted_on' in resource:
+                resource_ids_to_delete.append(resource['hosted_on'])
+
             #Process resource to be deleted
-            provider_key = resource.get("provider")
-            environment = deployment.environment()
-            provider = environment.get_provider(provider_key)
-            del_tasks = provider.delete_resource_tasks(wf_spec, context,
-                                                       dep_id,
-                                                       resource,
-                                                       resource_key)
-            if del_tasks:
-                tasks = del_tasks.get('root')
-                if wait_tasks:
-                    if isinstance(tasks, list) and tasks:
-                        merge_task = wf_spec.wait_for(
-                            tasks[0], wait_tasks,
-                            name="Wait before deleting resource %s" %
-                                 resource_key)
-                        for task in tasks[1:]:
-                            merge_task.connect(task)
+            for resource_id_to_delete in resource_ids_to_delete:
+                resource_to_delete = resources.get(resource_id_to_delete)
+                provider_key = resource_to_delete.get("provider")
+                environment = deployment.environment()
+                provider = environment.get_provider(provider_key)
+                del_tasks = provider.delete_resource_tasks(
+                    wf_spec, context, dep_id, resource_to_delete,
+                    resource_id_to_delete)
+                if del_tasks:
+                    tasks = del_tasks.get('root')
+                    if wait_tasks:
+                        if isinstance(tasks, list) and tasks:
+                            merge_task = wf_spec.wait_for(
+                                tasks[0], wait_tasks,
+                                name="Wait before deleting resource %s" %
+                                     resource_key)
+                            for task in tasks[1:]:
+                                merge_task.connect(task)
+                        else:
+                            wf_spec.wait_for(
+                                tasks, wait_tasks,
+                                name="Wait before deleting resource %s" %
+                                     resource_key)
                     else:
-                        wf_spec.wait_for(
-                            tasks, wait_tasks,
-                            name="Wait before deleting resource %s" %
-                                 resource_key)
-                else:
-                    if isinstance(tasks, list) and tasks:
-                        for task in tasks:
-                            wf_spec.start.connect(task)
-                    else:
-                        wf_spec.start.connect(tasks)
+                        if isinstance(tasks, list) and tasks:
+                            for task in tasks:
+                                wf_spec.start.connect(task)
+                        else:
+                            wf_spec.start.connect(tasks)
         return wf_spec
 
     @staticmethod
     def _add_del_tasks_for_resource_relation(wf_spec, deployment,
-                                                resource_key, context):
+                                             resource_key, context):
         '''
         Adds the delete task for a resource relation
         :param wf_spec: Workflow Spec to add the tasks to

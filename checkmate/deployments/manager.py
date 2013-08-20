@@ -6,6 +6,7 @@ Handles deployment logic
 
 import copy
 import logging
+import random
 import uuid
 
 import eventlet
@@ -446,17 +447,24 @@ class Manager(base.ManagerBase):
                  deployment['id'], deployment['status'])
         return deployment
 
-    def delete_nodes(self, deployment, context, resource_ids, tenant_id):
+    def delete_nodes(self, deployment, context, service_name, count,
+                     victim_list, tenant_id):
         '''Delete the passed in resources from a deployment
         :param deployment: Deployment to delete resources from
         :param context: RequestContext
-        :param resource_ids: Resources to delete
+        :param victim_list: Resources to delete
         :param tenant_id: TenantId of the customer
         :return:
         '''
+        resources_for_service = deployment.get_resources_for_service(
+            service_name).keys()
+        random.shuffle(resources_for_service)
+        resources_for_service = list(set(resources_for_service) - set(
+            victim_list))
+        victim_list.extend(resources_for_service[:(count - len(victim_list))])
         driver = self.select_driver(deployment["id"])
         wf_spec = workflows.WorkflowSpec.create_delete_node_spec(
-            deployment, resource_ids, context)
+            deployment, victim_list, context)
         delete_node_workflow = workflow.create_workflow(wf_spec, deployment,
                                                         context,
                                                         driver=driver)
