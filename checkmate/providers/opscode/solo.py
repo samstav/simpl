@@ -69,7 +69,6 @@ class Provider(ProviderBase):
 
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
-        self.prep_task = None
 
         # Map File
         self.source = self.get_setting('source')

@@ -229,6 +229,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         :param key: optional key used for environment to mark which provider
                 this is
         '''
+        self.prep_task = None
         self.key = key or "%s.%s" % (self.vendor, self.name)
         if 'vendor' in provider and provider['vendor'] != self.vendor:
             LOG.debug("Vendor value being overwridden "

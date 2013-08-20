@@ -58,10 +58,6 @@ class Provider(providers.ProviderBase):
     name = 'script'
     vendor = 'core'
 
-    def __init__(self, provider, key=None):
-        providers.ProviderBase.__init__(self, provider, key=key)
-        self.prep_task = None
-
     def prep_environment(self, wfspec, deployment, context):
         if self.prep_task:
             return  # already prepped
