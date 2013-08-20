@@ -306,9 +306,14 @@ class Provider(RackspaceComputeProviderBase):
                                      memory, self.key))
 
         for template in templates:
+            #TODO: remove the entry from the root
             template['flavor'] = flavor
             template['image'] = image
             template['region'] = region
+            template['desired-state']['flavor'] = flavor
+            template['desired-state']['image'] = image
+            template['desired-state']['region'] = region
+            template['desired-state']['os-type'] = image_types[image]['type']
         return templates
 
     def verify_limits(self, context, resources):

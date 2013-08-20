@@ -35,7 +35,12 @@ class ProviderBasePlanningMixIn(object):
                                         resource_type=resource_type,
                                         service_name=service,
                                         default=default_domain)
-        result = dict(type=resource_type, provider=provider_key, instance={})
+        result = {
+            'type': resource_type,
+            'provider': provider_key,
+            'instance': {},
+            'desired-state': {},
+        }
         if service:
             result['service'] = service
 
