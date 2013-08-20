@@ -73,7 +73,7 @@ def parse_url(url):
     :return aurl:
     """
 
-    if any([url.startswith('http://'), url.startswith('https://')]):
+    if url.startswith(('http://', 'https://')):
         _authurl = urlparse.urlparse(url)
         return _authurl.netloc
     else:
