@@ -1933,7 +1933,7 @@ services.factory('urlBuilder', function(){
   return scope;
 });
 
-angular.module('checkmate.services').factory('Deployment', ['$http', "$resource", function(){
+angular.module('checkmate.services').factory('Deployment', ['$http', "$resource", function($http, $resource){
   var scope = {};
 
   var get_resource_possible_ids = function(all_resources, current_resources, host_type) {

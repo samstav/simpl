@@ -3552,8 +3552,8 @@ function ResourcesController($scope, $resource, $location, Deployment){
 
   $scope.get_new_deployment = function(tenant_id){
     var url = '/:tenantId/deployments';
-    Deployment = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id});
-    return new Deployment({});
+    DeploymentResource = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id});
+    return new DeploymentResource({});
   }
 
   $scope.deployment = {};
