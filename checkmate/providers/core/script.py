@@ -58,10 +58,6 @@ class Provider(providers.ProviderBase):
     name = 'script'
     vendor = 'core'
 
-    def prep_environment(self, wfspec, deployment, context):
-        if self.prep_task:
-            return  # already prepped
-
     # pylint: disable=R0913,R0914
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):

@@ -26,6 +26,7 @@ class Provider(ProviderBase):
         return [dict(application='http'), dict(database='mysql')]
 
     def prep_environment(self, wfspec, deployment, context):
+        ProviderBase.prep_environment(self, wfspec, deployment, context)
         create_environment = Celery(
             wfspec,
             'Create Chef Environment',

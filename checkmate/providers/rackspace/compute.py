@@ -192,6 +192,8 @@ class RackspaceComputeProviderBase(base.RackspaceProviderBase):
             self.managed_cloud_script = open_file.read()
 
     def prep_environment(self, wfspec, deployment, context):
+        base.RackspaceProviderBase.prep_environment(self, wfspec, deployment,
+                                                    context)
         keys = set()
         for name, key_pair in deployment.settings()['keys'].iteritems():
             if 'public_key_ssh' in key_pair:

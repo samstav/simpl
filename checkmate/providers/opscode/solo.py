@@ -79,6 +79,7 @@ class Provider(ProviderBase):
             self.map_file = ChefMap(raw="")
 
     def prep_environment(self, wfspec, deployment, context):
+        ProviderBase.prep_environment(self, wfspec, deployment, context)
         if self.prep_task:
             return  # already prepped
         self._hash_all_user_resource_passwords(deployment)

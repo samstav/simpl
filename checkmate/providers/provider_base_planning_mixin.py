@@ -10,6 +10,9 @@ class ProviderBasePlanningMixIn(object):
 
     This class is mixed in to the ProviderBase
     """
+    def prep_environment(self, wfspec, deployment, context):
+        """Implemented in the specific Provider classes"""
+        pass
 
     def get_resource_name(self, deployment, domain, index, service,
                           resource_type):
