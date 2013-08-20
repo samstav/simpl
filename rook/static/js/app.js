@@ -3537,6 +3537,12 @@ function ResourcesController($scope, $resource, $location, Deployment){
     }
   };
 
+  $scope.load_resources = function(){
+    $scope.get_load_balancers();
+    $scope.get_servers();
+    $scope.get_databases();
+  }
+
   $scope.get_new_deployment = function(tenant_id){
     var url = '/:tenantId/deployments';
     Deployment = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id});

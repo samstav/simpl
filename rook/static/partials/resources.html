@@ -1,8 +1,8 @@
 <div class='container-fluid mainContent entries'>
   <div class='row-fluid'>
-    <div class='span6'>
+    <div class='span6' ng-init="load_resources()">
 
-      <h4 ng-init="get_servers()">Nova Servers</h4>
+      <h4>Nova Servers</h4>
       <table class="table table-striped">
         <thead>
           <tr>
@@ -13,16 +13,17 @@
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="serv in resources_by_provider['nova']" ng-click="add_to_deployment(serv)">
+          <tr ng-repeat="serv in resources_by_provider['nova'] | orderBy:'instance.id'">
             <td>{{serv['dns-name']}}</td>
             <td>{{serv['instance']['id']}}</td>
             <td>{{serv['region']}}</td>
             <td>{{serv['status']}}</td>
+            <td><i ng-click="add_to_deployment(serv)" class="icon-plus-sign-alt clickable"></i></td>
           </tr>
         </tbody>
       </table>
 
-      <h4 ng-init="get_databases()">Databases</h4>
+      <h4>Load Balancers</h4>
       <table class="table table-striped">
         <thead>
           <tr>
@@ -33,31 +34,33 @@
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="db in resources_by_provider['database']" ng-click="add_to_deployment(db)">
-            <td>{{db['dns-name']}}</td>
-            <td>{{db['instance']['id']}}</td>
-            <td>{{db['region']}}</td>
-            <td>{{db['status']}}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h4 ng-init="get_load_balancers()">Load Balancers</h4>
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>ID</th>
-            <th>Region</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr ng-repeat="lb in resources_by_provider['load-balancer']" ng-click="add_to_deployment(lb)">
+          <tr ng-repeat="lb in resources_by_provider['load-balancer'] | orderBy:'instance.id'">
             <td>{{lb['dns-name']}}</td>
             <td>{{lb['instance']['id']}}</td>
             <td>{{lb['region']}}</td>
             <td>{{lb['status']}}</td>
+            <td><i ng-click="add_to_deployment(lb)" class="icon-plus-sign-alt clickable"></i></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>Databases</h4>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>ID</th>
+            <th>Region</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="db in resources_by_provider['database'] | orderBy:'instance.id'">
+            <td>{{db['dns-name']}}</td>
+            <td>{{db['instance']['id']}}</td>
+            <td>{{db['region']}}</td>
+            <td>{{db['status']}}</td>
+            <td><i ng-click="add_to_deployment(db)" class="icon-plus-sign-alt clickable"></i></td>
           </tr>
         </tbody>
       </table>
@@ -79,7 +82,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr ng-repeat="resource in selected_resources" ng-click="remove_from_deployment(resource)">
+            <tr ng-repeat="resource in selected_resources">
+              <td><i ng-click="remove_from_deployment(resource)" class="icon-minus-sign-alt clickable"></i></td>
               <td>{{resource['dns-name']}}</td>
               <td>{{resource['instance']['id']}}</td>
               <td>{{resource['region']}}</td>
