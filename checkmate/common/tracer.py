@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -14,7 +14,6 @@
 #
 # Author: Ziad Sawalha (http://launchpad.net/~ziad-sawalha)
 # Original maintained at: https://github.com/ziadsawalha/Python-tracer
-#
 
 """
 Python Call Tracing Tool
@@ -33,7 +32,6 @@ Add this as early as possible in the first module called in your service::
 If a '-t' or '--trace-calls' parameter is found, it will trace calls to stdout
 and space them to show the call graph. Exceptions (errors) will be displayed in
 red.
-
 """
 
 import linecache

@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-
 # Copyright 2012 OpenStack LLC
 # Copyright 2010 United States Government as represented by the
 # Administrator of the National Aeronautics and Space Administration.
@@ -39,7 +37,9 @@
 #    LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 #    OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 #    WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""Unittest runner for Nova.
+
+"""
+Unittest runner for Nova.
 
 To run all tests
     python run_tests.py
@@ -53,8 +53,8 @@ To run a single test module:
     or
 
     python run_tests.py api.test_wsgi
-
 """
+
 import eventlet
 import heapq
 import os
@@ -68,7 +68,8 @@ from nose import result
 
 
 class _AnsiColorizer(object):
-    """
+    """Colorize output:
+
     A colorizer is an object that loosely wraps around a stream, allowing
     callers to write text to the stream in a particular color.
 
@@ -81,7 +82,8 @@ class _AnsiColorizer(object):
         self.stream = stream
 
     def supported(cls, stream=sys.stdout):
-        """
+        """True if colorizing is supported
+
         A class method that returns True if the current platform supports
         coloring terminal output using this method. Returns False otherwise.
         """
@@ -105,8 +107,7 @@ class _AnsiColorizer(object):
     supported = classmethod(supported)
 
     def write(self, text, color):
-        """
-        Write the given text to the stream in the given color.
+        """Write the given text to the stream in the given color.
 
         @param text: Text to be written to the stream.
 
@@ -117,9 +118,7 @@ class _AnsiColorizer(object):
 
 
 class _Win32Colorizer(object):
-    """
-    See _AnsiColorizer docstring.
-    """
+    """See _AnsiColorizer docstring."""
     def __init__(self, stream):
         from win32console import (GetStdHandle, STD_OUT_HANDLE,
                                   FOREGROUND_RED, FOREGROUND_GREEN,
@@ -166,9 +165,7 @@ class _Win32Colorizer(object):
 
 
 class _NullColorizer(object):
-    """
-    See _AnsiColorizer docstring.
-    """
+    """See _AnsiColorizer docstring."""
     def __init__(self, stream):
         self.stream = stream
 
@@ -252,8 +249,9 @@ class NovaTestResult(result.TextTestResult):
 
     # NOTE(vish): copied from nose with edit to add color
     def addError(self, test, err):
-        """Overrides normal addError to add support for
-        errorClasses. If the exception is a registered class, the
+        """Overrides normal addError to add support for errorClasses.
+
+        If the exception is a registered class, the
         error will be added to the list for that class, not errors.
         """
         self._handleElapsedTime(test)
