@@ -14,12 +14,6 @@ from checkmate.deployment import Deployment
 from checkmate.middleware import RequestContext
 from checkmate.providers import base, register_providers
 from checkmate.providers.rackspace import loadbalancer
-from checkmate.workflow import (
-    get_errors,
-    is_failed_task,
-    update_workflow,
-    init_spiff_workflow,
-)
 
 
 class TestWorkflow(unittest.TestCase):
@@ -37,6 +31,21 @@ class TestWorkflow(unittest.TestCase):
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
 
+    def test_reset_failed_tasks(self):
+        task_state = {
+            "info": "CheckmateResetTaskTreeException()",
+            "state": "FAILURE",
+        }
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
+        self.mox.StubOutWithMock(workflow, "reset_task_tree")
+        workflow.reset_task_tree(self.task_with_error)
+        self.mox.ReplayAll()
+        workflow.reset_failed_tasks(self.mocked_workflow)
+
     def test_get_failed_tasks_with_retriable_exception(self):
         task_state = {
             "info": "CheckmateRetriableException('foo', 'Exception', "
@@ -52,7 +61,8 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.attributes = {"id": "wf_id"}
         self.mox.ReplayAll()
 
-        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
+        failed_tasks = workflow.get_errors(self.mocked_workflow,
+                                           self.tenant_id)
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
@@ -86,7 +96,8 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.attributes = {"id": "wf_id"}
         self.mox.ReplayAll()
 
-        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
+        failed_tasks = workflow.get_errors(self.mocked_workflow,
+                                           self.tenant_id)
         self.mox.VerifyAll()
 
         expected = {
@@ -117,7 +128,8 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.attributes = {"id": "wf_id"}
         self.mox.ReplayAll()
 
-        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
+        failed_tasks = workflow.get_errors(self.mocked_workflow,
+                                           self.tenant_id)
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
         expected_error = {
@@ -147,7 +159,8 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
         self.mox.ReplayAll()
 
-        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
+        failed_tasks = workflow.get_errors(self.mocked_workflow,
+                                           self.tenant_id)
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
@@ -170,7 +183,8 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
         self.mox.ReplayAll()
 
-        failed_tasks = get_errors(self.mocked_workflow, self.tenant_id)
+        failed_tasks = workflow.get_errors(self.mocked_workflow,
+                                           self.tenant_id)
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
@@ -190,8 +204,8 @@ class TestWorkflow(unittest.TestCase):
         task_without_error._get_internal_attribute('task_state').AndReturn({})
         self.mox.ReplayAll()
 
-        self.assertTrue(is_failed_task(task_with_error))
-        self.assertFalse(is_failed_task(task_without_error))
+        self.assertTrue(workflow.is_failed_task(task_with_error))
+        self.assertFalse(workflow.is_failed_task(task_without_error))
 
     def test_update_status_without_an_overriding_status_value(self):
         w_id = "1"
@@ -211,8 +225,8 @@ class TestWorkflow(unittest.TestCase):
                                   secrets=None)
         self.mox.ReplayAll()
 
-        update_workflow(d_wf, tenant_id=tenant_id, status=None,
-                        driver=mock_driver, workflow_id=w_id)
+        workflow.update_workflow(d_wf, tenant_id=tenant_id, status=None,
+                                 driver=mock_driver, workflow_id=w_id)
 
     def test_update_status_with_an_overriding_status_value(self):
         w_id = "1"
@@ -235,8 +249,8 @@ class TestWorkflow(unittest.TestCase):
                                   secrets=None)
         self.mox.ReplayAll()
 
-        update_workflow(d_wf, tenant_id=tenant_id, status="PAUSED",
-                        driver=mock_driver, workflow_id=w_id)
+        workflow.update_workflow(d_wf, tenant_id=tenant_id, status="PAUSED",
+                                 driver=mock_driver, workflow_id=w_id)
 
     def test_create_delete_workflow_with_incomplete_operation(self):
         context = RequestContext(auth_token='MOCK_TOKEN',
@@ -291,9 +305,9 @@ class TestWorkflow(unittest.TestCase):
             'id': 'lbid'}
         workflow_spec = workflows.WorkflowSpec.create_delete_dep_wf_spec(
             deployment_with_lb_provider, context)
-        workflow = init_spiff_workflow(workflow_spec,
-                                       deployment_with_lb_provider, context)
-        workflow_dump = re.sub("\s", "", workflow.get_dump())
+        test_workflow = workflow.init_spiff_workflow(
+            workflow_spec, deployment_with_lb_provider, context)
+        workflow_dump = re.sub("\s", "", test_workflow.get_dump())
         expected_dump = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1
@@ -360,10 +374,9 @@ class TestWorkflow(unittest.TestCase):
         workflow_spec = workflows.WorkflowSpec\
             .create_delete_dep_wf_spec(
                 deployment_with_lb_provider, context)
-        workflow = init_spiff_workflow(workflow_spec,
-                                       deployment_with_lb_provider, context)
-        workflow_dump = re.sub("\s", "", workflow.get_dump())
-        print workflow.get_dump()
+        test_workflow = workflow.init_spiff_workflow(
+            workflow_spec, deployment_with_lb_provider, context)
+        workflow_dump = re.sub("\s", "", test_workflow.get_dump())
         expected_dump = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1

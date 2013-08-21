@@ -1,7 +1,6 @@
 import logging
 
 from checkmate import base
-from checkmate import deployment as mod_deployment
 
 LOG = logging.getLogger(__name__)
 

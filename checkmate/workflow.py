@@ -6,7 +6,7 @@ import logging
 import uuid
 
 from SpiffWorkflow import Workflow as SpiffWorkflow, Task
-from SpiffWorkflow.specs import Join, Merge, Celery
+from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import utils
@@ -15,8 +15,9 @@ from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
 from checkmate.exceptions import (
     CheckmateException,
-    CheckmateRetriableException,
+    CheckmateResetTaskTreeException,
     CheckmateResumableException,
+    CheckmateRetriableException,
     CheckmateUserException,
     UNEXPECTED_ERROR,
 )
@@ -110,6 +111,29 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     body['tenantId'] = tenant_id
     body['id'] = workflow_id
     driver.save_workflow(workflow_id, body, secrets=secrets)
+
+
+def reset_failed_tasks(d_wf):
+    '''Traverses through all the workflow tasks and searches for reset task
+    tree exception. If found the task tree is reset
+
+    :param d_wf: Workflow to traverse
+    :return:
+    '''
+    tasks = d_wf.get_tasks()
+    while tasks:
+        task = tasks.pop(0)
+        if is_failed_task(task):
+            task_state = task._get_internal_attribute("task_state")
+            info = task_state.get("info")
+            try:
+                exception = eval(info)
+                if type(exception) is CheckmateResetTaskTreeException:
+                    reset_task_tree(task)
+            except Exception as ex:
+                LOG.error("There was a exception while resetting the task "
+                          "tree for task %s in deployment %s", task.id,
+                          d_wf.attributes["deploymentId"])
 
 
 def get_errors(wf_dict, tenant_id):
