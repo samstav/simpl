@@ -6,12 +6,12 @@ from mox import IgnoreArg
 
 
 class TestDeployments(unittest.TestCase):
-    """Functional tests for the deployments module"""
+    """Functional tests for the deployments module."""
 
     mox = mox.Mox()
 
     def test_sync_deployments(self):
-        """Tests the deployments.sync_deployments method"""
+        """Tests the deployments.sync_deployments method."""
         context = dict(deployment='DEP', resource='0')
         entity = self.mox.CreateMockAnything()
         env = self.mox.CreateMockAnything()
@@ -27,33 +27,31 @@ class TestDeployments(unittest.TestCase):
         deployment.environment().AndReturn(env)
 
         resources = {
-                     "0": {
-                     'name': 'fake_lb',
-                     'provider': 'load-balancer',
-                     'type': 'load-balancer',
-                     'status': 'ACTIVE',
-                     'instance': {
-                                  'id': 'fake_lb_id'
-                             }
-                      }
-                     }
+            "0": {
+                'name': 'fake_lb',
+                'provider': 'load-balancer',
+                'type': 'load-balancer',
+                'status': 'ACTIVE',
+                'instance': {'id': 'fake_lb_id'}
+            }
+        }
 
         entity.resources = resources
 
         expected1 = {
-                    'instnace:0': {
-                                   "status": "ACTIVE"
-                                   }
-                    }
+            'instance:0': {
+                "status": "ACTIVE"
+            }
+        }
 
         expected2 = {
-                    "instance:0": {
-                                   "status": "ACTIVE",
-                                   "instance": {
-                                                "status-message": ""
-                                                }
-                                   }
-                    }
+            "instance:0": {
+                "status": "ACTIVE",
+                "instance": {
+                    "status-message": ""
+                }
+            }
+        }
 
         provider = self.mox.CreateMockAnything()
         env.select_provider(context, resource=resources["0"].get('type'))\

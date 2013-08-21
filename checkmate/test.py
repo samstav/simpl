@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""File with testing primitives for use in tests and external providers"""
+"""File with testing primitives for use in tests and external providers."""
 import json
 import logging
 import os
@@ -24,9 +24,9 @@ os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                                  'data')
 
 from checkmate.common import schema
-from checkmate.exceptions import CheckmateException
+from checkmate import exceptions
 from checkmate.providers import base, register_providers, get_provider_class
-from checkmate.providers.base import ProviderBase
+from checkmate.providers import base
 from checkmate.middleware import RequestContext  # also enables logging
 from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary, \
     yaml_to_dict
@@ -170,13 +170,13 @@ def register():
 
 
 def run_with_params(args):
-    '''Helper method that handles command line arguments:
+    """Helper method that handles command line arguments:
 
     Having command line parameters passed on to checkmate is handy
     for troubleshooting issues. This helper method encapsulates
     this logic so it can be used in any test.
 
-    '''
+    """
     import unittest
 
     # Our --debug means --verbose for unitest
@@ -199,7 +199,8 @@ class StubbedWorkflowBase(unittest.TestCase):
     def result_postback(self, *args, **kwargs):
         """Simulates a postback from the called resource which updates the
         deployment data. The results will be appended to the simulated
-        deployment results"""
+        deployment results
+        """
         # If we need to get the calling task, use inspect. The call stack is
         # self->mock->method->class (so 3 in a zero-based index)
         # import inspect
@@ -260,7 +261,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             expected_calls = self._get_expected_calls()
         self.expected_calls = expected_calls
         if not expected_calls:
-            raise CheckmateException("Unable to identify expected calls "
+            raise exceptions.CheckmateException("Unable to identify expected calls "
                                      "which is needed to run a simulated "
                                      "workflow")
 
@@ -298,7 +299,7 @@ class StubbedWorkflowBase(unittest.TestCase):
 
         # Prepare expected call names, args, and returns for mocking
         def is_good_context(context):
-            """Checks that call has all necessary context data"""
+            """Checks that call has all necessary context data."""
             for key in ['auth_token', 'username', 'catalog']:
                 if key not in context:
                     LOG.warn("Context does not have a '%s'" % key)
@@ -306,7 +307,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             return True
 
         def server_got_keys(files):
-            """Checks that server_create call has all needed keys"""
+            """Checks that server_create call has all needed keys."""
             path = '/root/.ssh/authorized_keys'
             if not files:
                 LOG.warn("Create server call got blank files")
@@ -329,7 +330,8 @@ class StubbedWorkflowBase(unittest.TestCase):
 
         def is_good_data_bag(context):
             """Checks that we're writing everything we need to the chef databag
-            for managed cloud cookbooks to work"""
+            for managed cloud cookbooks to work
+            """
             if context is None:
                 return False
             for key in context:
@@ -792,7 +794,7 @@ class StubbedWorkflowBase(unittest.TestCase):
         return expected_calls
 
 
-class TestProvider(ProviderBase):
+class TestProvider(base.ProviderBase):
     """Provider that returns mock responses for testing
 
     Defers to ProviderBase for most functionality, but implements
@@ -846,7 +848,7 @@ class TestProvider(ProviderBase):
                 deployment
             )
             if not wait_on:
-                raise CheckmateException("No host")
+                raise exceptions.CheckmateException("No host")
 
         # Get the definition of the interface
         interface_schema = schema.INTERFACE_SCHEMA.get(interface, {})
@@ -872,9 +874,9 @@ class TestProvider(ProviderBase):
             tag='final'
         )
         if not target_final:
-            raise CheckmateException("Relation final task not found")
+            raise exceptions.CheckmateException("Relation final task not found")
         if len(target_final) > 1:
-            raise CheckmateException(
+            raise exceptions.CheckmateException(
                 "Multiple relation final tasks "
                 "found: %s" % [t.name for t in target_final]
             )
@@ -953,7 +955,7 @@ class ProviderTester(unittest.TestCase):
         self.assertEqual(provider.key, "custom.value")
 
     def test_provider_override(self):
-        """Test that an injected catalog and config gets applied"""
+        """Test that an injected catalog and config gets applied."""
         override = yaml_to_dict("""
                   provides:
                   - widget: foo
@@ -976,21 +978,21 @@ class ProviderTester(unittest.TestCase):
         self.assertDictEqual(provider.get_catalog(context), override['catalog'])
 
     def test_provider_loads_unregistered(self):
-        """Check that provider loads without registration"""
+        """Check that provider loads without registration."""
         if not isinstance(self.klass, TestProvider):
             self.assertIs(get_provider_class(self.klass.vendor,
                                              self.klass.name), self.klass)
 
     def test_provider_loads_registered(self):
-        """Check that provider loads"""
+        """Check that provider loads."""
         base.PROVIDER_CLASSES = {}
         register_providers([self.klass])
         self.assertTrue(issubclass(get_provider_class(self.klass.vendor,
                                                       self.klass.name),
-                                   ProviderBase))
+                                   base.ProviderBase))
 
     def test_provider_registration(self):
-        """Check that provider class registers"""
+        """Check that provider class registers."""
         base.PROVIDER_CLASSES = {}
         register_providers([self.klass])
         key = self.klass({}).key
@@ -998,7 +1000,7 @@ class ProviderTester(unittest.TestCase):
         self.assertIs(base.PROVIDER_CLASSES[key], self.klass)
 
     def test_translate_status(self):
-        '''Tests that provider status is translated'''
+        """Tests that provider status is translated."""
         expected = 'UNDEFINED'
         results = self.klass.translate_status('DOESNOTEXIST')
         self.assertEqual(expected, results)
@@ -1008,7 +1010,7 @@ class ProviderTester(unittest.TestCase):
 
 
 class MockContext(dict):
-    '''Used to mock RequestContext'''
+    """Used to mock RequestContext."""
     is_admin = False
     tenant = None
     username = "Ziad"
@@ -1016,14 +1018,14 @@ class MockContext(dict):
 
 
 class MockWsgiFilters(object):
-    '''Used to mock Context, Extension, and Tenant Middleware'''
+    """Used to mock Context, Extension, and Tenant Middleware."""
 
     def __init__(self, app):
         self.app = app
         self.context = MockContext()
 
     def __call__(self, environ, start_response):
-        '''Add context, strip out tenant if not already mocked'''
+        """Add context, strip out tenant if not already mocked."""
         bottle.request.context = self.context
         bottle.request.accept = 'application/json'
         path = environ['PATH_INFO']
