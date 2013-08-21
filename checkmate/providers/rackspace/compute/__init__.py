@@ -1222,7 +1222,7 @@ def delete_server_task(context, api=None):
     inst_id = context.get("instance_id")
     resource = context.get('resource')
     resource_key = context.get('resource_key')
-    deployment_id = context.get('deployment_id')
+    deployment_id = context.get("deployment_id", context.get("deployment"))
 
     if inst_id is None:
         msg = ("Instance ID is not available for Compute Instance, skipping "
@@ -1285,12 +1285,11 @@ def delete_server_task(context, api=None):
     else:
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
                % server.status)
-        cmdeps.resource_postback.delay(
-            context.get("deployment_id"),
-            {inst_key: {'status': 'DELETING', 'status-message': msg}}
-        )
-        delete_server_task.retry(exc=cmexc.CheckmateException(msg))
-    cmdeps.resource_postback.delay(context.get("deployment_id"), ret)
+        cmdeps.resource_postback.delay(deployment_id,
+                                       {inst_key: {'status': 'DELETING',
+                                                   'status-message': msg}})
+        delete_server_task.retry(exc=CheckmateException(msg))
+    cmdeps.resource_postback.delay(deployment_id, ret)
     return ret
 
 
