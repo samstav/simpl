@@ -12,7 +12,7 @@ from SpiffWorkflow import Workflow
 from checkmate import deployment as cm_dep
 from checkmate import deployments
 from checkmate.deployments import tasks
-from checkmate.exceptions import CheckmateException
+from checkmate import exceptions
 from checkmate import middleware
 from checkmate import providers
 from checkmate.providers import base
@@ -368,7 +368,7 @@ class TestCeleryTasks(unittest.TestCase):
         api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
         self.mox.StubOutWithMock(loadbalancer.wait_on_lb_delete_task, 'retry')
         loadbalancer.wait_on_lb_delete_task.retry(
-            exc=mox.IsA(CheckmateException)).AndReturn(None)
+            exc=mox.IsA(exceptions.CheckmateException)).AndReturn(None)
 
         self.mox.ReplayAll()
         loadbalancer.wait_on_lb_delete_task(
@@ -386,11 +386,10 @@ class TestCeleryTasks(unittest.TestCase):
 
         resource_key = "1"
 
-        context = { 'deployment': 'DEP',
-                    'resource': '1',
-                    'base_url': 'blah.com',
-                    'tenant': '123'
-                   }
+        context = {'deployment': 'DEP',
+                   'resource': '1',
+                   'base_url': 'blah.com',
+                   'tenant': '123'}
 
         resource = {
             'index': '0',
@@ -427,11 +426,10 @@ class TestCeleryTasks(unittest.TestCase):
 
         resource_key = "1"
 
-        context = { 'deployment': 'DEP',
-                    'resource': '1',
-                    'base_url': 'blah.com',
-                    'tenant': '123'
-                   }
+        context = {'deployment': 'DEP',
+                   'resource': '1',
+                   'base_url': 'blah.com',
+                   'tenant': '123'}
 
         resource = {
             'index': '0',
@@ -448,12 +446,10 @@ class TestCeleryTasks(unittest.TestCase):
 
         lb_api_mock.loadbalancers.get.return_value = lb
 
-        expected = {'instance:1': {"status": "ERROR"}}
-
         with mock.patch.object(loadbalancer.Provider,
                                'generate_resource_tag',
                                return_value={"test": "me"}):
-            results = loadbalancer.sync_resource_task(
+            loadbalancer.sync_resource_task(
                 context, resource, resource_key, lb_api_mock
             )
 
@@ -837,6 +833,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'Workflow did not complete')
 
         self.mox.VerifyAll()
+
 
 class TestLoadBalancerProxy(unittest.TestCase):
     """Test Load Balancer Provider's proxy function"""

@@ -983,6 +983,7 @@ def filter_resources(resources, provider_name):
                 results.append(resource)
     return results
 
+
 def cap_limit(limit, tenant_id):
     # So that we don't end up with a DoS due to unchecked limit:
     if limit is None or limit > 100 or limit < 0:
@@ -991,8 +992,9 @@ def cap_limit(limit, tenant_id):
         return 100
     return limit
 
+
 def get_ips_from_server(server, roles, primary_address_type='public'):
-    '''Extract ip addresses from a server object'''
+    '''Extract ip addresses from a server object.'''
     ip = None
     result = {}
     addresses = server.addresses.get(primary_address_type, [])
@@ -1019,6 +1021,7 @@ def get_ips_from_server(server, roles, primary_address_type='public'):
             break
 
     return result
+
 
 class Simulation(object):
     '''Generic object used to set simulation attrs.'''

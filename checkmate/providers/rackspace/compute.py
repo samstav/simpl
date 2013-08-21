@@ -728,7 +728,8 @@ class Provider(RackspaceComputeProviderBase):
                 'type': 'compute',
                 'region': server.manager.api.client.region_name
             }
-            merge_dictionary(results[idx]['instance'], get_ips_from_server(server, context.roles))
+            merge_dictionary(results[idx]['instance'],
+                             get_ips_from_server(server, context.roles))
         return results
 
     @staticmethod
@@ -1168,7 +1169,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
         try:
             if "RAX-CHECKMATE" not in server.metadata.keys():
-                checkmate_tag=Provider.generate_resource_tag(
+                checkmate_tag = Provider.generate_resource_tag(
                     context['base_url'], context['tenant'],
                     context['deployment'], resource['index']
                 )
@@ -1504,7 +1505,11 @@ def wait_on_build(context, server_id, region, resource,
                 wait_on_build.retry(exc=CheckmateException(msg))
 
     # should be active now, grab an appropriate address and check connectivity
-    ips = get_ips_from_server(server, context['roles'], primary_address_type=ip_address_type)
+    ips = get_ips_from_server(
+        server,
+        context['roles'],
+        primary_address_type=ip_address_type
+    )
     merge_dictionary(results, ips)
 
     # we might not get an ip right away, so wait until its populated

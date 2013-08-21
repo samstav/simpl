@@ -10,7 +10,7 @@ import mox
 
 from checkmate import deployments as cm_deps
 from checkmate.deployments import tasks
-from checkmate.exceptions import CheckmateException
+from checkmate import exceptions
 from checkmate import middleware as cm_mid
 from checkmate.providers.rackspace import compute
 from checkmate import ssh
@@ -201,7 +201,8 @@ class TestNovaCompute(test.ProviderTester):
                                         mox.IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
-        self.assertRaises(CheckmateException, compute.wait_on_build, context,
+        self.assertRaises(exceptions.CheckmateException,
+                          compute.wait_on_build, context,
                           server.id, 'North', [],
                           api_object=openstack_api_mock)
 
@@ -541,7 +542,6 @@ class TestNovaCompute(test.ProviderTester):
 
         server.manager.set_meta.assert_called_once_with(server, {"test": "me"})
 
-
     def verify_limits(self, cores_used, ram_used):
         """Test the verify_limits() method."""
         context = cm_mid.RequestContext()
@@ -775,7 +775,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             provider.generate_template(self.deployment, 'compute',
                                        'master', context, 1, provider.key,
                                        None)
-        except CheckmateException:
+        except exceptions.CheckmateException:
             #pass
             self.mox.VerifyAll()
 
@@ -856,7 +856,7 @@ class TestNovaProxy(unittest.TestCase):
         server.flavor = {'id': None}
         server.metadata = {}
 
-        server_in_checkmate = mock.Mock(metadata = {'RAX-CHECKMATE': 'yeah'})
+        server_in_checkmate = mock.Mock(metadata={'RAX-CHECKMATE': 'yeah'})
         mock_get_ips.return_value = {}
 
         def fake_connect(**kwargs):

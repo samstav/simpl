@@ -5,7 +5,7 @@ import mox
 import unittest
 
 from checkmate import deployment
-from checkmate.exceptions import CheckmateException
+from checkmate import exceptions
 from checkmate import middleware
 from checkmate import providers
 from checkmate.providers import base
@@ -109,7 +109,8 @@ class TestDatabase(test.ProviderTester):
         clouddb_api_mock.get(instance.id).AndReturn(instance)
         self.mox.ReplayAll()
         #Should throw exception when instance.status="BUILD"
-        self.assertRaises(CheckmateException, database.create_database,
+        self.assertRaises(exceptions.CheckmateException,
+                          database.create_database,
                           context, 'db1', 'NORTH', instance_id=instance.id,
                           api=clouddb_api_mock)
 
@@ -603,10 +604,11 @@ class TestDatabaseProxy(unittest.TestCase):
                 'disk': 'size',
                 'type': 'compute'
             }
-         }
+        }
 
         mock_connect.return_value = api
-        self.assertEqual(database.Provider.proxy('list', request, 'tenant'), expected)
+        self.assertEqual(database.Provider.proxy('list', request, 'tenant'),
+                         expected)
 
 
 if __name__ == '__main__':

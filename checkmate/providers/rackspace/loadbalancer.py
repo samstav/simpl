@@ -666,7 +666,7 @@ class Provider(ProviderBase):
     def proxy(path, request, tenant_id=None):
         """Proxy request through to loadbalancer provider"""
         if path != 'list':
-            raise CheckmateException("Not a valid Provider path")
+            raise exceptions.CheckmateException("Not a valid Provider path")
         context = request.context
         if not pyrax.get_setting("identity_type"):
             pyrax.set_setting("identity_type", "rackspace")
@@ -1020,7 +1020,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
         try:
             meta = lb.get_metadata()
             if "RAX-CHECKMATE" not in meta.keys():
-                checkmate_tag=Provider.generate_resource_tag(
+                checkmate_tag = Provider.generate_resource_tag(
                     context['base_url'], context['tenant'],
                     context['deployment'], resource['index']
                 )

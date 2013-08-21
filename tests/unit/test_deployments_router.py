@@ -136,8 +136,12 @@ class TestAPICalls(unittest.TestCase):
         mock_write_body.return_value = 42
 
         result = self.router.get_deployment_secrets('1234', tenant_id="T1000")
-        self.manager.get_deployment.assert_called_once_with('1234', tenant_id='T1000')
-        self.manager.get_deployment_secrets.assert_called_once_with('1234', tenant_id='T1000')
+        self.manager.get_deployment.assert_called_once_with('1234',
+                                                            tenant_id='T1000')
+        self.manager.get_deployment_secrets.assert_called_once_with(
+            '1234',
+            tenant_id='T1000'
+        )
         self.assertEqual(42, result)
 
     @mock.patch.object(utils, 'write_body')
@@ -165,8 +169,8 @@ class TestAPICalls(unittest.TestCase):
             mock_write.assert_called_once_with(data, bottle.request,
                                                bottle.response)
             self.manager.get_deployment_secrets.assert_called_once_with(
-                    '1234',
-                    tenant_id='T1000'
+                '1234',
+                tenant_id='T1000'
             )
 
     @mock.patch.object(utils, 'write_body')
@@ -178,7 +182,6 @@ class TestAPICalls(unittest.TestCase):
         self.router.update_deployment(None)
         assert not self.manager.get_deployment.called, \
             'get_deploment should not be called'
-
 
 
 class TestDeploymentRouter(unittest.TestCase):

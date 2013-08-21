@@ -1,15 +1,15 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import copy
 import re
-import string
 import time
 import unittest
 import uuid
-import mox
 import mock
+import mox
 
 from checkmate import utils
 from bottle import request, response
+
 
 class TestUtils(unittest.TestCase):
 
@@ -178,12 +178,12 @@ class TestUtils(unittest.TestCase):
             'list_with_empty_stuff': [{}, None, []],
             'object_with_empty_stuff': {"o": {}, "n": None, 'l': []},
             "tree": {
-            "array": [
-                {
-                    "blank": {},
-                    "scalar": 1
-                }
-            ]
+                "array": [
+                    {
+                        "blank": {},
+                        "scalar": 1
+                    }
+                ]
             }
         }
         c, _ = fxn(data, [])
@@ -388,14 +388,14 @@ class TestUtils(unittest.TestCase):
         self.assertFalse(utils.is_evaluable({'not-a-string': 'boom!'}))
 
     def test_get_formatted_time_string(self):
-        mock = mox.Mox()
+        a_mock = mox.Mox()
         mock_time = time.gmtime(0)
-        mock.StubOutWithMock(utils.time, 'gmtime')
+        a_mock.StubOutWithMock(utils.time, 'gmtime')
         utils.time.gmtime().AndReturn(mock_time)
-        mock.ReplayAll()
+        a_mock.ReplayAll()
         result = utils.get_time_string()
-        mock.VerifyAll()
-        mock.UnsetStubs()
+        a_mock.VerifyAll()
+        a_mock.UnsetStubs()
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
     def test_get_formatted_time_string_with_input(self):
