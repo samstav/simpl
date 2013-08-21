@@ -2165,7 +2165,6 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       $scope.environments = {env_name: data.environment};
     } else {
       //TODO: create from catalog
-      //LOLOLOLOL take a look at $scope.auth.context.catalog to see the endpoints
       $scope.environments = $scope.generate_default_environments();
     }
     $scope.environment = $scope.environments[Object.keys($scope.environments)[0]];
