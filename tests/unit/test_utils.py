@@ -1,10 +1,10 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import copy
 import re
-import string
 import time
 import unittest
 import uuid
+import mock
 import mox
 
 from checkmate import utils
@@ -178,12 +178,12 @@ class TestUtils(unittest.TestCase):
             'list_with_empty_stuff': [{}, None, []],
             'object_with_empty_stuff': {"o": {}, "n": None, 'l': []},
             "tree": {
-            "array": [
-                {
-                    "blank": {},
-                    "scalar": 1
-                }
-            ]
+                "array": [
+                    {
+                        "blank": {},
+                        "scalar": 1
+                    }
+                ]
             }
         }
         c, _ = fxn(data, [])
@@ -388,14 +388,14 @@ class TestUtils(unittest.TestCase):
         self.assertFalse(utils.is_evaluable({'not-a-string': 'boom!'}))
 
     def test_get_formatted_time_string(self):
-        mock = mox.Mox()
+        a_mock = mox.Mox()
         mock_time = time.gmtime(0)
-        mock.StubOutWithMock(utils.time, 'gmtime')
+        a_mock.StubOutWithMock(utils.time, 'gmtime')
         utils.time.gmtime().AndReturn(mock_time)
-        mock.ReplayAll()
+        a_mock.ReplayAll()
         result = utils.get_time_string()
-        mock.VerifyAll()
-        mock.UnsetStubs()
+        a_mock.VerifyAll()
+        a_mock.UnsetStubs()
         self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
     def test_get_formatted_time_string_with_input(self):
@@ -515,6 +515,44 @@ class TestUtils(unittest.TestCase):
 
     def test_escape_yaml_simple_string_object(self):
         self.assertEqual(utils.escape_yaml_simple_string({'A': 1}), {'A': 1})
+
+    def test_get_ips_from_server_public_address_of_version_4(self):
+        server = mock.Mock()
+        server.addresses = {'public': [{'version': 4, 'addr': '1.1.2.2'}]}
+        expected = {'ip': '1.1.2.2', 'public_ip': '1.1.2.2'}
+        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+
+    def test_get_ips_from_server_with_different_address_type(self):
+        server = mock.Mock()
+        server.addresses = {'foobar': [{'version': 4, 'addr': '1.1.2.2'}]}
+        server.accessIPv4 = None
+        expected = {'ip': '1.1.2.2'}
+        self.assertEqual(
+            utils.get_ips_from_server(server,
+                                      [],
+                                      primary_address_type='foobar'),
+            expected)
+
+    def test_get_ips_from_server_public_ip_is_ipv4(self):
+        server = mock.Mock()
+        server.addresses = {'public': [{'version': 4, 'addr': '1.1.1.1'}]}
+        server.accessIPv4 = None
+        expected = {'ip': '1.1.1.1', 'public_ip': '1.1.1.1'}
+        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+
+    def test_get_ips_from_server_private_ip_is_ipv4(self):
+        server = mock.Mock()
+        server.addresses = {'private': [{'version': 4, 'addr': '1.1.1.1'}]}
+        server.accessIPv4 = None
+        expected = {'ip': None, 'private_ip': '1.1.1.1'}
+        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+
+    def test_get_ips_from_server_private_ip_is_not_ipv4(self):
+        server = mock.Mock()
+        server.addresses = {'private': [{'version': 6, 'addr': '1.1.1.1'}]}
+        server.accessIPv4 = None
+        expected = {'ip': None}
+        self.assertEqual(utils.get_ips_from_server(server, []), expected)
 
 
 class TestQueryParams(unittest.TestCase):

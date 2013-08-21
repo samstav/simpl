@@ -13,6 +13,7 @@ from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
 import cloudlb
+import pyrax
 import redis
 
 from checkmate.common import caching, statsd
@@ -24,7 +25,11 @@ from checkmate.middleware import RequestContext
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
 from checkmate.providers.rackspace.dns import parse_domain
-from checkmate.utils import match_celery_logging, get_class_name
+from checkmate.utils import (
+    match_celery_logging,
+    get_class_name,
+    merge_dictionary
+)
 
 
 LOG = logging.getLogger(__name__)
@@ -658,6 +663,49 @@ class Provider(ProviderBase):
         return results
 
     @staticmethod
+    def proxy(path, request, tenant_id=None):
+        """Proxy request through to loadbalancer provider"""
+        if path != 'list':
+            raise exceptions.CheckmateException("Not a valid Provider path")
+        context = request.context
+        if not pyrax.get_setting("identity_type"):
+            pyrax.set_setting("identity_type", "rackspace")
+
+        load_balancers = []
+        pyrax.auth_with_token(context.auth_token, tenant_name=context.tenant)
+        for region in pyrax.regions:
+            api = pyrax.connect_to_cloud_loadbalancers(region=region)
+            load_balancers += api.list()
+        results = {}
+        for idx, lb in enumerate(load_balancers):
+            vip = None
+            for ip_data in lb.virtual_ips:
+                if ip_data.ip_version == 'IPV4' and ip_data.type == "PUBLIC":
+                    vip = ip_data.address
+
+            results[idx] = {
+                'status': lb.status,
+                'index': idx,
+                'region': lb.manager.api.region_name,
+                'provider': 'load-balancer',
+                'dns-name': lb.name,
+                'instance': {
+                    'protocol': lb.protocol,
+                    'interfaces': {
+                        'vip': {
+                            'public_ip': vip,
+                            'ip': vip
+                        }
+                    },
+                    'id': lb.id,
+                    'public_ip': vip,
+                    'port': lb.port
+                },
+                'type': 'load-balancer'
+            }
+        return results
+
+    @staticmethod
     def find_url(catalog, region):
         '''Find endpoint URL for region.'''
         for service in catalog:
@@ -968,6 +1016,21 @@ def sync_resource_task(context, resource, resource_key, api=None):
         #if hasattr(lb, 'port') and
         #   resource['instance']['protocol'] != lb.protocol:
         #    instance['protocol'] = lb.protocol
+
+        try:
+            meta = lb.get_metadata()
+            if "RAX-CHECKMATE" not in meta.keys():
+                checkmate_tag = Provider.generate_resource_tag(
+                    context['base_url'], context['tenant'],
+                    context['deployment'], resource['index']
+                )
+                new_meta = merge_dictionary(meta, checkmate_tag)
+                lb.set_metadata(new_meta)
+        except Exception as exc:
+            LOG.info("Could not set metadata tag "
+                     "on checkmate managed compute resource")
+            LOG.info(exc)
+
         LOG.info("Marking load balancer instance %s as %s", instance_id,
                  lb.status)
         return {

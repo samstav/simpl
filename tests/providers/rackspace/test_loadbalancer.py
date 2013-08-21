@@ -3,6 +3,7 @@ import logging
 import re
 
 import cloudlb
+import mock
 import mox
 import unittest
 
@@ -11,7 +12,7 @@ from SpiffWorkflow import Workflow
 from checkmate import deployment as cm_dep
 from checkmate import deployments
 from checkmate.deployments import tasks
-from checkmate.exceptions import CheckmateException
+from checkmate import exceptions
 from checkmate import middleware
 from checkmate import providers
 from checkmate.providers import base
@@ -367,7 +368,7 @@ class TestCeleryTasks(unittest.TestCase):
         api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
         self.mox.StubOutWithMock(loadbalancer.wait_on_lb_delete_task, 'retry')
         loadbalancer.wait_on_lb_delete_task.retry(
-            exc=mox.IsA(CheckmateException)).AndReturn(None)
+            exc=mox.IsA(exceptions.CheckmateException)).AndReturn(None)
 
         self.mox.ReplayAll()
         loadbalancer.wait_on_lb_delete_task(
@@ -375,18 +376,23 @@ class TestCeleryTasks(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_lb_sync_resource_task(self):
-        """Tests db sync_resource_task via mox."""
+        """Tests db sync_resource_task via mock."""
         #Mock instance
-        lb = self.mox.CreateMockAnything()
+        lb = mock.Mock()
         lb.id = 'fake_lb_id'
         lb.name = 'fake_lb'
         lb.status = 'ERROR'
+        lb.get_metadata.return_value = {}
 
         resource_key = "1"
 
-        context = dict(deployment='DEP', resource='1')
+        context = {'deployment': 'DEP',
+                   'resource': '1',
+                   'base_url': 'blah.com',
+                   'tenant': '123'}
 
         resource = {
+            'index': '0',
             'name': 'fake_lb',
             'provider': 'load-balancers',
             'status': 'ERROR',
@@ -395,18 +401,60 @@ class TestCeleryTasks(unittest.TestCase):
             }
         }
 
-        lb_api_mock = self.mox.CreateMockAnything()
-        lb_api_mock.loadbalancers = self.mox.CreateMockAnything()
+        lb_api_mock = mock.Mock()
+        lb_api_mock.loadbalancers = mock.Mock()
 
-        lb_api_mock.loadbalancers.get(lb.id).AndReturn(lb)
+        lb_api_mock.loadbalancers.get.return_value = lb
 
         expected = {'instance:1': {"status": "ERROR"}}
 
-        self.mox.ReplayAll()
         results = loadbalancer.sync_resource_task(
             context, resource, resource_key, lb_api_mock)
 
+        lb_api_mock.loadbalancers.get.assert_called_once_with(lb.id)
         self.assertDictEqual(results, expected)
+
+    def test_lb_sync_resource_task_adds_metadata(self):
+        """Tests lb sync_resource_task adds checkmate metadata tag to
+           the given resource if it does not already have the tag."""
+        #Mock instance
+        lb = mock.Mock()
+        lb.id = 'fake_lb_id'
+        lb.name = 'fake_lb'
+        lb.status = 'ERROR'
+        lb.get_metadata.return_value = {}
+
+        resource_key = "1"
+
+        context = {'deployment': 'DEP',
+                   'resource': '1',
+                   'base_url': 'blah.com',
+                   'tenant': '123'}
+
+        resource = {
+            'index': '0',
+            'name': 'fake_lb',
+            'provider': 'load-balancers',
+            'status': 'ERROR',
+            'instance': {
+                'id': 'fake_lb_id'
+            }
+        }
+
+        lb_api_mock = mock.Mock()
+        lb_api_mock.loadbalancers = mock.Mock()
+
+        lb_api_mock.loadbalancers.get.return_value = lb
+
+        with mock.patch.object(loadbalancer.Provider,
+                               'generate_resource_tag',
+                               return_value={"test": "me"}):
+            loadbalancer.sync_resource_task(
+                context, resource, resource_key, lb_api_mock
+            )
+
+        lb_api_mock.loadbalancers.get.assert_called_once_with(lb.id)
+        lb.set_metadata.assert_called_once_with({"test": "me"})
 
 
 class TestBasicWorkflow(test.StubbedWorkflowBase):
@@ -785,6 +833,48 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'Workflow did not complete')
 
         self.mox.VerifyAll()
+
+
+class TestLoadBalancerProxy(unittest.TestCase):
+    """Test Load Balancer Provider's proxy function"""
+    @mock.patch('checkmate.providers.rackspace.loadbalancer.pyrax')
+    def test_proxy_returns_load_balancer_resource(self, mock_pyrax):
+        request = mock.Mock()
+        load_balancer = mock.Mock()
+        load_balancer.status = 'status'
+        load_balancer.name = 'name'
+        load_balancer.virtual_ips = []
+        load_balancer.manager.api.region_name = 'region_name'
+
+        lb_api = mock.Mock()
+        lb_api.list.return_value = [load_balancer]
+        mock_pyrax.connect_to_cloud_loadbalancers.return_value = lb_api
+        mock_pyrax.regions = ["DFW"]
+
+        result = loadbalancer.Provider.proxy('list', request, 'tenant')[0]
+
+        self.assertEqual(result['region'], 'region_name')
+        self.assertEqual(result['status'], 'status')
+        self.assertEqual(result['dns-name'], 'name')
+
+    @mock.patch('checkmate.providers.rackspace.loadbalancer.pyrax')
+    def test_proxy_uses_public_ip(self, mock_pyrax):
+        request = mock.Mock()
+        load_balancer = mock.Mock()
+        vip = mock.Mock()
+        vip.type = 'PUBLIC'
+        vip.ip_version = 'IPV4'
+        vip.address = '1.1.1.1'
+        load_balancer.virtual_ips = [vip]
+
+        lb_api = mock.Mock()
+        lb_api.list.return_value = [load_balancer]
+        mock_pyrax.connect_to_cloud_loadbalancers.return_value = lb_api
+        mock_pyrax.regions = ['DFW']
+
+        result = loadbalancer.Provider.proxy('list', request, 'tenant')
+        instance = result[0]['instance']
+        self.assertEqual(instance['public_ip'], '1.1.1.1')
 
 
 if __name__ == '__main__':

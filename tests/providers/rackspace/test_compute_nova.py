@@ -5,11 +5,12 @@ import logging
 import os
 import unittest
 
+import mock
 import mox
 
 from checkmate import deployments as cm_deps
 from checkmate.deployments import tasks
-from checkmate.exceptions import CheckmateException
+from checkmate import exceptions
 from checkmate import middleware as cm_mid
 from checkmate.providers.rackspace import compute
 from checkmate import ssh
@@ -200,7 +201,8 @@ class TestNovaCompute(test.ProviderTester):
                                         mox.IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
-        self.assertRaises(CheckmateException, compute.wait_on_build, context,
+        self.assertRaises(exceptions.CheckmateException,
+                          compute.wait_on_build, context,
                           server.id, 'North', [],
                           api_object=openstack_api_mock)
 
@@ -466,9 +468,9 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
 
     def test_compute_sync_resource_task(self):
-        """Tests compute sync_resource_task via mox."""
+        """Tests compute sync_resource_task via mock."""
         #Mock server
-        server = self.mox.CreateMockAnything()
+        server = mock.Mock()
         server.id = 'fake_server_id'
         server.status = "ERROR"
 
@@ -488,18 +490,57 @@ class TestNovaCompute(test.ProviderTester):
             'instance': {'id': 'fake_server_id'}
         }
 
-        openstack_api_mock = self.mox.CreateMockAnything()
-        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock = mock.Mock()
+        openstack_api_mock.servers = mock.Mock()
 
-        openstack_api_mock.servers.get(server.id).AndReturn(server)
+        openstack_api_mock.servers.get.return_value = server
 
         expected = {'instance:0': {"status": "ERROR"}}
 
-        self.mox.ReplayAll()
         results = compute.sync_resource_task(context, resource, resource_key,
                                              openstack_api_mock)
 
+        openstack_api_mock.servers.get.assert_called_once_with(server.id)
         self.assertDictEqual(results, expected)
+
+    def test_compute_sync_resource_task_adds_checkmate_metadata(self):
+        """Tests compute sync_resource_task adds checkmate metadata tag to
+           the given resource if it does not already have the tag."""
+        #Mock server
+        server = mock.Mock()
+        server.id = 'fake_server_id'
+        server.status = "status"
+        server.metadata = {}
+
+        resource_key = "0"
+
+        context = {
+            'deployment': 'DEP',
+            'resource': '0',
+            'tenant': 'TMOCK',
+            'base_url': 'http://MOCK'
+        }
+
+        resource = {
+            'index': '0',
+            'name': 'svr11.checkmate.local',
+            'provider': 'compute',
+            'status': 'ERROR',
+            'instance': {'id': 'fake_server_id'}
+        }
+
+        openstack_api_mock = mock.Mock()
+        openstack_api_mock.servers = mock.Mock()
+
+        openstack_api_mock.servers.get.return_value = server
+
+        with mock.patch.object(compute.Provider,
+                               'generate_resource_tag',
+                               return_value={"test": "me"}):
+            compute.sync_resource_task(context, resource, resource_key,
+                                       openstack_api_mock)
+
+        server.manager.set_meta.assert_called_once_with(server, {"test": "me"})
 
     def verify_limits(self, cores_used, ram_used):
         """Test the verify_limits() method."""
@@ -734,10 +775,114 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             provider.generate_template(self.deployment, 'compute',
                                        'master', context, 1, provider.key,
                                        None)
-        except CheckmateException:
+        except exceptions.CheckmateException:
             #pass
             self.mox.VerifyAll()
 
+
+class TestNovaProxy(unittest.TestCase):
+    """Test Nova Compute Provider's proxy function"""
+    @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
+    @mock.patch('checkmate.providers.rackspace.compute.pyrax')
+    def test_proxy_returns_compute_instances(self, mock_pyrax, mock_get_ips):
+        request = mock.Mock()
+        server = mock.Mock()
+        server.name = 'server_name'
+        server.status = 'server_status'
+        server.flavor = {'id': 'server_flavor'}
+        server.image = {'id': 'server_image'}
+        server.manager.api.client.region_name = 'region_name'
+        server.metadata = {}
+
+        servers_response = mock.Mock()
+        servers_response.list.return_value = [server]
+        mock_pyrax.connect_to_cloudservers.return_value = servers_response
+        mock_pyrax.regions = ["ORD"]
+        mock_get_ips.return_value = {}
+
+        result = compute.Provider.proxy('list', request, 'tenant')[0]
+        self.assertEqual(result['status'], 'server_status')
+        self.assertEqual(result['flavor'], 'server_flavor')
+        self.assertEqual(result['instance']['image'], 'server_image')
+        self.assertEqual(result['instance']['region'], 'region_name')
+
+    @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
+    @mock.patch('checkmate.providers.rackspace.compute.pyrax')
+    def test_proxy_merges_ip_info(self, mock_pyrax,
+                                  mock_get_ips):
+        request = mock.Mock()
+        server = mock.Mock()
+        server.image = {'id': None}
+        server.flavor = {'id': None}
+        server.metadata = {}
+
+        servers_response = mock.Mock()
+        servers_response.list.return_value = [server]
+        mock_pyrax.connect_to_cloudservers.return_value = servers_response
+        mock_pyrax.regions = ["DFW"]
+        mock_get_ips.return_value = {'ip': '1.1.1.1',
+                                     'public_ip': '2.2.2.2',
+                                     'private_ip': '3.3.3.3'}
+        self.assertEqual(
+            compute.Provider.proxy('list',
+                                   request,
+                                   'tenant')[0]['instance']['ip'],
+            '1.1.1.1'
+        )
+
+        self.assertEqual(
+            compute.Provider.proxy('list',
+                                   request,
+                                   'tenant')[0]['instance']['public_ip'],
+            '2.2.2.2'
+        )
+
+        self.assertEqual(
+            compute.Provider.proxy('list',
+                                   request,
+                                   'tenant')[0]['instance']['private_ip'],
+            '3.3.3.3'
+        )
+
+    @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
+    @mock.patch('checkmate.providers.rackspace.compute.pyrax')
+    def test_proxy_returns_servers_not_in_checkmate(self,
+                                                    mock_pyrax,
+                                                    mock_get_ips):
+
+        request = mock.Mock()
+        server = mock.Mock()
+        server.image = {'id': 'gotit'}
+        server.flavor = {'id': None}
+        server.metadata = {}
+
+        server_in_checkmate = mock.Mock(metadata={'RAX-CHECKMATE': 'yeah'})
+        mock_get_ips.return_value = {}
+
+        def fake_connect(**kwargs):
+            dfw_mock = mock.Mock(
+                list=mock.Mock(return_value=[server, server_in_checkmate])
+            )
+            empty_servers_mock = mock.Mock(
+                list=mock.Mock(return_value=[])
+            )
+            if kwargs['region'] == 'DFW':
+                return dfw_mock
+            if kwargs['region'] == 'ORD':
+                return empty_servers_mock
+            if kwargs['region'] == 'SYD':
+                return empty_servers_mock
+
+        mock_pyrax.regions = ["ORD", "DFW", "SYD"]
+        mock_pyrax.connect_to_cloudservers.side_effect = fake_connect
+
+        servers_response = mock.Mock()
+        servers_response.servers.list.return_value = [server]
+        mock_pyrax.connect_to_cloudservers.return_value = servers_response
+
+        result = compute.Provider.proxy('list', request, 'tenant')
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['image'], 'gotit')
 
 if __name__ == '__main__':
     # Run tests. Handle our parameters separately

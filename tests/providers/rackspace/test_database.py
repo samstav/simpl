@@ -1,10 +1,11 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import logging
+import mock
 import mox
 import unittest
 
 from checkmate import deployment
-from checkmate.exceptions import CheckmateException
+from checkmate import exceptions
 from checkmate import middleware
 from checkmate import providers
 from checkmate.providers import base
@@ -108,7 +109,8 @@ class TestDatabase(test.ProviderTester):
         clouddb_api_mock.get(instance.id).AndReturn(instance)
         self.mox.ReplayAll()
         #Should throw exception when instance.status="BUILD"
-        self.assertRaises(CheckmateException, database.create_database,
+        self.assertRaises(exceptions.CheckmateException,
+                          database.create_database,
                           context, 'db1', 'NORTH', instance_id=instance.id,
                           api=clouddb_api_mock)
 
@@ -556,6 +558,57 @@ environment:
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(), "Workflow did not "
                         "complete")
+
+
+class TestDatabaseProxy(unittest.TestCase):
+    @mock.patch('checkmate.providers.rackspace.database.provider.pyrax')
+    @mock.patch('checkmate.providers.rackspace.database.Provider.connect')
+    def test_proxy_returns_db_host_instances(self, mock_connect, mock_pyrax):
+        request = mock.Mock()
+        mock_pyrax.identity.authenticated = True
+        mock_pyrax.regions = ["ORD"]
+
+        db_host = mock.Mock()
+        db_host.status = 'status'
+        db_host.name = 'name'
+        db_host.id = 'id'
+        db_host.hostname = 'hostname'
+        db_host.flavor.id = 'flavor'
+        db_host.volume.size = 'size'
+        db_host.manager.api.region_name = 'region'
+
+        api = mock.Mock()
+        api.list.return_value = [db_host]
+
+        expected = {
+            0: {
+                'status': 'status',
+                'index': 0,
+                'region': 'region',
+                'provider': 'database',
+                'dns-name': 'name',
+                'instance': {
+                    'status': 'status',
+                    'name': 'name',
+                    'region': 'region',
+                    'id': 'id',
+                    'interfaces': {
+                        'mysql': {
+                            'host': 'hostname'
+                        }
+                    },
+                    'flavor': 'flavor'
+                },
+                'hosts': [],
+                'flavor': 'flavor',
+                'disk': 'size',
+                'type': 'compute'
+            }
+        }
+
+        mock_connect.return_value = api
+        self.assertEqual(database.Provider.proxy('list', request, 'tenant'),
+                         expected)
 
 
 if __name__ == '__main__':

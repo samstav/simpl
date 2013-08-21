@@ -17,6 +17,8 @@ from novaclient.exceptions import (
 )
 # pylint: disable=C0103
 
+import pyrax
+
 client = eventlet.import_patched('novaclient.v1_1.client')
 # from novaclient.v1_1 import client
 import redis
@@ -47,6 +49,7 @@ import checkmate.rdp
 import checkmate.ssh
 from checkmate.utils import (
     get_class_name,
+    get_ips_from_server,
     isUUID,
     match_celery_logging,
     merge_dictionary,
@@ -177,6 +180,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
 )
 MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
+pyrax.set_setting('identity_type', 'rackspace')
 
 
 class RackspaceComputeProviderBase(base.RackspaceProviderBase):
@@ -688,6 +692,47 @@ class Provider(RackspaceComputeProviderBase):
         return results
 
     @staticmethod
+    def proxy(path, request, tenant_id=None):
+        """Proxy request through to nova compute provider"""
+        if path != 'list':
+            raise CheckmateException("Not a valid Provider path")
+        context = request.context
+        if not pyrax.get_setting("identity_type"):
+            pyrax.set_setting("identity_type", "rackspace")
+
+        servers = []
+        pyrax.auth_with_token(context.auth_token, tenant_name=context.tenant)
+        for region in pyrax.regions:
+            api = pyrax.connect_to_cloudservers(region=region)
+            servers += api.list()
+
+        results = {}
+        for idx, server in enumerate(servers):
+            if 'RAX-CHECKMATE' in server.metadata.keys():
+                continue
+
+            results[idx] = {
+                'status': server.status,
+                'index': idx,
+                'image': server.image['id'],
+                'provider': 'nova',
+                'dns-name': server.name,
+                'instance': {
+                    'addresses': server.addresses,
+                    'id': server.id,
+                    'flavor': server.flavor['id'],
+                    'region': server.manager.api.client.region_name,
+                    'image': server.image['id']
+                },
+                'flavor': server.flavor['id'],
+                'type': 'compute',
+                'region': server.manager.api.client.region_name
+            }
+            merge_dictionary(results[idx]['instance'],
+                             get_ips_from_server(server, context.roles))
+        return results
+
+    @staticmethod
     def find_url(catalog, region):
         '''Get the Public URL of a service.'''
         fall_back = None
@@ -730,6 +775,7 @@ class Provider(RackspaceComputeProviderBase):
                 endpoints = service['endpoints']
                 for endpoint in endpoints:
                     openstack_compatible = endpoint.get('region')
+
         return fall_back or openstack_compatible
 
     @staticmethod
@@ -1120,6 +1166,19 @@ def sync_resource_task(context, resource, resource_key, api=None):
             raise CheckmateDoesNotExist("Instance is blank or has no ID")
         LOG.debug("About to query for server %s", instance_id)
         server = api.servers.get(instance_id)
+
+        try:
+            if "RAX-CHECKMATE" not in server.metadata.keys():
+                checkmate_tag = Provider.generate_resource_tag(
+                    context['base_url'], context['tenant'],
+                    context['deployment'], resource['index']
+                )
+                server.manager.set_meta(server, checkmate_tag)
+        except Exception as exc:
+            LOG.info("Could not set metadata tag "
+                     "on checkmate managed compute resource")
+            LOG.info(exc)
+
         return {
             key: {
                 'status': server.status
@@ -1438,7 +1497,7 @@ def wait_on_build(context, server_id, region, resource,
                 LOG.debug("Rack Connect server ready. Metadata found'")
             else:
                 msg = ("Rack Connect server 'rackconnect_automation_status' "
-                       "metadata tag is still not 'DEPLOPYED'. It is '%s'" %
+                       "metadata tag is still not 'DEPLOYED'. It is '%s'" %
                        server.metadata.get('rackconnect_automation_status'))
                 results['status-message'] = msg
                 resource_postback.delay(deployment_id,
@@ -1446,42 +1505,21 @@ def wait_on_build(context, server_id, region, resource,
                 wait_on_build.retry(exc=CheckmateException(msg))
 
     # should be active now, grab an appropriate address and check connectivity
-    ip = None
-    if server.addresses:
-        # Get requested IP
-        addresses = server.addresses.get(ip_address_type or 'public', [])
-        for address in addresses:
-            if address['version'] == 4:
-                ip = address['addr']
-                break
-        if ((ip_address_type != 'public' and server.accessIPv4) or
-                'rack_connect' in context['roles']):
-            ip = server.accessIPv4
-            LOG.info("Using accessIPv4 to connect: %s", ip)
-        results['ip'] = ip
-
-        # Get public (default) IP
-        addresses = server.addresses.get('public', [])
-        for address in addresses:
-            if address['version'] == 4:
-                public_ip = address['addr']
-                results['public_ip'] = public_ip
-                break
-
-        # Also get service_net IP
-        private_addresses = server.addresses.get('private', [])
-        for address in private_addresses:
-            if address['version'] == 4:
-                results['private_ip'] = address['addr']
-                break
+    ips = get_ips_from_server(
+        server,
+        context['roles'],
+        primary_address_type=ip_address_type
+    )
+    merge_dictionary(results, ips)
 
     # we might not get an ip right away, so wait until its populated
-    if not ip:
+    if 'ip' not in results:
         return wait_on_build.retry(exc=CheckmateException(
                                    "Could not find IP of server '%s'" %
                                    server_id))
 
     if verify_up:
+        ip = results['ip']
         isup = False
         image_details = api_object.images.find(id=server.image['id'])
         metadata = image_details.metadata

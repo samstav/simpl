@@ -489,6 +489,44 @@ class Provider(providers.ProviderBase):
         return results
 
     @staticmethod
+    def proxy(path, request, tenant_id=None):
+        """Proxy request through to cloud database provider"""
+        if path != 'list':
+            raise CheckmateException("Not a valid Provider path")
+        if not (pyrax.identity and pyrax.identity.authenticated):
+            Provider.connect(request.context)
+        db_hosts = []
+        for region in pyrax.regions:
+            api = Provider.connect(request.context, region)
+            db_hosts += api.list()
+        results = {}
+        for idx, db_host in enumerate(db_hosts):
+            results[idx] = {
+                'status': db_host.status,
+                'index': idx,
+                'region': db_host.manager.api.region_name,
+                'provider': 'database',
+                'dns-name': db_host.name,
+                'instance': {
+                    'status': db_host.status,
+                    'name': db_host.name,
+                    'region': db_host.manager.api.region_name,
+                    'id': db_host.id,
+                    'interfaces': {
+                        'mysql': {
+                            'host': db_host.hostname
+                        }
+                    },
+                    'flavor': db_host.flavor.id
+                },
+                'hosts': [],
+                'flavor': db_host.flavor.id,
+                'disk': db_host.volume.size,
+                'type': 'compute'
+            }
+        return results
+
+    @staticmethod
     def find_url(catalog, region):
         '''Returns a URL for a region/catalog.'''
         for service in catalog:
