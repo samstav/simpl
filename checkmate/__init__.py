@@ -24,7 +24,6 @@ except ImportError:
 import ConfigParser
 import gettext
 import os
-import re
 
 # This installs the _(...) function as a built-in so all other modules
 # don't need to.

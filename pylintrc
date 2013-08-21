@@ -3,5 +3,6 @@
 # W0142: *args and **kwargs are fine.
 disable=W0511,W0142
 
-# Don't require docstrings on tests.
-no-docstring-rgx=((__.*__)|([tT]est.*)|setUp|tearDown)$
+[BASIC]
+# Don't require docstrings on tests or Python Special Methods
+no-docstring-rgx=(__.*__|[tT]est.*|setUp|tearDown)
