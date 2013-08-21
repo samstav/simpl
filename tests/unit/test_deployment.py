@@ -116,12 +116,23 @@ class TestDeployments(unittest.TestCase):
             'id': 'test',
             'name': 'test',
             'resources': {
-                '0': {'provider': 'test'}
+                '0': {'provider': 'test'},
+                '1': {'status': 'DELETED'},
+                '2': {'status': 'ACTIVE'}
             },
             'status': 'NEW',
             'operation': {
                 'status': 'NEW',
             },
+            'plan': {
+                'services': {
+                    'web': {
+                        'component': {
+                            'instances': ["1", "2"]
+                        }
+                    }
+                }
+            }
         }
         self.deployment = Deployment(deployment_dict)
         self.mock = mox.Mox()
@@ -131,6 +142,11 @@ class TestDeployments(unittest.TestCase):
         self.provider = self.mock.CreateMockAnything()
         self.deployment.environment().AndReturn(environment)
         environment.get_provider('test').AndReturn(self.provider)
+
+    def test_get_non_deleted_resources_for_service(self):
+        resources = self.deployment.get_resources_for_service(
+            'web')
+        self.assertListEqual(resources.keys(), ["2"])
 
     def test_get_planned_resources(self):
         self.deployment["resources"] = {"1": {"status": "PLANNED",

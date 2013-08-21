@@ -344,15 +344,35 @@ class Router(object):
         deployment = cmdeploy.Deployment(deployment)
         body = utils.read_body(bottle.request)
 
-        if "resource_ids" not in body:
-            bottle.abort(400, "Invalid input, 'resource_ids' input "
-                              "parameter is not provided in the request")
+        if not 'service_name' in body or not 'count' in body:
+            bottle.abort(400, "Invalid input, service_name and count is not "
+                              "provided in the request body")
 
-        resource_ids = body["resource_ids"]
-        LOG.debug("Received request to delete resources %s for deployment "
-                  "%s", resource_ids, deployment["id"])
+        service_name = body['service_name']
+        count = int(body['count'])
+        victim_list = []
+        if "victim-list" in body:
+            victim_list = body['victim-list']
+
+        resource_keys_for_service = deployment.get_resources_for_service(
+            service_name).keys()
+
+        if service_name not in deployment['blueprint']['services']:
+            bottle.abort(400, "The specified service does not exist for the "
+                              "deployment")
+        if len(victim_list) > count:
+            bottle.abort(400, "The victim list has more elements then the "
+                              "count")
+        for resource_key in victim_list:
+            if resource_key not in resource_keys_for_service:
+                bottle.abort(400, "The resource specified in the victim list "
+                                  "is not valid")
+
+        LOG.debug("Received request to delete %s nodes for service %s for "
+                  "deployment %s", count, service_name, deployment['id'])
+
         self.manager.delete_nodes(deployment, bottle.request.context,
-                                  resource_ids, tenant_id)
+                                  service_name, count, victim_list, tenant_id)
 
         deployment = self.manager.save_deployment(deployment, api_id=api_id,
                                                   tenant_id=tenant_id)

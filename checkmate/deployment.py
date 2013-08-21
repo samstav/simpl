@@ -268,6 +268,22 @@ class Deployment(morpheus.MorpheusDict):
                 errors.extend(blueprints.Blueprint.inspect(obj['blueprint']))
         return errors
 
+    def get_resources_for_service(self, service_name):
+        '''Gets all the non deleted resources for the given service name
+
+        :param service_name: The name of the service
+        :return: Dict of resources for the given service
+        '''
+        instances = self['plan']['services'][service_name]['component'][
+            'instances']
+        resources = self.get_non_deleted_resources()
+        non_deleted_resources = {}
+        for resource_key in instances:
+            if resource_key in resources:
+                non_deleted_resources.update(
+                    {resource_key: resources[resource_key]})
+        return non_deleted_resources
+
     def get_statuses(self, context):
         '''Get all statuses from a given context.
 
@@ -1372,8 +1388,7 @@ def update_operation(deployment_id, driver=DB, **kwargs):
 
 
 @celery.task(default_retry_delay=1, max_retries=4)
-def update_deployment_status(deployment_id, new_status, error_message=None,
-                             driver=DB):
+def update_deployment_status(deployment_id, new_status, driver=DB):
     '''DEPRECATED - will be removed around v0.14
 
     Use update_deployment_status_new
