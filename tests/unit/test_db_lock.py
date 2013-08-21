@@ -1,5 +1,5 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
-import mox
+import mock
 import unittest
 
 from checkmate.db.db_lock import DbLock
@@ -7,25 +7,19 @@ from checkmate.db.db_lock import DbLock
 
 class TestDbLock(unittest.TestCase):
     def setUp(self):
-        self.driver_mox = mox.Mox()
-        self.driver = self.driver_mox.CreateMockAnything()
+        self.driver = mock.Mock()
 
     def test_locking_using_a_context(self):
         self.driver.acquire_lock("key", 10)
         self.driver.release_lock("key")
-        self.driver_mox.ReplayAll()
 
         with(DbLock(self.driver, "key", 10)):
             pass
 
     def test_locking_without_context(self):
         self.driver.acquire_lock("key", 10)
-        self.driver_mox.ReplayAll()
 
         DbLock(self.driver, "key", 10)
-
-    def tearDown(self):
-        self.driver_mox.VerifyAll()
 
 
 if __name__ == '__main__':

@@ -2,9 +2,8 @@
 import copy
 import unittest
 
-import mox
+import mock
 
-from checkmate.common import config
 from checkmate.blueprints import Blueprint, GitHubManager
 from checkmate.exceptions import CheckmateValidationException
 
@@ -160,14 +159,13 @@ class TestBlueprints(unittest.TestCase):
 
 class TestGitHubManagerTenantTag(unittest.TestCase):
     def setUp(self):
-        self.mox = mox.Mox()
-        self.config = self.mox.CreateMock(config.current())
+        self.config = mock.Mock()
         self.config.github_api = 'http://localhost'
         self.config.organization = 'blueprints'
+        self.config.cache_dir = 'blah'
+        self.config.group_refs = {}
+        self.config.preview_tenants = []
         self._manager = GitHubManager({}, self.config)
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
 
     def test_no_api(self):
         conf = self.config

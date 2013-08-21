@@ -2,7 +2,7 @@
 import time
 import unittest
 
-import mox
+import mock
 
 from checkmate.common import caching
 
@@ -135,13 +135,8 @@ class TestHashing(unittest.TestCase):
 
 
 class TestCachingMocked(unittest.TestCase):
-    def setUp(self):
-        self.mox = mox.Mox()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
-
-    def test_caching_reaping(self):
+    @mock.patch.object(caching.threading, 'Thread')
+    def test_caching_reaping(self, mock_thread_class):
         def increment():
             """For testing"""
             increment.counter += 1
@@ -150,24 +145,24 @@ class TestCachingMocked(unittest.TestCase):
         # With caching
         store = {((), ()): (0, 1)}  # stale cache entry
         cache = caching.Cache(max_entries=2, timeout=100, store=store)
-        mock_thread = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(caching.threading, 'Thread')
-        caching.threading.Thread(target=cache.collect).AndReturn(mock_thread)
-        mock_thread.setDaemon(False).AndReturn(None)
-        mock_thread.start().AndReturn(None)
+        mock_thread = mock.Mock()
+        mock_thread.setDaemon.return_value = None
+        mock_thread.start.return_value = None
+        mock_thread_class.return_value = mock_thread
         increment.counter = 0
         fxn = cache(increment)
         # Make it look like it's been a while since we've cleaned up
         cache.last_reaping = time.time() - cache.cleaning_schedule
-        self.mox.ReplayAll()
         fxn()
-        self.mox.VerifyAll()
+        mock_thread_class.assert_called_once_with(target=cache.collect)
+        mock_thread.setDaemon.assert_called_once_with(False)
+        mock_thread.start.assert_called_once_with()
 
 
 class TestSecretHashing(unittest.TestCase):
     def setUp(self):
         self.cache = caching.Cache(sensitive_args=[0],
-                                      sensitive_kwargs=["x"])
+                                   sensitive_kwargs=["x"])
 
     def test_get_hash_blank(self):
         self.assertIsNotNone(self.cache.get_hash())
