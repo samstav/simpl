@@ -345,13 +345,16 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         parsed = Manager.plan(deployment, RequestContext())
         resources = parsed['resources']
         self.assertIn("myResource", resources)
-        expected = {'component': 'small_widget',
-                    #dns-name with a deployment name
-                    'dns-name': 'sharedwidget.checkmate.local',
-                    'index': 'myResource',
-                    'instance': {},
-                    'provider': 'base',
-                    'type': 'widget'}
+        expected = {
+            'component': 'small_widget',
+            #dns-name with a deployment name
+            'dns-name': 'sharedwidget.checkmate.local',
+            'index': 'myResource',
+            'instance': {},
+            'provider': 'base',
+            'type': 'widget',
+            'desired-state': {},
+        }
         self.assertDictEqual(resources['myResource'], expected)
 
     def test_providerless_static_resource_generator(self):

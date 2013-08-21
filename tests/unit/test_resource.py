@@ -95,6 +95,7 @@ class TestResource(unittest.TestCase):
                 'status': 'INSTANCE STATUS',
                 'databases': {},
                 'os-type': 'typos',
+                'os': 'MS-DOS'
             }
         })
 

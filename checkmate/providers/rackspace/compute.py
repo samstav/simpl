@@ -316,6 +316,7 @@ class Provider(RackspaceComputeProviderBase):
             template['desired-state']['image'] = image
             template['desired-state']['region'] = region
             template['desired-state']['os-type'] = image_types[image]['type']
+            template['desired-state']['os'] = image_types[image]['os']
         return templates
 
     def verify_limits(self, context, resources):
@@ -392,20 +393,36 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO(any): use environment keys instead of private key
         '''
+
+        desired = resource['desired-state']
+        files = self._kwargs.get('files')
+
+        if desired['os-type'] == 'windows':
+            # Inject firewall puncher in WINDOWS
+            with open(os.path.join(os.path.dirname(__file__),
+                                   "scripts",
+                                   "open_win_firewall.cmd")) as open_file:
+                windows_firewall_script = open_file.read()
+            path = 'C:\\Cloud-Automation\\bootstrap.bat'
+            if files:
+                files[path] = windows_firewall_script
+            else:
+                files = {path: windows_firewall_script}
+
         queued_task_dict = context.get_queued_task_dict(
             deployment_id=deployment['id'], resource_key=key,
-            region=resource['region'], resource=resource)
+            region=desired['region'], resource=resource)
         create_server_task = Celery(
             wfspec, 'Create Server %s (%s)' % (key, resource['service']),
             'checkmate.providers.rackspace.compute.create_server',
             call_args=[
                 queued_task_dict,
                 resource.get('dns-name'),
-                resource['region']
+                desired['region']
             ],
-            image=resource.get('image'),
-            flavor=resource.get('flavor', "2"),
-            files=self._kwargs.get('files', None),
+            image=desired.get('image'),
+            flavor=desired.get('flavor', "2"),
+            files=files,
             tags=self.generate_resource_tag(
                 context.base_url, context.tenant, deployment['id'],
                 resource['index']
@@ -984,15 +1001,12 @@ def create_server(context, name, region, api_object=None, flavor="2",
     :param flavor: the size of the server (a string ID)
     :param files: a list of files to inject
     :type files: dict
-    :param prefix: a string to prepend to any results. Used by Spiff and
-            Checkmate
     :Example:
 
     {
       '/root/.ssh/authorized_keys': "base64 encoded content..."
     }
-    :param ip_address_type: the type of the IP address to return in the
-        results. Default is 'public'
+    :param tags: metadata tags to add
     :return: dict of created server
     :rtype: dict
     :Example:

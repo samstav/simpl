@@ -666,6 +666,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                 'flavor': '2',
                 'image': '00000000-0000-0000-0000-000000000000',
                 'os-type': 'linux',
+                'os': 'Ubuntu 12.04',
             }
         }]
 

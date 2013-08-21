@@ -1,0 +1,1 @@
+netsh advfirewall firewall add rule name="PSexec Port" dir=in action=allow protocol=TCP remoteip=any localport=445,139

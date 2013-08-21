@@ -61,7 +61,8 @@ class TestLoadBalancer(unittest.TestCase):
             'type': 'load-balancer',
             'provider': self.provider.key,
             'port': '80',
-            'protocol': 'http'
+            'protocol': 'http',
+            'desired-state': {},
         }
 
         connections = {
@@ -132,6 +133,7 @@ class TestLoadBalancer(unittest.TestCase):
             'instance': {},
             'type': 'load-balancer',
             'provider': self.provider.key,
+            'desired-state': {},
         }
 
         expected_http_lb = {
@@ -141,7 +143,8 @@ class TestLoadBalancer(unittest.TestCase):
             'instance': {},
             'type': 'load-balancer',
             'provider': self.provider.key,
-            'protocol': 'http'
+            'protocol': 'http',
+            'desired-state': {},
         }
         self.assertEqual(len(results), 2)
         self.assertDictEqual(results[0], expected_https_lb)
