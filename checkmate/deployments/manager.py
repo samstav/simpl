@@ -472,6 +472,13 @@ class Manager(base.ManagerBase):
                        tenant_id)
 
     def deploy_add_nodes(self, deployment, context, tenant_id):
+        '''Creates the workflow and operation for add node
+
+        :param deployment: Deployment to add the nodes to
+        :param context: RequestContext
+        :param tenant_id: TenantId
+        :return:
+        '''
         driver = self.select_driver(deployment["id"])
         add_node_workflow_spec = (workflows.WorkflowSpec
                                   .create_workflow_spec_deploy(deployment,

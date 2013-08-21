@@ -372,7 +372,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
         raise CheckmateUserException(error_message, utils.get_class_name(
             CheckmateException), UNEXPECTED_ERROR, '')
 
-    kitchen_path = os.path.join(path, 'kitchen')
+    kitchen_path = os.path.join(path, service_name)
 
     if not os.path.exists(kitchen_path):
         os.mkdir(kitchen_path, 0770)
