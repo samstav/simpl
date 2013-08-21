@@ -344,24 +344,32 @@ class Router(object):
         deployment = cmdeploy.Deployment(deployment)
         body = utils.read_body(bottle.request)
 
-        if 'service_name' in body:
-            service_name = body['service_name']
-        if 'count' in body:
-            count = int(body['count'])
-
-        LOG.debug("Received request to delete %s nodes for service %s for "
-                  "deployment %s", count, service_name, deployment['id'])
-
-        #Should error out if the deployment is building
-        if not service_name or not count:
+        if not 'service_name' in body or not 'count' in body:
             bottle.abort(400, "Invalid input, service_name and count is not "
                               "provided in the request body")
+
+        service_name = body['service_name']
+        count = int(body['count'])
         victim_list = []
         if "victim-list" in body:
             victim_list = body['victim-list']
+
+        resource_keys_for_service = deployment.get_resources_for_service(
+            service_name).keys()
+
+        if service_name not in deployment['blueprint']['services']:
+            bottle.abort(400, "The specified service does not exist for the "
+                              "deployment")
         if len(victim_list) > count:
             bottle.abort(400, "The victim list has more elements then the "
                               "count")
+        for resource_key in victim_list:
+            if resource_key not in resource_keys_for_service:
+                bottle.abort(400, "The resource specified in the victim list "
+                                  "is not valid")
+
+        LOG.debug("Received request to delete %s nodes for service %s for "
+                  "deployment %s", count, service_name, deployment['id'])
 
         self.manager.delete_nodes(deployment, bottle.request.context,
                                   service_name, count, victim_list, tenant_id)

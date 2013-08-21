@@ -358,10 +358,9 @@ class WorkflowSpec(specs.WorkflowSpec):
                   resources_to_delete)
         dep_id = deployment["id"]
         wf_spec = WorkflowSpec(name="Delete nodes %s for deployment %s)" %
-                                    (resources_to_delete, dep_id))
+                                    (",".join(resources_to_delete), dep_id))
         resources = deployment.get('resources')
-        LOG.debug("[Delete Nodes] Attempting to delete %s",
-                  resources_to_delete)
+        LOG.debug("Attempting to delete %s", resources_to_delete)
 
         for resource_key in resources_to_delete:
             wait_tasks = []
