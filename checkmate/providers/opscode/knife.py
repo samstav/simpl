@@ -318,13 +318,12 @@ def _cache_blueprint(source_repo):
         os.makedirs(repo_cache)
         try:
             utils.git_clone(repo_cache, url, branch=branch)
-        except subprocess.CalledProcessError:
-            error_message = "Git repository could not be cloned " \
-                "from '%s'.  The error returned was " \
-                "'%s'"
+        except subprocess.CalledProcessError as exc:
+            error_message = ("Git repository could not be cloned from '%s'.  "
+                             "The error returned was '%s'")
             raise cmexc.CheckmateUserException(
                 error_message,
-                utils.get_class_name(cmexc.CheckmateException),
+                utils.get_class_name(exc),
                 cmexc.UNEXPECTED_ERROR,
                 ''
             )

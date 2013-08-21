@@ -92,9 +92,11 @@ def validate_input_constraints(deployment):
                     if not constraint.test(cm_inputs.Input(value)):
                         msg = ("The input for option '%s' did not pass "
                                "validation. The value was '%s'. The "
-                               "validation rule was %s" % (key, value if
-                               option.get('type') != 'password' else '*******',
-                               constraint.message))
+                               "validation rule was %s" %
+                               (key,
+                                value if option.get('type') != 'password'
+                                else '*******',
+                                constraint.message))
                         raise cmexc.CheckmateValidationException(msg)
 
 

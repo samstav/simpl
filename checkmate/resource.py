@@ -8,11 +8,7 @@ from simplefsm import SimpleFSM
 from simplefsm.exceptions import InvalidStateError
 
 from checkmate.common import schema
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateValidationException
-)
-from checkmate.providers import ProviderBase
+from checkmate.exceptions import CheckmateValidationException
 
 exceptions.ValidationError = CheckmateValidationException
 

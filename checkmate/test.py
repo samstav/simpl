@@ -28,140 +28,141 @@ from checkmate import exceptions
 from checkmate.providers import base, register_providers, get_provider_class
 from checkmate.providers import base
 from checkmate.middleware import RequestContext  # also enables logging
-from checkmate.utils import is_ssh_key, get_source_body, merge_dictionary, \
-    yaml_to_dict
-from checkmate.workflow import (
-    init_spiff_workflow,
-)
+from checkmate import utils
+from checkmate.workflow import init_spiff_workflow
 
 # Environment variables and safe alternatives
 ENV_VARS = {
     'CHECKMATE_CLIENT_USERNAME': 'john.doe',
     'CHECKMATE_CLIENT_APIKEY': 'secret-api-key',
-    'CHECKMATE_CLIENT_PUBLIC_KEY': ("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAA"
-    "ABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir"
-    "3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH"
-    "1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqs"
-    "SL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCES"
-    "fhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJx"
-    "HJUM7d"),
-    'CHECKMATE_PUBLIC_KEY': "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtj"
-    "YYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0M"
-    "S9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdg"
-    "VPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVX"
-    "nSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5"
-    "lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d",
+    'CHECKMATE_CLIENT_PUBLIC_KEY': """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAA\
+ABAQDtjYYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir\
+3R8fz0MS9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH\
+1YBnpdgVPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqs\
+SL0RxVXnSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCES\
+fhF3hK5lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJx\
+HJUM7d""",
+    'CHECKMATE_PUBLIC_KEY': """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtj\
+YYMFbpCJ/ND3izZ1DqNFQHlooXyNcDGWilAqNqcCfz9L+gpGjY2pQlZz/1Hir3R8fz0M\
+S9VY32RYmP3wWygt85kNccEkOpVGGpGyV/aMFaQHZD0h6d0AT+haP0Iig+OrH1YBnpdg\
+VPWx3SbU4eV/KYGpO9Mintj3P54of22lTK4dOwCNvID9P9w+T1kMfdVxGwhqsSL0RxVX\
+nSSkozXQWCNvaZJMUmidm8YA009c5PoksyWjl3EE+rEzZ8ywvtUJf9DvnLCESfhF3hK5\
+lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d""",
     'CHECKMATE_CLIENT_PRIVATE_KEY': 'mumble-code',
     'CHECKMATE_CLIENT_DOMAIN': 'test.local',
     'CHECKMATE_CLIENT_REGION': 'chicago'
 }
 
-CATALOG = [{
-    "endpoints": [{
-        "publicURL": "https://monitoring.api.rackspacecloud.com/v1.0/T1000",
-        "tenantId": "T1000"
-    }],
-    "name": "cloudMonitoring",
-    "type": "rax:monitor"
-},
-{
-    "endpoints": [
-        {
-            "publicURL": "https://ord.loadbalancers.api.rackspacecloud.com"
-            "/v1.0/T1000",
-            "region": "ORD",
+CATALOG = [
+    {
+        "endpoints": [{
+            "publicURL": "https://monitoring.api.rackspacecloud.com/v1.0/T1000\
+",
             "tenantId": "T1000"
-        },
-        {
-            "publicURL": "https://dfw.loadbalancers.api.rackspacecloud.com"
-            "/v1.0/T1000",
-            "region": "DFW",
-            "tenantId": "T1000"
-        }
-    ],
-    "name": "cloudLoadBalancers",
-    "type": "rax:load-balancer"
-},
-{
-    "endpoints": [
-        {
-            "internalURL": "https://snet-storage101.ord1.clouddrive.com"
-            "/v1/Mosso_T-2000",
-            "publicURL":
-            "https://storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
-            "region": "ORD",
-            "tenantId": "Mossos_T-2000"
-        }
-    ],
-    "name": "cloudFiles",
-    "type": "object-store"
-},
-{
-    "endpoints": [
-        {
-            "publicURL":
-            "https://dfw.databases.api.rackspacecloud.com/v1.0/T1000",
-            "region": "DFW",
-            "tenantId": "T1000"
-        },
-        {
-            "publicURL":
-            "https://ord.databases.api.rackspacecloud.com/v1.0/T1000",
-            "region": "ORD",
-            "tenantId": "T1000"
-        }
-    ],
-    "name": "cloudDatabases",
-    "type": "rax:database"
-},
-{
-    "endpoints": [
-        {
-            "publicURL": "https://servers.api.rackspacecloud.com/v1.0/T1000",
-            "tenantId": "T1000",
-            "versionId": "1.0",
-            "versionInfo": "https://servers.api.rackspacecloud.com/v1.0",
-            "versionList": "https://servers.api.rackspacecloud.com/"
-        }
-    ],
-    "name": "cloudServers",
-    "type": "compute"
-},
-{
-    "endpoints": [
-        {
-            "publicURL": "https://dfw.servers.api.rackspacecloud.com/v2/T1000",
-            "region": "DFW",
-            "tenantId": "T1000",
-            "versionId": "2",
-            "versionInfo": "https://dfw.servers.api.rackspacecloud.com/v2",
-            "versionList": "https://dfw.servers.api.rackspacecloud.com/"
-        }
-    ],
-    "name": "cloudServersOpenStack",
-    "type": "compute"
-},
-{
-    "endpoints": [
-        {
-            "publicURL": "https://dns.api.rackspacecloud.com/v1.0/T1000",
-            "tenantId": "T1000"
-        }
-    ],
-    "name": "cloudDNS",
-    "type": "rax:dns"
-},
-{
-    "endpoints": [
-        {
-            "publicURL": "https://cdn2.clouddrive.com/v1/Mosso_T-2000",
-            "region": "ORD",
-            "tenantId": "Mosso_T-2000"
-        }
-    ],
-    "name": "cloudFilesCDN",
-    "type": "rax:object-cdn"
-}
+        }],
+        "name": "cloudMonitoring",
+        "type": "rax:monitor"
+    },
+    {
+        "endpoints": [
+            {
+                "publicURL": "https://ord.loadbalancers.api.rackspacecloud.com"
+                "/v1.0/T1000",
+                "region": "ORD",
+                "tenantId": "T1000"
+            },
+            {
+                "publicURL": "https://dfw.loadbalancers.api.rackspacecloud.com"
+                "/v1.0/T1000",
+                "region": "DFW",
+                "tenantId": "T1000"
+            }
+        ],
+        "name": "cloudLoadBalancers",
+        "type": "rax:load-balancer"
+    },
+    {
+        "endpoints": [
+            {
+                "internalURL": "https://snet-storage101.ord1.clouddrive.com"
+                "/v1/Mosso_T-2000",
+                "publicURL":
+                "https://storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
+                "region": "ORD",
+                "tenantId": "Mossos_T-2000"
+            }
+        ],
+        "name": "cloudFiles",
+        "type": "object-store"
+    },
+    {
+        "endpoints": [
+            {
+                "publicURL":
+                "https://dfw.databases.api.rackspacecloud.com/v1.0/T1000",
+                "region": "DFW",
+                "tenantId": "T1000"
+            },
+            {
+                "publicURL":
+                "https://ord.databases.api.rackspacecloud.com/v1.0/T1000",
+                "region": "ORD",
+                "tenantId": "T1000"
+            }
+        ],
+        "name": "cloudDatabases",
+        "type": "rax:database"
+    },
+    {
+        "endpoints": [
+            {
+                "publicURL": "https://servers.api.rackspacecloud.com/v1.0/T100\
+0",
+                "tenantId": "T1000",
+                "versionId": "1.0",
+                "versionInfo": "https://servers.api.rackspacecloud.com/v1.0",
+                "versionList": "https://servers.api.rackspacecloud.com/"
+            }
+        ],
+        "name": "cloudServers",
+        "type": "compute"
+    },
+    {
+        "endpoints": [
+            {
+                "publicURL": "https://dfw.servers.api.rackspacecloud.com/v2/T1\
+00",
+                "region": "DFW",
+                "tenantId": "T1000",
+                "versionId": "2",
+                "versionInfo": "https://dfw.servers.api.rackspacecloud.com/v2",
+                "versionList": "https://dfw.servers.api.rackspacecloud.com/"
+            }
+        ],
+        "name": "cloudServersOpenStack",
+        "type": "compute"
+    },
+    {
+        "endpoints": [
+            {
+                "publicURL": "https://dns.api.rackspacecloud.com/v1.0/T1000",
+                "tenantId": "T1000"
+            }
+        ],
+        "name": "cloudDNS",
+        "type": "rax:dns"
+    },
+    {
+        "endpoints": [
+            {
+                "publicURL": "https://cdn2.clouddrive.com/v1/Mosso_T-2000",
+                "region": "ORD",
+                "tenantId": "Mosso_T-2000"
+            }
+        ],
+        "name": "cloudFilesCDN",
+        "type": "rax:object-cdn"
+    }
 ]
 
 
@@ -235,10 +236,10 @@ class StubbedWorkflowBase(unittest.TestCase):
             ):
                 self.outcome['data_bags'][bag_name][item_name] = contents
             else:
-                merge_dictionary(self.outcome['data_bags'][bag_name]
-                                 [item_name], contents)
+                utils.merge_dictionary(self.outcome['data_bags'][bag_name]
+                                       [item_name], contents)
         else:
-            LOG.debug("No postback for %s" % args[0])
+            LOG.debug("No postback for %s", args[0])
 
     def _get_stubbed_out_workflow(self, expected_calls=None, context=None):
         """Returns a workflow of self.deployment with mocks attached to all
@@ -325,7 +326,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 return False
             for entry in entries:
                 if not (entry == 'ssh-rsa AAAAB3NzaC1...'
-                        or is_ssh_key(entry)):
+                        or utils.is_ssh_key(entry)):
                     return False
             return True
 
@@ -780,7 +781,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                             'region',
                             default='testonia')],
                         'kwargs': ContainsKeyValue(
-                            tag, {'RAX-CHECKMATE': IgnoreArg()}
+                            'tag', {'RAX-CHECKMATE': IgnoreArg()}
                         ),
                     'result': {
                         'instance:%s' % key: {
@@ -902,12 +903,12 @@ class TestProvider(base.ProviderBase):
                         "Field %s not found" % field,
                         extra=dict(data=my_task.attributes)
                     )
-            merge_dictionary(my_task.attributes, data)
+            utils.merge_dictionary(my_task.attributes, data)
 
         compile_override = Transform(
             wfspec,
             "Get %s values for %s" % (relation_key, key),
-            transforms=[get_source_body(get_fields_code)],
+            transforms=[utils.get_source_body(get_fields_code)],
             description="Get all the variables we need (like database name "
             "and password) and compile them into JSON",
             defines=dict(
@@ -955,8 +956,7 @@ class ProviderTester(unittest.TestCase):
         self.assertEqual(provider.key, "custom.value")
 
     def test_provider_override(self):
-        """Test that an injected catalog and config gets applied."""
-        override = yaml_to_dict("""
+        override = utils.yaml_to_dict("""
                   provides:
                   - widget: foo
                   - widget: bar

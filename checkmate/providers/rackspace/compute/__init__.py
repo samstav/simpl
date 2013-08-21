@@ -1199,7 +1199,8 @@ def delete_server_task(context, api=None):
     """Celery Task to delete a Nova compute instance."""
     utils.match_celery_logging(LOG)
 
-    assert "deployment_id" in context, "No deployment id in context"
+    assert "deployment_id" in context or "deployment" in context, \
+        "No deployment id in context"
     assert "resource_key" in context, "No resource key in context"
     assert "region" in context, "No region provided"
     assert 'resource' in context, "No resource definition provided"
