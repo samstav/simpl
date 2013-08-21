@@ -1,7 +1,7 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import unittest
 
-import mox
+import mock
 
 from checkmate import admin
 
@@ -11,29 +11,24 @@ class TenantTagsTests(unittest.TestCase):
 
     def setUp(self):
         unittest.TestCase.setUp(self)
-        self.mox = mox.Mox()
-        self.db = self.mox.CreateMockAnything()
+        self.db = mock.Mock()
         self.controller = admin.TenantManager({'default': self.db})
 
     def tearDown(self):
-        self.mox.VerifyAll()
-        self.mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
 
     def test_add_tags(self):
         self.db.add_tenant_tags('1234', 'foo', 'bar', 'baz')
-        self.mox.ReplayAll()
         self.controller.add_tenant_tags('1234', 'foo', 'bar', 'baz')
 
     def test_add_notags(self):
         self.db.add_tenant_tags('1234')
-        self.mox.ReplayAll()
         self.controller.add_tenant_tags('1234')
 
     def test_get_tenant(self):
-        self.db.get_tenant('1234').AndReturn({'id': '1234'})
-        self.mox.ReplayAll()
+        self.db.get_tenant.return_value = {'id': '1234'}
         tenant = self.controller.get_tenant('1234')
+        self.db.get_tenant.assert_called_once_with('1234')
         self.assertIsNotNone(tenant)
         self.assertEqual('1234', tenant.get('id'))
 
@@ -57,11 +52,11 @@ class TenantTagsTests(unittest.TestCase):
                 "tenant_id": '9012',
             }
         }
-        self.db.list_tenants([]).AndReturn(resp)
-        self.mox.ReplayAll()
+        self.db.list_tenants.return_value = resp
         tenants = self.controller.list_tenants([])
         self.assertIsNotNone(tenants)
         self.assertDictEqual(resp, tenants)
+        self.db.list_tenants.assert_called_once_with([])
 
     def test_put_tenant(self):
         tenant = {
@@ -73,7 +68,6 @@ class TenantTagsTests(unittest.TestCase):
             ]
         }
         self.db.save_tenant(tenant).AndReturn(tenant)
-        self.mox.ReplayAll()
         self.controller.save_tenant('1234', tenant)
 
 
