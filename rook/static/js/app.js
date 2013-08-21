@@ -115,6 +115,9 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   }).when('/404', {
     controller: StaticController,
     templateUrl: '/partials/404.html'
+  }).when('/:tenantId/resources', {
+    controller: ResourcesController,
+    templateUrl: '/partials/resources.html'
   }).otherwise({
     controller: StaticController,
     templateUrl: '/partials/404.html'
@@ -2426,6 +2429,18 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     );
   };
 
+
+  $scope.sync_success = function(returned, getHeaders){
+    if (returned !== undefined)
+      $scope.notify(Object.keys(returned).length + ' resources synced');
+  }
+
+  $scope.sync_failure = function(error){
+    $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                          message: "There was an error syncing your deployment"};
+    $scope.open_modal('error');
+  }
+
   // This also exists on DeploymentController - can be refactored
   $scope.sync = function(deployment) {
     var retry = function() {
@@ -2433,17 +2448,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     };
 
     if (auth.is_logged_in()) {
-      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
-      var thang = new klass();
-      thang.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, function(returned, getHeaders){
-          // Sync
-          if (returned !== undefined)
-              $scope.notify(Object.keys(returned).length + ' resources synced');
-        }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
-                  message: "There was an error syncing your deployment"};
-          $scope.open_modal('error');
-        });
+      Deployment.sync($scope.data, $scope.sync_success, $scope.sync_failure)
     } else {
       $scope.loginPrompt().then(retry);
     }
@@ -2773,6 +2778,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 
   $scope.submitting = false; //Turned on while we are processing a deployment
 
+
   //Retrieve existing domains
   $scope.getDomains = function(){
     $scope.domain_names = [];
@@ -2956,46 +2962,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     if (typeof remote == 'object' && remote.url !== undefined)
       options.substituteVariables(deployment, {"%repo_url%": remote.url});
 
-    break_flag = false;
-
     // Have to fix some of the inputs so they are in the right format, specifically the select
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
-    _.each($scope.inputs, function(element, key) {
-      var option = _.find($scope.options, function(item) {
-        if (item.id == key)
-          return item;
-        return null;
-      });
-
-      if (option === undefined){
-        console.log("WARNING: expected option '" + key + "' is undefined");
-        return;
-      }
-
-      //Check that all required fields are set
-      if (option.required === true) {
-        if ($scope.inputs[key] === null) {
-          err_msg = "Required field "+key+" not set. Aborting deployment.";
-          $scope.notify(err_msg);
-          break_flag = true;
-        }
-      }
-
-      if (option.type === "boolean") {
-        if ($scope.inputs[key] === null) {
-          deployment.inputs.blueprint[key] = false;
-        } else {
-          deployment.inputs.blueprint[key] = $scope.inputs[key];
-        }
-      } else {
-        deployment.inputs.blueprint[key] = $scope.inputs[key];
-      }
-    });
-
-    if (break_flag){
-      $scope.submitting = false;
-      return;
-    }
 
     if ($scope.auth.identity.loggedIn) {
         mixpanel.track("Deployment Launched", {'action': action});
@@ -3110,7 +3078,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
 
   $scope.shouldDisplayWorkflowStatus = function() {
     var operation = $scope.data.operation;
-    if(operation){
+    if(operation && operation.status && operation.link){
       var is_workflow_operation = operation.link.split('/').indexOf('workflows') !== -1;
       return (operation.status == 'NEW' || operation.status == 'IN PROGRESS' || operation.status == 'PAUSED') && is_workflow_operation;
     } else {
@@ -3138,7 +3106,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   };
 
   $scope.load_workflow_stats = function(operation){
-    if(!operation || (operation.link && !(operation.link.indexOf('canvases') === -1)))
+    if(!operation || (operation.link && !(operation.link.indexOf('canvases') === -1)) || !operation.link)
       return null;
 
     var workflows = $resource((checkmate_server_base || '') + operation.link + '.json')
@@ -3291,21 +3259,22 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     }
   };
 
+  $scope.sync_success = function(returned, getHeaders){
+    $scope.load();
+    if (returned !== undefined)
+        $scope.notify(Object.keys(returned).length + ' resources synced');
+  }
+
+  $scope.sync_failure = function(error){
+    $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                          message: "There was an error syncing your deployment"};
+    $scope.open_modal('error');
+  }
+
   // This also exists on DeploymentListController - can be refactored
   $scope.sync = function() {
     if ($scope.auth.is_logged_in()) {
-      var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
-      var thang = new klass();
-      thang.$get({tenantId: $scope.data.tenantId, deployment_id: $scope.data['id']}, function(returned, getHeaders){
-          // Sync
-          $scope.load();
-          if (returned !== undefined)
-              $scope.notify(Object.keys(returned).length + ' resources synced');
-        }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
-                  message: "There was an error syncing your deployment"};
-          $scope.open_modal('error');
-        });
+      Deployment.sync($scope.data, $scope.sync_success, $scope.sync_failure)
     } else {
       $scope.loginPrompt().then($scope.sync);
     }
@@ -3500,6 +3469,138 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   };
 }
 
+function ResourcesController($scope, $resource, $location, Deployment){
+  $scope.selected_resources = [];
+  $scope.resources_by_provider = {};
+  $scope.resources_by_provider.nova = [];
+  $scope.resources_by_provider.database = [];
+  $scope.resources_by_provider['load-balancer'] = [];
+
+  $scope.add_to_deployment = function(resource){
+    $scope.selected_resources.push(resource);
+    $scope.resources_by_provider[resource.provider].splice($scope.resources_by_provider[resource.provider].indexOf(resource), 1);
+  };
+
+  $scope.remove_from_deployment = function(resource){
+    $scope.resources_by_provider[resource.provider].push(resource);
+    $scope.selected_resources.splice($scope.selected_resources.indexOf(resource), 1);
+  };
+
+  $scope.get_load_balancers = function(){
+    var tenant_id = $scope.auth.context.tenantId;
+    if ($scope.auth.identity.loggedIn && tenant_id){
+      var url = '/:tenantId/providers/rackspace.load-balancer/proxy/list';
+      var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+      lb_api.query(function(results) {
+        $scope.resources_by_provider['load-balancer'] = results;
+        if(results.length === 0){
+          $scope.no_lbs = true;
+        }
+        $scope.lbs_loaded = true;
+      },
+      function(response) {
+        $scope.lbs_error = "Error loading load balancer list";
+        $scope.lbs_loaded = true;
+      });
+    }
+  };
+
+  $scope.get_servers = function(){
+    var tenant_id = $scope.auth.context.tenantId;
+    if ($scope.auth.identity.loggedIn && tenant_id){
+      var url = '/:tenantId/providers/rackspace.nova/proxy/list';
+      var server_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+      server_api.query(function(results) {
+        $scope.resources_by_provider.nova = results;
+        if(results.length === 0){
+          $scope.no_servers = true;
+        }
+        $scope.servers_loaded = true;
+      },
+      function(response) {
+        $scope.servers_error = "Error loading server list";
+        $scope.servers_loaded = true;
+      });
+    }
+  };
+
+  $scope.get_databases = function(){
+    var tenant_id = $scope.auth.context.tenantId;
+    if ($scope.auth.identity.loggedIn && tenant_id){
+      var url = '/:tenantId/providers/rackspace.database/proxy/list';
+      var db_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+      var results = db_api.query(function() {
+        $scope.resources_by_provider.database = results;
+        if(results.length === 0){
+          $scope.no_dbs = true;
+        }
+        $scope.dbs_loaded = true;
+      },
+      function(response) {
+        $scope.dbs_error = "Error loading database list";
+        $scope.dbs_loaded = true;
+      });
+    }
+  };
+
+  $scope.load_resources = function(){
+    $scope.get_load_balancers();
+    $scope.get_servers();
+    $scope.get_databases();
+  }
+
+  $scope.get_new_deployment = function(tenant_id){
+    var url = '/:tenantId/deployments';
+    DeploymentResource = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id}, {'save': {method:'PUT'}});
+    return new DeploymentResource({});
+  }
+
+  $scope.deployment = {};
+
+  $scope.sync_success = function(returned, getHeaders){
+    if (returned !== undefined)
+      $scope.notify(Object.keys(returned).length + ' resources synced');
+  }
+
+  $scope.sync_failure = function(error){
+    $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+                          message: "There was an error syncing your deployment"};
+    $scope.open_modal('error');
+  }
+
+  $scope.submit = function(){
+    var url = '/:tenantId/deployments',
+        tenant_id = $scope.auth.context.tenantId,
+        deployment = $scope.get_new_deployment(tenant_id);
+
+    deployment.resources = {};
+    for (i=0; i<$scope.selected_resources.length; i++){
+      deployment.resources[i] = $scope.selected_resources[i]
+    }
+    deployment.blueprint = {"services": {}, 'name': $scope.deployment.name};
+    deployment.environment = { //TODO Make providers list dynamic based on resources
+        "description": "This environment uses next-gen cloud servers.",
+        "name": "Next-Gen Open Cloud",
+        "providers": {
+            "nova": {},
+            'database': {},
+            'load-balancer': {},
+            "common": {
+                "vendor": "rackspace"
+            }
+        }
+    };
+    deployment.status = 'UP'
+    deployment.$save(function(result, getHeaders){
+      console.log("Posted deployment");
+      Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure)
+      $location.path('/' + tenant_id + '/deployments/' + result['id']);
+    }, function(error){
+      console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
+      console.log(deployment);
+    });
+  };
+}
 
 /*
  * Other stuff
