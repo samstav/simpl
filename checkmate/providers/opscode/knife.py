@@ -18,6 +18,7 @@ Module to handle OpsCode Chef `knife` command-line calls
 TODO:
 - many functions too complex
 - split out celery handling from knife logic
+- use workspace
 
 """
 import errno
