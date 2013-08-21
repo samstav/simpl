@@ -22,14 +22,11 @@ class Provider(ProviderBase):
     vendor = 'opscode'
 
     """Implements a Chef Server configuration management provider"""
-    def __init__(self, provider, key=None):
-        ProviderBase.__init__(self, provider, key=key)
-        self.prep_task = None
-
     def provides(self, resource_type=None, interface=None):
         return [dict(application='http'), dict(database='mysql')]
 
     def prep_environment(self, wfspec, deployment, context):
+        ProviderBase.prep_environment(self, wfspec, deployment, context)
         create_environment = Celery(
             wfspec,
             'Create Chef Environment',

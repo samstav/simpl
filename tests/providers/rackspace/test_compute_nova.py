@@ -618,7 +618,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                 'types': {
                     '00000000-0000-0000-0000-000000000000': {
                         'os': 'Ubuntu 12.04',
-                        'name': 'Ubuntu 12.04 LTS'
+                        'name': 'Ubuntu 12.04 LTS',
+                        'type': 'linux',
                     }
                 },
                 'regions': {
@@ -659,7 +660,14 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             'flavor': '2',
             'service': 'master',
             'image': '00000000-0000-0000-0000-000000000000',
-            'region': 'ORD'
+            'region': 'ORD',
+            'desired-state': {
+                'region': 'ORD',
+                'flavor': '2',
+                'image': '00000000-0000-0000-0000-000000000000',
+                'os-type': 'linux',
+                'os': 'Ubuntu 12.04',
+            }
         }]
 
         copy.deepcopy(context).AndReturn(context2)
@@ -690,7 +698,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                 'types': {
                     '00000000-0000-0000-0000-000000000000': {
                         'os': 'Ubuntu 12.04',
-                        'name': 'Ubuntu 12.04 LTS'
+                        'name': 'Ubuntu 12.04 LTS',
+                        'type': 'linux',
                     }
                 }
             }

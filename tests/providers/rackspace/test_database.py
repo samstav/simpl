@@ -193,6 +193,7 @@ class TestDatabase(test.ProviderTester):
             'type': 'database',
             'provider': provider.key,
             'service': 'master',
+            'desired-state': {},
         }]
 
         self.mox.ReplayAll()
@@ -263,7 +264,8 @@ class TestDatabase(test.ProviderTester):
             'service': 'master',
             'region': 'North',
             'disk': 2,
-            'flavor': '2'
+            'flavor': '2',
+            'desired-state': {},
         }]
 
         self.mox.ReplayAll()
@@ -304,7 +306,9 @@ class TestDatabase(test.ProviderTester):
                                              'state': 'planned'}},
              'service': 'backend',
              'status': 'PLANNED',
-             'type': 'database'},
+             'type': 'database',
+             'desired-state': {},
+             },
             {'component': 'mysql_instance',
              'disk': 1,
              'dns-name': 'backend01.wordpress.cldsrvr.com',
@@ -316,7 +320,9 @@ class TestDatabase(test.ProviderTester):
              'region': 'ORD',
              'service': 'backend',
              'status': 'NEW',
-             'type': 'compute'}
+             'type': 'compute',
+             'desired-state': {},
+             }
         ]
         instance1 = self.mox.CreateMockAnything()
         instance1.volume = self.mox.CreateMockAnything()

@@ -10,14 +10,20 @@ class ProviderBasePlanningMixIn(object):
 
     This class is mixed in to the ProviderBase
     """
+    def prep_environment(self, wfspec, deployment, context):
+        """Implemented in the specific Provider classes"""
+        pass
 
     def get_resource_name(self, deployment, domain, index, service,
                           resource_type):
         if service:
             if deployment._constrained_to_one(service):
                 name = "%s.%s" % (service, domain)
+            elif isinstance(index, int) or (isinstance(index, basestring) and
+                                            index.isdigit()):
+                name = "%s%02d.%s" % (service, int(index), domain)
             else:
-                name = "%s%02d.%s" % (service, index, domain)
+                name = "%s%s.%s" % (service, index, domain)
         else:
             name = "shared%s.%s" % (resource_type, domain)
         return name
@@ -32,7 +38,12 @@ class ProviderBasePlanningMixIn(object):
                                         resource_type=resource_type,
                                         service_name=service,
                                         default=default_domain)
-        result = dict(type=resource_type, provider=provider_key, instance={})
+        result = {
+            'type': resource_type,
+            'provider': provider_key,
+            'instance': {},
+            'desired-state': {},
+        }
         if service:
             result['service'] = service
 

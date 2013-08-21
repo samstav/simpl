@@ -1200,9 +1200,9 @@ class Deployment(morpheus.MorpheusDict):
             definition
         )
         for resource in resources:
-            resource['component'] = definition['id']
-            resource['status'] = "NEW"
-            resource['desired-state'] = {}
+            resource.setdefault('component', definition['id'])
+            resource.setdefault('status', "NEW")
+            resource.setdefault('desired-state', {})
             cm_res.Resource.validate(resource)
         return resources
 
