@@ -58,6 +58,31 @@ class Provider(providers.ProviderBase):
     name = 'script'
     vendor = 'core'
 
+    def prep_environment(self, wfspec, deployment, context):
+        providers.ProviderBase.prep_environment(self, wfspec, deployment,
+                                                context)
+        if self.prep_task:
+            return  # already prepped
+        results = {}
+        source_repo = deployment.get_setting('source', provider_key=self.key)
+        if source_repo:
+            defines = {'provider': self.key}
+            properties = {'estimated_duration': 10, 'task_tags': ['root']}
+            task_name = 'checkmate.workspaces.create_workspace'
+            queued_task_dict = context.get_queued_task_dict(
+                deployment_id=deployment['id'])
+            self.prep_task = Celery(wfspec,
+                                    'Create Workspace',
+                                    task_name,
+                                    call_args=[queued_task_dict,
+                                               deployment['id']],
+                                    source_repo=source_repo,
+                                    defines=defines,
+                                    properties=properties)
+            results = {'root': self.prep_task, 'final': self.prep_task}
+
+        return results
+
     # pylint: disable=R0913,R0914
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):

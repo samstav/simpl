@@ -198,7 +198,7 @@ def create_workspace(context, name, source_repo=None):
     utils.match_celery_logging(LOG)
 
     #TODO: add context
-    if context.simulation is True:
+    if context['simulation'] is True:
         return {
             'workspace': '/var/tmp/%s/' % name
         }
