@@ -136,6 +136,10 @@ class CheckmateResumableException(CheckmateUserException):
                                                           error_help)
 
 
+class CheckmateResetTaskTreeException(CheckmateException):
+    pass
+
+
 class CheckmateValidationException(CheckmateException):
     '''Validation Error.'''
     pass

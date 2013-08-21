@@ -143,6 +143,8 @@ def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
     finally:
         # Save any changes, even if we errored out
         errors = cm_workflow.get_errors(d_wf, tenant_id)
+        if errors:
+            cm_workflow.reset_failed_tasks(d_wf)
         after = d_wf.get_dump()
 
         if before != after or errors:
