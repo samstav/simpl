@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=E1103
 """Tests for SSH."""
 import unittest
 import mox
@@ -45,7 +45,7 @@ class TestSSH(unittest.TestCase):
 
     def test_test_connection_key(self):
         """Test the test_connection function"""
-        ip = "a.b.c.d"
+        ip_addr = "a.b.c.d"
         port = 44
         username = 'not-root'
         timeout = 15
@@ -57,13 +57,13 @@ class TestSSH(unittest.TestCase):
 
         #Stub out _connect call
         self.mox.StubOutWithMock(ssh, 'connect')
-        ssh.connect(ip, port=port, username=username, timeout=timeout,
+        ssh.connect(ip_addr, port=port, username=username, timeout=timeout,
                     private_key=private_key, identity_file=identity_file,
                     password=password).AndReturn(client)
         client.close().AndReturn(None)
 
         self.mox.ReplayAll()
-        results = ssh.test_connection({}, ip, username, port=port,
+        results = ssh.test_connection({}, ip_addr, username, port=port,
                                       timeout=timeout, private_key=private_key,
                                       identity_file=identity_file,
                                       password=password)
@@ -73,7 +73,7 @@ class TestSSH(unittest.TestCase):
 
     def test_execute(self):
         """Test the ssh.execute function"""
-        ip = "a.b.c.d"
+        ip_addr = "a.b.c.d"
         port = 44
         username = 'not-root'
         timeout = 15
@@ -89,7 +89,7 @@ class TestSSH(unittest.TestCase):
 
         #Stub out _connect call
         self.mox.StubOutWithMock(ssh, 'connect')
-        ssh.connect(ip, port=port, username=username, timeout=timeout,
+        ssh.connect(ip_addr, port=port, username=username, timeout=timeout,
                     private_key=private_key, identity_file=identity_file,
                     password=password).AndReturn(client)
         client.exec_command('test').AndReturn((None, stdout, stderr))
@@ -100,7 +100,7 @@ class TestSSH(unittest.TestCase):
             'stderr': "Errors",
         }
         self.mox.ReplayAll()
-        results = ssh.execute(ip, 'test', username, timeout=timeout,
+        results = ssh.execute(ip_addr, 'test', username, timeout=timeout,
                               password=password, identity_file=identity_file,
                               port=port, private_key=private_key)
 
@@ -109,7 +109,7 @@ class TestSSH(unittest.TestCase):
 
     def test_execute_2(self):
         """Test the ssh.execute_t function"""
-        ip = "a.b.c.d"
+        ip_addr = "a.b.c.d"
         port = 44
         username = 'not-root'
         timeout = 15
@@ -125,7 +125,7 @@ class TestSSH(unittest.TestCase):
 
         #Stub out _connect call
         self.mox.StubOutWithMock(ssh, 'connect')
-        ssh.connect(ip, port=port, username=username, timeout=timeout,
+        ssh.connect(ip_addr, port=port, username=username, timeout=timeout,
                     private_key=private_key, identity_file=identity_file,
                     password=password).AndReturn(client)
         client.exec_command('test').AndReturn((None, stdout, stderr))
@@ -136,7 +136,7 @@ class TestSSH(unittest.TestCase):
             'stderr': "Errors",
         }
         self.mox.ReplayAll()
-        results = ssh.execute_2({}, ip, 'test', username, timeout=timeout,
+        results = ssh.execute_2({}, ip_addr, 'test', username, timeout=timeout,
                                 password=password, identity_file=identity_file,
                                 port=port, private_key=private_key)
 

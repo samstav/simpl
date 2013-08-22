@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=R0904
 """Test Stub for Workflows."""
 import copy
 import json
@@ -153,13 +153,13 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         # Load app.yaml, substitute variables
         path = os.path.join(os.path.dirname(__file__), '..', 'examples',
                             'app.yaml')
-        with file(path) as f:
-            source = f.read().decode('utf-8')
+        with file(path) as the_file:
+            source = the_file.read().decode('utf-8')
 
-        t = Template(source)
+        template = Template(source)
         combined = copy.copy(ENV_VARS)
         combined.update(os.environ)
-        parsed = t.safe_substitute(**combined)
+        parsed = template.safe_substitute(**combined)
         app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
                                        Dumper=yaml.SafeDumper))
         app['id'] = 'DEP-ID-1000'
