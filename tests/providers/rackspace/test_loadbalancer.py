@@ -386,7 +386,7 @@ class TestCeleryTasks(unittest.TestCase):
         results = loadbalancer.sync_resource_task(
             context, resource, resource_key, lb_api_mock)
 
-        lb_api_mock.loadbalancers.get.assert_called_once_with(lb.id)
+        lb_api_mock.get.assert_called_once_with(lb.id)
         self.assertDictEqual(results, expected)
         lb_api_mock.get.assert_called_with(lb.id)
 
@@ -418,9 +418,8 @@ class TestCeleryTasks(unittest.TestCase):
         }
 
         lb_api_mock = mock.Mock()
-        lb_api_mock.loadbalancers = mock.Mock()
 
-        lb_api_mock.loadbalancers.get.return_value = lb
+        lb_api_mock.get.return_value = lb
 
         with mock.patch.object(loadbalancer.Provider,
                                'generate_resource_tag',
@@ -429,7 +428,7 @@ class TestCeleryTasks(unittest.TestCase):
                 context, resource, resource_key, lb_api_mock
             )
 
-        lb_api_mock.loadbalancers.get.assert_called_once_with(lb.id)
+        lb_api_mock.get.assert_called_once_with(lb.id)
         lb.set_metadata.assert_called_once_with({"test": "me"})
 
 

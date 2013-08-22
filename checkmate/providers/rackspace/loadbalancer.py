@@ -28,6 +28,7 @@ from checkmate.providers.rackspace.dns import parse_domain
 from checkmate.utils import (
     match_celery_logging,
     get_class_name,
+    merge_dictionary,
 )
 
 
@@ -1003,17 +1004,30 @@ def sync_resource_task(context, resource, resource_key, api=None):
                 get_class_name(exceptions.CheckmateException),
                 exceptions.UNEXPECTED_ERROR,
                 '')
+        lb = api.get(instance_id)
 
-        clb = api.get(instance_id)
+        try:
+            meta = lb.get_metadata()
+            if "RAX-CHECKMATE" not in meta.keys():
+                checkmate_tag = Provider.generate_resource_tag(
+                    context['base_url'], context['tenant'],
+                    context['deployment'], resource['index']
+                )
+                new_meta = merge_dictionary(meta, checkmate_tag)
+                lb.set_metadata(new_meta)
+        except StandardError as exc:
+            LOG.info("Could not set metadata tag "
+                     "on checkmate managed compute resource")
+            LOG.info(exc)
 
         LOG.info("Marking load balancer instance %s as %s", instance_id,
-                 clb.status)
+                 lb.status)
         return {
             key: {
-                'status': clb.status
+                'status': lb.status
             }
         }
-    except (errors.NotFound, exceptions.CheckmateException):
+    except (pyrax.exceptions.NotFound, exceptions.CheckmateException):
         LOG.info("Marking load balancer instance %s as DELETED", instance_id)
         return {
             key: {
