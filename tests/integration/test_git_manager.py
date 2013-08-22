@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,R0201,R0904,R0913,W0212
 """Tests for git integration (specific)."""
 import os
 import shutil
@@ -239,7 +239,6 @@ class TestGitMiddleware_init_deployment(unittest.TestCase):
     @mock.patch.object(os, 'path')
     @mock.patch.object(git.Repo, 'init')
     @mock.patch.object(manager, 'is_git_repo')
-    #@unittest.skip("Temp skip")
     def test_no_git_repo_no_content(
         self, mock_is_git_repo,
         mock_init, mock_listdir, mock_path, mock_chmod
@@ -249,7 +248,7 @@ class TestGitMiddleware_init_deployment(unittest.TestCase):
             'open',
             mock.mock_open(read_data='foobar'),
             create=True
-        ) as m:
+        ):
             # mocks
             mock_repo = mock.Mock()
             mock_cw = mock.Mock()
@@ -280,7 +279,6 @@ class TestGitMiddleware_init_deployment(unittest.TestCase):
     @mock.patch.object(os, 'path')
     @mock.patch.object(git.Repo, 'init')
     @mock.patch.object(manager, 'is_git_repo')
-    #@unittest.skip("Temp skip")
     def test_no_git_repo_with_file(
             self, mock_is_git_repo,
             mock_init, mock_path, mock_listdir, mock_chmod
@@ -290,7 +288,7 @@ class TestGitMiddleware_init_deployment(unittest.TestCase):
             'open',
             mock.mock_open(read_data='foobar'),
             create=True
-        ) as m:
+        ):
             # mocks
             mock_repo = mock.Mock()
             mock_cw = mock.Mock()
@@ -316,7 +314,6 @@ class TestGitMiddleware_init_deployment(unittest.TestCase):
     @mock.patch.object(os, 'path')
     @mock.patch.object(git.Repo, 'init')
     @mock.patch.object(manager, 'is_git_repo')
-    #@unittest.skip("Temp skip")
     def test_no_git_repo_with_folder(
             self, mock_is_git_repo,
             mock_init, mock_path, mock_listdir, mock_chmod
@@ -326,7 +323,7 @@ class TestGitMiddleware_init_deployment(unittest.TestCase):
             'open',
             mock.mock_open(read_data='foobar'),
             create=True
-        ) as m:
+        ):
             # mocks
             mock_repo = mock.Mock()
             mock_cw = mock.Mock()
@@ -352,7 +349,6 @@ class TestGitMiddleware_init_deployment(unittest.TestCase):
     @mock.patch.object(os, 'path')
     @mock.patch.object(git.Repo, 'init')
     @mock.patch.object(manager, 'is_git_repo')
-    #@unittest.skip("Temp skip")
     def test_no_git_repo_with_submodule(
             self, mock_is_git_repo,
             mock_init, mock_path, mock_listdir, mock_chmod
@@ -362,7 +358,7 @@ class TestGitMiddleware_init_deployment(unittest.TestCase):
             'open',
             mock.mock_open(read_data='foobar'),
             create=True
-        ) as m:
+        ):
             # mocks
             mock_repo = mock.Mock()
             mock_cw = mock.Mock()
@@ -386,7 +382,8 @@ class TestGitMiddleware_init_deployment(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103
 """Tests for server module."""
 import json
 import os
@@ -70,6 +70,7 @@ class TestServer(unittest.TestCase):
     # Functions called multiple times from above
     #
     def rest_exercise(self, model_name):
+        """Exercise REST calls for both json and yaml."""
         id1 = uuid.uuid4().hex[0:7]
         id2 = uuid.uuid4().hex[0:4]
 
@@ -306,6 +307,6 @@ class TestServer(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

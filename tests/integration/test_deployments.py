@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,E1101,R0904,W0212
 """Tests for Deployments."""
 import bottle
 import copy
@@ -1187,6 +1187,7 @@ class TestDeploymentScenarios(unittest.TestCase):
 
     @staticmethod
     def plan_deployment(content):
+        """Helper method to kick off plan deployment."""
         deployment = Deployment(yaml_to_dict(content))
         return Manager.plan(deployment, RequestContext())
 
@@ -1697,7 +1698,8 @@ class TestCeleryTasks(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

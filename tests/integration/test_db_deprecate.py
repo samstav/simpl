@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=W0212
 """Base tests for all Database drivers."""
 import logging
 import os
@@ -183,9 +183,10 @@ class TestDatabase(unittest.TestCase):
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).update({'locked': time.time()})
 
-        e = self.klass(id=self.default_deployment['id'], body=body,
-                       tenant_id='T1000', secrets=secrets, locked=time.time())
-        self.driver.session.add(e)
+        data_to_write = self.klass(id=self.default_deployment['id'], body=body,
+                                   tenant_id='T1000', secrets=secrets,
+                                   locked=time.time())
+        self.driver.session.add(data_to_write)
         self.driver.session.commit()
 
         with self.assertRaises(DatabaseTimeoutException):
@@ -202,9 +203,9 @@ class TestDatabase(unittest.TestCase):
         body, secrets = extract_sensitive_data(self.default_deployment)
 
         #insert without locked field
-        e = self.klass(id=self.default_deployment['id'], body=body,
-                       tenant_id='T1000', secrets=secrets)
-        self.driver.session.add(e)
+        data_to_write = self.klass(id=self.default_deployment['id'], body=body,
+                                   tenant_id='T1000', secrets=secrets)
+        self.driver.session.add(data_to_write)
         self.driver.session.commit()
 
         #save, should get a locked here
@@ -229,9 +230,9 @@ class TestDatabase(unittest.TestCase):
         body, secrets = extract_sensitive_data(self.default_deployment)
 
         #insert without locked field
-        e = self.klass(id=self.default_deployment['id'], body=body,
-                       tenant_id='T1000', secrets=secrets)
-        self.driver.session.add(e)
+        data_to_write = self.klass(id=self.default_deployment['id'], body=body,
+                                   tenant_id='T1000', secrets=secrets)
+        self.driver.session.add(data_to_write)
         self.driver.session.commit()
 
         #save, should get a _locked here
@@ -303,6 +304,7 @@ class TestDatabase(unittest.TestCase):
         self.assertTrue(stored_object.lock_timestamp > 0)
 
     def delete(self, klass, obj_id):
+        """Helper method to delete a filter object."""
         filter_obj = (self.driver
                           .session
                           .query(klass)
@@ -470,7 +472,8 @@ class TestDatabase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])
