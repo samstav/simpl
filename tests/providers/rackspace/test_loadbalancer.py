@@ -306,7 +306,6 @@ class TestCeleryTasks(unittest.TestCase):
 
         ret = loadbalancer.delete_lb_task(
             context, '1', 'load-balancer', 'ORD', api=api)
-        LOG.info(ret)
         self.assertDictEqual(expect, ret)
         mock_postback.assert_called_with(context['deployment'], expect)
 
