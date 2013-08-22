@@ -1,4 +1,3 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 """Tests for Deployment Planning."""
 import unittest
 

@@ -1,4 +1,3 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 """Tests for the Deployments class."""
 import unittest
 
@@ -22,8 +21,8 @@ class TestDeployments(unittest.TestCase):
         driver = self.mox.CreateMockAnything()
         driver.get_deployment(deployment.id).AndReturn(entity)
 
-        Deployment = self.mox.CreateMockAnything()
-        Deployment(entity).AndReturn(deployment)
+        mock_deployment = self.mox.CreateMockAnything()
+        mock_deployment(entity).AndReturn(deployment)
 
         deployment.environment().AndReturn(env)
 
@@ -59,7 +58,7 @@ class TestDeployments(unittest.TestCase):
         provider = self.mox.CreateMockAnything()
         env.select_provider(context, resource=resources["0"].get('type'))\
                                               .AndReturn(provider)
-        result = provider.get_resource_status(context, deployment.id,
+        provider.get_resource_status(context, deployment.id,
                                               resources["0"], "0")\
                                               .AndReturn(expected1)
 

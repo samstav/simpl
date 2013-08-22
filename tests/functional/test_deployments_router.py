@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,W0212
 """Tests for the Deployments Router."""
 import mock
 import unittest
@@ -11,6 +11,7 @@ from checkmate.exceptions import CheckmateValidationException
 class TestPostDeployment_content_to_deployment(unittest.TestCase):
     @staticmethod
     def expected_deployment(d_id='Dtest'):
+        """Default expected deployment."""
         return {
             'status': 'NEW',
             'created': '2013-07-15 21:07:00 +0000',
