@@ -21,7 +21,7 @@ from checkmate import deployments
 
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate import exceptions
-from checkmate.middleware import RequestContext
+from checkmate import middleware
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
 from checkmate.providers.rackspace.dns import parse_domain
@@ -430,7 +430,7 @@ class Provider(ProviderBase):
         dom_id = resource.get("instance", {}).get("domain_id")
         rec_id = resource.get("instance", {}).get("record_id")
         region = resource.get("region")
-        if isinstance(context, RequestContext):
+        if isinstance(context, middleware.RequestContext):
             context = context.get_queued_task_dict(deployment=deployment_id,
                                                    resource=key)
         else:
@@ -603,7 +603,7 @@ class Provider(ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'load-balancer':
-            algorithms = _get_algorithms(api_endpoint, context.auth_token)
+            algorithms = _get_algorithms(context)
             options = {
                 'algorithm': {
                     'type': 'list',
@@ -628,7 +628,7 @@ class Provider(ProviderBase):
 
             # provide list of available load balancer types
 
-            protocols = _get_protocols(api_endpoint, context.auth_token)
+            protocols = _get_protocols(context)
             protocols = [p.lower() for p in protocols]
             for protocol in protocols:
                 item = {'id': protocol, 'is': 'load-balancer',
@@ -728,74 +728,66 @@ class Provider(ProviderBase):
     def connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
         #FIXME: figure out better serialization/deserialization scheme
+        
         if isinstance(context, dict):
-            context = RequestContext(**context)
+            context = middleware.RequestContext(**context)
+        elif not isinstance(context, middleware.RequestContext):
+            message = ("Context passed into connect is an unsupported type "
+                       "%s." % type(context))
+            raise exceptions.CheckmateException(message)
         if not context.auth_token:
             raise exceptions.CheckmateNoTokenError()
 
-        # Make sure we use airport codes (translate cities to that)
         if region in REGION_MAP:
             region = REGION_MAP[region]
-
         if not region:
             region = getattr(context, 'region', None)
             if not region:
-                region = Provider.find_a_region(context.catalog)
-            if not region:
-                raise exceptions.CheckmateException(
-                    "Unable to locate a load-balancer endpoint")
+                region = Provider.find_a_region(context.catalog) or 'DFW'
 
-        #TODO: instead of hacking auth using a token, submit patch upstream
-        url = Provider.find_url(context.catalog, region)
-        if not url:
-            raise exceptions.CheckmateException(
-                "Unable to locate region url for LBaaS for region '%s'" %
-                region)
-        api = cloudlb.CloudLoadBalancer(context.username, 'dummy', region)
-        api.client.auth_token = context.auth_token
-        api.client.region_account_url = url
+        if not pyrax.get_setting("identity_type"):
+            pyrax.set_setting("identity_type", "rackspace")
 
-        return api
+        pyrax.auth_with_token(context.auth_token, context.tenant,
+                              context.username, region)
+
+        return pyrax.cloud_loadbalancers
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE,
                backing_store=REDIS, backing_store_key='rax.lb.algorithms')
-def _get_algorithms(api_endpoint, auth_token):
+def _get_algorithms(context):
     '''Ask CLB for Algorithms.'''
     # the region must be supplied but is not used
     try:
-        api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
-        api.client.auth_token = auth_token
-        api.client.region_account_url = api_endpoint
+        api = Provider.connect(context)
         LOG.info("Calling Cloud Load Balancers to get algorithms for %s",
-                 api.client.region_account_url)
-        results = api.get_algorithms()
-        LOG.debug("Found Load Balancer algorithms for %s: %s", api_endpoint,
-                  results)
-    except Exception as exc:
+                 api.region_name)
+        results = api.algorithms
+        LOG.debug("Found Load Balancer algorithms for %s: %s",
+                  api.management_url, results)
+    except StandardError as exc:
         LOG.error("Error retrieving Load Balancer algorithms from %s: %s",
-                  api_endpoint, exc)
+                  context['region'], exc)
         raise
     return results
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE,
                backing_store=REDIS, backing_store_key='rax.lb.protocols')
-def _get_protocols(api_endpoint, auth_token):
+def _get_protocols(context):
     '''Ask CLB for Protocols.'''
     # the region must be supplied but is not used
     try:
-        api = cloudlb.CloudLoadBalancer('ignore', 'ignore', 'DFW')
-        api.client.auth_token = auth_token
-        api.client.region_account_url = api_endpoint
+        api = Provider.connect(context)
         LOG.info("Calling Cloud Load Balancers to get protocols for %s",
-                 api.client.region_account_url)
-        results = api.get_protocols()
-        LOG.debug("Found Load Balancer protocols for %s: %s", api_endpoint,
-                  results)
-    except Exception as exc:
+                 api.management_url)
+        results = api.protocols
+        LOG.debug("Found Load Balancer protocols for %s: %s",
+                  api.management_url, results)
+    except StandardError as exc:
         LOG.error("Error retrieving Load Balancer protocols from %s: %s",
-                  api_endpoint, exc)
+                  context['region'], exc)
         raise
     return results
 
@@ -853,24 +845,24 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     if not port:
         port = 443 if "https" == protocol.lower() else 80
 
-    fakenode = cloudlb.Node(address=PLACEHOLDER_IP, condition="ENABLED",
+    fakenode = api.Node(address=PLACEHOLDER_IP, condition="ENABLED",
                             port=port)
 
     # determine new or shared vip
     vip = None
     if not parent_lb:
-        vip = cloudlb.VirtualIP(type=vip_type)
+        vip = api.VirtualIP(type=vip_type)
     else:
         # share vip with another lb in the deployment
-        other_lb = api.loadbalancers.get(parent_lb)
+        other_lb = api.get(parent_lb)
         if not other_lb:
             return create_loadbalancer.retry(
                 exc=exceptions.CheckmateException(
                     "Could not locate load balancer %s for shared vip" %
                     parent_lb))
-        for _vip in other_lb.virtualIps:
+        for _vip in other_lb.virtual_ips:
             if vip_type.upper() == _vip.type:
-                vip = cloudlb.VirtualIP(id=_vip.id)
+                vip = api.VirtualIP(id=_vip.id)
                 break
         if not vip:
             create_loadbalancer.retry(
@@ -890,14 +882,14 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             #   "meta" : {"key" : "value" , "key2" : "value2"}
             for key in meta:
                 new_meta.append({"key": key, "value": meta[key]})
-            loadbalancer = api.loadbalancers.create(
+            loadbalancer = api.create(
                 name=name, port=port, protocol=protocol.upper(),
-                nodes=[fakenode], virtualIps=[vip],
+                nodes=[fakenode], virtual_ips=[vip],
                 algorithm=algorithm, metadata=new_meta)
         else:
-            loadbalancer = api.loadbalancers.create(
+            loadbalancer = api.create(
                 name=name, port=port, protocol=protocol.upper(),
-                nodes=[fakenode], virtualIps=[vip], algorithm=algorithm)
+                nodes=[fakenode], virtual_ips=[vip], algorithm=algorithm)
         LOG.info("Created load balancer %s for deployment %s", loadbalancer.id,
                  deployment_id)
     except KeyError as exc:
@@ -913,9 +905,9 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     except errors.RateLimit as exc:
         LOG.info("API Limit reached creating a load balancer for deployment "
                  "%s", deployment_id)
-        raise exceptions.CheckmateRetriableException(exc.reason,
+        raise exceptions.CheckmateRetriableException(exc.message,
                                                      get_class_name(exc),
-                                                     exc.reason, '')
+                                                     exc.message, '')
 
     # Put the instance_id in the db as soon as it's available
     instance_id = {
@@ -926,23 +918,23 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     deployments.resource_postback.delay(deployment_id, instance_id)
 
     # update our assigned vip
-    for ip_data in loadbalancer.virtualIps:
-        if ip_data.ipVersion == 'IPV4' and ip_data.type == "PUBLIC":
-            vip = ip_data.address
+    for vips in loadbalancer.virtual_ips:
+        if vips.ip_version == 'IPV4' and vips.type == "PUBLIC":
+            address = vips.address
 
     LOG.debug('Load balancer %s building. VIP = %s', loadbalancer.id, vip)
 
     results = {
         instance_key: {
             'id': loadbalancer.id,
-            'public_ip': vip,
+            'public_ip': address,
             'port': loadbalancer.port,
             'protocol': loadbalancer.protocol,
             'status': "BUILD",
             'interfaces': {
                 'vip': {
-                    'ip': vip,
-                    'public_ip': vip,
+                    'ip': address,
+                    'public_ip': address,
                 }
             }
         }
@@ -1006,7 +998,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
                 get_class_name(exceptions.CheckmateException),
                 exceptions.UNEXPECTED_ERROR,
                 '')
-        lb = api.loadbalancers.get(instance_id)
+        lb = api.get(instance_id)
         # TODO(Nate): Update sync to use postback instead of resource postback
         #and also add in checkmate translated status to resource root
         #instance = {'port': resource['instance']['port'],
@@ -1098,8 +1090,8 @@ def delete_lb_task(context, key, lbid, region, api=None):
 
     dlb = None
     try:
-        dlb = api.loadbalancers.get(lbid)
-    except cloudlb.errors.NotFound:
+        dlb = api.get(lbid)
+    except pyrax.exceptions.NotFound: # TODO(Nate): update with pyrax exc?
         LOG.debug('Load balancer %s was already deleted.', lbid)
         results = {
             instance_key: {
@@ -1176,8 +1168,8 @@ def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
     dlb = None
     LOG.debug("Checking on loadbalancer %s delete status", lb_id)
     try:
-        dlb = api.loadbalancers.get(lb_id)
-    except cloudlb.errors.NotFound:
+        dlb = api.get(lb_id)
+    except pyrax.exceptions.NotFound:
         pass
     if (not dlb) or "DELETED" == dlb.status:
         results = {
@@ -1215,7 +1207,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
             exceptions.UNEXPECTED_ERROR,
             '')
 
-    loadbalancer = api.loadbalancers.get(lbid)
+    loadbalancer = api.get(lbid)
 
     if loadbalancer.status != "ACTIVE":
         exc = exceptions.CheckmateException(
@@ -1258,12 +1250,12 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 
     # Create new node
     if not new_node:
-        node = cloudlb.Node(address=ipaddr, port=port, condition="ENABLED")
+        node = api.Node(address=ipaddr, port=port, condition="ENABLED")
         try:
             results = loadbalancer.add_nodes([node])
             # I don't believe you! Check... this has been unreliable. Possible
             # because we need to refresh nodes
-            lb_fresh = api.loadbalancers.get(lbid)
+            lb_fresh = api.get(lbid)
             if [n for n in lb_fresh.nodes if n.address == ipaddr]:
                 #OK!
                 LOG.info("Added node %s:%s to load balancer %s", ipaddr, port,
@@ -1277,17 +1269,17 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                 exc = exceptions.CheckmateException("Validation failed - "
                                                     "Node was not added")
                 return add_node.retry(exc=exc)
-        except cloudlb.errors.ResponseError, exc:
-            if exc.status == 422:
+        except pyrax.exceptions.ClientException, exc:
+            if exc.http_status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "adding %s (%d %s)", lbid, ipaddr, exc.status,
-                          exc.reason)
+                          "adding %s (%d %s)", lbid, ipaddr, exc.http_status,
+                          exc.message)
                 return add_node.retry(exc=exc)
             LOG.debug("Response error from load balancer %d. Will retry "
-                      "adding %s (%d %s)", lbid, ipaddr, exc.status,
-                      exc.reason)
+                      "adding %s (%d %s)", lbid, ipaddr, exc.http_status,
+                      exc.message)
             return add_node.retry(exc=exc)
-        except Exception, exc:
+        except StandardError, exc:
             LOG.debug("Error adding %s behind load balancer %d. Error: "
                       "%s. Retrying", ipaddr, lbid, str(exc))
             return add_node.retry(exc=exc)
@@ -1300,7 +1292,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                       placeholder.address, placeholder.port, lbid)
         # The lb client exceptions extend Exception and are missed
         # by the generic handler
-        except (errors.CloudlbException, StandardError) as exc:
+        except (pyrax.exceptions.ClientException, StandardError) as exc:
             return add_node.retry(exc=exc)
 
     return results
@@ -1318,7 +1310,7 @@ def delete_node(context, lbid, ipaddr, region, api=None):
     if api is None:
         api = Provider.connect(context, region)
 
-    loadbalancer = api.loadbalancers.get(lbid)
+    loadbalancer = api.get(lbid)
     node_to_delete = None
     for node in loadbalancer.nodes:
         if node.address == ipaddr:
@@ -1327,17 +1319,17 @@ def delete_node(context, lbid, ipaddr, region, api=None):
         try:
             node_to_delete.delete()
             LOG.info('Removed %s from load balancer %s', ipaddr, lbid)
-        except cloudlb.errors.ResponseError, exc:
-            if exc.status == 422:
+        except pyrax.exceptions.ClientException, exc:
+            if exc.http_status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "deleting %s (%s %s)", lbid, ipaddr, exc.status,
-                          exc.reason)
+                          "deleting %s (%s %s)", lbid, ipaddr, exc.http_status,
+                          exc.message)
                 delete_node.retry(exc=exc)
             LOG.debug('Response error from load balancer %d. Will retry '
-                      'deleting %s (%s %s)', lbid, ipaddr, exc.status,
-                      exc.reason)
+                      'deleting %s (%s %s)', lbid, ipaddr, exc.http_status,
+                      exc.message)
             delete_node.retry(exc=exc)
-        except Exception, exc:
+        except StandardError, exc:
             LOG.debug("Error deleting %s from load balancer %s. Error: %s. "
                       "Retrying", ipaddr, lbid, str(exc))
             delete_node.retry(exc=exc)
@@ -1360,10 +1352,10 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
         api = Provider.connect(context, region)
 
     LOG.debug("Setting monitor on lbid: %s", lbid)
-    loadbalancer = api.loadbalancers.get(lbid)
+    loadbalancer = api.get(lbid)
 
     try:
-        hm_monitor = loadbalancer.healthmonitor()
+        '''hm_monitor = loadbalancer.healthmonitor()
         monitor = cloudlb.healthmonitor.HealthMonitor(
             type=mon_type, delay=delay,
             timeout=timeout,
@@ -1371,21 +1363,29 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
             path=path,
             statusRegex=status,
             bodyRegex=body)
-        hm_monitor.add(monitor)
-    except cloudlb.errors.ImmutableEntity as im_ent:
-        LOG.debug("Cannot modify loadbalancer %s yet.", lbid, exc_info=True)
-        set_monitor.retry(exc=im_ent)
-    except cloudlb.errors.ResponseError as response_error:
-        if response_error.status == 422:
+        hm_monitor.add(monitor)'''
+        loadbalancer.add_health_monitor(
+            type=mon_type, delay=delay,
+            timeout=timeout,
+            attemptsBeforeDeactivation=attempts,
+            path=path,
+            statusRegex=status,
+            bodyRegex=body)
+    except pyrax.exceptions.ClientException as response_error:
+        if response_error.http_status == 422:
             LOG.debug("Cannot modify load balancer %s. Will retry setting %s "
-                      "monitor (%s %s)", lbid, type, response_error.status,
-                      response_error.reason)
+                      "monitor (%s %s)", lbid, type,
+                      response_error.http_status, response_error.reason)
             set_monitor.retry(exc=response_error)
         LOG.debug("Response error from load balancer %s. Will retry setting "
-                  "%s monitor (%s %s)", lbid, type, response_error.status,
+                  "%s monitor (%s %s)", lbid, type, response_error.http_status,
                   response_error.reason)
         set_monitor.retry(exc=response_error)
-    except Exception as exc:
+    #except cloudlb.errors.ImmutableEntity as im_ent: #TODO(Nate): unique?
+    except pyrax.exceptions.PyraxException as exc:
+        LOG.debug("Cannot modify loadbalancer %s yet.", lbid, exc_info=True)
+        set_monitor.retry(exc=exc)
+    except StandardError as exc:
         LOG.debug("Error setting %s monitor on load balancer %s. Error: %s. "
                   "Retrying", type, lbid, str(exc))
         set_monitor.retry(exc=exc)
@@ -1417,7 +1417,7 @@ def wait_on_build(context, lbid, region, api=None):
     if api is None:
         api = Provider.connect(context, region)
 
-    loadbalancer = api.loadbalancers.get(lbid)
+    loadbalancer = api.get(lbid)
 
     instance_key = 'instance:%s' % context['resource']
     if loadbalancer.status == "ERROR":

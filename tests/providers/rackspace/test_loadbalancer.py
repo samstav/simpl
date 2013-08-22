@@ -3,7 +3,6 @@
 import logging
 import re
 
-import cloudlb
 import mock
 import mox
 import unittest
@@ -13,7 +12,6 @@ from SpiffWorkflow import Workflow
 from checkmate import deployment as cm_dep
 from checkmate import deployments
 from checkmate.deployments import tasks
-from checkmate import exceptions
 from checkmate import middleware
 from checkmate import providers
 from checkmate.providers import base
@@ -184,8 +182,11 @@ class TestCeleryTasks(unittest.TestCase):
 
     def tearDown(self):
         self.mox.UnsetStubs()
-
-    def test_create_load_balancer(self):
+        
+    @mock.patch.object(deployments.tasks.reset_failed_resource_task, 'delay')
+    @mock.patch.object(deployments.resource_postback, 'delay')
+    def test_create_load_balancer(self, mock_postback_delay,
+                                  mock_reset_delay):
         name = 'fake_lb'
         vip_type = 'SERVICENET'
         protocol = 'notHTTP'
@@ -196,44 +197,43 @@ class TestCeleryTasks(unittest.TestCase):
         status = 'BUILD'
 
         #Mock server
-        lb = self.mox.CreateMockAnything()
+        lb = mock.Mock()
         lb.id = fake_id
         lb.port = 80
         lb.protocol = protocol
         lb.status = status
 
-        ip_data_pub = self.mox.CreateMockAnything()
-        ip_data_pub.ipVersion = 'IPV4'
+        ip_data_pub = mock.Mock()
+        ip_data_pub.ip_version = 'IPV4'
         ip_data_pub.type = 'PUBLIC'
         ip_data_pub.address = public_ip
 
-        ip_data_svc = self.mox.CreateMockAnything()
-        ip_data_svc.ipVersion = 'IPV4'
+        ip_data_svc = mock.Mock()
+        ip_data_svc.ip_version = 'IPV4'
         ip_data_svc.type = 'SERVICENET'
         ip_data_svc.address = servicenet_ip
 
-        lb.virtualIps = [ip_data_pub, ip_data_svc]
+        lb.virtual_ips = [ip_data_pub, ip_data_svc]
+
+        node = mock.Mock()
+        vip = mock.Mock()
 
         context = dict(deployment='DEP', resource='1')
 
         #Stub out postback call
-        self.mox.StubOutWithMock(deployments.resource_postback, 'delay')
-        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
         tasks.reset_failed_resource_task.delay(context['deployment'],
                                                context['resource'])
 
         #Stub out set_monitor call
-        self.mox.StubOutWithMock(loadbalancer, 'set_monitor')
+        #self.mox.StubOutWithMock(loadbalancer, 'set_monitor')
 
         #Create appropriate api mocks
-        api_mock = self.mox.CreateMockAnything()
-        api_mock.loadbalancers = self.mox.CreateMockAnything()
-        api_mock.loadbalancers.create(name=name, port=80,
-                                      protocol=protocol.upper(),
-                                      nodes=[mox.IsA(cloudlb.Node)],
-                                      virtualIps=[mox.IsA(cloudlb.VirtualIP)],
-                                      algorithm='ROUND_ROBIN').AndReturn(lb)
-
+        api_mock = mock.Mock()
+        api_mock.Node.return_value = node
+        api_mock.VirtualIP.return_value = vip
+        api_mock.create.return_value = lb
+        
+        
         expected = {
             'instance:%s' % context['resource']: {
                 'id': fake_id,
@@ -249,26 +249,28 @@ class TestCeleryTasks(unittest.TestCase):
                 }
             }
         }
-        instance_id = {
-            'instance:%s' % context['resource']: {
-                'id': fake_id
-            }
-        }
+    
 
-        deployments.resource_postback.delay(context['deployment'],
-                                            instance_id).AndReturn(True)
-        deployments.resource_postback.delay(context['deployment'],
-                                            expected).AndReturn(True)
+        mock_postback_delay.return_value = True
 
-        self.mox.ReplayAll()
         results = loadbalancer.create_loadbalancer(context, name, vip_type,
                                                    protocol, region,
                                                    api=api_mock)
 
         self.assertDictEqual(results, expected)
-        self.mox.VerifyAll()
+        api_mock.create.assert_called_with(name=name,port=80,
+                                           protocol=protocol.upper(),
+                                           nodes=[node], 
+                                           virtual_ips=[vip],
+                                           algorithm='ROUND_ROBIN')
 
-    def test_delete_lb_task(self):
+        first_postback = mock.call('DEP', {'instance:1': {'id': 121212}})
+        second_postback = mock.call('DEP', expected)
+        self.assertEqual(mock_postback_delay.mock_calls[0], first_postback)
+        self.assertEqual(mock_postback_delay.mock_calls[1], second_postback)
+
+    @mock.patch.object(deployments.resource_postback, 'delay')
+    def test_delete_lb_task(self, mock_postback):
         """Test delete task."""
         context = {"deployment": "1234"}
         expect = {
@@ -277,27 +279,19 @@ class TestCeleryTasks(unittest.TestCase):
                 "status-message": "Waiting on resource deletion"
             }
         }
-        api = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(deployments, 'resource_postback')
-        deployments.resource_postback.delay('1234', {
-            'instance:1': {
-                'status': 'DELETING',
-                'status-message': 'Waiting on resource deletion',
-            }
-        })
-        api.loadbalancers = self.mox.CreateMockAnything()
-        m_lb = self.mox.CreateMockAnything()
+        
+        api = mock.Mock()
+        m_lb = mock.Mock()
         m_lb.status = 'ACTIVE'
-        m_lb.__str__().AndReturn("Mock LB")
-        m_lb.delete().AndReturn(True)
-        api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
-        self.mox.ReplayAll()
+        m_lb.delete.return_value = True
+        api.get.return_value = m_lb
         ret = loadbalancer.delete_lb_task(
             context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
         self.assertDictEqual(expect, ret)
-        self.mox.VerifyAll()
+        mock_postback.assert_called_with(context['deployment'], expect)
 
-    def test_delete_lb_task_for_building_loadbalancer(self):
+    @mock.patch.object(deployments.resource_postback, 'delay')
+    def test_delete_lb_task_for_building_loadbalancer(self, mock_postback):
         """Test delete task."""
         context = {"deployment": "1234"}
         expect = {
@@ -309,29 +303,20 @@ class TestCeleryTasks(unittest.TestCase):
                                   "to ACTIVE, ERROR or SUSPENDED"
             }
         }
-        api = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(deployments, 'resource_postback')
-        deployments.resource_postback.delay('1234', {
-            'instance:1': {
-                'status': 'DELETING',
-                'status-message': "Cannot delete LoadBalancer load-balancer, "
-                                  "as it currently is in BUILD state."
-                                  " Waiting for load-balancer status to move "
-                                  "to ACTIVE, ERROR or SUSPENDED",
-            }
-        })
-        api.loadbalancers = self.mox.CreateMockAnything()
-        m_lb = self.mox.CreateMockAnything()
+        api = mock.Mock()
+
+        m_lb = mock.Mock()
         m_lb.status = 'BUILD'
-        m_lb.__str__().AndReturn("Mock LB")
-        api.loadbalancers.get('load-balancer').AndReturn(m_lb)
-        self.mox.ReplayAll()
+        api.get.return_value = m_lb
+
         ret = loadbalancer.delete_lb_task(
             context, '1', 'load-balancer', 'ORD', api=api)
+        LOG.info(ret)
         self.assertDictEqual(expect, ret)
-        self.mox.VerifyAll()
-
-    def test_wait_on_lb_delete(self):
+        mock_postback.assert_called_with(context['deployment'], expect)
+    
+    @mock.patch.object(deployments.resource_postback, 'delay')
+    def test_wait_on_lb_delete(self, mock_postback):
         """Test wait on delete task."""
         context = {"deployment": "1234"}
         expect = {
@@ -340,42 +325,35 @@ class TestCeleryTasks(unittest.TestCase):
                 'status-message': ''
             }
         }
-        api = self.mox.CreateMockAnything()
-        api.loadbalancers = self.mox.CreateMockAnything()
-        m_lb = self.mox.CreateMockAnything()
+        api = mock.Mock()
+        m_lb = mock.Mock()
         m_lb.status = 'DELETED'
-        api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
-        self.mox.StubOutWithMock(deployments, 'resource_postback')
-        deployments.resource_postback.delay('1234', {
-            'instance:1': {
-                'status': 'DELETED',
-                'status-message': '',
-            }
-        })
-        self.mox.ReplayAll()
+        api.get.return_value = m_lb
+        
         ret = loadbalancer.wait_on_lb_delete_task(context, '1',
                                                   'lb14nuai-asfjb', 'ORD',
                                                   api=api)
         self.assertDictEqual(expect, ret)
-        self.mox.VerifyAll()
+        mock_postback.assert_called_with(context['deployment'], expect)
 
-    def test_wait_on_lb_delete_still(self):
+    @mock.patch.object(loadbalancer.exceptions, 'CheckmateException')
+    @mock.patch.object(loadbalancer.wait_on_lb_delete_task, 'retry')
+    def test_wait_on_lb_delete_still(self, mock_retry, mock_exception):
         """Test wait on delete task when not deleted."""
         context = {'deployment': '1234'}
-        api = self.mox.CreateMockAnything()
-        api.loadbalancers = self.mox.CreateMockAnything()
-        m_lb = self.mox.CreateMockAnything()
+        api = mock.Mock()
+        m_lb = mock.Mock()
         m_lb.status = 'DELETING'
-        api.loadbalancers.get('lb14nuai-asfjb').AndReturn(m_lb)
-        self.mox.StubOutWithMock(loadbalancer.wait_on_lb_delete_task, 'retry')
-        loadbalancer.wait_on_lb_delete_task.retry(
-            exc=mox.IsA(exceptions.CheckmateException)).AndReturn(None)
 
-        self.mox.ReplayAll()
+        api.get.return_value = m_lb
+
         loadbalancer.wait_on_lb_delete_task(
             context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
-        self.mox.VerifyAll()
-
+        
+        mock_exception.assert_called_with('Waiting on state DELETED. Load '
+                                          'balancer is in state DELETING',)
+        assert mock_retry.called
+        
     def test_lb_sync_resource_task(self):
         """Tests db sync_resource_task via mock."""
         #Mock instance
@@ -403,9 +381,7 @@ class TestCeleryTasks(unittest.TestCase):
         }
 
         lb_api_mock = mock.Mock()
-        lb_api_mock.loadbalancers = mock.Mock()
-
-        lb_api_mock.loadbalancers.get.return_value = lb
+        lb_api_mock.get.return_value = lb
 
         expected = {'instance:1': {"status": "ERROR"}}
 
@@ -414,6 +390,7 @@ class TestCeleryTasks(unittest.TestCase):
 
         lb_api_mock.loadbalancers.get.assert_called_once_with(lb.id)
         self.assertDictEqual(results, expected)
+        lb_api_mock.get.assert_called_with(lb.id)
 
     def test_lb_sync_resource_task_adds_metadata(self):
         """Tests lb sync_resource_task adds checkmate metadata tag to
@@ -458,6 +435,96 @@ class TestCeleryTasks(unittest.TestCase):
         lb.set_metadata.assert_called_once_with({"test": "me"})
 
 
+class TestGetAlgorithms(unittest.TestCase):
+    """Class for testing _get_algorithms method."""
+    
+    def setUp(self):
+        """Setup reuse variables."""
+        self.api = mock.Mock()
+        self.context = middleware.RequestContext(**{})
+
+    @mock.patch.object(loadbalancer.LOG, 'debug')
+    @mock.patch.object(loadbalancer.LOG, 'info')
+    @mock.patch.object(loadbalancer.Provider, 'connect')
+    def test_get_algorithms_success(self, mock_connect, mock_log_info,
+                                    mock_log_debug):
+        """Verifies all method calls and results."""
+        mock_connect.return_value = self.api
+        self.api.management_url = 'localhost:8080'
+        self.api.region_name = 'ORD'
+        self.api.algorithms = ['RANDOM', 'ROUND_ROBIN']
+
+        results = loadbalancer._get_algorithms(self.context)
+        self.assertEqual(results, self.api.algorithms)
+        mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
+                                         'algorithms for %s', 'ORD')
+        mock_log_debug.assert_called_with('Found Load Balancer algorithms for '
+                                          '%s: %s', 'localhost:8080',
+                                          ['RANDOM', 'ROUND_ROBIN'])
+
+    @mock.patch.object(loadbalancer.LOG, 'error')
+    @mock.patch.object(loadbalancer.Provider, 'connect')
+    def test_get_algorithms_exception(self, mock_connect, mock_logger):
+        """Verifies method calls when StandardError raised."""
+        mock_exception = StandardError('test error')
+        mock_connect.side_effect = mock_exception
+
+        # caching decorator re-raises so not able to assertRaises
+        try:
+            loadbalancer._get_algorithms(self.context)
+        except StandardError as exc:
+            self.assertEqual(str(exc), 'test error')
+
+        mock_logger.assert_called_with('Error retrieving Load Balancer '
+                                       'algorithms from %s: %s', None,
+                                       mock_exception)
+
+
+class TestGetProtocols(unittest.TestCase):
+    """Class for testing _get_protocols method."""
+    
+    def setUp(self):
+        """Setup reuse variables."""
+        self.api = mock.Mock()
+        self.context = middleware.RequestContext(**{})
+
+    @mock.patch.object(loadbalancer.LOG, 'debug')
+    @mock.patch.object(loadbalancer.LOG, 'info')
+    @mock.patch.object(loadbalancer.Provider, 'connect')
+    def test_get_protocols_success(self, mock_connect, mock_log_info,
+                                    mock_log_debug):
+        """Verifies all method calls and results."""
+        mock_connect.return_value = self.api
+        self.api.management_url = 'localhost:8080'
+        self.api.region_name = 'ORD'
+        self.api.protocols = ['HTTP', 'HTTPS']
+
+        results = loadbalancer._get_protocols(self.context)
+        self.assertEqual(results, self.api.protocols)
+        mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
+                                         'protocols for %s', 'ORD')
+        mock_log_debug.assert_called_with('Found Load Balancer protocols for '
+                                          '%s: %s', 'localhost:8080',
+                                          ['HTTP', 'HTTPS'])
+
+    @mock.patch.object(loadbalancer.LOG, 'error')
+    @mock.patch.object(loadbalancer.Provider, 'connect')
+    def test_get_algorithms_exception(self, mock_connect, mock_logger):
+        """Verifies method calls when StandardError raised."""
+        mock_exception = StandardError('test error')
+        mock_connect.side_effect = mock_exception
+
+        # caching decorator re-raises so not able to assertRaises
+        try:
+            loadbalancer._get_protocol(self.context)
+        except StandardError as exc:
+            self.assertEqual(str(exc), 'test error')
+
+        mock_logger.assert_called_with('Error retrieving Load Balancer '
+                                       'protocols from %s: %s', None,
+                                       mock_exception)
+        
+        
 class TestBasicWorkflow(test.StubbedWorkflowBase):
     """Test that workflow tasks are generated and workflow completes."""
     def setUp(self):
