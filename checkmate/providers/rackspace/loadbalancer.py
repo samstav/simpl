@@ -28,7 +28,6 @@ from checkmate.providers.rackspace.dns import parse_domain
 from checkmate.utils import (
     match_celery_logging,
     get_class_name,
-    merge_dictionary
 )
 
 
@@ -90,6 +89,7 @@ class Provider(ProviderBase):
 
     def _get_connection_params(self, connections, deployment, index,
                                resource_type, service):
+        """Deployment connection parameters."""
         relation = connections[connections.keys()[index]]['relation-key']
         inbound = deployment.get_setting("inbound",
                                          resource_type=resource_type,
@@ -163,6 +163,7 @@ class Provider(ProviderBase):
 
     def _support_unencrypted(self, deployment, protocol, resource_type=None,
                              service=None):
+        """Unencrypted protocol support."""
         values = [False]
         if protocol in PROTOCOL_PAIRS:
             for setting in ['allow_insecure', 'allow_unencrypted']:
@@ -180,6 +181,7 @@ class Provider(ProviderBase):
         return reduce(lambda x, y: x | y, values)
 
     def _handle_dns(self, deployment, service, resource_type="load-balancer"):
+        """Checks if DNS enabled in blueprint."""
         _dns = str(deployment.get_setting("create_dns",
                                           resource_type=resource_type,
                                           service_name=service,
@@ -190,6 +192,7 @@ class Provider(ProviderBase):
                          backing_store=REDIS,
                          backing_store_key='rax.lb.limits')
     def _get_abs_limits(self, username, auth_token, api_endpoint, region):
+        """Get LB absolute limits."""
         api = cloudlb.CloudLoadBalancer(username, 'ignore', region)
         api.client.auth_token = auth_token
         api.client.region_account_url = api_endpoint
@@ -206,7 +209,7 @@ class Provider(ProviderBase):
         max_nodes = abs_limits.get("NODE_LIMIT", sys.maxint)
         max_lbs = abs_limits.get("LOADBALANCER_LIMIT", sys.maxint)
         clb = self.connect(context, region=region)
-        cur_lbs = len(clb.loadbalancers.list() or [])
+        cur_lbs = len(clb.list() or [])
         avail_lbs = max_lbs - cur_lbs
         req_lbs = len(resources or {})
         if avail_lbs < req_lbs:
@@ -503,6 +506,7 @@ class Provider(ProviderBase):
 
     def _add_node_connection(self, resource, key, relation, relation_key,
                              wfspec, deployment, context, interface):
+        """Workflow gen for adding LB Node."""
         comp = self.find_components(context, id="rsCloudLB")
         if not comp:
             error_message = "Could not locate component for id 'rsCloudLB'"
@@ -571,8 +575,8 @@ class Provider(ProviderBase):
         and return one.
         '''
 
-        # TODO: maybe implement this an on_get_catalog so we don't have to do
-        #        this for every provider
+        # TODO(any): maybe implement this an on_get_catalog so we don't have to
+        #        do this for every provider
         results = ProviderBase.get_catalog(self, context,
                                            type_filter=type_filter)
         if results:
@@ -644,7 +648,7 @@ class Provider(ProviderBase):
 
             # add our custom protocol for handling both http and https on same
             # vip
-            # TODO: add support for arbitrary combinations of secure and
+            # TODO(any): add support for arbitrary combinations of secure and
             #       unsecure protocols (ftp/ftps for example)
             if "http_and_https" not in protocols:
                 protocols.extend(["http_and_https"])
@@ -728,7 +732,6 @@ class Provider(ProviderBase):
     def connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
         #FIXME: figure out better serialization/deserialization scheme
-        
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
         elif not isinstance(context, middleware.RequestContext):
@@ -846,7 +849,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
         port = 443 if "https" == protocol.lower() else 80
 
     fakenode = api.Node(address=PLACEHOLDER_IP, condition="ENABLED",
-                            port=port)
+                        port=port)
 
     # determine new or shared vip
     vip = None
@@ -948,6 +951,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
 @task
 @statsd.collect
 def collect_record_data(deployment_id, resource_key, record):
+    """Validates DNS record passed in."""
     assert deployment_id, "No deployment id specified"
     assert resource_key, "No resource key specified"
     assert record, "No record specified"
@@ -976,6 +980,7 @@ def collect_record_data(deployment_id, resource_key, record):
 @task
 @statsd.collect
 def sync_resource_task(context, resource, resource_key, api=None):
+    """Sync provider resource status with deployment."""
     match_celery_logging(LOG)
     key = "instance:%s" % resource_key
     if context.get('simulation') is True:
@@ -998,37 +1003,14 @@ def sync_resource_task(context, resource, resource_key, api=None):
                 get_class_name(exceptions.CheckmateException),
                 exceptions.UNEXPECTED_ERROR,
                 '')
-        lb = api.get(instance_id)
-        # TODO(Nate): Update sync to use postback instead of resource postback
-        #and also add in checkmate translated status to resource root
-        #instance = {'port': resource['instance']['port'],
-        #            'protocol': resource['instance']['protocol']}
-        #if hasattr(lb, 'port') and resource['instance']['port'] != lb.port:
-        #    instance['port'] = lb.port
-        #if hasattr(lb, 'port') and
-        #   resource['instance']['protocol'] != lb.protocol:
-        #    instance['protocol'] = lb.protocol
 
-        try:
-            meta = lb.get_metadata()
-            if "RAX-CHECKMATE" not in meta.keys():
-                checkmate_tag = Provider.generate_resource_tag(
-                    context['base_url'], context['tenant'],
-                    context['deployment'], resource['index']
-                )
-                new_meta = merge_dictionary(meta, checkmate_tag)
-                lb.set_metadata(new_meta)
-        except Exception as exc:
-            LOG.info("Could not set metadata tag "
-                     "on checkmate managed compute resource")
-            LOG.info(exc)
+        clb = api.get(instance_id)
 
         LOG.info("Marking load balancer instance %s as %s", instance_id,
-                 lb.status)
+                 clb.status)
         return {
             key: {
-                'status': lb.status
-                #'instance': instance
+                'status': clb.status
             }
         }
     except (errors.NotFound, exceptions.CheckmateException):
@@ -1058,6 +1040,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         return results
 
     def on_failure(exc, task_id, args, kwargs, einfo):
+        """Task failure."""
         dep_id = args[0].get('deployment')
         results = {
             "instance:%s" % args[1]: {
@@ -1091,7 +1074,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
     dlb = None
     try:
         dlb = api.get(lbid)
-    except pyrax.exceptions.NotFound: # TODO(Nate): update with pyrax exc?
+    except pyrax.exceptions.NotFound:
         LOG.debug('Load balancer %s was already deleted.', lbid)
         results = {
             instance_key: {
@@ -1101,7 +1084,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
         }
 
     if dlb:
-        LOG.debug("Found load balancer %s [%s] to delete" % (dlb, dlb.status))
+        LOG.debug("Found load balancer %s [%s] to delete", dlb, dlb.status)
         if dlb.status in ("ACTIVE", "ERROR", "SUSPENDED"):
             LOG.debug('Deleting Load balancer %s.', lbid)
             dlb.delete()
@@ -1125,6 +1108,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
 @task(default_retry_delay=2, max_retries=60)
 @statsd.collect
 def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
+    """DELETED status check."""
     match_celery_logging(LOG)
     inst_key = "instance:%s" % key
     results = {}
@@ -1355,15 +1339,6 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
     loadbalancer = api.get(lbid)
 
     try:
-        '''hm_monitor = loadbalancer.healthmonitor()
-        monitor = cloudlb.healthmonitor.HealthMonitor(
-            type=mon_type, delay=delay,
-            timeout=timeout,
-            attemptsBeforeDeactivation=attempts,
-            path=path,
-            statusRegex=status,
-            bodyRegex=body)
-        hm_monitor.add(monitor)'''
         loadbalancer.add_health_monitor(
             type=mon_type, delay=delay,
             timeout=timeout,
@@ -1376,10 +1351,10 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
             LOG.debug("Cannot modify load balancer %s. Will retry setting %s "
                       "monitor (%s %s)", lbid, type,
                       response_error.http_status, response_error.reason)
-            set_monitor.retry(exc=response_error)
-        LOG.debug("Response error from load balancer %s. Will retry setting "
-                  "%s monitor (%s %s)", lbid, type, response_error.http_status,
-                  response_error.reason)
+        else:
+            LOG.debug("Response error from load balancer %s. Will retry "
+                      "setting %s monitor (%s %s)", lbid, type,
+                      response_error.http_status, response_error.reason)
         set_monitor.retry(exc=response_error)
     #except cloudlb.errors.ImmutableEntity as im_ent: #TODO(Nate): unique?
     except pyrax.exceptions.PyraxException as exc:

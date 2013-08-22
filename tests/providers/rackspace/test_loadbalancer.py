@@ -182,7 +182,7 @@ class TestCeleryTasks(unittest.TestCase):
 
     def tearDown(self):
         self.mox.UnsetStubs()
-        
+
     @mock.patch.object(deployments.tasks.reset_failed_resource_task, 'delay')
     @mock.patch.object(deployments.resource_postback, 'delay')
     def test_create_load_balancer(self, mock_postback_delay,
@@ -232,8 +232,7 @@ class TestCeleryTasks(unittest.TestCase):
         api_mock.Node.return_value = node
         api_mock.VirtualIP.return_value = vip
         api_mock.create.return_value = lb
-        
-        
+
         expected = {
             'instance:%s' % context['resource']: {
                 'id': fake_id,
@@ -249,7 +248,6 @@ class TestCeleryTasks(unittest.TestCase):
                 }
             }
         }
-    
 
         mock_postback_delay.return_value = True
 
@@ -258,9 +256,9 @@ class TestCeleryTasks(unittest.TestCase):
                                                    api=api_mock)
 
         self.assertDictEqual(results, expected)
-        api_mock.create.assert_called_with(name=name,port=80,
+        api_mock.create.assert_called_with(name=name, port=80,
                                            protocol=protocol.upper(),
-                                           nodes=[node], 
+                                           nodes=[node],
                                            virtual_ips=[vip],
                                            algorithm='ROUND_ROBIN')
 
@@ -279,7 +277,7 @@ class TestCeleryTasks(unittest.TestCase):
                 "status-message": "Waiting on resource deletion"
             }
         }
-        
+
         api = mock.Mock()
         m_lb = mock.Mock()
         m_lb.status = 'ACTIVE'
@@ -314,7 +312,7 @@ class TestCeleryTasks(unittest.TestCase):
         LOG.info(ret)
         self.assertDictEqual(expect, ret)
         mock_postback.assert_called_with(context['deployment'], expect)
-    
+
     @mock.patch.object(deployments.resource_postback, 'delay')
     def test_wait_on_lb_delete(self, mock_postback):
         """Test wait on delete task."""
@@ -329,7 +327,7 @@ class TestCeleryTasks(unittest.TestCase):
         m_lb = mock.Mock()
         m_lb.status = 'DELETED'
         api.get.return_value = m_lb
-        
+
         ret = loadbalancer.wait_on_lb_delete_task(context, '1',
                                                   'lb14nuai-asfjb', 'ORD',
                                                   api=api)
@@ -349,11 +347,11 @@ class TestCeleryTasks(unittest.TestCase):
 
         loadbalancer.wait_on_lb_delete_task(
             context, '1', 'lb14nuai-asfjb', 'ORD', api=api)
-        
+
         mock_exception.assert_called_with('Waiting on state DELETED. Load '
                                           'balancer is in state DELETING',)
         assert mock_retry.called
-        
+
     def test_lb_sync_resource_task(self):
         """Tests db sync_resource_task via mock."""
         #Mock instance
@@ -437,7 +435,7 @@ class TestCeleryTasks(unittest.TestCase):
 
 class TestGetAlgorithms(unittest.TestCase):
     """Class for testing _get_algorithms method."""
-    
+
     def setUp(self):
         """Setup reuse variables."""
         self.api = mock.Mock()
@@ -482,7 +480,7 @@ class TestGetAlgorithms(unittest.TestCase):
 
 class TestGetProtocols(unittest.TestCase):
     """Class for testing _get_protocols method."""
-    
+
     def setUp(self):
         """Setup reuse variables."""
         self.api = mock.Mock()
@@ -492,7 +490,7 @@ class TestGetProtocols(unittest.TestCase):
     @mock.patch.object(loadbalancer.LOG, 'info')
     @mock.patch.object(loadbalancer.Provider, 'connect')
     def test_get_protocols_success(self, mock_connect, mock_log_info,
-                                    mock_log_debug):
+                                   mock_log_debug):
         """Verifies all method calls and results."""
         mock_connect.return_value = self.api
         self.api.management_url = 'localhost:8080'
@@ -523,8 +521,8 @@ class TestGetProtocols(unittest.TestCase):
         mock_logger.assert_called_with('Error retrieving Load Balancer '
                                        'protocols from %s: %s', None,
                                        mock_exception)
-        
-        
+
+
 class TestBasicWorkflow(test.StubbedWorkflowBase):
     """Test that workflow tasks are generated and workflow completes."""
     def setUp(self):
