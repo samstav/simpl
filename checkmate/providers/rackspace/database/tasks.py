@@ -2,12 +2,17 @@
 """
 Rackspace Cloud Databases provider tasks
 """
+import logging
 from celery.task import task
+from pyrax.exceptions import ClientException
 
 from checkmate.common import statsd
+from checkmate.deployments.tasks import (resource_postback,
+                                         reset_failed_resource_task)
 from checkmate.providers.base import ProviderTask
 from checkmate.providers.rackspace.database import Manager
 from checkmate.providers.rackspace.database import Provider
+from checkmate.utils import match_celery_logging
 
 
 # Disable pylint on api and callback as their passed in from ProviderTask
@@ -15,12 +20,16 @@ from checkmate.providers.rackspace.database import Provider
 @task(base=ProviderTask, default_retry_delay=30, max_retries=120,
       acks_late=True, provider=Provider)
 @statsd.collect
-def wait_on_build(context, instance_id, region, api=None, callback=None):
+def wait_on_build(context, region, instance=None, api=None, callback=None):
+    #TODO This is a temp fix, until we can delete ERROR-ed instances
+    #using workflows
+    context["resource"].update({"instance": instance})
     '''Checks db instance build succeeded.'''
-    return Manager.wait_on_build(instance_id, wait_on_build.api,
+    return Manager.wait_on_build(instance["id"], wait_on_build.api,
                                  wait_on_build.partial,
                                  context.simulation)
 
+LOG = logging.getLogger(__name__)
 
 # Disable on api and callback.  Suppress num args
 # pylint: disable=W0613

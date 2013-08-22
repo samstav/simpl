@@ -679,7 +679,6 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'args': [
                         Func(is_good_context),
                         IgnoreArg(),
-                        IgnoreArg(),
                     ],
                     'kwargs': IgnoreArg(),
                     'result': {

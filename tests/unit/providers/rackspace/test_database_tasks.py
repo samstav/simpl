@@ -24,8 +24,8 @@ class TestDatabaseTasks(unittest.TestCase):
         functools.partial = mock.Mock(return_value=partial)
         context = {
             'simulation': True,
-            'resource': '0',
-            'deployment': 0,
+            'resource_key': '0',
+            'deployment_id': 0,
             'region': 'DFW'
         }
         context = middleware.RequestContext(**context)
@@ -57,8 +57,8 @@ class TestDatabaseTasks(unittest.TestCase):
         functools.partial = mock.Mock(return_value=partial)
         context = {
             'simulation': True,
-            'resource': '0',
-            'deployment': 0,
+            'resource_key': '0',
+            'deployment_id': 'DEP_ID',
             'region': 'DFW'
         }
         context = middleware.RequestContext(**context)
@@ -107,7 +107,7 @@ class TestDatabaseTasks(unittest.TestCase):
 
     def test_create_instance_no_sim_no_dbs(self):
         'Create instance no databases.'
-        context = {'resource': '0', 'deployment': 0, 'region': 'DFW'}
+        context = {'resource_key': '0', 'deployment_id': 0, 'region': 'DFW'}
         context = middleware.RequestContext(**context)
         api = mock.Mock()
         database._create_instance.provider = mock.Mock()
@@ -153,7 +153,8 @@ class TestDatabaseTasks(unittest.TestCase):
 
     def test_create_instance_no_sim_with_dbs(self):
         'Create instance with databases.'
-        context = {'resource': '0', 'deployment': 0, 'region': 'DFW'}
+        context = {'resource_key': '0', 'deployment_id': 'DEP_ID',
+                   'region': 'DFW'}
         context = middleware.RequestContext(**context)
         api = mock.Mock()
         instance = mock.Mock()
@@ -231,8 +232,8 @@ class TestDatabaseTasks(unittest.TestCase):
 class TestAddUser(unittest.TestCase):
     def setUp(self):
         self.context = middleware.RequestContext(**{
-            'resource': '0',
-            'deployment': '0'
+            'resource_key': '0',
+            'deployment_id': '0'
         })
 
         self.instance_id = '12345'
@@ -899,8 +900,8 @@ class TestWaitOnDelInstance(unittest.TestCase):
 class TestCreateDatabase(unittest.TestCase):
     def setUp(self):
         self.context = middleware.RequestContext(**{
-            'resource': '2',
-            'deployment': '0'
+            'resource_key': '2',
+            'deployment_id': '0'
         })
         self.name = 'test_database'
         self.region = 'ORD'

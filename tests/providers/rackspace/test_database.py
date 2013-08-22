@@ -76,7 +76,8 @@ class TestDatabase(test.ProviderTester):
                 }
             }
         }
-        context = middleware.RequestContext(resource='1')
+        context = middleware.RequestContext(deployment_id = 'DEP_ID',
+                                            resource_key='1')
 
         database._create_instance.callback(context,
                                            {'id': instance.id}).AndReturn(True)
@@ -92,8 +93,8 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_create_database_fail_building(self):
-        context = middleware.RequestContext(**{'deployment': 'DEP',
-                                            'resource': '1'})
+        context = middleware.RequestContext(**{'deployment_id': 'DEP',
+                                            'resource_key': '1'})
 
         #Mock instance
         instance = self.mox.CreateMockAnything()
@@ -119,8 +120,8 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_create_database(self):
-        context = middleware.RequestContext(**{'deployment': 'DEP',
-                                            'resource': '1'})
+        context = middleware.RequestContext(**{'deployment_id': 'DEP',
+                                            'resource_key': '1'})
 
         #Mock instance
         instance = self.mox.CreateMockAnything()

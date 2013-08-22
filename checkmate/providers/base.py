@@ -9,6 +9,8 @@ from checkmate.common import schema
 from checkmate import component as cmcomp
 from checkmate import exceptions
 from checkmate import middleware
+from checkmate.exceptions import CheckmateRetriableException, \
+    CheckmateException
 from checkmate.providers.provider_base_planning_mixin import \
     ProviderBasePlanningMixIn
 from checkmate import utils
@@ -607,26 +609,31 @@ class ProviderTask(celery.Task):
             return self.retry(exc=exc)
         except exceptions.CheckmateResumableException as exc:
             return self.retry(exc=exc)
-
+        except exceptions.CheckmateResourceRollbackException as exc:
+            delete_tasks = self.provider.delete_one_resource(context=context)
+            LOG.debug("Going to delete resources")
+            delete_tasks.apply_async()
+            raise exc.inner_exception
         self.callback(context, data)
-        return {'instance:%s' % context.resource: data}
+        return {'instance:%s' % context["resource_key"]: data}
 
     def callback(self, context, data):
         '''Calls postback with instance.id to ensure posted to resource.'''
         from checkmate.deployments import tasks as deployment_tasks
         # TODO(Paul/Nate): Added here to get around circular dep issue.
+        LOG.debug("Data :  %s" % data)
         results = {
             'resources': {
-                context['resource']: {
+                context['resource_key']: {
                     'instance': data
                 }
             }
         }
         if 'status' in data:
             status = data['status']
-            results['resources'][context['resource']]['status'] = \
+            results['resources'][context['resource_key']]['status'] = \
                 self.provider.translate_status(status)
             if status == "ERROR":
                 results['status'] = "FAILED"
 
-        deployment_tasks.postback(context['deployment'], results)
+        deployment_tasks.postback(context['deployment_id'], results)

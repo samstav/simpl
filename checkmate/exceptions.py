@@ -135,6 +135,13 @@ class CheckmateResumableException(CheckmateUserException):
                                                           friendly_message,
                                                           error_help)
 
+class CheckmateResourceRollbackException(CheckmateException):
+    '''Resumable Exception.'''
+    def __init__(self, error_message, inner_exception):
+        self.error_message = error_message
+        self.inner_exception = inner_exception
+        super(CheckmateResourceRollbackException, self).__init__(
+            error_message, inner_exception)
 
 class CheckmateResetTaskTreeException(CheckmateException):
     pass

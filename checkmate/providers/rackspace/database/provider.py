@@ -5,6 +5,9 @@ import os
 import string
 
 import clouddb
+
+from celery import canvas
+
 import pyrax
 import redis
 from SpiffWorkflow import operators
@@ -239,8 +242,8 @@ class Provider(providers.ProviderBase):
                 'database.create_database',
                 call_args=[
                     context.get_queued_task_dict(
-                        deployment=deployment['id'],
-                        resource=key
+                        deployment_id=deployment['id'],
+                        resource_key=key
                     ),
                     db_name,
                     operators.PathAttrib(
@@ -265,8 +268,8 @@ class Provider(providers.ProviderBase):
                 'checkmate.providers.rackspace.database.add_user',
                 call_args=[
                     context.get_queued_task_dict(
-                        deployment=deployment['id'],
-                        resource=key
+                        deployment_id=deployment['id'],
+                        resource_key=key
                     ),
                     operators.PathAttrib('instance:%s/host_instance' % key),
                     [db_name],
@@ -303,8 +306,8 @@ class Provider(providers.ProviderBase):
                 'database.create_instance',
                 call_args=[
                     context.get_queued_task_dict(
-                        deployment=deployment['id'],
-                        resource=key
+                        deployment_id=deployment['id'],
+                        resource_key=key
                     ),
                     resource.get('dns-name'),
                     resource['flavor'],
@@ -323,10 +326,12 @@ class Provider(providers.ProviderBase):
                 'checkmate.providers.rackspace.database.tasks.wait_on_build',
                 call_args=[
                     context.get_queued_task_dict(
-                        deployment=deployment['id'],
-                        resource=key
+                        deployment_id=deployment['id'],
+                        resource_key=key,
+                        resource=resource,
+                        region=resource['region'],
+                        resource_type=resource_type
                     ),
-                    operators.PathAttrib('instance:%s/id' % key),
                     resource['region'],
                 ],
                 merge_results=True,
@@ -335,7 +340,8 @@ class Provider(providers.ProviderBase):
                     provider=self.key,
                     task_tags=['final']
                 ),
-                properties={'estimated_duration': 80}
+                properties={'estimated_duration': 80},
+                instance=operators.PathAttrib('instance:%s' % key),
             )
             wait_task.follow(create_instance_task)
             return dict(root=root, final=wait_task)
@@ -349,6 +355,17 @@ class Provider(providers.ProviderBase):
                             sync_callable=None, api=None):
         from checkmate.providers.rackspace.database import sync_resource_task
         sync_resource_task(context, resource, key, api=api)
+
+    @staticmethod
+    def delete_one_resource(context):
+        resource_type = context.get("resource_type")
+        assert resource_type is not None
+        if resource_type == 'compute':
+            return Provider._delete_comp_res_task(context)
+        if resource_type == 'database':
+            return Provider._delete_db_res_task(context)
+        raise CheckmateException("Unknown resource type for resource")
+
 
     def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):
@@ -390,6 +407,23 @@ class Provider(providers.ProviderBase):
 
         delete_instance.connect(wait_on_delete)
         return {'root': delete_instance}
+
+    @staticmethod
+    def _delete_comp_res_task(context):
+        from checkmate.providers.rackspace.database import \
+            delete_instance_task, wait_on_del_instance
+        return canvas.chain(
+            delete_instance_task.si(context),
+            wait_on_del_instance.si(context)
+        )
+
+    @staticmethod
+    def _delete_db_res_task(context):
+        from checkmate.providers.rackspace.database import \
+            delete_database
+        return canvas.chain(
+            delete_database.si(context),
+        )
 
     @staticmethod
     def _delete_db_res_tasks(wf_spec, context, key):
