@@ -502,7 +502,7 @@ class TestGetProtocols(unittest.TestCase):
         results = loadbalancer._get_protocols(self.context)
         self.assertEqual(results, self.api.protocols)
         mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
-                                         'protocols for %s', 'ORD')
+                                         'protocols for %s', 'localhost:8080')
         mock_log_debug.assert_called_with('Found Load Balancer protocols for '
                                           '%s: %s', 'localhost:8080',
                                           ['HTTP', 'HTTPS'])
@@ -516,7 +516,7 @@ class TestGetProtocols(unittest.TestCase):
 
         # caching decorator re-raises so not able to assertRaises
         try:
-            loadbalancer._get_protocol(self.context)
+            loadbalancer._get_protocols(self.context)
         except StandardError as exc:
             self.assertEqual(str(exc), 'test error')
 
