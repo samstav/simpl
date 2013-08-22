@@ -135,7 +135,7 @@ class TestLoadBalancer(test.ProviderTester):
          .AndReturn(limits))
         clb = self.mox.CreateMockAnything()
         clb_lbs = self.mox.CreateMockAnything()
-        clb.loadbalancers = clb_lbs
+        clb = clb_lbs
         clb_lbs.list().AndReturn([])
         self.mox.StubOutWithMock(loadbalancer.Provider, "connect")
         loadbalancer.Provider.connect(mox.IgnoreArg(),
