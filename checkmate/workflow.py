@@ -229,10 +229,11 @@ def get_SpiffWorkflow_status(workflow):
     """
     def get_task_status(task, output):
         """Recursively fills task data into dict"""
-        my_dict = {}
-        my_dict['id'] = task.id
-        my_dict['threadId'] = task.thread_id
-        my_dict['state'] = task.get_state_name()
+        my_dict = {
+            'id': task.id,
+            'threadId': task.thread_id,
+            'state': task.get_state_name()
+        }
         output[task.get_name()] = my_dict
         for child in task.children:
             get_task_status(child, my_dict)
