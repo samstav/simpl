@@ -7,7 +7,7 @@ import unittest
 import uuid
 
 from bottle import default_app
-from webtest import TestApp
+import webtest
 
 from checkmate import (
     db,
@@ -25,7 +25,7 @@ from checkmate.server import error_formatter
 
 
 class TestServer(unittest.TestCase):
-    """ Test Basic Server code """
+    """Test Basic Server code."""
 
     def setUp(self):
         os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
@@ -35,7 +35,8 @@ class TestServer(unittest.TestCase):
         self.root_app.catchall = False
 
         deployments_manager = deployments.Manager({'default': db.get_driver()})
-        self.dep_router = deployments.Router(self.root_app, deployments_manager)
+        self.dep_router = deployments.Router(self.root_app,
+                                             deployments_manager)
 
         workflows_manager = workflows.Manager({'default': db.get_driver()})
         self.workflow_router = workflows.Router(self.root_app,
@@ -45,7 +46,7 @@ class TestServer(unittest.TestCase):
         tenant = TenantMiddleware(self.root_app)
         context = ContextMiddleware(tenant)
         extension = ExtensionsMiddleware(context)
-        self.app = TestApp(extension)
+        self.app = webtest.TestApp(extension)
 
     def test_multitenant_deployment(self):
         self.rest_tenant_exercise('deployment')
@@ -104,7 +105,7 @@ class TestServer(unittest.TestCase):
         self.assertIn(id2, data)
 
     def rest_tenant_exercise(self, model_name):
-        """Check CRUD on tenants"""
+        """Check CRUD on tenants."""
         id1 = uuid.uuid4().hex[0:7]
         id2 = uuid.uuid4().hex[0:4]
 
@@ -147,7 +148,7 @@ class TestServer(unittest.TestCase):
         self.assertNotIn(id1, data['results'])
 
     def rest_cross_tenant_exercise(self, model_name):
-        """Make sure tenant ID is respected"""
+        """Make sure tenant ID is respected."""
         id1 = uuid.uuid4().hex[0:7]
         id2 = uuid.uuid4().hex[0:4]
 
@@ -192,7 +193,7 @@ class TestServer(unittest.TestCase):
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
     def test_unwrapped_deployment(self):
-        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment."""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             id: '%s'
@@ -202,7 +203,7 @@ class TestServer(unittest.TestCase):
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
     def test_wrapped_deployment(self):
-        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment."""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:
@@ -213,7 +214,7 @@ class TestServer(unittest.TestCase):
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
     def test_put_deployment_with_no_id_in_body(self):
-        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment."""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:
@@ -225,7 +226,7 @@ class TestServer(unittest.TestCase):
         self.assertIn('"id": "%s"' % id1, res.body)
 
     def test_put_deployment_with_includes(self):
-        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment."""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:
@@ -238,7 +239,7 @@ class TestServer(unittest.TestCase):
         self.assertNotIn('"includes":', res.body)
 
     def test_put_deployment_tenant_id_mismatch(self):
-        """Using PUT /deployments/<oid> to exercise _content_to_deployment"""
+        """Using PUT /deployments/<oid> to exercise _content_to_deployment."""
         self.root_app.error_handler = {500: error_formatter}
         self.root_app.catchall = True
         id1 = uuid.uuid4().hex[0:7]
@@ -258,7 +259,7 @@ class TestServer(unittest.TestCase):
         self.assertIn('tenantId must match with current tenant ID', res.body)
 
     def test_get_deployment_secrets(self):
-        """Check that GET /secrets responds"""
+        """Check that GET /secrets responds."""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:
@@ -277,7 +278,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(res.status, '404 Not Found')
 
     def test_lock_deployment_secrets(self):
-        """Check that POST /secrets responds"""
+        """Check that POST /secrets responds."""
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:

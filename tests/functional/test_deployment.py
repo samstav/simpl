@@ -14,9 +14,9 @@ from checkmate import utils
 
 
 class TestDeploymentPlanning(unittest.TestCase):
-    """Tests the Plan() class and its deployment planning logic"""
+    """Tests the Plan() class and its deployment planning logic."""
     def test_find_components_positive(self):
-        """Test the Plan() class can find components"""
+        """Test the Plan() class can find components."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
@@ -95,7 +95,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         self.assertEqual(component['provider-key'], 'gbase')
 
     def test_find_components_not_found(self):
-        """Test the Plan() class fails missing components"""
+        """Test the Plan() class fails missing components."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
@@ -123,7 +123,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         self.assertRaises(CheckmateException, planner.plan, RequestContext())
 
     def test_find_components_mismatch(self):
-        """Test the Plan() class skips mismatched components"""
+        """Test the Plan() class skips mismatched components."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
@@ -153,7 +153,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         self.assertRaises(CheckmateException, planner.plan, RequestContext())
 
     def test_resolve_relations(self):
-        """Test the Plan() class can parse relations"""
+        """Test the Plan() class can parse relations."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
@@ -207,7 +207,7 @@ class TestDeploymentPlanning(unittest.TestCase):
     #FIXME: re-enable this when done with v0.2
     @unittest.skip("Not compatible with v0.2 relations")
     def test_resolve_relations_negative(self):
-        """Test the Plan() class detects unused/duplicate relations"""
+        """Test the Plan() class detects unused/duplicate relations."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
@@ -250,7 +250,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                           RequestContext())
 
     def test_resolve_relations_multiple(self):
-        """Test that all relations are generated"""
+        """Test that all relations are generated."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
@@ -347,7 +347,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                       msg=expect)
 
     def test_resolve_requirements(self):
-        """Test the Plan() class can resolve all requirements"""
+        """Test the Plan() class can resolve all requirements."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
@@ -448,7 +448,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                                                 "any relations but host")
 
     def test_relation_names(self):
-        """Test the Plan() class handles relation naming correctly"""
+        """Test the Plan() class handles relation naming correctly."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
@@ -519,7 +519,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         self.assertDictEqual(resources['connections'], expected)
 
     def test_resource_name(self):
-        """Test the Plan() class handles resource naming correctly"""
+        """Test the Plan() class handles resource naming correctly."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 environment:
@@ -542,7 +542,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         self.assertEqual(assigned_name, expected_name)
 
     def test_constrained_resource_name(self):
-        """Test the Plan() class handles resource naming correctly"""
+        """Test the Plan() class handles resource naming correctly."""
         deployment = Deployment(utils.yaml_to_dict("""
                 id: test
                 environment:
