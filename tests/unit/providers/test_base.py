@@ -128,8 +128,10 @@ class TestProviderTask(unittest.TestCase):
 
     @mock.patch('checkmate.deployments.tasks')
     def test_provider_task_callback(self, mocked_lib):
-        context = {'region': 'ORD', 'resource_key': 1, 'deployment_id':
-            'DEP_ID'}
+        context = {
+            'region': 'ORD',
+            'resource_key': 1,
+            'deployment_id': 'DEP_ID'}
 
         expected_postback = {
             'resources': {

@@ -18,8 +18,7 @@ class Manager(base.ManagerBase):
             api_id, with_secrets=with_secrets)
 
     def safe_workflow_save(self, obj_id, body, secrets=None, tenant_id=None):
-        """
-        Locks, saves, and unlocks a workflow.
+        """Locks, saves, and unlocks a workflow.
         TODO: should this be moved to the db layer?
         """
         driver = self.select_driver(obj_id)

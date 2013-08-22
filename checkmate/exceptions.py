@@ -135,6 +135,7 @@ class CheckmateResumableException(CheckmateUserException):
                                                           friendly_message,
                                                           error_help)
 
+
 class CheckmateResourceRollbackException(CheckmateException):
     '''Resumable Exception.'''
     def __init__(self, error_message, inner_exception):
@@ -143,9 +144,12 @@ class CheckmateResourceRollbackException(CheckmateException):
         super(CheckmateResourceRollbackException, self).__init__(
             error_message, inner_exception)
 
+<<<<<<< HEAD
 class CheckmateResetTaskTreeException(CheckmateException):
     pass
 
+=======
+>>>>>>> Cleaning up some of the Pylint/PEP8 errors that were introduced in the previous commits <vineethv>
 
 class CheckmateValidationException(CheckmateException):
     '''Validation Error.'''

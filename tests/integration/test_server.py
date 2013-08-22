@@ -9,18 +9,15 @@ import uuid
 from bottle import default_app
 import webtest
 
-from checkmate import (
-    db,
-    deployments,
-    environments,
-    workflows,
-)
+from checkmate import db
+from checkmate import deployments
+from checkmate import environments
+from checkmate import workflows
 
-from checkmate.middleware import (
-    TenantMiddleware,
-    ContextMiddleware,
-    ExtensionsMiddleware,
-)
+from checkmate.middleware import TenantMiddleware
+from checkmate.middleware import ContextMiddleware
+from checkmate.middleware import ExtensionsMiddleware
+
 from checkmate.server import error_formatter
 
 

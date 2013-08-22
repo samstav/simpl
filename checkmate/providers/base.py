@@ -9,8 +9,6 @@ from checkmate.common import schema
 from checkmate import component as cmcomp
 from checkmate import exceptions
 from checkmate import middleware
-from checkmate.exceptions import CheckmateRetriableException, \
-    CheckmateException
 from checkmate.providers.provider_base_planning_mixin import \
     ProviderBasePlanningMixIn
 from checkmate import utils

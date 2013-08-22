@@ -2,7 +2,6 @@
 import unittest
 
 import mox
-from mox import IgnoreArg
 
 
 class TestDeployments(unittest.TestCase):
@@ -55,14 +54,13 @@ class TestDeployments(unittest.TestCase):
 
         provider = self.mox.CreateMockAnything()
         env.select_provider(context, resource=resources["0"].get('type'))\
-                                              .AndReturn(provider)
+            .AndReturn(provider)
         provider.get_resource_status(context, deployment.id,
-                                              resources["0"], "0")\
-                                              .AndReturn(expected1)
+                                     resources["0"], "0").AndReturn(expected1)
 
         deployments = self.mox.CreateMockAnything()
-        results = deployments.write_body(IgnoreArg(), IgnoreArg(),
-                                         IgnoreArg()).AndReturn(expected2)
+        results = deployments.write_body(mox.IgnoreArg(), mox.IgnoreArg(),
+                                         mox.IgnoreArg()).AndReturn(expected2)
 
         self.mox.ReplayAll()
         self.assertDictEqual(expected2, results)

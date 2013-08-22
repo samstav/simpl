@@ -354,6 +354,11 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def delete_one_resource(context):
+        '''Used by the ProviderTask baseclass to create delete tasks that
+        are used to delete errored instances
+        :param context:
+        :return:
+        '''
         resource_type = context.get("resource_type")
         assert resource_type is not None
         if resource_type == 'compute':
@@ -361,7 +366,6 @@ class Provider(providers.ProviderBase):
         if resource_type == 'database':
             return Provider._delete_db_res_task(context)
         raise CheckmateException("Unknown resource type for resource")
-
 
     def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):
@@ -406,6 +410,10 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def _delete_comp_res_task(context):
+        '''Returns a chain of delete tasks to remove an instance
+        :param context:
+        :return:
+        '''
         from checkmate.providers.rackspace.database import \
             delete_instance_task, wait_on_del_instance
         return canvas.chain(
@@ -415,6 +423,10 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def _delete_db_res_task(context):
+        '''Returns a chain of delete task to remove a db resource
+        :param context:
+        :return:
+        '''
         from checkmate.providers.rackspace.database import \
             delete_database
         return canvas.chain(

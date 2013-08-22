@@ -90,6 +90,7 @@ class Manager(object):
                 results = {'status': 'DELETED'}
         return results
 
+    #pylint: disable=R0913
     @staticmethod
     def create_instance(instance_name, flavor, size, databases, context,
                         api, callback, simulate=False):
@@ -163,6 +164,7 @@ class Manager(object):
 
         return results
 
+    #pylint: disable=R0913
     @staticmethod
     def create_database(name, instance_id, api, callback, context,
                         character_set=None, collate=None, instance_attrs=None,
@@ -249,6 +251,7 @@ class Manager(object):
         LOG.info('Created database %s on instance %s', name, instance_id)
         return results
 
+    #pylint: disable=R0913
     @staticmethod
     def add_user(instance_id, databases, username, password,
                  api, callback, simulate=False):
