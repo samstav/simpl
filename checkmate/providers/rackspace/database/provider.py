@@ -258,7 +258,7 @@ class Provider(providers.ProviderBase):
                 defines=dict(
                     resource=key,
                     provider=self.key,
-                    task_tags=['create']
+                    task_tags=['create', 'root']
                 ),
                 properties={'estimated_duration': 80}
             )
@@ -288,10 +288,6 @@ class Provider(providers.ProviderBase):
 
             create_db_user.follow(create_database_task)
             root = wfspec.wait_for(create_database_task, wait_on)
-            if 'task_tags' in root.properties:
-                root.properties['task_tags'].append('root')
-            else:
-                root.properties['task_tags'] = ['root']
             return dict(root=root, final=create_db_user)
         elif component['is'] == 'compute':
             defines = dict(resource=key,
