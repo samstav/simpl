@@ -241,7 +241,8 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
-    from checkmate import test
     import sys
-    test.run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])
