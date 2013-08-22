@@ -292,7 +292,8 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])
