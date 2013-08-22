@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,W0212
 """Tests for MongoDB Driver (deprecated tests: don't add tests here)."""
 import copy
 import logging
@@ -85,6 +85,7 @@ class TestDatabase(unittest.TestCase):
         }
 
     def _decode_dict(self, dictionary):
+        """Helper method to convert unicode to utf-8."""
         decoded_dict = {}
         for key, value in dictionary.iteritems():
             if isinstance(key, unicode):
@@ -748,6 +749,7 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(expected_resources, load_deployment["resources"])
 
     def _get_resources(self, deployment_id, include_ids=False):
+        """Helper method that returns the resources from a deployment."""
         db_deployment = self.driver.database().deployments.find_one(
             {'_id': deployment_id}, {'resources': 1, '_id': 0})
         db_resources = db_deployment['resources']
@@ -782,20 +784,6 @@ class TestDatabase(unittest.TestCase):
         except db.ObjectLockedError:
             raised = True
         self.assertTrue(raised)
-
-
-    @unittest.skipIf(SKIP, REASON)
-    def test_lock_for_existing_lock(self):
-        key = uuid.uuid4()
-        self.driver.database()['locks'].insert(
-            {"_id": key, "expires_at": time.time() + 20})
-        try:
-            with self.driver.lock(key, 200):
-                pass
-        except db.ObjectLockedError:
-            raised = True
-        self.assertTrue(raised)
-
 
     @unittest.skipIf(SKIP, REASON)
     def test_create_new_lock_for_expired_locks(self):
@@ -857,8 +845,8 @@ class TestDatabase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
 
-    run_with_params(sys.argv[:])
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

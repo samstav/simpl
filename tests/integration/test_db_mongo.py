@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=R0904
 """Tests for MongoDB Driver."""
 import logging
 import sys
@@ -298,6 +298,8 @@ class TestMongoDBCapabilities(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+    import sys
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

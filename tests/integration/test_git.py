@@ -1,4 +1,3 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 """Tests for git integration (general)."""
 import os
 import shutil
@@ -7,7 +6,6 @@ import sys
 import unittest
 import uuid
 
-import git
 from webtest import TestApp
 
 from checkmate.git import middleware
@@ -15,7 +13,7 @@ from checkmate.git import manager
 
 
 class MockWsgiApp(object):
-
+    """Mock class for WsgiApp."""
     def __init__(self):
         pass
 
@@ -24,6 +22,7 @@ class MockWsgiApp(object):
 
 
 def _start_response():
+    """Mock for _start_response that does nothing."""
     pass
 
 
@@ -75,6 +74,6 @@ class TestCloneSimple(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])
