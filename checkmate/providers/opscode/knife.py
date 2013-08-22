@@ -601,7 +601,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
         instance_key: {
             'data-bags': {
                 bagname: {
-                    itemname: contents
+                    itemname: json.loads(contents)
                 }
             }
         }
@@ -1176,3 +1176,12 @@ def manage_role(name, environment, resource, path=None, desc=None,
     LOG.debug("Writing role '%s' to %s", name, role_path)
     with file(role_path, 'w') as role_file_w:
         json.dump(role, role_file_w)
+    instance_key = "instance:%s" % resource.get('index')
+    results = {
+        instance_key: {
+            'roles': {
+                name: role
+            }
+        }
+    }
+    resource_postback.delay(environment, results)
