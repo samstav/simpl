@@ -2962,8 +2962,46 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     if (typeof remote == 'object' && remote.url !== undefined)
       options.substituteVariables(deployment, {"%repo_url%": remote.url});
 
+    break_flag = false;
+
     // Have to fix some of the inputs so they are in the right format, specifically the select
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
+    _.each($scope.inputs, function(element, key) {
+      var option = _.find($scope.options, function(item) {
+        if (item.id == key)
+          return item;
+        return null;
+      });
+
+      if (option === undefined){
+        console.log("WARNING: expected option '" + key + "' is undefined");
+        return;
+      }
+
+      //Check that all required fields are set
+      if (option.required === true) {
+        if ($scope.inputs[key] === null) {
+          err_msg = "Required field "+key+" not set. Aborting deployment.";
+          $scope.notify(err_msg);
+          break_flag = true;
+        }
+      }
+
+      if (option.type === "boolean") {
+        if ($scope.inputs[key] === null) {
+          deployment.inputs.blueprint[key] = false;
+        } else {
+          deployment.inputs.blueprint[key] = $scope.inputs[key];
+        }
+      } else {
+        deployment.inputs.blueprint[key] = $scope.inputs[key];
+      }
+    });
+
+    if (break_flag){
+      $scope.submitting = false;
+      return;
+    }
 
     if ($scope.auth.identity.loggedIn) {
         mixpanel.track("Deployment Launched", {'action': action});
