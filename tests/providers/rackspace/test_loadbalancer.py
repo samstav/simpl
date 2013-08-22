@@ -224,9 +224,6 @@ class TestCeleryTasks(unittest.TestCase):
         tasks.reset_failed_resource_task.delay(context['deployment'],
                                                context['resource'])
 
-        #Stub out set_monitor call
-        #self.mox.StubOutWithMock(loadbalancer, 'set_monitor')
-
         #Create appropriate api mocks
         api_mock = mock.Mock()
         api_mock.Node.return_value = node
