@@ -351,7 +351,8 @@ class Manager(base.ManagerBase):
         tenant_id = deployment["tenantId"]
         resource = deployment['resources'].get(resource_id, None)
         if (resource.get('instance') and resource['instance'].get('id')
-                and resource.get('status') == "ERROR"):
+            and (resource.get('status') == "ERROR" or
+                 resource.get('status') == "DELETED")):
             failed_resource = copy.deepcopy(resource)
             resource['status'] = 'PLANNED'
             resource['instance'] = None
