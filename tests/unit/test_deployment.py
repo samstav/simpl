@@ -3,8 +3,6 @@
 import mock
 import unittest
 
-import mox
-
 from checkmate.deployment import (
     Deployment,
     LOG,
@@ -136,13 +134,12 @@ class TestDeployments(unittest.TestCase):
             }
         }
         self.deployment = Deployment(deployment_dict)
-        self.mock = mox.Mox()
-        self.deployment.environment = self.mock.CreateMockAnything()
-        self.context = self.mock.CreateMockAnything()
-        environment = self.mock.CreateMockAnything()
-        self.provider = self.mock.CreateMockAnything()
-        self.deployment.environment().AndReturn(environment)
-        environment.get_provider('test').AndReturn(self.provider)
+        self.deployment.environment = mock.Mock()
+        self.context = mock.MagicMock()
+        environment = mock.Mock()
+        self.provider = mock.Mock()
+        self.deployment.environment.return_value = environment
+        environment.get_provider.return_value = self.provider
 
     def test_get_non_deleted_resources_for_service(self):
         resources = self.deployment.get_resources_for_service(
@@ -252,11 +249,7 @@ class TestDeployments(unittest.TestCase):
 
     def test_get_statuses_for_deleted_resources(self):
         resource_status = {'instance:0': {'status': 'DELETED'}}
-        self.provider.get_resource_status(self.context, 'test',
-                                          {'provider': 'test'}, '0').\
-            AndReturn(resource_status)
-        self.context.__setitem__('resource', '0').AndReturn(None)
-        self.mock.ReplayAll()
+        self.provider.get_resource_status.return_value = resource_status
 
         expected = {
             'resources': resource_status,
@@ -265,14 +258,16 @@ class TestDeployments(unittest.TestCase):
         }
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)
+        self.provider.get_resource_status.assert_called_with(
+            self.context,
+            'test',
+            {'provider': 'test'}, '0'
+        )
+        self.context.__setitem__.assert_called_with('resource', '0')
 
     def test_get_statuses_for_active_resources(self):
         resource_status = {'instance:0': {'status': 'ACTIVE'}}
-        self.provider.get_resource_status(self.context, 'test',
-                                          {'provider': 'test'}, '0').\
-            AndReturn(resource_status)
-        self.context.__setitem__('resource', '0').AndReturn(None)
-        self.mock.ReplayAll()
+        self.provider.get_resource_status.return_value = resource_status
 
         expected = {
             'resources': resource_status,
@@ -281,14 +276,14 @@ class TestDeployments(unittest.TestCase):
         }
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)
+        self.provider.get_resource_status.assert_called_with(
+            self.context, 'test', {'provider': 'test'}, '0'
+        )
+        self.context.__setitem__.assert_called_with('resource', '0')
 
     def test_get_statuses_for_new_resources(self):
         resource_status = {'instance:0': {'status': 'NEW'}}
-        self.provider.get_resource_status(self.context, 'test',
-                                          {'provider': 'test'}, '0').\
-            AndReturn(resource_status)
-        self.context.__setitem__('resource', '0').AndReturn(None)
-        self.mock.ReplayAll()
+        self.provider.get_resource_status.return_value = resource_status
 
         expected = {
             'resources': resource_status,
@@ -297,14 +292,10 @@ class TestDeployments(unittest.TestCase):
         }
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)
+        self.context.__setitem__.assert_called_with('resource', '0')
 
     def test_get_statuses_for_no_resources(self):
-        self.provider.get_resource_status(self.context, 'test',
-                                          {'provider': 'test'}, '0').\
-            AndReturn({})
-        self.context.__setitem__('resource', '0').AndReturn(None)
-        self.mock.ReplayAll()
-
+        self.provider.get_resource_status.return_value = {}
         expected = {
             'resources': {},
             'deployment_status': 'NEW',
@@ -312,6 +303,7 @@ class TestDeployments(unittest.TestCase):
         }
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)
+        self.context.__setitem__.assert_called_with('resource', '0')
 
     def test_schema(self):
         """Test the schema validates a deployment with all possible fields"""
@@ -715,20 +707,15 @@ class TestCalculateOutputs(unittest.TestCase):
 
 class TestCeleryTasks(unittest.TestCase):
 
-    def setUp(self):
-        self.mox = mox.Mox()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
-
     def test_update_deployment_status(self):
         """ Test deployment status update """
         expected = {'status': "DOWN"}
-        db = self.mox.CreateMockAnything()
-        db.save_deployment('1234', expected, partial=True).AndReturn(expected)
-        self.mox.ReplayAll()
+        db = mock.Mock()
+        db.save_deployment.return_value = expected
         update_deployment_status_new('1234', 'DOWN', driver=db)
-        self.mox.VerifyAll()
+        db.save_deployment.assert_called_with('1234',
+                                              expected,
+                                              partial=True)
 
     def test_on_postback_for_resource(self):
         """ Test on_postback dict merge and validation """

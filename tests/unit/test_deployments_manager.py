@@ -6,11 +6,8 @@ import os
 import unittest
 
 import mock
-import mox
 
 from checkmate import deployments
-from checkmate import operations
-from checkmate import workflow
 from checkmate import workflows
 from checkmate.deployment import Deployment
 
@@ -18,17 +15,17 @@ from checkmate.deployment import Deployment
 class TestManager(unittest.TestCase):
 
     def setUp(self):
-        self._mox = mox.Mox()
-        self.db = self._mox.CreateMockAnything()
+        self.db = mock.Mock()
         self.controller = deployments.Manager({'default': self.db})
         unittest.TestCase.setUp(self)
 
     def tearDown(self):
-        self._mox.VerifyAll()
-        self._mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
 
-    def test_delete_nodes(self):
+    @mock.patch('checkmate.workflow.create_workflow')
+    @mock.patch('checkmate.operations.add')
+    @mock.patch.object(workflows.WorkflowSpec, 'create_delete_node_spec')
+    def test_delete_nodes(self, mock_create_delete, mock_add, mock_create_wf):
         resources = {
             '0': {},
             '1': {},
@@ -36,44 +33,49 @@ class TestManager(unittest.TestCase):
             '3': {},
         }
         deployment = Deployment({'id': 'DEP_ID'})
-        self._mox.StubOutWithMock(deployment, 'get_resources_for_service')
-        deployment.get_resources_for_service('web').AndReturn(resources)
-        mock_context = self._mox.CreateMockAnything()
-        mock_spec = self._mox.CreateMockAnything()
-        mock_wf = self._mox.CreateMockAnything()
-        self._mox.StubOutWithMock(workflows.WorkflowSpec,
-                                  "create_delete_node_spec")
-        workflows.WorkflowSpec.create_delete_node_spec(
-            deployment, ['1', '2'], mock_context).AndReturn(mock_spec)
-        self._mox.StubOutWithMock(workflow, "create_workflow")
-        workflow.create_workflow(
-            mock_spec, deployment, mock_context, driver=self.controller.driver
-        ).AndReturn(mock_wf)
-        self._mox.StubOutWithMock(operations, "add")
-        operations.add(deployment, mock_wf, "SCALE DOWN", "T_ID")
-        self._mox.ReplayAll()
+        mock_get_resources = mock.Mock(return_value=resources)
+        deployment.get_resources_for_service = mock_get_resources
+        mock_context = mock.Mock()
+        mock_spec = mock.Mock()
+        mock_wf = mock.Mock()
+        mock_create_delete.return_value = mock_spec
+
+        mock_create_wf.return_value = mock_wf
         self.controller.delete_nodes(deployment, mock_context, 'web', 2,
                                      ['1', '2'], "T_ID")
+        mock_create_wf.assert_called_with(
+            mock_spec,
+            deployment,
+            mock_context,
+            driver=self.controller.driver
+        )
+        mock_add.assert_called_with(deployment, mock_wf,
+                                    'SCALE DOWN', 'T_ID')
 
-    def test_deploy_add_nodes(self):
+    @mock.patch('checkmate.workflow.create_workflow')
+    @mock.patch('checkmate.operations.add')
+    @mock.patch.object(workflows.WorkflowSpec, 'create_workflow_spec_deploy')
+    def test_deploy_add_nodes(self,
+                              mock_create_wf_s_d,
+                              mock_add,
+                              mock_create_wf):
         deployment = {"id": "DEP_ID"}
-        mock_context = self._mox.CreateMockAnything()
-        mock_spec = self._mox.CreateMockAnything()
-        mock_wf = self._mox.CreateMockAnything()
-        self._mox.StubOutWithMock(workflows.WorkflowSpec,
-                                  "create_workflow_spec_deploy")
+        mock_context = mock.Mock()
+        mock_spec = mock.Mock()
+        mock_wf = mock.Mock()
+        mock_create_wf_s_d.return_value = mock_spec
 
-        workflows.WorkflowSpec.create_workflow_spec_deploy(
-            deployment, mock_context).AndReturn(mock_spec)
-        self._mox.StubOutWithMock(workflow, "create_workflow")
-
-        workflow.create_workflow(
-            mock_spec, deployment, mock_context, driver=self.controller.driver
-        ).AndReturn(mock_wf)
-        self._mox.StubOutWithMock(operations, "add")
-        operations.add(deployment, mock_wf, "SCALE UP", "T_ID")
-        self._mox.ReplayAll()
+        mock_create_wf.return_value = mock_wf
         self.controller.deploy_add_nodes(deployment, mock_context, "T_ID")
+        mock_create_wf_s_d.assert_called_with(deployment, mock_context)
+        mock_create_wf.assert_called_with(
+            mock_spec,
+            deployment,
+            mock_context,
+            driver=self.controller.driver
+        )
+        mock_add.assert_called_with(deployment, mock_wf,
+                                    'SCALE UP', 'T_ID')
 
     def test_reset_failed_resources(self):
         deployment_id = 1234
@@ -115,12 +117,12 @@ class TestManager(unittest.TestCase):
             }
         }})
 
-        self.db.get_deployment(deployment_id, with_secrets=False).AndReturn(
-            deployment)
+        self.db.get_deployment.return_value = deployment
         self.db.save_deployment(deployment_id, expected_deployment, None,
                                 tenant_id=1000, partial=True)
-        self._mox.ReplayAll()
         self.controller.reset_failed_resource(deployment_id, "0")
+        self.db.get_deployment.assert_called_with(deployment_id,
+                                                  with_secrets=False)
 
     def test_reset_failed_resources_without_instance_key(self):
         deployment_id = 1234
@@ -133,10 +135,10 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        self.db.get_deployment(deployment_id, with_secrets=False).AndReturn(
-            deployment)
-        self._mox.ReplayAll()
+        self.db.get_deployment.return_value = deployment
         self.controller.reset_failed_resource(deployment_id, "0")
+        self.db.get_deployment.assert_called_with(deployment_id,
+                                                  with_secrets=False)
 
     def test_reset_failed_resources_without_instance_id_key(self):
         deployment_id = 1234
@@ -151,10 +153,10 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        self.db.get_deployment(deployment_id, with_secrets=False).AndReturn(
-            deployment)
-        self._mox.ReplayAll()
+        self.db.get_deployment.return_value = deployment
         self.controller.reset_failed_resource(deployment_id, "0")
+        self.db.get_deployment.assert_called_with(deployment_id,
+                                                  with_secrets=False)
 
     def test_reset_failed_resources_without_error_status(self):
         deployment_id = 1234
@@ -170,33 +172,31 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        self.db.get_deployment(deployment_id, with_secrets=False).AndReturn(
-            deployment)
-        self._mox.ReplayAll()
+        self.db.get_deployment.return_value = deployment
         self.controller.reset_failed_resource(deployment_id, "0")
+        self.db.get_deployment.assert_called_with(deployment_id,
+                                                  with_secrets=False)
 
 
 class TestCount(unittest.TestCase):
     """ Tests getting deployment counts """
 
     def setUp(self):
-        self._mox = mox.Mox()
         self._deployments = json.load(open(os.path.join(
             os.path.dirname(__file__), '../data', 'deployments.json')))
-        self.db = self._mox.CreateMockAnything()
+        self.db = mock.Mock()
         self.controller = deployments.Manager({'default': self.db})
         unittest.TestCase.setUp(self)
 
     def tearDown(self):
-        self._mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
 
     def test_get_count_all(self):
-        self.db.get_deployments(tenant_id=None, with_count=True,
-                                status=None, query=None)\
-            .AndReturn(self._deployments)
-        self._mox.ReplayAll()
+        self.db.get_deployments = mock.Mock(return_value=self._deployments)
         self.assertEqual(self.controller.count(), 4)
+        self.db.get_deployments.assert_called_with(tenant_id=None,
+                                                   with_count=True,
+                                                   status=None, query=None)
 
     def test_get_count_tenant(self):
         # remove the deployments that dont belong to our tenant
@@ -204,17 +204,21 @@ class TestCount(unittest.TestCase):
         deps['results'].pop("3fgh")
         deps['results'].pop("4ijk")
         deps['collection-count'] = 2
-        self.db.get_deployments(tenant_id="12345", with_count=True,
-                                status=None, query=None).AndReturn(deps)
-        self._mox.ReplayAll()
+        self.db.get_deployments = mock.Mock(return_value=deps)
         self.assertEqual(self.controller.count(tenant_id="12345"), 2)
+        self.db.get_deployments.assert_called_with(tenant_id="12345",
+                                                   with_count=True,
+                                                   status=None,
+                                                   query=None)
 
     def test_get_count_blueprint(self):
-        self.db.get_deployments(status=None, tenant_id=None, with_count=True,
-                                query=None).AndReturn(self._deployments)
-        self._mox.ReplayAll()
+        self.db.get_deployments = mock.Mock(return_value=self._deployments)
         result = self.controller.count(blueprint_id="blp-123-aabc-efg")
         self.assertEqual(result, 2)
+        self.db.get_deployments.assert_called_with(tenant_id=None,
+                                                   with_count=True,
+                                                   status=None,
+                                                   query=None)
 
     def test_get_count_blueprint_and_tenant(self):
         deps = self._deployments.copy()
@@ -223,12 +227,14 @@ class TestCount(unittest.TestCase):
         deps['results'].pop("4ijk")
         deps['collection-count'] = 1
 
-        self.db.get_deployments(tenant_id="12345", with_count=True,
-                                status=None, query=None).AndReturn(deps)
-        self._mox.ReplayAll()
+        self.db.get_deployments = mock.Mock(return_value=deps)
         result = self.controller.count(blueprint_id="blp-123-aabc-efg",
                                        tenant_id="12345")
         self.assertEquals(result, 1)
+        self.db.get_deployments.assert_called_with(tenant_id="12345",
+                                                   with_count=True,
+                                                   status=None,
+                                                   query=None)
 
     def test_send_query_to_driver(self):
         # set up
@@ -249,8 +255,7 @@ class TestCount(unittest.TestCase):
 class TestSecrets(unittest.TestCase):
 
     def setUp(self):
-        self.mox = mox.Mox()
-        self.manager = self.mox.CreateMockAnything()
+        self.manager = mock.Mock()
         data = {
             'id': '1',
             'tenantId': 'T1000',
@@ -288,20 +293,14 @@ class TestSecrets(unittest.TestCase):
         deployment = Deployment(data)
         deployment['display-outputs'].update(deployment.calculate_outputs())
         self.deployment = deployment
-        self.driver = self.mox.CreateMockAnything()
+        self.driver = mock.Mock()
         self.manager = deployments.Manager({'default': self.driver})
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
 
     def test_get_deployment_hides_secrets(self):
         """Check that GET deployment responds without secrets."""
-        self.driver.get_deployment('1', with_secrets=False)\
-            .AndReturn(self.deployment)
-        self.mox.ReplayAll()
+        self.driver.get_deployment = mock.Mock(return_value=self.deployment)
         dep = self.manager.get_deployment('1', tenant_id="T1000",
                                           with_secrets=False)
-        self.mox.VerifyAll()
 
         self.assertEqual(dep['id'], '1')
         self.assertIn('display-outputs', dep)
@@ -309,78 +308,74 @@ class TestSecrets(unittest.TestCase):
         self.assertNotIn('value', outputs['Locked Password'])
         self.assertNotIn('value', outputs['New Password'])
         self.assertIn('value', outputs['Public Key'])
+        self.driver.get_deployment.assert_called_with('1', with_secrets=False)
 
     def test_locked_secrets_not_returned(self):
         """Check that locked secrets are not returned"""
-        self.driver.get_deployment('1', with_secrets=True)\
-            .AndReturn(self.deployment)
+        self.driver.get_deployment = mock.Mock(return_value=self.deployment)
 
-        self.mox.ReplayAll()
         dep = self.manager.get_deployment_secrets('1', tenant_id="T1000")
-        self.mox.VerifyAll()
 
         secrets = dep['secrets']
         self.assertIn('Locked Password', secrets)
         locked_pass = secrets['Locked Password']
         self.assertNotIn('value', locked_pass)
         self.assertEqual('LOCKED', locked_pass['status'])
+        self.driver.get_deployment.assert_called_with('1', with_secrets=True)
 
     def test_status_generating_trumps_available(self):
-        self.driver.get_deployment('1', with_secrets=False)\
-            .AndReturn(self.deployment)
-        self.mox.ReplayAll()
+        self.driver.get_deployment = mock.Mock(return_value=self.deployment)
         dep = self.manager.get_deployment('1', tenant_id="T1000",
                                           with_secrets=False)
-        self.mox.VerifyAll()
 
         self.assertEqual(dep['id'], '1')
         self.assertIn('secrets', dep)
         self.assertEquals(dep['secrets'], 'GENERATING')
+        self.driver.get_deployment.assert_called_with('1', with_secrets=False)
 
     def test_get_secrets_works_when_blank(self):
         """Check that GET deployment secrets wotks if there are no secrets."""
         del self.deployment['display-outputs']
-        self.driver.get_deployment('1', with_secrets=False)\
-            .AndReturn(self.deployment)
+        self.driver.get_deployment = mock.Mock(return_value=self.deployment)
 
-        self.mox.ReplayAll()
         dep = self.manager.get_deployment('1', tenant_id="T1000",
                                           with_secrets=False)
-        self.mox.VerifyAll()
 
         self.assertEqual(dep['id'], '1')
 
         self.assertIn('secrets', dep)
         self.assertEquals(dep['secrets'], 'NO SECRETS')
+        self.driver.get_deployment.assert_called_with('1', with_secrets=False)
 
     def test_status_available_trumps_locked(self):
         """New secrets should be flagged as available."""
         del self.deployment['display-outputs']['Future Password']
-        self.driver.get_deployment('1', with_secrets=False)\
-            .AndReturn(self.deployment)
-        self.mox.ReplayAll()
+        self.driver.get_deployment = mock.Mock(return_value=self.deployment)
         dep = self.manager.get_deployment('1', tenant_id="T1000",
                                           with_secrets=False)
-        self.mox.VerifyAll()
 
         self.assertEqual(dep['id'], '1')
         self.assertIn('secrets', dep)
         self.assertEquals(dep['secrets'], 'AVAILABLE')
+        self.driver.get_deployment.assert_called_with('1', with_secrets=False)
 
     def test_get_deployments_strips_secrets(self):
-        self.driver.get_deployments(tenant_id="T1000", offset=None, limit=None,
-                                    with_deleted=False, status=None,
-                                    query=None)\
-            .AndReturn({'results': {'1': self.deployment}})
-        self.mox.ReplayAll()
+        self.driver.get_deployments = mock.Mock(return_value={
+            'results': {'1': self.deployment}
+        })
         results = self.manager.get_deployments(tenant_id="T1000")
-        self.mox.VerifyAll()
 
         out = results['results']['1']
         self.assertIs(out, self.deployment)
         outputs = out['display-outputs']
         self.assertNotIn('value', outputs['Locked Password'])
         self.assertNotIn('value', outputs['New Password'])
+        self.driver.get_deployments.assert_called_with(tenant_id="T1000",
+                                                       offset=None,
+                                                       limit=None,
+                                                       with_deleted=False,
+                                                       status=None,
+                                                       query=None)
 
 
 class TestDeploymentManager(unittest.TestCase):
