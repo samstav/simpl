@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=R0904,W0212
 """Tests for Redis caching."""
 import time
 import unittest
@@ -15,6 +15,7 @@ from checkmate.common import caching
 
 
 def sample_method(*args, **kwargs):
+    """Mock method used to test caching."""
     return list(args), kwargs
 
 
@@ -64,10 +65,12 @@ class TestRedisCache(unittest.TestCase):
     def test_shared_caching(self):
 
         def increment():
+            """Helper method to test caching."""
             increment.calls += 1
             return increment.calls
 
         def increment2():
+            """Helper method to test caching."""
             return 0
 
         # No caching
@@ -101,10 +104,12 @@ class TestRedisCache(unittest.TestCase):
         """Test that we can use extra key data to separate Redis caches."""
 
         def increment():
+            """Helper method to test caching."""
             increment.calls += 1
             return increment.calls
 
         def increment2():
+            """Helper method to test caching."""
             return 0
 
         # No caching
@@ -136,7 +141,8 @@ class TestRedisCache(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,R0904,W0212
 """Tests for utils module."""
 import copy
 import re
@@ -154,13 +154,13 @@ class TestUtils(unittest.TestCase):
             }
         }
         original = copy.copy(combined)
-        c, s = fxn(combined, [])
-        self.assertDictEqual(c, combined)
-        self.assertIsNone(s)
+        not_secret, is_secret = fxn(combined, [])
+        self.assertDictEqual(not_secret, combined)
+        self.assertIsNone(is_secret)
 
-        c, s = fxn(combined, ['credentials', 'password'])
-        self.assertDictEqual(c, innocuous)
-        self.assertDictEqual(s, secret)
+        not_secret, is_secret = fxn(combined, ['credentials', 'password'])
+        self.assertDictEqual(not_secret, innocuous)
+        self.assertDictEqual(is_secret, secret)
         self.assertDictEqual(combined, original)
 
         merged = utils.merge_dictionary(innocuous, secret)
@@ -183,8 +183,8 @@ class TestUtils(unittest.TestCase):
                 ]
             }
         }
-        c, _ = fxn(data, [])
-        self.assertDictEqual(data, c)
+        result, _ = fxn(data, [])
+        self.assertDictEqual(data, result)
         merge = utils.merge_dictionary(data, data)
         self.assertDictEqual(data, merge)
         merge = utils.merge_dictionary(data, {})
@@ -198,32 +198,32 @@ class TestUtils(unittest.TestCase):
         src = dict(b='u2', c=dict(cb='u32', cd=dict(cda=dict(cdaa='u3411',
                    cdab='u3412'))), e='u5', h=dict(i='u4321'), i=[1], j=[1, 2],
                    l=[None, [{'t': 8}]])
-        r = utils.merge_dictionary(dst, src)
-        self.assertIsInstance(r, dict)
-        self.assertEquals(r['a'], 1)
-        self.assertEquals(r['d'], 4)
-        self.assertEquals(r['f'], 6)
-        self.assertEquals(r['b'], 'u2')
-        self.assertEquals(r['e'], 'u5')
-        self.assertIs(r['c'], dst['c'])
-        self.assertIs(r['c']['cd'], dst['c']['cd'])
-        self.assertEquals(r['c']['cd']['cda']['cdaa'], 'u3411')
-        self.assertEquals(r['c']['cd']['cda']['cdab'], 'u3412')
-        self.assertEquals(r['g'], 7)
-        self.assertIs(src['h'], r['h'])
-        self.assertEquals(r['i'], [1])
-        self.assertEquals(r['j'], [1, 2])
-        self.assertEquals(r['k'], [3, 4])
-        self.assertEquals(r['l'], [[], [{'s': 1, 't': 8}]])
+        result = utils.merge_dictionary(dst, src)
+        self.assertIsInstance(result, dict)
+        self.assertEquals(result['a'], 1)
+        self.assertEquals(result['d'], 4)
+        self.assertEquals(result['f'], 6)
+        self.assertEquals(result['b'], 'u2')
+        self.assertEquals(result['e'], 'u5')
+        self.assertIs(result['c'], dst['c'])
+        self.assertIs(result['c']['cd'], dst['c']['cd'])
+        self.assertEquals(result['c']['cd']['cda']['cdaa'], 'u3411')
+        self.assertEquals(result['c']['cd']['cda']['cdab'], 'u3412')
+        self.assertEquals(result['g'], 7)
+        self.assertIs(src['h'], result['h'])
+        self.assertEquals(result['i'], [1])
+        self.assertEquals(result['j'], [1, 2])
+        self.assertEquals(result['k'], [3, 4])
+        self.assertEquals(result['l'], [[], [{'s': 1, 't': 8}]])
 
     def test_merge_lists(self):
         dst = [[], [2], [None, 4]]
         src = [[1], [], [3, None]]
-        r = utils.merge_lists(dst, src)
-        self.assertIsInstance(r, list)
-        self.assertEquals(r[0], [1])
-        self.assertEquals(r[1], [2])
-        self.assertEquals(r[2], [3, 4], "Found: %s" % r[2])
+        result = utils.merge_lists(dst, src)
+        self.assertIsInstance(result, list)
+        self.assertEquals(result[0], [1])
+        self.assertEquals(result[1], [2])
+        self.assertEquals(result[2], [3, 4], "Found: %s" % result[2])
 
     def test_is_ssh_key(self):
         self.assertFalse(utils.is_ssh_key(None))
@@ -592,7 +592,8 @@ class TestQueryParams(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

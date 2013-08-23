@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,R0904
 """Tests for middleware."""
 import unittest
 import os
@@ -10,8 +10,13 @@ from checkmate.middleware import (TenantMiddleware,
 from bottle import request
 
 
-class MockWsgiApp(object):
+def _start_response():
+    "Helper method to mock _start_response."""
+    pass
 
+
+class MockWsgiApp(object):
+    """Mock class for the WsgiApp."""
     def __init__(self):
         pass
 
@@ -19,11 +24,7 @@ class MockWsgiApp(object):
         pass
 
 
-def _start_response():
-    pass
-
-
-class StripPathMiddlewareTest(unittest.TestCase):
+class TestStripPathMiddleware(unittest.TestCase):
     def setUp(self):
         self.filter = StripPathMiddleware(MockWsgiApp())
 
@@ -39,7 +40,7 @@ class StripPathMiddlewareTest(unittest.TestCase):
         self.assertEqual('', env['PATH_INFO'])
 
 
-class TenantMiddlewareTest(unittest.TestCase):
+class TestTenantMiddleware(unittest.TestCase):
     def setUp(self):
         self.filter = ContextMiddleware(TenantMiddleware(MockWsgiApp()))
 
@@ -65,7 +66,7 @@ class TenantMiddlewareTest(unittest.TestCase):
         self.assertEqual('/deployments', env['PATH_INFO'])
 
 
-class ExtensionsMiddlewareTest(unittest.TestCase):
+class TestExtensionsMiddleware(unittest.TestCase):
     def setUp(self):
         self.filter = ExtensionsMiddleware(MockWsgiApp())
 
@@ -96,7 +97,7 @@ class ExtensionsMiddlewareTest(unittest.TestCase):
         self.assertEqual('application/json', env['HTTP_ACCEPT'])
 
 
-class RequestContextTest(unittest.TestCase):
+class TestRequestContext(unittest.TestCase):
     def setUp(self):
         self.filter = ContextMiddleware(MockWsgiApp())
         # Remove CHECKMATE_OVERRIDE_URL before running!
@@ -158,7 +159,8 @@ class RequestContextTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,R0201
 """Tests for Resource class."""
 import unittest
 import mock
@@ -127,29 +127,6 @@ class TestResource(unittest.TestCase):
         self.resource['desired-state'] = {'port': '80'}
         self.resource['status'] = 'PLANNED'
         self.assertEquals(3, len(self.resource))
-
-    def test_resource_get_item(self):
-        resource = Resource(
-            '0',
-            {'index': '0', 'desired-state': {'port': '80'}}
-        )
-        self.assertEquals({'port': '80'}, resource['desired-state'])
-
-    def test_json_dumps(self):
-        resource = Resource(
-            '0',
-            {'index': '0', 'desired-state': {'port': '80'}}
-        )
-        self.assertDictEqual(
-            {'index': '0', 'desired-state': {'port': '80'}},
-            json.loads(json.dumps(resource))
-        )
-
-    def test_yaml_dumps(self):
-        self.resource['index'] = '0'
-        self.resource['status'] = 'NEW'
-        self.resource['desired-state'] = {'port': '80'}
-        self.assertEqual(3, len(self.resource))
 
     def test_resource_get_item(self):
         self.resource['index'] = '0'
@@ -321,7 +298,8 @@ class TestResource(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

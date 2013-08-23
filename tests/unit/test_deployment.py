@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,R0201,R0904
 """Tests for Deployment class."""
 import mock
 import unittest
@@ -710,12 +710,12 @@ class TestCeleryTasks(unittest.TestCase):
     def test_update_deployment_status(self):
         """ Test deployment status update """
         expected = {'status': "DOWN"}
-        db = mock.Mock()
-        db.save_deployment.return_value = expected
-        update_deployment_status_new('1234', 'DOWN', driver=db)
-        db.save_deployment.assert_called_with('1234',
-                                              expected,
-                                              partial=True)
+        mock_db = mock.Mock()
+        mock_db.save_deployment.return_value = expected
+        update_deployment_status_new('1234', 'DOWN', driver=mock_db)
+        mock_db.save_deployment.assert_called_with('1234',
+                                                   expected,
+                                                   partial=True)
 
     def test_on_postback_for_resource(self):
         """ Test on_postback dict merge and validation """
@@ -762,7 +762,8 @@ class TestCeleryTasks(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

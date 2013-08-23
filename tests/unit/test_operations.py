@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103
 """Tests for Operations."""
 import mox
 import unittest
@@ -20,61 +20,64 @@ class TestOperations(unittest.TestCase):
     def test_create_add_nodes(self):
         wf_spec = WorkflowSpec(name="Add Nodes")
         wf_spec.start.connect(Simple(wf_spec, "end"))
-        wf = Workflow(wf_spec)
+        wflow = Workflow(wf_spec)
         expected_operation = {"foo": "bar", 'type': "ADD_NODES"}
         deployment = {}
         self.mox.StubOutWithMock(operations, "init_operation")
-        operations.init_operation(wf, tenant_id="TENANT_ID").AndReturn(
+        operations.init_operation(wflow, tenant_id="TENANT_ID").AndReturn(
             {"foo": "bar"})
         self.mox.ReplayAll()
-        operations.add(deployment, wf, "ADD_NODES", "TENANT_ID")
+        operations.add(deployment, wflow, "ADD_NODES", "TENANT_ID")
         self.assertDictEqual(deployment['operation'], expected_operation)
 
     def test_update_operation(self):
-        db = self.mox.CreateMockAnything()
-        db.get_deployment('1234', with_secrets=True).AndReturn({
+        mock_db = self.mox.CreateMockAnything()
+        mock_db.get_deployment('1234', with_secrets=True).AndReturn({
             'id': '1234', 'operation': {
             'status': 'NEW'}})
-        db.save_deployment('1234', {'operation': {'status': 'NEW'}},
-                           partial=True).AndReturn(None)
+        mock_db.save_deployment('1234', {'operation': {'status': 'NEW'}},
+                                partial=True).AndReturn(None)
         self.mox.ReplayAll()
-        operations.update_operation('1234', '1234', status='NEW', driver=db)
+        operations.update_operation(
+            '1234', '1234', status='NEW', driver=mock_db)
         self.mox.VerifyAll()
 
     def test_update_operation_when_operation_in_operations_history(self):
-        db = self.mox.CreateMockAnything()
-        db.get_deployment('1234', with_secrets=True).AndReturn({
+        mock_db = self.mox.CreateMockAnything()
+        mock_db.get_deployment('1234', with_secrets=True).AndReturn({
             'id': '1234', 'operation': {
             'status': 'NEW'},
             'operations-history': [{'workflow-id': 'w_id', 'status': 'BUILD'}]
         })
-        db.save_deployment('1234', {'operations-history': [{'status':
-                                                            'PAUSE'}],
-                                    'display-outputs': {}},
-                           partial=True).AndReturn(None)
+        mock_db.save_deployment('1234', {'operations-history': [{'status':
+                                                                 'PAUSE'}],
+                                         'display-outputs': {}},
+                                partial=True).AndReturn(None)
         self.mox.ReplayAll()
-        operations.update_operation('1234', 'w_id', status='PAUSE', driver=db)
+        operations.update_operation(
+            '1234', 'w_id', status='PAUSE', driver=mock_db)
         self.mox.VerifyAll()
 
     def test_update_operation_with_deployment_status(self):
-        db = self.mox.CreateMockAnything()
-        db.get_deployment('1234', with_secrets=True).AndReturn(
+        mock_db = self.mox.CreateMockAnything()
+        mock_db.get_deployment('1234', with_secrets=True).AndReturn(
             {'id': '1234', 'operation': {'status': 'NEW'}})
-        db.save_deployment('1234', {'operation': {'status': 'NEW'},
-                                    'status': "PLANNED"},
-                           partial=True).AndReturn(None)
+        mock_db.save_deployment('1234', {'operation': {'status': 'NEW'},
+                                         'status': "PLANNED"},
+                                partial=True).AndReturn(None)
         self.mox.ReplayAll()
         operations.update_operation('1234', '1234', status='NEW',
-                                    deployment_status="PLANNED", driver=db)
+                                    deployment_status="PLANNED", driver=mock_db)
         self.mox.VerifyAll()
 
     def test_update_operation_with_operation_marked_complete(self):
-        db = self.mox.CreateMockAnything()
-        db.get_deployment('1234', with_secrets=True).AndReturn(
+        mock_db = self.mox.CreateMockAnything()
+        mock_db.get_deployment('1234', with_secrets=True).AndReturn(
             {'id': '1234', 'operation': {'status': 'COMPLETE'}})
         self.mox.ReplayAll()
         operations.update_operation('1234', '1234', status='NEW',
-                                    deployment_status="PLANNED", driver=db)
+                                    deployment_status="PLANNED",
+                                    driver=mock_db)
         self.mox.VerifyAll()
 
     def test_add_operation(self):
@@ -207,7 +210,8 @@ class TestOperations(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

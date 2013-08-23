@@ -1,13 +1,13 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=W0212
 """Tests for Component class."""
 import unittest
 
-from checkmate.component import Component
+from checkmate import component as cmcomp
 from checkmate.exceptions import CheckmateValidationException
 from checkmate.utils import yaml_to_dict
 
 
-class ComponentTestCase(unittest.TestCase):
+class TestComponent(unittest.TestCase):
     def test_schema_multiple_interfaces_ok(self):
         """Check that components support entries with the same key"""
         data = yaml_to_dict("""
@@ -19,20 +19,22 @@ class ComponentTestCase(unittest.TestCase):
                 - database: mysql
                 - database: mssql
             """)
-        c = Component(data)
-        self.assertDictEqual(c._data, data)
+        comp = cmcomp.Component(data)
+        self.assertDictEqual(comp._data, data)
 
     def test_schema_validation(self):
-        self.assertRaises(CheckmateValidationException, Component.__init__,
-                          Component(), {'invalid': 'field'})
+        self.assertRaises(CheckmateValidationException,
+                          cmcomp.Component.__init__, cmcomp.Component(),
+                          {'invalid': 'field'})
 
     def test_provider_attribute(self):
         """Check that passing in special value gets processed correctly"""
-        class dummy(object):
+        class Dummy(object):
+            """Helper class to mock a Provider."""
             key = 1
-        c = Component({}, provider=dummy())
-        self.assertEqual(c.provider.key, 1)
-        self.assertNotIn('provider', c)
+        comp = cmcomp.Component({}, provider=Dummy())
+        self.assertEqual(comp.provider.key, 1)
+        self.assertNotIn('provider', comp)
 
     def test_provides_property_list(self):
         """Check that components parses provides as  list correctly"""
@@ -42,7 +44,7 @@ class ComponentTestCase(unittest.TestCase):
                 - database: mysql
                 - compute: linux
             """)
-        c = Component(data)
+        comp = cmcomp.Component(data)
         expected = yaml_to_dict("""
                     database:mysql:
                       resource_type: database
@@ -51,7 +53,7 @@ class ComponentTestCase(unittest.TestCase):
                       resource_type: compute
                       interface: linux
             """)
-        self.assertDictEqual(c.provides, expected)
+        self.assertDictEqual(comp.provides, expected)
 
     def test_provides_property_dict(self):
         """Check that components parses provides as a dictionary correctly"""
@@ -69,8 +71,8 @@ class ComponentTestCase(unittest.TestCase):
                     resource_type: database
                     interface: mysql
             """)
-        c = Component({})
-        c._data = data  # bypass validation until we support this syntax
+        comp = cmcomp.Component({})
+        comp._data = data  # bypass validation until we support this syntax
         expected = yaml_to_dict("""
                   host:
                     resource_type: compute
@@ -83,7 +85,7 @@ class ComponentTestCase(unittest.TestCase):
                     resource_type: database
                     interface: mysql
             """)
-        self.assertDictEqual(c.provides, expected)
+        self.assertDictEqual(comp.provides, expected)
 
     def test_requires_property_list(self):
         """Check that components parses requires list correctly"""
@@ -94,7 +96,7 @@ class ComponentTestCase(unittest.TestCase):
                 - database: mysql
                 - host: linux
             """)
-        c = Component(data)
+        comp = cmcomp.Component(data)
         expected = yaml_to_dict("""
                     database:mysql:
                       resource_type: database
@@ -106,7 +108,7 @@ class ComponentTestCase(unittest.TestCase):
                       interface: linux
                       relation: host
             """)
-        self.assertDictEqual(c.requires, expected)
+        self.assertDictEqual(comp.requires, expected)
 
     def test_requires_property_host(self):
         """Check that components parses 'host' shorthand"""
@@ -115,17 +117,18 @@ class ComponentTestCase(unittest.TestCase):
                 requires:
                 - host: linux
             """)
-        c = Component(data)
+        comp = cmcomp.Component(data)
         expected = yaml_to_dict("""
                     host:linux:
                       relation: host
                       interface: linux
             """)
-        self.assertDictEqual(c.requires, expected)
+        self.assertDictEqual(comp.requires, expected)
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])
