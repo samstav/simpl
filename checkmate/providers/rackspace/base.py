@@ -3,10 +3,22 @@
 Rackspace Provider base module.
 """
 import logging
+import pyrax
 
+from checkmate import exceptions
+from checkmate import middleware
 from checkmate.providers import base
+from checkmate import server
 
 LOG = logging.getLogger(__name__)
+
+REGION_MAP = {
+    'dallas': 'DFW',
+    'chicago': 'ORD',
+    'virginia': 'IAD',
+    'london': 'LON',
+    'sydney': 'SYD',
+}
 
 
 class RackspaceProviderBase(base.ProviderBase):
@@ -52,3 +64,41 @@ class RackspaceProviderBase(base.ProviderBase):
             LOG.warning('No regions found for type %s and service name %s',
                         resource_type or '*', service_name or '*')
         return list(regions)
+
+    @staticmethod
+    def connect(context, region=None):
+        '''Use context info to connect to API and return api object.'''
+        #FIXME: figure out better serialization/deserialization scheme
+        if isinstance(context, dict):
+            context = middleware.RequestContext(**context)
+        elif not isinstance(context, middleware.RequestContext):
+            message = ("Context passed into connect is an unsupported type "
+                       "%s." % type(context))
+            raise exceptions.CheckmateException(message)
+        if not context.auth_token:
+            raise exceptions.CheckmateNoTokenError()
+
+        if context.auth_source not in server.DEFAULT_AUTH_ENDPOINTS:
+            pyrax_settings = {
+                'identity_type': 'keystone',
+                'verify_ssl': False,
+                'auth_endpoint': context.auth_source
+            }
+        else:
+            pyrax_settings = {'identity_type': 'rackspace'}
+
+        if region in REGION_MAP:
+            region = REGION_MAP[region]
+        if not region:
+            region = getattr(context, 'region', None)
+            if not region:
+                region = 'DFW'
+
+        if not pyrax.get_setting("identity_type"):
+            for key, value in pyrax_settings.items():
+                pyrax.set_setting(key, value)
+
+        pyrax.auth_with_token(context.auth_token, context.tenant,
+                              context.username, region)
+
+        return pyrax

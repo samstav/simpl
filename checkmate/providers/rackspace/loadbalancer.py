@@ -23,9 +23,8 @@ from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate import exceptions
 from checkmate import middleware
 from checkmate.providers.base import ProviderBase, user_has_access
-from checkmate.providers.rackspace import dns
+from checkmate.providers.rackspace import base, dns
 from checkmate.providers.rackspace.dns import parse_domain
-from checkmate import server
 from checkmate.utils import (
     match_celery_logging,
     get_class_name,
@@ -74,9 +73,10 @@ MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
-class Provider(ProviderBase):
+class Provider(base.RackspaceProviderBase):
     '''Rackspace load balancer provider'''
     name = 'load-balancer'
+    method = 'cloud_loadbalancers'
     vendor = 'rackspace'
 
     __status_mapping__ = {
@@ -733,40 +733,8 @@ class Provider(ProviderBase):
     @staticmethod
     def connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
-        #FIXME: figure out better serialization/deserialization scheme
-        if isinstance(context, dict):
-            context = middleware.RequestContext(**context)
-        elif not isinstance(context, middleware.RequestContext):
-            message = ("Context passed into connect is an unsupported type "
-                       "%s." % type(context))
-            raise exceptions.CheckmateException(message)
-        if not context.auth_token:
-            raise exceptions.CheckmateNoTokenError()
-
-        if context.auth_source not in server.DEFAULT_AUTH_ENDPOINTS:
-            pyrax_settings = {
-                'identity_type': 'keystone',
-                'verify_ssl': False,
-                'auth_endpoint': context.auth_source
-            }
-        else:
-            pyrax_settings = {'identity_type': Provider.vendor}
-
-        if region in REGION_MAP:
-            region = REGION_MAP[region]
-        if not region:
-            region = getattr(context, 'region', None)
-            if not region:
-                region = Provider.find_a_region(context.catalog) or 'DFW'
-
-        if not pyrax.get_setting("identity_type"):
-            for key, value in pyrax_settings.items():
-                pyrax.set_setting(key, value)
-
-        pyrax.auth_with_token(context.auth_token, context.tenant,
-                              context.username, region)
-
-        return pyrax.cloud_loadbalancers
+        return getattr(base.RackspaceProviderTask.connect(context, region),
+                       Provider.method)
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE,
