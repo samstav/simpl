@@ -1203,8 +1203,7 @@ class ChefMap(object):
             url = ChefMap.parse_map_URI(target)
             if url['scheme'] == 'attributes':
                 if 'resource' not in mapping:
-                    message = 'Resource hint required in ' \
-                                        'attribute mapping'
+                    message = 'Resource hint required in attribute mapping'
                     raise CheckmateUserException(message,
                                                  utils.get_class_name(
                                                      CheckmateException),
@@ -1445,8 +1444,8 @@ class ChefMap(object):
         except StandardError as exc:
             LOG.error(exc, exc_info=True)
             error_message = "Chef template rendering failed: %s" % exc
-            raise CheckmateUserException(error_message,utils.get_class_name(
-                CheckmateException), UNEXPECTED_ERROR, '' )
+            raise CheckmateUserException(error_message, utils.get_class_name(
+                CheckmateException), UNEXPECTED_ERROR, '')
         except TemplateError as exc:
             LOG.error(exc, exc_info=True)
             error_message = "Chef template had an error: %s" % exc

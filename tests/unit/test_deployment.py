@@ -165,11 +165,11 @@ class TestDeployments(unittest.TestCase):
                                         "2": {"status": "BUILD",
                                               "provider": "something"},
                                         "foo": {"status": "BUILD",
-                                              "provider": "something"},
+                                                "provider": "something"},
                                         "3": {"status": "BUILD",
                                               "provider": "something"},
                                         "bar": {"status": "NEW",
-                                              "provider": "something else"}}
+                                                "provider": "something else"}}
         resources = self.deployment.get_indexed_resources()
         self.assertDictEqual(resources, {"1": {"status": "PLANNED",
                                                "provider": "load-balancer"},

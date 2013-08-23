@@ -152,9 +152,9 @@ class Provider(ProviderBase):
             )
 
             wait_on = [compile_override, self.prep_task]
-            wfspec.wait_for(set_overrides, wait_on,
-                name="Wait on Environment and Settings:%s" % key
-            )
+            wfspec.wait_for(set_overrides, wait_on, name="Wait on Environment "
+                                                         "and Settings:%s" %
+                                                         key)
 
             config_final = self.find_resource_task(
                 wfspec, key, self.key, 'final'
