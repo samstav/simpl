@@ -741,6 +741,8 @@ class Provider(ProviderBase):
             raise exceptions.CheckmateException(message)
         if not context.auth_token:
             raise exceptions.CheckmateNoTokenError()
+        
+        import ipdb; ipdb.set_trace()
 
         if region in REGION_MAP:
             region = REGION_MAP[region]
