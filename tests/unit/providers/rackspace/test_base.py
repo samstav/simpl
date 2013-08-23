@@ -100,7 +100,7 @@ class TestRackspaceProviderBase(unittest.TestCase):
 
 class TestConnect(unittest.TestCase):
     """Verifies logic in connect."""
-    
+
     def setUp(self):
         """Setup reuse vars."""
         self.context = {
@@ -109,7 +109,6 @@ class TestConnect(unittest.TestCase):
             'username': 'test'
         }
 
-    
     def test_invalid_context(self):
         context = 'invalid'
         try:
