@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,R0904,W0201
 """Tests for Deployments Manager."""
 import copy
 import json
@@ -15,8 +15,8 @@ from checkmate.deployment import Deployment
 class TestManager(unittest.TestCase):
 
     def setUp(self):
-        self.db = mock.Mock()
-        self.controller = deployments.Manager({'default': self.db})
+        self.mock_db = mock.Mock()
+        self.controller = deployments.Manager({'default': self.mock_db})
         unittest.TestCase.setUp(self)
 
     def tearDown(self):
@@ -117,12 +117,12 @@ class TestManager(unittest.TestCase):
             }
         }})
 
-        self.db.get_deployment.return_value = deployment
-        self.db.save_deployment(deployment_id, expected_deployment, None,
-                                tenant_id=1000, partial=True)
+        self.mock_db.get_deployment.return_value = deployment
+        self.mock_db.save_deployment(deployment_id, expected_deployment, None,
+                                     tenant_id=1000, partial=True)
         self.controller.reset_failed_resource(deployment_id, "0")
-        self.db.get_deployment.assert_called_with(deployment_id,
-                                                  with_secrets=False)
+        self.mock_db.get_deployment.assert_called_with(deployment_id,
+                                                       with_secrets=False)
 
     def test_reset_failed_resources_without_instance_key(self):
         deployment_id = 1234
@@ -135,10 +135,10 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        self.db.get_deployment.return_value = deployment
+        self.mock_db.get_deployment.return_value = deployment
         self.controller.reset_failed_resource(deployment_id, "0")
-        self.db.get_deployment.assert_called_with(deployment_id,
-                                                  with_secrets=False)
+        self.mock_db.get_deployment.assert_called_with(deployment_id,
+                                                       with_secrets=False)
 
     def test_reset_failed_resources_without_instance_id_key(self):
         deployment_id = 1234
@@ -153,10 +153,10 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        self.db.get_deployment.return_value = deployment
+        self.mock_db.get_deployment.return_value = deployment
         self.controller.reset_failed_resource(deployment_id, "0")
-        self.db.get_deployment.assert_called_with(deployment_id,
-                                                  with_secrets=False)
+        self.mock_db.get_deployment.assert_called_with(deployment_id,
+                                                       with_secrets=False)
 
     def test_reset_failed_resources_without_error_status(self):
         deployment_id = 1234
@@ -172,10 +172,10 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        self.db.get_deployment.return_value = deployment
+        self.mock_db.get_deployment.return_value = deployment
         self.controller.reset_failed_resource(deployment_id, "0")
-        self.db.get_deployment.assert_called_with(deployment_id,
-                                                  with_secrets=False)
+        self.mock_db.get_deployment.assert_called_with(deployment_id,
+                                                       with_secrets=False)
 
 
 class TestCount(unittest.TestCase):
@@ -184,18 +184,18 @@ class TestCount(unittest.TestCase):
     def setUp(self):
         self._deployments = json.load(open(os.path.join(
             os.path.dirname(__file__), '../data', 'deployments.json')))
-        self.db = mock.Mock()
-        self.controller = deployments.Manager({'default': self.db})
+        self.mock_db = mock.Mock()
+        self.controller = deployments.Manager({'default': self.mock_db})
         unittest.TestCase.setUp(self)
 
     def tearDown(self):
         unittest.TestCase.tearDown(self)
 
     def test_get_count_all(self):
-        self.db.get_deployments = mock.Mock(return_value=self._deployments)
+        self.mock_db.get_deployments = mock.Mock(return_value=self._deployments)
         self.assertEqual(self.controller.count(), 4)
-        self.db.get_deployments.assert_called_with(tenant_id=None,
-                                                   with_count=True,
+        self.mock_db.get_deployments.assert_called_with(tenant_id=None,
+                                                        with_count=True,
                                                    status=None, query=None)
 
     def test_get_count_tenant(self):
@@ -204,19 +204,19 @@ class TestCount(unittest.TestCase):
         deps['results'].pop("3fgh")
         deps['results'].pop("4ijk")
         deps['collection-count'] = 2
-        self.db.get_deployments = mock.Mock(return_value=deps)
+        self.mock_db.get_deployments = mock.Mock(return_value=deps)
         self.assertEqual(self.controller.count(tenant_id="12345"), 2)
-        self.db.get_deployments.assert_called_with(tenant_id="12345",
-                                                   with_count=True,
+        self.mock_db.get_deployments.assert_called_with(tenant_id="12345",
+                                                        with_count=True,
                                                    status=None,
                                                    query=None)
 
     def test_get_count_blueprint(self):
-        self.db.get_deployments = mock.Mock(return_value=self._deployments)
+        self.mock_db.get_deployments = mock.Mock(return_value=self._deployments)
         result = self.controller.count(blueprint_id="blp-123-aabc-efg")
         self.assertEqual(result, 2)
-        self.db.get_deployments.assert_called_with(tenant_id=None,
-                                                   with_count=True,
+        self.mock_db.get_deployments.assert_called_with(tenant_id=None,
+                                                        with_count=True,
                                                    status=None,
                                                    query=None)
 
@@ -227,12 +227,12 @@ class TestCount(unittest.TestCase):
         deps['results'].pop("4ijk")
         deps['collection-count'] = 1
 
-        self.db.get_deployments = mock.Mock(return_value=deps)
+        self.mock_db.get_deployments = mock.Mock(return_value=deps)
         result = self.controller.count(blueprint_id="blp-123-aabc-efg",
                                        tenant_id="12345")
         self.assertEquals(result, 1)
-        self.db.get_deployments.assert_called_with(tenant_id="12345",
-                                                   with_count=True,
+        self.mock_db.get_deployments.assert_called_with(tenant_id="12345",
+                                                        with_count=True,
                                                    status=None,
                                                    query=None)
 
@@ -402,7 +402,8 @@ class TestGetDeployments(TestDeploymentManager):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

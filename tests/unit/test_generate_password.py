@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103
 """Tests for generate_password function."""
 import string
 import unittest
@@ -12,17 +12,20 @@ DEFAULT_VALID_CHARS = ''.join([
 
 
 def as_set(chars):
+    """Helper method to convert a string to a set of characters."""
     return set(''.join(chars))
 
 
 class TestGeneratePassword(unittest.TestCase):
     def assertAllCharsAreValid(self, password, valid_chars):
+        """Helper method to assert that all chars are in valid_chars."""
         for char in password:
             self.assertTrue(
                 char in valid_chars, "'%s' not in '%s'" % (char, valid_chars)
             )
 
     def assertAtLeastOne(self, password, required_chars):
+        """Helper method to assert at least one required char exists."""
         required_count = 0
         for char in password:
             if char in required_chars:
@@ -120,3 +123,11 @@ class TestGeneratePassword(unittest.TestCase):
             "Maximum password length of 255 characters exceeded.",
             str(expected.exception)
         )
+
+
+if __name__ == '__main__':
+    import sys
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

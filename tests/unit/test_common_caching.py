@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=R0904
 """Tests for caching."""
 import time
 import unittest
@@ -9,6 +9,7 @@ from checkmate.common import caching
 
 
 def sample_method(*args, **kwargs):
+    """Mock method to wrap with caching."""
     return list(args), kwargs
 
 
@@ -56,8 +57,7 @@ class TestCaching(unittest.TestCase):
         self.assertEqual(result3, 2)  # now increments
 
     def test_caching_limits(self):
-
-        def increment(x):
+        def increment(unused):
             """For testing"""
             increment.counter += 1
             return increment.counter
@@ -72,7 +72,6 @@ class TestCaching(unittest.TestCase):
         self.assertListEqual(results, [1, 2, 3, 4, 1, 2, 5, 6])
 
     def test_caching_timeout(self):
-
         def increment():
             """For testing"""
             increment.counter += 1
@@ -207,7 +206,8 @@ class TestSecretHashing(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

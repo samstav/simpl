@@ -1,20 +1,19 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,E0602,R0201,R0904,W0212,W0612,W0613
 """Tests for WSGI git http backend."""
 import unittest
-from mock import patch, Mock, mock_open
-import os
+import mock
 from checkmate import wsgi_git_http_backend
-from eventlet.green import threading, subprocess
+from eventlet.green import threading
 
 #TODO: [need help] _comm_with_git, _input_data_pump, _response_body_generator
 #TODO: _separate_header
 
 
-class TestWsgiGitHttpBackend_wsgi_to_git_http_backend(unittest.TestCase):
+class TestWsgiGitHttpBackendWsgiToGit(unittest.TestCase):
 
-    @patch.object(wsgi_git_http_backend, 'build_cgi_environ')
-    @patch.object(wsgi_git_http_backend, 'run_git_http_backend')
-    @patch.object(wsgi_git_http_backend, 'parse_cgi_header')
+    @mock.patch.object(wsgi_git_http_backend, 'build_cgi_environ')
+    @mock.patch.object(wsgi_git_http_backend, 'run_git_http_backend')
+    @mock.patch.object(wsgi_git_http_backend, 'parse_cgi_header')
     #@unittest.skip("Temp skip")
     def test_mocked_up(self, mock_parse, mock_run, mock_build):
         # mocks
@@ -28,15 +27,15 @@ class TestWsgiGitHttpBackend_wsgi_to_git_http_backend(unittest.TestCase):
         assert mock_parse.called
 
 
-class TestWsgiGitHttpBackend_run_git_http_backend(unittest.TestCase):
+class TestWsgiGitHttpBackendRunGit(unittest.TestCase):
 
-    @patch.object(wsgi_git_http_backend, 'subprocess')
-    @patch.object(wsgi_git_http_backend, '_communicate_with_git')
+    @mock.patch.object(wsgi_git_http_backend, 'subprocess')
+    @mock.patch.object(wsgi_git_http_backend, '_communicate_with_git')
     #@unittest.skip("Temp skip")
     def test_mocked_up(self, mock_comm, mock_subproc):
         # mocks
         mock_subproc.Popen.return_value = True
-        mock_subproc.PIPE = Mock()
+        mock_subproc.PIPE = mock.Mock()
         mock_comm.return_value = {}, {}
         # kick off
         cgienv = {'CONTENT_LENGTH': 10}
@@ -46,15 +45,15 @@ class TestWsgiGitHttpBackend_run_git_http_backend(unittest.TestCase):
         assert mock_comm.called
 
 
-class TestWsgiGitHttpBackend_build_cgi_environ(unittest.TestCase):
+class TestWsgiGitHttpBackendBuildCgiEnviron(unittest.TestCase):
 
-    @patch.object(wsgi_git_http_backend, 'subprocess')
-    @patch.object(wsgi_git_http_backend, '_communicate_with_git')
+    @mock.patch.object(wsgi_git_http_backend, 'subprocess')
+    @mock.patch.object(wsgi_git_http_backend, '_communicate_with_git')
     #@unittest.skip("Temp skip")
     def test_mocked_up(self, mock_comm, mock_subproc):
         # mocks
         mock_subproc.Popen.return_value = True
-        mock_subproc.PIPE = Mock()
+        mock_subproc.PIPE = mock.Mock()
         mock_comm.return_value = {}, {}
         # kick off
         cgienv = {'CONTENT_LENGTH': 10}
@@ -64,15 +63,15 @@ class TestWsgiGitHttpBackend_build_cgi_environ(unittest.TestCase):
         assert mock_comm.called
 
 
-class TestWsgiGitHttpBackend_parse_cgi_header(unittest.TestCase):
+class TestWsgiGitHttpBackendParseCgiHeader(unittest.TestCase):
 
-    @patch.object(wsgi_git_http_backend, 'subprocess')
-    @patch.object(wsgi_git_http_backend, '_communicate_with_git')
+    @mock.patch.object(wsgi_git_http_backend, 'subprocess')
+    @mock.patch.object(wsgi_git_http_backend, '_communicate_with_git')
     #@unittest.skip("Temp skip")
     def test_mocked_up(self, mock_comm, mock_subproc):
         # mocks
         mock_subproc.Popen.return_value = True
-        mock_subproc.PIPE = Mock()
+        mock_subproc.PIPE = mock.Mock()
         mock_comm.return_value = {}, {}
         # kick off
         cgienv = {'CONTENT_LENGTH': 10}
@@ -82,14 +81,14 @@ class TestWsgiGitHttpBackend_parse_cgi_header(unittest.TestCase):
         assert mock_comm.called
 
 
-class TestWsgiGitHttpBackend_comm_with_git(unittest.TestCase):
+class TestWsgiGitHttpBackendCommWithGit(unittest.TestCase):
 
-    @patch.object(threading, 'Thread')
-    @patch.object(wsgi_git_http_backend, 'sum')
-    @patch.object(wsgi_git_http_backend, 'EnvironmentError')
-    @patch.object(wsgi_git_http_backend, '_find_header_end_in_2_chunks')
-    @patch.object(wsgi_git_http_backend, '_separate_header')
-    @patch.object(wsgi_git_http_backend, 'response_body_generator')
+    @mock.patch.object(threading, 'Thread')
+    @mock.patch.object(wsgi_git_http_backend, 'sum')
+    @mock.patch.object(wsgi_git_http_backend, 'EnvironmentError')
+    @mock.patch.object(wsgi_git_http_backend, '_find_header_end_in_2_chunks')
+    @mock.patch.object(wsgi_git_http_backend, '_separate_header')
+    @mock.patch.object(wsgi_git_http_backend, 'response_body_generator')
     @unittest.skip("Temp skip")
     def test_mocked_up(
         self, mock_gen, mock_sep,
@@ -97,7 +96,7 @@ class TestWsgiGitHttpBackend_comm_with_git(unittest.TestCase):
     ):
         # mocks
         mock_subproc.Popen.return_value = True
-        mock_subproc.PIPE = Mock()
+        mock_subproc.PIPE = mock.Mock()
         #mock_read.return_value = 'foobar'
         mock_find.return_value = (None, None)
         mock_sep.return_value = {}, 0
@@ -107,7 +106,7 @@ class TestWsgiGitHttpBackend_comm_with_git(unittest.TestCase):
         assert mock_resp.called
 
 
-class TestWsgiGitHttpBackend_find_header_end_2_chunks(unittest.TestCase):
+class TestWsgiGitHttpBackendFindHeaderEnd(unittest.TestCase):
 
     #@unittest.skip("Temp skip")
     def test_end_in_first_arg(self):
@@ -120,7 +119,7 @@ class TestWsgiGitHttpBackend_find_header_end_2_chunks(unittest.TestCase):
         self.assertEqual((False, 3), resp)
 
 
-class TestWsgiGitHttpBackend_separate_header(unittest.TestCase):
+class TestWsgiGitHttpBackendSeparateHeader(unittest.TestCase):
 
     #@unittest.skip("Temp skip")
     def test_end_on_boundary(self):
@@ -131,7 +130,7 @@ class TestWsgiGitHttpBackend_separate_header(unittest.TestCase):
         pass
 
 
-class TestWsgiGitHttpBackend_search_str_for_header_end(unittest.TestCase):
+class TestWsgiGitHttpBackendSearchForHeaderEnd(unittest.TestCase):
 
     #@unittest.skip("Temp skip")
     def test_search_str_for_header_end_good(self):
@@ -144,3 +143,11 @@ class TestWsgiGitHttpBackend_search_str_for_header_end(unittest.TestCase):
         data_str = "foobar\r\n\rxyz"
         response = wsgi_git_http_backend._search_str_for_header_end(data_str)
         self.assertEqual(-1, response)
+
+
+if __name__ == '__main__':
+    import sys
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

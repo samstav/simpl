@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=R0904,W0212
 """Tests for git middleware."""
 import os
 import unittest
@@ -11,13 +11,13 @@ from checkmate import wsgi_git_http_backend
 
 
 @unittest.skip("Not yet ported to latest refactor")
-class TestGitMiddleware_set_git_environ(unittest.TestCase):
+class TestGitMiddlewareSetGitEnviron(unittest.TestCase):
 
     #@unittest.skip("Temp skip")
     def test_set_git_environ_no_env(self):
-        environE = {}
-        environ = middleware._set_git_environ(environE)
-        testEnviron = {
+        environ_dict = {}
+        environ = middleware._set_git_environ(environ_dict, None, None)
+        expected_env = {
             'GIT_PROJECT_ROOT': os.environ.get(
             "CHECKMATE_CHEF_LOCAL_PATH",
             "/var/local/checkmate/deployments"
@@ -25,13 +25,13 @@ class TestGitMiddleware_set_git_environ(unittest.TestCase):
             'PATH_INFO': '/.',
             'GIT_HTTP_EXPORT_ALL': '1'
         }
-        self.assertEqual(testEnviron, environ)
+        self.assertEqual(expected_env, environ)
 
     #@unittest.skip("Temp skip")
     def test_set_git_environ_extra_env(self):
-        environE = {'foo': 'bar'}
-        environ = middleware._set_git_environ(environE)
-        testEnviron = {
+        environ_dict = {'foo': 'bar'}
+        environ = middleware._set_git_environ(environ_dict, None, None)
+        expected_env = {
             'GIT_PROJECT_ROOT': os.environ.get(
             "CHECKMATE_CHEF_LOCAL_PATH",
             "/var/local/checkmate/deployments"
@@ -39,10 +39,10 @@ class TestGitMiddleware_set_git_environ(unittest.TestCase):
             'PATH_INFO': '/.',
             'GIT_HTTP_EXPORT_ALL': '1'
         }
-        self.assertEqual(testEnviron, environ)
+        self.assertEqual(expected_env, environ)
 
     def test_set_git_environ_path_valid_dep_url(self):
-        environE = {
+        environ_dict = {
             'PATH_INFO':
             '/547249/deployments/b3fe346f543a4a95b4712969c420dde6.git'
         }
@@ -50,7 +50,7 @@ class TestGitMiddleware_set_git_environ(unittest.TestCase):
             "CHECKMATE_CHEF_LOCAL_PATH",
             "/var/local/checkmate/deployments"
         )
-        environ = middleware._set_git_environ(environE)
+        environ = middleware._set_git_environ(environ_dict, None, None)
         self.assertEqual(
             dep_path + '/b3fe346f543a4a95b4712969c420dde6',
             environ['GIT_PROJECT_ROOT']
@@ -59,7 +59,7 @@ class TestGitMiddleware_set_git_environ(unittest.TestCase):
 
 
 @unittest.skip("Not yet ported to latest refactor")
-class TestGitMiddleware_git_route_callback(unittest.TestCase):
+class TestGitMiddlewareGitRouteCallback(unittest.TestCase):
 
     @patch.object(middleware, 'Response')
     @patch.object(os.path, 'isdir')
@@ -79,12 +79,13 @@ class TestGitMiddleware_git_route_callback(unittest.TestCase):
         mock_wsgi.return_value = (1, 2, 3)
         mock_response.return_value = True
         # kick off
-        middleware._git_route_callback()
+        middleware._git_route_callback(None, None)
         assert mock_wsgi.called
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

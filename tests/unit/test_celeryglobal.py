@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=W0603
 """Tests for Celery."""
 import logging
 import unittest
@@ -64,12 +64,13 @@ class TestSingleTask(unittest.TestCase):
 @task(base=celery.SingleTask, default_retry_delay=1, max_retries=4,
       lock_db=None, lock_key="async_dep_writer:{args[0]}", lock_timeout=50)
 def do_nothing(key):
-    pass
+    """Placeholder method for the task decorator."""
+    return key
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
 
-    run_with_params(sys.argv[:])
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

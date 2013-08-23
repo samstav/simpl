@@ -1,4 +1,3 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 """Tests for Planner."""
 import unittest
 import mox
@@ -142,13 +141,8 @@ class TestPlanner(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
     import sys
 
-    args = sys.argv[:]
-    # Our --debug means --verbose for unittest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

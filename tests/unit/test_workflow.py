@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,W0212
 """Tests for Workflow class."""
 import re
 
@@ -308,7 +308,7 @@ class TestWorkflow(unittest.TestCase):
             deployment_with_lb_provider, context)
         test_workflow = workflow.init_spiff_workflow(
             workflow_spec, deployment_with_lb_provider, context)
-        workflow_dump = re.sub("\s", "", test_workflow.get_dump())
+        workflow_dump = re.sub(r"\s", "", test_workflow.get_dump())
         expected_dump = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1
@@ -318,7 +318,7 @@ class TestWorkflow(unittest.TestCase):
           5/0: Task of Wait for Loadbalancer (0) delete State: FUTURE
       Children: 0"""
 
-        expected_dump = re.sub("\s", "", expected_dump)
+        expected_dump = re.sub(r"\s", "", expected_dump)
         self.assertEqual(expected_dump.strip(), workflow_dump.strip())
 
     def test_create_delete_workflow_with_complete_operation(self):
@@ -377,7 +377,7 @@ class TestWorkflow(unittest.TestCase):
                 deployment_with_lb_provider, context)
         test_workflow = workflow.init_spiff_workflow(
             workflow_spec, deployment_with_lb_provider, context)
-        workflow_dump = re.sub("\s", "", test_workflow.get_dump())
+        workflow_dump = re.sub(r"\s", "", test_workflow.get_dump())
         expected_dump = """
 1/0: Task of Root State: COMPLETED Children: 1
   2/0: Task of Start State: READY Children: 1
@@ -385,17 +385,14 @@ class TestWorkflow(unittest.TestCase):
       4/0: Task of Wait for Loadbalancer (0) delete State: FUTURE
       Children: 0"""
 
-        expected_dump = re.sub("\s", "", expected_dump)
+        expected_dump = re.sub(r"\s", "", expected_dump)
         self.assertEqual(expected_dump.strip(), workflow_dump.strip())
 
-    def tearDown(self):
-        self.mox.VerifyAll()
-        self.mox.UnsetStubs()
-
     def _create_spiff_workflow(self):
+        """Helper method to create a Spiff Workflow."""
         wf_spec = WorkflowSpec(name="Test")
-        A = Simple(wf_spec, 'A')
-        wf_spec.start.connect(A)
+        wf_a = Simple(wf_spec, 'A')
+        wf_spec.start.connect(wf_a)
         return Workflow(wf_spec)
 
     def test_format_resources_for_path_attrib(self):
@@ -411,8 +408,6 @@ class TestWorkflow(unittest.TestCase):
         self.assertDictEqual(actual, expected)
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
 
-    run_with_params(sys.argv[:])
+    test.run_with_params(sys.argv[:])

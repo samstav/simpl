@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=E1103
 """Tests for workflow spec."""
 import mox
 import unittest
@@ -70,3 +70,11 @@ class TestWorkflowSpec(unittest.TestCase):
         WorkflowSpec.create_delete_node_spec(self.deployment, ["1"],
                                              context)
         self._mox.VerifyAll()
+
+
+if __name__ == '__main__':
+    import sys
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,R0904
 """Tests for Admin Router."""
 import mock
 import unittest
@@ -74,35 +74,35 @@ class TestGetDeployments(TestAdminRouter):
     @mock.patch.object(admin.router.utils.QueryParams, 'parse')
     def test_pass_query_params_to_manager(self, __parse):
         __parse.return_value = 'fake query'
-        res = self.app.get('/admin/deployments')
+        self.app.get('/admin/deployments')
         args = self.manager.get_deployments.call_args[1]
         query = args['query']
         self.assertEqual(query, 'fake query')
 
     def test_parse_tenant_tag_before_sending_params_to_manager(self):
         self.tenant_manager.list_tenants.return_value = { '123': { } }
-        res = self.app.get('/admin/deployments?tenant_tag=FOOBAR')
+        self.app.get('/admin/deployments?tenant_tag=FOOBAR')
         args = self.manager.get_deployments.call_args[1]
         query = args['query']
         self.assertEqual(query['tenantId'], '123')
 
     def test_parse_tenant_tag_and_send_notenantsfound_query_to_manager(self):
         self.tenant_manager.list_tenants.return_value = {}
-        res = self.app.get('/admin/deployments?tenant_tag=FOOBAR')
+        self.app.get('/admin/deployments?tenant_tag=FOOBAR')
         args = self.manager.get_deployments.call_args[1]
         query = args['query']
         self.assertEqual(query['tenantId'], 'no-tenants-found')
 
     def test_remove_tenant_tag_before_sending_params_to_manager(self):
         self.tenant_manager.list_tenants.return_value = { '123': { } }
-        res = self.app.get('/admin/deployments?tenant_tag=FOOBAR')
+        self.app.get('/admin/deployments?tenant_tag=FOOBAR')
         args = self.manager.get_deployments.call_args[1]
         query = args['query']
         self.assertTrue('tenant_tag' not in query)
 
     def test_parse_blueprint_branch_before_sending_params_to_manager(self):
         self.tenant_manager.list_tenants.return_value = { '123': { } }
-        res = self.app.get('/admin/deployments?blueprint_branch=FOOBAR')
+        self.app.get('/admin/deployments?blueprint_branch=FOOBAR')
         args = self.manager.get_deployments.call_args[1]
         query = args['query']
         alias = 'environment.providers.chef-solo.constraints.source'
@@ -116,7 +116,7 @@ class TestGetDeploymentCount(TestAdminRouter):
     def test_pass_query_params_to_manager(self, parse):
         self.manager.count.return_value = 99
         parse.return_value = 'fake query'
-        res = self.app.get('/admin/deployments/count')
+        self.app.get('/admin/deployments/count')
         self.manager.count.assert_called_with(
             tenant_id=mock.ANY,
             status=mock.ANY,
@@ -125,7 +125,6 @@ class TestGetDeploymentCount(TestAdminRouter):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    test.run_with_params(sys.argv[:])

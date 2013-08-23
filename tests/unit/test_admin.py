@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=R0904
 """Tests for Admin endpoints."""
 import json
 import logging
@@ -71,6 +71,7 @@ class TestAdminDeploymentCounts(unittest.TestCase):
                                                    blueprint_id='blp-123-aa')
 
     def _assert_good_count(self, ret, expected_count):
+        """Helper method to assert count matches expected count."""
         self.assertIsNotNone(ret, "No count returned")
         self.assertIn("count", ret, "Return does not contain count")
         self.assertEqual(expected_count, ret.get("count", -1),
@@ -126,7 +127,6 @@ class TestAdminTenants(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    test.run_with_params(sys.argv[:])

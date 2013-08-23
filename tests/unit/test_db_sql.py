@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,R0904,W0212
 """Unit Tests for SQL Alchemy."""
 import mock
 import unittest
@@ -149,7 +149,8 @@ class TestGetCount(TestSqlDB):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
-    from checkmate import test
     import sys
-    test.run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])
