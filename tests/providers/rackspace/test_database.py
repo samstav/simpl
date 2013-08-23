@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,W0212,R0904
 """Tests for Rackspace Database provider."""
 import logging
 import mock
@@ -281,6 +281,7 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def verify_limits(self, volume_size_used):
+        """Helper method to verify limits."""
         context = middleware.RequestContext()
         resources = [
             {'component': 'mysql_database',
@@ -613,12 +614,6 @@ class TestDatabaseProxy(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
     import sys
-    ARGS = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in ARGS:
-        ARGS.pop(ARGS.index('--debug'))
-        if '--verbose' not in ARGS:
-            ARGS.insert(1, '--verbose')
-    unittest.main(argv=ARGS)
+
+    test.run_with_params(sys.argv[:])

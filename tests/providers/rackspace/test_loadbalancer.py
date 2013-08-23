@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,R0201,R0904,W0212
 """Tests for Rackspace Loadbalancer provider."""
 import logging
 import re
@@ -49,12 +49,12 @@ class TestLoadBalancer(test.ProviderTester):
                                              resource_1, resource_2)
         workflow = Workflow(wf_spec)
 
-        expected_dump = re.sub("\s", "", """
+        expected_dump = re.sub(r"\s", "", """
             1/0: Task of Root State: COMPLETED Children: 1
             2/0: Task of Start State: READY Children: 1
             3/0: Task of Remove Node 2 from LB 1 State: FUTURE Children: 0
         """)
-        workflow_dump = re.sub("\s", "", workflow.get_dump())
+        workflow_dump = re.sub(r"\s", "", workflow.get_dump())
 
         self.assertEqual(expected_dump, workflow_dump)
 
@@ -197,11 +197,11 @@ class TestCeleryTasks(unittest.TestCase):
         status = 'BUILD'
 
         #Mock server
-        lb = mock.Mock()
-        lb.id = fake_id
-        lb.port = 80
-        lb.protocol = protocol
-        lb.status = status
+        mocklb = mock.Mock()
+        mocklb.id = fake_id
+        mocklb.port = 80
+        mocklb.protocol = protocol
+        mocklb.status = status
 
         ip_data_pub = mock.Mock()
         ip_data_pub.ip_version = 'IPV4'
@@ -213,7 +213,7 @@ class TestCeleryTasks(unittest.TestCase):
         ip_data_svc.type = 'SERVICENET'
         ip_data_svc.address = servicenet_ip
 
-        lb.virtual_ips = [ip_data_pub, ip_data_svc]
+        mocklb.virtual_ips = [ip_data_pub, ip_data_svc]
 
         node = mock.Mock()
         vip = mock.Mock()
@@ -228,7 +228,7 @@ class TestCeleryTasks(unittest.TestCase):
         api_mock = mock.Mock()
         api_mock.Node.return_value = node
         api_mock.VirtualIP.return_value = vip
-        api_mock.create.return_value = lb
+        api_mock.create.return_value = mocklb
 
         expected = {
             'instance:%s' % context['resource']: {
@@ -351,11 +351,11 @@ class TestCeleryTasks(unittest.TestCase):
     def test_lb_sync_resource_task(self):
         """Tests db sync_resource_task via mock."""
         #Mock instance
-        lb = mock.Mock()
-        lb.id = 'fake_lb_id'
-        lb.name = 'fake_lb'
-        lb.status = 'ERROR'
-        lb.get_metadata.return_value = {}
+        mocklb = mock.Mock()
+        mocklb.id = 'fake_lb_id'
+        mocklb.name = 'fake_lb'
+        mocklb.status = 'ERROR'
+        mocklb.get_metadata.return_value = {}
 
         resource_key = "1"
 
@@ -375,26 +375,26 @@ class TestCeleryTasks(unittest.TestCase):
         }
 
         lb_api_mock = mock.Mock()
-        lb_api_mock.get.return_value = lb
+        lb_api_mock.get.return_value = mocklb
 
         expected = {'instance:1': {"status": "ERROR"}}
 
         results = loadbalancer.sync_resource_task(
             context, resource, resource_key, lb_api_mock)
 
-        lb_api_mock.get.assert_called_once_with(lb.id)
+        lb_api_mock.get.assert_called_once_with(mocklb.id)
         self.assertDictEqual(results, expected)
-        lb_api_mock.get.assert_called_with(lb.id)
+        lb_api_mock.get.assert_called_with(mocklb.id)
 
     def test_lb_sync_resource_task_adds_metadata(self):
         """Tests lb sync_resource_task adds checkmate metadata tag to
            the given resource if it does not already have the tag."""
         #Mock instance
-        lb = mock.Mock()
-        lb.id = 'fake_lb_id'
-        lb.name = 'fake_lb'
-        lb.status = 'ERROR'
-        lb.get_metadata.return_value = {}
+        mocklb = mock.Mock()
+        mocklb.id = 'fake_lb_id'
+        mocklb.name = 'fake_lb'
+        mocklb.status = 'ERROR'
+        mocklb.get_metadata.return_value = {}
 
         resource_key = "1"
 
@@ -415,7 +415,7 @@ class TestCeleryTasks(unittest.TestCase):
 
         lb_api_mock = mock.Mock()
 
-        lb_api_mock.get.return_value = lb
+        lb_api_mock.get.return_value = mocklb
 
         with mock.patch.object(loadbalancer.Provider,
                                'generate_resource_tag',
@@ -424,8 +424,8 @@ class TestCeleryTasks(unittest.TestCase):
                 context, resource, resource_key, lb_api_mock
             )
 
-        lb_api_mock.get.assert_called_once_with(lb.id)
-        lb.set_metadata.assert_called_once_with({"test": "me"})
+        lb_api_mock.get.assert_called_once_with(mocklb.id)
+        mocklb.set_metadata.assert_called_once_with({"test": "me"})
 
 
 class TestGetAlgorithms(unittest.TestCase):
@@ -665,7 +665,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_task_generation_with_allow_unencrypted_setting(self):
-        deployment_with_allow_unencrypted = cm_dep.Deployment(
+        dep_with_allow_unencrypted = cm_dep.Deployment(
             utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
@@ -724,11 +724,11 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - compute: linux
             """))
         deployments.Manager.plan(
-            deployment_with_allow_unencrypted, self.context)
+            dep_with_allow_unencrypted, self.context)
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
-            deployment_with_allow_unencrypted, self.context)
+            dep_with_allow_unencrypted, self.context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, deployment_with_allow_unencrypted, self.context)
+            workflow_spec, dep_with_allow_unencrypted, self.context)
 
         task_list = workflow.spec.task_specs.keys()
         expected = [
@@ -939,13 +939,6 @@ class TestLoadBalancerProxy(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
     import sys
 
-    args = sys.argv[:]
-    # Our --debug means --verbose for unittest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    test.run_with_params(sys.argv[:])

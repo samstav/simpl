@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,E1101,E1103,R0904,W0212
 """Tests for Rackspace Nova compute provider."""
 import copy
 import json
@@ -672,10 +672,10 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         provider = compute.Provider({})
 
         #Mock Base Provider, context and deployment
-        RackspaceComputeProviderBase = self.mox.CreateMockAnything()
+        mock_rs_compute_provider_base = self.mox.CreateMockAnything()
         context = cm_mid.RequestContext()
         context2 = cm_mid.RequestContext(region='ORD')
-        RackspaceComputeProviderBase.generate_template.AndReturn(True)
+        mock_rs_compute_provider_base.generate_template.AndReturn(True)
 
         #Stub out provider calls
         self.mox.StubOutWithMock(copy, 'deepcopy')
@@ -861,6 +861,7 @@ class TestNovaProxy(unittest.TestCase):
         mock_get_ips.return_value = {}
 
         def fake_connect(**kwargs):
+            """Helper method to fake a connect."""
             dfw_mock = mock.Mock(
                 list=mock.Mock(return_value=[server, server_in_checkmate])
             )
@@ -886,13 +887,6 @@ class TestNovaProxy(unittest.TestCase):
         self.assertEqual(result[0]['image'], 'gotit')
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
     import sys
 
-    args = sys.argv[:]
-    # Our --debug means --verbose for unittest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    test.run_with_params(sys.argv[:])
