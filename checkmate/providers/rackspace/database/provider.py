@@ -532,10 +532,8 @@ class Provider(providers.ProviderBase):
         return results
 
     @staticmethod
-    def proxy(path, request, tenant_id=None):
+    def get_resources(request, tenant_id=None):
         """Proxy request through to cloud database provider"""
-        if path != 'list':
-            raise CheckmateException("Not a valid Provider path")
         if not (pyrax.identity and pyrax.identity.authenticated):
             Provider.connect(request.context)
         db_hosts = []

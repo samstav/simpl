@@ -669,10 +669,8 @@ class Provider(base.RackspaceProviderBase):
         return results
 
     @staticmethod
-    def proxy(path, request, tenant_id=None):
+    def get_resources(request, tenant_id=None):
         """Proxy request through to loadbalancer provider"""
-        if path != 'list':
-            raise exceptions.CheckmateException("Not a valid Provider path")
         context = request.context
         if not pyrax.get_setting("identity_type"):
             pyrax.set_setting("identity_type", "rackspace")

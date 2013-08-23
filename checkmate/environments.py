@@ -265,9 +265,9 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
                      "provider (%s)" % (component_id, provider_id))
 
 
-@bottle.route('/providers/<provider_id>/proxy/<path:path>')
+@bottle.route('/providers/<provider_id>/resources')
 @utils.with_tenant
-def provider_proxy(provider_id, tenant_id=None, path=None):
+def provider_get_resources(provider_id, tenant_id=None):
     """Proxy a request through a provider."""
     vendor = None
     if "." in provider_id:
@@ -279,6 +279,6 @@ def provider_proxy(provider_id, tenant_id=None, path=None):
         provider = environment.get_provider(provider_id)
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
-    results = provider.proxy(path, bottle.request, tenant_id=tenant_id)
+    results = provider.get_resources(bottle.request, tenant_id=tenant_id)
 
     return utils.write_body(results, bottle.request, bottle.response)

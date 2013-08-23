@@ -890,9 +890,9 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         self.mox.VerifyAll()
 
 
-class TestLoadBalancerProxy(unittest.TestCase):
+class TestLoadBalancerGetResources(unittest.TestCase):
     @mock.patch('checkmate.providers.rackspace.loadbalancer.pyrax')
-    def test_proxy_returns_load_balancer_resource(self, mock_pyrax):
+    def test_get_resources_returns_load_balancer_resource(self, mock_pyrax):
         request = mock.Mock()
         load_balancer = mock.Mock()
         load_balancer.status = 'status'
@@ -905,14 +905,14 @@ class TestLoadBalancerProxy(unittest.TestCase):
         mock_pyrax.connect_to_cloud_loadbalancers.return_value = lb_api
         mock_pyrax.regions = ["DFW"]
 
-        result = loadbalancer.Provider.proxy('list', request, 'tenant')[0]
+        result = loadbalancer.Provider.get_resources(request, 'tenant')[0]
 
         self.assertEqual(result['region'], 'region_name')
         self.assertEqual(result['status'], 'status')
         self.assertEqual(result['dns-name'], 'name')
 
     @mock.patch('checkmate.providers.rackspace.loadbalancer.pyrax')
-    def test_proxy_uses_public_ip(self, mock_pyrax):
+    def test_get_resources_uses_public_ip(self, mock_pyrax):
         request = mock.Mock()
         load_balancer = mock.Mock()
         vip = mock.Mock()
@@ -926,7 +926,7 @@ class TestLoadBalancerProxy(unittest.TestCase):
         mock_pyrax.connect_to_cloud_loadbalancers.return_value = lb_api
         mock_pyrax.regions = ['DFW']
 
-        result = loadbalancer.Provider.proxy('list', request, 'tenant')
+        result = loadbalancer.Provider.get_resources(request, 'tenant')
         instance = result[0]['instance']
         self.assertEqual(instance['public_ip'], '1.1.1.1')
 

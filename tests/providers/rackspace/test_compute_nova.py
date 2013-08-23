@@ -770,7 +770,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 class TestNovaProxy(unittest.TestCase):
     @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
-    def test_proxy_returns_compute_instances(self, mock_pyrax, mock_get_ips):
+    def test_get_resources_returns_compute_instances(self, mock_pyrax,
+                                                     mock_get_ips):
         request = mock.Mock()
         server = mock.Mock()
         server.name = 'server_name'
@@ -786,7 +787,7 @@ class TestNovaProxy(unittest.TestCase):
         mock_pyrax.regions = ["ORD"]
         mock_get_ips.return_value = {}
 
-        result = compute.Provider.proxy('list', request, 'tenant')[0]
+        result = compute.Provider.get_resources(request, 'tenant')[0]
         self.assertEqual(result['status'], 'server_status')
         self.assertEqual(result['flavor'], 'server_flavor')
         self.assertEqual(result['instance']['image'], 'server_image')
@@ -794,8 +795,8 @@ class TestNovaProxy(unittest.TestCase):
 
     @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
-    def test_proxy_merges_ip_info(self, mock_pyrax,
-                                  mock_get_ips):
+    def test_get_resources_merges_ip_info(self, mock_pyrax,
+                                          mock_get_ips):
         request = mock.Mock()
         server = mock.Mock()
         server.image = {'id': None}
@@ -810,31 +811,30 @@ class TestNovaProxy(unittest.TestCase):
                                      'public_ip': '2.2.2.2',
                                      'private_ip': '3.3.3.3'}
         self.assertEqual(
-            compute.Provider.proxy('list',
-                                   request,
-                                   'tenant')[0]['instance']['ip'],
+            compute.Provider.get_resources(request,
+                                           'tenant')[0]['instance']['ip'],
             '1.1.1.1'
         )
 
         self.assertEqual(
-            compute.Provider.proxy('list',
-                                   request,
-                                   'tenant')[0]['instance']['public_ip'],
+            compute.Provider.get_resources(
+                request,
+                'tenant')[0]['instance']['public_ip'],
             '2.2.2.2'
         )
 
         self.assertEqual(
-            compute.Provider.proxy('list',
-                                   request,
-                                   'tenant')[0]['instance']['private_ip'],
+            compute.Provider.get_resources(
+                request,
+                'tenant')[0]['instance']['private_ip'],
             '3.3.3.3'
         )
 
     @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
-    def test_proxy_returns_servers_not_in_checkmate(self,
-                                                    mock_pyrax,
-                                                    mock_get_ips):
+    def test_get_resources_returns_servers_not_in_checkmate(self,
+                                                            mock_pyrax,
+                                                            mock_get_ips):
 
         request = mock.Mock()
         server = mock.Mock()
@@ -867,7 +867,7 @@ class TestNovaProxy(unittest.TestCase):
         servers_response.servers.list.return_value = [server]
         mock_pyrax.connect_to_cloudservers.return_value = servers_response
 
-        result = compute.Provider.proxy('list', request, 'tenant')
+        result = compute.Provider.get_resources(request, 'tenant')
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['image'], 'gotit')
 
