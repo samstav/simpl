@@ -2,9 +2,11 @@
 """
 Rackspace Cloud Databases provider tasks
 """
+import logging
 from celery.task import task
 
 from checkmate.common import statsd
+from checkmate.deployments.tasks import (reset_failed_resource_task)
 from checkmate.providers.base import ProviderTask
 from checkmate.providers.rackspace.database import Manager
 from checkmate.providers.rackspace.database import Provider
@@ -15,11 +17,26 @@ from checkmate.providers.rackspace.database import Provider
 @task(base=ProviderTask, default_retry_delay=30, max_retries=120,
       acks_late=True, provider=Provider)
 @statsd.collect
-def wait_on_build(context, instance_id, region, api=None, callback=None):
-    '''Checks db instance build succeeded.'''
-    return Manager.wait_on_build(instance_id, wait_on_build.api,
+def wait_on_build(context, region, instance=None, api=None, callback=None):
+    '''
+    Waits on the instance to be created, deletes the instance if it goes
+    into an ERRORed status
+    :param context: Context
+    :param region: Region
+    :param instance: Instance Information
+    :param api:
+    :param callback:
+    :return:
+    '''
+    #TODO(vv) This is a temp fix, until we can delete ERROR-ed
+    # instances
+    #using workflows
+    context["resource"].update({"instance": instance})
+    return Manager.wait_on_build(instance["id"], wait_on_build.api,
                                  wait_on_build.partial,
                                  context.simulation)
+
+LOG = logging.getLogger(__name__)
 
 
 # Disable on api and callback.  Suppress num args
@@ -33,7 +50,7 @@ def sync_resource_task(context, resource, api=None, callback=None):
 
 
 # Disable pylint on api and callback as their passed in from ProviderTask
-# pylint: disable=W0613
+# pylint: disable=W0613, R0913
 @task(base=ProviderTask, default_retry_delay=10, max_retries=2,
       provider=Provider)
 @statsd.collect
@@ -48,12 +65,15 @@ def create_instance(context, instance_name, flavor, size, databases, region,
                    {'name': 'db2', 'character_set': 'latin5',
                     'collate': 'latin5_turkish_ci'}]
     '''
+    reset_failed_resource_task.delay(context["deployment_id"],
+                                     context["resource_key"])
     return Manager.create_instance(instance_name, flavor, size,
                                    databases, context, create_instance.api,
                                    create_instance.partial,
                                    context.simulation)
 
 
+#pylint: disable=R0913
 @task(base=ProviderTask, default_retry_delay=15, max_retries=40,
       provider=Provider)
 @statsd.collect
@@ -75,6 +95,8 @@ def create_database(context, name, region=None, character_set=None,
     :param instance_attributes: kwargs used to create the instance (used if
             instance_id not supplied)
     '''
+    reset_failed_resource_task.delay(context["deployment_id"],
+                                     context["resource_key"])
     return Manager.create_database(name, instance_id, create_database.api,
                                    create_database.partial, context=context,
                                    character_set=character_set,

@@ -80,7 +80,7 @@ class TestDatabaseManager(unittest.TestCase):
         api.get = mock.MagicMock(return_value=instance)
         callback = mock.MagicMock()
 
-        self.assertRaises(cmexc.CheckmateRetriableException,
+        self.assertRaises(cmexc.CheckmateResourceRollbackException,
                           cmdb.Manager.wait_on_build,
                           instance_id, api, callback)
 

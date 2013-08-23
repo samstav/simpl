@@ -2,14 +2,14 @@
 import unittest
 
 from checkmate.providers import base
-from checkmate.providers.base import ProviderBase
 from checkmate.deployment import Deployment
-from checkmate.deployments import Manager, Planner
-from checkmate.middleware import RequestContext
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException,
 )
+from checkmate.deployments import Manager, Planner
+from checkmate.providers.base import ProviderBase
+from checkmate.middleware import RequestContext
 from checkmate import utils
 
 

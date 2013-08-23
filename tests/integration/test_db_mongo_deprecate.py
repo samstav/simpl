@@ -615,8 +615,8 @@ class TestDatabase(unittest.TestCase):
         self.assertListEqual(db_deployment['resources'], resource_ids)
         self.assertDictEqual(utils.flatten(self._get_resources(dep_id)),
                              utils.flatten([{'2': new_resource_2},
-                              {'1': new_resource_1},
-                              {'0': resource_0}]))
+                                            {'1': new_resource_1},
+                                            {'0': resource_0}]))
 
     @unittest.skipIf(SKIP, REASON)
     def test_partial_deployment_update_with_secrets(self):

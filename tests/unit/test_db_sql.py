@@ -12,22 +12,27 @@ class TestSqlDB(unittest.TestCase):
         self.driver = sql.Driver('sqlite://')
 
     def test_parse_comparison_handles_simple_single_param(self):
-        self.assertEqual("status == 'ACTIVE'", sql._parse_comparison('status', 'ACTIVE'))
+        self.assertEqual("status == 'ACTIVE'", sql._parse_comparison('status',
+                                                                     'ACTIVE'))
 
     def test_parse_comparison_handles_bang(self):
-        self.assertEqual("status != 'UP'", sql._parse_comparison('status', '!UP'))
+        self.assertEqual("status != 'UP'", sql._parse_comparison('status',
+                                                                 '!UP'))
 
     def test_parse_comparison_handles_greater_than(self):
         self.assertEqual("status > '4'", sql._parse_comparison('status', '>4'))
 
     def test_parse_comparison_handles_less_than(self):
-        self.assertEqual("status < '234'", sql._parse_comparison('status', '<234'))
+        self.assertEqual("status < '234'", sql._parse_comparison('status',
+                                                                 '<234'))
 
     def test_parse_comparison_handles_greater_than_or_equal(self):
-        self.assertEqual("status >= '555'", sql._parse_comparison('status', '>=555'))
+        self.assertEqual("status >= '555'", sql._parse_comparison('status',
+                                                                  '>=555'))
 
     def test_parse_comparison_handles_less_than_or_equal(self):
-        self.assertEqual("status <= '321'", sql._parse_comparison('status', '<=321'))
+        self.assertEqual("status <= '321'", sql._parse_comparison('status',
+                                                                  '<=321'))
 
     def test_parse_comparison_handles_tuple_of_multiple_statuses(self):
         self.assertEqual(
@@ -105,13 +110,13 @@ class TestAddFilters(TestSqlDB):
         self.klass = sql.Deployment
 
     def test_create_empty_filter_if_no_query(self):
-        filters = self.driver._add_filters(self.klass, self.query, None, True,
+        self.driver._add_filters(self.klass, self.query, None, True,
                                            None, query_params=None)
         self.assertEqual(self.query.call_count, 0)
 
     @mock.patch.object(sql, '_parse_comparison')
     def test_create_filter_for_specific_fields(self, _parse_comparison):
-        filters = self.driver._add_filters(self.klass, self.query,
+        self.driver._add_filters(self.klass, self.query,
                                            None, True, None,
                                            query_params={'name': 'foobar'})
         _parse_comparison.assert_called_with('deployments_name', 'foobar')
@@ -120,7 +125,7 @@ class TestAddFilters(TestSqlDB):
     @mock.patch.object(sql, 'or_')
     def test_create_filter_with_all_fields_when_searching(self, or_):
         query_params = {'search': 'foobar', 'whitelist': ['name', 'tenantId']}
-        filters = self.driver._add_filters(self.klass, self.query,
+        self.driver._add_filters(self.klass, self.query,
                                            None, True, None,
                                            query_params=query_params)
         expected_filters = [

@@ -679,7 +679,6 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'args': [
                         Func(is_good_context),
                         IgnoreArg(),
-                        IgnoreArg(),
                     ],
                     'kwargs': IgnoreArg(),
                     'result': {
@@ -975,7 +974,8 @@ class ProviderTester(unittest.TestCase):
         provider = self.klass(override)
         context = {'region': 'test_region'}
         self.assertListEqual(provider.provides(None), override['provides'])
-        self.assertDictEqual(provider.get_catalog(context), override['catalog'])
+        self.assertDictEqual(provider.get_catalog(context),
+                             override['catalog'])
 
     def test_provider_loads_unregistered(self):
         """Check that provider loads without registration."""

@@ -78,7 +78,8 @@ class TestProviderTask(unittest.TestCase):
 
     def test_provider_task_success(self):
         context = middleware.RequestContext(**{'region': 'ORD',
-                                            'resource': '1', 'deployment': {}})
+                                            'resource_key': '1',
+                                            'deployment': {}})
         expected = {
             'instance:1': {
                 'api1': 'test_api',
@@ -127,7 +128,10 @@ class TestProviderTask(unittest.TestCase):
 
     @mock.patch('checkmate.deployments.tasks')
     def test_provider_task_callback(self, mocked_lib):
-        context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
+        context = {
+            'region': 'ORD',
+            'resource_key': 1,
+            'deployment_id': 'DEP_ID'}
 
         expected_postback = {
             'resources': {
@@ -146,7 +150,7 @@ class TestProviderTask(unittest.TestCase):
 
         do_something(context, 'test', api='test_api')
 
-        mocked_lib.postback.assert_called_with({}, expected_postback)
+        mocked_lib.postback.assert_called_with('DEP_ID', expected_postback)
 
 
 @celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)

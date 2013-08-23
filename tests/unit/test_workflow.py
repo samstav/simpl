@@ -400,9 +400,9 @@ class TestWorkflow(unittest.TestCase):
 
     def test_format_resources_for_path_attrib(self):
         actual = workflow.format({"1": {"instance": {"id": "1000",
-                                                     "foo":"bar"}}})
-        expected = {"instance:1": {"id":"1000",
-                                  "foo": "bar"}}
+                                                     "foo": "bar"}}})
+        expected = {"instance:1": {"id": "1000",
+                                   "foo": "bar"}}
         self.assertDictEqual(actual, expected)
 
         actual = workflow.format({"1": {"index": "1"}})

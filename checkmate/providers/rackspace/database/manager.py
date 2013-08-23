@@ -16,7 +16,7 @@ from checkmate.exceptions import (
     CheckmateRetriableException,
     CheckmateUserException,
     UNEXPECTED_ERROR,
-)
+    CheckmateResourceRollbackException)
 
 LOG = logging.getLogger(__name__)
 
@@ -49,10 +49,12 @@ class Manager(object):
         if data['status'] == 'ERROR':
             data['status-message'] = 'Instance went into status ERROR'
             callback(data)
-            raise CheckmateRetriableException(data['status-message'],
+            exc = CheckmateRetriableException(data['status-message'],
                                               utils.get_class_name(
                                                   CheckmateException()),
                                               data['status-message'], '')
+            raise CheckmateResourceRollbackException("Need to rollback "
+                                                     "resource creation", exc)
         elif data['status'] in ['ACTIVE', 'DELETED']:
             data['status-message'] = ''
         else:
@@ -88,6 +90,7 @@ class Manager(object):
                 results = {'status': 'DELETED'}
         return results
 
+    #pylint: disable=R0913
     @staticmethod
     def create_instance(instance_name, flavor, size, databases, context,
                         api, callback, simulate=False):
@@ -109,7 +112,8 @@ class Manager(object):
             if simulate:
                 volume = utils.Simulation(size=1)
                 instance = utils.Simulation(
-                    id="DBS%s" % context.get('resource'), name=instance_name,
+                    id="DBS%s" % context.get('resource_key'),
+                    name=instance_name,
                     hostname='db1.rax.net', volume=volume)
             else:
                 instance = api.create(instance_name, flavor=flavor,
@@ -160,6 +164,7 @@ class Manager(object):
 
         return results
 
+    #pylint: disable=R0913
     @staticmethod
     def create_database(name, instance_id, api, callback, context,
                         character_set=None, collate=None, instance_attrs=None,
@@ -246,6 +251,7 @@ class Manager(object):
         LOG.info('Created database %s on instance %s', name, instance_id)
         return results
 
+    #pylint: disable=R0913
     @staticmethod
     def add_user(instance_id, databases, username, password,
                  api, callback, simulate=False):
