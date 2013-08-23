@@ -15,13 +15,12 @@ from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,
     CheckmateNoMapping,
-    CheckmateNoTokenError,
     CheckmateUserException,
     UNEXPECTED_ERROR,
 )
 from checkmate import middleware
 from checkmate import providers
-from checkmate import server
+from checkmate.providers.rackspace import base
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -45,7 +44,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
 class Provider(providers.ProviderBase):
     '''Provider class for Cloud Databases.'''
     name = 'database'
-    module = 'cloud_databases'
+    method = 'cloud_databases'
     vendor = 'rackspace'
 
     __status_mapping__ = {
@@ -550,7 +549,7 @@ class Provider(providers.ProviderBase):
     @staticmethod
     def connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
-        return getattr(base.RackspaceProviderTask.connect(context, region),
+        return getattr(base.RackspaceProviderBase.connect(context, region),
                        Provider.method)
 
 

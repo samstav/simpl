@@ -733,7 +733,7 @@ class Provider(base.RackspaceProviderBase):
     @staticmethod
     def connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
-        return getattr(base.RackspaceProviderTask.connect(context, region),
+        return getattr(base.RackspaceProviderBase.connect(context, region),
                        Provider.method)
 
 
