@@ -25,6 +25,7 @@ from checkmate import middleware
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import dns
 from checkmate.providers.rackspace.dns import parse_domain
+from checkmate import server
 from checkmate.utils import (
     match_celery_logging,
     get_class_name,
@@ -741,8 +742,15 @@ class Provider(ProviderBase):
             raise exceptions.CheckmateException(message)
         if not context.auth_token:
             raise exceptions.CheckmateNoTokenError()
-        
-        import ipdb; ipdb.set_trace()
+
+        if context.auth_source not in server.DEFAULT_AUTH_ENDPOINTS:
+            pyrax_settings = {
+                'identity_type': 'keystone',
+                'verify_ssl': False,
+                'auth_endpoint': context.auth_source
+            }
+        else:
+            pyrax_settings = {'identity_type': Provider.vendor}
 
         if region in REGION_MAP:
             region = REGION_MAP[region]
@@ -752,7 +760,8 @@ class Provider(ProviderBase):
                 region = Provider.find_a_region(context.catalog) or 'DFW'
 
         if not pyrax.get_setting("identity_type"):
-            pyrax.set_setting("identity_type", "rackspace")
+            for key, value in pyrax_settings.items():
+                pyrax.set_setting(key, value)
 
         pyrax.auth_with_token(context.auth_token, context.tenant,
                               context.username, region)
