@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,E1101,E1103,R0904,W0212,W0613
 """Tests for Chef Solo."""
 import __builtin__
 import hashlib
@@ -619,7 +619,6 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
       complex tests fails
     """
     def setUp(self):
-        self.maxDiff = 1000
         test.StubbedWorkflowBase.setUp(self)
         providers.base.PROVIDER_CLASSES = {}
         providers.register_providers([solo.Provider, test.TestProvider])
@@ -907,6 +906,7 @@ interfaces/mysql/host
 
 
 def do_nothing(self, my_task):
+    """Mock method."""
     call_me = 'dep.on_resource_postback(output_template) #'
     source = utils.get_source_body(solo.Transforms.collect_options)
     source = source.replace('postback.', call_me)
@@ -1448,8 +1448,8 @@ class TestChefMap(unittest.TestCase):
         # Create a dummy Chefmap and .git/FETCH_HEAD
         with file(self.fetch_head_path, 'a'):
             os.utime(self.fetch_head_path, None)
-        with file(self.chef_map_path, 'a') as f:
-            f.write(TEMPLATE)
+        with file(self.chef_map_path, 'a') as the_file:
+            the_file.write(TEMPLATE)
 
         # Make sure cache_expire_time is set to something that
         # shouldn't cause a cache miss
@@ -1460,8 +1460,9 @@ class TestChefMap(unittest.TestCase):
         map_file = chefmap.get_map_file()
 
         def update_map(repo_dir=None, head=None):
-            with open(self.chef_map_path, 'a') as f:
-                f.write("new information")
+            """Helper method to mock update_map."""
+            with open(self.chef_map_path, 'a') as the_file:
+                the_file.write("new information")
         utils.git_pull = self.mox.CreateMockAnything()
         utils.git_pull(
             mox.IgnoreArg(), mox.IgnoreArg()).WithSideEffects(update_map)
@@ -1480,8 +1481,8 @@ class TestChefMap(unittest.TestCase):
         with file(self.fetch_head_path, 'a'):
             os.utime(self.fetch_head_path, None)
         self.chef_map_path = os.path.join(self.cache_path, "Chefmap")
-        with file(self.chef_map_path, 'a') as f:
-            f.write(TEMPLATE)
+        with file(self.chef_map_path, 'a') as the_file:
+            the_file.write(TEMPLATE)
 
         chefmap = solo.ChefMap()
         # Make sure the expire time is set to something that WILL
@@ -1489,8 +1490,9 @@ class TestChefMap(unittest.TestCase):
         os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "0"
 
         def update_map(repo_dir=None, head=None):
-            with open(self.chef_map_path, 'a') as f:
-                f.write("new information")
+            """Helper method to fake an update."""
+            with open(self.chef_map_path, 'a') as the_file:
+                the_file.write("new information")
         utils.git_tags = self.mox.CreateMockAnything()
         utils.git_tags(mox.IgnoreArg()).AndReturn(["master"])
         utils.git_fetch = self.mox.CreateMockAnything()
@@ -1511,11 +1513,12 @@ class TestChefMap(unittest.TestCase):
         chefmap = solo.ChefMap()
 
         def fake_clone(url=None, path=None, branch=None):
+            """Helper method to fake a git clone."""
             os.makedirs(os.path.join(self.cache_path, ".git"))
             with file(self.fetch_head_path, 'a'):
                 os.utime(self.fetch_head_path, None)
-            with open(self.chef_map_path, 'w') as f:
-                f.write(TEMPLATE)
+            with open(self.chef_map_path, 'w') as the_file:
+                the_file.write(TEMPLATE)
 
         utils.git_clone = self.mox.CreateMockAnything()
         utils.git_clone(mox.IgnoreArg(), mox.IgnoreArg(),
@@ -1537,8 +1540,8 @@ class TestChefMap(unittest.TestCase):
         os.makedirs(blueprint)
 
         # Create a dummy Chefmap
-        with file(os.path.join(blueprint, "Chefmap"), 'a') as f:
-            f.write(TEMPLATE)
+        with file(os.path.join(blueprint, "Chefmap"), 'a') as the_file:
+            the_file.write(TEMPLATE)
 
         url = "file://" + blueprint
         chefmap = solo.ChefMap(url=url)
@@ -1735,18 +1738,21 @@ class TestChefMap(unittest.TestCase):
                   - attributes://id
                 ''')
         expect = "Should detect all maps with databags target"
-        ts = ['databags']
-        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
+        schemes = ['databags']
+        result = solo.ChefMap.filter_maps_by_schemes(
+            maps, target_schemes=schemes)
         self.assertListEqual(result, maps[0:2], msg=expect)
 
         expect = "Should detect only map with roles target"
-        ts = ['roles']
-        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
+        schemes = ['roles']
+        result = solo.ChefMap.filter_maps_by_schemes(
+            maps, target_schemes=schemes)
         self.assertListEqual(result, [maps[1]], msg=expect)
 
         expect = "Should detect all maps once"
-        ts = ['databags', 'attributes', 'roles']
-        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=ts)
+        schemes = ['databags', 'attributes', 'roles']
+        result = solo.ChefMap.filter_maps_by_schemes(
+            maps, target_schemes=schemes)
         self.assertListEqual(result, maps, msg=expect)
 
         expect = "Should return all maps"
@@ -2195,7 +2201,6 @@ output:
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
-    from checkmate import test as cm_test
     import sys
-    cm_test.run_with_params(sys.argv[:])
+
+    test.run_with_params(sys.argv[:])

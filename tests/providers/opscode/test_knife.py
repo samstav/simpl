@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,E1101,E1103,W0212
 """Tests for knife (Chef)."""
 import json
 import logging
@@ -48,10 +48,11 @@ class TestKnife(unittest.TestCase):
         databag_path = os.path.join(self.kitchen_path, "data_bags")
         if not os.path.exists(databag_path):
             os.makedirs(databag_path)
-        with open(os.path.join(self.kitchen_path, "Cheffile"), 'w') as f:
-            f.write(CHEFFILE)
-        with open(os.path.join(self.kitchen_path, "Berksfile"), 'w') as f:
-            f.write(BERKSFILE)
+        with open(os.path.join(self.kitchen_path, "Cheffile"), 'w') as the_file:
+            the_file.write(CHEFFILE)
+        with open(
+                os.path.join(self.kitchen_path, "Berksfile"), 'w') as the_file:
+            the_file.write(BERKSFILE)
         if not os.path.exists(cache_path):
             os.makedirs(os.path.join(cache_path, ".git"))
 
@@ -382,12 +383,8 @@ cookbook 'suhosin',
 """
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters separately
     import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

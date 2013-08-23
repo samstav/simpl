@@ -1,10 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=C0103,R0903,R0904,W0212,W0232
+# pylint: disable=R0904
 '''Tests for script provider'''
 
 import logging
-import unittest
 
 from checkmate import deployment
 from checkmate import deployments
@@ -27,7 +26,6 @@ class TestScriptProvider(test.ProviderTester):
 class TestSingleWorkflow(test.StubbedWorkflowBase):
     '''Test workflow for a single service works.'''
     def setUp(self):
-        self.maxDiff = 1000
         test.StubbedWorkflowBase.setUp(self)
         providers.base.PROVIDER_CLASSES = {}
         providers.register_providers([script.Provider, test.TestProvider])
@@ -90,9 +88,9 @@ ack.git
         deployments.Manager.plan(self.deployment, context)
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
-        wf = workflow.init_spiff_workflow(
+        wflow = workflow.init_spiff_workflow(
             workflow_spec, self.deployment, context)
-        task_list = wf.spec.task_specs.keys()
+        task_list = wflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',
                     'Create Resource 1',
@@ -105,16 +103,6 @@ ack.git
 
 
 if __name__ == '__main__':
-
-    # Run tests. Handle our parameters separately
-
     import sys
-    args = sys.argv[:]
 
-    # Our --debug means --verbose for unitest
-
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    test.run_with_params(sys.argv[:])

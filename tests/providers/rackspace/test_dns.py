@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# pylint: disable=C0103,E1101,R0904
 """Tests for Rackspace DNS provider."""
 import logging
 import os
@@ -142,6 +142,7 @@ class TestParseDomain(unittest.TestCase):
         self.save_failed = False
 
         def failed(*args):
+            """Helper method to ignore expected failure."""
             LOG.warn("A tldextract test failure is being ignored")
             LOG.warn(*args)
             self.save_failed = True
@@ -172,12 +173,8 @@ class TestParseDomain(unittest.TestCase):
             self.assertEquals(answer, expected)
 
 if __name__ == '__main__':
-    # Run tests. Handle our paramsters separately
     import sys
-    args = sys.argv[:]
-    # Our --debug means --verbose for unitest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])
