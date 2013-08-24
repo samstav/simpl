@@ -1,11 +1,26 @@
 # pylint: disable=C0103,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for the Deployments Router."""
 import mock
 import unittest
 import uuid
 
 from checkmate.deployments import router
-from checkmate.exceptions import CheckmateValidationException
+from checkmate import exceptions as cmexc
 
 
 class TestPostDeployment_content_to_deployment(unittest.TestCase):
@@ -57,7 +72,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
         request = mock.Mock()
         request.headers = {}
-        with self.assertRaises(CheckmateValidationException) as expected:
+        with self.assertRaises(cmexc.CheckmateValidationException) as expected:
             router._content_to_deployment(request=request,
                                           deployment_id='>test',
                                           tenant_id='Ttest')
@@ -73,7 +88,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
         request = mock.Mock()
         request.headers = {}
-        with self.assertRaises(CheckmateValidationException) as expected:
+        with self.assertRaises(cmexc.CheckmateValidationException) as expected:
             router._content_to_deployment(request=request,
                                           deployment_id='t>est',
                                           tenant_id='Ttest')
@@ -114,7 +129,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
         request = mock.Mock()
         request.headers = {}
-        with self.assertRaises(CheckmateValidationException) as expected:
+        with self.assertRaises(cmexc.CheckmateValidationException) as expected:
             router._content_to_deployment(
                 request=request, deployment_id='Dtest', tenant_id='Ttest')
         self.assertEqual('tenantId must match with current tenant ID',
@@ -173,7 +188,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_request = mock.Mock()
         mock_request.context.username = 'Me'
         mock_request.headers = {'X-Source-Untrusted': 'True'}
-        with self.assertRaises(CheckmateValidationException) as expected:
+        with self.assertRaises(cmexc.CheckmateValidationException) as expected:
             router._content_to_deployment(
                 request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
         self.assertEqual(

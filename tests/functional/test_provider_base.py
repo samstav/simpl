@@ -1,40 +1,51 @@
 # pylint: disable=R0904
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Provider Base."""
 import logging
 import uuid
 
 import mox
-from mox import IsA
 import unittest
 
-from checkmate.deployment import Deployment
-from checkmate.exceptions import CheckmateException
-from checkmate.providers.base import (
-    ProviderBase,
-    PROVIDER_CLASSES,
-    CheckmateInvalidProvider,
-)
-from checkmate.test import StubbedWorkflowBase, TestProvider
-from checkmate.utils import yaml_to_dict
+from checkmate import deployment as cmdep
+from checkmate import exceptions as cmexc
+from checkmate.providers import base as cmbase
+from checkmate import test as cmtest
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
 
 class TestProviderBase(unittest.TestCase):
     def test_provider_bad_override(self):
-        """Raise error if invalid provider data passed in"""
+        """Raise error if invalid provider data passed in."""
         # Common mistake, pass object with key as base, instead of object
-        data = yaml_to_dict("""
+        data = utils.yaml_to_dict("""
               base:
                   provides:
                   - widget: foo
                   vendor: test
             """)
-        self.assertRaises(CheckmateInvalidProvider, ProviderBase, data)
+        self.assertRaises(
+            cmbase.CheckmateInvalidProvider, cmbase.ProviderBase, data)
 
     def test_provider_catalog_override(self):
-        """Test that an injected catalog works"""
-        data = yaml_to_dict("""
+        """Test that an injected catalog works."""
+        data = utils.yaml_to_dict("""
                   provides:
                   - widget: foo
                   - widget: bar
@@ -50,12 +61,12 @@ class TestProviderBase(unittest.TestCase):
                         provides:
                         - widget: bar
             """)
-        base = ProviderBase(data, key='base')
+        base = cmbase.ProviderBase(data, key='base')
         self.assertDictEqual(base.get_catalog(None), data['catalog'])
 
     def test_provider_catalog_filter(self):
-        """Test that get_catalog applies type filter"""
-        data = yaml_to_dict("""
+        """Test that get_catalog applies type filter."""
+        data = utils.yaml_to_dict("""
                   vendor: test
                   catalog:
                     widget:
@@ -69,7 +80,7 @@ class TestProviderBase(unittest.TestCase):
                         provides:
                         - gadget: bar
             """)
-        base = ProviderBase(data, key='base')
+        base = cmbase.ProviderBase(data, key='base')
         self.assertDictEqual(base.get_catalog(None), data['catalog'])
         widgets = base.get_catalog(None, type_filter='widget')
         self.assertDictEqual(widgets, {'widget': data['catalog']['widget']})
@@ -77,7 +88,7 @@ class TestProviderBase(unittest.TestCase):
         self.assertDictEqual(gadgets, {'gadget': data['catalog']['gadget']})
 
     def test_provider_find_components(self):
-        base = ProviderBase(yaml_to_dict("""
+        base = cmbase.ProviderBase(utils.yaml_to_dict("""
                   provides:
                   - widget: foo
                   - widget: bar
@@ -100,8 +111,8 @@ class TestProviderBase(unittest.TestCase):
         self.assertIn(found[1]['id'], ['small_widget', 'big_widget'])
 
     def test_provider_select_components(self):
-        """Correctly selects from components with same interface or type"""
-        base = ProviderBase(yaml_to_dict("""
+        """Correctly selects from components with same interface or type."""
+        base = cmbase.ProviderBase(utils.yaml_to_dict("""
                   provides:
                   - widget: foo
                   - widget: bar
@@ -143,14 +154,14 @@ class TestProviderBase(unittest.TestCase):
         self.assertEqual(found[0]['id'], 'small_widget',)
 
     def test_evaluate(self):
-        provider = ProviderBase({})
+        provider = cmbase.ProviderBase({})
         self.assertIsInstance(uuid.UUID(provider.evaluate("generate_uuid()")),
                               uuid.UUID)
         self.assertEqual(len(provider.evaluate("generate_password()")), 8)
         self.assertRaises(NameError, provider.evaluate, "unknown()")
 
     def test_get_setting(self):
-        provider = ProviderBase(yaml_to_dict("""
+        provider = cmbase.ProviderBase(utils.yaml_to_dict("""
                 vendor: acme
                 constraints:
                 - foo: bar
@@ -160,11 +171,11 @@ class TestProviderBase(unittest.TestCase):
         self.assertEqual(provider.get_setting('foo'), 'bar')
         self.assertEqual(provider.get_setting('foo', default='ignore!'), 'bar')
 
-    def test_provider_base_get_resource_status(self):
-        """Mox tests for get_resource_status of provider base"""
+    def test_get_resource_status(self):
+        """Mox tests for get_resource_status of provider base."""
         _mox = mox.Mox()
         data = {"provides": "foo"}
-        base = ProviderBase(data)
+        base = cmbase.ProviderBase(data)
         deployment_id = "someid123"
         key = "0"
         api = "dummy_api_object"
@@ -180,7 +191,7 @@ class TestProviderBase(unittest.TestCase):
         }
 
         def sync_resource_task(ctx, resource, key, api):
-            """Dummy method for testing"""
+            """Dummy method for testing."""
             return {
                 'ctx': ctx,
                 'resource': resource,
@@ -208,13 +219,13 @@ class TestProviderBase(unittest.TestCase):
         self.assertItemsEqual(expected, results)
 
 
-class TestProviderBaseWorkflow(StubbedWorkflowBase):
-    """ Test Option Data Flow in Workflow """
+class TestProviderBaseWorkflow(cmtest.StubbedWorkflowBase):
+    """Test Option Data Flow in Workflow."""
 
     def setUp(self):
-        StubbedWorkflowBase.setUp(self)
-        PROVIDER_CLASSES['test.base'] = TestProvider
-        self.deployment = Deployment(yaml_to_dict("""
+        cmtest.StubbedWorkflowBase.setUp(self)
+        cmbase.PROVIDER_CLASSES['test.base'] = cmtest.TestProvider
+        self.deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
                   name: test mysql connection
@@ -254,7 +265,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
         expected = []
         expected.append({
             'call': 'checkmate.providers.test.create_resource',
-            'args': [IsA(dict),
+            'args': [mox.IsA(dict),
                         {'index': '1', 'component': 'database_instance',
                             'dns-name': 'db1.checkmate.local',
                             'instance': {}, 'provider': 'base',
@@ -284,7 +295,7 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
         })
         expected.append({
             'call': 'checkmate.providers.test.create_resource',
-            'args': [IsA(dict),
+            'args': [mox.IsA(dict),
                     {'index': '0', 'component': 'web_app',
                     'dns-name': 'web1.checkmate.local',
                     'instance': {'interfaces': {'mysql': {
@@ -303,10 +314,10 @@ class TestProviderBaseWorkflow(StubbedWorkflowBase):
 
 
 class TestProviderBaseParser(unittest.TestCase):
-    """Test setting parsers"""
+    """Test setting parsers."""
 
     def test_memory_parser(self):
-        """Test parsing of memory strings"""
+        """Test parsing of memory strings."""
         cases = [
             ["1 megabyte", 1],
             ["1 gigabyte", 1024],
@@ -338,32 +349,31 @@ class TestProviderBaseParser(unittest.TestCase):
             [" 100 ", 100],
         ]
         for case in cases:
-            self.assertEquals(ProviderBase.parse_memory_setting(case[0]),
-                              case[1], "'%s' setting should return %s" %
-                              (case[0], case[1]))
+            self.assertEquals(
+                cmbase.ProviderBase.parse_memory_setting(case[0]),
+                case[1], "'%s' setting should return %s" % (case[0], case[1])
+            )
 
     def test_memory_parser_blanks(self):
-        """Tests that blanks raise errors"""
-        self.assertRaises(CheckmateException,
-                          ProviderBase.parse_memory_setting,
+        """Tests that blanks raise errors."""
+        self.assertRaises(cmexc.CheckmateException,
+                          cmbase.ProviderBase.parse_memory_setting,
                           None)
-        self.assertRaises(CheckmateException,
-                          ProviderBase.parse_memory_setting,
+        self.assertRaises(cmexc.CheckmateException,
+                          cmbase.ProviderBase.parse_memory_setting,
                           "")
-        self.assertRaises(CheckmateException,
-                          ProviderBase.parse_memory_setting,
+        self.assertRaises(cmexc.CheckmateException,
+                          cmbase.ProviderBase.parse_memory_setting,
                           " ")
 
     def test_memory_parser_bad_unit(self):
-        """Test that unrecognized units raise errors"""
-        self.assertRaises(CheckmateException,
-                          ProviderBase.parse_memory_setting,
+        """Test that unrecognized units raise errors."""
+        self.assertRaises(cmexc.CheckmateException,
+                          cmbase.ProviderBase.parse_memory_setting,
                           "1 widget")
 
 
 if __name__ == '__main__':
     import sys
-
-    from checkmate import test as cmtest
 
     cmtest.run_with_params(sys.argv[:])

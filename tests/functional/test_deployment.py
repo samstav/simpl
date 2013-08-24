@@ -1,15 +1,25 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Deployment Planning."""
 import unittest
 
+from checkmate import deployment as cmdep
+from checkmate import deployments as cmdeps
+from checkmate import exceptions as cmexc
+from checkmate import middleware as cmmid
 from checkmate.providers import base
-from checkmate.deployment import Deployment
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateValidationException,
-)
-from checkmate.deployments import Manager, Planner
-from checkmate.providers.base import ProviderBase
-from checkmate.middleware import RequestContext
 from checkmate import utils
 
 
@@ -17,7 +27,7 @@ class TestDeploymentPlanning(unittest.TestCase):
     """Tests the Plan() class and its deployment planning logic."""
     def test_find_components_positive(self):
         """Test the Plan() class can find components."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -61,11 +71,11 @@ class TestDeploymentPlanning(unittest.TestCase):
                             - gadget: bar
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        base.PROVIDER_CLASSES['test.gbase'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        base.PROVIDER_CLASSES['test.gbase'] = base.ProviderBase
 
-        planner = Planner(deployment)
-        planner.plan(RequestContext())
+        planner = cmdeps.Planner(deployment)
+        planner.plan(cmmid.RequestContext())
 
         services = planner['services']
         self.assertIn('by_id', services)
@@ -96,7 +106,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
     def test_find_components_not_found(self):
         """Test the Plan() class fails missing components."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -117,14 +127,15 @@ class TestDeploymentPlanning(unittest.TestCase):
                             - widget: foo
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        planner = Planner(deployment)
-        self.assertRaises(CheckmateException, planner.plan, RequestContext())
+        planner = cmdeps.Planner(deployment)
+        self.assertRaises(
+            cmexc.CheckmateException, planner.plan, cmmid.RequestContext())
 
     def test_find_components_mismatch(self):
         """Test the Plan() class skips mismatched components."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -147,14 +158,15 @@ class TestDeploymentPlanning(unittest.TestCase):
                             - widget: foo
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        planner = Planner(deployment)
-        self.assertRaises(CheckmateException, planner.plan, RequestContext())
+        planner = cmdeps.Planner(deployment)
+        self.assertRaises(
+            cmexc.CheckmateException, planner.plan, cmmid.RequestContext())
 
     def test_resolve_relations(self):
         """Test the Plan() class can parse relations."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -184,10 +196,10 @@ class TestDeploymentPlanning(unittest.TestCase):
                             - widget: foo
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        planner = Planner(deployment)
-        planner.plan(RequestContext())
+        planner = cmdeps.Planner(deployment)
+        planner.plan(cmmid.RequestContext())
         services = planner['services']
         component = services['main']['component']
         widget_foo = component['requires']['widget:foo']
@@ -208,7 +220,7 @@ class TestDeploymentPlanning(unittest.TestCase):
     @unittest.skip("Not compatible with v0.2 relations")
     def test_resolve_relations_negative(self):
         """Test the Plan() class detects unused/duplicate relations."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -244,14 +256,14 @@ class TestDeploymentPlanning(unittest.TestCase):
                             - widget: foo
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        planner = Planner(deployment)
-        self.assertRaises(CheckmateValidationException, planner.plan,
-                          RequestContext())
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        planner = cmdeps.Planner(deployment)
+        self.assertRaises(cmexc.CheckmateValidationException, planner.plan,
+                          cmmid.RequestContext())
 
     def test_resolve_relations_multiple(self):
         """Test that all relations are generated."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -310,10 +322,10 @@ class TestDeploymentPlanning(unittest.TestCase):
                             - compute: windows
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        planner = Planner(deployment)
-        planner.plan(RequestContext())
+        planner = cmdeps.Planner(deployment)
+        planner.plan(cmmid.RequestContext())
 
         resources = {key: [] for key in planner['services'].keys()}
         for key, resource in planner.resources.iteritems():
@@ -348,7 +360,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
     def test_resolve_requirements(self):
         """Test the Plan() class can resolve all requirements."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -395,10 +407,10 @@ class TestDeploymentPlanning(unittest.TestCase):
                             - compute: linux
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        planner = Planner(deployment)
-        planner.plan(RequestContext())
+        planner = cmdeps.Planner(deployment)
+        planner.plan(cmmid.RequestContext())
         services = planner['services']
 
         component = services['main']['component']
@@ -449,7 +461,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
     def test_relation_names(self):
         """Test the Plan() class handles relation naming correctly."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -504,9 +516,9 @@ class TestDeploymentPlanning(unittest.TestCase):
                             - compute: linux
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        Manager.plan(deployment, RequestContext())
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         resources = deployment['resources']
 
         expected = utils.yaml_to_dict("""
@@ -520,7 +532,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
     def test_resource_name(self):
         """Test the Plan() class handles resource naming correctly."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 environment:
                   providers:
@@ -535,15 +547,15 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: bar
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        Manager.plan(deployment, RequestContext())
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         assigned_name = deployment['resources']['0']['dns-name']
         expected_name = "web01.checkmate.local"
         self.assertEqual(assigned_name, expected_name)
 
     def test_constrained_resource_name(self):
         """Test the Plan() class handles resource naming correctly."""
-        deployment = Deployment(utils.yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 environment:
                   providers:
@@ -561,14 +573,14 @@ class TestDeploymentPlanning(unittest.TestCase):
                         - count: 1
                 inputs: {}
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        Manager.plan(deployment, RequestContext())
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         assigned_name = deployment['resources']['0']['dns-name']
         expected_name = "web.checkmate.local"
         self.assertEqual(assigned_name, expected_name)
 
     def test_evaluate_defaults(self):
-        default_plan = Planner(Deployment(utils.yaml_to_dict("""
+        default_plan = cmdeps.Planner(cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   options:
