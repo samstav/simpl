@@ -1,4 +1,18 @@
 # pylint: disable=C0103
+
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for server module."""
 import json
 import os
@@ -6,19 +20,15 @@ import sys
 import unittest
 import uuid
 
-from bottle import default_app
+import bottle
 import webtest
 
 from checkmate import db
 from checkmate import deployments
 from checkmate import environments
+from checkmate import middleware as cmmid
+from checkmate import server
 from checkmate import workflows
-
-from checkmate.middleware import TenantMiddleware
-from checkmate.middleware import ContextMiddleware
-from checkmate.middleware import ExtensionsMiddleware
-
-from checkmate.server import error_formatter
 
 
 class TestServer(unittest.TestCase):
@@ -26,9 +36,9 @@ class TestServer(unittest.TestCase):
 
     def setUp(self):
         os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
-        default_app.push()
+        bottle.default_app.push()
         reload(environments)
-        self.root_app = default_app.pop()
+        self.root_app = bottle.default_app.pop()
         self.root_app.catchall = False
 
         deployments_manager = deployments.Manager({'default': db.get_driver()})
@@ -40,9 +50,9 @@ class TestServer(unittest.TestCase):
                                                 workflows_manager,
                                                 deployments_manager)
 
-        tenant = TenantMiddleware(self.root_app)
-        context = ContextMiddleware(tenant)
-        extension = ExtensionsMiddleware(context)
+        tenant = cmmid.TenantMiddleware(self.root_app)
+        context = cmmid.ContextMiddleware(tenant)
+        extension = cmmid.ExtensionsMiddleware(context)
         self.app = webtest.TestApp(extension)
 
     def test_multitenant_deployment(self):
@@ -111,7 +121,7 @@ class TestServer(unittest.TestCase):
         entity = "%s: &e1\n    id: '%s'" % (model_name, id1)
         res = self.app.put('/T1000/%ss/%s' % (model_name, id1), entity,
                            content_type='application/x-yaml')
-        #TODO(any): make tests clean so we can predict if we get a 200 or 201
+        # TODO(any): make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'], res)
         self.assertEqual(res.content_type, 'application/json')
 
@@ -171,7 +181,7 @@ class TestServer(unittest.TestCase):
                            expect_errors=True)
         self.assertEqual(res.status, '404 Not Found')
 
-        #TODO: test posting object with bad tenant_id in it
+        # TODO(any): test posting object with bad tenant_id in it
 
     #
     # Other tests
@@ -180,14 +190,14 @@ class TestServer(unittest.TestCase):
         obj_id = uuid.uuid4().hex
         entity = {"id": obj_id, 'tenantId': 'T1000'}
         res = self.app.post_json('/T1000/workflows', entity)
-        #TODO: make tests clean so we can predict if we get a 200 or 201
+        # TODO(any): make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
     def test_save_workflow(self):
         obj_id = uuid.uuid4().hex
         entity = {"id": obj_id, 'tenantId': 'T1000'}
         res = self.app.post_json('/T1000/workflows/' + obj_id, entity)
-        #TODO: make tests clean so we can predict if we get a 200 or 201
+        # TODO(any): make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
     def test_unwrapped_deployment(self):
@@ -238,7 +248,7 @@ class TestServer(unittest.TestCase):
 
     def test_put_deployment_tenant_id_mismatch(self):
         """Using PUT /deployments/<oid> to exercise _content_to_deployment."""
-        self.root_app.error_handler = {500: error_formatter}
+        self.root_app.error_handler = {500: server.error_formatter}
         self.root_app.catchall = True
         id1 = uuid.uuid4().hex[0:7]
         data = """

@@ -1,4 +1,18 @@
-# pylint: disable=C0103,R0201,R0904,R0913,W0212
+# pylint: disable=R0201,R0904,R0913,W0212
+
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for git integration (specific)."""
 import os
 import shutil
@@ -78,13 +92,13 @@ class TestGitPythonSubmodules(unittest.TestCase):
 
         submodules = {'subthing': 'https://localhost/repo.git'}
         manager._add_submodules_to_config(self.repo_path,
-                                                              submodules)
+                                          submodules)
         repo.git.add('.gitmodules')
         repo.git.commit(m="add subfolder1")
 
         submodules = {'subthing2': 'https://localhost/repo2.git'}
         manager._add_submodules_to_config(self.repo_path,
-                                                              submodules)
+                                          submodules)
         repo.git.add('.gitmodules')
         repo.git.commit(m="add subfolder2")
         expected = ('[submodule "%s"]\n\tpath = %s\n\turl = %s\n'
@@ -128,13 +142,13 @@ class TestGitNoDir(unittest.TestCase):
         self.repo_path = os.path.join(TEST_PATH, uuid.uuid4().hex)
 
     @mock.patch.object(git.Repo, 'init')
-    def test_init_repo_bad_path(self, git_Repo_init):
+    def test_init_repo_bad_path(self, git_repo_init):
         self.assertFalse(os.path.exists(self.repo_path))
         with self.assertRaises(OSError):
             manager.init_deployment_repo(self.repo_path)
-        assert not git_Repo_init.called
+        assert not git_repo_init.called
 
-    def test_find_unregistered_submodules(self):
+    def test_find_unreged_submodules(self):
         results = manager._find_unregistered_submodules(self.repo_path)
         self.assertEqual(results, {})
 
@@ -154,7 +168,7 @@ class TestGitBlankDir(unittest.TestCase):
         config_path = os.path.join(self.repo_path, '.git', 'config')
         self.assertTrue(os.path.isfile(config_path))
 
-    def test_find_unregistered_submodules(self):
+    def test_find_unreged_submodules(self):
         results = manager._find_unregistered_submodules(self.repo_path)
         self.assertEqual(results, {})
 
@@ -183,7 +197,7 @@ class TestGitDirWithData(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.repo_path)
 
-    def test_find_unregistered_submodules(self):
+    def test_find_unreged_submodules(self):
         results = manager._find_unregistered_submodules(self.repo_path)
         self.assertEqual(results, {'repo': 'http://localhost/submodule.git'})
 
@@ -211,11 +225,11 @@ class TestGitRepo(unittest.TestCase):
         shutil.rmtree(self.repo_path)
 
     @mock.patch.object(git.Repo, 'init')
-    def test_init_repo_already_repo(self, git_Repo_init):
+    def test_init_repo_already_repo(self, git_repo_init):
         manager.init_deployment_repo(self.repo_path)
-        assert not git_Repo_init.called
+        assert not git_repo_init.called
 
-    def test_find_unregistered_submodules(self):
+    def test_find_unreged_submodules(self):
         git_modules_path = os.path.join(self.repo_path, '.gitmodules')
         self.assertFalse(os.path.exists(git_modules_path))
         results = manager._find_unregistered_submodules(self.repo_path)
@@ -223,7 +237,7 @@ class TestGitRepo(unittest.TestCase):
 
 
 @unittest.skip('Not yet converted to new refactored code')
-class TestGitMiddleware_init_deployment(unittest.TestCase):
+class TestGitMiddlewareInitDeployment(unittest.TestCase):
 
     @mock.patch.object(git.Repo, 'init')
     @mock.patch.object(manager, 'is_git_repo')

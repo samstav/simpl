@@ -1,4 +1,19 @@
-# pylint: disable=E1101,C0103
+# pylint: disable=C0103,E1101
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Base class for testing database drivers
 
 This performs a full suite of tests on a driver to make sure it conforms to the
@@ -20,17 +35,19 @@ class TestMyDriver(TestDBDriver):
 import copy
 import uuid
 
-from checkmate import db, utils
-from abc import ABCMeta, abstractproperty
-from checkmate.exceptions import CheckmateException
+import abc
+
+from checkmate import db
+from checkmate import exceptions as cmexc
+from checkmate import utils
 
 
 class DBDriverTests(object):
     """Test Any Driver; mix in with unittest.TestCase."""
 
-    __metaclass__ = ABCMeta
+    __metaclass__ = abc.ABCMeta
 
-    @abstractproperty
+    @abc.abstractproperty
     def connection_string(self):
         "For mocking a connection string."""
         return None  # meant to be overridden
@@ -110,8 +127,9 @@ class DBDriverTests(object):
         self.assertIsNotNone(tenant)
         self.assertDictEqual(tenant_data, tenant)
         # raises exception appropriately
-        self.assertRaises(CheckmateException, self.driver.save_tenant, None)
-        self.assertRaises(CheckmateException, self.driver.save_tenant,
+        self.assertRaises(
+            cmexc.CheckmateException, self.driver.save_tenant, None)
+        self.assertRaises(cmexc.CheckmateException, self.driver.save_tenant,
                           {'tags': ['blap']})
         self.assertDictEqual(tenant_data, tenant)
 
@@ -202,9 +220,6 @@ class DBDriverTests(object):
     # Deployments
     #
     def test_save_get_deployment_with_defaults(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -216,9 +231,6 @@ class DBDriverTests(object):
         )
 
     def test_save_get_deployment_with_secrets(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -235,9 +247,6 @@ class DBDriverTests(object):
         )
 
     def test_save_deployment_with_merge(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -257,9 +266,6 @@ class DBDriverTests(object):
         )
 
     def test_save_deployment_with_overwrite(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -279,18 +285,12 @@ class DBDriverTests(object):
         )
 
     def test_get_deployments_found_nothing(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.assertEquals(
             {'_links': {}, 'results': {}, 'collection-count': 0},
             self.driver.get_deployments(tenant_id='T3')
         )
 
     def test_get_deployments_with_defaults(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -320,9 +320,6 @@ class DBDriverTests(object):
         )
 
     def test_get_deployments_with_no_tenant_id_returns_all_deployments(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -357,9 +354,6 @@ class DBDriverTests(object):
         )
 
     def test_get_deployments_with_secrets(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -404,9 +398,6 @@ class DBDriverTests(object):
         )
 
     def test_get_deployments_with_offset(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -430,9 +421,6 @@ class DBDriverTests(object):
         )
 
     def test_get_deployments_with_limit(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -461,9 +449,6 @@ class DBDriverTests(object):
         )
 
     def test_get_deployments_with_offset_and_limit(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -503,9 +488,6 @@ class DBDriverTests(object):
         )
 
     def test_get_deployments_omitting_count(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -523,9 +505,6 @@ class DBDriverTests(object):
         )
 
     def test_offset_passed_to_get_deployments_as_none(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -544,9 +523,6 @@ class DBDriverTests(object):
         )
 
     def test_limit_passed_to_get_deployments_as_none(self):
-        """We are really testing deployment, but using deployment so that the
-        test works regardless of driver implementation
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -722,9 +698,6 @@ class DBDriverTests(object):
         )
 
     def test_get_deployments_with_deleted_resource(self):
-        """Make sure we still get a deployment when it is not DELETED,
-        but one of its Resources IS DELETED
-        """
         self.driver.save_deployment(
             '1234',
             tenant_id='T3',
@@ -747,9 +720,6 @@ class DBDriverTests(object):
         )
 
     def test_convert_invalid_deployment_status(self):
-        """We want to make sure that old statuses (ex. LAUNCHED) get converted
-        before they are returned back to the engine
-        """
         self.driver.save_deployment(
             '1',
             tenant_id='T3',
@@ -790,7 +760,6 @@ class DBDriverTests(object):
         self.assertEquals(results['results']['6']['status'], 'UP')
 
     def test_trim_get_deployments(self):
-        """Make sure we don't return too much data in list deployments"""
         self.driver.save_deployment(
             '1',
             tenant_id='T3',
@@ -999,7 +968,6 @@ class DBDriverTests(object):
     # Workflows
     #
     def test_trim_get_workflows(self):
-        """Make sure we don't return too much data in list workflows"""
         self.driver.save_workflow(
             '1',
             tenant_id='T3',
@@ -1016,7 +984,7 @@ class DBDriverTests(object):
             }
         )
         results = self.driver.get_workflows(tenant_id='T3')
-        self.assertEqual(results['collection-count'], 1),
+        self.assertEqual(results['collection-count'], 1)
         expected = {
             u'id': u'1',
             u'name': {},
