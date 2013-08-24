@@ -1,4 +1,19 @@
 # pylint: disable=C0103,W0212,R0904
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Rackspace Database provider."""
 import logging
 import mock
@@ -6,8 +21,8 @@ import mox
 import unittest
 
 from checkmate import deployment
+from checkmate.deployments import tasks
 from checkmate import exceptions
-from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate import middleware
 from checkmate import providers
 from checkmate.providers import base
@@ -37,7 +52,7 @@ class TestDatabase(test.ProviderTester):
         instance.volume.size = 1
 
         #Stub out postback call
-        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
+        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
         #Stub out postback call
         self.mox.StubOutWithMock(database._create_instance, 'callback')
@@ -87,7 +102,7 @@ class TestDatabase(test.ProviderTester):
                                            {'id': instance.id}).AndReturn(True)
         database._create_instance.callback(
             context, expected['instance:1']).AndReturn(True)
-        reset_failed_resource_task.delay('DEP_ID', '1')
+        tasks.reset_failed_resource_task.delay('DEP_ID', '1')
 
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name, 1, 1,
@@ -110,13 +125,13 @@ class TestDatabase(test.ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(database._create_database, 'callback')
-        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
+        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
         database._create_database.callback(context, {'status': 'BUILD'})
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get(instance.id).AndReturn(instance)
-        reset_failed_resource_task.delay('DEP', '1')
+        tasks.reset_failed_resource_task.delay('DEP', '1')
         self.mox.ReplayAll()
         #Should throw exception when instance.status="BUILD"
         self.assertRaises(exceptions.CheckmateException,
@@ -142,7 +157,7 @@ class TestDatabase(test.ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(database._create_database, 'callback')
-        self.mox.StubOutWithMock(reset_failed_resource_task, 'delay')
+        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -168,7 +183,7 @@ class TestDatabase(test.ProviderTester):
         database._create_database.callback(
             context, {'status': instance.status}).AndReturn(True)
         database._create_database.callback(context, expected['instance:1'])
-        reset_failed_resource_task.delay('DEP', '1')
+        tasks.reset_failed_resource_task.delay('DEP', '1')
         self.mox.ReplayAll()
         results = database.create_database(context, 'db1', 'NORTH',
                                            instance_id=instance.id,

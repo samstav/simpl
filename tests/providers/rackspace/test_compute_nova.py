@@ -1,4 +1,19 @@
 # pylint: disable=C0103,E1101,E1103,R0904,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Rackspace Nova compute provider."""
 import copy
 import json
@@ -21,7 +36,6 @@ LOG = logging.getLogger(__name__)
 
 
 class TestNovaCompute(test.ProviderTester):
-    """Test Nova Compute Provider."""
     klass = compute.Provider
 
     def test_provider(self):
@@ -30,8 +44,6 @@ class TestNovaCompute(test.ProviderTester):
 
     def test_create_server(self):
         provider = compute.Provider({})
-
-        #Mock server
         server = self.mox.CreateMockAnything()
         server.id = 'fake_server_id'
         server.status = 'BUILD'
@@ -122,8 +134,6 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_on_failure(self):
-        """Test create server on failure postback data."""
-
         exc = self.mox.CreateMockAnything()
         exc.__str__().AndReturn('some message')
         task_id = "1234"
@@ -155,9 +165,6 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_wait_on_build_rackconnect_pending(self):
-        """Test that Rack Connect waits on metadata."""
-
-        #Mock server
         server = self.mox.CreateMockAnything()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
@@ -208,9 +215,6 @@ class TestNovaCompute(test.ProviderTester):
                           api_object=openstack_api_mock)
 
     def test_wait_on_build_rackconnect_ready(self):
-        """Test that Rack Connect waits on metadata."""
-
-        #Mock server
         server = self.mox.CreateMockAnything()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
@@ -292,9 +296,6 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_wait_on_build(self):
-        """Test that normal wait finishes."""
-
-        #Mock server
         server = self.mox.CreateMockAnything()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
@@ -375,7 +376,6 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_delete_server(self):
-        """Test delete server task."""
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -415,7 +415,6 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_wait_on_delete(self):
-        """Test wait on delete server task."""
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -469,8 +468,6 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(compute.Provider.find_a_region(catalog), 'North')
 
     def test_compute_sync_resource_task(self):
-        """Tests compute sync_resource_task via mock."""
-        #Mock server
         server = mock.Mock()
         server.id = 'fake_server_id'
         server.status = "ERROR"
@@ -505,9 +502,6 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(results, expected)
 
     def test_compute_sync_resource_task_adds_checkmate_metadata(self):
-        """Tests compute sync_resource_task adds checkmate metadata tag to
-           the given resource if it does not already have the tag."""
-        #Mock server
         server = mock.Mock()
         server.id = 'fake_server_id'
         server.status = "status"
@@ -544,7 +538,7 @@ class TestNovaCompute(test.ProviderTester):
         server.manager.set_meta.assert_called_once_with(server, {"test": "me"})
 
     def verify_limits(self, cores_used, ram_used):
-        """Test the verify_limits() method."""
+        """Helper method to validate constraints."""
         context = cm_mid.RequestContext()
         resources = [
             {'component': 'linux_instance',
@@ -590,7 +584,6 @@ class TestNovaCompute(test.ProviderTester):
         return result
 
     def test_verify_limits_negative(self):
-        """Test that verify_limits returns warnings if limits are not okay."""
         result = self.verify_limits(15, 1000)
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
         self.mox.UnsetStubs()
@@ -601,7 +594,6 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
 
     def test_verify_limits_positive(self):
-        """Test that verify_limits() returns no results if limits are okay."""
         result = self.verify_limits(5, 1000)
         self.assertEqual(result, [])
         self.mox.UnsetStubs()
@@ -609,7 +601,6 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(result, [])
 
     def test_verify_access_positive(self):
-        """Test that verify_access() returns ACCESS-OK if user has access."""
         context = cm_mid.RequestContext()
         context.roles = 'identity:user-admin'
         provider = compute.Provider({})
@@ -623,7 +614,6 @@ class TestNovaCompute(test.ProviderTester):
         self.assertEqual(result['type'], 'ACCESS-OK')
 
     def test_verify_access_negative(self):
-        """Test that verify_access() returns ACCESS-OK if user has access."""
         context = cm_mid.RequestContext()
         context.roles = 'nova:observer'
         provider = compute.Provider({})
@@ -632,8 +622,6 @@ class TestNovaCompute(test.ProviderTester):
 
 
 class TestNovaGenerateTemplate(unittest.TestCase):
-    """Test Nova Compute Provider's region functions."""
-
     def setUp(self):
         self.mox = mox.Mox()
         self.deployment = self.mox.CreateMockAnything()
@@ -647,7 +635,6 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_catalog_and_deployment_same(self):
-        """Catalog and Deployment have matching regions."""
         catalog = {
             'lists': {
                 'sizes': {
@@ -724,7 +711,6 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_catalog_and_deployment_diff(self):
-        """Catalog and Deployment have different regions."""
         catalog = {
             'lists': {
                 'sizes': {
@@ -782,7 +768,6 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 
 
 class TestNovaProxy(unittest.TestCase):
-    """Test Nova Compute Provider's proxy function"""
     @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
     def test_proxy_returns_compute_instances(self, mock_pyrax, mock_get_ips):

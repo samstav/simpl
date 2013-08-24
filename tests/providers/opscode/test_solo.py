@@ -1,4 +1,19 @@
 # pylint: disable=C0103,E1101,E1103,R0904,W0212,W0613
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Chef Solo."""
 import __builtin__
 import hashlib
@@ -12,11 +27,7 @@ import uuid
 import yaml
 
 import mox
-
-from SpiffWorkflow.specs import (
-    Celery,
-    TaskSpec,
-)
+from SpiffWorkflow import specs
 
 from checkmate import deployment as cm_dep
 from checkmate import deployments
@@ -28,7 +39,6 @@ from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
 from checkmate import workflows
-
 
 LOG = logging.getLogger(__name__)
 
@@ -196,7 +206,7 @@ class TestChefSoloProvider(test.ProviderTester):
         provider = solo.Provider({})
         cleanup_result = provider.cleanup_environment(wf_spec, {'id': 'DEP1'})
         cleanup_task_spec = cleanup_result['root']
-        self.assertIsInstance(cleanup_task_spec, Celery)
+        self.assertIsInstance(cleanup_task_spec, specs.Celery)
         self.assertEqual(cleanup_task_spec.args, ['DEP1'])
         defines = {'provider': provider.key}
         properties = {
@@ -214,8 +224,8 @@ class TestChefSoloProvider(test.ProviderTester):
         wf_spec = workflows.WorkflowSpec()
         self.mox.StubOutWithMock(wf_spec, "find_task_specs")
         self.mox.StubOutWithMock(wf_spec, "wait_for")
-        mock_task_spec = self.mox.CreateMock(TaskSpec)
-        mock_final_task_spec = self.mox.CreateMock(TaskSpec)
+        mock_task_spec = self.mox.CreateMock(specs.TaskSpec)
+        mock_final_task_spec = self.mox.CreateMock(specs.TaskSpec)
         provider = solo.Provider({})
         wf_spec.find_task_specs(
             provider=provider.key,
@@ -231,7 +241,7 @@ class TestChefSoloProvider(test.ProviderTester):
         self.mox.ReplayAll()
         result = provider.cleanup_temp_files(wf_spec, {'id': 'DEP1'})
         cleanup_task_spec = result['final']
-        self.assertIsInstance(cleanup_task_spec, Celery)
+        self.assertIsInstance(cleanup_task_spec, specs.Celery)
         self.assertEqual(cleanup_task_spec.args, ['DEP1', 'kitchen'])
         defines = {'provider': provider.key}
         properties = {
@@ -900,7 +910,6 @@ interfaces/mysql/host
                         username: u1
                         host: 4.4.4.4
             ''')
-        print final.attributes
         self.assertDictEqual(final.attributes['instance:0'],
                              expected['instance:0'])
 
