@@ -1,4 +1,19 @@
 # pylint: disable=C0103,E1101,E1103,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for knife (Chef)."""
 import json
 import logging
@@ -10,11 +25,8 @@ import uuid
 
 import mox
 
-from checkmate.deployments import resource_postback
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateUserException,
-)
+from checkmate import deployments as cmdeps
+from checkmate import exceptions as cmexc
 from checkmate.providers.opscode import knife
 
 LOG = logging.getLogger(__name__)
@@ -48,7 +60,8 @@ class TestKnife(unittest.TestCase):
         databag_path = os.path.join(self.kitchen_path, "data_bags")
         if not os.path.exists(databag_path):
             os.makedirs(databag_path)
-        with open(os.path.join(self.kitchen_path, "Cheffile"), 'w') as the_file:
+        with open(
+                os.path.join(self.kitchen_path, "Cheffile"), 'w') as the_file:
             the_file.write(CHEFFILE)
         with open(
                 os.path.join(self.kitchen_path, "Berksfile"), 'w') as the_file:
@@ -70,9 +83,10 @@ class TestKnife(unittest.TestCase):
     def test_delete_environment_exception_handling(self):
         self.mox.StubOutWithMock(shutil, "rmtree")
         shutil.rmtree("/tmp/foo/%s" % self.deploymentId).AndRaise(
-            CheckmateUserException("", "", "", ""))
+            cmexc.CheckmateUserException("", "", "", ""))
         self.mox.ReplayAll()
-        self.assertRaises(CheckmateUserException, knife.delete_environment,
+        self.assertRaises(cmexc.CheckmateUserException,
+                          knife.delete_environment,
                           self.deploymentId, path="/tmp/foo")
 
     def test_delete_cookbooks(self):
@@ -83,7 +97,7 @@ class TestKnife(unittest.TestCase):
         knife.delete_cookbooks(self.deploymentId, 'kitchen')
 
     def test_databag_create(self):
-        """Test databag item creation (with checkmate filling in ID)"""
+        """Test databag item creation (with checkmate filling in ID)."""
         original = {
             'a': 1,
             'b': '2',
@@ -99,7 +113,7 @@ class TestKnife(unittest.TestCase):
             'hosted_on': 'rackspace'
         }
         bag = uuid.uuid4().hex
-        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(cmdeps.resource_postback, 'delay')
         knife.write_databag(self.deploymentId, bag, 'test', original, resource)
         params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                   'json']
@@ -109,7 +123,7 @@ class TestKnife(unittest.TestCase):
         self.assertDictEqual(json.loads(stored), original)
 
     def test_databag_merge(self):
-        """Test databag item merging"""
+        """Test databag item merging."""
         original = {
             'a': 1,
             'b': '2',
@@ -142,7 +156,7 @@ class TestKnife(unittest.TestCase):
             'index': 1234,
             'hosted_on': "rackspace"
         }
-        self.mox.StubOutWithMock(resource_postback, 'delay')
+        self.mox.StubOutWithMock(cmdeps.resource_postback, 'delay')
         knife.write_databag(self.deploymentId, bag, 'test', original, resource)
         knife.write_databag(self.deploymentId, bag, 'test', merge, resource,
                             merge=True)
@@ -155,23 +169,23 @@ class TestKnife(unittest.TestCase):
                              json.loads(json.dumps(expected)))
 
     def test_databag_create_bad_id(self):
-        """Test databag item creation (with supplied ID not matching)"""
+        """Test databag item creation (with supplied ID not matching)."""
         original = {
             'id': 'Not-the-tem-name',
         }
         resource = {'index': 1234}
         bag = uuid.uuid4().hex
-        self.assertRaises(CheckmateException, knife.write_databag,
+        self.assertRaises(cmexc.CheckmateException, knife.write_databag,
                           self.deploymentId, bag, 'test', original, resource)
 
     def test_create_environment(self):
-        """Test create_environment"""
+        """Test create_environment."""
         path = '/fake_path'
         fullpath = os.path.join(path, "test")
         service = "test_service"
         #Stub out checks for paths
         self.mox.StubOutWithMock(os, 'mkdir')
-        os.mkdir(fullpath, 0770).AndReturn(True)
+        os.mkdir(fullpath, 0o770).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
         knife._get_root_environments_path("test", path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
@@ -203,14 +217,13 @@ class TestKnife(unittest.TestCase):
         self.mox.VerifyAll()
 
     def test_create_environment_repo_cheffile(self):
-        """Test create_environment with a source repository containing
-           a Cheffile"""
+        """Test create_environment with source repo containing a Cheffile."""
         path = '/fake_path'
         fullpath = os.path.join(path, "test")
         service = "test_service"
         #Stub out checks for paths
         self.mox.StubOutWithMock(os, 'mkdir')
-        os.mkdir(fullpath, 0770).AndReturn(True)
+        os.mkdir(fullpath, 0o770).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
         knife._get_root_environments_path("test", path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')
@@ -257,8 +270,7 @@ class TestKnife(unittest.TestCase):
     # - TestChefMap.test_get_map_file_no_cache()
 
     def test_create_environment_repo_berksfile(self):
-        """Test create_environment with a source repository containing
-           a Berksfile"""
+        """Test create_environment with source repo containing a Berksfile."""
         path = '/fake_path'
         fullpath = os.path.join(path, "test")
         service = "test_service"
@@ -266,7 +278,7 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(knife, "_ensure_berkshelf_environment")
         knife._ensure_berkshelf_environment().AndReturn(True)
         self.mox.StubOutWithMock(os, 'mkdir')
-        os.mkdir(fullpath, 0770).AndReturn(True)
+        os.mkdir(fullpath, 0o770).AndReturn(True)
         self.mox.StubOutWithMock(knife, '_get_root_environments_path')
         knife._get_root_environments_path('test', path).AndReturn(path)
         self.mox.StubOutWithMock(knife, '_create_environment_keys')

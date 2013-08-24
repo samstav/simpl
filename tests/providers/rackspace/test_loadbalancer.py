@@ -1,4 +1,19 @@
 # pylint: disable=C0103,R0201,R0904,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Rackspace Loadbalancer provider."""
 import logging
 import re
@@ -20,13 +35,11 @@ from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
 from checkmate import workflows
-from checkmate.workflows import WorkflowSpec
 
 LOG = logging.getLogger(__name__)
 
 
 class TestLoadBalancer(test.ProviderTester):
-    """Test Load-Balancer Provider."""
     klass = loadbalancer.Provider
 
     def test_provider(self):
@@ -34,7 +47,7 @@ class TestLoadBalancer(test.ProviderTester):
         self.assertEqual(provider.key, 'rackspace.load-balancer')
 
     def test_generate_delete_connection_tasks(self):
-        wf_spec = WorkflowSpec()
+        wf_spec = workflows.WorkflowSpec()
         deployment = cm_dep.Deployment({
             'id': 'TEST',
 
@@ -176,7 +189,6 @@ class TestLoadBalancer(test.ProviderTester):
 
 
 class TestCeleryTasks(unittest.TestCase):
-    """Test Celery tasks."""
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -196,7 +208,6 @@ class TestCeleryTasks(unittest.TestCase):
         servicenet_ip = 'w.x.y.z'
         status = 'BUILD'
 
-        #Mock server
         mocklb = mock.Mock()
         mocklb.id = fake_id
         mocklb.port = 80
@@ -266,7 +277,6 @@ class TestCeleryTasks(unittest.TestCase):
 
     @mock.patch.object(deployments.resource_postback, 'delay')
     def test_delete_lb_task(self, mock_postback):
-        """Test delete task."""
         context = {"deployment": "1234"}
         expect = {
             "instance:1": {
@@ -287,7 +297,6 @@ class TestCeleryTasks(unittest.TestCase):
 
     @mock.patch.object(deployments.resource_postback, 'delay')
     def test_delete_lb_task_for_building_loadbalancer(self, mock_postback):
-        """Test delete task."""
         context = {"deployment": "1234"}
         expect = {
             "instance:1": {
@@ -311,7 +320,6 @@ class TestCeleryTasks(unittest.TestCase):
 
     @mock.patch.object(deployments.resource_postback, 'delay')
     def test_wait_on_lb_delete(self, mock_postback):
-        """Test wait on delete task."""
         context = {"deployment": "1234"}
         expect = {
             'instance:1': {
@@ -333,7 +341,6 @@ class TestCeleryTasks(unittest.TestCase):
     @mock.patch.object(loadbalancer.exceptions, 'CheckmateException')
     @mock.patch.object(loadbalancer.wait_on_lb_delete_task, 'retry')
     def test_wait_on_lb_delete_still(self, mock_retry, mock_exception):
-        """Test wait on delete task when not deleted."""
         context = {'deployment': '1234'}
         api = mock.Mock()
         m_lb = mock.Mock()
@@ -349,8 +356,6 @@ class TestCeleryTasks(unittest.TestCase):
         assert mock_retry.called
 
     def test_lb_sync_resource_task(self):
-        """Tests db sync_resource_task via mock."""
-        #Mock instance
         mocklb = mock.Mock()
         mocklb.id = 'fake_lb_id'
         mocklb.name = 'fake_lb'
@@ -387,9 +392,6 @@ class TestCeleryTasks(unittest.TestCase):
         lb_api_mock.get.assert_called_with(mocklb.id)
 
     def test_lb_sync_resource_task_adds_metadata(self):
-        """Tests lb sync_resource_task adds checkmate metadata tag to
-           the given resource if it does not already have the tag."""
-        #Mock instance
         mocklb = mock.Mock()
         mocklb.id = 'fake_lb_id'
         mocklb.name = 'fake_lb'
@@ -429,10 +431,7 @@ class TestCeleryTasks(unittest.TestCase):
 
 
 class TestGetAlgorithms(unittest.TestCase):
-    """Class for testing _get_algorithms method."""
-
     def setUp(self):
-        """Setup reuse variables."""
         self.api = mock.Mock()
         self.context = middleware.RequestContext(**{})
 
@@ -474,10 +473,7 @@ class TestGetAlgorithms(unittest.TestCase):
 
 
 class TestGetProtocols(unittest.TestCase):
-    """Class for testing _get_protocols method."""
-
     def setUp(self):
-        """Setup reuse variables."""
         self.api = mock.Mock()
         self.context = middleware.RequestContext(**{})
 
@@ -519,7 +515,6 @@ class TestGetProtocols(unittest.TestCase):
 
 
 class TestBasicWorkflow(test.StubbedWorkflowBase):
-    """Test that workflow tasks are generated and workflow completes."""
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
@@ -756,7 +751,6 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_task_generation(self):
-        """Verify workflow task creation."""
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, self.context)
         workflow = cm_wf.init_spiff_workflow(workflow_spec, self.deployment,
@@ -897,7 +891,6 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
 
 class TestLoadBalancerProxy(unittest.TestCase):
-    """Test Load Balancer Provider's proxy function"""
     @mock.patch('checkmate.providers.rackspace.loadbalancer.pyrax')
     def test_proxy_returns_load_balancer_resource(self, mock_pyrax):
         request = mock.Mock()

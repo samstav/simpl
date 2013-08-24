@@ -1,15 +1,29 @@
 # pylint: disable=C0103,E1101,R0904
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Rackspace DNS provider."""
 import logging
 import os
 import unittest
 
 import mox
-from mox import IgnoreArg
 import tldextract
 
+from checkmate import middleware as cmmid
 from checkmate.providers.rackspace import dns
-from checkmate.middleware import RequestContext
 
 LOG = logging.getLogger(__name__)
 
@@ -33,7 +47,7 @@ class TestDnsProvider(unittest.TestCase):
         self.mox = mox.Mox()
 
     def verify_limits(self, existing_doms, max_doms, max_records):
-        """ Test the verify_limits() method """
+        """Test the verify_limits() method."""
 
         resources = [{
             "type": "dns-record",
@@ -50,35 +64,37 @@ class TestDnsProvider(unittest.TestCase):
                 "records per domain": max_records
             }
         }
-        context = RequestContext()
+        context = cmmid.RequestContext()
         context.catalog = {
         }
         mock_api = self.mox.CreateMockAnything()
         self.mox.StubOutWithMock(dns.Provider, 'connect')
-        dns.Provider.connect(IgnoreArg()).AndReturn(mock_api)
+        dns.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
         self.mox.StubOutWithMock(dns.Provider, "_get_limits")
-        (dns.Provider._get_limits(IgnoreArg(), IgnoreArg())
+        (dns.Provider._get_limits(mox.IgnoreArg(), mox.IgnoreArg())
          .AndReturn(limits))
         mock_api.get_total_domain_count().AndReturn(existing_doms)
-        dns.Provider.connect(IgnoreArg()).AndReturn(mock_api)
-        mock_api.list_domains_info(filter_by_name=IgnoreArg()).AndReturn(None)
-        dns.Provider.connect(IgnoreArg()).AndReturn(mock_api)
-        mock_api.list_domains_info(filter_by_name=IgnoreArg()).AndReturn(None)
+        dns.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
+        mock_api.list_domains_info(
+            filter_by_name=mox.IgnoreArg()).AndReturn(None)
+        dns.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
+        mock_api.list_domains_info(
+            filter_by_name=mox.IgnoreArg()).AndReturn(None)
         self.mox.ReplayAll()
         result = dns.Provider({}).verify_limits(context, resources)
         self.mox.VerifyAll()
         return result
 
     def test_verify_limits_negative(self):
-        """Test that verify_limits() returns warnings if limits are not okay"""
+        """Test that verify_limits() returns warning if limits exceeded."""
         result = self.verify_limits(1, 1, 0)
         LOG.debug(result)
         self.assertEqual(2, len(result))
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
 
     def test_verify_access_positive(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
-        context = RequestContext()
+        """Test that verify_access() returns ACCESS-OK if user has access."""
+        context = cmmid.RequestContext()
         context.roles = 'identity:user-admin'
         provider = dns.Provider({})
         result = provider.verify_access(context)
@@ -91,8 +107,8 @@ class TestDnsProvider(unittest.TestCase):
         self.assertEqual(result['type'], 'ACCESS-OK')
 
     def test_verify_access_negative(self):
-        """Test that verify_access() returns ACCESS-OK if user has access"""
-        context = RequestContext()
+        """Test that verify_access() returns ACCESS-OK if user has access."""
+        context = cmmid.RequestContext()
         context.roles = 'dnsaas:observer'
         provider = dns.Provider({})
         result = provider.verify_access(context)
@@ -101,8 +117,6 @@ class TestDnsProvider(unittest.TestCase):
 
 @unittest.skipIf(SKIP, REASON)
 class TestParseDomain(unittest.TestCase):
-    """ Test DNS Provider modules parse_domain function """
-
     def setUp(self):
         self.sample_domain = ('www.sample.com', 'sample.com')
         tld_path = os.path.dirname(tldextract.__file__)
