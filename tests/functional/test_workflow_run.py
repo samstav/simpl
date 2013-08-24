@@ -1,29 +1,42 @@
 # pylint: disable=R0904
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Test Stub for Workflows."""
 import copy
 import json
 import logging
 import os
+import string
 import yaml
 
-LOG = logging.getLogger(__name__)
-
-from string import Template
-
-from checkmate import db, deployment
-deployment.DB = db.get_driver(connection_string='sqlite://')
-from checkmate.deployment import Deployment
-from checkmate.test import StubbedWorkflowBase, ENV_VARS
+from checkmate import db
+from checkmate import deployment
 from checkmate.providers import base
-from checkmate.providers.base import ProviderBase
-from checkmate.utils import yaml_to_dict, resolve_yaml_external_refs
+from checkmate import test as cmtest
+from checkmate import utils
+
+LOG = logging.getLogger(__name__)
+deployment.DB = db.get_driver(connection_string='sqlite://')
 
 
-class TestWorkflowStubbing(StubbedWorkflowBase):
-    """Test workflow stubbing using mox"""
+class TestWorkflowStubbing(cmtest.StubbedWorkflowBase):
+    """Test workflow stubbing using mox."""
 
     def test_workflow_run(self):
-        self.deployment = Deployment(yaml_to_dict("""
+        self.deployment = deployment.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -41,10 +54,10 @@ class TestWorkflowStubbing(StubbedWorkflowBase):
         self.assertTrue(workflow.is_completed())
 
 
-class TestWorkflowLogic(StubbedWorkflowBase):
-    """Test Basic Workflow code"""
-    def test_workflow_resource_generation(self):
-        self.deployment = Deployment(yaml_to_dict("""
+class TestWorkflowLogic(cmtest.StubbedWorkflowBase):
+    """Test Basic Workflow code."""
+    def test_resource_generation(self):
+        self.deployment = deployment.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -79,7 +92,7 @@ class TestWorkflowLogic(StubbedWorkflowBase):
                       - password: secret
                         username: tester
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
         workflow = self._get_stubbed_out_workflow()
 
@@ -90,13 +103,13 @@ class TestWorkflowLogic(StubbedWorkflowBase):
         self.assertEqual(len(workflow.get_tasks()), 3)
 
 
-class TestWorkflow(StubbedWorkflowBase):
-    """Test Workflow Execution"""
+class TestWorkflow(cmtest.StubbedWorkflowBase):
+    """Test Workflow Execution."""
 
     def test_workflow_completion(self):
-        """Verify workflow sequence and data flow"""
+        """Verify workflow sequence and data flow."""
 
-        self.deployment = Deployment(yaml_to_dict("""
+        self.deployment = deployment.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -131,7 +144,7 @@ class TestWorkflow(StubbedWorkflowBase):
                       - password: secret
                         username: tester
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
         self.workflow = self._get_stubbed_out_workflow()
 
         self.mox.ReplayAll()
@@ -145,8 +158,8 @@ class TestWorkflow(StubbedWorkflowBase):
         LOG.debug(json.dumps(self.outcome, indent=2))
 
 
-class TestWordpressWorkflow(StubbedWorkflowBase):
-    """Test WordPress Workflow inputs (modifies app.yaml)"""
+class TestWordpressWorkflow(cmtest.StubbedWorkflowBase):
+    """Test WordPress Workflow inputs (modifies app.yaml)."""
 
     @classmethod
     def setUpClass(cls):
@@ -156,16 +169,18 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
         with file(path) as the_file:
             source = the_file.read().decode('utf-8')
 
-        template = Template(source)
-        combined = copy.copy(ENV_VARS)
+        template = string.Template(source)
+        combined = copy.copy(cmtest.ENV_VARS)
         combined.update(os.environ)
         parsed = template.safe_substitute(**combined)
-        app = yaml.safe_load(yaml.emit(resolve_yaml_external_refs(parsed),
-                                       Dumper=yaml.SafeDumper))
+        app = yaml.safe_load(yaml.emit(
+            utils.resolve_yaml_external_refs(parsed),
+            Dumper=yaml.SafeDumper
+        ))
         app['id'] = 'DEP-ID-1000'
 
         # WordPress Settings
-        inputs = yaml_to_dict("""
+        inputs = utils.yaml_to_dict("""
             client_public_key_ssh: %s
             environment_private_key: |
             -----BEGIN RSA PRIVATE KEY-----
@@ -220,12 +235,12 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
               'legacy':
                 'compute':
                   'os': Ubuntu 12.04
-                  """ % ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'])
+                  """ % cmtest.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'])
         app['inputs'] = inputs
-        cls.deployment = Deployment(app)
+        cls.deployment = deployment.Deployment(app)
 
     def setUp(self):
-        StubbedWorkflowBase.setUp(self)
+        cmtest.StubbedWorkflowBase.setUp(self)
         # Parse app.yaml as a deployment
         self.deployment = TestWordpressWorkflow.deployment
         self.workflow = self._get_stubbed_out_workflow()
@@ -293,7 +308,5 @@ class TestWordpressWorkflow(StubbedWorkflowBase):
 
 if __name__ == '__main__':
     import sys
-
-    from checkmate import test as cmtest
 
     cmtest.run_with_params(sys.argv[:])
