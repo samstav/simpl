@@ -1,4 +1,18 @@
 # pylint: disable=R0904,W0212
+
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for GithubManager and WebhookRouter."""
 import json
 import unittest
@@ -9,13 +23,13 @@ import mox
 
 from checkmate.blueprints import blueprint as cmbp
 from checkmate.blueprints import github
-from checkmate.common.config import Config
+from checkmate.common import config as cmcfg
 
 
 @unittest.skip("Not migrated from CrossCheck fully")
 class TestGitHubManager(unittest.TestCase):
     def setUp(self):
-        self.config = Config({
+        self.config = cmcfg.Config({
             'github_api': 'https://github.rackspace.com/api/v3',
             'organization': "Blueprints",
             'ref': 'v0.5',
@@ -27,7 +41,7 @@ class TestGitHubManager(unittest.TestCase):
         self.assertIsNotNone(blueprints)
         self.assertTrue(len(blueprints.keys()) > 0)
 
-    def test_get_blueprint_and_verify_documentation_section(self):
+    def test_blueprint_doc_section(self):
         blueprints = self._gm.get_blueprints("v0.5")
         self.assertIsNotNone(blueprints)
         self.assertTrue(len(blueprints) > 1)

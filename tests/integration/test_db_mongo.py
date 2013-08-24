@@ -1,20 +1,34 @@
 # pylint: disable=R0904
+
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for MongoDB Driver."""
 import logging
-import sys
 import unittest
+
 from tests.integration import base
 
 LOG = logging.getLogger(__name__)
 try:
-    from mongobox import MongoBox
+    import mongobox as mbox
     SKIP = False
     REASON = None
 except ImportError as exc:
     LOG.warn("Unable to import MongoBox. MongoDB tests will not run: %s", exc)
     SKIP = True
     REASON = "'mongobox' not installed: %s" % exc
-    MongoBox = object
+    mbox.MongoBox = object
 
 
 @unittest.skipIf(SKIP, REASON)
@@ -28,10 +42,10 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
     #pylint: disable=W0603
     @classmethod
     def setUpClass(cls):
-        """Fire up a sandboxed mongodb instance"""
+        """Fire up a sandboxed mongodb instance."""
         super(TestDBMongo, cls).setUpClass()
         try:
-            cls.box = MongoBox()
+            cls.box = mbox.MongoBox()
             cls.box.start()
             cls._connection_string = ("mongodb://localhost:%s/test" %
                                       cls.box.port)
@@ -46,8 +60,8 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        """Stop the sanboxed mongodb instance"""
-        if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
+        """Stop the sanboxed mongodb instance."""
+        if hasattr(cls, 'box') and isinstance(cls.box, mbox.MongoBox):
             if cls.box.running() is True:
                 cls.box.stop()
                 cls.box = None
@@ -76,7 +90,6 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         })
         body = {'id': '12345', '1': {'instance': {'id': '1'}}}
         self.driver.merge_secrets("resources", '12345', body)
-        print body
         expected = {
             'id': '12345',
             '1': {
@@ -103,9 +116,9 @@ class TestMongoDBCapabilities(unittest.TestCase):
     #pylint: disable=W0603
     @classmethod
     def setUpClass(cls):
-        """Fire up a sandboxed mongodb instance"""
+        """Fire up a sandboxed mongodb instance."""
         try:
-            cls.box = MongoBox()
+            cls.box = mbox.MongoBox()
             cls.box.start()
         except StandardError as exc:
             LOG.exception(exc)
@@ -118,30 +131,30 @@ class TestMongoDBCapabilities(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        """Stop the sanboxed mongodb instance"""
-        if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
+        """Stop the sanboxed mongodb instance."""
+        if hasattr(cls, 'box') and isinstance(cls.box, mbox.MongoBox):
             if cls.box.running() is True:
                 cls.box.stop()
                 cls.box = None
 
     def setUp(self):
-        """Get a client conection to our sandboxed mongodb instance"""
+        """Get a client conection to our sandboxed mongodb instance."""
         if hasattr(self, 'box'):
             self.client = self.box.client()
         else:
             raise unittest.SkipTest("No sandboxed mongoDB")
 
     def tearDown(self):
-        """Disconnect the client"""
+        """Disconnect the client."""
         if hasattr(self, 'box'):
             self.client = None
 
     def test_mongo_instance(self):
-        """Verify the mongobox's mongodb instance is working"""
+        """Verify the mongobox's mongodb instance is working."""
         self.assertTrue(self.client.alive())
 
     def test_mongo_object_creation(self):
-        """Verify object creation"""
+        """Verify object creation."""
         col = self.client.tdb.c1
         col.save({})
         self.assertIn('tdb', self.client.database_names())
@@ -149,7 +162,7 @@ class TestMongoDBCapabilities(unittest.TestCase):
         self.assertEqual(1, col.count())
 
     def test_mongo_custom_id(self):
-        """Verify assigning IDs"""
+        """Verify assigning IDs."""
         col = self.client.tdb.c2
         col.save({'id': 'our-id'})
         result = col.find_one({'id': 'our-id'})
@@ -161,7 +174,7 @@ class TestMongoDBCapabilities(unittest.TestCase):
         self.assertEqual(result['id'], 'our-id', msg="Our ID is not intact")
 
     def test_mongo_projection(self):
-        """We can return our IDs with only specific fields"""
+        """We can return our IDs with only specific fields."""
         col = self.client.tdb.c3
         col.save({'id': 'our-id', 'name': 'Ziad', 'hide': 'X'})
         result = col.find_one(
@@ -174,7 +187,7 @@ class TestMongoDBCapabilities(unittest.TestCase):
         self.assertDictEqual(result, {'id': 'our-id', 'name': 'Ziad'})
 
     def test_partial_update(self):
-        """We can update only specific fields"""
+        """We can update only specific fields."""
         col = self.client.tdb.c4
         col.save({'id': 'our-id', 'status': 'PLANNED', 'name': 'Ziad'})
         obj = col.find_one({'id': 'our-id'}, {'_id': 0})
@@ -193,8 +206,8 @@ class TestMongoDBCapabilities(unittest.TestCase):
         self.assertDictEqual(obj, {'id': 'our-id', 'status': 'UP',
                                    'name': 'Ziad'})
 
-    def test_deep_partial_update_unsupported(self):
-        """Mongo update is like a dict.update() - it overwrites whole keys"""
+    def test_deep_partial_unsupported(self):
+        """Mongo update is like a dict.update() - it overwrites whole keys."""
         col = self.client.tdb.c5
         col.save(
             {
@@ -232,7 +245,7 @@ class TestMongoDBCapabilities(unittest.TestCase):
         })
 
     def test_write_if_zero(self):
-        """Verify that syntax for locking an object works"""
+        """Verify that syntax for locking an object works."""
         col = self.client.tdb.c6
         col.save(
             {
@@ -254,7 +267,7 @@ class TestMongoDBCapabilities(unittest.TestCase):
         self.assertEqual(obj['id'], 'our-id')
 
     def test_write_if_field_not_exists(self):
-        """Verify that syntax for locking an object works"""
+        """Verify that syntax for locking an object works."""
         col = self.client.tdb.c7
         col.save(
             {
@@ -275,7 +288,7 @@ class TestMongoDBCapabilities(unittest.TestCase):
         self.assertEqual(obj['id'], 'our-id')
 
     def test_skip_if_filtered(self):
-        """Verify that syntax for locking an object works"""
+        """Verify that syntax for locking an object works."""
         col = self.client.tdb.c8
         col.save(
             {

@@ -1,51 +1,44 @@
 # pylint: disable=C0103,E1101,R0904,W0212
+
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Deployments."""
 import bottle
 import copy
 import json
 import logging
 import os
-import unittest
 import time
+import unittest
 
+from celery.app import task
 import mox
-
-from celery.app.task import Context
-from mox import IgnoreArg, ContainsKeyValue
 from SpiffWorkflow import Workflow
 
-import checkmate
-from checkmate import (
-    keys,
-    operations,
-    utils,
-    workflow,
-    workflows,
-)
 from checkmate.common import tasks as common_tasks
-from checkmate.deployment import (
-    Deployment,
-    generate_keys,
-)
-from checkmate.deployments import (
-    Manager,
-    Router,
-    delete_deployment_task,
-    update_all_provider_resources,
-    resource_postback,
-)
-from checkmate.exceptions import (
-    CheckmateValidationException,
-    CheckmateException,
-    CheckmateDoesNotExist,
-    CheckmateBadState,
-)
-from checkmate.inputs import Input
+from checkmate import deployment as cmdep
+from checkmate import deployments as cmdeps
+from checkmate import exceptions as cmexc
+from checkmate import inputs as cminp
+from checkmate import keys
+from checkmate import middleware as cmmid
+from checkmate import operations
 from checkmate.providers import base
-from checkmate.providers.base import ProviderBase
-from checkmate.middleware import RequestContext
+from checkmate import utils
+from checkmate import workflow
+from checkmate import workflows
 from checkmate.workflows import tasks as wf_tasks
-from checkmate.utils import yaml_to_dict, get_time_string
 
 LOG = logging.getLogger(__name__)
 os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
@@ -53,11 +46,11 @@ os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
 
 class TestDeployments(unittest.TestCase):
     def test_key_generation_all(self):
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
         })
-        generate_keys(deployment)
+        cmdep.generate_keys(deployment)
         self.assertIn('resources', deployment)
         self.assertIn('deployment-keys', deployment['resources'])
         keys_resource = deployment['resources']['deployment-keys']
@@ -68,7 +61,7 @@ class TestDeployments(unittest.TestCase):
 
     def test_key_generation_public(self):
         private, _ = keys.generate_key_pair()
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
             'resources': {
@@ -79,7 +72,7 @@ class TestDeployments(unittest.TestCase):
                 }
             }
         })
-        generate_keys(deployment)
+        cmdep.generate_keys(deployment)
         keys_resource = deployment['resources']['deployment-keys']
         self.assertItemsEqual(['instance', 'type'], keys_resource.keys())
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
@@ -88,7 +81,7 @@ class TestDeployments(unittest.TestCase):
 
     def test_key_generation_and_settings_sync(self):
         private, _ = keys.generate_key_pair()
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
             'resources': {
@@ -103,7 +96,7 @@ class TestDeployments(unittest.TestCase):
         settings = deployment.settings()
         self.assertDictEqual(settings.get('keys', {}).get('deployment', {}),
                              {'private_key': private['PEM']})
-        generate_keys(deployment)
+        cmdep.generate_keys(deployment)
         settings = deployment.settings()
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
                               settings['keys']['deployment'].keys())
@@ -128,8 +121,8 @@ class TestDeploymentParser(unittest.TestCase):
             },
         }
         original = copy.copy(deployment)
-        parsed = Manager.plan(Deployment(deployment),
-                              RequestContext())
+        parsed = cmdeps.Manager.plan(cmdep.Deployment(deployment),
+                                     cmmid.RequestContext())
         del parsed['status']  # we expect this to get added
         del parsed['created']  # we expect this to get added
         self.assertDictEqual(original, parsed)
@@ -171,7 +164,7 @@ class TestDeploymentParser(unittest.TestCase):
             },
         }
         for _, case in cases.iteritems():
-            parsed = Deployment.parse_constraints(case['parse'])
+            parsed = cmdep.Deployment.parse_constraints(case['parse'])
             expected = case['expected']
             for constraint in expected:
                 self.assertIn(constraint, parsed)
@@ -188,13 +181,15 @@ class TestDeploymentDeployer(unittest.TestCase):
         self._mox.UnsetStubs()
 
     def test_deployer(self):
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        db.save_workflow(IgnoreArg(), IgnoreArg(), IgnoreArg(),
-                         tenant_id=IgnoreArg()).AndReturn(True)
-        db.save_deployment(
-            IgnoreArg(), IgnoreArg(), IgnoreArg(),
-            tenant_id=IgnoreArg(), partial=False
+        mock_db = self._mox.CreateMockAnything()
+        manager = cmdeps.Manager({'default': mock_db})
+        mock_db.save_workflow(mox.IgnoreArg(),
+                              mox.IgnoreArg(),
+                              mox.IgnoreArg(),
+                              tenant_id=mox.IgnoreArg()).AndReturn(True)
+        mock_db.save_deployment(
+            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(),
+            tenant_id=mox.IgnoreArg(), partial=False
         ).AndReturn(True)
 
         deployment = {
@@ -209,9 +204,9 @@ class TestDeploymentDeployer(unittest.TestCase):
             },
         }
         self._mox.ReplayAll()
-        d = Deployment(deployment)
-        parsed = manager.plan(d, RequestContext())
-        manager.deploy(parsed, RequestContext())
+        dep_class = cmdep.Deployment(deployment)
+        parsed = manager.plan(dep_class, cmmid.RequestContext())
+        manager.deploy(parsed, cmmid.RequestContext())
         self._mox.VerifyAll()
         expected = {
             'status': 'IN PROGRESS',
@@ -223,7 +218,7 @@ class TestDeploymentDeployer(unittest.TestCase):
             'type': 'BUILD',
             'workflow-id': 'test'
         }
-        operation = d["operation"]
+        operation = dep_class["operation"]
         operation['last-change'] = None  # skip comparing/mocking times
 
         self.assertDictEqual(expected, operation)
@@ -232,7 +227,7 @@ class TestDeploymentDeployer(unittest.TestCase):
 
 class TestDeploymentResourceGenerator(unittest.TestCase):
     def test_component_resource_generator(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -285,9 +280,9 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                         count: 4
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        Manager.plan(deployment, RequestContext())
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         resources = deployment['resources'].values()
         self.assertEqual(len([r for r in resources
                               if r.get('service') == 'front']), 1)
@@ -310,7 +305,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertEqual(resource_count, 8)
 
     def test_static_resource_generator(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 name: test deplo yment\n
                 blueprint:
@@ -341,9 +336,9 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                             - widget: bar
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        parsed = Manager.plan(deployment, RequestContext())
+        parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         resources = parsed['resources']
         self.assertIn("myResource", resources)
         expected = {
@@ -360,7 +355,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
     def test_providerless_static_resource_generator(self):
         private, _ = keys.generate_key_pair()
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 name: test_deployment
                 blueprint:
@@ -381,7 +376,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                   providers: {}
             """ % "\n                        ".join(private['PEM'].split(
             "\n"))))
-        parsed = Manager.plan(deployment, RequestContext())
+        parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         resources = parsed['resources']
 
         # User
@@ -411,7 +406,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
 
 class TestDeploymentRelationParser(unittest.TestCase):
     def test_blueprint_relation_parser(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -458,9 +453,9 @@ class TestDeploymentRelationParser(unittest.TestCase):
                             - widget: bar
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        parsed = Manager.plan(deployment, RequestContext())
+        parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         expected_connections = {
             'balanced-front': {'interface': 'foo'},
             'allyourbase': {'interface': 'bar'},
@@ -471,7 +466,7 @@ class TestDeploymentRelationParser(unittest.TestCase):
 
 class TestComponentSearch(unittest.TestCase):
     def test_component_find_by_type(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -493,13 +488,13 @@ class TestComponentSearch(unittest.TestCase):
                             provides:
                             - widget: foo
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        Manager.plan(deployment, RequestContext())
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         self.assertEquals(deployment['resources'].values()[0]['component'],
                           'small_widget')
 
     def test_component_find_by_type_and_interface(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -531,14 +526,14 @@ class TestComponentSearch(unittest.TestCase):
                             provides:
                             - widget: bar
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        Manager.plan(deployment, RequestContext())
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         components = [r['component'] for r in deployment['resources'].values()]
         self.assertIn('big_widget', components)
         self.assertIn('small_widget', components)
 
     def test_component_finding(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -573,14 +568,14 @@ class TestComponentSearch(unittest.TestCase):
                       - password: secret
                         username: tester
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        Manager.plan(deployment, RequestContext())
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         components = [r['component'] for r in deployment['resources'].values()]
         self.assertIn('big_widget', components)
         self.assertIn('small_widget', components)
 
     def test_component_find_with_role(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
                   name: test bp
@@ -613,8 +608,8 @@ class TestComponentSearch(unittest.TestCase):
                             roles:
                             - web
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        Manager.plan(deployment, RequestContext())
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         self.assertEquals(deployment['resources'].values()[0]['component'],
                           'small_widget')
 
@@ -622,7 +617,7 @@ class TestComponentSearch(unittest.TestCase):
 class TestDeploymentSettings(unittest.TestCase):
 
     def test_get_setting(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 environment:
                   name: environment
@@ -709,7 +704,7 @@ class TestDeploymentSettings(unittest.TestCase):
                         memory: 2 Gb
                         number-only-test: 512
             """))
-        deployment.update(yaml_to_dict("""
+        deployment.update(utils.yaml_to_dict("""
                     keys:
                         environment:
                             private: "this is a private key"
@@ -837,9 +832,10 @@ class TestDeploymentSettings(unittest.TestCase):
         },
         ]
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        parsed = Manager.plan(deployment, RequestContext())
-        for case in cases[:-1]:  # TODO: last case broken without env providers
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+        # TODO(any): last case broken without env providers
+        for case in cases[:-1]:
             value = parsed.get_setting(case['name'],
                                        service_name=case.get('service'),
                                        provider_key=case.get('provider'),
@@ -855,7 +851,7 @@ class TestDeploymentSettings(unittest.TestCase):
         self.assertIn('-----BEGIN RSA PRIVATE KEY-----\n', value, msg=msg)
 
     def test_get_setting_static(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 inputs:
                   blueprint:
@@ -894,9 +890,9 @@ class TestDeploymentSettings(unittest.TestCase):
                             - widget: bar
             """))
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        parsed = Manager.plan(deployment, RequestContext())
+        parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         resources = parsed['resources']
         self.assertIn("myResource", resources)
         self.assertIn("myUser", resources)
@@ -905,7 +901,7 @@ class TestDeploymentSettings(unittest.TestCase):
                          'bar')
 
     def test_get_false_settings(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
             id: '1'
             blueprint:
               services:
@@ -974,9 +970,10 @@ class TestDeploymentSettings(unittest.TestCase):
         }
         ]
 
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        parsed = Manager.plan(deployment, RequestContext())
-        for test in cases[:-1]:  # TODO: last case broken without env providers
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+        # TODO(any): last case broken without env providers
+        for test in cases[:-1]:
             value = parsed.get_setting(test['name'],
                                        service_name=test.get('service'),
                                        provider_key=test.get('provider'),
@@ -987,7 +984,7 @@ class TestDeploymentSettings(unittest.TestCase):
                       value == test['expected'])
 
     def test_get_input_provider_option(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 environment:
                   providers:
                     base
@@ -1021,8 +1018,8 @@ class TestDeploymentSettings(unittest.TestCase):
         self.assertEqual(fxn('os', 'base', resource_type='compute'), 'X')
 
     def test_get_bad_options(self):
-        self.assertRaises(CheckmateValidationException, Deployment,
-                          yaml_to_dict("""
+        self.assertRaises(cmexc.CheckmateValidationException, cmdep.Deployment,
+                          utils.yaml_to_dict("""
             environment:
               providers:
                 base
@@ -1054,7 +1051,7 @@ class TestDeploymentSettings(unittest.TestCase):
         """))
 
     def test_get_static_resource_constraint(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: '1'
                 blueprint:
                   services:
@@ -1088,8 +1085,8 @@ class TestDeploymentSettings(unittest.TestCase):
                             provides:
                             - widget: bar
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        planned = Manager.plan(deployment, RequestContext())
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        planned = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         # Use service and type
         value = planned.get_setting('username', service_name='single',
                                     resource_type='widget')
@@ -1099,7 +1096,7 @@ class TestDeploymentSettings(unittest.TestCase):
         self.assertGreater(len(value), 0)
 
     def test_handle_missing_options(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 environment:
                   providers:
@@ -1118,13 +1115,13 @@ class TestDeploymentSettings(unittest.TestCase):
                       required: true
                 inputs: {}
             """))
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
-        self.assertRaises(CheckmateValidationException,
-                          Manager.plan, deployment,
-                          RequestContext())
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        self.assertRaises(cmexc.CheckmateValidationException,
+                          cmdeps.Manager.plan, deployment,
+                          cmmid.RequestContext())
 
     def test_objectify(self):
-        deployment = Deployment({})
+        deployment = cmdep.Deployment({})
         msg = "Untyped option should remain unchanged"
         self.assertEqual(deployment._objectify({}, 0), 0, msg=msg)
 
@@ -1135,10 +1132,10 @@ class TestDeploymentSettings(unittest.TestCase):
         msg = "Typed option should return type"
         self.assertIsInstance(deployment._objectify({'type': 'url'},
                                                     'http://fqdn'),
-                              Input, msg=msg)
+                              cminp.Input, msg=msg)
 
     def test_apply_constraint_attribute(self):
-        deployment = yaml_to_dict("""
+        deployment = utils.yaml_to_dict("""
               id: '1'
               blueprint:
                 options:
@@ -1149,47 +1146,48 @@ class TestDeploymentSettings(unittest.TestCase):
                       service: foo
                       setting: fa
                       attribute: widget""")
-        deployment = Deployment(deployment)
+        deployment = cmdep.Deployment(deployment)
         option = deployment['blueprint']['options']['my_option']
         constraint = option['constrains'][0]
-        self.assertRaises(CheckmateException, deployment._apply_constraint,
+        self.assertRaises(cmexc.CheckmateException,
+                          deployment._apply_constraint,
                           "my_option", constraint, option=option,
                           option_key="my_option")
 
     def test_handle_bad_call(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: test
                 environment:
                   providers: {}
                 blueprint: {}
                 inputs: {}
             """))
-        self.assertRaises(CheckmateValidationException,
+        self.assertRaises(cmexc.CheckmateValidationException,
                           deployment.get_setting, None)
-        self.assertRaises(CheckmateValidationException,
+        self.assertRaises(cmexc.CheckmateValidationException,
                           deployment.get_setting, '')
 
 
 class TestDeploymentScenarios(unittest.TestCase):
 
     def test_deployment_scenarios(self):
-        base.PROVIDER_CLASSES['test.base'] = ProviderBase
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
         data_dir = os.path.join(os.path.dirname(__file__), '../data')
 
         # No objects
         path = os.path.join(data_dir, "deployment - none objects.yaml")
-        with file(path, 'r') as f:
-            content = f.read()
-        self.assertRaisesRegexp(CheckmateValidationException, "Blueprint not "
-                                "found. Nothing to do.",
+        with file(path, 'r') as the_file:
+            content = the_file.read()
+        self.assertRaisesRegexp(cmexc.CheckmateValidationException,
+                                "Blueprint not found. Nothing to do.",
                                 self.plan_deployment, content)
 
     @staticmethod
     def plan_deployment(content):
         """Helper method to kick off plan deployment."""
-        deployment = Deployment(yaml_to_dict(content))
-        return Manager.plan(deployment, RequestContext())
+        deployment = cmdep.Deployment(utils.yaml_to_dict(content))
+        return cmdeps.Manager.plan(deployment, cmmid.RequestContext())
 
 
 class TestCloneDeployments(unittest.TestCase):
@@ -1210,7 +1208,7 @@ class TestCloneDeployments(unittest.TestCase):
         self._mox.UnsetStubs()
 
     def test_clone_deployment_failure_path(self):
-        manager = Manager({})
+        manager = cmdeps.Manager({})
         self._mox.StubOutWithMock(manager, "get_deployment")
         manager.get_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
@@ -1219,22 +1217,22 @@ class TestCloneDeployments(unittest.TestCase):
         try:
             manager.clone('1234', {}, tenant_id='T1000')
             self.fail("Expected exception not raised.")
-        except CheckmateBadState:
+        except cmexc.CheckmateBadState:
             pass
 
     def test_clone_deployment_happy_path(self):
         self._deployment['status'] = 'DELETED'
 
-        manager = Manager({})
+        manager = cmdeps.Manager({})
         self._mox.StubOutWithMock(manager, "get_deployment")
         manager.get_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
 
-        context = RequestContext(simulation=False)
+        context = cmmid.RequestContext(simulation=False)
         self._mox.StubOutWithMock(manager, "deploy")
-        manager.deploy(IgnoreArg(), context)
+        manager.deploy(mox.IgnoreArg(), context)
 
-        manager.get_deployment(IgnoreArg(), tenant_id='T1000')\
+        manager.get_deployment(mox.IgnoreArg(), tenant_id='T1000')\
             .AndReturn({'id': 'NEW'})
         self._mox.ReplayAll()
         manager.clone('1234', context, tenant_id='T1000')
@@ -1243,16 +1241,16 @@ class TestCloneDeployments(unittest.TestCase):
     def test_clone_deployment_simulation(self):
         self._deployment['status'] = 'DELETED'
 
-        manager = Manager({})
+        manager = cmdeps.Manager({})
         self._mox.StubOutWithMock(manager, "get_deployment")
         manager.get_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
 
-        context = RequestContext(simulation=True)
+        context = cmmid.RequestContext(simulation=True)
         self._mox.StubOutWithMock(manager, "deploy")
-        manager.deploy(IgnoreArg(), context)
+        manager.deploy(mox.IgnoreArg(), context)
 
-        manager.get_deployment(IgnoreArg(), tenant_id='T1000')\
+        manager.get_deployment(mox.IgnoreArg(), tenant_id='T1000')\
             .AndReturn(self._deployment)
 
         self._mox.ReplayAll()
@@ -1267,7 +1265,7 @@ class TestDeleteDeployments(unittest.TestCase):
 
     def setUp(self):
         bottle.request.bind({})
-        bottle.request.context = Context()
+        bottle.request.context = task.Context()
         bottle.request.context.tenant = None
         self._deployment = {
             'id': '1234',
@@ -1287,9 +1285,9 @@ class TestDeleteDeployments(unittest.TestCase):
 
     def test_bad_status(self):
         manager = self._mox.CreateMockAnything()
-        router = Router(bottle.default_app(), manager)
+        router = cmdeps.Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(self._deployment)
-        manager.save_deployment('1234', IgnoreArg(), tenant_id=None,
+        manager.save_deployment('1234', mox.IgnoreArg(), tenant_id=None,
                                 partial=False).AndReturn(None)
 
         self._mox.ReplayAll()
@@ -1304,26 +1302,26 @@ class TestDeleteDeployments(unittest.TestCase):
 
     def test_not_found(self):
         manager = self._mox.CreateMockAnything()
-        router = Router(bottle.default_app(), manager)
+        router = cmdeps.Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(None)
         self._mox.ReplayAll()
         try:
             router.delete_deployment('1234')
             self.fail("Delete deployment with not found did not raise "
                       "exception")
-        except CheckmateDoesNotExist as exc:
+        except cmexc.CheckmateDoesNotExist as exc:
             self.assertEqual("No deployment with id 1234", str(exc))
 
     def test_happy_path(self):
         self._deployment['status'] = 'UP'
-        self._deployment['created'] = get_time_string()
+        self._deployment['created'] = utils.get_time_string()
         self._deployment['operation'] = {'status': 'IN PROGRESS'}
         mock_driver = self._mox.CreateMockAnything()
         mock_spec = self._mox.CreateMock(Workflow)
         mock_spiff_wf = self._mox.CreateMockAnything()
         mock_spiff_wf.attributes = {"id": "w_id"}
-        manager = self._mox.CreateMock(Manager)
-        router = Router(bottle.default_app(), manager)
+        manager = self._mox.CreateMock(cmdeps.Manager)
+        router = cmdeps.Router(bottle.default_app(), manager)
         manager.get_deployment('1234').AndReturn(self._deployment)
         manager.select_driver('1234').AndReturn(mock_driver)
 
@@ -1362,7 +1360,7 @@ class TestDeleteDeployments(unittest.TestCase):
                                             complete=0, driver=mock_driver
                                             ).AndReturn(True)
         self._mox.ReplayAll()
-        delete_deployment_task('1234', driver=mock_driver)
+        cmdeps.delete_deployment_task('1234', driver=mock_driver)
         self._mox.VerifyAll()
 
 
@@ -1370,7 +1368,7 @@ class TestGetResourceStuff(unittest.TestCase):
     def setUp(self):
         self._mox = mox.Mox()
         bottle.request.bind({})
-        bottle.request.context = Context()
+        bottle.request.context = task.Context()
         bottle.request.context.tenant = None
         self._deployment = {
             'id': '1234',
@@ -1396,20 +1394,20 @@ class TestGetResourceStuff(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_happy_resources(self):
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        router = Router(bottle.default_app(), manager)
-        db.get_deployment('1234', with_secrets=False)\
+        mock_db = self._mox.CreateMockAnything()
+        manager = cmdeps.Manager({'default': mock_db})
+        router = cmdeps.Router(bottle.default_app(), manager)
+        mock_db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         ret = json.loads(router.get_deployment_resources('1234'))
         self.assertDictEqual(self._deployment.get('resources'), ret)
 
     def test_happy_status(self):
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        router = Router(bottle.default_app(), manager)
-        db.get_deployment('1234', with_secrets=False)\
+        mock_db = self._mox.CreateMockAnything()
+        manager = cmdeps.Manager({'default': mock_db})
+        router = cmdeps.Router(bottle.default_app(), manager)
+        mock_db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
         self._mox.ReplayAll()
         ret = json.loads(router.get_resources_statuses('1234'))
@@ -1421,56 +1419,58 @@ class TestGetResourceStuff(unittest.TestCase):
 
     def test_no_resources(self):
         del self._deployment['resources']
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        router = Router(bottle.default_app(), manager)
-        db.get_deployment('1234', with_secrets=False)\
+        mock_db = self._mox.CreateMockAnything()
+        manager = cmdeps.Manager({'default': mock_db})
+        router = cmdeps.Router(bottle.default_app(), manager)
+        mock_db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
 
         self._mox.ReplayAll()
-        self.assertRaisesRegexp(CheckmateDoesNotExist, "No resources found "
+        self.assertRaisesRegexp(cmexc.CheckmateDoesNotExist,
+                                "No resources found "
                                 "for deployment 1234",
                                 router.get_deployment_resources, '1234')
 
     def test_no_res_status(self):
         del self._deployment['resources']
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        router = Router(bottle.default_app(), manager)
-        db.get_deployment('1234', with_secrets=False)\
+        mock_db = self._mox.CreateMockAnything()
+        manager = cmdeps.Manager({'default': mock_db})
+        router = cmdeps.Router(bottle.default_app(), manager)
+        mock_db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
 
         self._mox.ReplayAll()
-        self.assertRaisesRegexp(CheckmateDoesNotExist, "No resources found "
+        self.assertRaisesRegexp(cmexc.CheckmateDoesNotExist,
+                                "No resources found "
                                 "for deployment 1234",
                                 router.get_resources_statuses, '1234')
 
     def test_dep_404(self):
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        router = Router(bottle.default_app(), manager)
-        db.get_deployment('1234', with_secrets=False).AndReturn(None)
+        mock_db = self._mox.CreateMockAnything()
+        manager = cmdeps.Manager({'default': mock_db})
+        router = cmdeps.Router(bottle.default_app(), manager)
+        mock_db.get_deployment('1234', with_secrets=False).AndReturn(None)
 
         self._mox.ReplayAll()
         try:
             router.get_deployment_resources('1234')
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
-        except CheckmateDoesNotExist as exc:
+        except cmexc.CheckmateDoesNotExist as exc:
             self.assertIn("No deployment with id 1234", str(exc))
 
     def test_dep_404_status(self):
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        router = Router(bottle.default_app(), manager)
-        db.get_deployment('1234', with_secrets=False).AndReturn(None)
+        mock_db = self._mox.CreateMockAnything()
+        manager = cmdeps.Manager({'default': mock_db})
+        router = cmdeps.Router(bottle.default_app(), manager)
+        mock_db.get_deployment('1234', with_secrets=False).AndReturn(None)
 
         self._mox.ReplayAll()
         try:
             router.get_resources_statuses('1234')
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
-        except CheckmateDoesNotExist as exc:
+        except cmexc.CheckmateDoesNotExist as exc:
             self.assertIn("No deployment with id 1234", str(exc))
 
 
@@ -1478,7 +1478,7 @@ class TestPostbackHelpers(unittest.TestCase):
     def setUp(self):
         self._mox = mox.Mox()
         bottle.request.bind({})
-        bottle.request.context = Context()
+        bottle.request.context = task.Context()
         bottle.request.context.tenant = None
         self._deployment = {
             'id': '1234',
@@ -1513,18 +1513,17 @@ class TestPostbackHelpers(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_provider_update(self):
-        db = self._mox.CreateMockAnything()
-        manager = Manager({'default': db})
-        Router(bottle.default_app(), manager)
-        db.get_deployment('1234').AndReturn(self._deployment)
-        self._mox.StubOutWithMock(
-            checkmate.deployments.tasks.resource_postback, "delay")
-        checkmate.deployments.tasks.resource_postback.delay(
-            '1234', IgnoreArg(), driver=db).AndReturn(True)
+        mock_db = self._mox.CreateMockAnything()
+        manager = cmdeps.Manager({'default': mock_db})
+        cmdeps.Router(bottle.default_app(), manager)
+        mock_db.get_deployment('1234').AndReturn(self._deployment)
+        self._mox.StubOutWithMock(cmdeps.tasks.resource_postback, "delay")
+        cmdeps.tasks.resource_postback.delay(
+            '1234', mox.IgnoreArg(), driver=mock_db).AndReturn(True)
         self._mox.ReplayAll()
-        ret = update_all_provider_resources('foo', '1234', 'NEW',
-                                            message='I test u',
-                                            driver=db)
+        ret = cmdeps.update_all_provider_resources('foo', '1234', 'NEW',
+                                                   message='I test u',
+                                                   driver=mock_db)
         self.assertIn('instance:1', ret)
         self.assertIn('instance:9', ret)
         self.assertEquals('NEW', ret.get('instance:1', {}).get('status'))
@@ -1539,7 +1538,7 @@ class TestDeploymentAddNodes(unittest.TestCase):
     def setUp(self):
         self._mox = mox.Mox()
         bottle.request.bind({})
-        bottle.request.context = Context()
+        bottle.request.context = task.Context()
         bottle.request.context.tenant = None
         self._deployment = {
             'id': '1234',
@@ -1556,9 +1555,9 @@ class TestDeploymentAddNodes(unittest.TestCase):
         unittest.TestCase.setUp(self)
 
     def test_happy_path(self):
-        manager = self._mox.CreateMock(Manager)
+        manager = self._mox.CreateMock(cmdeps.Manager)
         mock_driver = self._mox.CreateMockAnything()
-        router = Router(bottle.default_app(), manager)
+        router = cmdeps.Router(bottle.default_app(), manager)
 
         manager.get_deployment('1234', tenant_id="T1000",
                                with_secrets=True).AndReturn(self._deployment)
@@ -1592,7 +1591,7 @@ class TestDeploymentAddNodes(unittest.TestCase):
 
 class TestDeploymentDisplayOutputs(unittest.TestCase):
     def test_parse_source_URI_options(self):
-        fxn = Deployment.parse_source_URI
+        fxn = cmdep.Deployment.parse_source_URI
         result = fxn("options://username")
         expected = {
             'scheme': 'options',
@@ -1609,7 +1608,7 @@ class TestDeploymentDisplayOutputs(unittest.TestCase):
 
         2.7.1 parses ?type=compute as /?type=compute
         """
-        fxn = Deployment.parse_source_URI
+        fxn = cmdep.Deployment.parse_source_URI
         result = fxn("resources://status?type=compute")
         expected = {
             'scheme': 'resources',
@@ -1621,7 +1620,7 @@ class TestDeploymentDisplayOutputs(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_generation(self):
-        deployment = Deployment(yaml_to_dict("""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
             blueprint:
               id: 0255a076c7cf4fd38c69b6727f0b37ea
               services: {}
@@ -1658,7 +1657,7 @@ class TestCeleryTasks(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_resource_postback(self):
-        db = self.mox.CreateMockAnything()
+        mock_db = self.mox.CreateMockAnything()
         target = {
             'id': '1234',
             'tenantId': 'T1000',
@@ -1675,7 +1674,7 @@ class TestCeleryTasks(unittest.TestCase):
                 },
             }
         }
-        db.get_deployment('1234', with_secrets=True).AndReturn(target)
+        mock_db.get_deployment('1234', with_secrets=True).AndReturn(target)
         expected = {
             'resources': {
                 '0': {
@@ -1685,15 +1684,15 @@ class TestCeleryTasks(unittest.TestCase):
                 }
             }
         }
-        db.save_deployment('1234', expected, None, partial=True,
-                           tenant_id='T1000').AndReturn(None)
+        mock_db.save_deployment('1234', expected, None, partial=True,
+                                tenant_id='T1000').AndReturn(None)
         self.mox.ReplayAll()
         contents = {
             'instance:0': {
                 'field_name': 1
             }
         }
-        resource_postback('1234', contents, driver=db)
+        cmdeps.resource_postback('1234', contents, driver=mock_db)
         self.mox.VerifyAll()
 
 

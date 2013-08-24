@@ -1,4 +1,18 @@
 # pylint: disable=C0103,W0212
+
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for MongoDB Driver (deprecated tests: don't add tests here)."""
 import copy
 import logging
@@ -8,20 +22,17 @@ import unittest
 import uuid
 
 try:
-    from mongobox import MongoBox
+    import mongobox as mbox
 
     SKIP = False
     REASON = None
 except ImportError as exc:
     SKIP = True
     REASON = "'mongobox' not installed: %s" % exc
-    MongoBox = object
-
+    mbox.MongoBox = object
 
 from checkmate import db
 from checkmate import utils
-from checkmate.db import db_lock
-from checkmate.utils import extract_sensitive_data
 from checkmate.workflows import manager
 
 LOG = logging.getLogger(__name__)
@@ -31,9 +42,9 @@ class TestDatabase(unittest.TestCase):
     #pylint: disable=W0603
     @classmethod
     def setUpClass(cls):
-        """Fire up a sandboxed mongodb instance"""
+        """Fire up a sandboxed mongodb instance."""
         try:
-            cls.box = MongoBox()
+            cls.box = mbox.MongoBox()
             cls.box.start()
             cls._connection_string = ("mongodb://localhost:%s/test" %
                                       cls.box.port)
@@ -48,8 +59,8 @@ class TestDatabase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        """Stop the sanboxed mongodb instance"""
-        if hasattr(cls, 'box') and isinstance(cls.box, MongoBox):
+        """Stop the sanboxed mongodb instance."""
+        if hasattr(cls, 'box') and isinstance(cls.box, mbox.MongoBox):
             if cls.box.running() is True:
                 cls.box.stop()
                 cls.box = None
@@ -114,7 +125,7 @@ class TestDatabase(unittest.TestCase):
             'name': 'My Component',
             'credentials': ['My Secrets']
         }
-        body, secrets = extract_sensitive_data(entity)
+        body, secrets = utils.extract_sensitive_data(entity)
         results = self.driver._save_object(self.collection_name, entity['id'],
                                            body, secrets, tenant_id='T1000')
         self.assertDictEqual(results, body)
@@ -165,17 +176,17 @@ class TestDatabase(unittest.TestCase):
             'name': 'My Component',
             'credentials': ['My Secrets']
         }
-        body, secrets = extract_sensitive_data(entity)
+        body, secrets = utils.extract_sensitive_data(entity)
         self.driver._save_object(self.collection_name, entity['id'], body,
                                  secrets, tenant_id='T1000')
         entity['id'] = 2
         entity['name'] = 'My Second Component'
-        body, secrets = extract_sensitive_data(entity)
+        body, secrets = utils.extract_sensitive_data(entity)
         self.driver._save_object(self.collection_name, entity['id'], body,
                                  secrets, tenant_id='T1000')
         entity['id'] = 3
         entity['name'] = 'My Third Component'
-        body, secrets = extract_sensitive_data(entity)
+        body, secrets = utils.extract_sensitive_data(entity)
         self.driver._save_object(self.collection_name, entity['id'], body,
                                  secrets, tenant_id='T1000')
 
@@ -337,7 +348,6 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_unlock_safety(self):
-        """Make sure we don't do update, but do $set"""
         klass = 'workflows'
         obj_id = 1
         original = {
@@ -446,9 +456,6 @@ class TestDatabase(unittest.TestCase):
 
     @unittest.skipIf(SKIP, REASON)
     def test_valid_key_lock(self):
-        """
-        Test that we can lock an object with a valid key.
-        """
         klass = 'workflows'
         obj_id = 1
         self.driver.database()[klass].remove({'_id': obj_id})
@@ -706,7 +713,7 @@ class TestDatabase(unittest.TestCase):
         timestamp = time.time()
         self.driver.database()['workflows'].save({'_id': "1", "_lock": "1",
                                                   "_lock_timestamp":
-                                                      timestamp})
+                                                  timestamp})
 
         with self.assertRaises(db.ObjectLockedError):
             self.manager.safe_workflow_save("1", {"id": "yolo"},
@@ -834,10 +841,9 @@ class TestDatabase(unittest.TestCase):
         self.driver.unlock(key)
         lock = self.driver.database()['locks'].find_one({"_id": key})
         self.assertIsNone(lock)
-        self.assertIsInstance(self.driver.lock(key, 100), db_lock.DbLock)
+        self.assertIsInstance(self.driver.lock(key, 100), db.db_lock.DbLock)
 
         self.assertRaises(db.InvalidKeyError, self.driver.unlock, "X")
-
 
     @unittest.skipIf(SKIP, REASON)
     def test_raise_if_trying_to_unlock_non_existent_key(self):

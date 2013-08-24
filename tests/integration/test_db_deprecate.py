@@ -1,23 +1,30 @@
 # pylint: disable=W0212
+
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Base tests for all Database drivers."""
 import logging
 import os
-import unittest
 import time
-
-from checkmate.db.common import (
-    DatabaseTimeoutException,
-    DEFAULT_STALE_LOCK_TIMEOUT,
-)
-
-os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
-
-from checkmate.db.sql import Deployment, Workflow
-LOG = logging.getLogger(__name__)
+import unittest
 
 from checkmate import db
+from checkmate import utils
 from checkmate.workflows import manager
-from checkmate.utils import extract_sensitive_data
+
+LOG = logging.getLogger(__name__)
+os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
 
 class TestDatabase(unittest.TestCase):
@@ -26,7 +33,7 @@ class TestDatabase(unittest.TestCase):
         self.driver = db.get_driver(name='checkmate.db.sql.Driver', reset=True,
                                     connection_string='sqlite://')
         self.manager = manager.Manager({'default': self.driver})
-        self.klass = Deployment
+        self.klass = db.sql.Deployment
         db.sql.DEFAULT_RETRIES = 1
         self.default_deployment = {
             'id': 'test',
@@ -73,7 +80,7 @@ class TestDatabase(unittest.TestCase):
             'status': 'NEW',
             'credentials': ['My Secrets']
         }
-        body, secrets = extract_sensitive_data(entity)
+        body, secrets = utils.extract_sensitive_data(entity)
         self.driver._save_object(
             self.klass,
             entity['id'],
@@ -84,7 +91,7 @@ class TestDatabase(unittest.TestCase):
         entity['id'] = 2
         entity['name'] = 'My Second Component'
         entity['status'] = 'NEW'
-        body, secrets = extract_sensitive_data(entity)
+        body, secrets = utils.extract_sensitive_data(entity)
         self.driver._save_object(
             self.klass,
             entity['id'],
@@ -95,7 +102,7 @@ class TestDatabase(unittest.TestCase):
         entity['id'] = 3
         entity['name'] = 'My Third Component'
         entity['status'] = 'NEW'
-        body, secrets = extract_sensitive_data(entity)
+        body, secrets = utils.extract_sensitive_data(entity)
         self.driver._save_object(
             self.klass,
             entity['id'],
@@ -161,7 +168,7 @@ class TestDatabase(unittest.TestCase):
     def test_new_deployment_locking(self):
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
-        body, secrets = extract_sensitive_data(self.default_deployment)
+        body, secrets = utils.extract_sensitive_data(self.default_deployment)
         self.driver.save_deployment(self.default_deployment['id'],
                                     body, secrets,
                                     tenant_id='T1000')
@@ -179,7 +186,7 @@ class TestDatabase(unittest.TestCase):
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
-        body, secrets = extract_sensitive_data(self.default_deployment)
+        body, secrets = utils.extract_sensitive_data(self.default_deployment)
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).update({'locked': time.time()})
 
@@ -189,7 +196,7 @@ class TestDatabase(unittest.TestCase):
         self.driver.session.add(data_to_write)
         self.driver.session.commit()
 
-        with self.assertRaises(DatabaseTimeoutException):
+        with self.assertRaises(db.common.DatabaseTimeoutException):
             self.driver.save_deployment(self.default_deployment['id'], body,
                                         secrets, tenant_id='T1000')
 
@@ -200,7 +207,7 @@ class TestDatabase(unittest.TestCase):
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
-        body, secrets = extract_sensitive_data(self.default_deployment)
+        body, secrets = utils.extract_sensitive_data(self.default_deployment)
 
         #insert without locked field
         data_to_write = self.klass(id=self.default_deployment['id'], body=body,
@@ -227,7 +234,7 @@ class TestDatabase(unittest.TestCase):
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
-        body, secrets = extract_sensitive_data(self.default_deployment)
+        body, secrets = utils.extract_sensitive_data(self.default_deployment)
 
         #insert without locked field
         data_to_write = self.klass(id=self.default_deployment['id'], body=body,
@@ -243,7 +250,7 @@ class TestDatabase(unittest.TestCase):
         timeout = time.time()
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).update({
-                'locked': timeout - DEFAULT_STALE_LOCK_TIMEOUT})
+                'locked': timeout - db.common.DEFAULT_STALE_LOCK_TIMEOUT})
         self.driver.session.commit()
 
         #test remove stale lock
@@ -272,13 +279,13 @@ class TestDatabase(unittest.TestCase):
         self.assertEquals(driver1.connection_string, 'sqlite://')
         self.assertEquals(driver2.connection_string, 'mongodb://fake')
 
-    def test_driver_creation_multiple_same_class(self):
+    def test_create_multiple_same_class(self):
         driver1 = db.get_driver(connection_string='mongodb://fake1')
         driver2 = db.get_driver(connection_string='mongodb://fake2')
         self.assertNotEqual(driver1, driver2)
 
     def test_lock_existing_object(self):
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         filter_obj = (self.driver
                           .session
@@ -314,7 +321,7 @@ class TestDatabase(unittest.TestCase):
             filter_obj.delete()
 
     def test_unlock_existing_object(self):
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         original = {
             "test": obj_id
@@ -338,8 +345,7 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(final, original)
 
     def test_unlock_safety(self):
-        """Make sure we don't do update, but do $set"""
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         original = {
             "test": obj_id
@@ -364,7 +370,7 @@ class TestDatabase(unittest.TestCase):
         self.assertDictEqual(final, original)
 
     def test_lock_locked_object(self):
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         self.delete(klass, obj_id)
         self.driver.session.add(klass(id=obj_id,
@@ -379,7 +385,7 @@ class TestDatabase(unittest.TestCase):
             self.driver.lock_object(klass, obj_id)
 
     def test_lock_workflow_stale_lock(self):
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         self.delete(klass, obj_id)
         lock_timestamp = time.time() - 6
@@ -396,7 +402,7 @@ class TestDatabase(unittest.TestCase):
         self.driver.unlock_workflow(obj_id, key)
 
     def test_invalid_key_unlock(self):
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         self.delete(klass, obj_id)
         self.driver.session.add(klass(id=obj_id,
@@ -411,7 +417,7 @@ class TestDatabase(unittest.TestCase):
             self.driver.unlock_workflow(obj_id, "bad_key")
 
     def test_invalid_key_lock(self):
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         self.delete(klass, obj_id)
         self.driver.session.add(klass(id=obj_id,
@@ -425,10 +431,7 @@ class TestDatabase(unittest.TestCase):
             self.driver.lock_workflow(obj_id, key="bad_key")
 
     def test_valid_key_lock(self):
-        """
-        Test that we can lock an object with a valid key.
-        """
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         self.delete(klass, obj_id)
         self.driver.session.add(klass(id=obj_id,
@@ -443,7 +446,7 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(locked_obj1, locked_obj2)
 
     def test_new_safe_workflow_save(self):
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         import checkmate.workflows as workflows
         workflows.DB = self.driver
@@ -453,7 +456,7 @@ class TestDatabase(unittest.TestCase):
                                         tenant_id=2412423)
 
     def test_existing_workflow_save(self):
-        klass = Workflow
+        klass = db.sql.Workflow
         obj_id = 1
         import checkmate.workflows as workflows
         workflows.DB = self.driver

@@ -1,3 +1,16 @@
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for git integration (general)."""
 import os
 import shutil
@@ -6,10 +19,10 @@ import sys
 import unittest
 import uuid
 
-from webtest import TestApp
+import webtest
 
-from checkmate.git import middleware
 from checkmate.git import manager
+from checkmate.git import middleware
 
 
 class MockWsgiApp(object):
@@ -38,7 +51,7 @@ class TestCloneSimple(unittest.TestCase):
 
         self.root_app = MockWsgiApp()
         self.middleware = middleware.GitMiddleware(self.root_app, TEST_PATH)
-        self.app = TestApp(self.middleware)
+        self.app = webtest.TestApp(self.middleware)
 
     def tearDown(self):
         shutil.rmtree(self.repo_path)
@@ -52,14 +65,14 @@ class TestCloneSimple(unittest.TestCase):
 
     def test_backend_clone_first_call(self):
         """GIT_CURL_VERBOSE=1
-        git clone http://localhost:8080/557366/deployments/08af2c9e979e4c0c9e2561791a745794.git
+        git clone http://localhost:8080/557366/deployments/08af2c9e979e4c0c9e2
+        561791a745794.git
         """
         os.environ['REQUEST_METHOD'] = 'GET'
         os.environ['GIT_PROJECT_ROOT'] = self.repo_path
         os.environ['PATH_INFO'] = '/info/refs'
         os.environ['GIT_HTTP_EXPORT_ALL'] = '1'
-        response = subprocess.check_output(['git', 'http-backend'])
-        print response
+        subprocess.check_output(['git', 'http-backend'])
 
     @unittest.skip('Unable to get this to work with TestApp')
     def test_clone(self):
@@ -69,7 +82,6 @@ class TestCloneSimple(unittest.TestCase):
         )
         self.assertEqual(res.status, '200 OK')
         self.assertEqual(res.content_type, 'text/plain')
-        print res
         self.assertIsNone(res.body)
 
 
