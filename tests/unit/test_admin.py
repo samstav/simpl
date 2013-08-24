@@ -1,4 +1,19 @@
 # pylint: disable=R0904
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Admin endpoints."""
 import json
 import logging
@@ -6,10 +21,10 @@ import unittest
 
 import bottle
 import mock
-from webtest import TestApp
+import webtest
 
-from checkmate import test
 from checkmate import admin
+from checkmate import test
 
 LOG = logging.getLogger(__name__)
 
@@ -20,7 +35,7 @@ class TestAdminDeploymentCounts(unittest.TestCase):
         self.root_app.catchall = False
         self.filters = test.MockWsgiFilters(self.root_app)
         self.filters.context.is_admin = True
-        self.app = TestApp(self.filters)
+        self.app = webtest.TestApp(self.filters)
 
         self.manager = mock.Mock()
         self.tenant_manager = mock.Mock()
@@ -61,7 +76,7 @@ class TestAdminDeploymentCounts(unittest.TestCase):
         self.manager.count.assert_called_once_with(tenant_id=None,
                                                    blueprint_id='blp-123-aa')
 
-    def test_get_count_deployment_and_tenant(self):
+    def test_count_deploy_with_tenant(self):
         self.manager.count.return_value = 5
         res = self.app.get('/admin/deployments/count/blp-123-aa?tenant_id=456')
         self.assertEqual(res.status, '200 OK')
@@ -84,7 +99,7 @@ class TestAdminTenants(unittest.TestCase):
         self.root_app.catchall = False
         self.filters = test.MockWsgiFilters(self.root_app)
         self.filters.context.is_admin = True
-        self.app = TestApp(self.filters)
+        self.app = webtest.TestApp(self.filters)
 
         self.manager = mock.Mock()
         self.tenant_manager = mock.Mock()

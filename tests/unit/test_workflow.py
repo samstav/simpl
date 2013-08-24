@@ -1,20 +1,38 @@
 # pylint: disable=C0103,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Workflow class."""
 import re
-
-import mox
 import unittest
 
-from SpiffWorkflow.specs import WorkflowSpec, Simple
-from SpiffWorkflow.storage import DictionarySerializer
+import mox
+from SpiffWorkflow import specs
+from SpiffWorkflow import storage
 from SpiffWorkflow.Workflow import Workflow
 
-from checkmate import workflow, deployments, test, workflows
-from checkmate import utils
-from checkmate.deployment import Deployment
-from checkmate.middleware import RequestContext
-from checkmate.providers import base, register_providers
+from checkmate import deployment as cmdep
+from checkmate import deployments
+from checkmate import middleware as cmmid
+from checkmate import providers as cmprov
+from checkmate.providers import base
 from checkmate.providers.rackspace import loadbalancer
+from checkmate import test
+from checkmate import utils
+from checkmate import workflow
+from checkmate import workflows
 
 
 class TestWorkflow(unittest.TestCase):
@@ -26,7 +44,7 @@ class TestWorkflow(unittest.TestCase):
         self.tenant_id = "tenant_id"
         self.task_with_error.id = "task_id"
         base.PROVIDER_CLASSES = {}
-        register_providers([loadbalancer.Provider, test.TestProvider])
+        cmprov.register_providers([loadbalancer.Provider, test.TestProvider])
 
     def tearDown(self):
         self.mox.VerifyAll()
@@ -212,7 +230,7 @@ class TestWorkflow(unittest.TestCase):
         w_id = "1"
         tenant_id = "1001"
 
-        serializer = DictionarySerializer()
+        serializer = storage.DictionarySerializer()
         d_wf = self._create_spiff_workflow()
         d_wf.attributes["id"] = w_id
 
@@ -233,7 +251,7 @@ class TestWorkflow(unittest.TestCase):
         w_id = "1"
         tenant_id = "1001"
 
-        serializer = DictionarySerializer()
+        serializer = storage.DictionarySerializer()
         d_wf = self._create_spiff_workflow()
         d_wf.attributes["id"] = w_id
         d_wf.attributes["status"] = "COMPLETE"
@@ -254,9 +272,9 @@ class TestWorkflow(unittest.TestCase):
                                  driver=mock_driver, workflow_id=w_id)
 
     def test_create_delete_workflow_with_incomplete_operation(self):
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
-        deployment_with_lb_provider = Deployment(utils.yaml_to_dict("""
+        context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
+                                       username='MOCK_USER')
+        deployment_with_lb_provider = cmdep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 tenantId: '1000'
                 blueprint:
@@ -322,9 +340,9 @@ class TestWorkflow(unittest.TestCase):
         self.assertEqual(expected_dump.strip(), workflow_dump.strip())
 
     def test_create_delete_workflow_with_complete_operation(self):
-        context = RequestContext(auth_token='MOCK_TOKEN',
-                                 username='MOCK_USER')
-        deployment_with_lb_provider = Deployment(utils.yaml_to_dict("""
+        context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
+                                       username='MOCK_USER')
+        deployment_with_lb_provider = cmdep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 tenantId: '1000'
                 blueprint:
@@ -390,8 +408,8 @@ class TestWorkflow(unittest.TestCase):
 
     def _create_spiff_workflow(self):
         """Helper method to create a Spiff Workflow."""
-        wf_spec = WorkflowSpec(name="Test")
-        wf_a = Simple(wf_spec, 'A')
+        wf_spec = specs.WorkflowSpec(name="Test")
+        wf_a = specs.Simple(wf_spec, 'A')
         wf_spec.start.connect(wf_a)
         return Workflow(wf_spec)
 

@@ -1,15 +1,29 @@
 # pylint: disable=C0103,R0904,W0201
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Deployments Manager."""
 import copy
 import json
+import mock
 import os
 import unittest
 
-import mock
-
+from checkmate import deployment as cmdep
 from checkmate import deployments
 from checkmate import workflows
-from checkmate.deployment import Deployment
 
 
 class TestManager(unittest.TestCase):
@@ -32,7 +46,7 @@ class TestManager(unittest.TestCase):
             '2': {},
             '3': {},
         }
-        deployment = Deployment({'id': 'DEP_ID'})
+        deployment = cmdep.Deployment({'id': 'DEP_ID'})
         mock_get_resources = mock.Mock(return_value=resources)
         deployment.get_resources_for_service = mock_get_resources
         mock_context = mock.Mock()
@@ -179,8 +193,6 @@ class TestManager(unittest.TestCase):
 
 
 class TestCount(unittest.TestCase):
-    """ Tests getting deployment counts """
-
     def setUp(self):
         self._deployments = json.load(open(os.path.join(
             os.path.dirname(__file__), '../data', 'deployments.json')))
@@ -192,11 +204,13 @@ class TestCount(unittest.TestCase):
         unittest.TestCase.tearDown(self)
 
     def test_get_count_all(self):
-        self.mock_db.get_deployments = mock.Mock(return_value=self._deployments)
+        self.mock_db.get_deployments = mock.Mock(
+            return_value=self._deployments)
         self.assertEqual(self.controller.count(), 4)
         self.mock_db.get_deployments.assert_called_with(tenant_id=None,
                                                         with_count=True,
-                                                   status=None, query=None)
+                                                        status=None,
+                                                        query=None)
 
     def test_get_count_tenant(self):
         # remove the deployments that dont belong to our tenant
@@ -208,17 +222,18 @@ class TestCount(unittest.TestCase):
         self.assertEqual(self.controller.count(tenant_id="12345"), 2)
         self.mock_db.get_deployments.assert_called_with(tenant_id="12345",
                                                         with_count=True,
-                                                   status=None,
-                                                   query=None)
+                                                        status=None,
+                                                        query=None)
 
     def test_get_count_blueprint(self):
-        self.mock_db.get_deployments = mock.Mock(return_value=self._deployments)
+        self.mock_db.get_deployments = mock.Mock(
+            return_value=self._deployments)
         result = self.controller.count(blueprint_id="blp-123-aabc-efg")
         self.assertEqual(result, 2)
         self.mock_db.get_deployments.assert_called_with(tenant_id=None,
                                                         with_count=True,
-                                                   status=None,
-                                                   query=None)
+                                                        status=None,
+                                                        query=None)
 
     def test_get_count_blueprint_and_tenant(self):
         deps = self._deployments.copy()
@@ -233,8 +248,8 @@ class TestCount(unittest.TestCase):
         self.assertEquals(result, 1)
         self.mock_db.get_deployments.assert_called_with(tenant_id="12345",
                                                         with_count=True,
-                                                   status=None,
-                                                   query=None)
+                                                        status=None,
+                                                        query=None)
 
     def test_send_query_to_driver(self):
         # set up
@@ -290,7 +305,7 @@ class TestSecrets(unittest.TestCase):
                 'servers': 10,
             }
         }
-        deployment = Deployment(data)
+        deployment = cmdep.Deployment(data)
         deployment['display-outputs'].update(deployment.calculate_outputs())
         self.deployment = deployment
         self.driver = mock.Mock()
@@ -311,7 +326,7 @@ class TestSecrets(unittest.TestCase):
         self.driver.get_deployment.assert_called_with('1', with_secrets=False)
 
     def test_locked_secrets_not_returned(self):
-        """Check that locked secrets are not returned"""
+        """Check that locked secrets are not returned."""
         self.driver.get_deployment = mock.Mock(return_value=self.deployment)
 
         dep = self.manager.get_deployment_secrets('1', tenant_id="T1000")

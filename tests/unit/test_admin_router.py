@@ -1,4 +1,19 @@
 # pylint: disable=C0103,R0904
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Admin Router."""
 import mock
 import unittest
@@ -80,7 +95,7 @@ class TestGetDeployments(TestAdminRouter):
         self.assertEqual(query, 'fake query')
 
     def test_parse_tenant_tag_before_sending_params_to_manager(self):
-        self.tenant_manager.list_tenants.return_value = { '123': { } }
+        self.tenant_manager.list_tenants.return_value = {'123': {}}
         self.app.get('/admin/deployments?tenant_tag=FOOBAR')
         args = self.manager.get_deployments.call_args[1]
         query = args['query']
@@ -94,14 +109,14 @@ class TestGetDeployments(TestAdminRouter):
         self.assertEqual(query['tenantId'], 'no-tenants-found')
 
     def test_remove_tenant_tag_before_sending_params_to_manager(self):
-        self.tenant_manager.list_tenants.return_value = { '123': { } }
+        self.tenant_manager.list_tenants.return_value = {'123': {}}
         self.app.get('/admin/deployments?tenant_tag=FOOBAR')
         args = self.manager.get_deployments.call_args[1]
         query = args['query']
         self.assertTrue('tenant_tag' not in query)
 
     def test_parse_blueprint_branch_before_sending_params_to_manager(self):
-        self.tenant_manager.list_tenants.return_value = { '123': { } }
+        self.tenant_manager.list_tenants.return_value = {'123': {}}
         self.app.get('/admin/deployments?blueprint_branch=FOOBAR')
         args = self.manager.get_deployments.call_args[1]
         query = args['query']

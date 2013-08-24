@@ -1,12 +1,28 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Planner."""
 import unittest
+
 import mox
 
-from checkmate.deployment import Deployment
-from checkmate.deployments import Planner
-from checkmate.providers.rackspace import loadbalancer
+from checkmate import deployment as cmdep
+from checkmate import deployments as cmdeps
+from checkmate import providers as cmprov
+from checkmate.providers import base
 from checkmate.providers.opscode import solo
-from checkmate.providers import base, register_providers
+from checkmate.providers.rackspace import loadbalancer
 
 
 class TestPlanner(unittest.TestCase):
@@ -14,7 +30,8 @@ class TestPlanner(unittest.TestCase):
         self.mox = mox.Mox()
 
     def test_add_resource(self):
-        plan = Planner(Deployment({'blueprint': {'services': {}}}))
+        plan = cmdeps.Planner(
+            cmdep.Deployment({'blueprint': {'services': {}}}))
         plan.resource_index = 0
         resource = {}
         definition = {}
@@ -27,9 +44,9 @@ class TestPlanner(unittest.TestCase):
 
     def test_add_additional_nodes(self):
         base.PROVIDER_CLASSES = {}
-        register_providers([loadbalancer.Provider, solo.Provider])
+        cmprov.register_providers([loadbalancer.Provider, solo.Provider])
         context = self.mox.CreateMockAnything()
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'id': '1001',
             'blueprint': {
                 'services': {
@@ -107,13 +124,13 @@ class TestPlanner(unittest.TestCase):
                 'type': 'application'
             },
         }
-        planner = Planner(deployment, False, deployment['plan'])
+        planner = cmdeps.Planner(deployment, False, deployment['plan'])
         planner.plan_additional_nodes(context, "web", 2)
         self.assertEquals(len(planner.resources), 4)
         self.assertDictEqual(planner.resources, expected_resources)
 
-    def test_add_resource_and_update_connections_for_vip(self):
-        deployment = Deployment({
+    def test_add_resource_updates_vip(self):
+        deployment = cmdep.Deployment({
             'blueprint': {
                 'services': {
                     'lb': {
@@ -124,7 +141,7 @@ class TestPlanner(unittest.TestCase):
                 }
             }
         })
-        plan = Planner(deployment)
+        plan = cmdeps.Planner(deployment)
         plan.resource_index = 0
         resource = {}
         definition = {'connections': {'master': {}, 'web': {}}}

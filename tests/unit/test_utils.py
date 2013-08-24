@@ -1,20 +1,36 @@
 # pylint: disable=C0103,R0904,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for utils module."""
 import copy
+import mock
 import re
 import time
 import unittest
 import uuid
-import mock
+
+import bottle
 import mox
 
 from checkmate import utils
-from bottle import request, response
 
 
 class TestUtils(unittest.TestCase):
     def tearDown(self):
-        response.bind({})
+        bottle.response.bind({})
 
     def test_extract_sensitive_data_simple(self):
         fxn = utils.extract_sensitive_data
@@ -258,11 +274,11 @@ class TestUtils(unittest.TestCase):
         self.assertTrue(source.startswith("source = utils"))
 
         source = utils.get_source_body(self.dummy_static)
-        self.assertTrue(source.startswith('"""used for get_source_body'))
+        self.assertTrue(source.startswith('"""Used for get_source_body'))
 
     @staticmethod
     def dummy_static():
-        """used for get_source_body test"""
+        """Used for get_source_body test."""
         pass
 
     def test_isUUID_blanks(self):
@@ -404,48 +420,48 @@ class TestUtils(unittest.TestCase):
     #
 
     def test_negative_is_invalid(self):
-        request.environ = {'QUERY_STRING': 'offset=-2'}
+        bottle.request.environ = {'QUERY_STRING': 'offset=-2'}
         kwargs = {}
         with self.assertRaises(ValueError):
-            utils._validate_range_values(request, 'offset', kwargs)
+            utils._validate_range_values(bottle.request, 'offset', kwargs)
 
     def test_non_numeric_is_invalid(self):
-        request.environ = {'QUERY_STRING': 'limit=blah'}
+        bottle.request.environ = {'QUERY_STRING': 'limit=blah'}
         kwargs = {}
         with self.assertRaises(ValueError):
-            utils._validate_range_values(request, 'limit', kwargs)
+            utils._validate_range_values(bottle.request, 'limit', kwargs)
 
     def test_nothing_provided_is_valid_but_none(self):
-        request.environ = {'QUERY_STRING': ''}
+        bottle.request.environ = {'QUERY_STRING': ''}
         kwargs = {}
-        utils._validate_range_values(request, 'offset', kwargs)
+        utils._validate_range_values(bottle.request, 'offset', kwargs)
         self.assertEquals(None, kwargs.get('offset'))
-        self.assertEquals(200, response.status_code)
+        self.assertEquals(200, bottle.response.status_code)
 
     def test_valid_number_passed_in_param(self):
-        request.environ = {'QUERY_STRING': ''}
+        bottle.request.environ = {'QUERY_STRING': ''}
         kwargs = {'limit': '4236'}
-        utils._validate_range_values(request, 'limit', kwargs)
+        utils._validate_range_values(bottle.request, 'limit', kwargs)
         self.assertEquals(4236, kwargs['limit'])
-        self.assertEquals(200, response.status_code)
+        self.assertEquals(200, bottle.response.status_code)
 
     def test_valid_number_passed_in_request(self):
-        request.environ = {'QUERY_STRING': 'offset=2'}
+        bottle.request.environ = {'QUERY_STRING': 'offset=2'}
         kwargs = {}
-        utils._validate_range_values(request, 'offset', kwargs)
+        utils._validate_range_values(bottle.request, 'offset', kwargs)
         self.assertEquals(2, kwargs['offset'])
-        self.assertEquals(200, response.status_code)
+        self.assertEquals(200, bottle.response.status_code)
 
     def test_pagination_headers_no_ranges_no_results(self):
-        utils._write_pagination_headers({'results': {}}, 0, None, response,
-                                        'deployments', '')
-        self.assertEquals(200, response.status_code)
+        utils._write_pagination_headers({'results': {}}, 0, None,
+                                        bottle.response, 'deployments', '')
+        self.assertEquals(200, bottle.response.status_code)
         self.assertEquals(
             [
                 ('Content-Range', 'deployments 0-0/0'),
                 ('Content-Type', 'text/html; charset=UTF-8')
             ],
-            response.headerlist
+            bottle.response.headerlist
         )
 
     def test_pagination_headers_no_ranges_but_with_results(self):
@@ -454,15 +470,15 @@ class TestUtils(unittest.TestCase):
                 'collection-count': 4,
                 'results': {'1': {}, '2': {}, '3': {}, '4': {}}
             },
-            0, None, response, 'deployments', ''
+            0, None, bottle.response, 'deployments', ''
         )
-        self.assertEquals(200, response.status_code)
+        self.assertEquals(200, bottle.response.status_code)
         self.assertEquals(
             [
                 ('Content-Range', 'deployments 0-3/4'),
                 ('Content-Type', 'text/html; charset=UTF-8')
             ],
-            response.headerlist
+            bottle.response.headerlist
         )
 
     def test_pagination_headers_with_ranges_and_within_results(self):
@@ -471,9 +487,9 @@ class TestUtils(unittest.TestCase):
                 'collection-count': 4,
                 'results': {'2': {}, '3': {}}
             },
-            1, 2, response, 'deployments', 'T3'
+            1, 2, bottle.response, 'deployments', 'T3'
         )
-        self.assertEquals(206, response.status_code)
+        self.assertEquals(206, bottle.response.status_code)
         self.assertEquals(
             [
                 ('Link', '</T3/deployments?limit=2>; rel="first"; '
@@ -483,7 +499,7 @@ class TestUtils(unittest.TestCase):
                 ('Content-Range', 'deployments 1-2/4'),
                 ('Content-Type', 'text/html; charset=UTF-8')
             ],
-            response.headerlist
+            bottle.response.headerlist
         )
 
     def test_generate_password(self):

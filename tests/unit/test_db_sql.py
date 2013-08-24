@@ -1,4 +1,19 @@
 # pylint: disable=C0103,R0904,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Unit Tests for SQL Alchemy."""
 import mock
 import unittest
@@ -111,14 +126,14 @@ class TestAddFilters(TestSqlDB):
 
     def test_create_empty_filter_if_no_query(self):
         self.driver._add_filters(self.klass, self.query, None, True,
-                                           None, query_params=None)
+                                 None, query_params=None)
         self.assertEqual(self.query.call_count, 0)
 
     @mock.patch.object(sql, '_parse_comparison')
     def test_create_filter_for_specific_fields(self, _parse_comparison):
         self.driver._add_filters(self.klass, self.query,
-                                           None, True, None,
-                                           query_params={'name': 'foobar'})
+                                 None, True, None,
+                                 query_params={'name': 'foobar'})
         _parse_comparison.assert_called_with('deployments_name', 'foobar')
         self.assertEqual(self.query.filter.call_count, 1)
 
@@ -126,8 +141,8 @@ class TestAddFilters(TestSqlDB):
     def test_create_filter_with_all_fields_when_searching(self, or_):
         query_params = {'search': 'foobar', 'whitelist': ['name', 'tenantId']}
         self.driver._add_filters(self.klass, self.query,
-                                           None, True, None,
-                                           query_params=query_params)
+                                 None, True, None,
+                                 query_params=query_params)
         expected_filters = [
             "name LIKE '%foobar%'",
             "tenantId LIKE '%foobar%'",

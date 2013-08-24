@@ -1,15 +1,33 @@
 # pylint: disable=C0103,R0904,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Deployments Router."""
 import json
+import mock
 import os
 import unittest
 
 import bottle
-import mock
-from webtest import TestApp
+import webtest
+
+from checkmate import deployments
+from checkmate import test
+from checkmate import utils
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
-from checkmate import deployments, test, utils
 
 
 class TestAPICalls(unittest.TestCase):
@@ -18,7 +36,7 @@ class TestAPICalls(unittest.TestCase):
         self.root_app = bottle.Bottle()
         self.root_app.catchall = False
         self.filters = test.MockWsgiFilters(self.root_app)
-        self.app = TestApp(self.filters)
+        self.app = webtest.TestApp(self.filters)
 
         self.manager = mock.Mock()
         self.router = deployments.Router(self.root_app, self.manager)
@@ -73,7 +91,7 @@ class TestAPICalls(unittest.TestCase):
 
     @mock.patch.object(deployments.router, 'tasks')
     def test_post_asynchronous(self, mock_tasks):
-        """ Test that POST /deployments?asynchronous=1 returns a 202 """
+        """Test that POST /deployments?asynchronous=1 returns a 202."""
         deployment = {
             'id': '1234',
             'tenantId': 'T1000',
@@ -101,7 +119,7 @@ class TestAPICalls(unittest.TestCase):
 
     @mock.patch.object(deployments.router, 'tasks')
     def test_post_synchronous(self, mock_tasks):
-        """ Test that POST /deployments returns a 202 """
+        """Test that POST /deployments returns a 202."""
         deployment = {
             'id': '1234',
             'tenantId': 'T1000',
@@ -192,7 +210,7 @@ class TestDeploymentRouter(unittest.TestCase):
         self.root_app = bottle.Bottle()
         self.root_app.catchall = False
         self.filters = test.MockWsgiFilters(self.root_app)
-        self.app = TestApp(self.filters)
+        self.app = webtest.TestApp(self.filters)
 
         self.manager = mock.Mock()
         self.router = deployments.Router(self.root_app, self.manager)
