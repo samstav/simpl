@@ -1,9 +1,23 @@
 # pylint: disable=R0904,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for git middleware."""
+import mock
 import os
 import unittest
-
-from mock import patch
 
 from checkmate.git import manager
 from checkmate.git import middleware
@@ -41,7 +55,7 @@ class TestGitMiddlewareSetGitEnviron(unittest.TestCase):
         }
         self.assertEqual(expected_env, environ)
 
-    def test_set_git_environ_path_valid_dep_url(self):
+    def test_set_env_path_valid_url(self):
         environ_dict = {
             'PATH_INFO':
             '/547249/deployments/b3fe346f543a4a95b4712969c420dde6.git'
@@ -61,12 +75,12 @@ class TestGitMiddlewareSetGitEnviron(unittest.TestCase):
 @unittest.skip("Not yet ported to latest refactor")
 class TestGitMiddlewareGitRouteCallback(unittest.TestCase):
 
-    @patch.object(middleware, 'Response')
-    @patch.object(os.path, 'isdir')
-    @patch.object(middleware, '_set_git_environ')
-    @patch.object(middleware, 'request')
-    @patch.object(manager, 'init_deployment_repo')
-    @patch.object(wsgi_git_http_backend, 'wsgi_to_git_http_backend')
+    @mock.patch.object(middleware, 'Response')
+    @mock.patch.object(os.path, 'isdir')
+    @mock.patch.object(middleware, '_set_git_environ')
+    @mock.patch.object(middleware, 'request')
+    @mock.patch.object(manager, 'init_deployment_repo')
+    @mock.patch.object(wsgi_git_http_backend, 'wsgi_to_git_http_backend')
     #@unittest.skip("Temp skip")
     def test_route_cb(
         self, mock_wsgi,

@@ -1,13 +1,28 @@
 # pylint: disable=C0103,R0201
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Resource class."""
-import unittest
-import mock
 import json
+import mock
+import unittest
 import yaml
 
+from checkmate import exceptions as cmexc
+from checkmate import resource as cmres
 from checkmate import utils
-from checkmate.exceptions import CheckmateValidationException
-from checkmate.resource import Resource, LOG
 
 
 class TestResource(unittest.TestCase):
@@ -18,53 +33,53 @@ class TestResource(unittest.TestCase):
     )
 
     def setUp(self):
-        self.resource = Resource('0', {})
-        LOG.warn = mock.Mock()
+        self.resource = cmres.Resource('0', {})
+        cmres.LOG.warn = mock.Mock()
 
     def test_empty_dict_is_valid(self):
-        Resource.validate({})
+        cmres.Resource.validate({})
 
     def test_invalid_key_at_root(self):
-        with self.assertRaises(CheckmateValidationException):
-            Resource.validate({'blerg': 'blerf'})
+        with self.assertRaises(cmexc.CheckmateValidationException):
+            cmres.Resource.validate({'blerg': 'blerf'})
 
     def test_id_key_at_root_logs_warning(self):
-        Resource.validate({'id': 'i-really-am-21'})
-        LOG.warn.assert_called_with(
+        cmres.Resource.validate({'id': 'i-really-am-21'})
+        cmres.LOG.warn.assert_called_with(
             'DEPRECATED KEY: %s', [self.error_string % 'id'])
 
     def test_flavor_key_at_root_logs_warning(self):
-        Resource.validate({'flavor': 'cookies-n-cream'})
-        LOG.warn.assert_called_with(
+        cmres.Resource.validate({'flavor': 'cookies-n-cream'})
+        cmres.LOG.warn.assert_called_with(
             'DEPRECATED KEY: %s', [self.error_string % 'flavor'])
 
     def test_image_key_at_root_logs_warning(self):
-        Resource.validate({'image': 'iconic'})
-        LOG.warn.assert_called_with(
+        cmres.Resource.validate({'image': 'iconic'})
+        cmres.LOG.warn.assert_called_with(
             'DEPRECATED KEY: %s', [self.error_string % 'image'])
 
     def test_disk_key_at_root_logs_warning(self):
-        Resource.validate({'disk': 'vinyl'})
-        LOG.warn.assert_called_with(
+        cmres.Resource.validate({'disk': 'vinyl'})
+        cmres.LOG.warn.assert_called_with(
             'DEPRECATED KEY: %s', [self.error_string % 'disk'])
 
     def test_region_key_at_root_logs_warning(self):
-        Resource.validate({'region': 'Mendoza Province'})
-        LOG.warn.assert_called_with(
+        cmres.Resource.validate({'region': 'Mendoza Province'})
+        cmres.LOG.warn.assert_called_with(
             'DEPRECATED KEY: %s', [self.error_string % 'region'])
 
     def test_protocol_key_at_root_logs_warning(self):
-        Resource.validate({'protocol': 'Kyoto'})
-        LOG.warn.assert_called_with(
+        cmres.Resource.validate({'protocol': 'Kyoto'})
+        cmres.LOG.warn.assert_called_with(
             'DEPRECATED KEY: %s', [self.error_string % 'protocol'])
 
     def test_port_key_at_root_logs_warning(self):
-        Resource.validate({'port': 'Sydney Harbor'})
-        LOG.warn.assert_called_with(
+        cmres.Resource.validate({'port': 'Sydney Harbor'})
+        cmres.LOG.warn.assert_called_with(
             'DEPRECATED KEY: %s', [self.error_string % 'port'])
 
     def test_all_valid_root_keys(self):
-        Resource.validate({
+        cmres.Resource.validate({
             'index': 'S&P 500',
             'name': 'Trouble',
             'provider': 'Rackspace',
@@ -81,11 +96,11 @@ class TestResource(unittest.TestCase):
         })
 
     def test_index_key_in_desired_state_is_invalid(self):
-        with self.assertRaises(CheckmateValidationException):
-            Resource.validate({'desired-state': {'index': 'S&P 500'}})
+        with self.assertRaises(cmexc.CheckmateValidationException):
+            cmres.Resource.validate({'desired-state': {'index': 'S&P 500'}})
 
     def test_all_valid_desired_state_keys(self):
-        Resource.validate({
+        cmres.Resource.validate({
             'desired-state': {
                 'region': 'Mendoza Province',
                 'flavor': 'rocky-road',
@@ -101,12 +116,12 @@ class TestResource(unittest.TestCase):
         })
 
     def test_set_invalid_root_resource_key(self):
-        with self.assertRaises(CheckmateValidationException):
+        with self.assertRaises(cmexc.CheckmateValidationException):
             self.resource['blerg'] = 'blerf'
 
     def test_set_invalid_desired_state_key(self):
         self.resource['desired-state'] = {}
-        with self.assertRaises(CheckmateValidationException):
+        with self.assertRaises(cmexc.CheckmateValidationException):
             self.resource['desired-state']['service'] = 'self'
 
     def test_set_desired_state_with_valid_dict(self):
@@ -115,7 +130,7 @@ class TestResource(unittest.TestCase):
 
     def test_set_desired_state_with_invalid_dict(self):
         self.resource['desired-state'] = {}
-        with self.assertRaises(CheckmateValidationException):
+        with self.assertRaises(cmexc.CheckmateValidationException):
             self.resource['desired-state'] = {'service': 'self'}
 
     #
@@ -165,7 +180,7 @@ class TestResource(unittest.TestCase):
         self.assertEqual('PLANNED', self.resource['status'])
 
     def test_instantiation_with_specified_status_is_valid(self):
-        preexisting_resource = Resource('0', {'status': 'ACTIVE'})
+        preexisting_resource = cmres.Resource('0', {'status': 'ACTIVE'})
         self.assertEqual('ACTIVE', preexisting_resource.fsm.current)
 
     def test_from_PLANNED_straight_to_ACTIVE(self):
@@ -293,7 +308,7 @@ class TestResource(unittest.TestCase):
 
     def test_invalid_transition_results_in_warning(self):
         self.resource['status'] = 'BUILD'
-        LOG.warn.assert_called_with(
+        cmres.LOG.warn.assert_called_with(
             'State change from %s to %s is invalid', 'PLANNED', 'BUILD')
 
 

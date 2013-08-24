@@ -1,10 +1,25 @@
 # pylint: disable=E1103
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for workflow spec."""
 import mox
 import unittest
 
-from checkmate.deployment import Deployment
-from checkmate.workflows import WorkflowSpec
+from checkmate import deployment as cmdep
+from checkmate import workflows as cmwfs
 
 
 class TestWorkflowSpec(unittest.TestCase):
@@ -28,7 +43,7 @@ class TestWorkflowSpec(unittest.TestCase):
             'status': 'ACTIVE'
         }
 
-        self.deployment = Deployment({
+        self.deployment = cmdep.Deployment({
             'id': 'TEST',
             'blueprint': {
                 'name': 'Deployment for test',
@@ -67,8 +82,8 @@ class TestWorkflowSpec(unittest.TestCase):
         nova_provider.delete_resource_tasks(mox.IgnoreArg(), context, "TEST",
                                             self.resource2, "2")
         self._mox.ReplayAll()
-        WorkflowSpec.create_delete_node_spec(self.deployment, ["1"],
-                                             context)
+        cmwfs.WorkflowSpec.create_delete_node_spec(self.deployment, ["1"],
+                                                   context)
         self._mox.VerifyAll()
 
 

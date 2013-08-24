@@ -1,4 +1,19 @@
 # pylint: disable=C0103,R0904,W0212,W0613
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Unit tests for MongoDB."""
 import mock
 import unittest
@@ -154,7 +169,7 @@ class TestBuildFilters(TestMongoDB):
         self.assertEqual(filters, expected_filters)
 
     @mock.patch.object(mongodb, '_parse_comparison')
-    def test_create_filter_with_all_whitelist_fields_when_searching(self, _parse_comparison):
+    def test_filter_with_all_whitelist_fields(self, _parse_comparison):
         _parse_comparison.return_value = 'zoo'
         query = {'search': 'zoo', 'whitelist': ['search', 'foo', 'bar']}
         filters = self.driver._build_filters('deployments', None, True, None,
@@ -171,26 +186,26 @@ class TestBuildFilters(TestMongoDB):
     @mock.patch.object(mongodb, '_parse_comparison')
     def test_parse_value_comparison(self, _parse_comparison):
         self.driver._build_filters('deployments', None, True, None,
-                                             query={'name': 'foobar'})
+                                   query={'name': 'foobar'})
         _parse_comparison.assert_called_with('foobar')
 
     @mock.patch.object(mongodb, '_parse_comparison')
     def test_parse_start_date_with_greater_equal(self, _parse_comparison):
         self.driver._build_filters('deployments', None, True, None,
-                                             query={'start_date': 'foobar'})
+                                   query={'start_date': 'foobar'})
         _parse_comparison.assert_called_with('>=foobar')
 
     @mock.patch.object(mongodb, '_parse_comparison')
     def test_parse_end_date_maps_to_end_of_day(self, _parse_comparison):
         self.driver._build_filters('deployments', None, True, None,
-                                             query={'end_date': 'foobar'})
+                                   query={'end_date': 'foobar'})
         _parse_comparison.assert_called_with('<=foobar 23:59:59 +0000')
 
     @mock.patch.object(mongodb, '_parse_comparison')
     def test_force_regex_comparison_when_searching(self, _parse_comparison):
         query = {'search': 'zoo', 'whitelist': ['search', 'foo']}
         self.driver._build_filters('deployments', None, True, None,
-                                             query=query)
+                                   query=query)
         _parse_comparison.assert_called_with('%'+'zoo')
 
 

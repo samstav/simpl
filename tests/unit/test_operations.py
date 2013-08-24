@@ -1,10 +1,25 @@
 # pylint: disable=C0103
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Operations."""
-import mox
 import unittest
 
+import mox
+from SpiffWorkflow import specs
 from SpiffWorkflow import Workflow
-from SpiffWorkflow.specs import WorkflowSpec, Simple
 
 from checkmate import operations
 
@@ -18,8 +33,8 @@ class TestOperations(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_create_add_nodes(self):
-        wf_spec = WorkflowSpec(name="Add Nodes")
-        wf_spec.start.connect(Simple(wf_spec, "end"))
+        wf_spec = specs.WorkflowSpec(name="Add Nodes")
+        wf_spec.start.connect(specs.Simple(wf_spec, "end"))
         wflow = Workflow(wf_spec)
         expected_operation = {"foo": "bar", 'type': "ADD_NODES"}
         deployment = {}
@@ -67,7 +82,8 @@ class TestOperations(unittest.TestCase):
                                 partial=True).AndReturn(None)
         self.mox.ReplayAll()
         operations.update_operation('1234', '1234', status='NEW',
-                                    deployment_status="PLANNED", driver=mock_db)
+                                    deployment_status="PLANNED",
+                                    driver=mock_db)
         self.mox.VerifyAll()
 
     def test_update_operation_with_operation_marked_complete(self):
@@ -126,7 +142,7 @@ class TestOperations(unittest.TestCase):
 
         self.assertDictEqual(info, expected)
 
-    def test_put_a_generic_status_message_if_status_message_not_available(self):
+    def test_generic_message_if_no_status(self):
         errors = [
             {"error-message": 'Complicated Error message'},
             {"error-message": 'Another Complicated error'},
@@ -194,7 +210,7 @@ class TestOperations(unittest.TestCase):
     def test_status_info_with_resumable_errors(self):
         errors = [
             {"error-type": "OverLimit", "error-message": "OverLimit Message",
-             "action-required": True,},
+             "action-required": True},
             {"error-type": "SomeError", "error-message": "SomeError Message",
              "action-required": True, "resumable": True},
         ]

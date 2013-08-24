@@ -1,53 +1,67 @@
-# pylint: disable=C0103,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for ExtensibleDict class."""
 import unittest
 
-from checkmate.classes import ExtensibleDict
+from checkmate import classes
 
 
 class TestExtensibleDict(unittest.TestCase):
     def test_init(self):
-        """Check that init works like dict does"""
+        """Check that init works like dict does."""
         data = {'key': 'value', 1: 2}
-        ed = ExtensibleDict(data)
-        self.assertDictEqual(ed._data, data)
+        edict = classes.ExtensibleDict(data)
+        self.assertDictEqual(edict._data, data)
 
     def test_json_serialization(self):
         data = {'key': 1}
-        ed = ExtensibleDict(data)
-        jsonized = ed.dumps()
+        edict = classes.ExtensibleDict(data)
+        jsonized = edict.dumps()
         self.assertEqual(jsonized, '{"key": 1}')
 
     def test_basic_operations(self):
-        """Test basic dictionary-type operations"""
-        ed = ExtensibleDict(key='value')
-        self.assertIn('key', ed)
-        self.assertEqual(ed['key'], 'value')
+        """Test basic dictionary-type operations."""
+        edict = classes.ExtensibleDict(key='value')
+        self.assertIn('key', edict)
+        self.assertEqual(edict['key'], 'value')
 
-        ed['new'] = 2
-        self.assertIn('new', ed)
-        self.assertEqual(ed['new'], 2)
-        self.assertEqual(len(ed), 2)
+        edict['new'] = 2
+        self.assertIn('new', edict)
+        self.assertEqual(edict['new'], 2)
+        self.assertEqual(len(edict), 2)
 
-        del ed['new']
-        self.assertNotIn('new', ed)
+        del edict['new']
+        self.assertNotIn('new', edict)
 
     def test_empty_args(self):
-        ed = ExtensibleDict(key='value')
-        self.assertDictEqual(ed.__dict__(), dict(key='value'))
+        edict = classes.ExtensibleDict(key='value')
+        self.assertDictEqual(edict.__dict__(), dict(key='value'))
 
     def test_empty_kwargs(self):
         template = dict(key='value')
-        ed = ExtensibleDict(template)
-        self.assertDictEqual(ed.__dict__(), template)
+        edict = classes.ExtensibleDict(template)
+        self.assertDictEqual(edict.__dict__(), template)
 
     def test_empty_args_and_kwargs(self):
-        ed = ExtensibleDict()
-        self.assertDictEqual(ed.__dict__(), {})
+        edict = classes.ExtensibleDict()
+        self.assertDictEqual(edict.__dict__(), {})
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     import sys
-    from checkmate.test import run_with_params
-    run_with_params(sys.argv[:])
+
+    from checkmate import test as cmtest
+
+    cmtest.run_with_params(sys.argv[:])

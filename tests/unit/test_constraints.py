@@ -1,33 +1,48 @@
 # pylint: disable=C0103,R0904
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for constraints."""
 import unittest
 
-from checkmate import constraints
-from checkmate.constraints import Constraint
-from checkmate.exceptions import CheckmateValidationException
+from checkmate import constraints as cmcon
+from checkmate import exceptions as cmexc
 from checkmate import utils
 
 
 class TestConstraint(unittest.TestCase):
     def test_init_method(self):
-        self.assertIsInstance(Constraint({}), Constraint)
+        self.assertIsInstance(cmcon.Constraint({}), cmcon.Constraint)
 
     def test_init_wrong_type(self):
-        self.assertRaises(CheckmateValidationException, Constraint, 1)
+        self.assertRaises(
+            cmexc.CheckmateValidationException, cmcon.Constraint, 1)
 
     def test_is_syntax_valid(self):
-        self.assertTrue(Constraint.is_syntax_valid({}))
+        self.assertTrue(cmcon.Constraint.is_syntax_valid({}))
 
     def test_is_syntax_valid_negative(self):
-        self.assertFalse(Constraint.is_syntax_valid({'A': 1}))
+        self.assertFalse(cmcon.Constraint.is_syntax_valid({'A': 1}))
 
     def test_is_syntax_valid_wrong_type(self):
-        self.assertFalse(Constraint.is_syntax_valid(1))
+        self.assertFalse(cmcon.Constraint.is_syntax_valid(1))
 
 
 class TestRegexConstraint(unittest.TestCase):
 
-    klass = constraints.RegExConstraint
+    klass = cmcon.RegExConstraint
     test_data = utils.yaml_to_dict("""
         - regex: ^(?=.*).{2,5}$
           message: between 2 and 5 characters
@@ -39,27 +54,27 @@ class TestRegexConstraint(unittest.TestCase):
                                                     'message': ''}))
 
     def test_constraint_syntax_check_negative(self):
-        self.assertRaises(CheckmateValidationException, self.klass,
+        self.assertRaises(cmexc.CheckmateValidationException, self.klass,
                           {'regex': '['})
 
     def test_constraint_detection(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertIsInstance(constraint, self.klass)
 
     def test_constraint_tests(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertFalse(constraint.test("1"))
         self.assertTrue(constraint.test("12"))
         self.assertFalse(constraint.test("123456"))
 
     def test_constraint_message(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertEquals(constraint.message, "between 2 and 5 characters")
 
 
 class TestProtocolConstraint(unittest.TestCase):
 
-    klass = constraints.ProtocolsConstraint
+    klass = cmcon.ProtocolsConstraint
     test_data = utils.yaml_to_dict("""
         - protocols: [http, https]
           message: Nope. Only http(s)
@@ -71,26 +86,26 @@ class TestProtocolConstraint(unittest.TestCase):
                                                     'message': ''}))
 
     def test_constraint_syntax_check_negative(self):
-        self.assertRaises(CheckmateValidationException, self.klass,
+        self.assertRaises(cmexc.CheckmateValidationException, self.klass,
                           {'protocols': 'http'})
 
     def test_constraint_detection(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertIsInstance(constraint, self.klass)
 
     def test_constraint_tests(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertFalse(constraint.test("git://github.com"))
         self.assertTrue(constraint.test("http://me.com"))
 
     def test_constraint_message(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertEquals(constraint.message, "Nope. Only http(s)")
 
 
 class TestSimpleComparisonConstraint(unittest.TestCase):
 
-    klass = constraints.SimpleComparisonConstraint
+    klass = cmcon.SimpleComparisonConstraint
     test_data = utils.yaml_to_dict("""
             - less-than: 8
             - greater-than: 2
@@ -120,25 +135,25 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
 
     def test_constraint_detection(self):
         for test in self.test_data:
-            constraint = Constraint.from_constraint(test)
+            constraint = cmcon.Constraint.from_constraint(test)
             self.assertIsInstance(constraint, self.klass, msg=test)
 
     def test_constraint_tests_less_than(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertFalse(constraint.test(9))
         self.assertFalse(constraint.test(8))
         self.assertTrue(constraint.test(7))
         self.assertEquals(constraint.message, "must be less than 8")
 
     def test_constraint_tests_greater_than(self):
-        constraint = Constraint.from_constraint(self.test_data[1])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[1])
         self.assertFalse(constraint.test(1))
         self.assertFalse(constraint.test(2))
         self.assertTrue(constraint.test(3))
         self.assertEquals(constraint.message, "must be greater than 2")
 
     def test_constraint_tests_less_than_or_equal_to(self):
-        constraint = Constraint.from_constraint(self.test_data[2])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[2])
         self.assertFalse(constraint.test(10))
         self.assertTrue(constraint.test(9))
         self.assertTrue(constraint.test(8))
@@ -146,7 +161,7 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
                                               "9")
 
     def test_constraint_tests_greater_than_or_equal_to(self):
-        constraint = Constraint.from_constraint(self.test_data[3])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[3])
         self.assertFalse(constraint.test(0))
         self.assertTrue(constraint.test(1))
         self.assertTrue(constraint.test(2))
@@ -154,11 +169,11 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
                                               "to 1")
 
     def test_constraint_message(self):
-        constraint = Constraint.from_constraint(self.test_data[4])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[4])
         self.assertEquals(constraint.message, "Nope! Less than 18")
 
     def test_constraint_combined_keys(self):
-        constraint = Constraint.from_constraint(self.test_data[5])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[5])
         self.assertFalse(constraint.test(98))
         self.assertFalse(constraint.test(101))
         self.assertTrue(constraint.test(99))
@@ -168,7 +183,7 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
 
 class TestInConstraint(unittest.TestCase):
 
-    klass = constraints.InConstraint
+    klass = cmcon.InConstraint
     test_data = utils.yaml_to_dict("""
         - in: [http, https]
           message: Nope. Only http(s)
@@ -180,20 +195,20 @@ class TestInConstraint(unittest.TestCase):
                                                     'message': ''}))
 
     def test_constraint_syntax_check_negative(self):
-        self.assertRaises(CheckmateValidationException, self.klass,
+        self.assertRaises(cmexc.CheckmateValidationException, self.klass,
                           {'in': 'http'})
 
     def test_constraint_detection(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertIsInstance(constraint, self.klass)
 
     def test_constraint_tests(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertFalse(constraint.test("git"))
         self.assertTrue(constraint.test("http"))
 
     def test_constraint_message(self):
-        constraint = Constraint.from_constraint(self.test_data[0])
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertEquals(constraint.message, "Nope. Only http(s)")
 
 

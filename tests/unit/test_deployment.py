@@ -1,23 +1,31 @@
 # pylint: disable=C0103,R0201,R0904
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Deployment class."""
 import mock
 import unittest
 
-from checkmate.deployment import (
-    Deployment,
-    LOG,
-    update_deployment_status_new,
-)
-from checkmate.exceptions import (
-    CheckmateBadState,
-    CheckmateValidationException,
-)
+from checkmate import deployment as cmdep
+from checkmate import exceptions as cmexc
 from checkmate import utils
 
 
 class TestDeploymentStateTransitions(unittest.TestCase):
     def test_deployment_states_fail_to_plan(self):
-        deployment = Deployment({'id': 'test'})
+        deployment = cmdep.Deployment({'id': 'test'})
         self.assertEquals('NEW', deployment.fsm.current)
 
         deployment.fsm.change_to('FAILED')
@@ -27,7 +35,7 @@ class TestDeploymentStateTransitions(unittest.TestCase):
         self.assertEquals('DELETED', deployment.fsm.current)
 
     def test_deployment_states_fail_to_build(self):
-        deployment = Deployment({'id': 'test'})
+        deployment = cmdep.Deployment({'id': 'test'})
         self.assertEquals('NEW', deployment.fsm.current)
 
         deployment.fsm.change_to('PLANNED')
@@ -37,14 +45,14 @@ class TestDeploymentStateTransitions(unittest.TestCase):
         self.assertEquals('FAILED', deployment.fsm.current)
 
     def test_deployment_states_build(self):
-        deployment = Deployment({'id': 'test', 'status': 'PLANNED'})
+        deployment = cmdep.Deployment({'id': 'test', 'status': 'PLANNED'})
         self.assertEquals('PLANNED', deployment.fsm.current)
 
         deployment.fsm.change_to('UP')
         self.assertEquals('UP', deployment.fsm.current)
 
     def test_deployment_states_alert_and_fix(self):
-        deployment = Deployment({'id': 'test', 'status': 'UP'})
+        deployment = cmdep.Deployment({'id': 'test', 'status': 'UP'})
         self.assertEquals('UP', deployment.fsm.current)
 
         deployment.fsm.change_to('ALERT')
@@ -54,7 +62,7 @@ class TestDeploymentStateTransitions(unittest.TestCase):
         self.assertEquals('UP', deployment.fsm.current)
 
     def test_deployment_states_reconnect(self):
-        deployment = Deployment({'id': 'test', 'status': 'UP'})
+        deployment = cmdep.Deployment({'id': 'test', 'status': 'UP'})
         self.assertEquals('UP', deployment.fsm.current)
 
         deployment.fsm.change_to('UNREACHABLE')
@@ -64,21 +72,21 @@ class TestDeploymentStateTransitions(unittest.TestCase):
         self.assertEquals('UP', deployment.fsm.current)
 
     def test_deployment_states_reconnect_to_alert(self):
-        deployment = Deployment({'id': 'test', 'status': 'UNREACHABLE'})
+        deployment = cmdep.Deployment({'id': 'test', 'status': 'UNREACHABLE'})
         self.assertEquals('UNREACHABLE', deployment.fsm.current)
 
         deployment.fsm.change_to('ALERT')
         self.assertEquals(deployment.fsm.current, 'ALERT')
 
     def test_deployment_states_reconnect_to_down(self):
-        deployment = Deployment({'id': 'test', 'status': 'UNREACHABLE'})
+        deployment = cmdep.Deployment({'id': 'test', 'status': 'UNREACHABLE'})
         self.assertEquals('UNREACHABLE', deployment.fsm.current)
 
         deployment.fsm.change_to('DOWN')
         self.assertEquals('DOWN', deployment.fsm.current)
 
     def test_deployment_states_up_down(self):
-        deployment = Deployment({'id': 'test', 'status': 'UP'})
+        deployment = cmdep.Deployment({'id': 'test', 'status': 'UP'})
         self.assertEquals('UP', deployment.fsm.current)
 
         deployment.fsm.change_to('DOWN')
@@ -88,22 +96,23 @@ class TestDeploymentStateTransitions(unittest.TestCase):
         self.assertEquals('UP', deployment.fsm.current)
 
     def test_deployment_states_delete_broken(self):
-        deployment = Deployment({'id': 'test', 'status': 'DOWN'})
+        deployment = cmdep.Deployment({'id': 'test', 'status': 'DOWN'})
         self.assertEquals('DOWN', deployment.fsm.current)
 
         deployment.fsm.change_to('DELETED')
         self.assertEquals(deployment.fsm.current, 'DELETED')
 
     def test_deployment_states_delete(self):
-        deployment = Deployment({'id': 'test', 'status': 'UP'})
+        deployment = cmdep.Deployment({'id': 'test', 'status': 'UP'})
         self.assertEquals('UP', deployment.fsm.current)
 
         deployment.fsm.change_to('DELETED')
         self.assertEquals('DELETED', deployment.fsm.current)
 
-    @mock.patch.object(LOG, 'info')
+    @mock.patch.object(cmdep.LOG, 'info')
     def test_deployment_status_logging(self, mock_logger):
-        deployment = Deployment({'id': 'test', 'status': 'NEW', 'tenantId': 9})
+        deployment = cmdep.Deployment(
+            {'id': 'test', 'status': 'NEW', 'tenantId': 9})
         deployment['status'] = 'PLANNED'
         mock_logger.assert_called_with('Tenant: %s - Deployment %s going from '
                                        '%s to %s', 9, 'test', 'NEW', 'PLANNED')
@@ -133,7 +142,7 @@ class TestDeployments(unittest.TestCase):
                 }
             }
         }
-        self.deployment = Deployment(deployment_dict)
+        self.deployment = cmdep.Deployment(deployment_dict)
         self.deployment.environment = mock.Mock()
         self.context = mock.MagicMock()
         environment = mock.Mock()
@@ -177,7 +186,6 @@ class TestDeployments(unittest.TestCase):
                                                "provider": "something"},
                                          "3": {"status": "BUILD",
                                                "provider": "something"}})
-
 
     def test_get_workflow_id_when_w_id_not_in_operation(self):
         workflow_id = self.deployment.current_workflow_id()
@@ -306,7 +314,7 @@ class TestDeployments(unittest.TestCase):
         self.context.__setitem__.assert_called_with('resource', '0')
 
     def test_schema(self):
-        """Test the schema validates a deployment with all possible fields"""
+        """Test the schema validates a deployment with all possible fields."""
         deployment = {
             'id': 'test',
             'name': 'test',
@@ -336,18 +344,20 @@ class TestDeployments(unittest.TestCase):
             'display-outputs': {},
             'meta-data': {},
         }
-        valid = Deployment(deployment)
+        valid = cmdep.Deployment(deployment)
         self.assertDictEqual(valid, deployment)
 
     def test_schema_negative(self):
-        """Test the schema validates a deployment with bad fields"""
+        """Test the schema validates a deployment with bad fields."""
         deployment = {
             'nope': None
         }
-        self.assertRaises(CheckmateValidationException, Deployment, deployment)
+        self.assertRaises(cmexc.CheckmateValidationException,
+                          cmdep.Deployment,
+                          deployment)
 
     def test_status_changes(self):
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
             'inputs': {},
@@ -374,11 +384,15 @@ class TestDeployments(unittest.TestCase):
         deployment['status'] = 'PLANNED'
         self.assertEqual(deployment['status'], 'PLANNED')
         self.assertEqual(deployment.fsm.current, 'PLANNED')
-        self.assertRaises(CheckmateBadState, deployment.__setitem__, 'status',
+        self.assertRaises(cmexc.CheckmateBadState,
+                          deployment.__setitem__,
+                          'status',
                           'DELETED')
 
     def test_invalid_status_rejected(self):
-        self.assertRaises(CheckmateValidationException, Deployment, {'status':
+        self.assertRaises(cmexc.CheckmateValidationException,
+                          cmdep.Deployment,
+                          {'status':
                           'NOT VALID'})
 
     def test_convert_legacy_status(self):
@@ -390,7 +404,7 @@ class TestDeployments(unittest.TestCase):
             'DELETING': 'UP',
         }
 
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
             'inputs': {},
@@ -403,7 +417,7 @@ class TestDeployments(unittest.TestCase):
             self.assertEqual(deployment['status'], new)
 
     def test_edit_invalid_status_to_valid(self):
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
             'inputs': {},
@@ -413,16 +427,16 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual(deployment['status'], 'DELETED')
 
     def test_legacy_to_new_maps_are_valid(self):
-        """Test the assumption thatlegacy_statuses maps to valid statuses"""
-        for new_status in Deployment.legacy_statuses.values():
-            self.assertIn(new_status, Deployment.FSM_TRANSITIONS)
+        """Test the assumption thatlegacy_statuses maps to valid statuses."""
+        for new_status in cmdep.Deployment.legacy_statuses.values():
+            self.assertIn(new_status, cmdep.Deployment.FSM_TRANSITIONS)
 
     def test_id_validation(self):
-        self.assertRaises(CheckmateValidationException, Deployment,
+        self.assertRaises(cmexc.CheckmateValidationException, cmdep.Deployment,
                           {'id': 1000})
 
     def test_schema_backwards_compatible(self):
-        """Test the schema validates a an old deployment"""
+        """Test the schema validates a an old deployment."""
         deployment = {
             'id': 'test',
             'name': 'test',
@@ -451,7 +465,7 @@ class TestDeployments(unittest.TestCase):
                 'providers': {},
             },
         }
-        valid = Deployment(deployment)
+        valid = cmdep.Deployment(deployment)
         deployment['status'] = 'UP'  # should be converted
         deployment['created'] = valid['created']  # gets added
         self.assertDictEqual(valid, deployment)
@@ -460,17 +474,17 @@ class TestDeployments(unittest.TestCase):
 class TestGenerateServices(unittest.TestCase):
 
     def test_blank(self):
-        deployment = Deployment({})
+        deployment = cmdep.Deployment({})
         services = deployment.calculate_services()
         self.assertDictEqual(services, {})
 
     def test_no_services(self):
-        deployment = Deployment({'blueprint': {}})
+        deployment = cmdep.Deployment({'blueprint': {}})
         services = deployment.calculate_services()
         self.assertDictEqual(services, {})
 
     def test_blank_resources(self):
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'blueprint': {
                 'services': {
                     'app': {}
@@ -482,7 +496,7 @@ class TestGenerateServices(unittest.TestCase):
         self.assertDictEqual(services, {'app': {'resources': []}})
 
     def test_simple(self):
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'blueprint': {
                 'services': {
                     'app': {
@@ -503,7 +517,7 @@ class TestGenerateServices(unittest.TestCase):
         self.assertDictEqual(services, expected)
 
     def test_one_resource(self):
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'blueprint': {
                 'services': {
                     'db': {
@@ -538,7 +552,7 @@ class TestGenerateServices(unittest.TestCase):
         self.assertDictEqual(services, expected)
 
     def test_host_resource(self):
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'blueprint': {
                 'services': {
                     'db': {
@@ -583,7 +597,7 @@ class TestGenerateServices(unittest.TestCase):
 
 class TestCalculateOutputs(unittest.TestCase):
     def setUp(self):
-        self.deployment = Deployment(utils.yaml_to_dict("""
+        self.deployment = cmdep.Deployment(utils.yaml_to_dict("""
             blueprint:
               services:
                 lb:
@@ -657,8 +671,8 @@ class TestCalculateOutputs(unittest.TestCase):
     """))
 
     def test_calculate_outputs_none(self):
-        """Tests empty dict is returned if no display-outputs"""
-        deployment = Deployment({
+        """Tests empty dict is returned if no display-outputs."""
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
             'inputs': {},
@@ -708,18 +722,18 @@ class TestCalculateOutputs(unittest.TestCase):
 class TestCeleryTasks(unittest.TestCase):
 
     def test_update_deployment_status(self):
-        """ Test deployment status update """
+        """Test deployment status update."""
         expected = {'status': "DOWN"}
         mock_db = mock.Mock()
         mock_db.save_deployment.return_value = expected
-        update_deployment_status_new('1234', 'DOWN', driver=mock_db)
+        cmdep.update_deployment_status_new('1234', 'DOWN', driver=mock_db)
         mock_db.save_deployment.assert_called_with('1234',
                                                    expected,
                                                    partial=True)
 
     def test_on_postback_for_resource(self):
-        """ Test on_postback dict merge and validation """
-        deployment = Deployment({
+        """Test on_postback dict merge and validation."""
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
             'inputs': {},
@@ -739,7 +753,7 @@ class TestCeleryTasks(unittest.TestCase):
                              deployment.get('resources'))
 
     def test_on_postback_for_failed_deployment(self):
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
             'inputs': {},
@@ -750,7 +764,7 @@ class TestCeleryTasks(unittest.TestCase):
         self.assertEqual("FAILED", deployment.get('status'))
 
     def test_on_postback_for_non_permitted_status_for_deployment(self):
-        deployment = Deployment({
+        deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
             'inputs': {},

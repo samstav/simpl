@@ -1,18 +1,33 @@
 # pylint: disable=C0103,R0904,W0212
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Tests for Blueprints class."""
 import copy
 import unittest
 
 import mock
 
-from checkmate.blueprints import Blueprint, GitHubManager
-from checkmate.exceptions import CheckmateValidationException
+from checkmate import blueprints as cmbps
+from checkmate import exceptions as cmexc
 
 
 class TestBlueprints(unittest.TestCase):
 
     def test_schema(self):
-        """Test the schema validates a blueprint with all possible fields"""
+        """Test the schema validates a blueprint with all possible fields."""
         blueprint = {
             'id': 'test',
             'version': '1.1.0',
@@ -26,7 +41,7 @@ class TestBlueprints(unittest.TestCase):
             'display-outputs': {},
             'documentation': {},
         }
-        valid = Blueprint(blueprint)
+        valid = cmbps.Blueprint(blueprint)
         self.assertDictEqual(valid._data, blueprint)
 
     def test_schema_with_options(self):
@@ -66,18 +81,17 @@ class TestBlueprints(unittest.TestCase):
         }
         expected = copy.deepcopy(blueprint)
         expected['meta-data'] = {'schema-version': 'v0.7'}
-        valid = Blueprint(blueprint)
+        valid = cmbps.Blueprint(blueprint)
         self.assertDictEqual(valid._data, expected)
 
     def test_schema_negative(self):
-        """Test the schema validates a blueprint with bad fields"""
         blueprint = {
             'nope': None
         }
-        self.assertRaises(CheckmateValidationException, Blueprint, blueprint)
+        self.assertRaises(
+            cmexc.CheckmateValidationException, cmbps.Blueprint, blueprint)
 
     def test_conversion_from_pre_v0_dot_7(self):
-        """Test that blueprints syntax from pre v0.7 gets converted"""
         blueprint = {
             'id': 'test',
             'name': 'test',
@@ -143,19 +157,19 @@ class TestBlueprints(unittest.TestCase):
             },
             'resources': {},
         }
-        converted = Blueprint(blueprint)
+        converted = cmbps.Blueprint(blueprint)
         self.assertDictEqual(converted._data, expected)
 
     def test_future_blueprint_version(self):
-        """Test the an unsupported blueprint version is rejected"""
         blueprint = {
             'meta-data': {
                 'schema-version': 'unrecognized',
             },
         }
-        self.assertRaisesRegexp(CheckmateValidationException, "This server "
-                                "does not support version 'unrecognized' "
-                                "blueprints", Blueprint, blueprint)
+        self.assertRaisesRegexp(cmexc.CheckmateValidationException,
+                                "This server does not support version "
+                                "'unrecognized' blueprints",
+                                cmbps.Blueprint, blueprint)
 
 
 class TestGitHubManagerTenantTag(unittest.TestCase):
@@ -166,57 +180,52 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.config.cache_dir = 'blah'
         self.config.group_refs = {}
         self.config.preview_tenants = []
-        self._manager = GitHubManager({}, self.config)
+        self._manager = cmbps.GitHubManager({}, self.config)
 
     def test_no_api(self):
         conf = self.config
         conf.github_api = None
         with self.assertRaises(AssertionError):
-            GitHubManager({}, conf)
+            cmbps.GitHubManager({}, conf)
 
     def test_no_org(self):
         conf = self.config
         conf.organization = None
         with self.assertRaises(AssertionError):
-            GitHubManager({}, conf)
+            cmbps.GitHubManager({}, conf)
 
     def test_no_group_refs(self):
         conf = self.config
         conf.group_refs = None
-        self.assertIsInstance(GitHubManager({}, conf), GitHubManager)
+        self.assertIsInstance(
+            cmbps.GitHubManager({}, conf), cmbps.GitHubManager)
 
     def test_failsafe_returns_master(self):
-        """Retrun master by default"""
         self._manager._ref = None
         self.assertEqual(self._manager.get_tenant_tag('A', []), 'master')
 
     def test_default_returns_ref(self):
-        """Retrun master by default"""
         self._manager._ref = 'blah'
         self.assertEqual(self._manager.get_tenant_tag('A', []), 'blah')
 
     def test_preview_falls_back_to_ref(self):
-        """Retrun master by default"""
         self._manager._ref = 'safe'
         self._manager._preview_ref = None
         self._manager._preview_tenants = ['X']
         self.assertEqual(self._manager.get_tenant_tag('X', []), 'safe')
 
     def test_preview_returns_preview_ref(self):
-        """Retrun master by default"""
         self._manager._preview_ref = 'coming-soon'
         self._manager._preview_tenants = ['X']
         self.assertEqual(self._manager.get_tenant_tag('X', []), 'coming-soon')
 
     def test_preview_negative(self):
-        """Retrun master by default"""
         self._manager._ref = 'plain'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
         self.assertEqual(self._manager.get_tenant_tag('Y', []), 'plain')
 
     def test_groups_no_match(self):
-        """Retrun master by default"""
         self._manager._ref = 'ref'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
@@ -225,7 +234,6 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.assertEqual(self._manager.get_tenant_tag('Y', ['Hacks']), 'ref')
 
     def test_groups_single_match(self):
-        """Retrun master by default"""
         self._manager._ref = 'ref'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
@@ -234,7 +242,6 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.assertEqual(self._manager.get_tenant_tag('Y', ['Hacks']), 'new')
 
     def test_groups_multiple_match(self):
-        """Retrun master by default"""
         self._manager._ref = 'ref'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
