@@ -538,7 +538,7 @@ class Provider(providers.ProviderBase):
             Provider.connect(context)
         db_hosts = []
         for region in pyrax.regions:
-            api = Provider.connect(context, region)
+            api = Provider.connect(context, region=region)
             db_hosts += api.list()
         results = {}
         for idx, db_host in enumerate(db_hosts):

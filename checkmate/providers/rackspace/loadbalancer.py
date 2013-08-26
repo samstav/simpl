@@ -677,7 +677,7 @@ class Provider(base.RackspaceProviderBase):
         load_balancers = []
         pyrax.auth_with_token(context.auth_token, tenant_name=context.tenant)
         for region in pyrax.regions:
-            api = pyrax.connect_to_cloud_loadbalancers(region=region)
+            api = Provider.connect(context, region=region)
             load_balancers += api.list()
         results = {}
         for idx, lb in enumerate(load_balancers):
