@@ -1345,7 +1345,7 @@ def wait_on_delete_server(context, api=None):
         pass
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               (api.client.managment_url))
+               (api.servers.managment_url))
         LOG.error(msg, exc_info=True)
         raise wait_on_delete_server.retry(exc=exc)
     if (not server) or (server.status == "DELETED"):
