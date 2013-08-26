@@ -172,13 +172,13 @@ class Router(object):
         Retrieves results (final or intermediate) and updates them into
         deployment.
 
-        :param id: checkmate workflow id
+        :param api_id: checkmate workflow id
         """
         entity = self.manager.get_workflow(api_id)
         if not entity:
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
-        async_call = tasks.run_workflow.delay(api_id, timeout=1800)
+        async_call = tasks.cycle_workflow.delay(api_id)
         LOG.debug("Executed a task to run workflow '%s'", async_call)
         entity = self.manager.get_workflow(api_id)
         return utils.write_body(entity, bottle.request, bottle.response)
@@ -225,7 +225,7 @@ class Router(object):
             dep_id, tenant_id=tenant_id)
         operation = deployment.get("operation")
         if operation and operation.get('status') == 'PAUSED':
-            async_call = tasks.run_workflow.delay(api_id, timeout=1800)
+            async_call = tasks.cycle_workflow.delay(api_id)
             LOG.debug("Executed a task to run workflow '%s'", async_call)
             workflow = self.manager.get_workflow(api_id)
         return utils.write_body(workflow, bottle.request, bottle.response)
@@ -253,7 +253,7 @@ class Router(object):
                 LOG.debug("Resetting task %s for workflow %s", task_id, id)
                 cm_wf.reset_task_tree(task)
 
-            cm_wf.update_workflow_status(wf, tenant_id=tenant_id)
+            cm_wf.update_workflow_status(wf)
             entity = wf.serialize(serializer)
             body, secrets = utils.extract_sensitive_data(entity)
             body['tenantId'] = workflow.get('tenantId', tenant_id)
@@ -399,7 +399,7 @@ class Router(object):
             task._state = entity['state']
 
         # Save workflow (with secrets)
-        cm_wf.update_workflow_status(wf, tenant_id=tenant_id)
+        cm_wf.update_workflow_status(wf)
         serializer = DictionarySerializer()
         body, secrets = utils.extract_sensitive_data(wf.serialize(serializer))
         body['tenantId'] = workflow.get('tenantId', tenant_id)
@@ -455,7 +455,7 @@ class Router(object):
         task._state = Task.FUTURE
         task.parent._state = Task.READY
 
-        cm_wf.update_workflow_status(wf, tenant_id=tenant_id)
+        cm_wf.update_workflow_status(wf)
         serializer = DictionarySerializer()
         entity = wf.serialize(serializer)
         body, secrets = utils.extract_sensitive_data(entity)
@@ -506,7 +506,7 @@ class Router(object):
                               " in '%s'" % task.get_state_name())
 
         cm_wf.reset_task_tree(task)
-        cm_wf.update_workflow_status(wf, tenant_id=tenant_id)
+        cm_wf.update_workflow_status(wf)
         serializer = DictionarySerializer()
         entity = wf.serialize(serializer)
         body, secrets = utils.extract_sensitive_data(entity)
@@ -569,7 +569,7 @@ class Router(object):
                           task.get_state_name())
                 task.task_spec._update_state(task)
 
-            cm_wf.update_workflow_status(wf, tenant_id=tenant_id)
+            cm_wf.update_workflow_status(wf)
             serializer = DictionarySerializer()
             entity = wf.serialize(serializer)
             body, secrets = utils.extract_sensitive_data(entity)

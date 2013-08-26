@@ -37,6 +37,10 @@ DB = db.get_driver()
 SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_SIMULATOR_CONNECTION_STRING',
     os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
+OPERATION_DEPLOYMENT_STATUS_MAP = {
+    'BUILD': 'UP',
+    'DELETE': 'DELETED',
+}
 
 
 def validate_blueprint_options(deployment):

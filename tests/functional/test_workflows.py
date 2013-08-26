@@ -163,19 +163,17 @@ class TestWorkflow(unittest.TestCase):
         new = SpiffWorkflow.deserialize(serializer, wflow)
         self.assertIsInstance(new, SpiffWorkflow)
 
-    @mock.patch.object(workflow, 'get_errors')
-    def test_workflow_error(self, mock_get_errors):
+    @mock.patch.object(workflow, 'get_number_of_errors')
+    def test_workflow_error(self, mock_get_number_of_errors):
         wf_spec = cmwfs.WorkflowSpec(name="Test")
         wf_a = specs.Simple(wf_spec, 'A')
         wf_spec.start.connect(wf_a)
         spiff_wf = SpiffWorkflow(wf_spec)
+        mock_get_number_of_errors.return_value = [{}, {}]
 
-        mock_get_errors.return_value = [{}, {}]
-
-        workflow.update_workflow_status(spiff_wf, tenant_id=None)
-        mock_get_errors.assert_called_with(spiff_wf, None)
-
-        assert spiff_wf.attributes['status'] == 'FAILED'
+        workflow.update_workflow_status(spiff_wf)
+        mock_get_number_of_errors.assert_called_with(spiff_wf)
+        self.assertEqual(spiff_wf.attributes['status'], 'ERROR')
 
 
 if __name__ == '__main__':

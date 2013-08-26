@@ -577,6 +577,7 @@ environment:
             provides:
             - compute: linux
             """))
+        self.deployment['tenantId'] = 'tenantId'
         self.workflow = self._get_stubbed_out_workflow()
 
     def test_workflow_completion(self):

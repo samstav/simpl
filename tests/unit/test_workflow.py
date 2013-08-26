@@ -77,7 +77,7 @@ class TestWorkflow(unittest.TestCase):
         self.task_with_error._get_internal_attribute('task_state').AndReturn(
             task_state)
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
-        self.mocked_workflow.attributes = {"id": "wf_id"}
+        self.mocked_workflow.get_attribute('id').AndReturn("wf_id")
         self.mox.ReplayAll()
 
         failed_tasks = workflow.get_errors(self.mocked_workflow,
@@ -112,7 +112,7 @@ class TestWorkflow(unittest.TestCase):
         self.task_with_error._get_internal_attribute('task_state').AndReturn(
             task_state)
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
-        self.mocked_workflow.attributes = {"id": "wf_id"}
+        self.mocked_workflow.get_attribute('id').AndReturn("wf_id")
         self.mox.ReplayAll()
 
         failed_tasks = workflow.get_errors(self.mocked_workflow,
@@ -144,7 +144,7 @@ class TestWorkflow(unittest.TestCase):
         self.task_with_error._get_internal_attribute('task_state').AndReturn(
             task_state)
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
-        self.mocked_workflow.attributes = {"id": "wf_id"}
+        self.mocked_workflow.get_attribute('id').AndReturn("wf_id")
         self.mox.ReplayAll()
 
         failed_tasks = workflow.get_errors(self.mocked_workflow,
@@ -176,6 +176,7 @@ class TestWorkflow(unittest.TestCase):
         self.task_with_error._get_internal_attribute('task_state').AndReturn(
             task_state)
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
+        self.mocked_workflow.get_attribute('id').AndReturn("wf_id")
         self.mox.ReplayAll()
 
         failed_tasks = workflow.get_errors(self.mocked_workflow,
@@ -200,6 +201,7 @@ class TestWorkflow(unittest.TestCase):
         self.task_with_error._get_internal_attribute('task_state').AndReturn(
             task_state)
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
+        self.mocked_workflow.get_attribute('id').AndReturn("wf_id")
         self.mox.ReplayAll()
 
         failed_tasks = workflow.get_errors(self.mocked_workflow,
@@ -235,7 +237,7 @@ class TestWorkflow(unittest.TestCase):
         d_wf.attributes["id"] = w_id
 
         self.mox.StubOutWithMock(workflow, 'update_workflow_status')
-        workflow.update_workflow_status(d_wf, tenant_id='1001')
+        workflow.update_workflow_status(d_wf)
         mock_driver = self.mox.CreateMockAnything()
         wf_serialize = d_wf.serialize(serializer)
         wf_serialize["tenantId"] = tenant_id
@@ -257,7 +259,7 @@ class TestWorkflow(unittest.TestCase):
         d_wf.attributes["status"] = "COMPLETE"
 
         self.mox.StubOutWithMock(workflow, 'update_workflow_status')
-        workflow.update_workflow_status(d_wf, tenant_id="1001")
+        workflow.update_workflow_status(d_wf)
 
         mock_driver = self.mox.CreateMockAnything()
         wf_serialize = d_wf.serialize(serializer)
@@ -325,7 +327,8 @@ class TestWorkflow(unittest.TestCase):
         workflow_spec = workflows.WorkflowSpec.create_delete_dep_wf_spec(
             deployment_with_lb_provider, context)
         test_workflow = workflow.init_spiff_workflow(
-            workflow_spec, deployment_with_lb_provider, context)
+            workflow_spec, deployment_with_lb_provider, context, "w_id",
+            "DELETE")
         workflow_dump = re.sub(r"\s", "", test_workflow.get_dump())
         expected_dump = """
 1/0: Task of Root State: COMPLETED Children: 1
@@ -394,7 +397,8 @@ class TestWorkflow(unittest.TestCase):
             .create_delete_dep_wf_spec(
                 deployment_with_lb_provider, context)
         test_workflow = workflow.init_spiff_workflow(
-            workflow_spec, deployment_with_lb_provider, context)
+            workflow_spec, deployment_with_lb_provider, context, "w_id",
+            "DELETE")
         workflow_dump = re.sub(r"\s", "", test_workflow.get_dump())
         expected_dump = """
 1/0: Task of Root State: COMPLETED Children: 1

@@ -95,6 +95,7 @@ ack.git
                         resource_type: compute
                         value: 2048
             '''))
+        self.deployment['tenantId'] = 'tenantId'
 
     def test_workflow_task_creation(self):
         '''Verify workflow sequence and data flow.'''
@@ -104,7 +105,7 @@ ack.git
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         wflow = workflow.init_spiff_workflow(
-            workflow_spec, self.deployment, context)
+            workflow_spec, self.deployment, context, "w_id", "BUILD")
         task_list = wflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',
