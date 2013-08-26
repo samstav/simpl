@@ -209,7 +209,7 @@ class Driver(DbBase):
         else:
             self.engine = create_engine(connection_string)
             LOG.info("Connected to '%s'",
-                     self.remove_string_secrets(connection_string))
+                     utils.hide_url_password(connection_string))
         self.session = scoped_session(sessionmaker(self.engine))
         BASE.metadata.create_all(self.engine)
 
@@ -232,7 +232,7 @@ class Driver(DbBase):
         else:
             self.engine = create_engine(self.connection_string)
             LOG.info("Connected to '%s'",
-                     self.remove_string_secrets(self.connection_string))
+                     utils.hide_url_password(self.connection_string))
 
         self.session = scoped_session(sessionmaker(self.engine))
         BASE.metadata.create_all(self.engine)

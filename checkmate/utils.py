@@ -1053,3 +1053,33 @@ class QueryParams(object):
                     query[key] = value
 
         return query
+
+
+def parse_url(url):
+    '''Parses a URL into dict.'''
+    pattern = (r'^'
+               r'((?P<schema>.+?)://)?'
+               r'((?P<user>.+?)(:(?P<password>.*?))?@)?'
+               r'(?P<host>.*?)'
+               r'(:(?P<port>\d+?))?'
+               r'(?P<path>/.*?)?'
+               r'(?P<query>[?].*?)?'
+               r'$'
+               )
+    regex = re.compile(pattern)
+    match = regex.match(url)
+    result = match.groupdict() if match is not None else None
+
+    return result
+
+
+def hide_url_password(url):
+    '''Detects a password part of a URL and replaces it with *****.'''
+    try:
+        parsed = parse_url(url)
+        password = parsed.get('password')
+        if password:
+            return url.replace(':%s@' % password, ':*****@')
+    except StandardError:
+        pass
+    return url

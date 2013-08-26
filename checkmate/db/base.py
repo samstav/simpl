@@ -23,6 +23,8 @@ TODO:
 
 import logging
 
+from checkmate import utils
+
 LOG = logging.getLogger()
 
 
@@ -62,7 +64,8 @@ class DbBase(object):  # pylint: disable=R0921
     def __repr__(self):
         '''Support displaying connection string.'''
         return ("<%s.%s connection_string='%s'>" % (self.__class__.__module__,
-                self.__class__.__name__, self.connection_string))
+                self.__class__.__name__,
+                utils.hide_url_password(self.connection_string)))
 
     def dump(self):
         '''Dump all data n the database.'''
@@ -232,14 +235,3 @@ class DbBase(object):  # pylint: disable=R0921
 
     def release_lock(self, key):
         raise NotImplementedError()
-
-    def remove_string_secrets(self, url):
-        '''Remove password from url string.'''
-        if isinstance(url, basestring):
-            data = url.split('@')
-            base = data[-1]
-            conn = data[0].split(':')
-            del conn[-1]
-            return "%s@%s" % (":".join(conn), base)
-        else:
-            return url
