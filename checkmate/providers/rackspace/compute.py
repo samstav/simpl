@@ -1246,7 +1246,7 @@ def delete_server_task(context, api=None):
         LOG.warn("Server %s already deleted", inst_id)
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               (api.client.managment_url))
+               (api.servers.managment_url))
         LOG.error(msg, exc_info=True)
         raise delete_server_task.retry(exc=exc)
     if (not server) or (server.status == 'DELETED'):
@@ -1276,10 +1276,11 @@ def delete_server_task(context, api=None):
                         'status-message': 'Host %s is being deleted.' % key
                     }
                 })
-        server.delete()
+        try:
+            server.delete()
         except requests.ConnectionError as exc:
             msg = ("Connection error talking to %s endpoint" %
-                   (api.client.managment_url))
+                   (server.managment_url))
             LOG.error(msg, exc_info=True)
             raise delete_server_task.retry(exc=exc)
     else:
