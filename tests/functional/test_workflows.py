@@ -15,7 +15,7 @@
 #    under the License.
 
 """Test for Workflow Tools."""
-import mox
+import mock
 import unittest
 
 from SpiffWorkflow import specs
@@ -142,8 +142,6 @@ class TestWorkflowTools(unittest.TestCase):
 
 
 class TestWorkflow(unittest.TestCase):
-    mox = mox.Mox()
-
     def test_instantiation(self):
         wflow = workflow.Workflow()
         self.assertDictEqual(wflow._data, {})
@@ -165,19 +163,17 @@ class TestWorkflow(unittest.TestCase):
         new = SpiffWorkflow.deserialize(serializer, wflow)
         self.assertIsInstance(new, SpiffWorkflow)
 
-    def test_workflow_error(self):
+    @mock.patch.object(workflow, 'get_errors')
+    def test_workflow_error(self, mock_get_errors):
         wf_spec = cmwfs.WorkflowSpec(name="Test")
         wf_a = specs.Simple(wf_spec, 'A')
         wf_spec.start.connect(wf_a)
         spiff_wf = SpiffWorkflow(wf_spec)
 
-        self.mox.StubOutWithMock(workflow, "get_errors")
-        workflow.get_errors(spiff_wf, None).AndReturn([{}, {}])
+        mock_get_errors.return_value = [{}, {}]
 
-        self.mox.ReplayAll()
         workflow.update_workflow_status(spiff_wf, tenant_id=None)
-        self.mox.UnsetStubs()
-        self.mox.VerifyAll()
+        mock_get_errors.assert_called_with(spiff_wf, None)
 
         assert spiff_wf.attributes['status'] == 'FAILED'
 

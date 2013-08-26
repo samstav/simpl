@@ -13,9 +13,8 @@
 #    under the License.
 
 """Tests for Planner."""
+import mock
 import unittest
-
-import mox
 
 from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps
@@ -26,9 +25,6 @@ from checkmate.providers.rackspace import loadbalancer
 
 
 class TestPlanner(unittest.TestCase):
-    def setUp(self):
-        self.mox = mox.Mox()
-
     def test_add_resource(self):
         plan = cmdeps.Planner(
             cmdep.Deployment({'blueprint': {'services': {}}}))
@@ -45,7 +41,7 @@ class TestPlanner(unittest.TestCase):
     def test_add_additional_nodes(self):
         base.PROVIDER_CLASSES = {}
         cmprov.register_providers([loadbalancer.Provider, solo.Provider])
-        context = self.mox.CreateMockAnything()
+        context = mock.Mock()
         deployment = cmdep.Deployment({
             'id': '1001',
             'blueprint': {
