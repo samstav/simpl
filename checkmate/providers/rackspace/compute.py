@@ -153,13 +153,6 @@ API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
 API_LIMITS_CACHE = {}
 REDIS = None
-REGION_MAP = {
-    'dallas': 'DFW',
-    'chicago': 'ORD',
-    'virginia': 'IAD',
-    'london': 'LON',
-    'sydney': 'SYD',
-}
 
 if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     try:
