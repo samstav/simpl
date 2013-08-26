@@ -669,9 +669,8 @@ class Provider(base.RackspaceProviderBase):
         return results
 
     @staticmethod
-    def get_resources(request, tenant_id=None):
+    def get_resources(context, tenant_id=None):
         """Proxy request through to loadbalancer provider"""
-        context = request.context
         if not pyrax.get_setting("identity_type"):
             pyrax.set_setting("identity_type", "rackspace")
 
@@ -985,7 +984,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
         try:
             meta = lb.get_metadata()
-            if "RAX-CHECKMATE" not in meta.keys():
+            if "RAX-CHECKMATE" not in meta:
                 checkmate_tag = Provider.generate_resource_tag(
                     context['base_url'], context['tenant'],
                     context['deployment'], resource['index']

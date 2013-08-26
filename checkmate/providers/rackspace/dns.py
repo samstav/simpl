@@ -193,9 +193,9 @@ class Provider(checkmate.providers.ProviderBase):
         return results
 
     @staticmethod
-    def get_resources(request, tenant_id=None):
+    def get_resources(context, tenant_id=None):
         """Proxy request through to provider"""
-        api = _get_dns_object(request.context)
+        api = _get_dns_object(context)
         return Provider._my_list_domains_info(api, None) or []
 
     @staticmethod

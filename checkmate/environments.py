@@ -279,6 +279,7 @@ def provider_get_resources(provider_id, tenant_id=None):
         provider = environment.get_provider(provider_id)
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
-    results = provider.get_resources(bottle.request, tenant_id=tenant_id)
+    results = provider.get_resources(bottle.request.context,
+                                     tenant_id=tenant_id)
 
     return utils.write_body(results, bottle.request, bottle.response)
