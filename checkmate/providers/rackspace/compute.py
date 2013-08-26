@@ -16,8 +16,8 @@ from novaclient.exceptions import (
     BadRequest,
 )
 # pylint: disable=C0103
-
 import pyrax
+from requests import ConnectionError
 
 client = eventlet.import_patched('novaclient.v1_1.client')
 # from novaclient.v1_1 import client
@@ -1112,6 +1112,11 @@ def create_server(context, name, region, api_object=None, flavor="2",
                                           "continue or contact your support "
                                           "team to increase your limit",
                                           "")
+    except ConnectionError as exc:
+        msg = ("Connection error talking to %s endpoint (%s)" %
+               (api_object.client.managment_url))
+        LOG.error(msg, exc_info=True)
+        raise create_server.retry(exc=exc)
 
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
@@ -1239,6 +1244,11 @@ def delete_server_task(context, api=None):
             server = api.servers.get(inst_id)
     except (NotFound, NoUniqueMatch):
         LOG.warn("Server %s already deleted", inst_id)
+    except ConnectionError as exc:
+        msg = ("Connection error talking to %s endpoint (%s)" %
+               (api_object.client.managment_url))
+        LOG.error(msg, exc_info=True)
+        raise delete_server_task.retry(exc=exc)
     if (not server) or (server.status == 'DELETED'):
         ret = {
             inst_key: {
@@ -1327,6 +1337,11 @@ def wait_on_delete_server(context, api=None):
             server = api.servers.find(id=inst_id)
     except (NotFound, NoUniqueMatch):
         pass
+    except ConnectionError as exc:
+        msg = ("Connection error talking to %s endpoint (%s)" %
+               (api_object.client.managment_url))
+        LOG.error(msg, exc_info=True)
+        raise wait_on_delete_server.retry(exc=exc)
     if (not server) or (server.status == "DELETED"):
         ret = {
             inst_key: {
@@ -1419,6 +1434,12 @@ def wait_on_build(context, server_id, region, resource,
         LOG.error(msg, exc_info=True)
         raise CheckmateUserException(msg, get_class_name(CheckmateException),
                                      UNEXPECTED_ERROR, '')
+    except ConnectionError as exc:
+        msg = ("Connection error talking to %s endpoint (%s)" % 
+               (api_object.client.managment_url))
+        LOG.error(msg, exc_info=True)
+        raise wait_on_build.retry(exc=exc)
+        
 
     results = {
         'id': server_id,
