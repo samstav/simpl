@@ -16,14 +16,13 @@
 
 """Tests for utils module."""
 import copy
-import mock
 import re
 import time
 import unittest
 import uuid
 
 import bottle
-import mox
+import mock
 
 from checkmate import utils
 
@@ -401,15 +400,11 @@ class TestUtils(unittest.TestCase):
         self.assertFalse(utils.is_evaluable({'not-a-string': 'boom!'}))
 
     def test_get_formatted_time_string(self):
-        a_mock = mox.Mox()
-        mock_time = time.gmtime(0)
-        a_mock.StubOutWithMock(utils.time, 'gmtime')
-        utils.time.gmtime().AndReturn(mock_time)
-        a_mock.ReplayAll()
-        result = utils.get_time_string()
-        a_mock.VerifyAll()
-        a_mock.UnsetStubs()
-        self.assertEquals(result, "1970-01-01 00:00:00 +0000")
+        some_time = time.gmtime(0)
+        with mock.patch.object(utils.time, 'gmtime') as mock_gmt:
+            mock_gmt.return_value = some_time
+            result = utils.get_time_string()
+            self.assertEquals(result, "1970-01-01 00:00:00 +0000")
 
     def test_get_formatted_time_string_with_input(self):
         result = utils.get_time_string(time_gmt=time.gmtime(0))

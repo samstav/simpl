@@ -18,6 +18,7 @@
 import logging
 import unittest
 
+import mock
 import mox
 
 from checkmate import deployments as cmdeps
@@ -35,11 +36,13 @@ class TestLegacyCompute(test.ProviderTester):
     def setUp(self):
         test.ProviderTester.setUp(self)
 
-    def test_create_server(self):
+    @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
+    @mock.patch.object(cmdeps.resource_postback, 'delay')
+    def test_create_server(self, mock_delay, mock_reset):
         provider = compute_legacy.Provider({})
 
         #Mock server
-        server = self.mox.CreateMockAnything()
+        server = mock.Mock()
         server.id = 'fake_server_id'
         server.status = 'BUILD'
         server.addresses = {
@@ -55,35 +58,22 @@ class TestLegacyCompute(test.ProviderTester):
         server.adminPass = 'password'
 
         #Mock image
-        image = self.mox.CreateMockAnything()
+        image = mock.Mock()
         image.id = 119
 
         #Mock flavor
-        flavor = self.mox.CreateMockAnything()
+        flavor = mock.Mock()
         flavor.id = 2
 
-        #Stub out postback call
-        self.mox.StubOutWithMock(cmdeps.resource_postback, 'delay')
-        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
-
         #Create appropriate api mocks
-        openstack_api_mock = self.mox.CreateMockAnything()
-        openstack_api_mock.servers = self.mox.CreateMockAnything()
-        openstack_api_mock.images = self.mox.CreateMockAnything()
-        openstack_api_mock.flavors = self.mox.CreateMockAnything()
+        openstack_api_mock = mock.Mock()
+        openstack_api_mock.servers = mock.Mock()
+        openstack_api_mock.images = mock.Mock()
+        openstack_api_mock.flavors = mock.Mock()
 
-        openstack_api_mock.images.find(id=image.id).AndReturn(image)
-        openstack_api_mock.flavors.find(id=flavor.id).AndReturn(flavor)
-        openstack_api_mock.servers.create(
-            image=119,
-            flavor=2,
-            meta={
-                'RAX-CHECKMATE':
-                'http://MOCK/TMOCK/deployments/DEP/resources/1'
-            },
-            name='fake_server',
-            files=None
-        ).AndReturn(server)
+        openstack_api_mock.images.find.return_value = image
+        openstack_api_mock.flavors.find.return_value = flavor
+        openstack_api_mock.servers.create.return_value = server
 
         expected = {
             'instance:1': {
@@ -104,10 +94,8 @@ class TestLegacyCompute(test.ProviderTester):
         tasks.reset_failed_resource_task.delay(context['deployment'],
                                                context['resource'])
 
-        cmdeps.resource_postback.delay(context['deployment'],
-                                       expected).AndReturn(True)
+        cmdeps.resource_postback.delay.return_value = True
 
-        self.mox.ReplayAll()
         results = compute_legacy.create_server(
             context,
             name='fake_server',
@@ -125,7 +113,26 @@ class TestLegacyCompute(test.ProviderTester):
         )
 
         self.assertDictEqual(results, expected)
-        self.mox.VerifyAll()
+        openstack_api_mock.servers.create.assert_called_with(
+            image=119,
+            flavor=2,
+            meta={
+                'RAX-CHECKMATE':
+                'http://MOCK/TMOCK/deployments/DEP/resources/1'
+            },
+            name='fake_server',
+            files=None
+        )
+        openstack_api_mock.images.find.assert_called_with(
+            id=image.id
+        )
+        openstack_api_mock.flavors.find.assert_called_with(
+            id=flavor.id
+        )
+        cmdeps.resource_postback.delay.assert_called_with(
+            context['deployment'],
+            expected
+        )
 
 
 class TestLegacyGenerateTemplate(unittest.TestCase):

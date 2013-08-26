@@ -15,9 +15,9 @@
 #    under the License.
 
 """Tests for Operations."""
+import mock
 import unittest
 
-import mox
 from SpiffWorkflow import specs
 from SpiffWorkflow import Workflow
 
@@ -26,75 +26,73 @@ from checkmate import operations
 
 class TestOperations(unittest.TestCase):
 
-    def setUp(self):
-        self.mox = mox.Mox()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
-
-    def test_create_add_nodes(self):
+    @mock.patch.object(operations, 'init_operation')
+    def test_create_add_nodes(self, mock_init):
         wf_spec = specs.WorkflowSpec(name="Add Nodes")
         wf_spec.start.connect(specs.Simple(wf_spec, "end"))
         wflow = Workflow(wf_spec)
         expected_operation = {"foo": "bar", 'type': "ADD_NODES"}
         deployment = {}
-        self.mox.StubOutWithMock(operations, "init_operation")
-        operations.init_operation(wflow, tenant_id="TENANT_ID").AndReturn(
-            {"foo": "bar"})
-        self.mox.ReplayAll()
+        mock_init.return_value = {'foo': 'bar'}
         operations.add(deployment, wflow, "ADD_NODES", "TENANT_ID")
         self.assertDictEqual(deployment['operation'], expected_operation)
+        mock_init.assert_called_with(wflow, tenant_id="TENANT_ID")
 
     def test_update_operation(self):
-        mock_db = self.mox.CreateMockAnything()
-        mock_db.get_deployment('1234', with_secrets=True).AndReturn({
-            'id': '1234', 'operation': {
-            'status': 'NEW'}})
-        mock_db.save_deployment('1234', {'operation': {'status': 'NEW'}},
-                                partial=True).AndReturn(None)
-        self.mox.ReplayAll()
-        operations.update_operation(
-            '1234', '1234', status='NEW', driver=mock_db)
-        self.mox.VerifyAll()
+        mock_db = mock.Mock()
+        mock_db.get_deployment.return_value = {
+            'id': '1234', 'operation': {'status': 'NEW'}
+        }
+        mock_db.save_deployment.return_value = None
+        operations.update_operation('1234', '1234', status='NEW',
+                                    driver=mock_db)
+        mock_db.get_deployment.assert_called_with('1234', with_secrets=True)
+        mock_db.save_deployment.assert_called_with(
+            '1234',
+            {'operation': {'status': 'NEW'}},
+            partial=True
+        )
 
     def test_update_operation_when_operation_in_operations_history(self):
-        mock_db = self.mox.CreateMockAnything()
-        mock_db.get_deployment('1234', with_secrets=True).AndReturn({
-            'id': '1234', 'operation': {
-            'status': 'NEW'},
+        mock_db = mock.Mock()
+        mock_db.get_deployment.return_value = {
+            'id': '1234', 'operation': {'status': 'NEW'},
             'operations-history': [{'workflow-id': 'w_id', 'status': 'BUILD'}]
-        })
-        mock_db.save_deployment('1234', {'operations-history': [{'status':
-                                                                 'PAUSE'}],
-                                         'display-outputs': {}},
-                                partial=True).AndReturn(None)
-        self.mox.ReplayAll()
-        operations.update_operation(
-            '1234', 'w_id', status='PAUSE', driver=mock_db)
-        self.mox.VerifyAll()
+        }
+        mock_db.save_deployment.return_value = None
+        operations.update_operation('1234', 'w_id', status='PAUSE',
+                                    driver=mock_db)
+        mock_db.get_deployment.assert_called_with('1234', with_secrets=True)
+        mock_db.save_deployment.assert_called_with(
+            '1234',
+            {'operations-history': [{'status': 'PAUSE'}],
+                'display-outputs': {}},
+            partial=True)
 
     def test_update_operation_with_deployment_status(self):
-        mock_db = self.mox.CreateMockAnything()
-        mock_db.get_deployment('1234', with_secrets=True).AndReturn(
-            {'id': '1234', 'operation': {'status': 'NEW'}})
-        mock_db.save_deployment('1234', {'operation': {'status': 'NEW'},
-                                         'status': "PLANNED"},
-                                partial=True).AndReturn(None)
-        self.mox.ReplayAll()
+        mock_db = mock.Mock()
+        mock_db.get_deployment.return_value = {
+            'id': '1234', 'operation': {'status': 'NEW'}
+        }
+        mock_db.save_deployment.return_value = None
         operations.update_operation('1234', '1234', status='NEW',
                                     deployment_status="PLANNED",
                                     driver=mock_db)
-        self.mox.VerifyAll()
+        mock_db.get_deployment.assert_called_with('1234', with_secrets=True)
+        mock_db.save_deployment.assert_called_with(
+            '1234',
+            {'operation': {'status': 'NEW'}, 'status': "PLANNED"},
+            partial=True)
 
     def test_update_operation_with_operation_marked_complete(self):
-        mock_db = self.mox.CreateMockAnything()
-        mock_db.get_deployment('1234', with_secrets=True).AndReturn(
-            {'id': '1234', 'operation': {'status': 'COMPLETE'}})
-        self.mox.ReplayAll()
+        mock_db = mock.Mock()
+        mock_db.get_deployment.return_value = {
+            'id': '1234', 'operation': {'status': 'COMPLETE'}
+        }
         operations.update_operation('1234', '1234', status='NEW',
                                     deployment_status="PLANNED",
                                     driver=mock_db)
-        self.mox.VerifyAll()
+        mock_db.get_deployment.assert_called_with('1234', with_secrets=True)
 
     def test_add_operation(self):
         deployment = {}

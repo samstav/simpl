@@ -15,7 +15,7 @@
 #    under the License.
 
 """Tests for SSH."""
-import mox
+import mock
 import unittest
 
 from checkmate import ssh
@@ -52,13 +52,8 @@ HNLoMGWDbYkodusmrHUN5Ed3E3w8Y+wpREa7vhX4Mey98gQ7Sgwcu0U=
 class TestSSH(unittest.TestCase):
     """Test Checkmate's built-in SSH Tasks."""
 
-    def setUp(self):
-        self.mox = mox.Mox()
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
-
-    def test_test_connection_key(self):
+    @mock.patch.object(ssh, 'connect')
+    def test_test_connection_key(self, mock_connect):
         """Test the test_connection function."""
         ip_addr = "a.b.c.d"
         port = 44
@@ -68,25 +63,26 @@ class TestSSH(unittest.TestCase):
         identity_file = '~/.ssh/id_rsa'
         password = "secret"
 
-        client = self.mox.CreateMockAnything()
+        client = mock.Mock()
 
         #Stub out _connect call
-        self.mox.StubOutWithMock(ssh, 'connect')
-        ssh.connect(ip_addr, port=port, username=username, timeout=timeout,
-                    private_key=private_key, identity_file=identity_file,
-                    password=password).AndReturn(client)
-        client.close().AndReturn(None)
+        mock_connect.return_value = client
+        client.close.return_value = None
 
-        self.mox.ReplayAll()
         results = ssh.test_connection({}, ip_addr, username, port=port,
                                       timeout=timeout, private_key=private_key,
                                       identity_file=identity_file,
                                       password=password)
 
         self.assertTrue(results, "Expecting a successful connection")
-        self.mox.VerifyAll()
+        mock_connect.assert_called_with(ip_addr, port=port, username=username,
+                                        timeout=timeout,
+                                        private_key=private_key,
+                                        identity_file=identity_file,
+                                        password=password)
 
-    def test_execute(self):
+    @mock.patch.object(ssh, 'connect')
+    def test_execute(self, mock_connect):
         """Test the ssh.execute function."""
         ip_addr = "a.b.c.d"
         port = 44
@@ -96,33 +92,36 @@ class TestSSH(unittest.TestCase):
         identity_file = '~/.ssh/id_rsa'
         password = "secret"
 
-        client = self.mox.CreateMockAnything()
-        stdout = self.mox.CreateMockAnything()
-        stdout.read().AndReturn("Outputs")
-        stderr = self.mox.CreateMockAnything()
-        stderr.read().AndReturn("Errors")
+        client = mock.Mock()
+        stdout = mock.Mock()
+        stdout.read.return_value = "Outputs"
+        stderr = mock.Mock()
+        stderr.read.return_value = "Errors"
 
         #Stub out _connect call
-        self.mox.StubOutWithMock(ssh, 'connect')
-        ssh.connect(ip_addr, port=port, username=username, timeout=timeout,
-                    private_key=private_key, identity_file=identity_file,
-                    password=password).AndReturn(client)
-        client.exec_command('test').AndReturn((None, stdout, stderr))
-        client.close().AndReturn(None)
+        mock_connect.return_value = client
+        client.exec_command.return_value = (None, stdout, stderr)
+        client.close.return_value = None
 
         expected = {
             'stdout': "Outputs",
             'stderr': "Errors",
         }
-        self.mox.ReplayAll()
         results = ssh.execute(ip_addr, 'test', username, timeout=timeout,
                               password=password, identity_file=identity_file,
                               port=port, private_key=private_key)
 
         self.assertDictEqual(results, expected)
-        self.mox.VerifyAll()
+        client.exec_command.assert_called_with('test')
+        mock_connect.assert_called_with(ip_addr, port=port,
+                                        username=username,
+                                        timeout=timeout,
+                                        private_key=private_key,
+                                        identity_file=identity_file,
+                                        password=password)
 
-    def test_execute_2(self):
+    @mock.patch.object(ssh, 'connect')
+    def test_execute_2(self, mock_connect):
         """Test the ssh.execute_t function."""
         ip_addr = "a.b.c.d"
         port = 44
@@ -132,31 +131,33 @@ class TestSSH(unittest.TestCase):
         identity_file = '~/.ssh/id_rsa'
         password = "secret"
 
-        client = self.mox.CreateMockAnything()
-        stdout = self.mox.CreateMockAnything()
-        stdout.read().AndReturn("Outputs")
-        stderr = self.mox.CreateMockAnything()
-        stderr.read().AndReturn("Errors")
+        client = mock.Mock()
+        stdout = mock.Mock()
+        stdout.read.return_value = "Outputs"
+        stderr = mock.Mock()
+        stderr.read.return_value = "Errors"
 
-        #Stub out _connect call
-        self.mox.StubOutWithMock(ssh, 'connect')
-        ssh.connect(ip_addr, port=port, username=username, timeout=timeout,
-                    private_key=private_key, identity_file=identity_file,
-                    password=password).AndReturn(client)
-        client.exec_command('test').AndReturn((None, stdout, stderr))
-        client.close().AndReturn(None)
+        mock_connect.return_value = client
+        client.exec_command.return_value = (None, stdout, stderr)
+        client.close.return_value = None
 
         expected = {
             'stdout': "Outputs",
             'stderr': "Errors",
         }
-        self.mox.ReplayAll()
         results = ssh.execute_2({}, ip_addr, 'test', username, timeout=timeout,
                                 password=password, identity_file=identity_file,
                                 port=port, private_key=private_key)
 
         self.assertDictEqual(results, expected)
-        self.mox.VerifyAll()
+        client.exec_command.assert_called_with('test')
+        mock_connect.assert_called_with(ip_addr,
+                                        port=port,
+                                        username=username,
+                                        timeout=timeout,
+                                        private_key=private_key,
+                                        identity_file=identity_file,
+                                        password=password)
 
 
 if __name__ == '__main__':
