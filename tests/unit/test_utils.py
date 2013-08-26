@@ -567,32 +567,6 @@ class TestUtils(unittest.TestCase):
         expected = {'ip': None}
         self.assertEqual(utils.get_ips_from_server(server, []), expected)
 
-    def test_parse_url_simple(self):
-        url = 'http://localhost'
-        expected = {
-            'schema': 'http',
-            'user': None,
-            'password': None,
-            'host': 'localhost',
-            'port': None,
-            'path': None,
-            'query': None,
-        }
-        self.assertEqual(utils.parse_url(url), expected)
-
-    def test_parse_url_full(self):
-        url = 'scheme://user:pass@host:80/path?filter=x'
-        expected = {
-            'schema': 'scheme',
-            'user': 'user',
-            'password': 'pass',
-            'host': 'host',
-            'port': '80',
-            'path': '/path',
-            'query': '?filter=x',
-        }
-        self.assertEqual(utils.parse_url(url), expected)
-
     def test_hide_url_password(self):
         hidden = utils.hide_url_password('http://user:pass@localhost')
         self.assertEqual(hidden, 'http://user:*****@localhost')
