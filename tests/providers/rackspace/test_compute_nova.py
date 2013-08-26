@@ -134,6 +134,80 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
+    def test_create_server_connect_error(self):
+        provider = compute.Provider({})
+        server = self.mox.CreateMockAnything()
+        server.id = 'fake_server_id'
+        server.status = 'BUILD'
+        server.addresses = {
+            'public': [
+                '1.2.3.4'
+            ],
+            'private': [
+                '5.6.7.8'
+            ]
+        }
+        server.ip = '1.2.3.4'
+        server.private_ip = '5.6.7.8'
+        server.adminPass = 'password'
+
+        #Mock image
+        image = self.mox.CreateMockAnything()
+        image.id = '00000000-0000-0000-0000-000000000000'
+
+        #Mock flavor
+        flavor = self.mox.CreateMockAnything()
+        flavor.id = '2'
+
+        context = {
+            'deployment_id': 'DEP',
+            'resource_key': '1',
+            'tenant': 'TMOCK',
+            'base_url': 'http://MOCK'
+        }
+        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
+        tasks.reset_failed_resource_task.delay(context['deployment_id'],
+                                               context['resource_key'])
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
+
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.images = self.mox.CreateMockAnything()
+        openstack_api_mock.flavors = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+
+        openstack_api_mock.images.find(id=image.id).AndReturn(image)
+        openstack_api_mock.flavors.find(id=flavor.id).AndReturn(flavor)
+        openstack_api_mock.servers.create(
+            'fake_server',
+            image,
+            flavor,
+            files=None,
+            meta={
+                'RAX-CHECKMATE':
+                'http://MOCK/TMOCK/deployments/DEP/resources/1'
+            },
+            disk_config='AUTO'
+        ).AndRaise(requests.ConnectionError("Mock connection error"))
+
+        self.mox.ReplayAll()
+        with self.assertRaises(requests.ConnectionError):
+            compute.create_server(context, 'fake_server', "North",
+                                        api_object=openstack_api_mock,
+                                        flavor='2', files=None,
+                                        image=image.id,
+                                        tags=provider.generate_resource_tag(
+                                            context['base_url'],
+                                            context['tenant'],
+                                            context['deployment_id'],
+                                            context['resource_key']
+                                        ))
+
+        self.mox.VerifyAll()
+
     def test_on_failure(self):
         exc = self.mox.CreateMockAnything()
         exc.__str__().AndReturn('some message')
@@ -377,12 +451,14 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_wait_on_build_connect_error(self):
+        server = self.mox.CreateMockAnything()
+        server.id = 'fake_server_id'
         #Create appropriate api mocks
         openstack_api_mock = self.mox.CreateMockAnything()
         openstack_api_mock.client = self.mox.CreateMockAnything()
         openstack_api_mock.client.region_name = 'North'
         openstack_api_mock.servers = self.mox.CreateMockAnything()
-        openstack_api_mock.servers.find(id=server.id).AndRaise(requests.ConnectionError("Mock conneciton error"))
+        openstack_api_mock.servers.find(id=server.id).AndRaise(requests.ConnectionError("Mock connection error"))
 
         context = dict(deployment_id='DEP', resource_key='1', roles=[])
 
@@ -432,6 +508,57 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
+    def test_delete_server_get_connect_error(self):
+        context = {
+            'deployment_id': "1234",
+            'resource_key': '1',
+            'region': 'ORD',
+            'instance_id': 'abcdef-ghig-1234',
+            'resource': {
+                'index': '1',
+                'status': 'ACTIVE',
+                'instance': {
+                    'id': 'abcdef-ghig-1234'
+                },
+                'hosts': ['0']
+            }
+        }
+        api = self.mox.CreateMockAnything()
+        mock_servers = self.mox.CreateMockAnything()
+        api.servers = mock_servers
+        mock_servers.get('abcdef-ghig-1234').AndRaise(requests.ConnectionError("Mock conneciton error"))
+        self.mox.ReplayAll()
+        with self.assertRaises(requests.ConnectionError):
+            compute.delete_server_task(context, api=api)
+        self.mox.VerifyAll()
+
+    def test_delete_server_delete_connect_error(self):
+        context = {
+            'deployment_id': "1234",
+            'resource_key': '1',
+            'region': 'ORD',
+            'instance_id': 'abcdef-ghig-1234',
+            'resource': {
+                'index': '1',
+                'status': 'ACTIVE',
+                'instance': {
+                    'id': 'abcdef-ghig-1234'
+                },
+                'hosts': ['0']
+            }
+        }
+        api = self.mox.CreateMockAnything()
+        mock_servers = self.mox.CreateMockAnything()
+        api.servers = mock_servers
+        mock_server = self.mox.CreateMockAnything()
+        mock_server.status = 'ACTIVE'
+        mock_server.delete().AndRaise(requests.ConnectionError("Mock conneciton error"))
+        mock_servers.get('abcdef-ghig-1234').AndReturn(mock_server)
+        self.mox.ReplayAll()
+        with self.assertRaises(requests.ConnectionError):
+            compute.delete_server_task(context, api=api)
+        self.mox.VerifyAll()
+
     def test_wait_on_delete(self):
         context = {
             'deployment_id': "1234",
@@ -468,6 +595,32 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.ReplayAll()
         ret = compute.wait_on_delete_server(context, api=api)
         self.assertDictEqual(expect, ret)
+        self.mox.VerifyAll()
+
+    def test_wait_on_delete_connect_error(self):
+        context = {
+            'deployment_id': "1234",
+            'resource_key': '1',
+            'region': 'ORD',
+            'instance_id': 'abcdef-ghig-1234',
+            'resource': {
+                'index': '1',
+                'status': 'DELETING',
+                'instance': {
+                    'id': 'abcdef-ghig-1234'
+                },
+                'hosts': ['0']
+            }
+        }
+        api = self.mox.CreateMockAnything()
+        mock_servers = self.mox.CreateMockAnything()
+        api.servers = mock_servers
+        mock_server = self.mox.CreateMockAnything()
+        mock_server.status = 'DELETED'
+        mock_servers.find(id='abcdef-ghig-1234').AndRaise(requests.ConnectionError("Mock conneciton error"))
+        self.mox.ReplayAll()
+        with self.assertRaises(requests.ConnectionError):
+            compute.wait_on_delete_server(context, api=api)
         self.mox.VerifyAll()
 
     def test_find_url(self):
