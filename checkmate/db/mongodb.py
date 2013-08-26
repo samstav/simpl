@@ -544,7 +544,7 @@ class Driver(common.DbBase):
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
         current = self._get_object(self._workflow_collection_name, api_id,
                                    projection={'_lock': 1,
-                                   '_lock_timestamp': 1})
+                                               '_lock_timestamp': 1})
         if current and '_lock' in current:
             body['_lock'] = current['_lock']
             body['_lock_timestamp'] = current.get('_lock_timestamp')
@@ -866,16 +866,19 @@ class Driver(common.DbBase):
                 for key in whitelist:
                     if key in query and query[key]:
                         if key == 'start_date':
-                            condition = _parse_comparison('>=' + query[key])
+                            condition = _parse_comparison('>=%s' % query[key])
                             filters['created'] = condition
                         elif key == 'end_date':
-                            condition = _parse_comparison('<=' + query[key] + ' 23:59:59 +0000')
+                            condition = _parse_comparison('<=%s 23:59:59 +0000'
+                                                          % query[key])
                             filters['created'] = condition
                         elif key == 'search':
                             search_term = query['search']
                             disjunction = []
                             for attr in whitelist:
-                                condition = {attr: _parse_comparison('%' + search_term)}
+                                condition = {
+                                    attr: _parse_comparison('%%%s' %
+                                                            search_term)}
                                 disjunction.append(condition)
                             filters['$or'] = disjunction
                         else:
