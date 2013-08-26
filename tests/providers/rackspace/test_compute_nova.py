@@ -23,6 +23,7 @@ import unittest
 
 import mock
 import mox
+import requests
 
 from checkmate import deployments as cm_deps
 from checkmate.deployments import tasks
@@ -373,6 +374,23 @@ class TestNovaCompute(test.ProviderTester):
             context, server.id, 'North', [], api_object=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+    def test_wait_on_build_connect_error(self):
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock.client.region_name = 'North'
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.servers.find(id=server.id).AndRaise(requests.ConnectionError("Mock conneciton error"))
+
+        context = dict(deployment_id='DEP', resource_key='1', roles=[])
+
+        self.mox.ReplayAll()
+        with self.assertRaises(requests.ConnectionError):
+            compute.wait_on_build(
+                context, server.id, 'North', [], api_object=openstack_api_mock)
+
         self.mox.VerifyAll()
 
     def test_delete_server(self):
