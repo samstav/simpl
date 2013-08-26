@@ -30,10 +30,13 @@ class TestDbBase(unittest.TestCase):
     def test_serialization(self):
         dbb = db.DbBase("connection-string://")
         self.assertEqual(str(dbb), "connection-string://")
-        self.assertEqual(repr(dbb), "<checkmate.db.base.DbBase "
-                         "connection_string='connection-string://'>")
         dbb2 = pickle.loads(pickle.dumps(dbb))
         self.assertEqual(dbb2.connection_string, "connection-string://")
+
+    def test_representation(self):
+        dbb = db.DbBase("connection-string://")
+        self.assertEqual(repr(dbb), "<checkmate.db.base.DbBase "
+                         "connection_string='connection-string://'>")
 
     def test_convert_data_status(self):
         dbb = db.DbBase("connection-string://")
@@ -124,16 +127,28 @@ class TestDbBase(unittest.TestCase):
         """Verifies secrets removed from url."""
         url = 'mongodb://username:secret_pass@localhost:8080/checkmate'
         dbb = db.DbBase(url)
-        expected = 'mongodb://username@localhost:8080/checkmate'
-        results = dbb.remove_string_secrets(url)
+        expected = ("<checkmate.db.base.DbBase connection_string='mongodb://"
+                    "username:*****@localhost:8080/checkmate'>")
+        results = repr(dbb)
         self.assertEqual(expected, results)
 
     def test_remove_string_secrets_invalid_data(self):
         """Verifies data passed in is returned if not a basestring type."""
         url = 12345
-        dbb = db.DbBase("connection-string://")
-        results = dbb.remove_string_secrets(url)
-        self.assertEqual(url, results)
+        dbb = db.DbBase(url)
+        results = repr(dbb)
+        expected = "<checkmate.db.base.DbBase connection_string='12345'>"
+        self.assertEqual(expected, results)
+
+    def test_remove_string_secrets_used_in_repr(self):
+        """Verifies secrets removed from repr."""
+        url = 'mongodb://username:secret_pass@localhost:8080/checkmate'
+        dbb = db.DbBase(url)
+        expected = ("<checkmate.db.base.DbBase connection_string='mongodb://"
+                    "username:*****@localhost:8080/checkmate'>")
+        results = repr(dbb)
+        self.assertEqual(expected, results)
+
 
 if __name__ == '__main__':
     import sys
