@@ -1277,6 +1277,11 @@ def delete_server_task(context, api=None):
                     }
                 })
         server.delete()
+        except requests.ConnectionError as exc:
+            msg = ("Connection error talking to %s endpoint" %
+                   (api.client.managment_url))
+            LOG.error(msg, exc_info=True)
+            raise delete_server_task.retry(exc=exc)
     else:
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
                % server.status)
