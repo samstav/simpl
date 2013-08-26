@@ -281,18 +281,18 @@ class TestUtils(unittest.TestCase):
         """Used for get_source_body test."""
         pass
 
-    def test_isUUID_blanks(self):
-        self.assertFalse(utils.isUUID(None), "None is not a UUID")
-        self.assertFalse(utils.isUUID(""), "Empty string is not a UUID")
-        self.assertFalse(utils.isUUID(" "), "Space is not a UUID")
+    def test_is_uuid_blanks(self):
+        self.assertFalse(utils.is_uuid(None), "None is not a UUID")
+        self.assertFalse(utils.is_uuid(""), "Empty string is not a UUID")
+        self.assertFalse(utils.is_uuid(" "), "Space is not a UUID")
 
-    def test_isUUID_negatives(self):
-        self.assertFalse(utils.isUUID("12345"), "12345 is not a UUID")
-        self.assertFalse(utils.isUUID(utils), "module is not a UUID")
+    def test_is_uuid_negatives(self):
+        self.assertFalse(utils.is_uuid("12345"), "12345 is not a UUID")
+        self.assertFalse(utils.is_uuid(utils), "module is not a UUID")
 
-    def test_isUUID_positives(self):
-        self.assertTrue(utils.isUUID(uuid.uuid4()), "uuid() is a UUID")
-        self.assertTrue(utils.isUUID(uuid.uuid4().hex),
+    def test_is_uuid_positives(self):
+        self.assertTrue(utils.is_uuid(uuid.uuid4()), "uuid() is a UUID")
+        self.assertTrue(utils.is_uuid(uuid.uuid4().hex),
                         "uuid string is a UUID")
 
     def test_write_path(self):

@@ -1,9 +1,22 @@
-''' General utility functions
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+""" General utility functions
 
 - handling content conversion (yaml/json)
 - handling templating (Jinja2)
-'''
-# pylint: disable=E0611
+"""
 import base64
 import collections
 import inspect
@@ -14,8 +27,7 @@ import re
 import shutil
 import string
 import struct
-import subprocess
-from subprocess import CalledProcessError
+import subprocess as subprc
 import sys
 import time
 import urlparse
@@ -26,17 +38,13 @@ from Crypto.Random import random
 from eventlet.green import threading
 import functools
 import yaml
-from yaml.composer import ComposerError
+from yaml import composer
 from yaml import events
-from yaml.parser import ParserError
-from yaml.scanner import ScannerError
+from yaml import parser
+from yaml import scanner
 
 from checkmate.common import codegen
-from checkmate.exceptions import (
-    CheckmateDataIntegrityError,
-    CheckmateNoData,
-    CheckmateValidationException,
-)
+from checkmate import exceptions as cmexc
 
 
 LOG = logging.getLogger(__name__)
@@ -51,13 +59,13 @@ DEFAULT_SENSITIVE_KEYS = [
 
 
 def get_debug_level(config):
-    '''Get debug settings from arguments.
+    """Get debug settings from arguments.
 
     --debug: turn on additional debug code/inspection (implies logging.DEBUG)
     --verbose: turn up logging output (logging.DEBUG)
     --quiet: turn down logging output (logging.WARNING)
     default is logging.INFO
-    '''
+    """
     if config.debug is True:
         return logging.DEBUG
     elif config.verbose is True:
@@ -69,10 +77,10 @@ def get_debug_level(config):
 
 
 class DebugFormatter(logging.Formatter):
-    '''Log formatter.
+    """Log formatter.
 
     Outputs any 'data' values passed in the 'extra' parameter if provided.
-    '''
+    """
     def format(self, record):
         # Print out any 'extra' data provided in logs
         if hasattr(record, 'data'):
@@ -82,7 +90,7 @@ class DebugFormatter(logging.Formatter):
 
 
 def get_debug_formatter(config):
-    '''Get debug formatter based on configuration.
+    """Get debug formatter based on configuration.
 
     :param config: configurtration namespace (ex. argparser)
 
@@ -90,7 +98,7 @@ def get_debug_formatter(config):
     --verbose: standard debug
     --quiet: turn down logging output (logging.WARNING)
     default is logging.INFO
-    '''
+    """
     if config.debug is True:
         return DebugFormatter('%(pathname)s:%(lineno)d: %(levelname)-8s '
                               '%(message)s')
@@ -103,7 +111,7 @@ def get_debug_formatter(config):
 
 
 def find_console_handler(logger):
-    '''Returns a stream handler, if it exists.'''
+    """Returns a stream handler, if it exists."""
     for handler in logger.handlers:
         if isinstance(handler, logging.StreamHandler) and \
                 handler.stream == sys.stderr:
@@ -111,10 +119,10 @@ def find_console_handler(logger):
 
 
 def init_logging(config, default_config=None):
-    '''Configure logging
+    """Configure logging
 
     :param config: object with configuration namespace (argparse parser)
-    '''
+    """
     if config.logconfig:
         logging.config.fileConfig(config.logconfig,
                                   disable_existing_loggers=False)
@@ -126,7 +134,7 @@ def init_logging(config, default_config=None):
 
 
 def init_console_logging(config):
-    '''Log to console.'''
+    """Log to console."""
     # define a Handler which writes messages to the sys.stderr
     console = find_console_handler(logging.getLogger())
     if not console:
@@ -146,24 +154,24 @@ def init_console_logging(config):
 
 
 def match_celery_logging(logger):
-    '''Match celery log level.'''
+    """Match celery log level."""
     if logger.level < int(os.environ.get('CELERY_LOG_LEVEL', logger.level)):
         logger.setLevel(int(os.environ.get('CELERY_LOG_LEVEL')))
 
 
 def import_class(import_str):
-    '''Returns a class from a string including module and class.'''
-    mod_str, _sep, class_str = import_str.rpartition('.')
+    """Returns a class from a string including module and class."""
+    mod_str, _, class_str = import_str.rpartition('.')
     try:
         __import__(mod_str)
         return getattr(sys.modules[mod_str], class_str)
-    except (ImportError, ValueError, AttributeError), exc:
+    except (ImportError, ValueError, AttributeError) as exc:
         LOG.debug('Inner Exception: %s', exc)
         raise
 
 
 def import_object(import_str, *args, **kw):
-    '''Returns an object including a module or module and class.'''
+    """Returns an object including a module or module and class."""
     try:
         __import__(import_str)
         return sys.modules[import_str]
@@ -173,11 +181,11 @@ def import_object(import_str, *args, **kw):
 
 
 def resolve_yaml_external_refs(document):
-    '''Parses YAML and resolves any external references
+    """Parses YAML and resolves any external references
 
     :param document: a stream object
     :returns: an iterable
-    '''
+    """
     anchors = []
     for event in yaml.parse(document, Loader=yaml.SafeLoader):
         if isinstance(event, events.AliasEvent):
@@ -194,10 +202,10 @@ def resolve_yaml_external_refs(document):
 
 
 def read_body(request):
-    '''Reads request body considering content-type and returns it as a dict.'''
+    """Reads request body considering content-type and returns it as a dict."""
     data = request.body
     if not data or getattr(data, 'len', -1) == 0:
-        raise CheckmateNoData("No data provided")
+        raise cmexc.CheckmateNoData("No data provided")
     content_type = request.get_header(
         'Content-type', 'application/json')
     if ';' in content_type:
@@ -206,12 +214,12 @@ def read_body(request):
     if content_type == 'application/x-yaml':
         try:
             return yaml_to_dict(data)
-        except (ParserError, ScannerError) as exc:
-            raise CheckmateValidationException("Invalid YAML syntax. "
-                                               "Check:\n%s" % exc)
-        except ComposerError as exc:
-            raise CheckmateValidationException("Invalid YAML structure. "
-                                               "Check:\n%s" % exc)
+        except (parser.ParserError, scanner.ScannerError) as exc:
+            raise cmexc.CheckmateValidationException("Invalid YAML syntax. "
+                                                     "Check:\n%s" % exc)
+        except composer.ComposerError as exc:
+            raise cmexc.CheckmateValidationException("Invalid YAML structure. "
+                                                     "Check:\n%s" % exc)
 
     elif content_type == 'application/json':
         return json.load(data)
@@ -221,46 +229,47 @@ def read_body(request):
             result = json.loads(obj)
             if result:
                 return result
-        raise CheckmateValidationException("Unable to parse content. Form "
-                                           "POSTs only support objects in the "
-                                           "'object' field")
+        raise cmexc.CheckmateValidationException("Unable to parse content. "
+                                                 "Form POSTs only support "
+                                                 "objects in the 'object' "
+                                                 "field")
     else:
         bottle.abort(415, "Unsupported Media Type: %s" % content_type)
 
 
 def yaml_to_dict(data):
-    '''Parses YAML to a dict using checkmate extensions.'''
+    """Parses YAML to a dict using checkmate extensions."""
     return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
                                     Dumper=yaml.SafeDumper))
 
 
 def dict_to_yaml(data):
-    '''Parses dict to YAML using checkmate extensions.'''
+    """Parses dict to YAML using checkmate extensions."""
     return yaml.safe_dump(data, default_flow_style=False)
 
 
 def write_yaml(data, request, response):
-    '''Write output in yaml.'''
+    """Write output in yaml."""
     response.set_header('content-type', 'application/x-yaml')
     return to_yaml(data)
 
 
 def to_yaml(data):
-    '''Writes python object to YAML.
+    """Writes python object to YAML.
 
     Includes special handling for Checkmate objects derived from MutableMapping
-    '''
+    """
     if isinstance(data, collections.MutableMapping) and hasattr(data, '_data'):
         return yaml.safe_dump(data._data, default_flow_style=False)
     return yaml.safe_dump(data, default_flow_style=False)
 
 
 def escape_yaml_simple_string(text):
-    '''Renders a simple string as valid YAML string escaping where necessary.
+    """Renders a simple string as valid YAML string escaping where necessary.
 
     Note: Skips formatting if value supplied is not a string or is a multi-line
           string and just returns the value unmodified
-    '''
+    """
     # yaml seems to append \n or \n...\n in certain circumstances
     if text is None or (isinstance(text, basestring) and '\n' not in text):
         return yaml.safe_dump(text).strip('\n').strip('...').strip('\n')
@@ -269,16 +278,16 @@ def escape_yaml_simple_string(text):
 
 
 def write_json(data, request, response):
-    '''Write output in json.'''
+    """Write output in json."""
     response.set_header('content-type', 'application/json')
     return to_json(data)
 
 
 def to_json(data):
-    '''Writes out python object to JSON.
+    """Writes out python object to JSON.
 
     Includes special handling for Checkmate objects derived from MutableMapping
-    '''
+    """
     if isinstance(data, collections.MutableMapping) and hasattr(data, 'dumps'):
         return data.dumps(indent=4)
     return json.dumps(data, indent=4)
@@ -292,13 +301,13 @@ HANDLERS = {
 
 
 def formatted_response(uripath, with_pagination=False):
-    '''A function decorator that adds pagination information to the response
+    """A function decorator that adds pagination information to the response
     header of a route/get/post/put function
-    '''
+    """
     def _formatted_response(fxn):
-        '''Add pagination (optional) and headers to response.'''
+        """Add pagination (optional) and headers to response."""
         def _decorator(*args, **kwargs):
-            '''Internal function wrapped as a decorator.'''
+            """Internal function wrapped as a decorator."""
             try:
                 _validate_range_values(bottle.request, 'offset', kwargs)
                 _validate_range_values(bottle.request, 'limit', kwargs)
@@ -334,7 +343,7 @@ def formatted_response(uripath, with_pagination=False):
                                 '%s\nGlobals:\n%s', expected_tenant,
                                 deployment['tenandId'], locals(), globals()
                             )
-                            raise CheckmateDataIntegrityError(
+                            raise cmexc.CheckmateDataIntegrityError(
                                 'A Tenant ID in the results '
                                 'does not match %s.',
                                 expected_tenant
@@ -349,7 +358,7 @@ def formatted_response(uripath, with_pagination=False):
 
 
 def _validate_range_values(request, label, kwargs):
-    '''Ensures value contained in label is a positive integer.'''
+    """Ensures value contained in label is a positive integer."""
     value = kwargs.get(label, request.query.get(label))
     if value:
         kwargs[label] = int(value)
@@ -359,7 +368,7 @@ def _validate_range_values(request, label, kwargs):
 
 def _write_pagination_headers(data, offset, limit, response,
                               uripath, tenant_id):
-    '''Add pagination headers to the response body.'''
+    """Add pagination headers to the response body."""
     count = len(data.get('results'))
     if 'collection-count' in data:
         total = int(data.get('collection-count', 0))
@@ -412,11 +421,11 @@ def _write_pagination_headers(data, offset, limit, response,
 
 
 def write_body(data, request, response):
-    '''Write output with format based on accept header.
+    """Write output with format based on accept header.
     This cycles through the global HANDLERs to match content type and then
     calls that handler. Additional handlers can be added to support Additional
     content types.
-    '''
+    """
     response.set_header('vary', 'Accept,Accept-Encoding,X-Auth-Token')
     accept = request.get_header('Accept', ['application/json'])
 
@@ -430,15 +439,15 @@ def write_body(data, request, response):
 
 
 def extract_sensitive_data(data, sensitive_keys=None):
-    '''Parses the dict passed in, extracting all sensitive data.
+    """Parses the dict passed in, extracting all sensitive data.
 
     Extracted data is placed into another dict, and returns two dicts; one
     without the sensitive data and with only the sensitive data.
 
     :param sensitive_keys: a list of keys considered sensitive
-    '''
+    """
     def key_match(key, sensitive_keys):
-        '''Determines whether or not key is in sensitive_keys.'''
+        """Determines whether or not key is in sensitive_keys."""
         if key in sensitive_keys:
             return True
         for reg_expr in [pattern for pattern in sensitive_keys
@@ -448,8 +457,10 @@ def extract_sensitive_data(data, sensitive_keys=None):
                 return True
         return False
 
-    def recursive_split(data, sensitive_keys=[]):
-        '''Returns split dict or list if it contains any sensitive fields.'''
+    def recursive_split(data, sensitive_keys=None):
+        """Returns split dict or list if it contains any sensitive fields."""
+        if sensitive_keys is None:  # Safer than default value
+            sensitive_keys = []
         clean = None
         sensitive = None
         has_sensitive_data = False
@@ -534,11 +545,11 @@ def extract_sensitive_data(data, sensitive_keys=None):
 
 
 def flatten(list_of_dict):
-    '''Converts a list of dictionary to a single dictionary.
+    """Converts a list of dictionary to a single dictionary.
 
     If 2 or more dictionaries have the same key then the data from the last
     dictionary in the list will be taken.
-    '''
+    """
     result = {}
     for entry in list_of_dict:
         result.update(entry)
@@ -546,12 +557,12 @@ def flatten(list_of_dict):
 
 
 def merge_dictionary(dst, src, extend_lists=False):
-    '''Recursively merge two dicts.
+    """Recursively merge two dicts.
 
     Hashes at the root level are NOT overwritten
 
     Note: This updates dst.
-    '''
+    """
     stack = [(dst, src)]
     while stack:
         current_dst, current_src = stack.pop()
@@ -571,11 +582,11 @@ def merge_dictionary(dst, src, extend_lists=False):
 
 
 def merge_lists(dest, source, extend_lists=False):
-    '''Recursively merge two lists
+    """Recursively merge two lists
 
     This applies merge_dictionary if any of the entries are dicts.
     Note: This updates dst.
-    '''
+    """
     if not source:
         return
     if not extend_lists:
@@ -606,7 +617,7 @@ def merge_lists(dest, source, extend_lists=False):
 
 
 def is_ssh_key(key):
-    '''Checks if string looks like it is an ssh key.'''
+    """Checks if string looks like it is an ssh key."""
     if not key:
         return False
     if not isinstance(key, basestring):
@@ -618,10 +629,7 @@ def is_ssh_key(key):
     parts = key.split()
     if len(parts) < 2:
         return False
-    if len(parts) > 2:
-        key_type, key_string, comment = parts[0:3]  # pylint: disable=W0612
-    else:
-        key_type, key_string = parts[0:2]  # pylint: disable=W0612
+    key_string = parts[1]
     try:
         data = base64.decodestring(key_string)
     except StandardError:
@@ -636,12 +644,12 @@ def is_ssh_key(key):
 
 
 def get_class_name(instance):
-    '''Return instance's class name.'''
+    """Return instance's class name."""
     return instance.__class__.__name__
 
 
 def get_source_body(function):
-    '''Gets the body of a function (i.e. no definition line, and unindented.'''
+    """Gets the body of a function (i.e. no definition line, and unindented."""
     lines = inspect.getsource(function).split('\n')
 
     # Find body - skip decorators and definition
@@ -662,13 +670,13 @@ def get_source_body(function):
 
 
 def with_tenant(fxn):
-    '''Ensure a context tenant_id is passed into decorated function
+    """Ensure a context tenant_id is passed into decorated function
 
     A function decorator that ensures a context tenant_id is passed in to
     the decorated function as a kwarg
-    '''
+    """
     def wrapped(*args, **kwargs):
-        '''Internal function wrapped as a decorator.'''
+        """Internal function wrapped as a decorator."""
         if kwargs.get('tenant_id'):
             # Tenant ID is being passed in
             return fxn(*args, **kwargs)
@@ -679,15 +687,15 @@ def with_tenant(fxn):
 
 
 def support_only(types):
-    '''Ensures route is only accepted if content type is supported.
+    """Ensures route is only accepted if content type is supported.
 
     A function decorator that ensures the route is only accepted if the
     content type is in the list of types supplied
-    '''
+    """
     def wrap(fxn):
-        '''Internal function wrapped as a decorator.'''
+        """Internal function wrapped as a decorator."""
         def wrapped(*args, **kwargs):
-            '''Internal function wrapped as a decorator.'''
+            """Internal function wrapped as a decorator."""
             accept = bottle.request.get_header("Accept", [])
             if accept == "*/*":
                 return fxn(*args, **kwargs)
@@ -701,9 +709,9 @@ def support_only(types):
 
 
 def only_admins(fxn):
-    '''Decorator to limit access to admins only.'''
+    """Decorator to limit access to admins only."""
     def wrapped(*args, **kwargs):
-        '''Internal function wrapped as a decorator.'''
+        """Internal function wrapped as a decorator."""
         if bottle.request.context.is_admin is True:
             LOG.debug("Admin account '%s' accessing '%s'",
                       bottle.request.context.username, bottle.request.path)
@@ -715,17 +723,17 @@ def only_admins(fxn):
 
 
 def get_time_string(time_gmt=None):
-    '''The Checkmate canonical time string format.
+    """The Checkmate canonical time string format.
 
     Changing this function will change all times that checkmate uses in
     blueprints, deployments, etc...
-    '''
+    """
     # TODO(Pablo): We should assert that time_gmt is a time.struct_time
     return time.strftime("%Y-%m-%d %H:%M:%S +0000", time_gmt or time.gmtime())
 
 
-def isUUID(value):
-    '''Tests if a provided value is a valid uuid.'''
+def is_uuid(value):
+    """Tests if a provided value is a valid uuid."""
     if not value:
         return False
     if isinstance(value, uuid.UUID):
@@ -738,7 +746,7 @@ def isUUID(value):
 
 
 def write_path(target, path, value):
-    '''Writes a value into a dict building any intermediate keys.'''
+    """Writes a value into a dict building any intermediate keys."""
     parts = path.split('/')
     current = target
     for part in parts[:-1]:
@@ -750,7 +758,7 @@ def write_path(target, path, value):
 
 
 def read_path(source, path):
-    '''Reads a value from a dict supporting a path as a key.'''
+    """Reads a value from a dict supporting a path as a key."""
     parts = path.strip('/').split('/')
     current = source
     for part in parts[:-1]:
@@ -763,7 +771,7 @@ def read_path(source, path):
 
 
 def is_evaluable(value):
-    '''Check if value is a function that can be passed to evaluate().'''
+    """Check if value is a function that can be passed to evaluate()."""
     try:
         return (value.startswith('=generate_password(') or
                 value.startswith('=generate_uuid('))
@@ -773,14 +781,14 @@ def is_evaluable(value):
 
 def generate_password(min_length=None, max_length=None, required_chars=None,
                       starts_with=string.ascii_letters, valid_chars=None):
-    '''Generates a password based on constraints provided
+    """Generates a password based on constraints provided
 
     :param min_length: minimum password length
     :param max_length: maximum password length
     :param required_chars: a set of character sets, one for each required char
     :param starts_with: a set of characters required as the first character
     :param valid_chars: the set of valid characters for non-required chars
-    '''
+    """
     # Raise Exception if max_length exceeded
     if min_length > 255 or max_length > 255:
         raise ValueError('Maximum password length of 255 characters exceeded.')
@@ -829,12 +837,12 @@ def generate_password(min_length=None, max_length=None, required_chars=None,
 
 
 def evaluate(function_string):
-    '''Evaluate an option value.
+    """Evaluate an option value.
 
     Understands the following functions:
     - generate_password()
     - generate_uuid()
-    '''
+    """
     func_name, kwargs = codegen.kwargs_from_string(function_string)
     if func_name == 'generate_uuid':
         return uuid.uuid4().hex
@@ -844,7 +852,7 @@ def evaluate(function_string):
 
 
 def check_all_output(params, find="ERROR"):
-    '''Detects 'find' string in params, returning a list of all matching lines
+    """Detects 'find' string in params, returning a list of all matching lines
 
     Similar to subprocess.check_output, but parses both stdout and stderr
     and detects any string passed in as the find parameter.
@@ -856,27 +864,27 @@ def check_all_output(params, find="ERROR"):
     needed because knife did not exit with an error code, but now we're just
     keeping it for the script provider (coming soon)
 
-    '''
+    """
     on_posix = 'posix' in sys.builtin_module_names
 
     def start_thread(func, *args):
-        '''Start thread as a daemon.'''
+        """Start thread as a daemon."""
         thread = threading.Thread(target=func, args=args)
         thread.daemon = True
         thread.start()
         return thread
 
     def consume(infile, output, found):
-        '''Per thread: read lines in file searching for find.'''
+        """Per thread: read lines in file searching for find."""
         for line in iter(infile.readline, ''):
             output(line)
             if find in line:
                 found(line)
         infile.close()
 
-    process = subprocess.Popen(params, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, bufsize=1,
-                               close_fds=on_posix)
+    process = subprc.Popen(params, stdout=subprc.PIPE,
+                           stderr=subprc.PIPE, bufsize=1,
+                           close_fds=on_posix)
 
     # preserve last numlines of stdout and stderr
     numlines = 100
@@ -896,61 +904,61 @@ def check_all_output(params, find="ERROR"):
     else:
         msg = "stdout: %s \n stderr: %s \n Found: %s" % (stdout, stderr, found)
         LOG.debug(msg)
-        raise CalledProcessError(retcode, ' '.join(params),
-                                 output='\n'.join(stdout),
-                                 error_info='%s%s' % ('\n'.join(stderr),
-                                                      '\n'.join(found)))
+        raise subprc.CalledProcessError(retcode, ' '.join(params),
+                                        output='\n'.join(stdout),
+                                        error_info='%s%s' % ('\n'.join(stderr),
+                                        '\n'.join(found)))
 
 
 def is_simulation(api_id):
-    '''Determine if the current object is in simulation.'''
+    """Determine if the current object is in simulation."""
     return str(api_id).startswith('simulate')
 
 
-def get_id(is_simulation):
-    '''Generate id: prepend 'simulate' for simulations.'''
-    if is_simulation:
+def get_id(is_sim):
+    """Generate id: prepend 'simulate' for simulations."""
+    if is_sim:
         return 'simulate%s' % uuid.uuid4().hex[0:12]
     else:
         return uuid.uuid4().hex
 
 
 def git_clone(repo_dir, url, branch="master"):
-    '''Do a git checkout of `head' in `repo_dir'.'''
-    return subprocess.check_output(
+    """Do a git checkout of `head' in `repo_dir'."""
+    return subprc.check_output(
         ['git', 'clone', url, repo_dir, '--branch', branch])
 
 
 def git_tags(repo_dir):
-    '''Return a list of git tags for the git repo in `repo_dir'.'''
-    return subprocess.check_output(
+    """Return a list of git tags for the git repo in `repo_dir'."""
+    return subprc.check_output(
         ['git', 'tag', '-l'], cwd=repo_dir).split("\n")
 
 
 def git_checkout(repo_dir, head):
-    '''Do a git checkout of `head' in `repo_dir'.'''
-    return subprocess.check_output(['git', 'checkout', head], cwd=repo_dir)
+    """Do a git checkout of `head' in `repo_dir'."""
+    return subprc.check_output(['git', 'checkout', head], cwd=repo_dir)
 
 
 def git_fetch(repo_dir, refspec, remote="origin"):
-    '''Do a git fetch of `refspec' in `repo_dir'.'''
-    return subprocess.check_output(
+    """Do a git fetch of `refspec' in `repo_dir'."""
+    return subprc.check_output(
         ['git', 'fetch', remote, refspec], cwd=repo_dir)
 
 
 def git_pull(repo_dir, head, remote="origin"):
-    '''Do a git pull of `head' from `remote'.'''
-    return subprocess.check_output(['git', 'pull', remote, head], cwd=repo_dir)
+    """Do a git pull of `head' from `remote'."""
+    return subprc.check_output(['git', 'pull', remote, head], cwd=repo_dir)
 
 
 def copy_contents(source, dest, with_overwrite=False, create_path=True):
-    '''Copy the contents of a `source' directory to `dest'.
+    """Copy the contents of a `source' directory to `dest'.
 
     It's affect is roughly equivalent to the following shell command:
 
     mkdir -p /path/to/dest && cp -r /path/to/source/* /path/to/dest/
 
-    '''
+    """
     if not os.path.exists(dest):
         if create_path:
             os.makedirs(dest)
@@ -962,7 +970,7 @@ def copy_contents(source, dest, with_overwrite=False, create_path=True):
         if os.path.isdir(source_path):
             try:
                 shutil.copytree(source_path, os.path.join(dest, src_file))
-            except OSError, exc:
+            except OSError as exc:
                 if exc.errno == 17:  # File exists
                     if with_overwrite:
                         shutil.rmtree(os.path.join(dest, src_file))
@@ -976,7 +984,7 @@ def copy_contents(source, dest, with_overwrite=False, create_path=True):
 
 
 def filter_resources(resources, provider_name):
-    '''Return resources of a specified type.'''
+    """Return resources of a specified type."""
     results = []
     for resource in resources.values():
         if 'provider' in resource:
@@ -986,6 +994,7 @@ def filter_resources(resources, provider_name):
 
 
 def cap_limit(limit, tenant_id):
+    """Checks limit param and resets it to max allowable if needed."""
     # So that we don't end up with a DoS due to unchecked limit:
     if limit is None or limit > 100 or limit < 0:
         LOG.warn('Request for tenant %s with limit of %s. Defaulting '
@@ -995,19 +1004,19 @@ def cap_limit(limit, tenant_id):
 
 
 def get_ips_from_server(server, roles, primary_address_type='public'):
-    '''Extract ip addresses from a server object.'''
-    ip = None
+    """Extract ip addresses from a server object."""
+    ip_addr = None
     result = {}
     addresses = server.addresses.get(primary_address_type, [])
     for address in addresses:
         if address['version'] == 4:
-            ip = address['addr']
+            ip_addr = address['addr']
             break
     if ((primary_address_type != 'public' and server.accessIPv4) or
             'rack_connect' in roles):
-        ip = server.accessIPv4
-        LOG.info("Using accessIPv4 to connect: %s", ip)
-    result['ip'] = ip
+        ip_addr = server.accessIPv4
+        LOG.info("Using accessIPv4 to connect: %s", ip_addr)
+    result['ip'] = ip_addr
 
     public_addresses = server.addresses.get('public', [])
     for address in public_addresses:
@@ -1025,18 +1034,19 @@ def get_ips_from_server(server, roles, primary_address_type='public'):
 
 
 class Simulation(object):
-    '''Generic object used to set simulation attrs.'''
+    """Generic object used to set simulation attrs."""
     def __init__(self, *args, **kwargs):
-        '''Assigns arguments to attributes.  Kwargs sets key to attr name.'''
+        """Assigns arguments to attributes.  Kwargs sets key to attr name."""
         self.args = args
         for key, value in kwargs.items():
             setattr(self, key, value)
 
 
 class QueryParams(object):
-
+    """Query Parameters Class."""
     @staticmethod
     def parse(params, whitelist=None):
+        """Parse query params based on whitelist if provided."""
         keys = params.keys()
         if whitelist:
             keys = whitelist
@@ -1057,7 +1067,7 @@ class QueryParams(object):
 
 
 def hide_url_password(url):
-    '''Detects a password part of a URL and replaces it with *****.'''
+    """Detects a password part of a URL and replaces it with *****."""
     try:
         parsed = urlparse.urlsplit(url)
         if parsed.password:

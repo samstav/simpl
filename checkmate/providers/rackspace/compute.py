@@ -50,7 +50,7 @@ import checkmate.ssh
 from checkmate.utils import (
     get_class_name,
     get_ips_from_server,
-    isUUID,
+    is_uuid,
     match_celery_logging,
     merge_dictionary,
     yaml_to_dict,
@@ -263,7 +263,7 @@ class Provider(RackspaceComputeProviderBase):
                                        default='Ubuntu 12.04')
 
         image_types = catalog['lists'].get('types', {})
-        if not isUUID(image):
+        if not is_uuid(image):
             # Assume it is an OS name and find it
             for key, value in image_types.iteritems():
                 if image == value['name'] or image == value['os']:
@@ -271,7 +271,7 @@ class Provider(RackspaceComputeProviderBase):
                     image = key
                     break
 
-        if not isUUID(image):
+        if not is_uuid(image):
             # Sounds like we did not match an image
             LOG.debug("%s not found in: %s", image, image_types.keys())
             raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
