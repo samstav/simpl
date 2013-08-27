@@ -597,16 +597,18 @@ def write_databag(environment, bagname, itemname, contents, resource,
             LOG.debug(result)
         else:
             LOG.warning("write_databag was called with no contents")
-    results = {
-        instance_key: {
-            'data-bags': {
-                bagname: {
-                    itemname: json.loads(contents)
+
+    if contents:
+        results = {
+            instance_key: {
+                'data-bags': {
+                    bagname: {
+                        itemname: json.loads(contents)
+                    }
                 }
             }
         }
-    }
-    resource_postback.delay(environment, results)
+        resource_postback.delay(environment, results)
 
 
 @task(countdown=20, max_retries=3)
