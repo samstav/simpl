@@ -341,6 +341,10 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     update_svg(scope);
   }
 
+  var _interpolate = function(x, new_width, old_width) {
+    return x * new_width / old_width;
+  }
+
   var _draw_streams = function(elements, streams) {
     var num_streams = streams.all.length;
     var height = 100 / num_streams;
@@ -358,6 +362,26 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('height', height);
     // Exit
     elements.exit().remove();
+  }
+
+  var _draw_nodes = function(elements, streams, width) {
+    var num_streams = streams.all.length;
+    var stream_height = 100 / num_streams;
+
+    var nodes = elements.selectAll('.nodes').data(function(d) {
+      return d.data;
+    });
+
+    // Enter
+    nodes.enter()
+      .append('svg:circle')
+      .attr('class', 'node')
+      .attr('r', 3)
+      .style('fill', function(d) { return 'green'; })
+      .attr("transform", function(d) {
+        var x = _interpolate(d.position.x, width, streams.width);
+        return "translate(" + x + "," + stream_height/2 + ")";
+      });
   }
 
   var create_svg = function(element, attrs) {
@@ -381,6 +405,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     var elements = scope.svg.streams.selectAll('.stream').data(streams.all);
 
     _draw_streams(elements, streams);
+    _draw_nodes(elements, streams, scope.svg.width);
 
     console.log(streams);
   }

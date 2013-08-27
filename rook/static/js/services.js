@@ -2114,7 +2114,8 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
   var DEFAULTS = {
     NO_RESOURCE: 9999,
     TASK_DURATION: 10,
-    LOG_SCALE: 15
+    LOG_SCALE: 15,
+    PADDING: 20
   };
 
   var _is_invalid = function(spec) {
@@ -2183,6 +2184,7 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     var position_memo = {}
     var streams = {};
     streams.all = [];
+    streams.width = -1;
 
     for (var key in specs) {
       var spec = specs[key];
@@ -2201,6 +2203,9 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       spec.position.x = _get_distance_from_start(spec, specs, position_memo);
       spec.position.y = stream.position;
       stream.data.push(spec);
+
+      if (spec.position.x > streams.width)
+        streams.width = spec.position.x + DEFAULTS.PADDING;
     }
 
     return streams;
