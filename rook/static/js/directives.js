@@ -341,12 +341,12 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     update_svg(scope);
   }
 
-  var _draw_streams = function(streams, data) {
-    var num_streams = data.all.length;
+  var _draw_streams = function(elements, streams) {
+    var num_streams = streams.all.length;
     var height = 100 / num_streams;
 
     // Enter
-    var stream = streams.enter()
+    var stream = elements.enter()
       .append('svg:g')
       .attr('class', function(d) { return 'stream ' + _even_odd(d.position); })
       .attr('transform', function(d) {
@@ -357,7 +357,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('width', '100%')
       .attr('height', height);
     // Exit
-    streams.exit().remove();
+    elements.exit().remove();
   }
 
   var create_svg = function(element, attrs) {
@@ -377,12 +377,12 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   var update_svg = function(scope) {
     if (!scope.deployment || scope.deployment.$resolved == false) return;
 
-    var data = WorkflowSpec.to_streams(scope.specs, scope.deployment);
-    var streams = scope.svg.streams.selectAll('.stream').data(data.all);
+    var streams = WorkflowSpec.to_streams(scope.specs, scope.deployment);
+    var elements = scope.svg.streams.selectAll('.stream').data(streams.all);
 
-    _draw_streams(streams, data);
+    _draw_streams(elements, streams);
 
-    console.log(data);
+    console.log(streams);
   }
 
   var link_fn = function(scope, element, attrs) {
