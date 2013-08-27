@@ -1393,31 +1393,34 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 
   $scope.was_server_created = function() {
     if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Server") === 0 || $scope.current_task.task_spec.indexOf("Wait for Server") === 0) &&
-        $scope.resource($scope.current_task) !== null)
+        $scope.resource($scope.current_task, $scope.current_spec) !== null)
       return true;
     return false;
   };
 
   $scope.was_database_created = function() {
     if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Create Database") === 0 || $scope.current_task.task_spec.indexOf("Add DB User") === 0) &&
-        $scope.resource($scope.current_task) !== null)
+        $scope.resource($scope.current_task, $scope.current_spec) !== null)
       return true;
     return false;
   };
 
   $scope.was_loadbalancer_created = function() {
     if (typeof $scope.current_task != 'undefined' && ($scope.current_task.task_spec.indexOf("Load") != -1 || $scope.current_task.task_spec.indexOf("alancer") != -1) &&
-        $scope.resource($scope.current_task) !== null)
+        $scope.resource($scope.current_task, $scope.current_spec) !== null)
       return true;
     return false;
   };
 
-  $scope.resource = function(task) {
+  $scope.resource = function(task, spec) {
     if (typeof task == 'undefined')
       return null;
+    if (typeof spec == "undefined")
+      return null;
     try {
+      var resource_number = spec.properties.resource
       var res = _.find(task.attributes, function(obj, attr) {
-        if (attr.indexOf("instance:") === 0)
+        if (attr.indexOf("instance:" + resource_number) === 0)
           return true;
         return false;
       });
