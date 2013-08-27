@@ -3631,7 +3631,9 @@ function ResourcesController($scope, $resource, $location, Deployment){
             }
         }
     };
-    deployment.status = 'UP'
+    deployment.status = 'UP';
+    deployment.name = $scope.deployment.name;
+    deployment['meta-data'] = {'application-name': 'Custom'};
     deployment.$save(function(result, getHeaders){
       console.log("Posted deployment");
       Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure)
