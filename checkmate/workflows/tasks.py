@@ -78,8 +78,8 @@ def update_deployment(w_id, error=None):
 
     dep_id = d_wf.get_attribute("deploymentId") or w_id
     tenant_id = d_wf.get_attribute("tenant_id")
-    status = d_wf.get_attribute('status'),
-    total = d_wf.get_attribute('total'),
+    status = d_wf.get_attribute('status')
+    total = d_wf.get_attribute('total')
     completed = d_wf.get_attribute('completed')
     wf_type = d_wf.get_attribute('type')
 
