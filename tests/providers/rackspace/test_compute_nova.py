@@ -965,6 +965,7 @@ class TestNovaProxy(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['image'], 'gotit')
 
+
 if __name__ == '__main__':
     import sys
 

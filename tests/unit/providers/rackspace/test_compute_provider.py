@@ -227,6 +227,33 @@ class TestGetApiInfo(unittest.TestCase):
         mock_logger.assert_called_with('Failed to find compute endpoint for '
                                        '%s in region %s', None, 'SYD')
 
+    @mock.patch.object(compute.CLIENT, 'Client')
+    def test_skip_snapshots(self, mock_client):
+        """Verifies snapshots are ignored."""
+        mock_snapshot = mock.Mock(id="A", metadata={'image_type': 'snapshot'})
+        mock_snapshot.configure_mock(name="Ubuntu 12.04 Snapshot")
+        mock_base = mock.Mock(id="B", metadata={'image_type': 'base'})
+        mock_base.configure_mock(name="Ubuntu 12.04 Base")
+
+        mock_list = mock.Mock(return_value=[mock_base, mock_snapshot])
+        mock_images = mock.Mock(list=mock_list)
+        mock_api = mock.Mock(images=mock_images)
+        mock_client.return_value = mock_api
+
+        expected = {
+            'images': {'B': {'name': 'Ubuntu 12.04 Base'}},
+            'types': {
+                'B': {
+                    'name': 'Ubuntu 12.04 Base',
+                    'os': 'Ubuntu 12.04',
+                    'type': 'linux',
+                },
+            },
+        }
+
+        results = compute._get_images_and_types("localhost", "token")
+        self.assertEqual(results, expected)
+
 
 class TestImageDetection(unittest.TestCase):
     def test_blank(self):
