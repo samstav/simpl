@@ -134,10 +134,9 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
-    @mock.patch('checkmate.utils.match_celery_logging')
-    @mock.patch('checkmate.deployments.tasks.reset_failed_resource_task.delay')
-    def test_create_server_connect_error(self, mock_reset_tasks,
-                                         mock_match_logging):
+    @mock.patch('checkmate.providers.rackspace.compute.utils')
+    @mock.patch('checkmate.providers.rackspace.compute.tasks')
+    def test_create_server_connect_error(self, mock_tasks, mock_utils):
         mock_image = mock.Mock()
         mock_image.name = 'image'
         mock_flavor = mock.Mock()
@@ -458,10 +457,9 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
-    @mock.patch('checkmate.utils.match_celery_logging')
-    @mock.patch('checkmate.deployments.resource_postback.delay')
-    def test_delete_server_get_connect_error(self, mock_postback,
-                                             mock_match_logging):
+    @mock.patch('checkmate.providers.rackspace.compute.utils')
+    @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
+    def test_delete_server_get_connect_error(self, mock_cmdeps, mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
@@ -476,10 +474,9 @@ class TestNovaCompute(test.ProviderTester):
         compute.LOG.error.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
-    @mock.patch('checkmate.utils.match_celery_logging')
-    @mock.patch('checkmate.deployments.resource_postback.delay')
-    def test_delete_server_delete_connect_error(self, mock_postback,
-                                                mock_match_logging):
+    @mock.patch('checkmate.providers.rackspace.compute.utils')
+    @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
+    def test_delete_server_delete_connect_error(self, mock_cmdeps, mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
@@ -532,10 +529,9 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
 
-    @mock.patch('checkmate.utils.match_celery_logging')
-    @mock.patch('checkmate.deployments.resource_postback.delay')
-    def test_wait_on_delete_connect_error(self, mock_postback,
-                                          mock_match_logging):
+    @mock.patch('checkmate.providers.rackspace.compute.utils')
+    @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
+    def test_wait_on_delete_connect_error(self, mock_cmdeps, mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
@@ -866,11 +862,9 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 
 
 class TestNovaProxy(unittest.TestCase):
-    @mock.patch(
-        'checkmate.providers.rackspace.compute.utils.get_ips_from_server')
+    @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
-    def test_get_resources_returns_compute_instances(self, mock_pyrax,
-                                                     mock_get_ips):
+    def test_get_resources_returns_compute_instances(self, mock_pyrax, mock_utils):
         request = mock.Mock()
         server = mock.Mock()
         server.name = 'server_name'
@@ -884,7 +878,6 @@ class TestNovaProxy(unittest.TestCase):
         servers_response.list.return_value = [server]
         mock_pyrax.connect_to_cloudservers.return_value = servers_response
         mock_pyrax.regions = ["ORD"]
-        mock_get_ips.return_value = {}
 
         result = compute.Provider.get_resources(request, 'tenant')[0]
         self.assertEqual(result['status'], 'server_status')
@@ -895,8 +888,7 @@ class TestNovaProxy(unittest.TestCase):
     @mock.patch(
         'checkmate.providers.rackspace.compute.utils.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
-    def test_get_resources_merges_ip_info(self, mock_pyrax,
-                                          mock_get_ips):
+    def test_get_resources_merges_ip_info(self, mock_pyrax, mock_get_ips):
         request = mock.Mock()
         server = mock.Mock()
         server.image = {'id': None}
