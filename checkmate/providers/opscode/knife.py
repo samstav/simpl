@@ -588,9 +588,9 @@ def write_databag(environment, bagname, itemname, contents, resource,
                 raise CheckmateUserException(message, utils.get_class_name(
                     CheckmateException), UNEXPECTED_ERROR, '')
             if isinstance(contents, dict):
-                contents = json.dumps(contents)
+                contents_str = json.dumps(contents)
             params = ['knife', 'solo', 'data', 'bag', 'create', bagname,
-                      itemname, '-d', '-c', config_file, '--json', contents]
+                      itemname, '-d', '-c', config_file, '--json', contents_str]
             if secret_file:
                 params.extend(['--secret-file', secret_file])
             result = _run_kitchen_command(environment, kitchen_path, params)
@@ -603,7 +603,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
             instance_key: {
                 'data-bags': {
                     bagname: {
-                        itemname: json.loads(contents)
+                        itemname: contents
                     }
                 }
             }
