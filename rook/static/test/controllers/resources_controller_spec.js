@@ -60,5 +60,17 @@ describe('ResourcesController', function(){
       success_callback(data)
       expect($location.path.getCall(0).args[0]).toEqual('/123/deployments/111');
     });
+
+    it('should include data for Reach to display the deployment', function(){
+      var data = {'id': '111'}
+      var save_spy = sinon.spy();
+      var mock_deployment = {$save: save_spy}
+      $scope.deployment = {name: 'deadpool'}
+      $scope.auth = {context: {tenantId: '123'}};
+      $scope.get_new_deployment = sinon.stub().returns(mock_deployment)
+      $scope.submit();
+      expect(mock_deployment.name).toEqual('deadpool')
+      expect(mock_deployment['meta-data']).toEqual({'application-name': 'Custom'})
+    });
   });
 });
