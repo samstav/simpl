@@ -193,22 +193,10 @@ class Provider(checkmate.providers.ProviderBase):
         return results
 
     @staticmethod
-    def proxy(path, request, tenant_id=None):
+    def get_resources(context, tenant_id=None):
         """Proxy request through to provider"""
-        if not path:
-            raise CheckmateException("Provider expects "
-                                     "{version}/{tenant}/{path}")
-        parts = path.split("/")
-        if len(parts) < 2:
-            raise CheckmateException("Provider expects "
-                                     "{version}/{tenant}/{path}")
-        resource = parts[2]
-        if resource == "domains":
-            api = _get_dns_object(request.context)
-            return Provider._my_list_domains_info(api, None) or []
-
-        raise CheckmateException("Provider does not support the resource "
-                                 "'%s'" % resource)
+        api = _get_dns_object(context)
+        return Provider._my_list_domains_info(api, None) or []
 
     @staticmethod
     def _find_url(catalog):

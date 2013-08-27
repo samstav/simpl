@@ -678,11 +678,8 @@ class Provider(RackspaceComputeProviderBase):
         return results
 
     @staticmethod
-    def proxy(path, request, tenant_id=None):
+    def get_resources(context, tenant_id=None):
         """Proxy request through to nova compute provider"""
-        if path != 'list':
-            raise cmexc.CheckmateException("Not a valid Provider path")
-        context = request.context
         if not pyrax.get_setting("identity_type"):
             pyrax.set_setting("identity_type", "rackspace")
 
@@ -694,7 +691,7 @@ class Provider(RackspaceComputeProviderBase):
 
         results = {}
         for idx, server in enumerate(servers):
-            if 'RAX-CHECKMATE' in server.metadata.keys():
+            if 'RAX-CHECKMATE' in server.metadata:
                 continue
 
             results[idx] = {

@@ -669,18 +669,15 @@ class Provider(base.RackspaceProviderBase):
         return results
 
     @staticmethod
-    def proxy(path, request, tenant_id=None):
+    def get_resources(context, tenant_id=None):
         """Proxy request through to loadbalancer provider"""
-        if path != 'list':
-            raise exceptions.CheckmateException("Not a valid Provider path")
-        context = request.context
         if not pyrax.get_setting("identity_type"):
             pyrax.set_setting("identity_type", "rackspace")
 
         load_balancers = []
         pyrax.auth_with_token(context.auth_token, tenant_name=context.tenant)
         for region in pyrax.regions:
-            api = pyrax.connect_to_cloud_loadbalancers(region=region)
+            api = Provider.connect(context, region=region)
             load_balancers += api.list()
         results = {}
         for idx, lb in enumerate(load_balancers):
@@ -987,7 +984,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
         try:
             meta = lb.get_metadata()
-            if "RAX-CHECKMATE" not in meta.keys():
+            if "RAX-CHECKMATE" not in meta:
                 checkmate_tag = Provider.generate_resource_tag(
                     context['base_url'], context['tenant'],
                     context['deployment'], resource['index']
