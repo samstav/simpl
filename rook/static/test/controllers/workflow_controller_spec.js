@@ -185,4 +185,27 @@ describe('WorkflowController', function(){
       expect($scope.current_task_index).toEqual(1);
     });
   });
+
+  describe('#resource', function(){
+    it('should find the resource in the workflow task based off the spec property', function(){
+      var resource = {'a': 'resource'};
+      var spec = {'properties': {'resource': '1'}};
+      var task = {'attributes': {'instance:0': 'something else', 'instance:1': resource}};
+      expect($scope.resource(task, spec)).toEqual(resource);
+    });
+
+    it('should return null if no task given', function(){
+      var resource = {'a': 'resource'};
+      var spec = {'properties': {'resource': '1'}};
+      var task = undefined;
+      expect($scope.resource(task, spec)).toEqual(null);
+    });
+
+    it('should return null if no spec given', function(){
+      var resource = {'a': 'resource'};
+      var spec = undefined;
+      var task = {'attributes': {'instance:0': 'something else', 'instance:1': resource}};
+      expect($scope.resource(task, spec)).toEqual(null);
+    });
+  });
 });
