@@ -2112,7 +2112,7 @@ angular.module('checkmate.services').factory('Cache', function() {
 
 angular.module('checkmate.services').factory('WorkflowSpec', [function() {
   var DEFAULTS = {
-    NO_RESOURCE: 999
+    NO_RESOURCE: 9999
   };
 
   var _is_invalid = function(spec) {
@@ -2129,21 +2129,36 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     return stream;
   }
 
-  var scope = {};
+  var _get_resource_id_from_inputs = function(inputs, specs) {
+    var id = DEFAULTS.NO_RESOURCE;
 
-  scope.get_resource = function(spec, specs) {
-    var resource;
-
-    if (spec.properties.resource)
-      resource = spec.properties.resource || DEFAULTS.NO_RESOURCE;
-    else {
-      resource = specs[spec.inputs[0]].properties.resource || DEFAULTS.NO_RESOURCE;
+    for (var i=0 ; i<inputs.length ; i++) {
+      var input = inputs[i];
+      var resource_id = specs[input].properties.resource;
+      if (resource_id) {
+        id = resource_id;
+      }
     }
 
-    return resource;
+    return id;
   }
 
-  scope.to_streams = function(specs) {
+  var scope = {};
+
+  scope.get_top_resource_id = function(spec, specs) {
+    var resource_id;
+
+    if (spec.properties.resource) {
+      resource_id = spec.properties.resource;
+    }
+    else {
+      resource_id = _get_resource_id_from_inputs(spec.inputs, specs);
+    }
+
+    return resource_id;
+  }
+
+  scope.to_streams = function(specs, deployment) {
     var streams = {};
     streams.all = [];
 
@@ -2151,14 +2166,14 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       var spec = specs[key];
       if (_is_invalid(spec)) continue;
 
-      var resource = scope.get_resource(spec, specs);
-      if (!streams[resource]) {
+      var resource_id = scope.get_top_resource_id(spec, specs);
+      if (!streams[resource_id]) {
         var stream = _create_stream();
         stream.position = streams.all.length;
-        streams[resource] = stream;
+        streams[resource_id] = stream;
         streams.all.push(stream);
       }
-      streams[resource].data.push(spec);
+      streams[resource_id].data.push(spec);
     }
 
     return streams;

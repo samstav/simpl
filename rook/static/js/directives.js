@@ -338,6 +338,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
   var _update_deployment = function(new_value, old_value, scope) {
     scope.deployment = new_value;
+    update_svg(scope);
   }
 
   var create_svg = function(element, attrs) {
@@ -355,7 +356,9 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   }
 
   var update_svg = function(scope) {
-    var data = WorkflowSpec.to_streams(scope.specs);
+    if (!scope.deployment || scope.deployment.$resolved == false) return;
+
+    var data = WorkflowSpec.to_streams(scope.specs, scope.deployment);
     var percentage = 100 / data.all.length;
 
     var streams = scope.svg.streams.selectAll('.stream').data(data.all);
@@ -384,7 +387,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   var link_fn = function(scope, element, attrs) {
     scope.svg = create_svg(element, attrs);
     scope.$watch('specs', _update_specs);
-    scope.$watch('deployment', _update_deployment);
+    scope.$watch('deployment', _update_deployment, true);
   }
 
   return {
