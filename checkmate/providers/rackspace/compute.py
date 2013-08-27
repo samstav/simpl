@@ -838,6 +838,9 @@ def _get_images_and_types(api_endpoint, auth_token):
         LOG.debug("Parsing image list: %s", images)
         for i in images:
             metadata = i.metadata or {}
+            if metadata.get('image_type') == 'snapshot':
+                LOG.debug("Ignoring snapshot image %s", i.id)
+                continue
             detected = detect_image(i.name, metadata=metadata)
             if detected:
                 img = {
