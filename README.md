@@ -355,6 +355,7 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET /:tid/providers/:pid
     GET /:tid/providers/:pid/catalog
     GET /:tid/providers/:pid/catalog/:cid
+    GET /:tid/providers/:pid/resources
 
     # If the server is started with --with-admin, the following calls are available to admin users:
 
