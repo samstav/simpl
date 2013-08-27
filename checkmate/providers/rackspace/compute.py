@@ -1114,7 +1114,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
                                           "")
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               (api_object.client.managment_url))
+               (api_object.client.management_url))
         LOG.error(msg, exc_info=True)
         raise create_server.retry(exc=exc)
 
@@ -1246,7 +1246,7 @@ def delete_server_task(context, api=None):
         LOG.warn("Server %s already deleted", inst_id)
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               (api.servers.managment_url))
+               (api.client.management_url))
         LOG.error(msg, exc_info=True)
         raise delete_server_task.retry(exc=exc)
     if (not server) or (server.status == 'DELETED'):
@@ -1280,7 +1280,7 @@ def delete_server_task(context, api=None):
             server.delete()
         except requests.ConnectionError as exc:
             msg = ("Connection error talking to %s endpoint" %
-                   (server.managment_url))
+                   (api.client.management_url))
             LOG.error(msg, exc_info=True)
             raise delete_server_task.retry(exc=exc)
     else:
@@ -1345,7 +1345,7 @@ def wait_on_delete_server(context, api=None):
         pass
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               (api.servers.managment_url))
+               (api.client.management_url))
         LOG.error(msg, exc_info=True)
         raise wait_on_delete_server.retry(exc=exc)
     if (not server) or (server.status == "DELETED"):
@@ -1442,7 +1442,7 @@ def wait_on_build(context, server_id, region, resource,
                                      UNEXPECTED_ERROR, '')
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               (api_object.client.managment_url))
+               (api_object.client.management_url))
         LOG.error(msg, exc_info=True)
         raise wait_on_build.retry(exc=exc)
 
