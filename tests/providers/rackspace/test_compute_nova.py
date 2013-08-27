@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1103,R0904,W0212
+# pylint: disable=C0103,E1101,E1103,R0904,W0212,W0613
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -23,6 +23,7 @@ import unittest
 
 import mock
 import mox
+import requests
 
 from checkmate import deployments as cm_deps
 from checkmate.deployments import tasks
@@ -132,6 +133,29 @@ class TestNovaCompute(test.ProviderTester):
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
+
+    @mock.patch('checkmate.utils.match_celery_logging')
+    @mock.patch('checkmate.deployments.tasks.reset_failed_resource_task.delay')
+    def test_create_server_connect_error(self, mock_reset_tasks,
+                                         mock_match_logging):
+        mock_image = mock.Mock()
+        mock_image.name = 'image'
+        mock_flavor = mock.Mock()
+        mock_flavor.name = 'flavor'
+        compute.LOG.error = mock.Mock()
+        mock_api_obj = mock.Mock()
+        mock_api_obj.client.management_url = 'http://test/'
+        mock_api_obj.flavors.find.return_value = mock_flavor
+        mock_api_obj.images.find.return_value = mock_image
+        mock_api_obj.servers.create = mock.MagicMock(
+            side_effect=requests.ConnectionError)
+
+        with self.assertRaises(requests.ConnectionError):
+            compute.create_server({'deployment_id': '1', 'resource_key': '1'},
+                                  None, None, api_object=mock_api_obj)
+
+        compute.LOG.error.assert_called_with(
+            'Connection error talking to http://test/ endpoint', exc_info=True)
 
     def test_on_failure(self):
         exc = self.mox.CreateMockAnything()
@@ -375,6 +399,26 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
+    def test_wait_on_build_connect_error(self):
+        server = self.mox.CreateMockAnything()
+        server.id = 'fake_server_id'
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock.client.region_name = 'North'
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.servers.find(id=server.id).AndRaise(
+            requests.ConnectionError("Mock connection error"))
+
+        context = dict(deployment_id='DEP', resource_key='1', roles=[])
+
+        self.mox.ReplayAll()
+        with self.assertRaises(requests.ConnectionError):
+            compute.wait_on_build(
+                context, server.id, 'North', [], api_object=openstack_api_mock)
+
+        self.mox.VerifyAll()
+
     def test_delete_server(self):
         context = {
             'deployment_id': "1234",
@@ -407,12 +451,48 @@ class TestNovaCompute(test.ProviderTester):
         mock_server.status = 'ACTIVE'
         mock_server.delete().AndReturn(True)
         mock_servers.get('abcdef-ghig-1234').AndReturn(mock_server)
-        self.mox.StubOutWithMock(compute.resource_postback, 'delay')
-        compute.resource_postback.delay('1234', expect).AndReturn(None)
+        self.mox.StubOutWithMock(compute.cmdeps.resource_postback, 'delay')
+        compute.cmdeps.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
         ret = compute.delete_server_task(context, api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
+
+    @mock.patch('checkmate.utils.match_celery_logging')
+    @mock.patch('checkmate.deployments.resource_postback.delay')
+    def test_delete_server_get_connect_error(self, mock_postback,
+                                             mock_match_logging):
+        mock_context = {'deployment_id': '1', 'resource_key': '1',
+                        'region': 'ORD', 'resource': {}, 'instance_id': '1'}
+        compute.LOG.error = mock.Mock()
+        mock_api = mock.Mock()
+        mock_api.client.management_url = 'http://test/'
+        mock_api.servers.get = mock.MagicMock(
+            side_effect=requests.ConnectionError)
+
+        with self.assertRaises(requests.ConnectionError):
+            compute.delete_server_task(mock_context, api=mock_api)
+
+        compute.LOG.error.assert_called_with(
+            'Connection error talking to http://test/ endpoint', exc_info=True)
+
+    @mock.patch('checkmate.utils.match_celery_logging')
+    @mock.patch('checkmate.deployments.resource_postback.delay')
+    def test_delete_server_delete_connect_error(self, mock_postback,
+                                                mock_match_logging):
+        mock_context = {'deployment_id': '1', 'resource_key': '1',
+                        'region': 'ORD', 'resource': {}, 'instance_id': '1'}
+        compute.LOG.error = mock.Mock()
+        mock_api = mock.Mock()
+        mock_api.client.management_url = 'http://test/'
+        mock_api.servers.get = mock.MagicMock(
+            side_effect=requests.ConnectionError)
+
+        with self.assertRaises(requests.ConnectionError):
+            compute.delete_server_task(mock_context, api=mock_api)
+
+        compute.LOG.error.assert_called_with(
+            'Connection error talking to http://test/ endpoint', exc_info=True)
 
     def test_wait_on_delete(self):
         context = {
@@ -445,12 +525,30 @@ class TestNovaCompute(test.ProviderTester):
         mock_server = self.mox.CreateMockAnything()
         mock_server.status = 'DELETED'
         mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
-        self.mox.StubOutWithMock(compute.resource_postback, 'delay')
-        compute.resource_postback.delay('1234', expect).AndReturn(None)
+        self.mox.StubOutWithMock(compute.cmdeps.resource_postback, 'delay')
+        compute.cmdeps.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
         ret = compute.wait_on_delete_server(context, api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
+
+    @mock.patch('checkmate.utils.match_celery_logging')
+    @mock.patch('checkmate.deployments.resource_postback.delay')
+    def test_wait_on_delete_connect_error(self, mock_postback,
+                                          mock_match_logging):
+        mock_context = {'deployment_id': '1', 'resource_key': '1',
+                        'region': 'ORD', 'resource': {}, 'instance_id': '1'}
+        compute.LOG.error = mock.Mock()
+        mock_api = mock.Mock()
+        mock_api.client.management_url = 'http://test/'
+        mock_api.servers.find = mock.MagicMock(
+            side_effect=requests.ConnectionError)
+
+        with self.assertRaises(requests.ConnectionError):
+            compute.wait_on_delete_server(mock_context, api=mock_api)
+
+        compute.LOG.error.assert_called_with(
+            'Connection error talking to http://test/ endpoint', exc_info=True)
 
     def test_find_url(self):
         path = os.path.join(os.path.dirname(__file__),
@@ -768,7 +866,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 
 
 class TestNovaProxy(unittest.TestCase):
-    @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
+    @mock.patch(
+        'checkmate.providers.rackspace.compute.utils.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
     def test_proxy_returns_compute_instances(self, mock_pyrax, mock_get_ips):
         request = mock.Mock()
@@ -792,7 +891,8 @@ class TestNovaProxy(unittest.TestCase):
         self.assertEqual(result['instance']['image'], 'server_image')
         self.assertEqual(result['instance']['region'], 'region_name')
 
-    @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
+    @mock.patch(
+        'checkmate.providers.rackspace.compute.utils.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
     def test_proxy_merges_ip_info(self, mock_pyrax,
                                   mock_get_ips):
@@ -830,7 +930,8 @@ class TestNovaProxy(unittest.TestCase):
             '3.3.3.3'
         )
 
-    @mock.patch('checkmate.providers.rackspace.compute.get_ips_from_server')
+    @mock.patch(
+        'checkmate.providers.rackspace.compute.utils.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
     def test_proxy_returns_servers_not_in_checkmate(self,
                                                     mock_pyrax,
