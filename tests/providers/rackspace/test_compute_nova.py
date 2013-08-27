@@ -864,7 +864,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 class TestNovaProxy(unittest.TestCase):
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.pyrax')
-    def test_get_resources_returns_compute_instances(self, mock_pyrax, mock_utils):
+    def test_get_resources_returns_compute_instances(self, mock_pyrax,
+                                                     mock_utils):
         request = mock.Mock()
         server = mock.Mock()
         server.name = 'server_name'
