@@ -434,7 +434,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
     # pylint: disable=W0613
     @staticmethod
-    def proxy(path, request, tenant_id=None):
+    def get_resources(path, request, tenant_id=None):
         '''Proxy request through to provider.'''
         raise exceptions.CheckmateException("Provider does not support call")
 

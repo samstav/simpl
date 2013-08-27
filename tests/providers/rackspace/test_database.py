@@ -586,10 +586,11 @@ environment:
                         "complete")
 
 
-class TestDatabaseProxy(unittest.TestCase):
+class TestDatabaseGetResources(unittest.TestCase):
     @mock.patch('checkmate.providers.rackspace.database.provider.pyrax')
     @mock.patch('checkmate.providers.rackspace.database.Provider.connect')
-    def test_proxy_returns_db_host_instances(self, mock_connect, mock_pyrax):
+    def test_get_resources_returns_db_host_instances(self, mock_connect,
+                                                     mock_pyrax):
         request = mock.Mock()
         mock_pyrax.identity.authenticated = True
         mock_pyrax.regions = ["ORD"]
@@ -633,7 +634,7 @@ class TestDatabaseProxy(unittest.TestCase):
         }
 
         mock_connect.return_value = api
-        self.assertEqual(database.Provider.proxy('list', request, 'tenant'),
+        self.assertEqual(database.Provider.get_resources(request, 'tenant'),
                          expected)
 
 
