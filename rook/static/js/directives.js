@@ -327,6 +327,13 @@ directives.directive('cmTreeView', function() {
 });
 
 directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
+  var DEFAULTS = {
+    TOTAL_HEIGHT: 100,
+    SVG_HEIGHT: 100,
+    SVG_WIDTH: 300,
+    NODE_RADIUS: 2
+  };
+
   var _even_odd = function(num) {
     return num % 2 == 0 ? 'even' : 'odd';
   }
@@ -347,7 +354,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
   var _draw_streams = function(elements, streams) {
     var num_streams = streams.all.length;
-    var height = 100 / num_streams;
+    var height = DEFAULTS.TOTAL_HEIGHT / num_streams;
 
     // Enter
     var stream = elements.enter()
@@ -366,7 +373,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
   var _draw_nodes = function(elements, streams, width) {
     var num_streams = streams.all.length;
-    var stream_height = 100 / num_streams;
+    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
 
     var nodes = elements.selectAll('.nodes').data(function(d) {
       return d.data;
@@ -376,7 +383,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     nodes.enter()
       .append('svg:circle')
       .attr('class', 'node')
-      .attr('r', 3)
+      .attr('r', DEFAULTS.NODE_RADIUS)
       .style('fill', function(d) { return 'green'; })
       .attr("transform", function(d) {
         var x = _interpolate(d.position.x, width, streams.width);
@@ -386,8 +393,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
   var create_svg = function(element, attrs) {
     var svg = {};
-    svg.width = attrs.width || 300;
-    svg.height = attrs.height || 100;
+    svg.width = attrs.width || DEFAULTS.SVG_WIDTH;
+    svg.height = attrs.height || DEFAULTS.SVG_HEIGHT;
 
     svg.element = d3.select(element[0])
       .append('svg:svg')
