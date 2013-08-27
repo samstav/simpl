@@ -341,25 +341,21 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     update_svg(scope);
   }
 
-  var _update_streams = function(streams, num_streams) {
-    var percentage = 100 / num_streams;
+  var _draw_streams = function(streams, data) {
+    var num_streams = data.all.length;
+    var height = 100 / num_streams;
 
-    // Update
     // Enter
     var stream = streams.enter()
       .append('svg:g')
       .attr('class', function(d) { return 'stream ' + _even_odd(d.position); })
       .attr('transform', function(d) {
-        var transformations = [
-          'translate(0, '+ d.position * percentage +')',
-          'scale(1, '+ percentage / 100 +')'
-        ];
-        return transformations.join(' ');
+        return 'translate(0, '+ d.position * height +')';
       });
     stream.append('svg:rect')
       .attr('class', 'border')
       .attr('width', '100%')
-      .attr('height', '100%');
+      .attr('height', height);
     // Exit
     streams.exit().remove();
   }
@@ -382,10 +378,9 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     if (!scope.deployment || scope.deployment.$resolved == false) return;
 
     var data = WorkflowSpec.to_streams(scope.specs, scope.deployment);
-    var num_streams = data.all.length;
     var streams = scope.svg.streams.selectAll('.stream').data(data.all);
 
-    _update_streams(streams, num_streams);
+    _draw_streams(streams, data);
 
     console.log(data);
   }
