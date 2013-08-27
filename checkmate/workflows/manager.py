@@ -1,7 +1,9 @@
 import logging
 
-from checkmate import base, utils
 from SpiffWorkflow.storage import DictionarySerializer
+
+from checkmate import base
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 

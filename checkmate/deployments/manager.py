@@ -135,7 +135,7 @@ class Manager(base.ManagerBase):
             deployment, context)
         spiff_wf = workflow.create_workflow(
             deploy_spec, deployment, context, driver=self.select_driver(
-                deployment['id']), workflow_id=deployment['id'], type="BUILD")
+                deployment['id']), workflow_id=deployment['id'], wf_type="BUILD")
         deployment['workflow'] = spiff_wf.attributes['id']
         operations.add(deployment, spiff_wf, "BUILD",
                        tenant_id=deployment['tenantId'])
@@ -253,7 +253,6 @@ class Manager(base.ManagerBase):
         if not deployment:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
-        driver = self.select_driver(api_id)
         result = tasks.cycle_workflow.delay(api_id)
         return result
 
@@ -469,7 +468,7 @@ class Manager(base.ManagerBase):
         delete_node_workflow = workflow.create_workflow(wf_spec, deployment,
                                                         context,
                                                         driver=driver,
-                                                        type="SCALE DOWN")
+                                                        wf_type="SCALE DOWN")
         operations.add(deployment, delete_node_workflow, "SCALE DOWN",
                        tenant_id)
 
@@ -488,5 +487,5 @@ class Manager(base.ManagerBase):
         add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
                                                      deployment, context,
                                                      driver=driver,
-                                                     type="SCALE UP")
+                                                     wf_type="SCALE UP")
         operations.add(deployment, add_node_workflow, "SCALE UP", tenant_id)

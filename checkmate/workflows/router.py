@@ -161,7 +161,7 @@ class Router(object):
             bottle.abort(404, 'No workflow with id %s' % api_id)
         serializer = DictionarySerializer()
         wf = SpiffWorkflow.deserialize(serializer, entity)
-        return utils.write_body(cm_wf.get_SpiffWorkflow_status(wf),
+        return utils.write_body(cm_wf.get_spiff_workflow_status(wf),
                                 bottle.request, bottle.response)
 
     @utils.with_tenant

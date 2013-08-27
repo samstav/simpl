@@ -1333,7 +1333,7 @@ class TestDeleteDeployments(unittest.TestCase):
                                   "create_workflow")
         workflow.create_workflow(mock_spec, self._deployment,
                                  bottle.request.context, driver=mock_driver,
-                                 type="DELETE")\
+                                 wf_type="DELETE")\
             .AndReturn(mock_spiff_wf)
         self._mox.StubOutWithMock(common_tasks, "update_operation")
         common_tasks.update_operation.delay('1234', '1234', action='PAUSE',
@@ -1556,7 +1556,6 @@ class TestDeploymentAddNodes(unittest.TestCase):
 
     def test_happy_path(self):
         manager = self._mox.CreateMock(cmdeps.Manager)
-        mock_driver = self._mox.CreateMockAnything()
         router = cmdeps.Router(bottle.default_app(), manager)
 
         manager.get_deployment('1234', tenant_id="T1000",

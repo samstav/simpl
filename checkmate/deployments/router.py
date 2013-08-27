@@ -475,7 +475,7 @@ class Router(object):
                 deployment, bottle.request.context))
         spiff_workflow = workflow.create_workflow(
             delete_workflow_spec, deployment, bottle.request.context,
-            driver=driver, type="DELETE")
+            driver=driver, wf_type="DELETE")
         workflow_id = spiff_workflow.attributes.get('id')
         LOG.debug("Workflow %s created for deleting deployment %s",
                   workflow_id, api_id)

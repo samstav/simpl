@@ -10,29 +10,37 @@ from SpiffWorkflow import Workflow as SpiffWorkflow, Task
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate import utils
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateResetTaskTreeException,
-    CheckmateResumableException,
-    CheckmateRetriableException,
-    CheckmateUserException,
-    UNEXPECTED_ERROR,
-)
+from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import CheckmateResetTaskTreeException
+from checkmate.exceptions import CheckmateResumableException
+from checkmate.exceptions import CheckmateRetriableException
+from checkmate.exceptions import CheckmateUserException
+from checkmate.exceptions import UNEXPECTED_ERROR
+from checkmate import utils
 
 DB = get_driver()
 LOG = logging.getLogger(__name__)
 
 
 def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
-                    type="BUILD"):
+                    wf_type="BUILD"):
+    '''Creates a workflow for the passes in spec and deployment
+
+    :param spec: WorkflowSpec to use for creating the workflow
+    :param deployment: deployment to create the workflow for
+    :param context: request context
+    :param driver: database driver
+    :param workflow_id: id of the workflow to be created
+    :param wf_type: type of the workflow to be created
+    :return:
+    '''
     if not workflow_id:
         workflow_id = utils.get_id(context.simulation)
     spiff_wf = init_spiff_workflow(spec, deployment, context, workflow_id,
-                                   type)
+                                   wf_type)
     serializer = DictionarySerializer()
     workflow = spiff_wf.serialize(serializer)
     workflow['id'] = workflow_id
@@ -43,6 +51,10 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
 
 
 def get_number_of_errors(d_wf):
+    '''Gets the number of tasks in error for a workflow
+    :param d_wf: spiff workflow to get the errors from
+    :return: number of tasks in error
+    '''
     tasks = d_wf.get_tasks()
     count = 0
     while tasks:
@@ -53,6 +65,11 @@ def get_number_of_errors(d_wf):
 
 
 def update_workflow_status(workflow):
+    '''Update the status, total, completed and errored tasks in a workflow
+
+    :param workflow: workflow to be updated
+    :return:
+    '''
     workflow_state = {
         'total': len(workflow.get_tasks(state=Task.ANY_MASK)),
         'completed': len(workflow.get_tasks(state=Task.COMPLETED)),
@@ -104,8 +121,7 @@ def reset_task_tree(task):
 
 
 def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
-    '''
-    Updates the workflow status, and saves the workflow. Worflow status
+    '''Updates the workflow status, and saves the workflow. Worflow status
     can be overriden by providing a custom value for the 'status' parameter.
 
     :param d_wf: De-serialized workflow
@@ -145,15 +161,24 @@ def reset_failed_tasks(d_wf):
             info = task_state.get("info")
             try:
                 exception = eval(info)
-                if type(exception) is CheckmateResetTaskTreeException:
+                if (type(exception) is
+                        CheckmateResetTaskTreeException):
                     reset_task_tree(task)
-            except Exception as ex:
+            except Exception:
                 LOG.error("There was a exception while resetting the task "
                           "tree for task %s in deployment %s", task.id,
                           d_wf.attributes["deploymentId"])
 
 
 def convert_exc_to_dict(exception, task, tenant_id, workflow_id, traceback):
+    '''Converts a exception to a dictionary
+    :param exception: exception to convert
+    :param task: task that raised the exception
+    :param tenant_id: tenant_id
+    :param workflow_id: workflow id
+    :param traceback: traceback of the exception
+    :return: the dictionary of the exception
+    '''
     exc_dict = {}
     if type(exception) is CheckmateRetriableException:
         exc_dict = {
@@ -215,9 +240,8 @@ def convert_exc_to_dict(exception, task, tenant_id, workflow_id, traceback):
 
 
 def get_errors(wf_dict, tenant_id):
-    '''
-    Traverses through the workflow-tasks, and collects errors information from
-    all the failed tasks
+    '''Traverses through the workflow-tasks, and collects errors information
+    from all the failed tasks
     :param wf_dict: The workflow to get the tasks from
     :return: List of error information
     '''
@@ -238,7 +262,7 @@ def get_errors(wf_dict, tenant_id):
                                                    tenant_id,
                                                    workflow_id,
                                                    traceback))
-            except Exception as exp:
+            except Exception:
                 results.append({
                     "error-message": info,
                     "error-traceback": traceback
@@ -247,8 +271,7 @@ def get_errors(wf_dict, tenant_id):
 
 
 def is_failed_task(task):
-    '''
-    Checks whether a task has failed by checking the task_state dict in
+    '''Checks whether a task has failed by checking the task_state dict in
     internal attribs. The format of task_state is
     task_state: {
         'state': 'FAILURE',
@@ -262,9 +285,8 @@ def is_failed_task(task):
     return task_state and task_state.get("state") == "FAILURE"
 
 
-def get_SpiffWorkflow_status(workflow):
-    """
-    Returns the subtree as a string for debugging.
+def get_spiff_workflow_status(workflow):
+    """Returns the subtree as a string for debugging.
 
     :param workflow: a SpiffWorkflow Workflow
     @rtype:  dict
@@ -288,10 +310,11 @@ def get_SpiffWorkflow_status(workflow):
 
 
 def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
-                        type):
-    """Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
+                        wf_type):
+    '''Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
 
-    :returns: SpiffWorkflow.Workflow"""
+    :returns: SpiffWorkflow.Workflow
+    '''
     LOG.info("Creating workflow for deployment '%s'", deployment['id'])
     results = spiff_wf_spec.validate()
     if results:
@@ -300,8 +323,10 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
         error_message = '. '.join(results)
         LOG.debug("Errors in Workflow: %s", error_message,
                   extra=dict(data=serialized_spec))
-        raise CheckmateUserException(error_message, utils.get_class_name(
-            CheckmateException), UNEXPECTED_ERROR, '')
+        raise CheckmateUserException(
+            error_message,
+            utils.get_class_name(CheckmateException),
+            UNEXPECTED_ERROR, '')
 
     workflow = SpiffWorkflow(spiff_wf_spec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
@@ -331,7 +356,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
     workflow.attributes['deploymentId'] = deployment['id']
     workflow.attributes['id'] = workflow_id
     workflow.attributes['tenant_id'] = deployment['tenantId']
-    workflow.attributes['type'] = type
+    workflow.attributes['type'] = wf_type
     update_workflow_status(workflow)
 
     return workflow

@@ -62,7 +62,7 @@ class TestManager(unittest.TestCase):
             deployment,
             mock_context,
             driver=self.controller.driver,
-            type="SCALE DOWN"
+            wf_type="SCALE DOWN"
         )
         mock_add.assert_called_with(deployment, mock_wf,
                                     'SCALE DOWN', 'T_ID')
@@ -88,7 +88,7 @@ class TestManager(unittest.TestCase):
             deployment,
             mock_context,
             driver=self.controller.driver,
-            type="SCALE UP"
+            wf_type="SCALE UP"
         )
         mock_add.assert_called_with(deployment, mock_wf,
                                     'SCALE UP', 'T_ID')
