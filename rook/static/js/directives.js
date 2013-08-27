@@ -341,27 +341,9 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     update_svg(scope);
   }
 
-  var create_svg = function(element, attrs) {
-    var svg = {};
-    svg.width = attrs.width || 300;
-    svg.height = attrs.height || 100;
+  var _update_streams = function(streams, num_streams) {
+    var percentage = 100 / num_streams;
 
-    svg.element = d3.select(element[0])
-      .append('svg:svg')
-      .attr('viewBox', [0, 0, svg.width, svg.height].join(' '));
-
-    svg.streams = svg.element.append('svg:g').attr('class', 'streams');
-
-    return svg;
-  }
-
-  var update_svg = function(scope) {
-    if (!scope.deployment || scope.deployment.$resolved == false) return;
-
-    var data = WorkflowSpec.to_streams(scope.specs, scope.deployment);
-    var percentage = 100 / data.all.length;
-
-    var streams = scope.svg.streams.selectAll('.stream').data(data.all);
     // Update
     // Enter
     var stream = streams.enter()
@@ -380,6 +362,30 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('height', '100%');
     // Exit
     streams.exit().remove();
+  }
+
+  var create_svg = function(element, attrs) {
+    var svg = {};
+    svg.width = attrs.width || 300;
+    svg.height = attrs.height || 100;
+
+    svg.element = d3.select(element[0])
+      .append('svg:svg')
+      .attr('viewBox', [0, 0, svg.width, svg.height].join(' '));
+
+    svg.streams = svg.element.append('svg:g').attr('class', 'streams');
+
+    return svg;
+  }
+
+  var update_svg = function(scope) {
+    if (!scope.deployment || scope.deployment.$resolved == false) return;
+
+    var data = WorkflowSpec.to_streams(scope.specs, scope.deployment);
+    var num_streams = data.all.length;
+    var streams = scope.svg.streams.selectAll('.stream').data(data.all);
+
+    _update_streams(streams, num_streams);
 
     console.log(data);
   }
