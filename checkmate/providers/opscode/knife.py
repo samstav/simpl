@@ -204,7 +204,7 @@ def _create_environment_keys(dep_id, environment_path, private_key=None,
                       private_key_path)
 
     # Secure private key
-    os.chmod(private_key_path, 0600)
+    os.chmod(private_key_path, 0o600)
     LOG.debug("Private cert permissions set: chmod 0600 %s", private_key_path)
 
     # Get or Generate public key
@@ -384,7 +384,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
     kitchen_path = os.path.join(path, service_name)
 
     if not os.path.exists(kitchen_path):
-        os.mkdir(kitchen_path, 0770)
+        os.mkdir(kitchen_path, 0o770)
         LOG.debug("Created kitchen directory: %s", kitchen_path)
     else:
         LOG.debug("Kitchen directory exists: %s", kitchen_path)
@@ -415,7 +415,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
     if os.path.exists(certs_path):
         LOG.debug("Certs directory exists: %s", certs_path)
     else:
-        os.mkdir(certs_path, 0770)
+        os.mkdir(certs_path, 0o770)
         LOG.debug("Created certs directory: %s", certs_path)
 
     # Store (generate if necessary) the secrets file
@@ -914,7 +914,7 @@ def create_environment(name, service_name, path=None, private_key=None,
 
     # Create environment
     try:
-        os.mkdir(fullpath, 0770)
+        os.mkdir(fullpath, 0o770)
         LOG.debug("Created environment directory: %s", fullpath)
     except OSError as ose:
         if ose.errno == errno.EEXIST:
