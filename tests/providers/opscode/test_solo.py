@@ -323,10 +323,10 @@ class TestCeleryTasks(unittest.TestCase):
 
         #TODO(any): better test for postback?
         #Stub out call to resource_postback
-        self.mox.StubOutWithMock(knife.resource_postback, 'delay')
-        knife.resource_postback.delay(
+        self.mox.StubOutWithMock(knife.cmdeps.resource_postback, 'delay')
+        knife.cmdeps.resource_postback.delay(
             mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
-        knife.resource_postback.delay(
+        knife.cmdeps.resource_postback.delay(
             mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
