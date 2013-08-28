@@ -156,6 +156,23 @@ class TestNovaCompute(test.ProviderTester):
         compute.LOG.error.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
+    @mock.patch.object(compute.LOG, 'error')
+    @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
+    @mock.patch.object(compute.tasks.reset_failed_resource_task, 'delay')
+    def test_create_server_images_connect_error(self, mock_reset,
+                                                mock_postback, mock_logger):
+        mock_api_obj = mock.Mock()
+        mock_api_obj.client.management_url = "test.local"
+        mock_exception = requests.ConnectionError()
+        mock_api_obj.images.find = mock.MagicMock(
+            side_effect=mock_exception)
+
+        with self.assertRaises(requests.ConnectionError):
+            compute.create_server({'deployment_id': '1', 'resource_key': '1'},
+                                  None, None, api_object=mock_api_obj)
+        mock_logger.assert_called_with('Connection error talking to '
+                                       'test.local endpoint', exc_info=True)
+
     def test_on_failure(self):
         exc = self.mox.CreateMockAnything()
         exc.__str__().AndReturn('some message')
