@@ -359,15 +359,15 @@ class Router(object):
         if "victim-list" in body:
             victim_list = body['victim-list']
 
-        resource_keys_for_service = deployment.get_resources_for_service(
-            service_name).keys()
-
         if service_name not in deployment['blueprint']['services']:
             bottle.abort(400, "The specified service does not exist for the "
                               "deployment")
         if len(victim_list) > count:
             bottle.abort(400, "The victim list has more elements then the "
                               "count")
+        resource_keys_for_service = deployment.get_resources_for_service(
+            service_name).keys()
+
         for resource_key in victim_list:
             if resource_key not in resource_keys_for_service:
                 bottle.abort(400, "The resource specified in the victim list "
