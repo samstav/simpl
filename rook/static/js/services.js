@@ -2115,11 +2115,17 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     NO_RESOURCE: 9999,
     TASK_DURATION: 10,
     LOG_SCALE: 15,
-    PADDING: 20
+    PADDING: 20,
+    WIDTH: 0
   };
 
   var _is_invalid = function(spec) {
-    return (!spec.properties || spec.inputs.length == 0);
+    return (
+         !spec
+      || !spec.properties
+      || !spec.inputs
+      || spec.inputs.length == 0
+    );
   }
 
   var _create_stream = function() {
@@ -2180,11 +2186,11 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
 
   var scope = {};
 
-  scope.to_streams = function(specs, deployment) {
+  scope.to_streams = function(specs) {
     var position_memo = {}
     var streams = {};
     streams.all = [];
-    streams.width = -1;
+    streams.width = DEFAULTS.WIDTH;
 
     for (var key in specs) {
       var spec = specs[key];

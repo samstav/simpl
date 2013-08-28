@@ -413,8 +413,6 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
     _draw_streams(elements, streams);
     _draw_nodes(elements, streams, scope.svg.width);
-
-    console.log(streams);
   }
 
   var link_fn = function(scope, element, attrs) {
