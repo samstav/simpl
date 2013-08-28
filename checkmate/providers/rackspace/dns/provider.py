@@ -1,0 +1,247 @@
+"""
+Rackspace Cloud DNS provider module.
+"""
+import logging
+import os
+import sys
+import tldextract
+
+import clouddns
+import eventlet.greenpool
+import SpiffWorkflow.operators
+from SpiffWorkflow.specs import Celery
+
+from checkmate.common import caching
+from checkmate.exceptions import CheckmateNoTokenError
+import checkmate.middleware
+import checkmate.providers
+import checkmate.providers.base
+
+LOG = logging.getLogger(__name__)
+DNS_API_CACHE = {}
+
+
+class Provider(checkmate.providers.ProviderBase):
+    """Rackspace Cloud DNS provider class."""
+    name = 'dns'
+    vendor = 'rackspace'
+
+    @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=DNS_API_CACHE)
+    def _get_limits(self, url, token):
+        '''Returns the Cloud DNS API limits.'''
+        api = self.connect(token=token, url=url)
+        return api.get_limits()
+
+    def _is_new_domain(self, domain, context):
+        '''Returns True if domain does not already exist on this account.'''
+        if domain and context:
+            api = self.connect(context)
+            dom = self._my_list_domains_info(api, domain)
+            return not dom
+        return False
+
+    @staticmethod
+    def _my_list_domains_info(api, dom_name):
+        '''Fetch information for specified domain name.'''
+        try:
+            return api.list_domains_info(filter_by_name=dom_name)
+        except clouddns.errors.ResponseError as resp_error:
+            if resp_error.status != 404:
+                LOG.warn("Error checking record limits for %s", dom_name,
+                         exc_info=True)
+
+    def _check_record_limits(self, context, dom_name, max_records,
+                             num_new_recs):
+        '''Raise API error if adding domain records will violate limits.'''
+        if num_new_recs > 0:
+            api = self.connect(context)
+            if dom_name:
+                num_recs = 0
+                doms = self._my_list_domains_info(api, dom_name)
+                if doms:
+                    dom = clouddns.domain.Domain(api, doms[0])
+                    try:
+                        num_recs = len(dom.list_records_info())
+                    except clouddns.errors.ResponseError as resp_error:
+                        num_recs = 0
+                        if resp_error.status != 404:
+                            LOG.warn("Error getting records for %s", dom_name,
+                                     exc_info=True)
+                if num_recs + num_new_recs > max_records:
+                    return {
+                        'type': "INSUFFICIENT-CAPACITY",
+                        'message': "Domain %s would have %s records after "
+                                   "this operation. You may only have "
+                                   "up to %s records for a domain."
+                                   % (dom_name, num_recs + num_new_recs,
+                                   max_records),
+                        'provider': self.name,
+                        'severity': "CRITICAL",
+                    }
+
+    def verify_limits(self, context, resources):
+        messages = []
+        api = self.connect(context)
+        limits = self._get_limits(self._find_url(context.catalog),
+                                  context.auth_token)
+        max_doms = limits.get('absolute', {}).get('domains', sys.maxint)
+        max_recs = limits.get('absolute', {}).get('records per domain',
+                                                  sys.maxint)
+        cur_doms = api.get_total_domain_count()
+        # get a list of the possible domains
+        domain_names = set(map(lambda x: parse_domain(x.get('dns-name')),
+                               resources))
+        # find the ones that are new
+        pile = eventlet.greenpool.GreenPile()
+        for dom in domain_names:
+            pile.spawn(self._is_new_domain, dom, context)
+        num_new = len([val for val in pile if val])
+        # if they are going to create more domains than they
+        # should, respond
+        if (num_new + cur_doms) > max_doms:
+            messages.append({
+                'type': "INSUFFICIENT-CAPACITY",
+                'message': ("This deployment would create %s domains. "
+                            "You have %s domains available."
+                            % (num_new, max_doms - cur_doms)),
+                'provider': self.name,
+                'severity': "CRITICAL"
+            })
+
+        def _count_filter_records(resources):
+            '''Make sure we're not exceeding the record count.'''
+            handled = {}
+            for resource in resources:
+                dom = parse_domain(resource.get('dns-name'))
+                if dom not in handled:
+                    handled[dom] = True
+                    yield (dom, len([d for d in resources
+                           if parse_domain(d.get('dns-name')) == dom]))
+
+        for dom_name, num_recs in _count_filter_records(resources):
+            pile.spawn(self._check_record_limits, context, dom_name, max_recs,
+                       num_recs)
+        messages.extend([msg for msg in pile if msg])
+        return messages
+
+    def verify_access(self, context):
+        roles = ['identity:user-admin', 'dnsaas:admin', 'dnsaas:creator']
+        if checkmate.providers.base.user_has_access(context, roles):
+            return {
+                'type': "ACCESS-OK",
+                'message': "You have access to create Cloud DNS records",
+                'provider': self.name,
+                'severity': "INFORMATIONAL"
+            }
+        else:
+            return {
+                'type': "NO-ACCESS",
+                'message': ("You do not have access to create Cloud DNS"
+                            " records"),
+                'provider': self.name,
+                'severity': "CRITICAL"
+            }
+
+    def add_resource_tasks(self, resource, key, wfspec, deployment, context,
+                           wait_on=None):
+        inputs = deployment.get('inputs', {})
+        hostname = resource.get('dns-name')
+
+        create_dns_task = Celery(
+            wfspec,
+            'Create DNS Record',
+            'checkmate.providers.rackspace.dns.'
+            'create_record',
+            call_args=[
+                SpiffWorkflow.operators.Attrib('context'),
+                inputs.get('domain', 'localhost'),
+                hostname,
+                'A',
+                SpiffWorkflow.operators.Attrib('vip')
+            ],
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['final', 'root', 'create']
+            ),
+            properties={'estimated_duration': 30}
+        )
+        return dict(root=create_dns_task, final=create_dns_task)
+
+    def get_catalog(self, context, type_filter=None, **kwargs):
+        #TODO(any): add more than just regions
+        results = {}
+
+        if type_filter is None or type_filter == 'regions':
+            regions = {}
+            for service in context.catalog:
+                if service['type'] == 'dnsextension:dns':
+                    endpoints = service['endpoints']
+                    for endpoint in endpoints:
+                        if 'region' in endpoint:
+                            regions[endpoint['region']] = endpoint['publicURL']
+            results['regions'] = regions
+
+        return results
+
+    @staticmethod
+    def get_resources(context, tenant_id=None):
+        """Proxy request through to provider"""
+        api = _get_dns_object(context)
+        return Provider._my_list_domains_info(api, None) or []
+
+    @staticmethod
+    def _find_url(catalog):
+        '''Find the public endpoint for the DNS service.'''
+        for service in catalog:
+            if service['name'] == 'cloudDNS':
+                endpoints = service['endpoints']
+                for endpoint in endpoints:
+                    return endpoint['publicURL']
+
+    @staticmethod
+    def connect(context=None, token=None, url=None):
+        """Use context info to connect to API and return api object."""
+
+        if (not context) and not (token and url):
+            raise ValueError("Must pass either a context or a token and url")
+
+        if context:
+            #FIXME: figure out better serialization/deserialization scheme
+            if isinstance(context, dict):
+                context = checkmate.middleware.RequestContext(**context)
+            if not context.auth_token:
+                raise CheckmateNoTokenError()
+            token = context.auth_token
+            url = Provider._find_url(context.catalog)
+
+        class CloudDNSAuthProxy(object):
+            '''We pass this class to clouddns to bypass its auth mechanism.'''
+            def __init__(self, url, token):
+                self.url = url
+                self.token = token
+
+            def authenticate(self):
+                '''Called by clouddns. Expects back a url and token.'''
+                return (self.url, self.token)
+
+        proxy = CloudDNSAuthProxy(url=url, token=token)
+        api = clouddns.connection.Connection(auth=proxy)
+        LOG.debug("Connected to cloud DNS using token of length %s "
+                  "and url of %s", len(token), url)
+        return api
+
+
+def _get_dns_object(context):
+    '''Returns a handle to an API object.'''
+    return Provider.connect(context)
+
+
+def parse_domain(domain_str):
+    '''Return "domain.com" for "sub2.sub1.domain.com".'''
+    if not domain_str:
+        return ""
+    extractor = tldextract.TLDExtract(
+        cache_file=os.environ.get('CHECKMATE_TLD_CACHE_FILE', None))
+    domain_data = extractor(domain_str)
+    return '%s.%s' % (domain_data.domain, domain_data.tld)
