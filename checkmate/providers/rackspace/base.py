@@ -66,7 +66,7 @@ class RackspaceProviderBase(base.ProviderBase):
         return list(regions)
 
     @staticmethod
-    def connect(context, region=None):
+    def _connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
         #FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
