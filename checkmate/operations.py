@@ -1,6 +1,18 @@
-'''
-Common code, utilities, and classes for managing the 'operation' object
-'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Common code, utilities, and classes for managing the 'operation' object."""
 import itertools
 import logging
 import os
@@ -53,7 +65,7 @@ def add(deployment, spiff_wf, type, tenant_id=None):
 
 
 def add_operation(deployment, type_name, **kwargs):
-    '''Adds an operation to a deployment
+    """Adds an operation to a deployment
 
     Moves any existing operation to history
 
@@ -61,7 +73,7 @@ def add_operation(deployment, type_name, **kwargs):
     :param type_name: the operation name (BUILD, DELETE, etc...)
     :param kwargs: additional kwargs to add to operation
     :returns: operation
-    '''
+    """
     if 'operation' in deployment:
         if 'operations-history' not in deployment:
             deployment['operations-history'] = []
@@ -76,14 +88,14 @@ def add_operation(deployment, type_name, **kwargs):
 def update_operation(deployment_id, workflow_id, driver=None,
                      deployment_status=None,
                      **kwargs):
-    '''Update the the operation in the deployment
+    """Update the the operation in the deployment
 
     :param deployment_id: the string ID of the deployment
     :param driver: the backend driver to use to get the deployments
     :param kwargs: the key/value pairs to write into the operation
 
     Note: exposed in common.tasks as a celery task
-    '''
+    """
     if kwargs:
         if is_simulation(deployment_id):
             driver = SIMULATOR_DB
@@ -156,7 +168,7 @@ def get_status_info(errors, tenant_id, workflow_id):
 
 
 def init_operation(workflow, tenant_id=None):
-    '''Create a new operation dictionary for a given workflow.
+    """Create a new operation dictionary for a given workflow.
 
     Example:
 
@@ -168,7 +180,7 @@ def init_operation(workflow, tenant_id=None):
         'complete': 100,
         'link': '/v1/{tenant_id}/workflows/982h3f28937h4f23847'
     }
-    '''
+    """
     operation = {}
 
     _update_operation(operation, workflow)
@@ -183,7 +195,7 @@ def init_operation(workflow, tenant_id=None):
 
 
 def _update_operation(operation, workflow):
-    '''Update an operation dictionary for a given workflow.
+    """Update an operation dictionary for a given workflow.
 
     Example:
 
@@ -198,7 +210,7 @@ def _update_operation(operation, workflow):
 
     :param operation: a deployment operation dict
     :param workflow: SpiffWorkflow
-    '''
+    """
 
     tasks = workflow.task_tree.children
 
