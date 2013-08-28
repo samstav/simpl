@@ -64,7 +64,6 @@ MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
-
 # Cloud Load Balancers needs an IP for all load balancers. To create one we
 # sometimes need a dummy node. This is the IP address we use for the dummy
 # node. Requests to manage this node are intentionally errored out.
@@ -274,27 +273,27 @@ def sync_resource_task(context, resource, resource_key, api=None):
                 get_class_name(exceptions.CheckmateException),
                 exceptions.UNEXPECTED_ERROR,
                 '')
-        lb = api.get(instance_id)
+        clb = api.get(instance_id)
 
         try:
-            meta = lb.get_metadata()
+            meta = clb.get_metadata()
             if "RAX-CHECKMATE" not in meta.keys():
                 checkmate_tag = Provider.generate_resource_tag(
                     context['base_url'], context['tenant'],
                     context['deployment'], resource['index']
                 )
                 new_meta = merge_dictionary(meta, checkmate_tag)
-                lb.set_metadata(new_meta)
+                clb.set_metadata(new_meta)
         except StandardError as exc:
             LOG.info("Could not set metadata tag "
                      "on checkmate managed compute resource")
             LOG.info(exc)
 
         LOG.info("Marking load balancer instance %s as %s", instance_id,
-                 lb.status)
+                 clb.status)
         return {
             key: {
-                'status': lb.status
+                'status': clb.status
             }
         }
     except (pyrax.exceptions.NotFound, exceptions.CheckmateException):

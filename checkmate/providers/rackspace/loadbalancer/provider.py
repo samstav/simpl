@@ -20,7 +20,6 @@ from checkmate import exceptions
 from checkmate import middleware
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import base, dns
-from checkmate.providers.rackspace.dns import parse_domain
 from checkmate.utils import (
     get_class_name,
 )
@@ -363,7 +362,7 @@ class Provider(base.RackspaceProviderBase):
                 call_args=[
                     context.get_queued_task_dict(
                         deployment=deployment['id'], resource=key),
-                    parse_domain(name),
+                    dns.parse_domain(name),
                     '.'.join(name.split('.')[1:]), "A",
                     operators.PathAttrib('instance:%s/public_ip' % key)
                 ],
@@ -668,29 +667,29 @@ class Provider(base.RackspaceProviderBase):
             api = Provider.connect(context, region=region)
             load_balancers += api.list()
         results = {}
-        for idx, lb in enumerate(load_balancers):
+        for idx, clb in enumerate(load_balancers):
             vip = None
-            for ip_data in lb.virtual_ips:
+            for ip_data in clb.virtual_ips:
                 if ip_data.ip_version == 'IPV4' and ip_data.type == "PUBLIC":
                     vip = ip_data.address
 
             results[idx] = {
-                'status': lb.status,
+                'status': clb.status,
                 'index': idx,
-                'region': lb.manager.api.region_name,
+                'region': clb.manager.api.region_name,
                 'provider': 'load-balancer',
-                'dns-name': lb.name,
+                'dns-name': clb.name,
                 'instance': {
-                    'protocol': lb.protocol,
+                    'protocol': clb.protocol,
                     'interfaces': {
                         'vip': {
                             'public_ip': vip,
                             'ip': vip
                         }
                     },
-                    'id': lb.id,
+                    'id': clb.id,
                     'public_ip': vip,
-                    'port': lb.port
+                    'port': clb.port
                 },
                 'type': 'load-balancer'
             }

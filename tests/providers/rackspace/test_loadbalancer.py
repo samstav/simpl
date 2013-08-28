@@ -270,6 +270,7 @@ class TestCeleryTasks(unittest.TestCase):
                                            virtual_ips=[vip],
                                            algorithm='ROUND_ROBIN')
 
+        mock_reset_delay.assert_called_with('DEP', '1')
         first_postback = mock.call('DEP', {'instance:1': {'id': 121212}})
         second_postback = mock.call('DEP', expected)
         self.assertEqual(mock_postback_delay.mock_calls[0], first_postback)
