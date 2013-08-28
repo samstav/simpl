@@ -6,13 +6,13 @@ import os
 
 from celery import canvas
 from celery import task
-
 import pyrax
 import redis
 
 from .provider import Provider
 
 from checkmate.common import statsd
+from checkmate import db
 from checkmate import deployments
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate import exceptions
@@ -21,7 +21,6 @@ from checkmate.utils import (
     get_class_name,
     merge_dictionary,
 )
-
 
 LOG = logging.getLogger(__name__)
 
@@ -50,8 +49,6 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     except StandardError as exception:
         LOG.warn("Error connecting to Redis: %s", exception)
 
-#FIXME: delete tasks talk to database directly, so we load drivers and manager
-from checkmate import db
 DRIVERS = {}
 DB = DRIVERS['default'] = db.get_driver()
 SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(

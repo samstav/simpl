@@ -14,16 +14,14 @@ import pyrax
 import redis
 
 from checkmate.common import caching
+from checkmate import db
 from checkmate import deployments
-
 from checkmate import exceptions
 from checkmate import middleware
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import base, dns
-from checkmate.utils import (
-    get_class_name,
-)
-
+from checkmate.providers.rackspace.dns.provider import parse_domain
+from checkmate.utils import get_class_name
 
 LOG = logging.getLogger(__name__)
 
@@ -52,8 +50,6 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     except StandardError as exception:
         LOG.warn("Error connecting to Redis: %s", exception)
 
-#FIXME: delete tasks talk to database directly, so we load drivers and manager
-from checkmate import db
 DRIVERS = {}
 DB = DRIVERS['default'] = db.get_driver()
 SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
@@ -362,7 +358,7 @@ class Provider(base.RackspaceProviderBase):
                 call_args=[
                     context.get_queued_task_dict(
                         deployment=deployment['id'], resource=key),
-                    dns.parse_domain(name),
+                    parse_domain(name),
                     '.'.join(name.split('.')[1:]), "A",
                     operators.PathAttrib('instance:%s/public_ip' % key)
                 ],
