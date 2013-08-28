@@ -382,7 +382,7 @@ class Router(object):
         deployment = self.manager.save_deployment(deployment, api_id=api_id,
                                                   tenant_id=tenant_id)
         delete_nodes_wf_id = deployment['operation']['workflow-id']
-        wf_tasks.run_workflow.delay(delete_nodes_wf_id, timeout=3600)
+        wf_tasks.cycle_workflow.delay(delete_nodes_wf_id)
 
         # Set headers
         location = "/deployments/%s" % api_id
@@ -430,9 +430,7 @@ class Router(object):
         deployment = self.manager.save_deployment(deployment, api_id=api_id,
                                                   tenant_id=tenant_id)
         add_nodes_wf_id = deployment['operation']['workflow-id']
-        wf_tasks.run_workflow.delay(
-            add_nodes_wf_id, timeout=3600, driver=self.manager.select_driver(
-                api_id))
+        wf_tasks.cycle_workflow.delay(add_nodes_wf_id)
 
         # Set headers
         location = "/deployments/%s" % api_id
@@ -477,12 +475,12 @@ class Router(object):
                 deployment, bottle.request.context))
         spiff_workflow = workflow.create_workflow(
             delete_workflow_spec, deployment, bottle.request.context,
-            driver=driver)
+            driver=driver, wf_type="DELETE")
         workflow_id = spiff_workflow.attributes.get('id')
         LOG.debug("Workflow %s created for deleting deployment %s",
                   workflow_id, api_id)
         operations.create.delay(api_id, workflow_id, "DELETE", tenant_id)
-        wf_tasks.run_workflow.delay(workflow_id, timeout=3600, driver=driver)
+        wf_tasks.cycle_workflow.delay(workflow_id)
         # Set headers
         location = "/deployments/%s" % api_id
         link = "/workflows/%s" % workflow_id

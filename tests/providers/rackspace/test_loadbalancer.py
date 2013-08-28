@@ -566,6 +566,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
         self.context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                                  username='MOCK_USER')
+        self.deployment['tenantId'] = "tenantId"
         deployments.Manager.plan(self.deployment, self.context)
 
     def test_workflow_task_generation_for_vip_load_balancer(self):
@@ -635,11 +636,12 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: https
                             - compute: linux
             """))
+        vip_deployment['tenantId'] = "tenantId"
         deployments.Manager.plan(vip_deployment, self.context)
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             vip_deployment, self.context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, vip_deployment, self.context)
+            workflow_spec, vip_deployment, self.context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root', 'Start',
@@ -719,12 +721,14 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: http
                             - compute: linux
             """))
+        dep_with_allow_unencrypted['tenantId'] = 'tenantId'
         deployments.Manager.plan(
             dep_with_allow_unencrypted, self.context)
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             dep_with_allow_unencrypted, self.context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, dep_with_allow_unencrypted, self.context)
+            workflow_spec, dep_with_allow_unencrypted, self.context, "w_id",
+            "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
         expected = [
@@ -755,7 +759,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, self.context)
         workflow = cm_wf.init_spiff_workflow(workflow_spec, self.deployment,
-                                             self.context)
+                                             self.context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
         expected = [

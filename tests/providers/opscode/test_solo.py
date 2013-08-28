@@ -377,6 +377,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                             provides:
                             - compute: linux
             '''))
+        self.deployment['tenantId'] = 'tenantId'
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
@@ -387,7 +388,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, self.deployment, context)
+            workflow_spec, self.deployment, context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
@@ -568,6 +569,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                             provides:
                             - compute: linux
             '''))
+        self.deployment['tenantId'] = 'tenantId'
         self.map_file = \
             '''
             \n--- # foo component
@@ -595,7 +597,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, self.deployment, context)
+            workflow_spec, self.deployment, context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
         self.assertNotIn('Collect Chef Data for 0', task_list,
@@ -666,6 +668,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                     username: u1  # test that this gets used
                     # test that database_name gets provided from defaults
             '''))
+        self.deployment['tenantId'] = 'tenantId'
         self.map_file = \
             '''
                 id: mysql
@@ -725,7 +728,7 @@ interfaces/mysql/host
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, self.deployment, context)
+            workflow_spec, self.deployment, context, "w_id", "BUILD")
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',
@@ -974,6 +977,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                             provides:
                             - compute: linux
             '''))
+        self.deployment['tenantId'] = 'tenantId'
         self.map_file = \
             '''
             \n--- # foo component
@@ -1046,7 +1050,7 @@ interfaces/mysql/database_name
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, self.deployment, context)
+            workflow_spec, self.deployment, context, "w_id", "BUILD")
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
         host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']

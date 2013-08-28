@@ -255,7 +255,8 @@ class StubbedWorkflowBase(unittest.TestCase):
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
-        workflow = init_spiff_workflow(workflow_spec, self.deployment, context)
+        workflow = init_spiff_workflow(workflow_spec, self.deployment,
+                                       context, "w_id", "BUILD")
 
         if not expected_calls:
             expected_calls = self._get_expected_calls()

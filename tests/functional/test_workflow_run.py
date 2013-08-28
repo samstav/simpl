@@ -45,7 +45,7 @@ class TestWorkflowStubbing(cmtest.StubbedWorkflowBase):
                   name: environment
                   providers: {}
                 """))
-
+        self.deployment['tenantId'] = 'tenantId'
         workflow = self._get_stubbed_out_workflow()
 
         self.mox.ReplayAll()
@@ -92,6 +92,7 @@ class TestWorkflowLogic(cmtest.StubbedWorkflowBase):
                       - password: secret
                         username: tester
             """))
+        self.deployment['tenantId'] = 'tenantId'
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
         workflow = self._get_stubbed_out_workflow()
@@ -144,6 +145,7 @@ class TestWorkflow(cmtest.StubbedWorkflowBase):
                       - password: secret
                         username: tester
             """))
+        self.deployment['tenantId'] = 'tenantId'
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
         self.workflow = self._get_stubbed_out_workflow()
 

@@ -1332,16 +1332,16 @@ class TestDeleteDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(workflow,
                                   "create_workflow")
         workflow.create_workflow(mock_spec, self._deployment,
-                                 bottle.request.context, driver=mock_driver)\
+                                 bottle.request.context, driver=mock_driver,
+                                 wf_type="DELETE")\
             .AndReturn(mock_spiff_wf)
         self._mox.StubOutWithMock(common_tasks, "update_operation")
         common_tasks.update_operation.delay('1234', '1234', action='PAUSE',
                                             driver=mock_driver)
         self._mox.StubOutWithMock(operations, "create")
         operations.create.delay('1234', 'w_id', 'DELETE', 'T1000')
-        self._mox.StubOutWithMock(wf_tasks, "run_workflow")
-        wf_tasks.run_workflow.delay('w_id', timeout=3600,
-                                    driver=mock_driver).AndReturn(4)
+        self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
+        wf_tasks.cycle_workflow.delay('w_id').AndReturn(4)
 
         self._mox.ReplayAll()
         router.delete_deployment('1234', tenant_id="T1000")
@@ -1556,7 +1556,6 @@ class TestDeploymentAddNodes(unittest.TestCase):
 
     def test_happy_path(self):
         manager = self._mox.CreateMock(cmdeps.Manager)
-        mock_driver = self._mox.CreateMockAnything()
         router = cmdeps.Router(bottle.default_app(), manager)
 
         manager.get_deployment('1234', tenant_id="T1000",
@@ -1575,9 +1574,8 @@ class TestDeploymentAddNodes(unittest.TestCase):
         self._deployment["operation"].update({'workflow-id': 'w_id'})
         manager.save_deployment(self._deployment, api_id='1234',
                                 tenant_id='T1000').AndReturn(self._deployment)
-        manager.select_driver('1234').AndReturn(mock_driver)
-        self._mox.StubOutWithMock(wf_tasks, "run_workflow")
-        wf_tasks.run_workflow.delay('w_id', timeout=3600, driver=mock_driver)
+        self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
+        wf_tasks.cycle_workflow.delay('w_id')
 
         self._mox.ReplayAll()
         router.add_nodes("1234", tenant_id="T1000")

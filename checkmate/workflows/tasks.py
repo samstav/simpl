@@ -1,26 +1,34 @@
+# pylint: disable=W0212
 '''
 Workflows Asynchronous tasks
 '''
 import logging
 import os
-from celery.exceptions import MaxRetriesExceededError
 
+from celery import current_app
+from celery import exceptions
 from celery.task import task
-from SpiffWorkflow import Workflow, Task
-from SpiffWorkflow.storage import DictionarySerializer
+from celery import Task as CeleryTask
+from SpiffWorkflow import Task
+from SpiffWorkflow import Workflow
 from SpiffWorkflow.specs import Celery
+from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import db
-from checkmate import workflow as cm_workflow
-from checkmate import utils
 from checkmate.common import (
     statsd,
     tasks as common_tasks,
 )
-from checkmate.deployment import Deployment
+from checkmate.deployment import (
+    Deployment,
+    OPERATION_DEPLOYMENT_STATUS_MAP,
+)
 from checkmate.middleware import RequestContext
 from checkmate.operations import get_status_info
+from checkmate import workflow as cm_workflow
+from checkmate import utils
 from checkmate.workflows import Manager
+
 
 LOG = logging.getLogger(__name__)
 DRIVERS = {}
@@ -35,195 +43,147 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
 MANAGERS = {'workflows': Manager(DRIVERS)}
 
 
-@task(default_retry_delay=10, max_retries=300)
-@statsd.collect
-def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
-    """Loop through trying to complete the workflow and periodically log
-    status updates. Each time we cycle through, if nothing happens we
-    extend the wait time between cycles so we don't load the system.
+class WorkflowEventHandlerTask(CeleryTask):
+    abstract = True
 
-    This function should not consume time, so the timeout is only counting
-    the number of seconds we wait between runs
-
-    :param id: the workflow id
-    :param timeout: the timeout in seconds. Unless we complete before then
-    :param wait: how long to wait between runs. Grows without activity
-    :param key: the key to unlock a locked workflow. Only should be passed in
-        if the workfow has already been locked.
-    :returns: True if workflow is complete
-    """
-
-    def _on_failure_handler(exc, task_id, args, kwargs, einfo):
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
         w_id = args[0]
-        workflow = driver.get_workflow(w_id)
-        dep_id = workflow["attributes"]["deploymentId"] or w_id
-        kwargs = {'status': 'ERROR'}
 
-        if isinstance(exc, MaxRetriesExceededError):
-            kwargs.update({"errors": [{
-                "error-message": "The maximum amount of permissible retries "
-                                 "for workflow %s has elapsed. Please "
-                                 "re-execute the workflow" % w_id,
-                "error-help": "",
-                "error-type": utils.get_class_name(exc),
-                "retriable": True,
-                "retry-link": "%s/workflows/%s/+execute" % (tenant_id, w_id),
-                "friendly-message": "There was a timeout while executing the"
-                                    " workflow"
-            }]})
-            LOG.warn("Workflow %s has reached the maximum number of "
-                     "permissible retries!", w_id)
+        if isinstance(exc, exceptions.MaxRetriesExceededError):
+            error = exc.__repr__()
             LOG.error("Workflow %s has reached the maximum number of "
                       "permissible retries!", w_id)
         else:
-            kwargs.update({"errors": [{'error-message': exc.args[0]}]})
+            error = exc.__repr__()
+        update_deployment.delay(args[0], error=error)
 
-        common_tasks.update_operation.delay(dep_id, w_id, driver=driver,
-                                            **kwargs)
+    def on_retry(self, exc, task_id, args, kwargs, einfo):
+        self.on_success(None, task_id, args, kwargs)
 
-    utils.match_celery_logging(LOG)
-    assert driver, "No driver supplied to orchestrator"
+    def on_success(self, retval, task_id, args, kwargs):
+        update_deployment.delay(args[0])
 
-    # Lock the workflow
-    try:
-        workflow, key = driver.lock_workflow(w_id, with_secrets=True)
-    except db.ObjectLockedError:
-        run_workflow.retry()
 
-    run_workflow.on_failure = _on_failure_handler
-
-    dep_id = workflow["attributes"].get("deploymentId") or w_id
-    deployment = driver.get_deployment(dep_id)
-    operation = Deployment(deployment).get_current_operation(w_id)
-    if not operation:
-        driver.unlock_workflow(w_id, key)
-        LOG.debug("RunWorkflow for workflow %s cannot proceed, as operation "
-                  "could not be found. Deployment Id: %s", w_id, dep_id)
-        run_workflow.retry()
-
-    operation_type = operation.get("type")
-    action = operation.get("action")
-
-    if action and action == "PAUSE":
-        driver.unlock_workflow(w_id, key)
-        return False
-
-    # Get the workflow
+@task(default_retry_delay=10, max_retries=10, ignore_result=True)
+def update_deployment(w_id, error=None):
+    '''Update the deployment progress and status depending on the status of
+    the workflow
+    :param w_id: Workflow to update the deployment from
+    :param errors: Additional errors that need to be updated
+    '''
+    driver = MANAGERS['workflows'].select_driver(w_id)
+    workflow = MANAGERS['workflows'].get_workflow(w_id)
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
-    LOG.debug("Deserialized workflow %s", w_id,
-              extra=dict(data=d_wf.get_dump()))
 
-    # Prepare to run it
-    tenant_id = workflow.get("tenantId")
+    dep_id = d_wf.get_attribute("deploymentId") or w_id
+    tenant_id = d_wf.get_attribute("tenant_id")
+    status = d_wf.get_attribute('status')
+    total = d_wf.get_attribute('total')
+    completed = d_wf.get_attribute('completed')
+    wf_type = d_wf.get_attribute('type')
+    dep_status = None
+
     if d_wf.is_completed():
-        if d_wf.get_attribute('status') != "COMPLETE":
-            cm_workflow.update_workflow(d_wf, tenant_id,
-                                        driver=driver, workflow_id=w_id)
-            common_tasks.update_operation.delay(
-                dep_id, w_id, driver=driver, deployment_status="UP",
-                status=d_wf.get_attribute('status'),
-                tasks=d_wf.get_attribute('total'),
-                complete=d_wf.get_attribute('completed'))
-            LOG.debug("Workflow '%s' is already complete. Marked it so.", w_id)
-        else:
-            LOG.debug("Workflow '%s' is already complete. Nothing to do.",
-                      w_id)
+        dep_status = OPERATION_DEPLOYMENT_STATUS_MAP.get(wf_type, None)
+        common_tasks.update_operation.delay(
+            dep_id, w_id, driver=driver, deployment_status=dep_status,
+            status=status,
+            tasks=total,
+            complete=completed)
+    else:
+        status_info = {}
+        wf_errors = cm_workflow.get_errors(d_wf, tenant_id)
+        if error:
+            wf_errors.append(cm_workflow.convert_exc_to_dict(error, None,
+                                                             tenant_id, w_id,
+                                                             None))
+        if wf_errors:
+            status_info = get_status_info(wf_errors, tenant_id, w_id)
+            dep_status = "FAILED"
 
-        driver.unlock_workflow(w_id, key)
-        return True
+        operation_kwargs = {'status': status,
+                            'tasks': total,
+                            'complete': completed,
+                            'errors': wf_errors}
+        operation_kwargs.update(status_info)
+        common_tasks.update_operation.delay(dep_id, w_id, driver=driver,
+                                            deployment_status=dep_status,
+                                            **operation_kwargs)
 
-    before = d_wf.get_dump()
 
-    # Run!
+@task(base=WorkflowEventHandlerTask, default_retry_delay=10,
+      max_retries=300, time_limit=3600, ignore_result=True)
+def cycle_workflow(w_id, wait=1):
+    '''Loop through trying to complete the workflow and periodically log
+    status updates. Each time we cycle through, if nothing happens we
+    extend the wait time between cycles so we don't load the system.
+
+    :param w_id: the workflow id
+    :param wait: how long to wait between runs. Grows without activity
+    '''
+    utils.match_celery_logging(LOG)
     try:
+        workflow, key = MANAGERS['workflows'].lock_workflow(w_id,
+                                                            with_secrets=True)
+
+        serializer = DictionarySerializer()
+        d_wf = Workflow.deserialize(serializer, workflow)
+
+        initial_wf_state = cm_workflow.update_workflow_status(d_wf)
         d_wf.complete_all()
+        final_workflow_state = cm_workflow.update_workflow_status(d_wf)
+
+        if initial_wf_state != final_workflow_state:
+            MANAGERS['workflows'].save_spiff_workflow(
+                d_wf, celery_task_id=cycle_workflow.request.id)
+            wait = 1
+            completed_tasks = final_workflow_state['completed']
+            total_tasks = final_workflow_state['total']
+            LOG.debug("Workflow status: %s/%s (state=%s)", completed_tasks,
+                      total_tasks, d_wf.get_attribute('status'))
+            if d_wf.is_completed():
+                LOG.debug("Workflow '%s' is complete", w_id)
+                return
+            else:
+                cycle_workflow.update_state(state="PROGRESS", meta={
+                    'complete': completed_tasks,
+                    'total': total_tasks
+                })
+        else:
+            if wait < 20:
+                wait += 1
+            LOG.debug("Workflow '%s' did not make any progress. "
+                      "Deprioritizing it and waiting %s seconds to retry"
+                      ".", w_id, wait)
+    except db.ObjectLockedError:
+        cycle_workflow.retry()
     except Exception as exc:
         LOG.exception(exc)
     finally:
-        # Save any changes, even if we errored out
-        errors = cm_workflow.get_errors(d_wf, tenant_id)
-        if errors:
-            cm_workflow.reset_failed_tasks(d_wf)
-        after = d_wf.get_dump()
+        MANAGERS['workflows'].unlock_workflow(w_id, key)
 
-        if before != after or errors:
-            #save if there are failed tasks or the workflow has progressed
-            cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
-                                        driver=driver, workflow_id=w_id)
-            completed = d_wf.get_attribute('completed')
-            total = d_wf.get_attribute('total')
-            workflow_status = operation_status = d_wf.get_attribute('status')
-            status_info = {}
+    LOG.debug("Finished run of workflow '%s'. Waiting %i seconds to "
+              "next run. Retries done: %s", w_id, wait,
+              cycle_workflow.request.retries)
+    cycle_workflow.retry([w_id], kwargs={'wait': wait}, countdown=wait)
 
-            if errors:
-                operation_status = "ERROR"
-                status_info = get_status_info(errors, tenant_id, w_id)
 
-            operation_kwargs = {'status': operation_status,
-                                'tasks': total,
-                                'complete': completed,
-                                'errors': errors}
-            operation_kwargs.update(status_info)
-
-            common_tasks.update_operation.delay(dep_id, w_id, driver=driver,
-                                                **operation_kwargs)
-
-        if before != after:
-            # We made some progress, so prioritize next run
-            wait = 1
-
-            if total == completed:
-                deployment_status = ("DELETED" if operation_type == "DELETE"
-                                     else "UP")
-                common_tasks.update_deployment_status.delay(dep_id,
-                                                            deployment_status,
-                                                            driver=driver)
-
-            LOG.debug("Workflow status: %s/%s (state=%s)", completed, total,
-                      workflow_status)
-            run_workflow.update_state(state="PROGRESS",
-                                      meta={'complete': completed,
-                                            'total': total})
-        else:
-            # No progress made. So drop priority (to max of 20s wait)
-            if wait < 20:
-                wait += 1
-            LOG.debug("Workflow '%s' did not make any progress. Deprioritizing"
-                      " it and waiting %s seconds to retry.", w_id, wait)
-
-    # Assess impact of run
-    if d_wf.is_completed():
-        driver.unlock_workflow(w_id, key)
-        return True
-
-    timeout = timeout - wait if timeout > wait else 0
-    if timeout:
-        LOG.debug("Finished run of workflow '%s'. %i seconds to go. Waiting "
-                  "%i seconds to next run. Retries done: %s", w_id, timeout,
-                  wait, counter)
-        # If we have to retry the run, pass in the key so that
-        # we will not try to re-lock the workflow.
-        retry_kwargs = {
-            'timeout': timeout,
-            'wait': wait,
-            'counter': counter + 1,
-            'driver': driver,
-        }
-        driver.unlock_workflow(w_id, key)
-        return run_workflow.retry([w_id], kwargs=retry_kwargs, countdown=wait,
-                                  Throw=False)
-    else:
-        LOG.debug("Workflow '%s' did not complete (no timeout set).", w_id)
-        driver.unlock_workflow(w_id, key)
-        return False
+@task(default_retry_delay=10, max_retries=300)
+@statsd.collect
+def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
+    '''DEPRECATED: Please use cycle_workflow in checkmate.workflows.tasks
+    '''
+    LOG.warn('DEPRECATED method run_workflow called for workflow %s', w_id)
+    cycle_workflow.delay(w_id, wait=wait)
 
 
 @task
 @statsd.collect
 def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
-    """Attempt to complete one task.
-    returns True/False indicating if task completed"""
+    '''Attempt to complete one task.
+    returns True/False indicating if task completed
+    '''
     utils.match_celery_logging(LOG)
     workflow = None
     key = None
@@ -251,8 +211,8 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
                                            wf_task.get_state_name()))
 
         if wf_task._is_predicted() or wf_task._has_state(Task.WAITING):
-            LOG.debug("Progressing task '%s' (%s)" % (task_id,
-                                                      wf_task.get_state_name()))
+            LOG.debug("Progressing task '%s' (%s)", task_id,
+                      wf_task.get_state_name())
             if isinstance(context, dict):
                 context = RequestContext(**context)
             # Refresh token if it exists in args[0]['auth_token]
@@ -265,20 +225,19 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
                 LOG.debug("Updating task auth token with new caller token")
             result = wf_task.task_spec._update_state(wf_task)
         elif wf_task._has_state(Task.READY):
-            LOG.debug("Completing task '%s' (%s)" % (task_id,
-                      wf_task.get_state_name()))
+            LOG.debug("Completing task '%s' (%s)", task_id,
+                      wf_task.get_state_name())
             result = d_wf.complete_task_from_id(task_id)
         else:
             LOG.warn("Task '%s' in Workflow '%s' is in state %s and cannot be "
                      "progressed", task_id, workflow_id,
                      wf_task.get_state_name())
             return False
-        cm_workflow.update_workflow_status(d_wf,
-                                           tenant_id=workflow.get('tenantId'))
+        cm_workflow.update_workflow_status(d_wf)
         updated = d_wf.serialize(serializer)
         if original != updated:
-            LOG.debug("Task '%s' in Workflow '%s' completion result: %s" % (
-                      task_id, workflow_id, result))
+            LOG.debug("Task '%s' in Workflow '%s' completion result: %s",
+                      task_id, workflow_id, result)
             msg = "Saving: %s" % d_wf.get_dump()
             LOG.debug(msg)
             #TODO: make DRY
@@ -296,9 +255,8 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
 @task(default_retry_delay=10, max_retries=300)
 @statsd.collect
 def pause_workflow(w_id, driver=DB, retry_counter=0):
-    '''
-    Waits for all the waiting celery tasks to move to ready and then marks the
-    operation as paused
+    '''Waits for all the waiting celery tasks to move to ready and then marks
+    the operation as paused
     :param w_id: Workflow id
     :param driver: DB driver
     :return:
@@ -318,6 +276,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
     if action and action == "PAUSE":
         if operation.get("action-response") != "ACK":
             kwargs = {"action-response": "ACK"}
+            revoke_task.delay(workflow['celery_task_id'])
             common_tasks.update_operation.delay(deployment_id, w_id,
                                                 driver=driver, **kwargs)
     elif operation["status"] == "COMPLETE":
@@ -330,7 +289,6 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
         LOG.debug("Skipping waitiing for Operation Action to turn to PAUSE - "
                   "pause_workflow for workflow %s has already been retried %s "
                   "times", w_id, retry_counter)
-        pass
     else:
         LOG.warn("Pause request for workflow %s received but operation's "
                  "action is not PAUSE. Retry-Count waiting for action to "
@@ -378,3 +336,16 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
             'retry_counter': retry_counter,
             'driver': driver
         })
+
+
+@task
+def revoke_task(task_id):
+    '''Revoke a celery task
+    :param task_id: Task Id of the task to revoke
+    :return:
+    '''
+    if task_id:
+        current_app.control.revoke(task_id)
+        LOG.debug("Revoked task %s", task_id)
+    else:
+        LOG.error("No task id passed to revoke_task")

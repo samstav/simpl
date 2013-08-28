@@ -43,8 +43,8 @@ def create(dep_id, workflow_id, type, tenant_id=None):
     serializer = DictionarySerializer()
     spiff_wf = SpiffWorkflow.deserialize(serializer, workflow)
     add(deployment, spiff_wf, type, tenant_id=tenant_id)
-    driver.save_deployment(dep_id, deployment, secrets=None, tenant_id=tenant_id,
-                       partial=False)
+    driver.save_deployment(dep_id, deployment, secrets=None,
+                           tenant_id=tenant_id, partial=False)
 
 
 def add(deployment, spiff_wf, type, tenant_id=None):
@@ -92,6 +92,10 @@ def update_operation(deployment_id, workflow_id, driver=None,
         deployment = driver.get_deployment(deployment_id, with_secrets=True)
         deployment = Deployment(deployment)
         operation = deployment.get_operation(workflow_id)
+        if not operation:
+            LOG.warn("Cannot find operation with workflow id %s in "
+                     "deployment %s", workflow_id, deployment_id)
+            return
         operation_value = operation.values()[0]
         if isinstance(operation_value, list):
             operation_status = operation_value[-1]['status']
@@ -244,7 +248,8 @@ def _update_operation(operation, workflow):
 def _get_distinct_errors(errors):
     distinct_errors = []
     sorted_errors = sorted(errors, key=lambda k: k.get('error-type'))
-    for k, g in itertools.groupby(sorted_errors, lambda x: x.get("error-type")):
+    for k, g in itertools.groupby(sorted_errors,
+                                  lambda x: x.get("error-type")):
         a = list(g)[0]
         distinct_errors.append(a)
     return distinct_errors
