@@ -1082,11 +1082,17 @@ def create_server(context, name, region, api_object=None, flavor="2",
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor, name,
               files)
 
-    # Check image and flavor IDs (better descriptions if we error here)
-    image_object = api_object.images.find(id=image)
-    LOG.debug("Image id %s found. Name=%s", image, image_object.name)
-    flavor_object = api_object.flavors.find(id=str(flavor))
-    LOG.debug("Flavor id %s found. Name=%s", flavor, flavor_object.name)
+    try:
+        # Check image and flavor IDs (better descriptions if we error here)
+        image_object = api_object.images.find(id=image)
+        LOG.debug("Image id %s found. Name=%s", image, image_object.name)
+        flavor_object = api_object.flavors.find(id=str(flavor))
+        LOG.debug("Flavor id %s found. Name=%s", flavor, flavor_object.name)
+    except requests.ConnectionError as exc:
+        msg = ("Connection error talking to %s endpoint" %
+               (api_object.client.management_url))
+        LOG.error(msg, exc_info=True)
+        raise create_server.retry(exc=exc)
 
     # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
