@@ -384,6 +384,36 @@ describe('DeploymentController', function(){
     });
   });
 
+  describe('#is_scalable_service', function() {
+    var deployment, resource;
+    beforeEach(function() {
+      spyOn($scope, 'available_services').andReturn(['web']);
+      deployment = { plan: { services: { web: { component: { instances: ['1'] } } } } };
+      resource = { service: 'web', index: '1' };
+    });
+
+    it('should return true if service is scalable and resource index is in deployment plan', function() {
+      expect($scope.is_scalable_service(deployment, resource)).toBe(true);
+    });
+
+    describe('should return false when', function() {
+      it('resource has no service', function() {
+        resource = {};
+        expect($scope.is_scalable_service('deployment', resource)).toBe(false);
+      });
+
+      it('service is not in available_services', function() {
+        $scope.available_services.andReturn([]);
+        expect($scope.is_scalable_service(deployment, resource)).toBe(false);
+      });
+
+      it('resource index not in deployment plan', function() {
+        deployment.plan.services.web.component.instances = [];
+        expect($scope.is_scalable_service(deployment, resource)).toBe(false);
+      });
+    });
+  });
+
   describe('#add_nodes', function() {
     var promise;
     beforeEach(function() {
@@ -408,18 +438,20 @@ describe('DeploymentController', function(){
   });
 
   describe('#delete_nodes', function() {
-    var promise;
+    var promise, deployment;
     beforeEach(function() {
       promise = { then: sinon.spy() };
       Deployment.delete_nodes = sinon.stub().returns(promise);
       $scope.load = 'fake load';
       $scope.show_error = 'fake show error';
-      var resource = { index: 'fake index' };
-      $scope.delete_nodes('deployment', resource);
+      var resource_map = { '1': true };
+      var resource = { service: 'web' };
+      deployment = { resources: { '1': resource } }
+      $scope.delete_nodes(deployment, resource_map);
     });
 
     it('should forward calls to Deployment service', function() {
-      expect(Deployment.delete_nodes).toHaveBeenCalledWith('deployment', { index: 'fake index' });
+      expect(Deployment.delete_nodes).toHaveBeenCalledWith(deployment, 'web', 1, [{service: 'web'}]);
     });
 
     it('should load() when call is successful', function() {

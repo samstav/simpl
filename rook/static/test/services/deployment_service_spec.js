@@ -106,15 +106,15 @@ describe('Deployment service', function(){
       $httpBackend.flush();
     })
 
-    it('should post a list of comma separated resource ids', function() {
-      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { resource_ids: "0,1,2" }).respond(200, '');
-      Deployment.delete_nodes(deployment, resources);
+    it('should post a list of comma separated resource ids, number of nodes, and service name', function() {
+      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { service_name: 'web', count: 3, victim_list: "0,1,2" }).respond(200, '');
+      Deployment.delete_nodes(deployment, 'web', 3, resources);
     });
 
     it('should include only resources in service plan', function() {
       deployment.plan.services.web.component.instances = ['0', '2'];
-      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { resource_ids: "0,2" }).respond(200, '');
-      Deployment.delete_nodes(deployment, resources);
+      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { service_name: 'web', count: 2, victim_list: "0,2"  }).respond(200, '');
+      Deployment.delete_nodes(deployment, 'web', 2, resources);
     });
 
     describe('if resource not in deployment plan', function() {
@@ -123,8 +123,8 @@ describe('Deployment service', function(){
           { index: '1', service: 'web', hosted_on: '0' },
         ];
         deployment.plan.services.web.component.instances = ['0'];
-        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { resource_ids: "0" }).respond(200, '');
-        Deployment.delete_nodes(deployment, resources);
+        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { service_name: 'web', count: 1, victim_list: "0"  }).respond(200, '');
+        Deployment.delete_nodes(deployment, 'web', 1, resources);
       });
 
       it('should find child to delete', function() {
@@ -132,8 +132,8 @@ describe('Deployment service', function(){
           { index: '1', service: 'web', hosts: ['0'] },
         ];
         deployment.plan.services.web.component.instances = ['0'];
-        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { resource_ids: "0" }).respond(200, '');
-        Deployment.delete_nodes(deployment, resources);
+        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { service_name: 'web', count: 1, victim_list: "0"  }).respond(200, '');
+        Deployment.delete_nodes(deployment, 'web', 1, resources);
       });
     });
   });
