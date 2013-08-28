@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 '''
 Rackspace Cloud Load Balancer provider and specs.Celery tasks
 '''
@@ -533,7 +547,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                 exc = exceptions.CheckmateException("Validation failed - "
                                                     "Node was not added")
                 return add_node.retry(exc=exc)
-        except pyrax.exceptions.ClientException, exc:
+        except pyrax.exceptions.ClientException as exc:
             if exc.http_status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
                           "adding %s (%d %s)", lbid, ipaddr, exc.http_status,
@@ -543,7 +557,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                       "adding %s (%d %s)", lbid, ipaddr, exc.http_status,
                       exc.message)
             return add_node.retry(exc=exc)
-        except StandardError, exc:
+        except StandardError as exc:
             LOG.debug("Error adding %s behind load balancer %d. Error: "
                       "%s. Retrying", ipaddr, lbid, str(exc))
             return add_node.retry(exc=exc)
@@ -583,7 +597,7 @@ def delete_node(context, lbid, ipaddr, region, api=None):
         try:
             node_to_delete.delete()
             LOG.info('Removed %s from load balancer %s', ipaddr, lbid)
-        except pyrax.exceptions.ClientException, exc:
+        except pyrax.exceptions.ClientException as exc:
             if exc.http_status == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
                           "deleting %s (%s %s)", lbid, ipaddr, exc.http_status,
@@ -593,7 +607,7 @@ def delete_node(context, lbid, ipaddr, region, api=None):
                       'deleting %s (%s %s)', lbid, ipaddr, exc.http_status,
                       exc.message)
             delete_node.retry(exc=exc)
-        except StandardError, exc:
+        except StandardError as exc:
             LOG.debug("Error deleting %s from load balancer %s. Error: %s. "
                       "Retrying", ipaddr, lbid, str(exc))
             delete_node.retry(exc=exc)

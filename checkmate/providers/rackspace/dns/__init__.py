@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 '''Rackspace Cloud DNS provider'''
 import logging
 
@@ -77,11 +91,11 @@ def delete_domain(context, name):
     api = _get_dns_object(context)
     try:
         domain = api.get_domain(name=name)
-    except UnknownDomain, exc:
+    except UnknownDomain as exc:
         LOG.debug('Cannot deleted domain %s because it does not exist. '
                   'Refusing to retry.', name)
         return
-    except Exception, exc:
+    except StandardError as exc:
         LOG.debug('Exception getting domain %s. Was hoping to delete it. '
                   'Error %s. Retrying.', name, str(exc))
         delete_domain.retry(exc=exc)
@@ -89,11 +103,11 @@ def delete_domain(context, name):
     try:
         api.delete_domain(domain.id)
         LOG.debug('Domain %s deleted.', name)
-    except ResponseError, resp_error:
+    except ResponseError as resp_error:
         LOG.debug('Error deleting domain %s (%s) %s. Retrying.', name,
                   resp_error.status, resp_error.reason)
         delete_domain.retry(exc=resp_error)
-    except Exception, exc:
+    except StandardError as exc:
         LOG.debug('Error deleting domain %s. Error %s. Retrying.', name,
                   str(exc))
         delete_domain.retry(exc=exc)
@@ -155,7 +169,7 @@ def delete_record_task(context, domain_id, record_id):
     api = _get_dns_object(context)
     try:
         domain = api.get_domain_details(id=domain_id)
-    except UnknownDomain, exc:
+    except UnknownDomain as exc:
         LOG.debug('Cannot delete record %s because %s does not exist. '
                   'Refusing to retry.', record_id, domain_id)
         return
@@ -190,11 +204,11 @@ def delete_record_by_name(context, domain, name):
     api = _get_dns_object(context)
     try:
         domain = api.get_domain(name=domain)
-    except UnknownDomain, exc:
+    except UnknownDomain as exc:
         LOG.debug('Cannot delete record %s because %s does not exist. '
                   'Refusing to retry.', name, domain)
         return
-    except Exception, exc:
+    except Exception as exc:
         LOG.debug('Error finding domain %s.  Wanting to delete record %s. '
                   'Error %s. Retrying.', domain, name, str(exc))
         delete_record_task.retry(exc=exc)
@@ -203,11 +217,11 @@ def delete_record_by_name(context, domain, name):
         record = domain.get_record(name=name)
         domain.delete_record(record.id)
         LOG.debug('Deleted DNS record %s.', name)
-    except ResponseError, resp_error:
+    except ResponseError as resp_error:
         LOG.debug('Error deleting DNS record %s. Error %s %s. Retrying.',
                   name, resp_error.status, resp_error.reason)
         delete_record_task.retry(exc=resp_error)
-    except Exception, exc:
+    except Exception as exc:
         LOG.debug('Error deleting DNS record %s. Error %s. Retrying.', name,
                   str(exc))
         delete_record_task.retry(exc=exc)
