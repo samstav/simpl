@@ -18,19 +18,15 @@ import logging
 import os
 import time
 
-from celery.task import task
-from SpiffWorkflow import Workflow as SpiffWorkflow
+from celery import task as celtask
 from SpiffWorkflow.storage import DictionarySerializer
+from SpiffWorkflow import Workflow as SpiffWorkflow
 
 from checkmate import celeryglobal as celery
-from checkmate import db
 from checkmate.common import statsd
-from checkmate.deployment import Deployment
-from checkmate.utils import (
-    get_time_string,
-    is_simulation,
-)
-
+from checkmate import db
+from checkmate import deployment as cmdep
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -42,11 +38,13 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
     os.environ.get('CHECKMATE_CONNECTION_STRING')))
 
 
-@task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
-      lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=2)
+@celtask.task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
+              lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}",
+              lock_timeout=2)
 @statsd.collect
-def create(dep_id, workflow_id, type, tenant_id=None):
-    if is_simulation(dep_id):
+def create(dep_id, workflow_id, op_type, tenant_id=None):
+    """Create a new operation of type 'op_type'."""
+    if utils.is_simulation(dep_id):
         driver = SIMULATOR_DB
     else:
         driver = DB
@@ -54,23 +52,24 @@ def create(dep_id, workflow_id, type, tenant_id=None):
     workflow = driver.get_workflow(workflow_id, with_secrets=False)
     serializer = DictionarySerializer()
     spiff_wf = SpiffWorkflow.deserialize(serializer, workflow)
-    add(deployment, spiff_wf, type, tenant_id=tenant_id)
+    add(deployment, spiff_wf, op_type, tenant_id=tenant_id)
     driver.save_deployment(dep_id, deployment, secrets=None,
                            tenant_id=tenant_id, partial=False)
 
 
-def add(deployment, spiff_wf, type, tenant_id=None):
+def add(deployment, spiff_wf, op_type, tenant_id=None):
+    """Initialize new workflow in the operation and add to the deployment."""
     wf_data = init_operation(spiff_wf, tenant_id=tenant_id)
-    return add_operation(deployment, type, **wf_data)
+    return add_operation(deployment, op_type, **wf_data)
 
 
-def add_operation(deployment, type_name, **kwargs):
+def add_operation(deployment, op_type, **kwargs):
     """Adds an operation to a deployment
 
     Moves any existing operation to history
 
     :param deployment: dict or Deployment
-    :param type_name: the operation name (BUILD, DELETE, etc...)
+    :param op_type: the operation name (BUILD, DELETE, etc...)
     :param kwargs: additional kwargs to add to operation
     :returns: operation
     """
@@ -79,7 +78,7 @@ def add_operation(deployment, type_name, **kwargs):
             deployment['operations-history'] = []
         history = deployment.get('operations-history')
         history.insert(0, deployment.pop('operation'))
-    operation = {'type': type_name}
+    operation = {'type': op_type}
     operation.update(**kwargs)
     deployment['operation'] = operation
     return operation
@@ -97,12 +96,12 @@ def update_operation(deployment_id, workflow_id, driver=None,
     Note: exposed in common.tasks as a celery task
     """
     if kwargs:
-        if is_simulation(deployment_id):
+        if utils.is_simulation(deployment_id):
             driver = SIMULATOR_DB
         if not driver:
             driver = DB
         deployment = driver.get_deployment(deployment_id, with_secrets=True)
-        deployment = Deployment(deployment)
+        deployment = cmdep.Deployment(deployment)
         operation = deployment.get_operation(workflow_id)
         if not operation:
             LOG.warn("Cannot find operation with workflow id %s in "
@@ -141,6 +140,7 @@ def update_operation(deployment_id, workflow_id, driver=None,
 
 
 def get_status_info(errors, tenant_id, workflow_id):
+    """Update and return status_info."""
     status_info = {}
     friendly_messages = []
     distinct_errors = _get_distinct_errors(errors)
@@ -245,7 +245,7 @@ def _update_operation(operation, workflow):
     operation['tasks'] = total
     operation['complete'] = complete
     operation['estimated-duration'] = duration
-    operation['last-change'] = get_time_string(time_gmt=time.gmtime(
+    operation['last-change'] = utils.get_time_string(time_gmt=time.gmtime(
         last_change))
     if failure > 0:
         operation['status'] = "ERROR"
@@ -258,10 +258,11 @@ def _update_operation(operation, workflow):
 
 
 def _get_distinct_errors(errors):
+    """Eliminate duplicate errors."""
     distinct_errors = []
     sorted_errors = sorted(errors, key=lambda k: k.get('error-type'))
-    for k, g in itertools.groupby(sorted_errors,
-                                  lambda x: x.get("error-type")):
-        a = list(g)[0]
-        distinct_errors.append(a)
+    for _, group in itertools.groupby(sorted_errors,
+                                      lambda x: x.get("error-type")):
+        new_error = list(group)[0]
+        distinct_errors.append(new_error)
     return distinct_errors
