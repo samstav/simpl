@@ -17,8 +17,12 @@
     </a>
   </li>
 
-  <li>
-    <a ng-show="available_services(data).length > 0" ng-click="open_modal('delete_nodes_warning')" tooltip="Delete Nodes from current deployment" tooltip-placement="right">
+  <li ng-show="available_services(data).length > 0">
+    <a ng-show="data.status == 'UP'" ng-click="open_modal('delete_nodes_warning')" tooltip="Delete Nodes from current deployment" tooltip-placement="right">
+      <i class="icon-arrow-down"></i>
+      Scale Down
+    </a>
+    <a ng-hide="data.status == 'UP'" class="muted" tooltip="Please wait until deployment status is UP" tooltip-placement="right">
       <i class="icon-arrow-down"></i>
       Scale Down
     </a>
@@ -27,16 +31,12 @@
       <div class="modal-header">
         <h3 id="warning_title" class="alert alert-danger">Warning! Data Destructive Task</h3>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" ng-init="selected_resources = {}">
         Select the nodes you want to delete:
-        <ul ng-init="selected_resources = {}">
-          <li ng-repeat="resource in resources" ng-show="is_scalable_service(data, resource)">
-            <label>
-              <input type="checkbox" ng-model="selected_resources[resource.index]">
-              {{resource['dns-name']}}
-            </label>
-          </li>
-        </ul>
+        <label class="checkbox" ng-repeat="resource in resources" ng-show="is_scalable_service(data, resource) && resource.status != 'DELETED'">
+          <input type="checkbox" ng-model="selected_resources[resource.index]">
+          {{resource['dns-name']}}
+        </label>
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" ng-click="delete_nodes(data, selected_resources); close_modal('delete_nodes_warning');">Go ahead and Delete these nodes</button>
