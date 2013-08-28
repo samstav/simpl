@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """
 Provider module for Rackspace Loadbalancers.
 """
@@ -14,16 +28,14 @@ import pyrax
 import redis
 
 from checkmate.common import caching
+from checkmate import db
 from checkmate import deployments
-
 from checkmate import exceptions
 from checkmate import middleware
 from checkmate.providers.base import ProviderBase, user_has_access
 from checkmate.providers.rackspace import base, dns
-from checkmate.utils import (
-    get_class_name,
-)
-
+from checkmate.providers.rackspace.dns import provider
+from checkmate.utils import get_class_name
 
 LOG = logging.getLogger(__name__)
 
@@ -52,8 +64,6 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     except StandardError as exception:
         LOG.warn("Error connecting to Redis: %s", exception)
 
-#FIXME: delete tasks talk to database directly, so we load drivers and manager
-from checkmate import db
 DRIVERS = {}
 DB = DRIVERS['default'] = db.get_driver()
 SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
@@ -277,7 +287,7 @@ class Provider(base.RackspaceProviderBase):
                                            service_name=service_name,
                                            provider_key=self.key,
                                            default="ROUND_ROBIN")
-        dns = self._handle_dns(deployment, service_name,
+        cdns = self._handle_dns(deployment, service_name,
                                resource_type=resource_type)
         create_lb_task_tags = ['create', 'root', 'vip']
 
@@ -312,7 +322,7 @@ class Provider(base.RackspaceProviderBase):
                 'estimated_duration': 30,
                 'task_tags': create_lb_task_tags
             },
-            dns=dns,
+            dns=cdns,
             algorithm=algorithm,
             tags=self.generate_resource_tag(
                 context.base_url,
@@ -352,7 +362,7 @@ class Provider(base.RackspaceProviderBase):
         )
         create_lb.connect(build_wait_task)
 
-        if dns:
+        if cdns:
             task_name = ("Create DNS Record for Load balancer %s (%s)"
                          % (key, resource['service']))
             celery_call = "checkmate.providers.rackspace.dns.create_record"
@@ -362,7 +372,7 @@ class Provider(base.RackspaceProviderBase):
                 call_args=[
                     context.get_queued_task_dict(
                         deployment=deployment['id'], resource=key),
-                    dns.parse_domain(name),
+                    provider.parse_domain(name),
                     '.'.join(name.split('.')[1:]), "A",
                     operators.PathAttrib('instance:%s/public_ip' % key)
                 ],

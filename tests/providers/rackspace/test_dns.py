@@ -24,6 +24,7 @@ import tldextract
 
 from checkmate import middleware as cmmid
 from checkmate.providers.rackspace import dns
+from checkmate.providers.rackspace.dns.provider import parse_domain
 
 LOG = logging.getLogger(__name__)
 
@@ -151,7 +152,7 @@ class TestParseDomain(unittest.TestCase):
 
         # Detect permission failure, log it, and let the test pass
 
-        tldlog = dns.tldextract.tldextract.LOG
+        tldlog = tldextract.tldextract.LOG
         self.mox.StubOutWithMock(tldlog, 'warn')
         self.save_failed = False
 
@@ -167,7 +168,7 @@ class TestParseDomain(unittest.TestCase):
         ).WithSideEffects(failed)
         self.mox.ReplayAll()
 
-        answer = dns.parse_domain(domain)
+        answer = parse_domain(domain)
         self.assertEquals(answer, expected)
         if not self.save_failed:
             self.assertTrue(os.path.exists(self.default_tld_cache_file))
@@ -177,13 +178,13 @@ class TestParseDomain(unittest.TestCase):
             os.remove(self.custom_tld_cache_file)
         os.environ[self.tld_cache_env] = self.custom_tld_cache_file
         domain, expected = self.sample_domain
-        answer = dns.parse_domain(domain)
+        answer = parse_domain(domain)
         self.assertEquals(answer, expected)
         self.assertTrue(os.path.exists(self.custom_tld_cache_file))
 
     def test_sample_data(self):
         for domain, expected in self.sample_data:
-            answer = dns.parse_domain(domain)
+            answer = parse_domain(domain)
             self.assertEquals(answer, expected)
 
 if __name__ == '__main__':
