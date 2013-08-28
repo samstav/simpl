@@ -11,7 +11,7 @@
   </li>
 
   <li>
-    <a ng-show="auth.is_admin()" ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
+    <a ng-show="showCommands" ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
       <i class="icon-retweet"></i>
       Sync
     </a>
