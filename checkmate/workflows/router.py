@@ -69,6 +69,7 @@ class Router(object):
     @utils.with_tenant
     @utils.formatted_response('workflows', with_pagination=True)
     def get_workflows(self, tenant_id=None, offset=None, limit=None):
+        limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         if 'with_secrets' in bottle.request.query:
             if bottle.request.context.is_admin is True:
                 LOG.info("Administrator accessing workflows with secrets: %s",
