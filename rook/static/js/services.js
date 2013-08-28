@@ -2109,3 +2109,113 @@ angular.module('checkmate.services').factory('Cache', function() {
 
   return scope;
 });
+
+angular.module('checkmate.services').factory('WorkflowSpec', [function() {
+  var DEFAULTS = {
+    NO_RESOURCE: 9999,
+    TASK_DURATION: 10,
+    LOG_SCALE: 15,
+    PADDING: 20,
+    WIDTH: 0
+  };
+
+  var _is_invalid = function(spec) {
+    return (
+         !spec
+      || !spec.properties
+      || !spec.inputs
+      || spec.inputs.length == 0
+    );
+  }
+
+  var _create_stream = function() {
+    var stream = {
+      icon: null,
+      data: [],
+      title: null,
+      position: 0
+    };
+    return stream;
+  }
+
+  var _get_resource_id_from_inputs = function(inputs, specs) {
+    var id = DEFAULTS.NO_RESOURCE;
+
+    for (var i=0 ; i<inputs.length ; i++) {
+      var input = inputs[i];
+      var resource_id = specs[input].properties.resource;
+      if (resource_id) {
+        id = resource_id;
+      }
+    }
+
+    return id;
+  }
+
+  var _get_distance_from_start = function(spec, all_specs, memo) {
+    if(memo[spec.id]) {
+      return memo[spec.id];
+    }
+
+    if(spec.id === 1){
+      memo[spec.id] = 0;
+      return memo[spec.id];
+    }
+
+    var max_spec_name = _.max(spec.inputs, function(input){
+      return _get_distance_from_start(all_specs[input], all_specs, memo);
+    });
+
+    var max_duration = all_specs[max_spec_name].properties.estimated_duration || DEFAULTS.TASK_DURATION;
+    memo[spec.id] = memo[all_specs[max_spec_name].id] + Math.log(max_duration) * DEFAULTS.LOG_SCALE;
+    return memo[spec.id];
+  }
+
+  var _get_top_resource_id = function(spec, specs) {
+    var resource_id;
+
+    if (spec.properties.resource) {
+      resource_id = spec.properties.resource;
+    }
+    else {
+      resource_id = _get_resource_id_from_inputs(spec.inputs, specs);
+    }
+
+    return resource_id;
+  }
+
+  var scope = {};
+
+  scope.to_streams = function(specs) {
+    var position_memo = {}
+    var streams = {};
+    streams.all = [];
+    streams.width = DEFAULTS.WIDTH;
+
+    for (var key in specs) {
+      var spec = specs[key];
+      if (_is_invalid(spec)) continue;
+
+      var resource_id = _get_top_resource_id(spec, specs);
+      var stream = streams[resource_id];
+      if (!stream) {
+        stream = _create_stream();
+        stream.position = streams.all.length;
+        streams[resource_id] = stream;
+        streams.all.push(stream);
+      }
+
+      spec.position = {};
+      spec.position.x = _get_distance_from_start(spec, specs, position_memo);
+      spec.position.y = stream.position;
+      stream.data.push(spec);
+
+      if (spec.position.x > streams.width)
+        streams.width = spec.position.x + DEFAULTS.PADDING;
+    }
+
+    return streams;
+  }
+
+  return scope;
+}]);

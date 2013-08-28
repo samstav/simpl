@@ -326,6 +326,113 @@ directives.directive('cmTreeView', function() {
   };
 });
 
+directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
+  var DEFAULTS = {
+    TOTAL_HEIGHT: 100,
+    SVG_HEIGHT: 100,
+    SVG_WIDTH: 300,
+    NODE_RADIUS: 2
+  };
+
+  var _even_odd = function(num) {
+    return num % 2 == 0 ? 'even' : 'odd';
+  }
+
+  var _update_specs = function(new_value, old_value, scope) {
+    scope.specs = new_value;
+    update_svg(scope);
+  }
+
+  var _update_deployment = function(new_value, old_value, scope) {
+    scope.deployment = new_value;
+    update_svg(scope);
+  }
+
+  var _interpolate = function(x, new_width, old_width) {
+    return x * new_width / old_width;
+  }
+
+  var _draw_streams = function(elements, streams) {
+    var num_streams = streams.all.length;
+    var height = DEFAULTS.TOTAL_HEIGHT / num_streams;
+
+    // Enter
+    var stream = elements.enter()
+      .append('svg:g')
+      .attr('class', function(d) { return 'stream ' + _even_odd(d.position); })
+      .attr('transform', function(d) {
+        return 'translate(0, '+ d.position * height +')';
+      });
+    stream.append('svg:rect')
+      .attr('class', 'border')
+      .attr('width', '100%')
+      .attr('height', height);
+    // Exit
+    elements.exit().remove();
+  }
+
+  var _draw_nodes = function(elements, streams, width) {
+    var num_streams = streams.all.length;
+    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
+
+    var nodes = elements.selectAll('.nodes').data(function(d) {
+      return d.data;
+    });
+
+    // Enter
+    nodes.enter()
+      .append('svg:circle')
+      .attr('class', 'node')
+      .attr('r', DEFAULTS.NODE_RADIUS)
+      .style('fill', function(d) { return 'green'; })
+      .attr("transform", function(d) {
+        var x = _interpolate(d.position.x, width, streams.width);
+        return "translate(" + x + "," + stream_height/2 + ")";
+      });
+  }
+
+  var create_svg = function(element, attrs) {
+    var svg = {};
+    svg.width = attrs.width || DEFAULTS.SVG_WIDTH;
+    svg.height = attrs.height || DEFAULTS.SVG_HEIGHT;
+
+    svg.element = d3.select(element[0])
+      .append('svg:svg')
+      .attr('viewBox', [0, 0, svg.width, svg.height].join(' '));
+
+    svg.streams = svg.element.append('svg:g').attr('class', 'streams');
+
+    return svg;
+  }
+
+  var update_svg = function(scope) {
+    if (!scope.deployment || scope.deployment.$resolved == false) return;
+
+    var streams = WorkflowSpec.to_streams(scope.specs, scope.deployment);
+    var elements = scope.svg.streams.selectAll('.stream').data(streams.all);
+
+    _draw_streams(elements, streams);
+    _draw_nodes(elements, streams, scope.svg.width);
+  }
+
+  var link_fn = function(scope, element, attrs) {
+    scope.svg = create_svg(element, attrs);
+    scope.$watch('specs', _update_specs);
+    scope.$watch('deployment', _update_deployment, true);
+  }
+
+  return {
+    restrict: 'E',
+    template: '<div class="cm-workflow"></div>',
+    replace: true,
+    scope: {
+      specs: '=',
+      deployment: '='
+    },
+    link: link_fn
+  };
+}]);
+
 angular.module('checkmate.directives').directive('cmNotifications', ['$rootScope', function($rootScope) {
   var flush_notifications = function(new_messages, old_messages, scope) {
     if (!new_messages) return;
