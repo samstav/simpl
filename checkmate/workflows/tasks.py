@@ -82,6 +82,7 @@ def update_deployment(w_id, error=None):
     total = d_wf.get_attribute('total')
     completed = d_wf.get_attribute('completed')
     wf_type = d_wf.get_attribute('type')
+    dep_status = None
 
     if d_wf.is_completed():
         dep_status = OPERATION_DEPLOYMENT_STATUS_MAP.get(wf_type, None)
@@ -99,6 +100,7 @@ def update_deployment(w_id, error=None):
                                                              None))
         if wf_errors:
             status_info = get_status_info(wf_errors, tenant_id, w_id)
+            dep_status = "FAILED"
 
         operation_kwargs = {'status': status,
                             'tasks': total,
@@ -106,6 +108,7 @@ def update_deployment(w_id, error=None):
                             'errors': wf_errors}
         operation_kwargs.update(status_info)
         common_tasks.update_operation.delay(dep_id, w_id, driver=driver,
+                                            deployment_status=dep_status,
                                             **operation_kwargs)
 
 

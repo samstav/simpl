@@ -170,26 +170,26 @@ def reset_failed_tasks(d_wf):
                           d_wf.attributes["deploymentId"])
 
 
-def convert_exc_to_dict(exception, task, tenant_id, workflow_id, traceback):
-    '''Converts a exception to a dictionary
-    :param exception: exception to convert
-    :param task: task that raised the exception
+def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
+    """Converts a exception to a dictionary
+    :param info: exception to convert
+    :param task_id: spiff task_id
     :param tenant_id: tenant_id
     :param workflow_id: workflow id
     :param traceback: traceback of the exception
     :return: the dictionary of the exception
-    '''
+    """
     exc_dict = {}
+    exception = eval(info)
     if type(exception) is CheckmateRetriableException:
         exc_dict = {
             "error-type": exception.error_type,
             "error-message": exception.error_message,
             "error-help": exception.error_help,
             "retriable": True,
-            "task-id": task.id,
-            "retry-link":
-                "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
-                    tenant_id, workflow_id, task.id),
+            "task-id": task_id,
+            "retry-link": "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
+                tenant_id, workflow_id, task_id),
             "error-traceback": traceback,
             "friendly-message": str(exception.friendly_message)
         }
@@ -199,11 +199,11 @@ def convert_exc_to_dict(exception, task, tenant_id, workflow_id, traceback):
             "error-message": exception.error_message,
             "error-help": exception.error_help,
             "resumable": True,
-            "task-id": task.id,
+            "task-id": task_id,
             "resume-link": "/%s/workflows/%s/tasks/%s/+execute" % (
                 tenant_id,
                 workflow_id,
-                task.id),
+                task_id),
             "error-traceback": traceback,
             "friendly-message": exception.friendly_message
         }
@@ -212,23 +212,22 @@ def convert_exc_to_dict(exception, task, tenant_id, workflow_id, traceback):
             "error-type": exception.error_type,
             "error-message": exception.error_message,
             "error-help": exception.error_help,
-            "task-id": task.id,
+            "task-id": task_id,
             "error-traceback": traceback,
             "friendly-message": exception.friendly_message
         }
     elif type(exception) is MaxRetriesExceededError:
         exc_dict = {
-            "error-message": "The maximum amount of permissible "
-                             "retries for workflow %s has elapsed."
-                             " Please re-execute the workflow" %
-                             workflow_id,
+            "error-message": "The maximum amount of permissible retries for "
+                             "workflow %s has elapsed. Please re-execute the"
+                             " workflow" % workflow_id,
             "error-help": "",
             "error-type": "MaxRetriesExceededError",
             "retriable": True,
-            "retry-link": "%s/workflows/%s/+execute" % (
+            "retry-link": "/%s/workflows/%s/+execute" % (
                 tenant_id, workflow_id),
-            "friendly-message": "There was a timeout while "
-                                "executing the workflow"
+            "friendly-message": "There was a timeout while executing the "
+                                "deployment"
         }
     elif isinstance(exception, Exception):
         exc_dict = {
@@ -256,9 +255,8 @@ def get_errors(wf_dict, tenant_id):
             info = task_state.get("info")
             traceback = task_state.get("traceback")
             try:
-                exception = eval(info)
-                results.append(convert_exc_to_dict(exception,
-                                                   task,
+                results.append(convert_exc_to_dict(info,
+                                                   task.id,
                                                    tenant_id,
                                                    workflow_id,
                                                    traceback))
