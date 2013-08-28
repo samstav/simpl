@@ -270,6 +270,7 @@ class TestCeleryTasks(unittest.TestCase):
                                            virtual_ips=[vip],
                                            algorithm='ROUND_ROBIN')
 
+        mock_reset_delay.assert_called_with('DEP', '1')
         first_postback = mock.call('DEP', {'instance:1': {'id': 121212}})
         second_postback = mock.call('DEP', expected)
         self.assertEqual(mock_postback_delay.mock_calls[0], first_postback)
@@ -435,8 +436,8 @@ class TestGetAlgorithms(unittest.TestCase):
         self.api = mock.Mock()
         self.context = middleware.RequestContext(**{})
 
-    @mock.patch.object(loadbalancer.LOG, 'debug')
-    @mock.patch.object(loadbalancer.LOG, 'info')
+    @mock.patch.object(loadbalancer.provider.LOG, 'debug')
+    @mock.patch.object(loadbalancer.provider.LOG, 'info')
     @mock.patch.object(loadbalancer.Provider, 'connect')
     def test_get_algorithms_success(self, mock_connect, mock_log_info,
                                     mock_log_debug):
@@ -446,7 +447,7 @@ class TestGetAlgorithms(unittest.TestCase):
         self.api.region_name = 'ORD'
         self.api.algorithms = ['RANDOM', 'ROUND_ROBIN']
 
-        results = loadbalancer._get_algorithms(self.context)
+        results = loadbalancer.provider._get_algorithms(self.context)
         self.assertEqual(results, self.api.algorithms)
         mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
                                          'algorithms for %s', 'ORD')
@@ -454,7 +455,7 @@ class TestGetAlgorithms(unittest.TestCase):
                                           '%s: %s', 'localhost:8080',
                                           ['RANDOM', 'ROUND_ROBIN'])
 
-    @mock.patch.object(loadbalancer.LOG, 'error')
+    @mock.patch.object(loadbalancer.provider.LOG, 'error')
     @mock.patch.object(loadbalancer.Provider, 'connect')
     def test_get_algorithms_exception(self, mock_connect, mock_logger):
         """Verifies method calls when StandardError raised."""
@@ -463,7 +464,7 @@ class TestGetAlgorithms(unittest.TestCase):
 
         # caching decorator re-raises so not able to assertRaises
         try:
-            loadbalancer._get_algorithms(self.context)
+            loadbalancer.provider._get_algorithms(self.context)
         except StandardError as exc:
             self.assertEqual(str(exc), 'test error')
 
@@ -477,8 +478,8 @@ class TestGetProtocols(unittest.TestCase):
         self.api = mock.Mock()
         self.context = middleware.RequestContext(**{})
 
-    @mock.patch.object(loadbalancer.LOG, 'debug')
-    @mock.patch.object(loadbalancer.LOG, 'info')
+    @mock.patch.object(loadbalancer.provider.LOG, 'debug')
+    @mock.patch.object(loadbalancer.provider.LOG, 'info')
     @mock.patch.object(loadbalancer.Provider, 'connect')
     def test_get_protocols_success(self, mock_connect, mock_log_info,
                                    mock_log_debug):
@@ -488,7 +489,7 @@ class TestGetProtocols(unittest.TestCase):
         self.api.region_name = 'ORD'
         self.api.protocols = ['HTTP', 'HTTPS']
 
-        results = loadbalancer._get_protocols(self.context)
+        results = loadbalancer.provider._get_protocols(self.context)
         self.assertEqual(results, self.api.protocols)
         mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
                                          'protocols for %s', 'localhost:8080')
@@ -496,7 +497,7 @@ class TestGetProtocols(unittest.TestCase):
                                           '%s: %s', 'localhost:8080',
                                           ['HTTP', 'HTTPS'])
 
-    @mock.patch.object(loadbalancer.LOG, 'error')
+    @mock.patch.object(loadbalancer.provider.LOG, 'error')
     @mock.patch.object(loadbalancer.Provider, 'connect')
     def test_get_algorithms_exception(self, mock_connect, mock_logger):
         """Verifies method calls when StandardError raised."""
@@ -505,7 +506,7 @@ class TestGetProtocols(unittest.TestCase):
 
         # caching decorator re-raises so not able to assertRaises
         try:
-            loadbalancer._get_protocols(self.context)
+            loadbalancer.provider._get_protocols(self.context)
         except StandardError as exc:
             self.assertEqual(str(exc), 'test error')
 
@@ -892,7 +893,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
 
 class TestLoadBalancerGetResources(unittest.TestCase):
     @mock.patch.object(loadbalancer.Provider, 'connect')
-    @mock.patch('checkmate.providers.rackspace.loadbalancer.pyrax')
+    @mock.patch('checkmate.providers.rackspace.loadbalancer.provider.pyrax')
     def test_get_resources_returns_load_balancer_resource(self, mock_pyrax,
                                                           mock_connect):
         request = mock.Mock()
@@ -914,7 +915,7 @@ class TestLoadBalancerGetResources(unittest.TestCase):
         self.assertEqual(result['dns-name'], 'name')
 
     @mock.patch.object(loadbalancer.Provider, 'connect')
-    @mock.patch('checkmate.providers.rackspace.loadbalancer.pyrax')
+    @mock.patch('checkmate.providers.rackspace.loadbalancer.provider.pyrax')
     def test_get_resources_uses_public_ip(self, mock_pyrax, mock_connect):
         context = mock.Mock()
         load_balancer = mock.Mock()

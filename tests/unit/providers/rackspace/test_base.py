@@ -112,7 +112,7 @@ class TestConnect(unittest.TestCase):
     def test_invalid_context(self):
         context = 'invalid'
         try:
-            base.RackspaceProviderBase.connect(context)
+            base.RackspaceProviderBase._connect(context)
         except exceptions.CheckmateException as exc:
             self.assertEqual(str(exc), "Context passed into connect is an "
                              "unsupported type <type 'str'>.")
@@ -120,26 +120,26 @@ class TestConnect(unittest.TestCase):
     def test_connect_no_auth_token(self):
         context = {}
         self.assertRaises(exceptions.CheckmateNoTokenError,
-                          base.RackspaceProviderBase.connect, context)
+                          base.RackspaceProviderBase._connect, context)
 
     def test_region_from_region_map(self):
         pyrax.get_setting = mock.Mock(return_value=True)
         pyrax.auth_with_token = mock.Mock()
-        base.RackspaceProviderBase.connect(self.context, 'chicago')
+        base.RackspaceProviderBase._connect(self.context, 'chicago')
         pyrax.auth_with_token.assert_called_with('token', 12345, 'test', 'ORD')
 
     def test_region_from_context(self):
         self.context['region'] = 'SYD'
         pyrax.get_setting = mock.Mock(return_value=True)
         pyrax.auth_with_token = mock.Mock()
-        base.RackspaceProviderBase.connect(self.context)
+        base.RackspaceProviderBase._connect(self.context)
         pyrax.auth_with_token.assert_called_with('token', 12345, 'test', 'SYD')
 
     def test_region_from_default(self):
         self.context['catalog'] = {}
         pyrax.get_setting = mock.Mock(return_value=True)
         pyrax.auth_with_token = mock.Mock()
-        base.RackspaceProviderBase.connect(self.context)
+        base.RackspaceProviderBase._connect(self.context)
         pyrax.auth_with_token.assert_called_with('token', 12345, 'test', 'DFW')
 
     @mock.patch.object(base, 'pyrax')
@@ -147,7 +147,7 @@ class TestConnect(unittest.TestCase):
         """Tests connect with rackspace auth_source."""
         self.context['auth_source'] = server.DEFAULT_AUTH_ENDPOINTS[0]
         mock_pyrax.get_setting.return_value = False
-        base.RackspaceProviderBase.connect(self.context)
+        base.RackspaceProviderBase._connect(self.context)
         mock_pyrax.get_setting.assert_called_with('identity_type')
         mock_pyrax.set_setting.assert_called_with('identity_type', 'rackspace')
 
@@ -161,7 +161,7 @@ class TestConnect(unittest.TestCase):
             mock.call('verify_ssl', False),
             mock.call('auth_endpoint', 'localhost:8080')
         ]
-        base.RackspaceProviderBase.connect(self.context)
+        base.RackspaceProviderBase._connect(self.context)
         self.assertEqual(mock_pyrax.set_setting.mock_calls, expected)
 
 
