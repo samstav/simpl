@@ -2165,9 +2165,7 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     return memo[spec.id];
   }
 
-  var scope = {};
-
-  scope.get_top_resource_id = function(spec, specs) {
+  var _get_top_resource_id = function(spec, specs) {
     var resource_id;
 
     if (spec.properties.resource) {
@@ -2180,6 +2178,8 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     return resource_id;
   }
 
+  var scope = {};
+
   scope.to_streams = function(specs, deployment) {
     var position_memo = {}
     var streams = {};
@@ -2190,7 +2190,7 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       var spec = specs[key];
       if (_is_invalid(spec)) continue;
 
-      var resource_id = scope.get_top_resource_id(spec, specs);
+      var resource_id = _get_top_resource_id(spec, specs);
       var stream = streams[resource_id];
       if (!stream) {
         stream = _create_stream();
