@@ -396,7 +396,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
     d3.select('#' + DEFAULTS.HIGHLIGHT_NODE).remove();
     d3.select(element.parentNode)
-      .insert('circle', ':nth-child(2)')
+      .insert('circle', ':first-child')
       .attr('id', DEFAULTS.HIGHLIGHT_NODE)
       .attr('r', DEFAULTS.NODE_RADIUS * 3)
       .attr("transform", function() { return "translate(" + x + "," + y + ")"; })
