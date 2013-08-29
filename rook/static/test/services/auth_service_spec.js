@@ -188,9 +188,10 @@ describe('auth Service', function(){
       expect(this.auth.generate_impersonation_data(username, endpoint_type )).toBe('{}');
     });
 
-    it('should generate impersonation call data if GlobalAuth', function() {
+    it('should generate impersonation call data if GlobalAuth and is_admin', function() {
       var endpoint_type = 'GlobalAuth';
       var expected_json = '{"RAX-AUTH:impersonation":{"user":{"username":"fakeusername"},"expire-in-seconds":10800}}';
+      this.auth.is_admin = sinon.stub().returns(true)
       expect(this.auth.generate_impersonation_data(username, endpoint_type )).toBe(expected_json);
     });
   });
@@ -207,7 +208,7 @@ describe('auth Service', function(){
         }
       };
       endpoint = { uri: 'fakeuri', scheme: 'fakescheme' };
-      params = { endpoint: endpoint };
+      params = { headers: sinon.stub().returns(null), endpoint: endpoint };
     });
 
     it('should create a context based on a response', function() {
@@ -238,6 +239,7 @@ describe('auth Service', function(){
 
     describe('- context and endpoint schemes', function() {
       it('should set context based on GlobalAuth', function() {
+        params.headers = sinon.stub().returns('True');
         params.endpoint.scheme = 'GlobalAuth';
         var context = this.auth.create_context(response, params);
         expect(context.tenantId).toBe(null);
@@ -259,6 +261,13 @@ describe('auth Service', function(){
         expect(context.impersonated).toBe(false);
         expect(context.catalog).toEqual({});
         expect(context.tenantId).toEqual(null);
+      });
+
+      it('should set tenantId if authenticated against GlobalAuth, but not admin', function(){
+        params.headers = sinon.stub().returns(null);
+        params.endpoint['scheme'] = 'GlobalAuth';
+        var context = this.auth.create_context(response, params);
+        expect(context.tenantId).toEqual('fakename');
       });
     });
 
