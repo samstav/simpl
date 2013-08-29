@@ -397,7 +397,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       scope.select(d.name);
   }
 
-  var _draw_streams = function(elements, streams) {
+  var _draw_background = function(elements, streams) {
     var num_streams = streams.all.length;
     var height = DEFAULTS.TOTAL_HEIGHT / num_streams;
 
@@ -420,7 +420,12 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     var num_streams = streams.all.length;
     var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
 
-    var nodes = elements.selectAll('.nodes').data(function(d) {
+    var stream_elements = elements.enter()
+      .append('svg:g')
+      .attr('class', 'stream')
+      .attr('transform', function(d) { return 'translate(0, '+ d.position * stream_height +')'; });
+
+    var nodes = stream_elements.selectAll('.nodes').data(function(d) {
       return d.data;
     });
 
@@ -431,7 +436,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('r', DEFAULTS.NODE_RADIUS)
       .attr("transform", function(d) {
         var x = _interpolate(d.position.x, scope.svg.width, streams.width);
-        return "translate(" + x + "," + stream_height/2 + ")";
+        var y = stream_height / 2;
+        return "translate(" + x + "," + y + ")";
       })
       .on('click', function(d) { return _draw_highlight(d, streams, scope, this); });
     // Update
@@ -448,6 +454,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('viewBox', [0, 0, svg.width, svg.height].join(' '));
 
     svg.streams = svg.element.append('svg:g').attr('class', 'streams');
+    svg.streams.append('svg:g').attr('class', 'background');
+    svg.streams.append('svg:g').attr('class', 'nodes');
 
     return svg;
   }
@@ -456,10 +464,11 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     if (!scope.deployment || scope.deployment.$resolved == false) return;
 
     var streams = WorkflowSpec.to_streams(scope.specs, scope.deployment);
-    var elements = scope.svg.streams.selectAll('.stream').data(streams.all);
+    var bg_elements = scope.svg.streams.select('.background').selectAll('.stream').data(streams.all);
+    var node_elements = scope.svg.streams.select('.nodes').selectAll('.stream').data(streams.all);
 
-    _draw_streams(elements, streams);
-    _draw_nodes(elements, streams, scope);
+    _draw_background(bg_elements, streams);
+    _draw_nodes(node_elements, streams, scope);
   }
 
   var link_fn = function(scope, element, attrs) {
