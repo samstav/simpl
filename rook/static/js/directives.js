@@ -331,7 +331,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     TOTAL_HEIGHT: 100,
     SVG_HEIGHT: 100,
     SVG_WIDTH: 300,
-    NODE_RADIUS: 2
+    NODE_RADIUS: 2,
+    HIGHLIGHT_NODE: 'highlight'
   };
 
   var _even_odd = function(num) {
@@ -350,6 +351,24 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
   var _interpolate = function(x, new_width, old_width) {
     return x * new_width / old_width;
+  }
+
+  var _draw_highlight = function(d, streams, scope, element) {
+    var num_streams = streams.all.length;
+    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
+    var x = _interpolate(d.position.x, scope.svg.width, streams.width);
+    var y = stream_height/2;
+
+    d3.select('#' + DEFAULTS.HIGHLIGHT_NODE).remove();
+    d3.select(element.parentNode)
+      .insert('circle', ':nth-child(2)')
+      .attr('id', DEFAULTS.HIGHLIGHT_NODE)
+      .attr('r', DEFAULTS.NODE_RADIUS * 3)
+      .attr("transform", function() { return "translate(" + x + "," + y + ")"; })
+      .style('fill', 'url(#gradient)');
+
+    if (scope.select)
+      scope.select(d.name);
   }
 
   var _draw_streams = function(elements, streams) {
@@ -388,7 +407,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr("transform", function(d) {
         var x = _interpolate(d.position.x, scope.svg.width, streams.width);
         return "translate(" + x + "," + stream_height/2 + ")";
-      });
+      })
+      .on('click', function(d) { _draw_highlight(d, streams, scope, this) });
   }
 
   var create_svg = function(element, attrs) {
@@ -427,7 +447,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     replace: true,
     scope: {
       specs: '=',
-      deployment: '='
+      deployment: '=',
+      select: '='
     },
     link: link_fn
   };
