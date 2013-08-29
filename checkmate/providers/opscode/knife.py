@@ -644,6 +644,8 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
 
         # Update status of current resource to ACTIVE
         results = {'status': "ACTIVE"}
+        if attributes:
+            results["node-attributes"] = attributes
         instance_key = 'instance:%s' % resource['index']
         results = {instance_key: results}
         pb_res.update(results)
@@ -839,9 +841,9 @@ def delete_cookbooks(name, service_name, path=None):
     """Remove cookbooks directory and contents from the file system."""
     root = _get_root_environments_path(name, path)
     kitchen_path = os.path.join(root, name, service_name)
-    cookbook_config_exists = os.path.exists(
-        os.path.join(kitchen_path, 'Berksfile')) or os.path.exists(
-            os.path.join(kitchen_path, 'Cheffile'))
+    cookbook_config_exists = (os.path.exists(
+        os.path.join(kitchen_path, 'Berksfile')) or
+        os.path.exists(os.path.join(kitchen_path, 'Cheffile')))
     if cookbook_config_exists:
         cookbooks_path = os.path.join(kitchen_path, 'cookbooks')
         # site_cookbooks_path = os.path.join(kitchen_path, 'site-cookbooks')
@@ -1007,9 +1009,16 @@ def register_node(host, environment, resource, path=None, password=None,
         # Update status of current resource to BUILD
         results = {'status': "BUILD"}
         instance_key = 'instance:%s' % resource['index']
+        if attributes:
+            node = {'run_list': []}  # default
+            node.update(attributes)
+            results = {
+                instance_key: {
+                    'node-attributes': node
+                }
+            }
         results = {instance_key: results}
         res.update(results)
-
         cmdeps.resource_postback.delay(environment, res)
         return
 
