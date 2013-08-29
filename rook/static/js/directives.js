@@ -339,6 +339,32 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     return num % 2 == 0 ? 'even' : 'odd';
   }
 
+  var _node_color = function(d, scope) {
+    var color;
+    var state = scope.status(d.name);
+    switch(scope.state({state: state})) {
+      case "Ready":
+      case "Completed":
+        color = 'green';
+        break;
+      case "Waiting":
+        color = 'orange';
+        break;
+      case "Error":
+        color = 'red';
+        break;
+      case "Future":
+      case "Likely":
+      case "Maybe":
+        color = 'gray';
+        break;
+      default:
+        color = 'black';
+        break;
+    }
+    return color;
+  }
+
   var _update_specs = function(new_value, old_value, scope) {
     scope.specs = new_value;
     update_svg(scope);
@@ -403,12 +429,13 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .append('svg:circle')
       .attr('class', 'node')
       .attr('r', DEFAULTS.NODE_RADIUS)
-      .style('fill', function(d) { return 'green'; })
       .attr("transform", function(d) {
         var x = _interpolate(d.position.x, scope.svg.width, streams.width);
         return "translate(" + x + "," + stream_height/2 + ")";
       })
-      .on('click', function(d) { _draw_highlight(d, streams, scope, this) });
+      .on('click', function(d) { return _draw_highlight(d, streams, scope, this); });
+    // Update
+    nodes.style('fill', function(d) { return _node_color(d, scope); });
   }
 
   var create_svg = function(element, attrs) {
@@ -448,7 +475,9 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     scope: {
       specs: '=',
       deployment: '=',
-      select: '='
+      select: '=',
+      status: '=',
+      state: '='
     },
     link: link_fn
   };
