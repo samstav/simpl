@@ -179,10 +179,10 @@ class Router(object):
         """Get existing deployments."""
         limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         show_deleted = bottle.request.query.get('show_deleted')
-        status = bottle.request.query.get('status')
+        statuses = bottle.request.query.get('status')
         tenant_id = bottle.request.query.get('tenant_id')
-
         params = copy.deepcopy(bottle.request.query.dict)
+
         if 'tenant_tag' in params:
             tags = params['tenant_tag']
             tenants = self.tenant_manager.list_tenants(*tags)
@@ -202,7 +202,7 @@ class Router(object):
             offset=offset,
             limit=limit,
             with_deleted=show_deleted == '1',
-            status=status,
+            status=statuses,
             query=query,
         )
 
