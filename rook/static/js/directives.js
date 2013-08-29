@@ -379,6 +379,15 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     return x * new_width / old_width;
   }
 
+  var _calculate_link_position = function(d, scope, streams) {
+    var num_streams = streams.all.length;
+    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
+    var x = _interpolate(d.position.x, scope.svg.width, streams.width);
+    var y = (d.position.y) * stream_height + stream_height / 2;
+
+    return { x: x, y: y };
+  }
+
   var _draw_highlight = function(d, streams, scope, element) {
     var num_streams = streams.all.length;
     var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
@@ -414,15 +423,6 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('height', height);
     // Exit
     elements.exit().remove();
-  }
-
-  var _calculate_link_position = function(d, scope, streams) {
-    var num_streams = streams.all.length;
-    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
-    var x = _interpolate(d.position.x, scope.svg.width, streams.width);
-    var y = (d.position.y) * stream_height + stream_height / 2;
-
-    return { x: x, y: y };
   }
 
   var _draw_links = function(elements, streams, scope) {
