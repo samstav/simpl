@@ -287,6 +287,11 @@ class Provider(base.RackspaceProviderBase):
                                            service_name=service_name,
                                            provider_key=self.key,
                                            default="ROUND_ROBIN")
+        caching = deployment.get_setting("caching",
+                                         resource_type=resource_type,
+                                         service_name=service_name,
+                                         provider_key=self.key,
+                                         default=False)
         cdns = self._handle_dns(deployment, service_name,
                                resource_type=resource_type)
         create_lb_task_tags = ['create', 'root', 'vip']
@@ -331,7 +336,8 @@ class Provider(base.RackspaceProviderBase):
                 key
             ),
             port=port,
-            parent_lb=parent_lb
+            parent_lb=parent_lb,
+            caching=caching
         )
         if vip_tasks:
             vip_tasks[0].connect(create_lb)
