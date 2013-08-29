@@ -1,6 +1,18 @@
-'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
-Module to initialize the Checkmate REST Admin API
+"""Module to initialize the Checkmate REST Admin API
 
 This module load the /admin/* routes. It validates that all calls are performed
 by a user with an admin context. It is optionally loadable (as determined by
@@ -11,8 +23,8 @@ PUT /admin/tenants
 GET /admin/tenants/tenant_id
 GET /admin/tenants/ and return all
 GET /admin/tenants?tag=foo&tag=bar
+"""
 
-'''
 import copy
 import errno
 import logging
@@ -28,10 +40,10 @@ LOG = logging.getLogger(__name__)
 
 
 class Router(object):
-    '''Route /admin/ calls.'''
+    """Route /admin/ calls."""
 
     def __init__(self, app, manager, tenant_manager):
-        '''Takes a bottle app and routes traffic for it.'''
+        """Takes a bottle app and routes traffic for it."""
         self.app = app
         self.manager = manager
         self.tenant_manager = tenant_manager
@@ -53,16 +65,17 @@ class Router(object):
     #
     # Status and System Information
     #
+    @staticmethod
     @utils.only_admins
-    def get_celery_worker_status(self):
-        '''Checking on celery.'''
-        ERROR_KEY = "ERROR"
+    def get_celery_worker_status():
+        """Checking on celery."""
+        error_key = "ERROR"
         try:
             from celery.task import control
             insp = control.inspect()
             stats = insp.stats()
             if not stats:
-                stats = {ERROR_KEY: 'No running Celery workers were found.'}
+                stats = {error_key: 'No running Celery workers were found.'}
             else:
                 # Sanitize it - remove passwords from URLs
                 for key, worker in stats.iteritems():
@@ -85,14 +98,15 @@ class Router(object):
             if len(exc.args) > 0 and \
                     errno.errorcode.get(exc.args[0]) == 'ECONNREFUSED':
                 msg += ' Check that the RabbitMQ server is running.'
-            stats = {ERROR_KEY: msg}
+            stats = {error_key: msg}
         except ImportError as exc:
-            stats = {ERROR_KEY: str(exc)}
+            stats = {error_key: str(exc)}
         return utils.write_body(stats, bottle.request, bottle.response)
 
+    @staticmethod
     @utils.only_admins
-    def get_dependency_versions(self):
-        '''Checking on dependencies.'''
+    def get_dependency_versions():
+        """Checking on dependencies."""
         result = {}
         libraries = [
             'bottle',  # HTTP request router
@@ -162,7 +176,7 @@ class Router(object):
     @utils.only_admins
     @utils.formatted_response('deployments', with_pagination=True)
     def get_deployments(self, tenant_id=None, offset=None, limit=None):
-        '''Get existing deployments.'''
+        """Get existing deployments."""
         limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         show_deleted = bottle.request.query.get('show_deleted')
         status = bottle.request.query.get('status')
@@ -178,11 +192,12 @@ class Router(object):
             params.pop('tenant_tag')
         if 'blueprint_branch' in params:
             attr = 'environment.providers.chef-solo.constraints.source'
-            params[attr] = map(lambda x: '%#' + x, params.pop('blueprint_branch'))
+            params[attr] = map(
+                lambda x: '%#' + x, params.pop('blueprint_branch'))
 
         query = utils.QueryParams.parse(params, self.param_whitelist)
 
-        data = self.manager.get_deployments(
+        return self.manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
@@ -190,17 +205,16 @@ class Router(object):
             status=status,
             query=query,
         )
-        return data
 
     @utils.only_admins
     def get_deployment_count(self):
-        '''Get the number of deployments.
+        """Get the number of deployments.
 
         May limit response to include all
         deployments for a particular tenant and/or blueprint
 
         :param:tenant_id: the (optional) tenant
-        '''
+        """
         tenant_id = bottle.request.query.get('tenant_id')
         status = bottle.request.query.get('status')
         params = bottle.request.query.dict
@@ -214,12 +228,12 @@ class Router(object):
 
     @utils.only_admins
     def get_deployment_count_by_bp(self, blueprint_id):
-        '''Return the number of times the given blueprint appears
+        """Return the number of times the given blueprint appears
         in saved deployments.
 
         :param:blueprint_id: the blueprint ID
         :param:tenant_id: the (optional) tenant
-        '''
+        """
         tenant_id = bottle.request.query.get('tenant_id')
         count = self.manager.count(tenant_id=tenant_id,
                                    blueprint_id=blueprint_id)
@@ -232,13 +246,13 @@ class Router(object):
     @utils.only_admins
     @utils.formatted_response('tenants', with_pagination=False)
     def get_tenants(self):
-        '''Return the list of tenants.'''
+        """Return the list of tenants."""
         return self.tenant_manager.list_tenants(
             *bottle.request.query.getall('tag'))
 
     @utils.only_admins
     def put_tenant(self, tenant_id):
-        '''Save a whole tenant.'''
+        """Save a whole tenant."""
         ten = {}
         if bottle.request.content_length > 0:
             ten = utils.read_body(bottle.request)
@@ -247,14 +261,14 @@ class Router(object):
 
     @utils.only_admins
     def get_tenant(self, tenant_id):
-        '''Return a requested tenant by id.'''
+        """Return a requested tenant by id."""
         if tenant_id:
             tenant = self.tenant_manager.get_tenant(tenant_id)
             return utils.write_body(tenant, bottle.request, bottle.response)
 
     @utils.only_admins
     def add_tenant_tags(self, tenant_id):
-        '''Update tenant tags.'''
+        """Update tenant tags."""
         if tenant_id:
             body = utils.read_body(bottle.request)
             new = body.get('tags')
