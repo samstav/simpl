@@ -371,7 +371,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     elements.exit().remove();
   }
 
-  var _draw_nodes = function(elements, streams, width) {
+  var _draw_nodes = function(elements, streams, scope) {
     var num_streams = streams.all.length;
     var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
 
@@ -386,7 +386,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('r', DEFAULTS.NODE_RADIUS)
       .style('fill', function(d) { return 'green'; })
       .attr("transform", function(d) {
-        var x = _interpolate(d.position.x, width, streams.width);
+        var x = _interpolate(d.position.x, scope.svg.width, streams.width);
         return "translate(" + x + "," + stream_height/2 + ")";
       });
   }
@@ -412,7 +412,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     var elements = scope.svg.streams.selectAll('.stream').data(streams.all);
 
     _draw_streams(elements, streams);
-    _draw_nodes(elements, streams, scope.svg.width);
+    _draw_nodes(elements, streams, scope);
   }
 
   var link_fn = function(scope, element, attrs) {
