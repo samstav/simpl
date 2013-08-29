@@ -91,7 +91,8 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         tags=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
-                        monitor_status='^[234][0-9][0-9]$', parent_lb=None):
+                        monitor_status='^[234][0-9][0-9]$', parent_lb=None,
+                        **kwargs):
     '''Celery task to create Cloud Load Balancer.'''
     assert 'deployment' in context, "Deployment not supplied in context"
     match_celery_logging(LOG)
@@ -176,6 +177,8 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                 nodes=[fakenode], virtual_ips=[vip], algorithm=algorithm)
         LOG.info("Created load balancer %s for deployment %s", loadbalancer.id,
                  deployment_id)
+        if kwargs.get('content_caching'):
+            loadbalancer.content_caching = True
     except KeyError as exc:
         if str(exc) == 'retry-after':
             LOG.info("A limit 'may' have been reached creating a load "
