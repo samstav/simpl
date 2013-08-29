@@ -7,9 +7,6 @@
     <tr ng-repeat="resource in resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
       <td>
         <div class="dropdown" ng-show="urlBuilder.is_valid(resource)">
-
-          <ng-include ng-show="false && available_services(data).indexOf(resource.service) > -1" src="'/partials/deployments/_delete_node.html'"></ng-include>
-
           <a class="dropdown-toggle">{{resource['dns-name']}}</a>
           <ul class="dropdown-menu">
             <li>
