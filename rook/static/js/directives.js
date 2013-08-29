@@ -416,6 +416,30 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     elements.exit().remove();
   }
 
+  var _calculate_link_position = function(d, scope, streams) {
+    var num_streams = streams.all.length;
+    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
+    var x = _interpolate(d.position.x, scope.svg.width, streams.width);
+    var y = (d.position.y) * stream_height + stream_height / 2;
+
+    return { x: x, y: y };
+  }
+
+  var _draw_links = function(elements, streams, scope) {
+    // Enter
+    var stream_elements = elements.enter()
+      .append('svg:line')
+      .attr('class', 'link')
+      .attr('x1', function(d) { return _calculate_link_position(d.source, scope, streams).x; })
+      .attr('y1', function(d) { return _calculate_link_position(d.source, scope, streams).y; })
+      .attr('x2', function(d) { return _calculate_link_position(d.target, scope, streams).x; })
+      .attr('y2', function(d) { return _calculate_link_position(d.target, scope, streams).y; })
+      ;
+
+    // Exit
+    elements.exit().remove();
+  }
+
   var _draw_nodes = function(elements, streams, scope) {
     var num_streams = streams.all.length;
     var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
@@ -455,6 +479,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
     svg.streams = svg.element.append('svg:g').attr('class', 'streams');
     svg.streams.append('svg:g').attr('class', 'background');
+    svg.streams.append('svg:g').attr('class', 'links');
     svg.streams.append('svg:g').attr('class', 'nodes');
 
     return svg;
@@ -466,8 +491,10 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     var streams = WorkflowSpec.to_streams(scope.specs, scope.deployment);
     var bg_elements = scope.svg.streams.select('.background').selectAll('.stream').data(streams.all);
     var node_elements = scope.svg.streams.select('.nodes').selectAll('.stream').data(streams.all);
+    var link_elements = scope.svg.streams.select('.links').selectAll('.link').data(streams.links);
 
     _draw_background(bg_elements, streams);
+    _draw_links(link_elements, streams, scope);
     _draw_nodes(node_elements, streams, scope);
   }
 

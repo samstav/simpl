@@ -497,7 +497,7 @@ circle.node {
 }
 
 line.link {
-  stroke-width: 2px;
+  stroke-width: 0.3px;
   stroke: #999;
   stroke-opacity: 0.6;
 }

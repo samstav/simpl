@@ -2186,12 +2186,35 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     return resource_id;
   }
 
+  var _build_links = function(specs, nodes) {
+    var links = [];
+
+    _.each(specs, function(spec, spec_name) {
+      if (!spec) return;
+
+      if(spec.outputs) {
+        _.each(spec.outputs, function(output) {
+          source = _.findWhere(nodes, { name: spec_name });
+          target = _.findWhere(nodes, { name: output });
+          if(source && target) {
+            var link = {source: source, target: target}
+            links.push(link);
+          }
+        });
+      }
+    });
+
+    return links;
+  }
+
   var scope = {};
 
   scope.to_streams = function(specs) {
     var position_memo = {}
     var streams = {};
     streams.all = [];
+    streams.nodes = [];
+    streams.links = [];
     streams.width = DEFAULTS.WIDTH;
 
     for (var key in specs) {
@@ -2211,10 +2234,13 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       spec.position.x = _get_distance_from_start(spec, specs, position_memo);
       spec.position.y = stream.position;
       stream.data.push(spec);
+      streams.nodes.push(spec);
 
       if (spec.position.x > streams.width)
         streams.width = spec.position.x + DEFAULTS.PADDING;
     }
+
+    streams.links = _build_links(specs, streams.nodes);
 
     return streams;
   }
