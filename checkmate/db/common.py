@@ -57,20 +57,15 @@ def get_driver(name=None, reset=False, connection_string=None):
     Resetting will reconnect the database (for in-momory databases this could
     also reset all data)
     '''
-    if connection_string and not name:
-        if connection_string.startswith('mongodb://'):
-            name = 'checkmate.db.mongodb.Driver'
-        else:
-            name = 'checkmate.db.sql.Driver'
-
     if not connection_string:
-        connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING')
-        if name and not connection_string:
+        environ_conn_string = os.environ.get('CHECKMATE_CONNECTION_STRING')
+        if environ_conn_string:
+            connection_string = environ_conn_string
+        elif name:
             connection_string = DRIVERS_AVAILABLE[name][
                 'default_connection_string']
-
-    if not connection_string:
-        connection_string = "sqlite://"
+        else:
+            connection_string = "sqlite://"
 
     if connection_string and not name:
         if connection_string.startswith('mongodb://'):

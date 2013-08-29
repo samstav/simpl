@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for DbCommon."""
+import mock
 import unittest
 import uuid
 
@@ -113,6 +114,87 @@ class TestDbCommonTenantID(unittest.TestCase):
                          "character '|' in Tenant ID. Allowed charaters are "
                          "'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY"
                          "Z0123456789-_.+~@()[]*&^=%$#!<>'")
+
+
+class TestDbCommonGetDriver(unittest.TestCase):
+    def setUp(self):
+        common.DRIVER_INSTANCES = {}
+        common.DRIVERS_AVAILABLE = {}
+
+    @mock.patch.object(common.utils, 'import_class')
+    def test_new_driver_instances_are_imported(self, mock_import):
+        mock_class = mock.Mock(return_value="driver")
+        mock_import.return_value = mock_class
+
+        driver = common.get_driver(connection_string="mongodb://fake")
+        mock_import.assert_called_once_with('checkmate.db.mongodb.Driver')
+        self.assertEqual('driver', driver)
+
+    @mock.patch.object(common.utils, 'import_class')
+    def test_driver_instances_are_cached_once_imported(self, mock_import):
+        mock_class = mock.Mock(return_value="driver")
+        mock_import.return_value = mock_class
+
+        common.get_driver(connection_string="mongodb://fake")
+        self.assertEqual('driver', common.DRIVER_INSTANCES['mongodb://fake'])
+
+    @mock.patch.object(common.utils, 'import_class')
+    def test_instantiates_new_driver_with_connection_string(self, mock_import):
+        mock_class = mock.Mock(return_value="driver")
+        mock_import.return_value = mock_class
+
+        common.get_driver(connection_string="mongodb://fake")
+        mock_class.assert_called_once_with(connection_string='mongodb://fake')
+
+    @mock.patch.object(common.utils, 'import_class')
+    def test_use_mongo_if_given_mongo_conn_string_and_no_name(self,
+                                                              mock_import):
+        common.get_driver(connection_string="mongodb://fake")
+        mock_import.assert_called_once_with('checkmate.db.mongodb.Driver')
+
+    @mock.patch.object(common.utils, 'import_class')
+    def test_use_sql_if_non_mongo_conn_string_and_no_name(self, mock_import):
+        common.get_driver(connection_string="notmongo://fakeconnection")
+        mock_import.assert_called_once_with('checkmate.db.sql.Driver')
+
+    @mock.patch.object(common.utils, 'import_class')
+    def test_import_driver_class_based_on_given_name(self, mock_import):
+        common.get_driver(connection_string="test://fakeconnection",
+                          name="Cassandra")
+        mock_import.assert_called_once_with('Cassandra')
+
+    @mock.patch.object(common.os, 'environ')
+    @mock.patch.object(common.utils, 'import_class')
+    def test_get_conn_string_from_environ_if_none_given(self,
+                                                        mock_import,
+                                                        mock_env):
+        mock_class = mock.Mock()
+        mock_import.return_value = mock_class
+        mock_env.get.return_value = 'some://connection'
+
+        common.get_driver()
+        mock_env.get.assert_called_with('CHECKMATE_CONNECTION_STRING')
+        mock_class.assert_called_with(connection_string='some://connection')
+
+    @mock.patch.object(common.utils, 'import_class')
+    def test_default_to_sql_no_conn_no_name_no_environ(self, mock_import):
+        common.get_driver()
+        mock_import.assert_called_once_with('checkmate.db.sql.Driver')
+
+    @mock.patch.object(common.os, 'environ')
+    @mock.patch.object(common.utils, 'import_class')
+    def test_look_up_available_driver_if_given_name_and_no_environ(self,
+                                                                   mock_import,
+                                                                   mock_env):
+        mock_class = mock.Mock()
+        mock_import.return_value = mock_class
+        mock_env.get.return_value = None
+
+        common.DRIVERS_AVAILABLE = {'cassandra': {
+            'default_connection_string': 'connect://cassandra'}}
+        common.get_driver(name="cassandra")
+        mock_import.assert_called_once_with('cassandra')
+        mock_class.assert_called_with(connection_string='connect://cassandra')
 
 
 if __name__ == '__main__':
