@@ -56,7 +56,5 @@ class Manager(object):
             'status': clb.status,
             'secure_port': port,
             'secure_only': secure_only,
-            'certificate': cert,
-            'private_key': private_key
         }
         return results
