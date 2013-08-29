@@ -239,16 +239,14 @@ function RawController($scope, $location, $http) {
     });
 }
 
-function AutoLoginController($scope, $location, $cookies, auth) {
+function AutoLoginController($scope, $window, $cookies, auth) {
   $scope.auto_login_success = function() {
-    $location.path('/');
+    $window.location.href = '/';
   };
 
   $scope.auto_login_fail = function(response) {
     mixpanel.track("Log In Failed", {'problem': response.status});
-    $location.path('/');
-    $scope.loginPrompt();
-    auth.error_message = response.status + ". " + response.message;
+    $window.location.href = '/';
   };
 
   $scope.accepted_credentials = ['tenantId', 'token', 'endpoint', 'username', 'api_key'];

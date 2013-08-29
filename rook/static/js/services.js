@@ -1040,7 +1040,9 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     context.catalog = {};
     context.impersonated = false;
 
-    if (params.endpoint['scheme'] !== "GlobalAuth") {
+    var is_admin = params.headers('X-AuthZ-Admin') === 'True';
+
+    if (!is_admin) {
       if ('tenant' in response.access.token)
         context.tenantId = response.access.token.tenant.name;
       context.catalog = response.access.serviceCatalog;
@@ -1064,7 +1066,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     auth.identity = auth.create_identity(response.data, params);
     auth.identity.context = angular.copy(auth.context);
 
-    if (auth.context.tenantId === null && endpoint.scheme !== "GlobalAuth") {
+    if (auth.context.tenantId === null && !auth.is_admin()) {
       auth.fetch_identity_tenants(endpoint, auth.context.token)
         .then(function(tenants) {
           auth.identity.tenants = {};
@@ -1153,7 +1155,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
 
   auth.generate_impersonation_data = function(username, endpoint_type) {
     var data = {};
-    if (endpoint_type == 'GlobalAuth') {
+    if (auth.is_admin()) {
       data = {
         "RAX-AUTH:impersonation": {
           user: {username: username},
