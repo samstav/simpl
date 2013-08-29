@@ -104,7 +104,7 @@ def parse_region(auth_dict):
 
     if auth_dict.get('region') is None:
         if auth_dict.get('auth_url'):
-            if 'racksapce' in auth_dict.get('auth_url'):
+            if 'rackspace' in auth_dict.get('auth_url'):
                 return auth_dict.get('auth_url'), True
             else:
                 return auth_dict.get('auth_url'), False

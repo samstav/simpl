@@ -327,13 +327,31 @@ class TestIdentity(unittest.TestCase):
         with self.assertRaises(AttributeError):
             identity.authenticate(auth_dict=ctx)
 
-    def test_parse_region_no(self):
+    def test_parse_region_no_region_and_no_auth_url(self):
         """Test Region Test for No Region."""
 
         ctx = {'username': 'testuser',
                'apikey': 'testkey'}
         self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
                          ('identity.api.rackspacecloud.com', True))
+
+    def test_parse_region_no_region_with_rackspace_auth_url(self):
+        """Test Region Test for No Region."""
+
+        ctx = {'username': 'testuser',
+               'apikey': 'testkey',
+               'auth_url': 'identity-test.api.rackspacecloud.com'}
+        self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
+                         ('identity-test.api.rackspacecloud.com', True))
+
+    def test_parse_region_no_region_with_non_rackspace_auth_url(self):
+        """Test Region Test for No Region."""
+
+        ctx = {'username': 'testuser',
+               'apikey': 'testkey',
+               'auth_url': 'identity-test.api.othercloud.com'}
+        self.assertEqual(auth_utils.parse_region(auth_dict=ctx),
+                         ('identity-test.api.othercloud.com', False))
 
     def test_request_invalid_url(self):
         """Test Get Token For Invalid Reply."""
