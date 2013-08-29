@@ -198,7 +198,8 @@ class Router(object):
         app.route('/deployments/<api_id>/resources/<rid>', 'GET',
                   self.get_resource)
 
-    params_whitelist = ['search', 'name', 'blueprint.name', 'status']
+    param_whitelist = ['search', 'name', 'blueprint.name', 'status',
+                       'start_date', 'end_date']
 
     @utils.with_tenant
     @utils.formatted_response('deployments', with_pagination=True)
@@ -208,7 +209,7 @@ class Router(object):
         show_deleted = bottle.request.query.get('show_deleted')
         statuses = bottle.request.query.getall('status')
         params = copy.deepcopy(bottle.request.query.dict)
-        query = utils.QueryParams.parse(params, self.params_whitelist)
+        query = utils.QueryParams.parse(params, self.param_whitelist)
         return self.manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,

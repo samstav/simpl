@@ -215,13 +215,15 @@ class TestDeploymentRouter(unittest.TestCase):
         self.manager = mock.Mock()
         self.router = deployments.Router(self.root_app, self.manager)
 
-    def test_params_whitelist(self):
-        whitelist = self.router.params_whitelist
-        self.assertEqual(len(whitelist), 4)
+    def test_param_whitelist(self):
+        whitelist = self.router.param_whitelist
+        self.assertEqual(len(whitelist), 6)
         self.assertIn('name', whitelist)
         self.assertIn('search', whitelist)
         self.assertIn('status', whitelist)
         self.assertIn('blueprint.name', whitelist)
+        self.assertIn('start_date', whitelist)
+        self.assertIn('end_date', whitelist)
 
 
 class TestGetDeployments(TestDeploymentRouter):
@@ -257,7 +259,7 @@ class TestGetDeployments(TestDeploymentRouter):
 
     @mock.patch.object(utils.QueryParams, 'parse')
     def test_pass_whitelist_to_query_parser(self, parse):
-        with mock.patch.object(self.router, 'params_whitelist', 'fake white'):
+        with mock.patch.object(self.router, 'param_whitelist', 'fake white'):
             self.router.get_deployments()
             parse.assert_called_with({}, 'fake white')
 
