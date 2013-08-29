@@ -1,8 +1,13 @@
-<div class="dropdown offset3" ng-show="data.status == 'UP' && available_services(data).length > 0">
-  <button class="dropdown-toggle btn">
+<div class="dropdown offset3" ng-show="available_services(data).length > 0">
+  <button class="dropdown-toggle btn" ng-show="data.status == 'UP'">
     <i class="icon-plus-sign action action-add"></i>
     Add Nodes
   </button>
+  <button class="btn muted" ng-hide="data.status == 'UP'" tooltip="Please wait until deployment status is UP">
+    <i class="icon-plus-sign action action-add"></i>
+    Add Nodes
+  </button>
+
   <ul class="dropdown-menu" ng-init="num_nodes=1">
     <li class="nav-header" cm-stop-click-propagation>
       Service: <br />

@@ -3194,13 +3194,33 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     return Deployment.available_services(deployment);
   }
 
+  $scope.is_scalable_service = function(deployment, resource) {
+    var service = resource.service;
+    if (!service) return false;
+
+    var is_available = ($scope.available_services(deployment).indexOf(service) > -1);
+    var is_main_instance = deployment.plan.services[service].component.instances.indexOf(resource.index) > -1;
+    return is_available && is_main_instance;
+  }
+
   $scope.add_nodes = function(deployment, service, num_nodes) {
     Deployment.add_nodes(deployment, service, num_nodes)
       .then($scope.load, $scope.show_error);
   };
 
-  $scope.delete_nodes = function(deployment, resources) {
-    Deployment.delete_nodes(deployment, resources)
+  $scope.delete_nodes = function(deployment, resources_map) {
+    var selected_resources = [];
+    var service_name;
+    var num_nodes = 0;
+    for (id in resources_map) {
+      var resource = resources_map[id];
+      if (resource) {
+        num_nodes++;
+        selected_resources.push(deployment.resources[id]);
+        service_name = deployment.resources[id].service;
+      }
+    }
+    Deployment.delete_nodes(deployment, service_name, num_nodes, selected_resources)
       .then($scope.load, $scope.show_error);
   };
 

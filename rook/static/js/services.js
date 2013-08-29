@@ -2043,13 +2043,13 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
     return $http.post(url, data);
   }
 
-  scope.delete_nodes = function(deployment, resources) {
+  scope.delete_nodes = function(deployment, service_name, num_nodes, resources) {
     if (!(resources instanceof Array))
       resources = [resources];
 
     var resource_ids = get_valid_resource_ids(deployment, resources);
 
-    var data = { resource_ids: resource_ids.join(',') };
+    var data = { service_name: service_name, count: num_nodes, victim_list: resource_ids.join(',') };
     var url = get_deployment_url(deployment, '+delete-nodes');
     return $http.post(url, data);
   }
