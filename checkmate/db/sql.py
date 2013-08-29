@@ -1,6 +1,21 @@
-'''
-Driver for SQL ALchemy
-'''
+# pylint: disable=E1103,W0232
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Driver for SQL ALchemy."""
+
 import copy
 import json
 import logging
@@ -53,14 +68,14 @@ OP_MATCH = r'(!|(>|<)[=]*|\(\))'
 
 
 def _build_filter(field, op_key, value):
-    '''Translate string with operator and status into mongodb filter.'''
+    """Translate string with operator and status into mongodb filter."""
     op_map = {'!': '!=', '>': '>', '<': '<', '>=': '>=',
               '<=': '<=', '': '==', '()': 'in'}
     return "%s %s %s" % (field, op_map[op_key], value)
 
 
 def _validate_no_operators(values):
-    '''Filtering on more than one value means no operators allowed!'''
+    """Filtering on more than one value means no operators allowed!"""
     for value in values:
         if re.search(OP_MATCH, value):
             raise CheckmateInvalidParameterError(
@@ -68,7 +83,7 @@ def _validate_no_operators(values):
 
 
 def _match_operator(compound_value, value_format):
-    '''Look for an operator and split it out in a string.'''
+    """Look for an operator and split it out in a string."""
     op_match = re.search(OP_MATCH, compound_value)
     operator = ''
     if op_match:
@@ -79,7 +94,7 @@ def _match_operator(compound_value, value_format):
 
 
 def _parse_comparison(field, values):
-    '''Return a sqlalchemy filter based on `values`.'''
+    """Return a sqlalchemy filter based on `values`."""
     encl_quotes = "'%s'"
     encl_parens = "(%s)"
     if isinstance(values, (list, tuple)):
@@ -95,22 +110,22 @@ def _parse_comparison(field, values):
 
 
 class TextPickleType(PickleType):
-    '''Type that can be set to dict and stored in the database as Text.
+    """Type that can be set to dict and stored in the database as Text.
 
     This allows us to read and write the 'body' attribute as dicts
-    '''
+    """
     impl = Text
 
 
 class Tenant(BASE):
-    '''Class to encapsulate tenants table.'''
+    """Class to encapsulate tenants table."""
     __tablename__ = "tenants"
     id = Column(String(255), primary_key=True)
     tags = relationship("TenantTag", cascade="all, delete, delete-orphan")
 
 
 class TenantTag(BASE):
-    '''Class to encapsulate tenant_tags table.'''
+    """Class to encapsulate tenant_tags table."""
     __tablename__ = "tenant_tags"
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant = Column(
@@ -125,7 +140,7 @@ class TenantTag(BASE):
 
 
 class Environment(BASE):
-    '''Class to encapsulate environments table.'''
+    """Class to encapsulate environments table."""
     __tablename__ = 'environments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -138,7 +153,7 @@ class Environment(BASE):
 
 
 class Deployment(BASE):
-    '''Class to encapsulate deployments table.'''
+    """Class to encapsulate deployments table."""
     __tablename__ = 'deployments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -153,7 +168,7 @@ class Deployment(BASE):
 
 
 class Blueprint(BASE):
-    '''Class to encapsulate blueprints table.'''
+    """Class to encapsulate blueprints table."""
     __tablename__ = 'blueprints'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -166,7 +181,7 @@ class Blueprint(BASE):
 
 
 class Workflow(BASE):
-    '''Class to encapsulate workflows table.'''
+    """Class to encapsulate workflows table."""
     __tablename__ = 'workflows'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -180,7 +195,7 @@ class Workflow(BASE):
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    '''Turn on fk for sqlite.'''
+    """Turn on fk for sqlite."""
     if isinstance(dbapi_connection, sqlite3.Connection):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
@@ -188,9 +203,9 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 
 class Driver(DbBase):
-    '''Driver class for SQL database abstraction.'''
+    """Driver class for SQL database abstraction."""
     def __init__(self, connection_string, driver=None, *args, **kwargs):
-        '''Initializes globals for this driver'''
+        """Initializes globals for this driver"""
         DbBase.__init__(self, connection_string, driver=driver, *args,
                         **kwargs)
 
@@ -205,7 +220,6 @@ class Driver(DbBase):
                        "data, set the CHECKMATE_CONNECTION_STRING environment "
                        "variable to a valid sqlalchemy connection string")
             LOG.warning(message)
-            print message
         else:
             self.engine = create_engine(connection_string)
             LOG.info("Connected to '%s'",
@@ -213,9 +227,9 @@ class Driver(DbBase):
         self.session = scoped_session(sessionmaker(self.engine))
         BASE.metadata.create_all(self.engine)
 
-    def __setstate__(self, dict):  # pylint: disable=W0622
-        '''Support deserializing from connection string.'''
-        DbBase.__setstate__(self, dict)
+    def __setstate__(self, state_dict):
+        """Support deserializing from connection string."""
+        DbBase.__setstate__(self, state_dict)
         #FIXME: make DRY
         if self.connection_string == 'sqlite://':
             self.engine = create_engine(self.connection_string,
@@ -228,7 +242,6 @@ class Driver(DbBase):
                        "data, set the CHECKMATE_CONNECTION_STRING environment "
                        "variable to a valid sqlalchemy connection string")
             LOG.warning(message)
-            print message
         else:
             self.engine = create_engine(self.connection_string)
             LOG.info("Connected to '%s'",
@@ -238,7 +251,7 @@ class Driver(DbBase):
         BASE.metadata.create_all(self.engine)
 
     def dump(self):
-        '''Get all the things.'''
+        """Get all the things."""
         response = {}
         response['environments'] = self.get_environments()
         response['deployments'] = self.get_deployments()
@@ -248,7 +261,7 @@ class Driver(DbBase):
 
     # TENANTS
     def save_tenant(self, tenant):
-        '''Save a tenant in the tenants table.'''
+        """Save a tenant in the tenants table."""
         if tenant and tenant.get('id'):
             tenant_id = tenant.get('id')
             current = (
@@ -273,7 +286,7 @@ class Driver(DbBase):
             raise CheckmateException("Must provide a tenant id")
 
     def list_tenants(self, *args):
-        '''Retrieve all tenants from the tenants table.'''
+        """Retrieve all tenants from the tenants table."""
         query = self.session.query(Tenant)
         if args:
             for arg in args:
@@ -286,7 +299,7 @@ class Driver(DbBase):
 
     @staticmethod
     def _fix_tenant(tenant):
-        '''Rearrange tag information in tenant record.'''
+        """Rearrange tag information in tenant record."""
         if tenant:
             tags = [tag.tag for tag in tenant.tags or []]
             ret = {'id': tenant.id}
@@ -296,13 +309,13 @@ class Driver(DbBase):
         return None
 
     def get_tenant(self, tenant_id):
-        '''Retrieve a tenant by tenant_id.'''
+        """Retrieve a tenant by tenant_id."""
         tenant = (self.session.query(Tenant).filter_by(id=tenant_id)
                   .first())
         return self._fix_tenant(tenant)
 
     def add_tenant_tags(self, tenant_id, *args):
-        '''Add tags to an existing tenant.'''
+        """Add tags to an existing tenant."""
         if tenant_id:
             tenant = (self.session.query(Tenant)
                       .filter(Tenant.id == tenant_id)
@@ -326,11 +339,11 @@ class Driver(DbBase):
 
     # ENVIRONMENTS
     def get_environment(self, api_id, with_secrets=None):
-        '''Retrieve an environment by environment id.'''
+        """Retrieve an environment by environment id."""
         return self._get_object(Environment, api_id, with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
-        '''Retrieve all environment records for a given tenant id.'''
+        """Retrieve all environment records for a given tenant id."""
         return self._get_objects(
             Environment,
             tenant_id,
@@ -338,18 +351,18 @@ class Driver(DbBase):
         )
 
     def save_environment(self, api_id, body, secrets=None, tenant_id=None):
-        '''Save an environment to the database.'''
+        """Save an environment to the database."""
         return self._save_object(Environment, api_id, body, secrets, tenant_id)
 
     # DEPLOYMENTS
     def get_deployment(self, api_id, with_secrets=None):
-        '''Retrieve a deployment by deployment id.'''
+        """Retrieve a deployment by deployment id."""
         return self._get_object(Deployment, api_id, with_secrets=with_secrets)
 
     def get_deployments(self, tenant_id=None, with_secrets=None, offset=None,
                         limit=None, with_count=True, with_deleted=False,
                         status=None, query=None):
-        '''Retrieve all deployments for a given tenant id.'''
+        """Retrieve all deployments for a given tenant id."""
         return self._get_objects(
             Deployment,
             tenant_id,
@@ -364,7 +377,7 @@ class Driver(DbBase):
 
     def save_deployment(self, api_id, body, secrets=None, tenant_id=None,
                         partial=False):
-        '''Save a deployment to the database.'''
+        """Save a deployment to the database."""
         return self._save_object(
             Deployment,
             api_id,
@@ -376,7 +389,7 @@ class Driver(DbBase):
 
     #BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
-        '''Retrieve a blueprint by blueprint id.'''
+        """Retrieve a blueprint by blueprint id."""
         return self._get_object(Blueprint, api_id, with_secrets=with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None, limit=None,
@@ -386,17 +399,17 @@ class Driver(DbBase):
                                  offset=offset, with_count=with_count)
 
     def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
-        '''Save a blueprint to the database.'''
+        """Save a blueprint to the database."""
         return self._save_object(Blueprint, api_id, body, secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, api_id, with_secrets=None):
-        '''Retrieve a workflow by workflow id.'''
+        """Retrieve a workflow by workflow id."""
         return self._get_object(Workflow, api_id, with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       offset=None, limit=None):
-        '''Retrieve all workflows for a given tenant id.'''
+        """Retrieve all workflows for a given tenant id."""
         return self._get_objects(
             Workflow,
             tenant_id,
@@ -405,21 +418,21 @@ class Driver(DbBase):
         )
 
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
-        '''Save a workflow to the database.'''
+        """Save a workflow to the database."""
         return self._save_object(Workflow, api_id, body, secrets, tenant_id)
 
     def unlock_workflow(self, api_id, key):
-        '''Remove a lock from a workflow.'''
+        """Remove a lock from a workflow."""
         return self.unlock_object(Workflow, api_id, key)
 
     def lock_workflow(self, api_id, with_secrets=None, key=None):
-        '''Add a lock to a workflow.'''
+        """Add a lock to a workflow."""
         return self.lock_object(Workflow, api_id, with_secrets=with_secrets,
                                 key=key)
 
     # GENERIC
     def _get_object(self, klass, api_id, with_secrets=None):
-        '''Retrieve a record by id from a given table.'''
+        """Retrieve a record by id from a given table."""
         results = self.session.query(klass).filter_by(id=api_id)
         if results and results.count() > 0:
             first = results.first()
@@ -440,7 +453,7 @@ class Driver(DbBase):
     def _get_objects(self, klass, tenant_id=None, with_secrets=None,
                      offset=None, limit=None, with_count=True,
                      with_deleted=False, status=None, query=None):
-        '''Retrieve all recrods from a given table for a given tenant id.'''
+        """Retrieve all recrods from a given table for a given tenant id."""
         response = {}
         response['_links'] = {}  # To be populated soon!
         response['results'] = {}
@@ -476,7 +489,7 @@ class Driver(DbBase):
     @staticmethod
     def _add_filters(klass, query, tenant_id, with_deleted, status=None,
                      query_params=None):
-        '''Apply status filters to query.'''
+        """Apply status filters to query."""
         if tenant_id:
             query = query.filter_by(tenant_id=tenant_id)
         if klass is Deployment:
@@ -511,20 +524,20 @@ class Driver(DbBase):
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None,
                    query=None):
-        '''Determine how many items based on filter and return the count.'''
+        """Determine how many items based on filter and return the count."""
         return self._add_filters(
             klass, self.session.query(klass), tenant_id, with_deleted,
             status, query).count()
 
     def _save_object(self, klass, api_id, body, secrets=None,
                      tenant_id=None, merge_existing=False):
-        '''Save any object to the database.
+        """Save any object to the database.
 
         Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None
         dict needs to be passed in: ex. {}
-        '''
+        """
         if body is None:
             body = {}
         elif isinstance(body, classes.ExtensibleDict):
@@ -632,7 +645,7 @@ class Driver(DbBase):
         return body
 
     def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        '''Lock an object in the database, returning the object and key.
+        """Lock an object in the database, returning the object and key.
 
         :param klass: the class of the object to lock.
         :param api_id: the object's API ID.
@@ -641,21 +654,21 @@ class Driver(DbBase):
             passed in
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
-        '''
+        """
         if with_secrets:
             locked_object, key = self._lock_find_object(klass, api_id, key=key)
             return (self.merge_secrets(klass, api_id, locked_object), key)
         return self._lock_find_object(klass, api_id, key=key)
 
     def unlock_object(self, klass, api_id, key):
-        '''Unlocks a locked object if the key is correct.
+        """Unlocks a locked object if the key is correct.
 
         :param klass: the class of the object to unlock.
         :param api_id: the object's API ID.
         :param key: the key used to lock the object (see lock_object()).
         :raises ValueError: If the unlocked object does not exist or the lock
             was incorrect.
-        '''
+        """
         query = self.session.query(klass).filter_by(
             id=api_id,
             lock=key
@@ -671,7 +684,7 @@ class Driver(DbBase):
                                   "not exist." % api_id)
 
     def _lock_find_object(self, klass, api_id, key=None):
-        '''Finds, attempts to lock, and returns an object by id.
+        """Finds, attempts to lock, and returns an object by id.
 
         :param klass: the class of the object unlock.
         :param api_id: the object's API ID.
@@ -680,7 +693,7 @@ class Driver(DbBase):
         :raises ValueError: if the api_id is of a non-existent object
         :returns (locked_object, key): a tuple of the locked_object and the
             key that should be used to unlock it.
-        '''
+        """
         assert klass, "klass must not be None."
         assert api_id, "api_id must not be None"
 
