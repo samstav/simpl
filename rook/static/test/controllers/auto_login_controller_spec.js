@@ -1,16 +1,16 @@
 describe('AutoLoginController', function(){
   var scope,
-      location,
+      window,
       cookies,
       auth,
       controller;
 
   beforeEach(function() {
     scope = { '$apply': emptyFunction, loginPrompt: emptyFunction };
-    location = { path: emptyFunction };
+    window = { location: { href: undefined } };
     cookies = {};
     auth = {};
-    controller = new AutoLoginController(scope, location, cookies, auth);
+    controller = new AutoLoginController(scope, window, cookies, auth);
     mixpanel = { track: emptyFunction }; // TODO: We are dependent on this being a global var
   });
 
@@ -35,20 +35,18 @@ describe('AutoLoginController', function(){
       expect(mixpanel.track.getCall(0).args[1]).toEqual({ 'problem': 'faketext' });
     });
 
-    it('should set the location path', function(){
-      sinon.spy(location, 'path');
+    it('should set the window href', function(){
       scope.auto_login_fail(response);
 
-      expect(location.path.getCall(0).args[0]).toEqual('/');
+      expect(window.location.href).toEqual('/');
     });
   });
 
   describe('auto_login_success', function(){
-    it('should set the location path', function(){
-      sinon.spy(location, 'path');
+    it('should set the window href', function(){
       scope.auto_login_fail({ statusText: 'blah' });
 
-      expect(location.path.getCall(0).args[0]).toEqual('/');
+      expect(window.location.href).toEqual('/');
     });
   });
 
