@@ -4,7 +4,7 @@ Rackspace Cloud Databases Provider
 import logging
 
 from celery.task import task, current
-from pyrax.exceptions import ClientException
+from pyrax import exceptions as pyexc
 
 from .manager import Manager
 from .provider import Provider
@@ -212,7 +212,7 @@ def delete_instance_task(context, api=None):
                     'status-message': 'Host %s is being deleted'
                 }
             })
-    except ClientException as rese:
+    except (pyexc.ClientException, pyexc.NotFound) as rese:
         if rese.code in [401, 403, 404]:  # already deleted
             # TODO(Nate): Remove status-message on current resource
             res = {inst_key: {'status': 'DELETED'}}
@@ -293,7 +293,7 @@ def wait_on_del_instance(context, api=None):
         api = Provider.connect(context, region)
     try:
         instance = api.get(instance_id)
-    except ClientException:
+    except (pyexc.ClientException, pyexc.NotFound):
         pass
 
     if not instance or ('DELETED' == instance.status):
@@ -393,7 +393,7 @@ def delete_database(context, api=None):
     instance = None
     try:
         instance = api.get(instance_id)
-    except ClientException as respe:
+    except (pyexc.ClientException, pyexc.NotFound) as respe:
         if respe.code != 404:
             delete_database.retry(exc=respe)
     if not instance or (instance.status == 'DELETED'):
@@ -411,7 +411,7 @@ def delete_database(context, api=None):
                                                      "be out of BUILD status"))
     try:
         instance.delete_database(db_name)
-    except ClientException as respe:
+    except (pyexc.ClientException, pyexc.NotFound) as respe:
         delete_database.retry(exc=respe)
     LOG.info('Database %s deleted from instance %s', db_name, instance_id)
     ret = {inst_key: {'status': 'DELETED'}}
