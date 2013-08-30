@@ -43,7 +43,7 @@ class InvalidKeyError(Exception):
     pass
 
 
-def get_driver(name=None, reset=False, connection_string=None, dep_id=None):
+def get_driver(name=None, reset=False, connection_string=None, api_id=None):
     '''Get Shared Driver Instance
 
     :param name: the class of the driver to load
@@ -57,7 +57,7 @@ def get_driver(name=None, reset=False, connection_string=None, dep_id=None):
     Resetting will reconnect the database (for in-momory databases this could
     also reset all data)
     '''
-    if dep_id and utils.is_simulation(dep_id) and \
+    if api_id and utils.is_simulation(api_id) and \
             (connection_string is None and name is None):
         connection_string = os.environ.get(
             'CHECKMATE_SIMULATOR_CONNECTION_STRING')

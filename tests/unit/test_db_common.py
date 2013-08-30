@@ -199,16 +199,16 @@ class TestDbCommonGetDriver(unittest.TestCase):
     @mock.patch.object(common.os, 'environ')
     @mock.patch.object(common.utils, 'is_simulation')
     @mock.patch.object(common.utils, 'import_class')
-    def test_use_simulation_db_if_given_simulation_dep_id(self,
-                                                          mock_import,
-                                                          mock_is_sim,
-                                                          mock_env):
+    def test_use_simulation_db_if_given_simulation(self,
+                                                   mock_import,
+                                                   mock_is_sim,
+                                                   mock_env):
         mock_class = mock.Mock()
         mock_import.return_value = mock_class
         mock_env.get.return_value = "simulations"
         mock_is_sim.return_value = True
 
-        common.get_driver(dep_id="123")
+        common.get_driver(api_id="123")
         mock_env.get.assert_called_with(
             'CHECKMATE_SIMULATOR_CONNECTION_STRING')
 
@@ -224,7 +224,7 @@ class TestDbCommonGetDriver(unittest.TestCase):
         mock_env.get.return_value = "simulations"
         mock_is_sim.return_value = True
 
-        common.get_driver(dep_id="123", connection_string='mongodb://fake')
+        common.get_driver(api_id="123", connection_string='mongodb://fake')
         assert not mock_env.get.called, \
             'Unexpected calls %s' % mock_env.get.call_args_list
 
@@ -240,13 +240,13 @@ class TestDbCommonGetDriver(unittest.TestCase):
         mock_env.get.return_value = "simulations"
         mock_is_sim.return_value = True
 
-        common.get_driver(dep_id="123", name='a_driver')
+        common.get_driver(api_id="123", name='a_driver')
         self.assertEqual([mock.call('CHECKMATE_CONNECTION_STRING')],
                          mock_env.get.call_args_list)
 
     @mock.patch.object(common.os, 'environ')
     @mock.patch.object(common.utils, 'import_class')
-    def test_dont_get_simulator_db_from_env_if_no_dep_id(self,
+    def test_dont_get_simulator_db_from_env_if_no_api_id(self,
                                                          mock_import,
                                                          mock_env):
         mock_class = mock.Mock()
@@ -269,7 +269,7 @@ class TestDbCommonGetDriver(unittest.TestCase):
         mock_env.get.return_value = "simulations"
         mock_is_sim.return_value = False
 
-        common.get_driver(dep_id='123')
+        common.get_driver(api_id='123')
         self.assertEqual([mock.call('CHECKMATE_CONNECTION_STRING')],
                          mock_env.get.call_args_list)
 
