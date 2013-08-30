@@ -415,15 +415,6 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     }
   }
 
-  var _calculate_link_position = function(d, scope, streams) {
-    var num_streams = streams.all.length;
-    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
-    var x = _interpolate(d.position.x, scope.svg.width, streams.width);
-    var y = (d.position.y) * stream_height + stream_height / 2;
-
-    return { x: x, y: y };
-  }
-
   var _draw_highlight = function(d, streams, scope, element) {
     var num_streams = streams.all.length;
     var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
@@ -466,10 +457,10 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     var stream_elements = elements.enter()
       .append('svg:line')
       .attr('class', 'link')
-      .attr('x1', function(d) { return _calculate_link_position(d.source, scope, streams).x; })
-      .attr('y1', function(d) { return _calculate_link_position(d.source, scope, streams).y; })
-      .attr('x2', function(d) { return _calculate_link_position(d.target, scope, streams).x; })
-      .attr('y2', function(d) { return _calculate_link_position(d.target, scope, streams).y; })
+      .attr('x1', function(d) { return d.source.interpolated_position.x; })
+      .attr('y1', function(d) { return d.source.interpolated_position.y; })
+      .attr('x2', function(d) { return d.target.interpolated_position.x; })
+      .attr('y2', function(d) { return d.target.interpolated_position.y; })
       ;
 
     // Exit
@@ -477,8 +468,6 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   }
 
   var _draw_nodes = function(elements, streams, scope) {
-    _calculate_node_position(streams, scope);
-
     // Enter
     elements.enter()
       .append('svg:circle')
@@ -517,6 +506,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     var node_elements = scope.svg.streams.select('.nodes').selectAll('.node').data(streams.nodes);
     var link_elements = scope.svg.streams.select('.links').selectAll('.link').data(streams.links);
 
+    _calculate_node_position(streams, scope);
     _draw_background(bg_elements, streams);
     _draw_links(link_elements, streams, scope);
     _draw_nodes(node_elements, streams, scope);
