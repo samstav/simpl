@@ -44,6 +44,7 @@ from checkmate.common import eventlet_backdoor
 from checkmate.common import gzip_middleware
 from checkmate import db
 from checkmate import deployments
+from checkmate import stacks
 from checkmate import workflows
 from checkmate.exceptions import (
     CheckmateBadState,
@@ -268,6 +269,13 @@ def main():
         root_app, MANAGERS['blueprints']
     )
     resources.append('blueprints')
+
+    # Load Stack Handlers
+    MANAGERS['stacks'] = stacks.Manager(DRIVERS)
+    ROUTERS['stacks'] = stacks.Router(
+        root_app, MANAGERS['stacks']
+    )
+    resources.append('stacks')
 
     # Load admin routes if requested
     if CONFIG.with_admin is True:
