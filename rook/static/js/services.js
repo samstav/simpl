@@ -2114,6 +2114,8 @@ angular.module('checkmate.services').factory('Cache', function() {
 
 angular.module('checkmate.services').factory('WorkflowSpec', [function() {
   var DEFAULTS = {
+    RESOURCE_TITLE_ATTR: 'dns-name',
+    RESOURCE_ICON_ATTR: 'service',
     NO_RESOURCE: 9999,
     TASK_DURATION: 10,
     LOG_SCALE: 15,
@@ -2138,6 +2140,30 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       position: 0
     };
     return stream;
+  }
+
+  var _get_resource_icon = function(resource_id, deployment) {
+    if (!deployment) return;
+
+    var icon;
+    var resource = deployment.resources[resource_id];
+    if (resource) {
+      icon = resource[DEFAULTS.RESOURCE_ICON_ATTR];
+    }
+
+    return icon;
+  }
+
+  var _get_resource_title = function(resource_id, deployment) {
+    if (!deployment) return;
+
+    var title;
+    var resource = deployment.resources[resource_id];
+    if (resource) {
+      title = resource[DEFAULTS.RESOURCE_TITLE_ATTR];
+    }
+
+    return title;
   }
 
   var _get_resource_id_from_inputs = function(inputs, specs) {
@@ -2244,6 +2270,8 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       if (!stream) {
         stream = _create_stream();
         stream.position = streams.all.length;
+        stream.title = _get_resource_title(resource_id, deployment);
+        stream.icon = _get_resource_icon(resource_id, deployment);
         streams[resource_id] = stream;
         streams.all.push(stream);
       }
