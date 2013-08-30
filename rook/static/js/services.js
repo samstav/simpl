@@ -2178,9 +2178,13 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
 
     for (var i=0 ; i<inputs.length ; i++) {
       var input = inputs[i];
+      var input_spec = specs[input];
       var resource_id = specs[input].properties.resource;
       if (resource_id) {
         id = resource_id;
+        break;
+      } else {
+        id = _get_resource_id_from_inputs(input_spec.inputs, specs);
       }
     }
 
@@ -2209,6 +2213,8 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
   var _get_parent_resource_id = function(id, resources) {
     var resource_id;
     var resource = resources[id];
+    if (!resource) return id;
+
     var host_id = resource.hosted_on;
 
     if (host_id)
@@ -2231,7 +2237,8 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       }
     }
     else {
-      resource_id = _get_resource_id_from_inputs(spec.inputs, specs);
+      var id = _get_resource_id_from_inputs(spec.inputs, specs);
+      resource_id = _get_parent_resource_id(id, deployment.resources);
     }
 
     return resource_id;
