@@ -2173,11 +2173,29 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     return memo[spec.id];
   }
 
-  var _get_top_resource_id = function(spec, specs) {
+  var _get_parent_resource_id = function(id, resources) {
+    var resource_id;
+    var resource = resources[id];
+    var host_id = resource.hosted_on;
+
+    if (host_id)
+      resource_id = _get_parent_resource_id(host_id, resources);
+    else
+      resource_id = id;
+
+    return resource_id;
+  }
+
+  var _get_top_resource_id = function(spec, specs, deployment) {
     var resource_id;
 
     if (spec.properties.resource) {
-      resource_id = spec.properties.resource;
+      var id = spec.properties.resource;
+      if (deployment) {
+        resource_id = _get_parent_resource_id(id, deployment.resources);
+      } else {
+        resource_id = id;
+      }
     }
     else {
       resource_id = _get_resource_id_from_inputs(spec.inputs, specs);
@@ -2209,7 +2227,7 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
 
   var scope = {};
 
-  scope.to_streams = function(specs) {
+  scope.to_streams = function(specs, deployment) {
     var position_memo = {}
     var streams = {};
     streams.all = [];
@@ -2221,7 +2239,7 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       var spec = specs[key];
       if (_is_invalid(spec)) continue;
 
-      var resource_id = _get_top_resource_id(spec, specs);
+      var resource_id = _get_top_resource_id(spec, specs, deployment);
       var stream = streams[resource_id];
       if (!stream) {
         stream = _create_stream();
