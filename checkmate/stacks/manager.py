@@ -78,10 +78,11 @@ class Manager(base.ManagerBase):
             'Content-type': 'application/json',
             'User-Agent': 'python-heatclient',
         }
-        response = requests.post(
-            'https://api.rs-heat.com/v1/%s/stacks' % tenant_id,
-            headers=headers, verify=False,
-            data=json.dumps(stack))
+        url = 'https://api.rs-heat.com/v1/%s/stacks' % tenant_id
+        self.http_log_req((url, "POST"), dict(headers=headers, verify=False,
+                                              data=json.dumps(stack)))
+        response = requests.post(url, headers=headers, verify=False,
+                                 data=json.dumps(stack))
         try:
             stacks = response.json()
         except Exception:
@@ -133,3 +134,26 @@ class Manager(base.ManagerBase):
             headers=headers, verify=False)
         resource = response.json()
         return resource
+
+    def http_log_req(self, args, kwargs):
+        '''Log HTTP call as curl command.'''
+        if not LOG.level != logging.DEBUG:
+            return
+
+        string_parts = ['curl -i']
+        for element in args:
+            if element in ('GET', 'POST', 'DELETE', 'PUT'):
+                string_parts.append(' -X %s' % element)
+            else:
+                string_parts.append(' %s' % element)
+
+        for element in kwargs['headers']:
+            header = ' -H "%s: %s"' % (element, kwargs['headers'][element])
+            string_parts.append(header)
+
+        if kwargs.get('verify') is False:
+            string_parts.append(" -k ")
+
+        if 'data' in kwargs:
+            string_parts.append(" -d '%s'" % (kwargs['data']))
+        LOG.debug("\nREQ: %s\n", "".join(string_parts))
