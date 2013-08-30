@@ -333,7 +333,11 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     SVG_WIDTH: 300,
     NODE_RADIUS: 2,
     NODE_HEIGHT: 5,
-    HIGHLIGHT_NODE: 'highlight'
+    HIGHLIGHT_NODE: 'highlight',
+    AVAILABLE_ICONS: ['compute', 'load-balancer', 'database'],
+    ICON_FOLDER: '/img/icons/',
+    ICON_HEIGHT: 8,
+    ICON_WIDTH: 8
   };
 
   var _even_odd = function(num) {
@@ -366,6 +370,16 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     return color;
   }
 
+  var _get_icon = function(d) {
+    var icon;
+
+    if (d.icon) {
+      icon = DEFAULTS.ICON_FOLDER + d.icon + '-gray.svg';
+    }
+
+    return icon;
+  }
+
   var _update_specs = function(new_value, old_value, scope) {
     scope.specs = new_value;
     update_svg(scope);
@@ -377,7 +391,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   }
 
   var _interpolate = function(x, new_width, old_width) {
-    return x * new_width / old_width;
+    return x * new_width / old_width ;
   }
 
   var _calculate_node_position = function(streams, scope) {
@@ -448,6 +462,12 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('class', 'border')
       .attr('width', '100%')
       .attr('height', height);
+    stream.append('svg:image')
+      .attr('xlink:href', _get_icon)
+      .attr('x', function(d) { return (height - DEFAULTS.ICON_WIDTH) / 2 })
+      .attr('y', function(d) { return (height - DEFAULTS.ICON_HEIGHT) / 2 })
+      .attr('width', DEFAULTS.ICON_WIDTH + 'px')
+      .attr('height', DEFAULTS.ICON_HEIGHT + 'px');
     // Exit
     elements.exit().remove();
   }

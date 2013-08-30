@@ -2143,12 +2143,19 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
   }
 
   var _get_resource_icon = function(resource_id, deployment) {
-    if (!deployment) return;
+    if (!deployment) return '';
 
-    var icon;
     var resource = deployment.resources[resource_id];
-    if (resource) {
-      icon = resource[DEFAULTS.RESOURCE_ICON_ATTR];
+    if (!resource) return '';
+
+    var hosted_resources = resource.hosts;
+    var icon;
+
+    if (hosted_resources) {
+      var first_resource = hosted_resources[0];
+      icon = _get_resource_icon(first_resource, deployment);
+    } else {
+      icon = resource.type;
     }
 
     return icon;
