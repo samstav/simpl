@@ -51,6 +51,7 @@ from checkmate.exceptions import (
     CheckmateDatabaseConnectionError,
     CheckmateDoesNotExist,
     CheckmateException,
+    CheckmateHOTTemplateException,
     CheckmateInvalidParameterError,
     CheckmateNoData,
     CheckmateNoMapping,
@@ -120,6 +121,10 @@ def error_formatter(error):
     elif isinstance(error.exception, CheckmateInvalidParameterError):
         error.status = 406
         error.output = str(error.exception)
+    elif isinstance(error.exception, CheckmateHOTTemplateException):
+        error.status = 406
+        error.output = str(error.exception) or ("Operation not support with "
+                                                "HOT template")
     elif isinstance(error.exception, CheckmateDoesNotExist):
         error.status = 404
         error.output = str(error.exception)

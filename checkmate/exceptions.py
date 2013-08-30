@@ -157,3 +157,10 @@ class CheckmateValidationException(CheckmateException):
 class CheckmateDataIntegrityError(CheckmateException):
     '''Data has failed integrity checks.'''
     pass
+
+
+class CheckmateHOTTemplateException(CheckmateException):
+    '''Raise when a HOT template is encountered where a Checkmate blueprint is
+    expected.
+    '''
+    pass

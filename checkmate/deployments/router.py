@@ -69,6 +69,8 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
                  "self-consistent.")
         _validate_blueprint_inputs(entity, tenant_id)
 
+    if 'heat_template_version' in entity:
+        raise exceptions.CheckmateHOTTemplateException()
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
     if db.any_id_problems(entity['id']):
@@ -225,7 +227,10 @@ class Router(object):
 
         Triggers workflow execution.
         """
-        deployment = _content_to_deployment(tenant_id=tenant_id)
+        try:
+            deployment = _content_to_deployment(tenant_id=tenant_id)
+        except exceptions.CheckmateHOTTemplateException:
+            return self.stack_router.post_stack_compat(tenant_id=tenant_id)
 
         is_simulation = bottle.request.context.simulation
         if is_simulation:
