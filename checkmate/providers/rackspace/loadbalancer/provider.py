@@ -32,10 +32,11 @@ from checkmate import db
 from checkmate import deployments
 from checkmate import exceptions
 from checkmate import middleware
-from checkmate.providers.base import ProviderBase, user_has_access
-from checkmate.providers.rackspace import base, dns
+from checkmate.providers import base
+from checkmate.providers.rackspace import base as rsbase
+from checkmate.providers.rackspace import dns
 from checkmate.providers.rackspace.dns import provider
-from checkmate.utils import get_class_name
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -76,7 +77,7 @@ MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
-class Provider(base.RackspaceProviderBase):
+class Provider(rsbase.RackspaceProviderBase):
     '''Rackspace load balancer provider'''
     name = 'load-balancer'
     method = 'cloud_loadbalancers'
@@ -117,7 +118,7 @@ class Provider(base.RackspaceProviderBase):
                              "create load-balancer in")
             raise exceptions.CheckmateUserException(
                 error_message,
-                get_class_name(exceptions.CheckmateUserException),
+                utils.get_class_name(exceptions.CheckmateUserException),
                 exceptions.BLUEPRINT_ERROR, '')
         number_of_resources = 1
         interface = \
@@ -138,7 +139,7 @@ class Provider(base.RackspaceProviderBase):
             number_of_resources = len(connections)
 
         for index_of_resource in range(index, index + number_of_resources):
-            generated_templates = ProviderBase.generate_template(
+            generated_templates = base.ProviderBase.generate_template(
                 self, deployment, resource_type, service, context,
                 index_of_resource, self.key, definition
             )
@@ -248,7 +249,7 @@ class Provider(base.RackspaceProviderBase):
 
     def verify_access(self, context):
         roles = ['identity:user-admin', 'LBaaS:admin', 'LBaaS:creator']
-        if user_has_access(context, roles):
+        if base.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
                 'message': "You have access to create Cloud Load Balancers",
@@ -287,8 +288,13 @@ class Provider(base.RackspaceProviderBase):
                                            service_name=service_name,
                                            provider_key=self.key,
                                            default="ROUND_ROBIN")
+        content_caching = deployment.get_setting("caching",
+                                                 resource_type=resource_type,
+                                                 service_name=service_name,
+                                                 provider_key=self.key,
+                                                 default=False)
         cdns = self._handle_dns(deployment, service_name,
-                               resource_type=resource_type)
+                                resource_type=resource_type)
         create_lb_task_tags = ['create', 'root', 'vip']
 
         #Find existing task which has created the vip
@@ -331,7 +337,7 @@ class Provider(base.RackspaceProviderBase):
                 key
             ),
             port=port,
-            parent_lb=parent_lb
+            parent_lb=parent_lb,
         )
         if vip_tasks:
             vip_tasks[0].connect(create_lb)
@@ -391,6 +397,22 @@ class Provider(base.RackspaceProviderBase):
                 ]
             )
             create_record_task.connect(crd)
+
+        if content_caching:
+            task_name = ("Enable content caching for Load balancer %s (%s)"
+                         % (key, resource['service']))
+            celery_call = "checkmate.providers.rackspace.loadbalancer.tasks."\
+                          "enable_content_caching"
+            enable_caching_task = specs.Celery(
+                wfspec, task_name, celery_call,
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment_id=deployment['id'],
+                        resource_key=key,
+                        region=resource['region']),
+                    operators.PathAttrib('instance:%s/id' % key),
+                ])
+            build_wait_task.connect(enable_caching_task)
 
         task_name = ('Add monitor to Loadbalancer %s (%s) build' %
                      (key, resource['service']))
@@ -511,7 +533,7 @@ class Provider(base.RackspaceProviderBase):
             error_message = "Could not locate component for id 'rsCloudLB'"
             raise exceptions.CheckmateUserException(
                 error_message,
-                get_class_name(exceptions.CheckmateException),
+                utils.get_class_name(exceptions.CheckmateException),
                 exceptions.BLUEPRINT_ERROR, '')
         else:
             comp = comp[0]  # there should be only one
@@ -524,7 +546,7 @@ class Provider(base.RackspaceProviderBase):
                                  % (interface, self.key, protocols))
                 raise exceptions.CheckmateUserException(
                     error_message,
-                    get_class_name(exceptions.CheckmateException),
+                    utils.get_class_name(exceptions.CheckmateException),
                     exceptions.BLUEPRINT_ERROR, '')
 
         # Get all tasks we need to precede the LB Add Node task
@@ -576,8 +598,8 @@ class Provider(base.RackspaceProviderBase):
 
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
-        results = ProviderBase.get_catalog(self, context,
-                                           type_filter=type_filter)
+        results = base.ProviderBase.get_catalog(self, context,
+                                                type_filter=type_filter)
         if results:
             # We have a prexisting or overridecatalog stored
             return results
@@ -727,7 +749,7 @@ class Provider(base.RackspaceProviderBase):
     @staticmethod
     def connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
-        return getattr(base.RackspaceProviderBase._connect(context, region),
+        return getattr(rsbase.RackspaceProviderBase._connect(context, region),
                        Provider.method)
 
 

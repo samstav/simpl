@@ -23,18 +23,15 @@ from celery import task
 import pyrax
 import redis
 
-from .provider import Provider
-
 from checkmate.common import statsd
 from checkmate import db
 from checkmate import deployments
 from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate import exceptions
-from checkmate.utils import (
-    match_celery_logging,
-    get_class_name,
-    merge_dictionary,
-)
+from checkmate.providers.rackspace.loadbalancer.manager import Manager
+from checkmate.providers.rackspace.loadbalancer.provider import Provider
+from checkmate.providers.rackspace.loadbalancer import tasks
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -94,7 +91,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         monitor_status='^[234][0-9][0-9]$', parent_lb=None):
     '''Celery task to create Cloud Load Balancer.'''
     assert 'deployment' in context, "Deployment not supplied in context"
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     deployment_id = context['deployment']
     if context.get('simulation') is True:
@@ -181,16 +178,16 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             LOG.info("A limit 'may' have been reached creating a load "
                      "balancer for deployment %s", deployment_id)
             error_message = "API limit reached"
+            class_name = utils.get_class_name(exc)
             raise exceptions.CheckmateRetriableException(error_message,
-                                                         get_class_name(exc),
-                                                         error_message,
-                                                         '')
+                                                         class_name,
+                                                         error_message, '')
         raise
     except pyrax.exceptions.OverLimit as exc:
         LOG.info("API Limit reached creating a load balancer for deployment "
                  "%s", deployment_id)
         raise exceptions.CheckmateRetriableException(exc.message,
-                                                     get_class_name(exc),
+                                                     utils.get_class_name(exc),
                                                      exc.message, '')
 
     # Put the instance_id in the db as soon as it's available
@@ -240,13 +237,13 @@ def collect_record_data(deployment_id, resource_key, record):
     if "id" not in record:
         message = "Missing record id in %s" % record
         raise exceptions.CheckmateUserException(
-            message, get_class_name(exceptions.CheckmateException),
+            message, utils.get_class_name(exceptions.CheckmateException),
             exceptions.UNEXPECTED_ERROR, '')
     if "domain" not in record:
         message = "No domain specified for record %s" % record.get("id")
         raise exceptions.CheckmateUserException(
             message,
-            get_class_name(exceptions.CheckmateException),
+            utils.get_class_name(exceptions.CheckmateException),
             exceptions.UNEXPECTED_ERROR, '')
     contents = {
         "instance:%s" % resource_key: {
@@ -262,7 +259,7 @@ def collect_record_data(deployment_id, resource_key, record):
 @statsd.collect
 def sync_resource_task(context, resource, resource_key, api=None):
     """Sync provider resource status with deployment."""
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
     key = "instance:%s" % resource_key
     if context.get('simulation') is True:
         return {
@@ -281,7 +278,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
             error_message = "No instance id supplied for resource %s" % key
             raise exceptions.CheckmateUserException(
                 error_message,
-                get_class_name(exceptions.CheckmateException),
+                utils.get_class_name(exceptions.CheckmateException),
                 exceptions.UNEXPECTED_ERROR,
                 '')
         clb = api.get(instance_id)
@@ -293,7 +290,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
                     context['base_url'], context['tenant'],
                     context['deployment'], resource['index']
                 )
-                new_meta = merge_dictionary(meta, checkmate_tag)
+                new_meta = utils.merge_dictionary(meta, checkmate_tag)
                 clb.set_metadata(new_meta)
         except StandardError as exc:
             LOG.info("Could not set metadata tag "
@@ -320,7 +317,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
 @statsd.collect
 def delete_lb_task(context, key, lbid, region, api=None):
     """Celery task to delete a Cloud Load Balancer"""
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     if context.get('simulation') is True:
         resource_key = context['resource']
@@ -403,7 +400,7 @@ def delete_lb_task(context, key, lbid, region, api=None):
 @statsd.collect
 def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
     """DELETED status check."""
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
     inst_key = "instance:%s" % key
     results = {}
 
@@ -468,7 +465,7 @@ def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
 @statsd.collect
 def add_node(context, lbid, ipaddr, region, resource, api=None):
     '''Celery task to add a node to a Cloud Load Balancer'''
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     if context.get('simulation') is True:
         results = {}
@@ -481,7 +478,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
         message = "IP %s is reserved as a placeholder IP by checkmate" % ipaddr
         raise exceptions.CheckmateUserException(
             message,
-            get_class_name(exceptions.CheckmateException),
+            utils.get_class_name(exceptions.CheckmateException),
             exceptions.UNEXPECTED_ERROR,
             '')
 
@@ -548,13 +545,13 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                                                     "Node was not added")
                 return add_node.retry(exc=exc)
         except pyrax.exceptions.ClientException as exc:
-            if exc.http_status == 422:
+            if exc.code == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "adding %s (%d %s)", lbid, ipaddr, exc.http_status,
+                          "adding %s (%d %s)", lbid, ipaddr, exc.code,
                           exc.message)
                 return add_node.retry(exc=exc)
             LOG.debug("Response error from load balancer %d. Will retry "
-                      "adding %s (%d %s)", lbid, ipaddr, exc.http_status,
+                      "adding %s (%d %s)", lbid, ipaddr, exc.code,
                       exc.message)
             return add_node.retry(exc=exc)
         except StandardError as exc:
@@ -580,7 +577,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 @statsd.collect
 def delete_node(context, lbid, ipaddr, region, api=None):
     '''Celery task to delete a node from a Cloud Load Balancer'''
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     if context.get('simulation') is True:
         return
@@ -598,13 +595,13 @@ def delete_node(context, lbid, ipaddr, region, api=None):
             node_to_delete.delete()
             LOG.info('Removed %s from load balancer %s', ipaddr, lbid)
         except pyrax.exceptions.ClientException as exc:
-            if exc.http_status == 422:
+            if exc.code == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "deleting %s (%s %s)", lbid, ipaddr, exc.http_status,
+                          "deleting %s (%s %s)", lbid, ipaddr, exc.code,
                           exc.message)
                 delete_node.retry(exc=exc)
             LOG.debug('Response error from load balancer %d. Will retry '
-                      'deleting %s (%s %s)', lbid, ipaddr, exc.http_status,
+                      'deleting %s (%s %s)', lbid, ipaddr, exc.code,
                       exc.message)
             delete_node.retry(exc=exc)
         except StandardError as exc:
@@ -621,7 +618,7 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
                 timeout=10, attempts=3, body='(.*)',
                 status='^[234][0-9][0-9]$', api=None):
     '''Create a monitor for a Cloud Load Balancer'''
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     if context.get('simulation') is True:
         return
@@ -641,14 +638,14 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
             statusRegex=status,
             bodyRegex=body)
     except pyrax.exceptions.ClientException as response_error:
-        if response_error.http_status == 422:
+        if response_error.code == 422:
             LOG.debug("Cannot modify load balancer %s. Will retry setting %s "
                       "monitor (%s %s)", lbid, type,
-                      response_error.http_status, response_error.reason)
+                      response_error.code, response_error.message)
         else:
             LOG.debug("Response error from load balancer %s. Will retry "
                       "setting %s monitor (%s %s)", lbid, type,
-                      response_error.http_status, response_error.reason)
+                      response_error.code, response_error.message)
         set_monitor.retry(exc=response_error)
     #except cloudlb.errors.ImmutableEntity as im_ent: #TODO(Nate): unique?
     except pyrax.exceptions.PyraxException as exc:
@@ -667,7 +664,7 @@ def wait_on_build(context, lbid, region, api=None):
     status in deployment
     '''
 
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
     assert lbid, "ID must be provided"
     assert 'deployment' in context, "Deployment not supplied in context"
     LOG.debug("Getting loadbalancer %s", lbid)
@@ -706,7 +703,7 @@ def wait_on_build(context, lbid, region, api=None):
                                       region, api)).apply_async()
         raise exceptions.CheckmateRetriableException(
             msg, "",
-            get_class_name(CheckmateLoadbalancerBuildFailed()), msg, '')
+            utils.get_class_name(CheckmateLoadbalancerBuildFailed()), msg, '')
     elif loadbalancer.status == "ACTIVE":
         results = {
             instance_key: {
