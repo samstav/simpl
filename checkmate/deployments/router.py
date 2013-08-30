@@ -32,6 +32,7 @@ from checkmate import deployment as cmdeploy
 from checkmate.deployments import tasks
 from checkmate import exceptions
 from checkmate import operations
+from checkmate import stacks
 from checkmate import utils
 from checkmate import workflow
 from checkmate import workflows
@@ -199,6 +200,7 @@ class Router(object):
                   self.get_resources_statuses)
         app.route('/deployments/<api_id>/resources/<rid>', 'GET',
                   self.get_resource)
+        self.stack_router = stacks.Router(self.app, stacks.Manager(DRIVERS))
 
     param_whitelist = ['search', 'name', 'blueprint.name', 'status',
                        'start_date', 'end_date']

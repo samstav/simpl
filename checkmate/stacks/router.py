@@ -10,6 +10,7 @@ import bottle  # pylint: disable=E0611
 
 
 from checkmate import db
+from checkmate import exceptions
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -53,6 +54,32 @@ class Router(object):
             tenant_id,
             utils.read_body(bottle.request),
             bottle.request.headers.get("X-Auth-Key")
+        )
+
+    def post_stack_compat(self, tenant_id=None):
+        '''Create a stack coming from Reach with compoatibility attributes.'''
+        stack = utils.read_body(bottle.request)
+        try:
+            del stack['blueprint']
+            inputs = stack.pop('inputs')
+            blueprint_inputs = inputs.pop('blueprint')
+            # Get API key - we added this input on the way out to Reach
+            api_key = blueprint_inputs.pop('API Key')
+        except Exception:
+            LOG.error("Cannot parse HOT template", exc_info=True)
+            raise exceptions.CheckmateException("Unable to parse HOT template")
+
+        body = {
+            'stack_name': stack.pop('name'),
+            'parameters': blueprint_inputs,
+            'disable_rollback': True,
+            'template': stack,
+        }
+        return self.manager.create_stack(
+            bottle.request.context,
+            tenant_id,
+            body,
+            bottle.request.headers.get("X-Auth-Key") or api_key
         )
 
     @utils.with_tenant
