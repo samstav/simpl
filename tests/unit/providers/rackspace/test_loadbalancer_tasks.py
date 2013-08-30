@@ -49,10 +49,3 @@ class TestEnableContentCaching(unittest.TestCase):
         self.assertRaisesRegexp(exceptions.CheckmateException, expected,
                                 manager.Manager.enable_content_caching,
                                 self.lbid, self.api)
-
-class TestEnableSSLTermination(unittest.TestCase):
-    """Class for testing enable_ssl_termination task."""
-
-    def setUp(self):
-        """Setup vars for re-use."""
-        pass

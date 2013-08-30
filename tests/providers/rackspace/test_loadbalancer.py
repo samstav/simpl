@@ -755,6 +755,74 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
 
+    def test_workflow_task_generation_caching(self):
+        """Verifies workflow tasks with caching enabled."""
+        deployment = cm_dep.Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: http
+                        constraints:
+                          - region: North
+                          - caching: true
+                      relations:
+                        server: http
+                    server:
+                      component:
+                        resource_type: compute
+
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: http
+                            requires:
+                            - application: http
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            provides:
+                            - application: http
+                            - compute: linux
+        """))
+        deployment['tenantId'] = "tenantId"
+        deployments.Manager.plan(deployment, self.context)
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+            deployment, self.context)
+        workflow = cm_wf.init_spiff_workflow(workflow_spec, deployment,
+                                             self.context, "w_id", "BUILD")
+
+        task_list = workflow.spec.task_specs.keys()
+        expected = [
+            'Root',
+            'Start',
+            'Add Node 1 to LB 0',
+            'Create HTTP Loadbalancer (0)',
+            'Create Resource 1',
+            'Wait before adding 1 to LB 0',
+            'Add monitor to Loadbalancer 0 (lb) build',
+            'Wait for Loadbalancer 0 (lb) build',
+            'Enable content caching for Load balancer 0 (lb)'
+        ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected)
+
     def test_workflow_task_generation(self):
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, self.context)

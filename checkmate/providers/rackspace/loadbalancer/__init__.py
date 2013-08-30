@@ -24,6 +24,8 @@ import pyrax
 import redis
 
 from .provider import Provider
+from .manager import Manager
+from .tasks import enable_content_caching
 
 from checkmate.common import statsd
 from checkmate import db
@@ -91,8 +93,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         tags=None,
                         monitor_path='/', monitor_delay=10, monitor_timeout=10,
                         monitor_attempts=3, monitor_body='(.*)',
-                        monitor_status='^[234][0-9][0-9]$', parent_lb=None,
-                        **kwargs):
+                        monitor_status='^[234][0-9][0-9]$', parent_lb=None):
     '''Celery task to create Cloud Load Balancer.'''
     assert 'deployment' in context, "Deployment not supplied in context"
     match_celery_logging(LOG)
@@ -177,8 +178,6 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                 nodes=[fakenode], virtual_ips=[vip], algorithm=algorithm)
         LOG.info("Created load balancer %s for deployment %s", loadbalancer.id,
                  deployment_id)
-        if kwargs.get('content_caching'):
-            loadbalancer.content_caching = True
     except KeyError as exc:
         if str(exc) == 'retry-after':
             LOG.info("A limit 'may' have been reached creating a load "
@@ -186,8 +185,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             error_message = "API limit reached"
             raise exceptions.CheckmateRetriableException(error_message,
                                                          get_class_name(exc),
-                                                         error_message,
-                                                         '')
+                                                         error_message, '')
         raise
     except pyrax.exceptions.OverLimit as exc:
         LOG.info("API Limit reached creating a load balancer for deployment "
@@ -551,13 +549,13 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                                                     "Node was not added")
                 return add_node.retry(exc=exc)
         except pyrax.exceptions.ClientException as exc:
-            if exc.http_status == 422:
+            if exc.code == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "adding %s (%d %s)", lbid, ipaddr, exc.http_status,
+                          "adding %s (%d %s)", lbid, ipaddr, exc.code,
                           exc.message)
                 return add_node.retry(exc=exc)
             LOG.debug("Response error from load balancer %d. Will retry "
-                      "adding %s (%d %s)", lbid, ipaddr, exc.http_status,
+                      "adding %s (%d %s)", lbid, ipaddr, exc.code,
                       exc.message)
             return add_node.retry(exc=exc)
         except StandardError as exc:
@@ -601,13 +599,13 @@ def delete_node(context, lbid, ipaddr, region, api=None):
             node_to_delete.delete()
             LOG.info('Removed %s from load balancer %s', ipaddr, lbid)
         except pyrax.exceptions.ClientException as exc:
-            if exc.http_status == 422:
+            if exc.code == 422:
                 LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "deleting %s (%s %s)", lbid, ipaddr, exc.http_status,
+                          "deleting %s (%s %s)", lbid, ipaddr, exc.code,
                           exc.message)
                 delete_node.retry(exc=exc)
             LOG.debug('Response error from load balancer %d. Will retry '
-                      'deleting %s (%s %s)', lbid, ipaddr, exc.http_status,
+                      'deleting %s (%s %s)', lbid, ipaddr, exc.code,
                       exc.message)
             delete_node.retry(exc=exc)
         except StandardError as exc:
@@ -644,14 +642,14 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
             statusRegex=status,
             bodyRegex=body)
     except pyrax.exceptions.ClientException as response_error:
-        if response_error.http_status == 422:
+        if response_error.code == 422:
             LOG.debug("Cannot modify load balancer %s. Will retry setting %s "
                       "monitor (%s %s)", lbid, type,
-                      response_error.http_status, response_error.reason)
+                      response_error.code, response_error.message)
         else:
             LOG.debug("Response error from load balancer %s. Will retry "
                       "setting %s monitor (%s %s)", lbid, type,
-                      response_error.http_status, response_error.reason)
+                      response_error.code, response_error.message)
         set_monitor.retry(exc=response_error)
     #except cloudlb.errors.ImmutableEntity as im_ent: #TODO(Nate): unique?
     except pyrax.exceptions.PyraxException as exc:

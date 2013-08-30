@@ -166,6 +166,7 @@ class Provider(base.RackspaceProviderBase):
                                        default=templates[0].get('dns-name'))
         return templates
 
+
     def _support_unencrypted(self, deployment, protocol, resource_type=None,
                              service=None):
         """Unencrypted protocol support."""
@@ -337,7 +338,6 @@ class Provider(base.RackspaceProviderBase):
             ),
             port=port,
             parent_lb=parent_lb,
-            caching=caching
         )
         if vip_tasks:
             vip_tasks[0].connect(create_lb)
@@ -397,6 +397,22 @@ class Provider(base.RackspaceProviderBase):
                 ]
             )
             create_record_task.connect(crd)
+
+        if caching:
+            task_name = ("Enable content caching for Load balancer %s (%s)"
+                         % (key, resource['service']))
+            celery_call = "checkmate.providers.rackspace.loadbalancer.tasks."\
+                          "enable_content_caching"
+            enable_caching_task = specs.Celery(
+                wfspec, task_name, celery_call,
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment_id=deployment['id'],
+                        resource_key=key,
+                        region=resource['region']),
+                    operators.PathAttrib('instance:%s/id' % key),
+                ])
+            build_wait_task.connect(enable_caching_task)
 
         task_name = ('Add monitor to Loadbalancer %s (%s) build' %
                      (key, resource['service']))
@@ -733,6 +749,7 @@ class Provider(base.RackspaceProviderBase):
     @staticmethod
     def connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
+        LOG.info('Calling connect with Provider.method value - %s', Provider.method)
         return getattr(base.RackspaceProviderBase._connect(context, region),
                        Provider.method)
 
