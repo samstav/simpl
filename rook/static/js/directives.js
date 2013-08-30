@@ -523,6 +523,22 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     svg.streams.append('svg:g').attr('class', 'links');
     svg.streams.append('svg:g').attr('class', 'nodes');
 
+
+    var gradient = svg.element.append("svg:defs")
+    .append("svg:radialGradient")
+    .attr("id", "gradient")
+
+    gradient.append("svg:stop")
+    .attr("offset", "0%")
+    .attr("stop-color", "#0E90D2")
+    .attr("stop-opacity", 1);
+
+    gradient.append("svg:stop")
+    .attr("offset", "100%")
+    .attr("stop-color", "#F5F5F5")
+    .attr("stop-opacity", 1);
+
+
     return svg;
   }
 
