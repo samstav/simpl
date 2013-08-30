@@ -493,7 +493,7 @@ form#impersonate input {
 
 circle.node {
   stroke: #fff;
-  stroke-width: 1px;
+  stroke-width: 0.3px;
 }
 
 line.link {
