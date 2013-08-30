@@ -391,7 +391,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   }
 
   var _interpolate = function(x, new_width, old_width) {
-    return x * new_width / old_width ;
+    var padded_width = new_width - DEFAULTS.ICON_WIDTH;
+    return x * padded_width / old_width + DEFAULTS.ICON_WIDTH;
   }
 
   var _calculate_node_position = function(streams, scope) {
