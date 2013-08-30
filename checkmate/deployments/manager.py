@@ -1,8 +1,8 @@
-'''
+"""
 Deployments Manager
 
 Handles deployment logic
-'''
+"""
 
 import copy
 import logging
@@ -33,11 +33,11 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(base.ManagerBase):
-    '''Contains Deployments Model and Logic for Accessing Deployments.'''
+    """Contains Deployments Model and Logic for Accessing Deployments."""
 
     def count(self, tenant_id=None, blueprint_id=None, status=None,
               query=None):
-        '''Return count of deployments filtered by passed in parameters.'''
+        """Return count of deployments filtered by passed in parameters."""
         # TODO: This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
         deployments = self.driver.get_deployments(tenant_id=tenant_id,
@@ -64,7 +64,7 @@ class Manager(base.ManagerBase):
 
     def get_deployments(self, tenant_id=None, offset=None, limit=None,
                         with_deleted=False, status=None, query=None):
-        '''Get existing deployments..'''
+        """Get existing deployments.."""
         results = self.driver.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
@@ -87,10 +87,10 @@ class Manager(base.ManagerBase):
 
     def save_deployment(self, deployment, api_id=None, tenant_id=None,
                         partial=False):
-        '''Sync ID and tenant and save deployment
+        """Sync ID and tenant and save deployment
 
         :returns: saved deployment
-        '''
+        """
         if not api_id:
             if 'id' not in deployment:
                 api_id = uuid.uuid4().hex
@@ -122,12 +122,12 @@ class Manager(base.ManagerBase):
                                                           partial=partial)
 
     def deploy(self, deployment, context):
-        '''Deploys a deployment and returns the operation.'''
+        """Deploys a deployment and returns the operation."""
         if deployment.get('status') != 'PLANNED':
             raise CheckmateBadState("Deployment '%s' is in '%s' status and "
                                     "must be in 'PLANNED' status to be "
                                     "deployed" % (deployment['id'],
-                                    deployment.get('status')))
+                                                  deployment.get('status')))
         generate_keys(deployment)
         deployment['display-outputs'] = deployment.calculate_outputs()
 
@@ -135,15 +135,16 @@ class Manager(base.ManagerBase):
             deployment, context)
         spiff_wf = workflow.create_workflow(
             deploy_spec, deployment, context, driver=self.select_driver(
-                deployment['id']), workflow_id=deployment['id'], wf_type="BUILD")
+                deployment['id']), workflow_id=deployment['id'],
+            wf_type="BUILD")
         deployment['workflow'] = spiff_wf.attributes['id']
         operations.add(deployment, spiff_wf, "BUILD",
                        tenant_id=deployment['tenantId'])
         self.save_deployment(deployment)
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
-        '''Get a single deployment by id.
-        '''
+        """Get a single deployment by id.
+        """
         entity = self.select_driver(api_id).get_deployment(api_id,
                                                            with_secrets=
                                                            with_secrets)
@@ -177,8 +178,8 @@ class Manager(base.ManagerBase):
         return entity
 
     def get_deployment_secrets(self, api_id, tenant_id=None):
-        '''Get the passwords and keys of a single deployment by id.
-        '''
+        """Get the passwords and keys of a single deployment by id.
+        """
         entity = self.select_driver(api_id).get_deployment(api_id,
                                                            with_secrets=True)
         if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
@@ -203,8 +204,8 @@ class Manager(base.ManagerBase):
         return data
 
     def update_deployment_secrets(self, api_id, data, tenant_id=None):
-        '''Update the passwords and keys of a single deployment.
-        '''
+        """Update the passwords and keys of a single deployment.
+        """
         #FIXME: test this
         entity = self.get_deployment(api_id, tenant_id=tenant_id,
                                      with_secrets=True)
@@ -229,7 +230,7 @@ class Manager(base.ManagerBase):
         return {'secrets': updates.get('display-outputs')}
 
     def get_resource_by_id(self, api_id, rid, tenant_id=None):
-        '''Attempt to retrieve a resource from a deployment.'''
+        """Attempt to retrieve a resource from a deployment."""
         deployment = self.get_deployment(api_id, tenant_id=tenant_id)
         resources = deployment.get("resources")
         if rid in resources:
@@ -237,7 +238,7 @@ class Manager(base.ManagerBase):
         raise ValueError("No resource %s in deployment %s" % (rid, api_id))
 
     def execute(self, api_id, timeout=180, tenant_id=None):
-        '''Process a checkmate deployment workflow
+        """Process a checkmate deployment workflow
 
         Executes and moves the workflow forward.
         Retrieves results (final or intermediate) and updates them into
@@ -245,7 +246,7 @@ class Manager(base.ManagerBase):
 
         :param id: checkmate deployment id
         :returns: the async task
-        '''
+        """
         if db.any_id_problems(api_id):
             raise CheckmateValidationException(db.any_id_problems(api_id))
 
@@ -257,7 +258,7 @@ class Manager(base.ManagerBase):
         return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):
-        '''Launch a new deployment from a deleted one.'''
+        """Launch a new deployment from a deleted one."""
         deployment = self.get_deployment(api_id, tenant_id=tenant_id)
 
         if deployment['status'] != 'DELETED':
@@ -286,7 +287,7 @@ class Manager(base.ManagerBase):
 
     @staticmethod
     def _get_dep_resources(deployment):
-        '''Return the resources for the deployment or abort if not found..'''
+        """Return the resources for the deployment or abort if not found.."""
         if deployment and "resources" in deployment:
             return deployment.get("resources")
         raise CheckmateDoesNotExist("No resources found for deployment %s" %
@@ -295,14 +296,14 @@ class Manager(base.ManagerBase):
     @staticmethod
     def plan(deployment, context, check_limits=False, check_access=False,
              parse_only=False):
-        '''Process a new checkmate deployment and plan for execution.
+        """Process a new checkmate deployment and plan for execution.
 
         This creates templates for resources and connections that will be used
         for the actual creation of resources.
 
         :param deployment: checkmate deployment instance (dict)
         :param context: RequestContext (auth data, etc) for making API calls
-        '''
+        """
         assert context.__class__.__name__ == 'RequestContext'
         assert deployment.get('status') == 'NEW'
         assert isinstance(deployment, Deployment)
@@ -337,13 +338,13 @@ class Manager(base.ManagerBase):
         return deployment
 
     def reset_failed_resource(self, deployment_id, resource_id):
-        '''Creates a copy of a failed resource and appends it at the end of
+        """Creates a copy of a failed resource and appends it at the end of
         the resources collection.
 
         :param deployment_id:
         :param resource_id:
         :return:
-        '''
+        """
         #TODO: Need to move the logic to find whether a resource should be
         # reset or not to the providers
         deployment = self.get_deployment(deployment_id)
@@ -374,7 +375,7 @@ class Manager(base.ManagerBase):
 
     def postback(self, deployment_id, contents):
         #FIXME: we need to receive a context and check access?
-        '''This is a generic postback intended to replace all postback calls.
+        """This is a generic postback intended to replace all postback calls.
         Accepts back results from a remote call and updates the deployment with
         the result data.
 
@@ -400,7 +401,7 @@ class Manager(base.ManagerBase):
                     }
                 }
             }
-        '''
+        """
 
         deployment = self.select_driver(
             deployment_id).get_deployment(deployment_id, with_secrets=True)
@@ -422,14 +423,14 @@ class Manager(base.ManagerBase):
 
     def plan_add_nodes(self, deployment, context, service_name, count,
                        parse_only=False):
-        '''Process a new checkmate deployment and plan for execution.
+        """Process a new checkmate deployment and plan for execution.
 
         This creates templates for resources and connections that will be used
         for the actual creation of resources.
 
         :param deployment: checkmate deployment instance (dict)
         :param context: RequestContext (auth data, etc) for making API calls
-        '''
+        """
         assert context.__class__.__name__ == 'RequestContext'
         assert isinstance(deployment, Deployment)
 
@@ -449,13 +450,13 @@ class Manager(base.ManagerBase):
 
     def delete_nodes(self, deployment, context, service_name, count,
                      victim_list, tenant_id):
-        '''Delete the passed in resources from a deployment
+        """Delete the passed in resources from a deployment
         :param deployment: Deployment to delete resources from
         :param context: RequestContext
         :param victim_list: Resources to delete
         :param tenant_id: TenantId of the customer
         :return:
-        '''
+        """
         resources_for_service = deployment.get_resources_for_service(
             service_name).keys()
         random.shuffle(resources_for_service)
@@ -473,13 +474,13 @@ class Manager(base.ManagerBase):
                        tenant_id)
 
     def deploy_add_nodes(self, deployment, context, tenant_id):
-        '''Creates the workflow and operation for add node
+        """Creates the workflow and operation for add node
 
         :param deployment: Deployment to add the nodes to
         :param context: RequestContext
         :param tenant_id: TenantId
         :return:
-        '''
+        """
         driver = self.select_driver(deployment["id"])
         add_node_workflow_spec = (workflows.WorkflowSpec
                                   .create_workflow_spec_deploy(deployment,

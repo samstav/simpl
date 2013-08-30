@@ -1,8 +1,21 @@
-'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""
 Stacks Manager
 
 Handles stack logic
-'''
+"""
 import json
 import logging
 
@@ -17,10 +30,10 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(base.ManagerBase):
-    '''Contains Stacks Model and Logic for Accessing Stacks.'''
+    """Contains Stacks Model and Logic for Accessing Stacks."""
 
     def get_stacks(self, context, tenant_id):
-        '''Gets stacks and deployments.'''
+        """Gets stacks and deployments."""
         results = {}
         jobs = eventlet.GreenPile(2)
         jobs.spawn(self.get_stacks_only, context, tenant_id)
@@ -31,7 +44,7 @@ class Manager(base.ManagerBase):
         return results
 
     def get_stacks_only(self, context, tenant_id):
-        '''Get existing stacks.'''
+        """Get existing stacks."""
 
         headers = {
             'X-Auth-Token': context.auth_token,
@@ -45,7 +58,7 @@ class Manager(base.ManagerBase):
         return stacks
 
     def get_deployments_as_stacks(self, context, tenant_id):
-        '''Get existing deployments as stack list.'''
+        """Get existing deployments as stack list."""
 
         stacks = {'stacks': []}
 
@@ -68,7 +81,7 @@ class Manager(base.ManagerBase):
         return stacks
 
     def create_stack(self, context, tenant_id, stack, auth_key):
-        '''Create Stack.'''
+        """Create Stack."""
 
         headers = {
             'X-Auth-Token': context.auth_token,
@@ -91,7 +104,7 @@ class Manager(base.ManagerBase):
         return stacks
 
     def get_stack(self, context, tenant_id, stack_id):
-        '''Get existing stack.'''
+        """Get existing stack."""
 
         headers = {
             'X-Auth-Token': context.auth_token,
@@ -105,7 +118,7 @@ class Manager(base.ManagerBase):
         return stack
 
     def get_stack_resources(self, context, tenant_id, stack_id):
-        '''Get existin stack resources.'''
+        """Get existin stack resources."""
 
         headers = {
             'X-Auth-Token': context.auth_token,
@@ -121,7 +134,7 @@ class Manager(base.ManagerBase):
 
     def get_stack_resource(self, context, tenant_id, name, stack_id,
                            resource_id):
-        '''Get existin stack resource.'''
+        """Get existin stack resource."""
 
         headers = {
             'X-Auth-Token': context.auth_token,
@@ -136,7 +149,7 @@ class Manager(base.ManagerBase):
         return resource
 
     def http_log_req(self, args, kwargs):
-        '''Log HTTP call as curl command.'''
+        """Log HTTP call as curl command."""
         if not LOG.level != logging.DEBUG:
             return
 
