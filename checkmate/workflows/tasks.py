@@ -252,7 +252,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
             driver.unlock_workflow(workflow_id, key)
 
 
-@task(default_retry_delay=10, max_retries=300)
+@task(default_retry_delay=10, max_retries=6)  # one minute
 @statsd.collect
 def pause_workflow(w_id, driver=DB, retry_counter=0):
     '''Waits for all the waiting celery tasks to move to ready and then marks
@@ -276,7 +276,8 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
     if action and action == "PAUSE":
         if operation.get("action-response") != "ACK":
             kwargs = {"action-response": "ACK"}
-            revoke_task.delay(workflow['celery_task_id'])
+            if 'celery_task_id' in workflow:
+                revoke_task.delay(workflow['celery_task_id'])
             common_tasks.update_operation.delay(deployment_id, w_id,
                                                 driver=driver, **kwargs)
     elif operation["status"] == "COMPLETE":
@@ -286,7 +287,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
         driver.unlock_workflow(w_id, key)
         return True
     elif retry_counter >= 10:
-        LOG.debug("Skipping waitiing for Operation Action to turn to PAUSE - "
+        LOG.debug("Skipping waiting for Operation Action to turn to PAUSE - "
                   "pause_workflow for workflow %s has already been retried %s "
                   "times", w_id, retry_counter)
     else:
