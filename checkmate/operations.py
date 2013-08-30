@@ -44,11 +44,16 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
               lock_timeout=2)
 @statsd.collect
 def create(dep_id, workflow_id, op_type, tenant_id=None):
+    """Decouples statsd and celery from the underlying implementation."""
+    _create(dep_id, workflow_id, op_type, tenant_id)
+
+def _get_db_driver(dep_id):
+    return SIMULATOR_DB if utils.is_simulation(dep_id) else DB
+
+def _create(dep_id, workflow_id, op_type, tenant_id):
     """Create a new operation of type 'op_type'."""
-    if utils.is_simulation(dep_id):
-        driver = SIMULATOR_DB
-    else:
-        driver = DB
+    driver = _get_db_driver(dep_id)
+    print driver
     deployment = driver.get_deployment(dep_id, with_secrets=False)
     workflow = driver.get_workflow(workflow_id, with_secrets=False)
     serializer = DictionarySerializer()
@@ -56,7 +61,6 @@ def create(dep_id, workflow_id, op_type, tenant_id=None):
     add(deployment, spiff_wf, op_type, tenant_id=tenant_id)
     driver.save_deployment(dep_id, deployment, secrets=None,
                            tenant_id=tenant_id, partial=False)
-
 
 def add(deployment, spiff_wf, op_type, tenant_id=None):
     """Initialize new workflow in the operation and add to the deployment."""
@@ -97,40 +101,41 @@ def update_operation(deployment_id, workflow_id, driver=None,
     :param kwargs: the key/value pairs to write into the operation
 
     """
-    if kwargs:
-        if utils.is_simulation(deployment_id):
-            driver = SIMULATOR_DB
-        if not driver:
-            driver = DB
-        dep = driver.get_deployment(deployment_id, with_secrets=True)
-        dep = cmdep.Deployment(dep)
+    if not kwargs:
+        return  # Nothing to do!
 
-        try:
-            op_type, op_index, op_details = dep.get_operation(workflow_id)
-        except cmexc.CheckmateInvalidParameterError:
-            return  # Nothing to do!
+    if not driver:
+        driver = _get_db_driver(deployment_id)
 
-        op_status = op_details.get('status')
-        if op_status == "COMPLETE":
-            LOG.warn("Ignoring the update operation call as the "
-                     "operation is already COMPLETE")
-            return
+    dep = driver.get_deployment(deployment_id, with_secrets=True)
+    dep = cmdep.Deployment(dep)
 
-        if op_index == -1:  # Current operation from 'operation'
-            op_list = dict(kwargs)
-        else:  # Operation found in 'operations-history'
-            op_list = _pad_list(op_index, dict(kwargs))
+    try:
+        op_type, op_index, op_details = dep.get_operation(workflow_id)
+    except cmexc.CheckmateInvalidParameterError:
+        return  # Nothing to do!
 
-        delta = {op_type: op_list}
-        if deployment_status:
-            delta['status'] = deployment_status
-        try:
-            if 'status' in kwargs:
-                if kwargs['status'] != op_status:
-                    delta['display-outputs'] = dep.calculate_outputs()
-        except KeyError:
-            LOG.warn("Cannot update deployment outputs: %s", deployment_id)
-        driver.save_deployment(deployment_id, delta, partial=True)
+    op_status = op_details.get('status')
+    if op_status == "COMPLETE":
+        LOG.warn("Ignoring the update operation call as the "
+                 "operation is already COMPLETE")
+        return
+
+    if op_index == -1:  # Current operation from 'operation'
+        op_list = dict(kwargs)
+    else:  # Operation found in 'operations-history'
+        op_list = _pad_list(op_index, dict(kwargs))
+
+    delta = {op_type: op_list}
+    if deployment_status:
+        delta['status'] = deployment_status
+    try:
+        if 'status' in kwargs:
+            if kwargs['status'] != op_status:
+                delta['display-outputs'] = dep.calculate_outputs()
+    except KeyError:
+        LOG.warn("Cannot update deployment outputs: %s", deployment_id)
+    driver.save_deployment(deployment_id, delta, partial=True)
 
 
 def _pad_list(last_item_id, last_item):
