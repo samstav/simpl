@@ -493,17 +493,17 @@ form#impersonate input {
 
 circle.node {
   stroke: #fff;
-  stroke-width: 1px;
+  stroke-width: 0.3px;
 }
 
 line.link {
-  stroke-width: 2px;
+  stroke-width: 0.3px;
   stroke: #999;
   stroke-opacity: 0.6;
 }
 
 text.nodetext {
-  font-size: 12px;
+  font-size: 4px;
 }
 
 /* Tree View */

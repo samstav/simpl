@@ -331,11 +331,53 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     TOTAL_HEIGHT: 100,
     SVG_HEIGHT: 100,
     SVG_WIDTH: 300,
-    NODE_RADIUS: 2
+    NODE_RADIUS: 1.5,
+    NODE_HEIGHT: 3,
+    HIGHLIGHT_NODE: 'highlight',
+    AVAILABLE_ICONS: ['compute', 'load-balancer', 'database'],
+    ICON_FOLDER: '/img/icons/',
+    ICON_HEIGHT: 8,
+    ICON_WIDTH: 8
   };
 
   var _even_odd = function(num) {
     return num % 2 == 0 ? 'even' : 'odd';
+  }
+
+  var _node_color = function(d, scope) {
+    var color;
+    var state = scope.status(d.name);
+    switch(scope.state({state: state})) {
+      case "Ready":
+      case "Completed":
+        color = 'green';
+        break;
+      case "Waiting":
+        color = 'orange';
+        break;
+      case "Error":
+        color = 'red';
+        break;
+      case "Future":
+      case "Likely":
+      case "Maybe":
+        color = 'gray';
+        break;
+      default:
+        color = 'black';
+        break;
+    }
+    return color;
+  }
+
+  var _get_icon = function(d) {
+    var icon;
+
+    if (d.icon) {
+      icon = DEFAULTS.ICON_FOLDER + d.icon + '-gray.svg';
+    }
+
+    return icon;
   }
 
   var _update_specs = function(new_value, old_value, scope) {
@@ -349,10 +391,64 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   }
 
   var _interpolate = function(x, new_width, old_width) {
-    return x * new_width / old_width;
+    var padded_width = new_width - DEFAULTS.ICON_WIDTH;
+    return x * padded_width / old_width + DEFAULTS.ICON_WIDTH;
   }
 
-  var _draw_streams = function(elements, streams) {
+  var _calculate_node_position = function(streams, scope) {
+    var positions = {};
+    var num_streams = streams.all.length;
+    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
+
+    for (var i=0 ; i<streams.nodes.length ; i++) {
+      var node = streams.nodes[i];
+      var x = _interpolate(node.position.x, scope.svg.width, streams.width);
+      // var y = stream_height / 2;
+      var y = (node.position.y) * stream_height + stream_height / 2;
+      var id = [x, y].join('--');
+      node.interpolated_position = { x: x, y: y };
+
+      if (!positions[id]) { positions[id] = []; }
+      positions[id].push(node);
+    }
+
+    for (id in positions) {
+      var row = positions[id];
+      var num_nodes = row.length;
+      var some_node = row[0];
+      var node_position = some_node.interpolated_position.y;
+      if (num_nodes > 1) {
+        var total_height = num_nodes * DEFAULTS.NODE_HEIGHT;
+        var start_position = node_position - total_height / 2;
+        var current_position = start_position;
+        for (var i=0 ; i<num_nodes ;  i++) {
+          var node = row[i];
+          node.interpolated_position.y = current_position + DEFAULTS.NODE_HEIGHT / 2;
+          current_position += DEFAULTS.NODE_HEIGHT;
+        }
+      }
+    }
+  }
+
+  var _draw_highlight = function(d, streams, scope, element) {
+    var num_streams = streams.all.length;
+    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
+    var x = d.interpolated_position.x;
+    var y = d.interpolated_position.y;
+
+    d3.select('#' + DEFAULTS.HIGHLIGHT_NODE).remove();
+    d3.select(element.parentNode)
+      .insert('circle', ':first-child')
+      .attr('id', DEFAULTS.HIGHLIGHT_NODE)
+      .attr('r', DEFAULTS.NODE_RADIUS * 3)
+      .attr("transform", function() { return "translate(" + x + "," + y + ")"; })
+      .style('fill', 'url(#gradient)');
+
+    if (scope.select)
+      scope.select(d.name);
+  }
+
+  var _draw_background = function(elements, streams) {
     var num_streams = streams.all.length;
     var height = DEFAULTS.TOTAL_HEIGHT / num_streams;
 
@@ -367,28 +463,51 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('class', 'border')
       .attr('width', '100%')
       .attr('height', height);
+    stream.append('svg:image')
+      .attr('xlink:href', _get_icon)
+      .attr('x', function(d) { return (height - DEFAULTS.ICON_WIDTH) / 2 })
+      .attr('y', function(d) { return (height - DEFAULTS.ICON_HEIGHT) / 2 })
+      .attr('width', DEFAULTS.ICON_WIDTH + 'px')
+      .attr('height', DEFAULTS.ICON_HEIGHT + 'px');
+    stream.append("text")
+      .attr("class", "nodetext")
+      .attr("dx", '0px')
+      .attr("dy", height + 'px')
+      .text(function(d) { return d.title.split('.').shift(); });
+
     // Exit
     elements.exit().remove();
   }
 
-  var _draw_nodes = function(elements, streams, width) {
-    var num_streams = streams.all.length;
-    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
-
-    var nodes = elements.selectAll('.nodes').data(function(d) {
-      return d.data;
-    });
-
+  var _draw_links = function(elements, streams, scope) {
     // Enter
-    nodes.enter()
+    var stream_elements = elements.enter()
+      .append('svg:line')
+      .attr('class', 'link')
+      .attr('x1', function(d) { return d.source.interpolated_position.x; })
+      .attr('y1', function(d) { return d.source.interpolated_position.y; })
+      .attr('x2', function(d) { return d.target.interpolated_position.x; })
+      .attr('y2', function(d) { return d.target.interpolated_position.y; })
+      ;
+
+    // Exit
+    elements.exit().remove();
+  }
+
+  var _draw_nodes = function(elements, streams, scope) {
+    // Enter
+    elements.enter()
       .append('svg:circle')
       .attr('class', 'node')
+      .attr('name', function(d) { return d.name })
+      .attr('cursor', 'pointer')
       .attr('r', DEFAULTS.NODE_RADIUS)
-      .style('fill', function(d) { return 'green'; })
       .attr("transform", function(d) {
-        var x = _interpolate(d.position.x, width, streams.width);
-        return "translate(" + x + "," + stream_height/2 + ")";
-      });
+        return "translate(" + d.interpolated_position.x + "," + d.interpolated_position.y + ")";
+      })
+      .on('click', function(d) { return _draw_highlight(d, streams, scope, this); });
+    // Update
+    elements.style('fill', function(d) { return _node_color(d, scope); });
   }
 
   var create_svg = function(element, attrs) {
@@ -401,6 +520,25 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('viewBox', [0, 0, svg.width, svg.height].join(' '));
 
     svg.streams = svg.element.append('svg:g').attr('class', 'streams');
+    svg.streams.append('svg:g').attr('class', 'background');
+    svg.streams.append('svg:g').attr('class', 'links');
+    svg.streams.append('svg:g').attr('class', 'nodes');
+
+
+    var gradient = svg.element.append("svg:defs")
+    .append("svg:radialGradient")
+    .attr("id", "gradient")
+
+    gradient.append("svg:stop")
+    .attr("offset", "0%")
+    .attr("stop-color", "#0E90D2")
+    .attr("stop-opacity", 1);
+
+    gradient.append("svg:stop")
+    .attr("offset", "100%")
+    .attr("stop-color", "#F5F5F5")
+    .attr("stop-opacity", 1);
+
 
     return svg;
   }
@@ -409,10 +547,14 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     if (!scope.deployment || scope.deployment.$resolved == false) return;
 
     var streams = WorkflowSpec.to_streams(scope.specs, scope.deployment);
-    var elements = scope.svg.streams.selectAll('.stream').data(streams.all);
+    var bg_elements = scope.svg.streams.select('.background').selectAll('.stream').data(streams.all);
+    var node_elements = scope.svg.streams.select('.nodes').selectAll('.node').data(streams.nodes);
+    var link_elements = scope.svg.streams.select('.links').selectAll('.link').data(streams.links);
 
-    _draw_streams(elements, streams);
-    _draw_nodes(elements, streams, scope.svg.width);
+    _calculate_node_position(streams, scope);
+    _draw_background(bg_elements, streams);
+    _draw_links(link_elements, streams, scope);
+    _draw_nodes(node_elements, streams, scope);
   }
 
   var link_fn = function(scope, element, attrs) {
@@ -427,7 +569,10 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     replace: true,
     scope: {
       specs: '=',
-      deployment: '='
+      deployment: '=',
+      select: '=',
+      status: '=',
+      state: '='
     },
     link: link_fn
   };
