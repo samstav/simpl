@@ -2162,9 +2162,9 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
   }
 
   var _get_resource_title = function(resource_id, deployment) {
-    if (!deployment) return;
+    var title = '';
+    if (!deployment) return title;
 
-    var title;
     var resource = deployment.resources[resource_id];
     if (resource) {
       title = resource[DEFAULTS.RESOURCE_TITLE_ATTR];

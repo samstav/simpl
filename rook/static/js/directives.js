@@ -469,6 +469,12 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('y', function(d) { return (height - DEFAULTS.ICON_HEIGHT) / 2 })
       .attr('width', DEFAULTS.ICON_WIDTH + 'px')
       .attr('height', DEFAULTS.ICON_HEIGHT + 'px');
+    stream.append("text")
+      .attr("class", "nodetext")
+      .attr("dx", '0px')
+      .attr("dy", height + 'px')
+      .text(function(d) { return d.title.split('.').shift(); });
+
     // Exit
     elements.exit().remove();
   }
