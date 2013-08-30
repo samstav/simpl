@@ -45,7 +45,7 @@ class TestServer(unittest.TestCase):
         self.dep_router = deployments.Router(self.root_app,
                                              deployments_manager)
 
-        workflows_manager = workflows.Manager({'default': db.get_driver()})
+        workflows_manager = workflows.Manager()
         self.workflow_router = workflows.Router(self.root_app,
                                                 workflows_manager,
                                                 deployments_manager)

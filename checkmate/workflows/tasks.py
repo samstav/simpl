@@ -48,7 +48,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
     )
 )
 
-MANAGERS = {'workflows': Manager(DRIVERS)}
+MANAGERS = {'workflows': Manager()}
 
 
 class WorkflowEventHandlerTask(celery.Task):

@@ -16,6 +16,7 @@
 """Tests for MongoDB Driver (deprecated tests: don't add tests here)."""
 import copy
 import logging
+import mock
 import mox
 import time
 import unittest
@@ -74,7 +75,13 @@ class TestDatabase(unittest.TestCase):
                                     connection_string=self._connection_string)
         self.driver._connection = self.driver._database = None  # reset driver
         self.driver.db_name = 'test'
-        self.manager = manager.Manager({'default': self.driver})
+
+        get_driver_patcher = mock.patch.object(manager.db, 'get_driver')
+        mock_get_driver = get_driver_patcher.start()
+        mock_get_driver.return_value = self.driver
+        self.addCleanup(get_driver_patcher.stop)
+
+        self.manager = manager.Manager()
         self.tenantId = "T1000"
         self.default_deployment = {
             'id': 'test',

@@ -15,6 +15,7 @@
 
 """Base tests for all Database drivers."""
 import logging
+import mock
 import os
 import time
 import unittest
@@ -32,7 +33,13 @@ class TestDatabase(unittest.TestCase):
     def setUp(self):
         self.driver = db.get_driver(name='checkmate.db.sql.Driver', reset=True,
                                     connection_string='sqlite://')
-        self.manager = manager.Manager({'default': self.driver})
+
+        get_driver_patcher = mock.patch.object(manager.db, 'get_driver')
+        mock_get_driver = get_driver_patcher.start()
+        mock_get_driver.return_value = self.driver
+        self.addCleanup(get_driver_patcher.stop)
+
+        self.manager = manager.Manager()
         self.klass = db.sql.Deployment
         db.sql.DEFAULT_RETRIES = 1
         self.default_deployment = {
@@ -267,23 +274,6 @@ class TestDatabase(unittest.TestCase):
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
 
-    def test_driver_creation(self):
-        driver = db.get_driver(connection_string='sqlite://')
-        self.assertEquals(driver.connection_string, 'sqlite://')
-        self.assertEquals(driver.__class__.__name__, 'Driver')
-
-    def test_driver_creation_multiple(self):
-        driver1 = db.get_driver(connection_string='sqlite://')
-        driver2 = db.get_driver(connection_string='mongodb://fake')
-        self.assertNotEqual(driver1, driver2)
-        self.assertEquals(driver1.connection_string, 'sqlite://')
-        self.assertEquals(driver2.connection_string, 'mongodb://fake')
-
-    def test_create_multiple_same_class(self):
-        driver1 = db.get_driver(connection_string='mongodb://fake1')
-        driver2 = db.get_driver(connection_string='mongodb://fake2')
-        self.assertNotEqual(driver1, driver2)
-
     def test_lock_existing_object(self):
         klass = db.sql.Workflow
         obj_id = 1
@@ -472,6 +462,25 @@ class TestDatabase(unittest.TestCase):
         with self.assertRaises(db.ObjectLockedError):
             self.manager.safe_workflow_save(obj_id, {"id": "yolo"},
                                             tenant_id=2412423)
+
+
+class TestDriverCreation(unittest.TestCase):
+    def test_driver_creation(self):
+        driver = db.get_driver(connection_string='sqlite://')
+        self.assertEquals(driver.connection_string, 'sqlite://')
+        self.assertEquals(driver.__class__.__name__, 'Driver')
+
+    def test_driver_creation_multiple(self):
+        driver1 = db.get_driver(connection_string='sqlite://')
+        driver2 = db.get_driver(connection_string='mongodb://fake')
+        self.assertNotEqual(driver1, driver2)
+        self.assertEquals(driver1.connection_string, 'sqlite://')
+        self.assertEquals(driver2.connection_string, 'mongodb://fake')
+
+    def test_create_multiple_same_class(self):
+        driver1 = db.get_driver(connection_string='mongodb://fake1')
+        driver2 = db.get_driver(connection_string='mongodb://fake2')
+        self.assertNotEqual(driver1, driver2)
 
 
 if __name__ == '__main__':
