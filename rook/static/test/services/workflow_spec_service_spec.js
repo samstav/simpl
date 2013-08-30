@@ -64,7 +64,8 @@ describe('Deployment service', function(){
           inputs: [ 'First Spec' ]
         };
         specs = { 'First Spec': spec, 'Lookup Spec': no_resource_in_properties_spec };
-        streams = WorkflowSpec.to_streams(specs);
+        var deployment = { resources: {} };
+        streams = WorkflowSpec.to_streams(specs, deployment);
       });
 
       it('should contain one stream', function() {
@@ -90,7 +91,7 @@ describe('Deployment service', function(){
         });
 
         it('should contain an icon', function() {
-          expect(stream.icon).toBe(null);
+          expect(stream.icon).toBe('');
         });
 
         it('should contain stream data', function() {
@@ -98,11 +99,11 @@ describe('Deployment service', function(){
         });
 
         it('should contain a title', function() {
-          expect(stream.title).toBe(null);
+          expect(stream.title).toBe('');
         });
 
         it('should contain a position', function() {
-          expect(stream.position).toBe(0);
+          expect(stream.position).toBe(1);
         });
       });
     });
