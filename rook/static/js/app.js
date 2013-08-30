@@ -1922,7 +1922,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.start_tree_preview = function(parent_element) {
-    if($scope.data){
+    if(false && $scope.data){
       specs = $scope.data.wf_spec.task_specs
       var nodes = $scope.buildNodes(specs);
       var links = $scope.buildLinks(specs, nodes);
