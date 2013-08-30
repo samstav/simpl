@@ -332,6 +332,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     SVG_HEIGHT: 100,
     SVG_WIDTH: 300,
     NODE_RADIUS: 2,
+    NODE_HEIGHT: 5,
     HIGHLIGHT_NODE: 'highlight'
   };
 
@@ -377,6 +378,41 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
   var _interpolate = function(x, new_width, old_width) {
     return x * new_width / old_width;
+  }
+
+  var _calculate_node_position = function(streams, scope) {
+    var positions = {};
+    var num_streams = streams.all.length;
+    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
+
+    for (var i=0 ; i<streams.nodes.length ; i++) {
+      var node = streams.nodes[i];
+      var x = _interpolate(node.position.x, scope.svg.width, streams.width);
+      // var y = stream_height / 2;
+      var y = (node.position.y) * stream_height + stream_height / 2;
+      var id = [x, y].join('--');
+      node.interpolated_position = { x: x, y: y };
+
+      if (!positions[id]) { positions[id] = []; }
+      positions[id].push(node);
+    }
+
+    for (id in positions) {
+      var row = positions[id];
+      var num_nodes = row.length;
+      var some_node = row[0];
+      var node_position = some_node.interpolated_position.y;
+      if (num_nodes > 1) {
+        var total_height = num_nodes * DEFAULTS.NODE_HEIGHT;
+        var start_position = node_position - total_height / 2;
+        var current_position = start_position;
+        for (var i=0 ; i<num_nodes ;  i++) {
+          var node = row[i];
+          node.interpolated_position.y = current_position + DEFAULTS.NODE_HEIGHT / 2;
+          current_position += DEFAULTS.NODE_HEIGHT;
+        }
+      }
+    }
   }
 
   var _calculate_link_position = function(d, scope, streams) {
@@ -441,31 +477,19 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   }
 
   var _draw_nodes = function(elements, streams, scope) {
-    var num_streams = streams.all.length;
-    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
-
-    var stream_elements = elements.enter()
-      .append('svg:g')
-      .attr('class', 'stream')
-      .attr('transform', function(d) { return 'translate(0, '+ d.position * stream_height +')'; });
-
-    var nodes = stream_elements.selectAll('.nodes').data(function(d) {
-      return d.data;
-    });
+    _calculate_node_position(streams, scope);
 
     // Enter
-    nodes.enter()
+    elements.enter()
       .append('svg:circle')
       .attr('class', 'node')
       .attr('r', DEFAULTS.NODE_RADIUS)
       .attr("transform", function(d) {
-        var x = _interpolate(d.position.x, scope.svg.width, streams.width);
-        var y = stream_height / 2;
-        return "translate(" + x + "," + y + ")";
+        return "translate(" + d.interpolated_position.x + "," + d.interpolated_position.y + ")";
       })
       .on('click', function(d) { return _draw_highlight(d, streams, scope, this); });
     // Update
-    nodes.style('fill', function(d) { return _node_color(d, scope); });
+    elements.style('fill', function(d) { return _node_color(d, scope); });
   }
 
   var create_svg = function(element, attrs) {
@@ -490,7 +514,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
     var streams = WorkflowSpec.to_streams(scope.specs, scope.deployment);
     var bg_elements = scope.svg.streams.select('.background').selectAll('.stream').data(streams.all);
-    var node_elements = scope.svg.streams.select('.nodes').selectAll('.stream').data(streams.all);
+    var node_elements = scope.svg.streams.select('.nodes').selectAll('.node').data(streams.nodes);
     var link_elements = scope.svg.streams.select('.links').selectAll('.link').data(streams.links);
 
     _draw_background(bg_elements, streams);
