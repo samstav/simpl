@@ -295,6 +295,8 @@ class GitHubManager(base.ManagerBase):
                         LOG.info("Retrieved blueprints from cache file")
                 except IOError:
                     LOG.warn("Could not load cache file", exc_info=True)
+                except ValueError:
+                    LOG.warn("Cache file contains invalid data", exc_info=True)
 
     def background_refresh(self):
         """Called by background thread to start a refresh."""
