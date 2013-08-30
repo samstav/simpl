@@ -418,8 +418,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
   var _draw_highlight = function(d, streams, scope, element) {
     var num_streams = streams.all.length;
     var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
-    var x = _interpolate(d.position.x, scope.svg.width, streams.width);
-    var y = stream_height/2;
+    var x = d.interpolated_position.x;
+    var y = d.interpolated_position.y;
 
     d3.select('#' + DEFAULTS.HIGHLIGHT_NODE).remove();
     d3.select(element.parentNode)
