@@ -499,6 +499,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     elements.enter()
       .append('svg:circle')
       .attr('class', 'node')
+      .attr('cursor', 'pointer')
       .attr('r', DEFAULTS.NODE_RADIUS)
       .attr("transform", function(d) {
         return "translate(" + d.interpolated_position.x + "," + d.interpolated_position.y + ")";
