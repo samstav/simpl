@@ -44,12 +44,14 @@ from checkmate.common import eventlet_backdoor
 from checkmate.common import gzip_middleware
 from checkmate import db
 from checkmate import deployments
+from checkmate import stacks
 from checkmate import workflows
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDatabaseConnectionError,
     CheckmateDoesNotExist,
     CheckmateException,
+    CheckmateHOTTemplateException,
     CheckmateInvalidParameterError,
     CheckmateNoData,
     CheckmateNoMapping,
@@ -119,6 +121,10 @@ def error_formatter(error):
     elif isinstance(error.exception, CheckmateInvalidParameterError):
         error.status = 406
         error.output = str(error.exception)
+    elif isinstance(error.exception, CheckmateHOTTemplateException):
+        error.status = 406
+        error.output = str(error.exception) or ("Operation not support with "
+                                                "HOT template")
     elif isinstance(error.exception, CheckmateDoesNotExist):
         error.status = 404
         error.output = str(error.exception)
@@ -268,6 +274,13 @@ def main():
         root_app, MANAGERS['blueprints']
     )
     resources.append('blueprints')
+
+    # Load Stack Handlers
+    MANAGERS['stacks'] = stacks.Manager(DRIVERS)
+    ROUTERS['stacks'] = stacks.Router(
+        root_app, MANAGERS['stacks']
+    )
+    resources.append('stacks')
 
     # Load admin routes if requested
     if CONFIG.with_admin is True:

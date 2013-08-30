@@ -11,7 +11,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
 """Deployments Resource Router
 
 Handles API calls to /deployments and routes them appropriately
@@ -32,6 +31,7 @@ from checkmate import deployment as cmdeploy
 from checkmate.deployments import tasks
 from checkmate import exceptions
 from checkmate import operations
+from checkmate import stacks
 from checkmate import utils
 from checkmate import workflow
 from checkmate import workflows
@@ -69,6 +69,8 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
                  "self-consistent.")
         _validate_blueprint_inputs(entity, tenant_id)
 
+    if 'heat_template_version' in entity:
+        raise exceptions.CheckmateHOTTemplateException()
     if 'id' not in entity:
         entity['id'] = deployment_id or uuid.uuid4().hex
     if db.any_id_problems(entity['id']):
@@ -197,6 +199,7 @@ class Router(object):
                   self.get_resources_statuses)
         app.route('/deployments/<api_id>/resources/<rid>', 'GET',
                   self.get_resource)
+        self.stack_router = stacks.Router(self.app, stacks.Manager(DRIVERS))
 
     param_whitelist = ['search', 'name', 'blueprint.name', 'status',
                        'start_date', 'end_date']
@@ -225,7 +228,10 @@ class Router(object):
 
         Triggers workflow execution.
         """
-        deployment = _content_to_deployment(tenant_id=tenant_id)
+        try:
+            deployment = _content_to_deployment(tenant_id=tenant_id)
+        except exceptions.CheckmateHOTTemplateException:
+            return self.stack_router.post_stack_compat(tenant_id=tenant_id)
 
         is_simulation = bottle.request.context.simulation
         if is_simulation:

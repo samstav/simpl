@@ -1,4 +1,17 @@
-'''Custom Exceptions for Checkmate
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""Custom Exceptions for Checkmate
 
 To be serialization-friendly, call the Exception __init__ with any extra
 attributes:
@@ -10,7 +23,7 @@ class CheckmateCustomException(Exception):
 
 This is important to allow exceptions to flow back from the message queue
 tasks.
-'''
+"""
 
 #Error message constants
 BLUEPRINT_ERROR = ("There is a possible problem in the Blueprint provided - "
@@ -20,56 +33,56 @@ UNEXPECTED_ERROR = ("There was an unexpected error executing your deployment "
 
 
 class CheckmateException(Exception):
-    '''Checkmate Error.'''
+    """Checkmate Error."""
     pass
 
 
 class CheckmateDatabaseConnectionError(CheckmateException):
-    '''Error connecting to backend database.'''
+    """Error connecting to backend database."""
     pass
 
 
 class CheckmateNoTokenError(CheckmateException):
-    '''No cloud auth token.
+    """No cloud auth token.
 
     Auth token was not available in this session.
     Try logging on using an auth token
-    '''
+    """
     pass
 
 
 class CheckmateNoMapping(CheckmateException):
-    '''No mapping found between parameter types.'''
+    """No mapping found between parameter types."""
     pass
 
 
 class CheckmateInvalidParameterError(CheckmateException):
-    '''Parameters provided are not valid, not permitted or incongruous.'''
+    """Parameters provided are not valid, not permitted or incongruous."""
     pass
 
 
 class CheckmateNoData(CheckmateException):
-    '''No data found.'''
+    """No data found."""
     pass
 
 
 class CheckmateDoesNotExist(CheckmateException):
-    '''Object does not exist.'''
+    """Object does not exist."""
     pass
 
 
 class CheckmateBadState(CheckmateException):
-    '''Object is not in correct state for the requested operation.'''
+    """Object is not in correct state for the requested operation."""
     pass
 
 
 class CheckmateIndexError(CheckmateException):
-    '''Checkmate Index Error'''
+    """Checkmate Index Error"""
     pass
 
 
 class CheckmateCalledProcessError(CheckmateException):
-    '''Wraps CalledProcessError but supports passing in specific error_info.'''
+    """Wraps CalledProcessError but supports passing in specific error_info."""
     def __init__(self, returncode, cmd, output=None, error_info=None):
         self.returncode = returncode
         self.cmd = cmd
@@ -96,14 +109,14 @@ class CheckmateCalledProcessError(CheckmateException):
 
 
 class CheckmateServerBuildFailed(CheckmateException):
-    '''Error Building Server.'''
+    """Error Building Server."""
     pass
 
 
 class CheckmateUserException(CheckmateException):
-    '''
+    """
     Exception with user friendly messages
-    '''
+    """
     def __init__(self, error_message, error_type, friendly_message,
                  error_help):
         self.friendly_message = friendly_message
@@ -117,7 +130,7 @@ class CheckmateUserException(CheckmateException):
 
 
 class CheckmateRetriableException(CheckmateUserException):
-    '''Retriable Exception.'''
+    """Retriable Exception."""
     def __init__(self, error_message, error_type, friendly_message,
                  error_help):
         super(CheckmateRetriableException, self).__init__(error_message,
@@ -127,7 +140,7 @@ class CheckmateRetriableException(CheckmateUserException):
 
 
 class CheckmateResumableException(CheckmateUserException):
-    '''Resumable Exception.'''
+    """Resumable Exception."""
     def __init__(self, error_message, error_type, friendly_message,
                  error_help):
         super(CheckmateResumableException, self).__init__(error_message,
@@ -137,7 +150,7 @@ class CheckmateResumableException(CheckmateUserException):
 
 
 class CheckmateResourceRollbackException(CheckmateException):
-    '''Resumable Exception.'''
+    """Resumable Exception."""
     def __init__(self, error_message, inner_exception):
         self.error_message = error_message
         self.inner_exception = inner_exception
@@ -150,10 +163,17 @@ class CheckmateResetTaskTreeException(CheckmateException):
 
 
 class CheckmateValidationException(CheckmateException):
-    '''Validation Error.'''
+    """Validation Error."""
     pass
 
 
 class CheckmateDataIntegrityError(CheckmateException):
-    '''Data has failed integrity checks.'''
+    """Data has failed integrity checks."""
+    pass
+
+
+class CheckmateHOTTemplateException(CheckmateException):
+    """Raise when a HOT template is encountered where a Checkmate blueprint is
+    expected.
+    """
     pass

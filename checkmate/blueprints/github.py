@@ -1,3 +1,16 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 """
 GitHub Classes
 
@@ -29,6 +42,7 @@ from redis.exceptions import ConnectionError
 from checkmate import base
 from checkmate.common import caching
 from checkmate.common import config
+from checkmate import exceptions
 
 LOG = logging.getLogger(__name__)
 CONFIG = config.current()
@@ -295,6 +309,8 @@ class GitHubManager(base.ManagerBase):
                         LOG.info("Retrieved blueprints from cache file")
                 except IOError:
                     LOG.warn("Could not load cache file", exc_info=True)
+                except ValueError:
+                    LOG.warn("Cache file contains invalid data", exc_info=True)
 
     def background_refresh(self):
         """Called by background thread to start a refresh."""
@@ -433,7 +449,7 @@ class GitHubManager(base.ManagerBase):
         delta = set(untrusted_env.keys()) - set(trusted_env.keys())
         if delta:
             LOG.info('X-Source-Untrusted: invalid environment options found.')
-            raise CheckmateValidationException(
+            raise exceptions.CheckmateValidationException(
                 'POST deployment: environment not valid.')
         for key in untrusted_env.keys():
             untrusted_env[key] = trusted_env[key]
@@ -512,33 +528,80 @@ class GitHubManager(base.ManagerBase):
                 if "inputs" in ret:
                     del ret['inputs']
 
-                if 'blueprint' not in ret:
-                    LOG.warn("Blueprint '%s' has no 'blueprint' key",
+                if 'heat_template_version' in ret:
+                    parsed = self.parse_hot(ret)
+                elif 'blueprint' in ret:
+                    parsed = self.parse_blueprint(repo, ret)
+                else:
+                    LOG.warn("Blueprint '%s' is not in a recognized format",
                              repo.clone_url)
                     return None
 
-                if 'documentation' not in ret['blueprint']:
-                    ret['blueprint']['documentation'] = {}
-
-                # if blueprint does not contain abstract field, check repo for
-                # abstract.md file
-                self._inline_documentation_field(ret['blueprint'], repo,
-                                                 'abstract')
-
-                # if blueprint does not contain instructions field, check repo
-                # for instructions.md
-                self._inline_documentation_field(ret['blueprint'], repo,
-                                                 'instructions')
-
-                # if blueprint does not contain guide field, check repo for
-                # guide.md
-                self._inline_documentation_field(ret['blueprint'], repo,
-                                                 'guide')
-
-                ret['repo_id'] = repo.id
+                parsed['repo_id'] = repo.id
                 LOG.info("Retrieved blueprint: %s#%s", repo.url, tag)
-                return ret
+                return parsed
         return None
+
+    def parse_blueprint(self, repo, content):
+        '''Parse dict as a checkmate blueprint.'''
+        if 'documentation' not in content['blueprint']:
+            content['blueprint']['documentation'] = {}
+
+        # if blueprint does not contain abstract field, check repo for
+        # abstract.md file
+        self._inline_documentation_field(content['blueprint'], repo,
+                                         'abstract')
+
+        # if blueprint does not contain instructions field, check repo
+        # for instructions.md
+        self._inline_documentation_field(content['blueprint'], repo,
+                                         'instructions')
+
+        # if blueprint does not contain guide field, check repo for
+        # guide.md
+        self._inline_documentation_field(content['blueprint'], repo,
+                                         'guide')
+
+        content['repo_id'] = repo.id
+        return content
+
+    @staticmethod
+    def parse_hot(content):
+        '''Parse dict as a HOT template.'''
+        types = {
+            'String': 'string',
+            'Number': 'integer',
+        }
+        blueprint = {}
+        if 'parameters' in content:
+            blueprint['options'] = copy.deepcopy(content['parameters'])
+            for _, value in blueprint['options'].iteritems():
+                value['type'] = types.get(value.get('type'), 'String')
+            blueprint['options']['API Key'] = {
+                'label': 'Your API Key',
+                'help': 'Heat requires your API key',
+                'type': 'string',
+                'required': True
+            }
+        blueprint['meta-data'] = {
+            "flavor-weight": 2,
+            "application-version": 5.3,
+            "reach-info": {
+                "tattoo": "http://7555e8905adb704bd73e-744765205721eed93c384da\
+e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
+                "icon-20x20": "http://7555e8905adb704bd73e-744765205721eed93c3\
+84dae790e86aa.r66.cf2.rackcdn.com/heat-20x20.png",
+            },
+            "application-name": "Heat",
+            "blueprint-type": "Application",
+            "schema-version": "v0.7",
+            "flavor": "Example Heat Template"
+        },
+        blueprint["documentation"] = {
+            "abstract": "HOT template converted for Checkmate compatibility"
+        }
+        content['blueprint'] = blueprint
+        return content
 
     def _inline_documentation_field(self, blueprint, repo, doc_field):
         """Set documentation field.
