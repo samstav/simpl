@@ -2244,6 +2244,21 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     return resource_id;
   }
 
+  var _get_stream_position = function(resource_id, streams) {
+    var position;
+
+    if (resource_id === DEFAULTS.NO_RESOURCE) {
+      position = 0;
+    } else {
+      position = streams.all.length;
+      // Leave room for NO_RESOURCE stream if it doesn't exist yet
+      if (!streams[DEFAULTS.NO_RESOURCE])
+        position += 1;
+    }
+
+    return position;
+  }
+
   var _build_links = function(specs, nodes) {
     var links = [];
 
@@ -2283,7 +2298,7 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       var stream = streams[resource_id];
       if (!stream) {
         stream = _create_stream();
-        stream.position = streams.all.length;
+        stream.position = _get_stream_position(resource_id, streams);
         stream.title = _get_resource_title(resource_id, deployment);
         stream.icon = _get_resource_icon(resource_id, deployment);
         streams[resource_id] = stream;
