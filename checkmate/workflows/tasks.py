@@ -35,7 +35,7 @@ from checkmate import middleware as cmmid
 from checkmate import operations as cmops
 from checkmate import utils
 from checkmate import workflow as cmwf
-from checkmate import workflows as cmwfs
+from checkmate.workflows import Manager
 
 
 LOG = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
     )
 )
 
-MANAGERS = {'workflows': cmwfs.Manager(DRIVERS)}
+MANAGERS = {'workflows': Manager(DRIVERS)}
 
 
 class WorkflowEventHandlerTask(celery.Task):
