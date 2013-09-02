@@ -1588,8 +1588,8 @@ class TestDeploymentAddNodes(unittest.TestCase):
 
 
 class TestDeploymentDisplayOutputs(unittest.TestCase):
-    def test_parse_source_URI_options(self):
-        fxn = cmdep.Deployment.parse_source_URI
+    def test_parse_source_uri_options(self):
+        fxn = cmdep.Deployment.parse_source_uri
         result = fxn("options://username")
         expected = {
             'scheme': 'options',
@@ -1601,12 +1601,12 @@ class TestDeploymentDisplayOutputs(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     @unittest.skip('Looks like there is a python 2.7.4/2.7.1 issue')
-    def test_parse_source_URI_python24(self):
+    def test_parse_source_uri_python24(self):
         """This seems to fail in python 2.7.1, but not 2.7.4
 
         2.7.1 parses ?type=compute as /?type=compute
         """
-        fxn = cmdep.Deployment.parse_source_URI
+        fxn = cmdep.Deployment.parse_source_uri
         result = fxn("resources://status?type=compute")
         expected = {
             'scheme': 'resources',

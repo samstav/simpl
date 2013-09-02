@@ -1,6 +1,20 @@
-'''The Deployment class, the Resource class and functions
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""The Deployment class, the Resource class and functions
 for dealing with same.
-'''
+"""
 import collections
 import copy
 import logging
@@ -11,25 +25,19 @@ import bottle
 from celery import task as celery
 import morpheus
 import simplefsm as fsm
-from simplefsm.exceptions import InvalidStateError
+from simplefsm import exceptions as fsmexc
 
 from checkmate import blueprints
+from checkmate.common import schema
 from checkmate import constraints as cm_constraints
 from checkmate import db
+from checkmate.db import common as dbcommon
 from checkmate import environment as cm_env
+from checkmate import exceptions as cmexc
 from checkmate import inputs as cm_inputs
 from checkmate import keys
 from checkmate import resource as cm_res
 from checkmate import utils
-from checkmate.common import schema
-from checkmate.db.common import ObjectLockedError
-from checkmate.exceptions import (
-    BLUEPRINT_ERROR,
-    CheckmateBadState,
-    CheckmateException,
-    CheckmateValidationException,
-    CheckmateUserException,
-)
 
 
 LOG = logging.getLogger(__name__)
@@ -44,10 +52,10 @@ OPERATION_DEPLOYMENT_STATUS_MAP = {
 
 
 def validate_blueprint_options(deployment):
-    '''Check that blueprint options marked 'required' are supplied.
+    """Check that blueprint options marked 'required' are supplied.
 
     Raise error if not
-    '''
+    """
     blueprint = deployment['blueprint']
     if 'options' in blueprint:
         inputs = deployment.get('inputs', {})
@@ -56,16 +64,15 @@ def validate_blueprint_options(deployment):
             if (not 'default' in option) and \
                     option.get('required') in ['true', True]:
                 if key not in bp_inputs:
-                    raise CheckmateValidationException("Required blueprint "
-                                                       "input '%s' not "
-                                                       "supplied" % key)
+                    raise cmexc.CheckmateValidationException(
+                        "Required blueprint input '%s' not supplied" % key)
 
 
 def validate_input_constraints(deployment):
-    '''Check that inputs meet the option constraint criteria
+    """Check that inputs meet the option constraint criteria
 
     Raise error if not
-    '''
+    """
     blueprint = deployment['blueprint']
     if 'options' in blueprint:
         inputs = deployment.get('inputs', {})
@@ -90,11 +97,11 @@ def validate_input_constraints(deployment):
                                "validation rule was %s" % (key, value if
                                option.get('type') != 'password' else '*******',
                                constraint.message))
-                        raise CheckmateValidationException(msg)
+                        raise cmexc.CheckmateValidationException(msg)
 
 
 def get_os_env_keys():
-    '''Get keys if they are set in the os_environment.'''
+    """Get keys if they are set in the os_environment."""
     dkeys = {}
     if ('CHECKMATE_PUBLIC_KEY' in os.environ and
             os.path.exists(os.path.expanduser(
@@ -121,11 +128,11 @@ def get_os_env_keys():
 
 
 def get_client_keys(inputs):
-    '''Get/generate client-supplied or requested keys keys
+    """Get/generate client-supplied or requested keys keys
 
     Inputs can supply a 'client' public key to be added to all servers or
     specify a command to generate the keys.
-    '''
+    """
     results = {}
     if 'client_public_key' in inputs:
         if utils.is_ssh_key(inputs['client_public_key']):
@@ -144,7 +151,7 @@ def get_client_keys(inputs):
 
 
 def generate_keys(deployment):
-    '''Generates keys for the deployment and stores them as a resource.
+    """Generates keys for the deployment and stores them as a resource.
 
     Generates:
         private_key
@@ -152,7 +159,7 @@ def generate_keys(deployment):
         public_key_ssh
 
     If a private_key exists, it will be used to generate the public keys
-    '''
+    """
     if 'resources' not in deployment:
         deployment['resources'] = {}
     if 'deployment-keys' not in deployment['resources']:
@@ -186,13 +193,13 @@ def generate_keys(deployment):
 
 
 class Deployment(morpheus.MorpheusDict):
-    '''A checkmate deployment.
+    """A checkmate deployment.
 
     Acts like a dict. Includes validation, setting logic and other useful
     methods.
     Holds the Environment and providers during the processing of a deployment
     and creation of a workflow
-    '''
+    """
     __schema__ = [
         'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
         'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
@@ -239,8 +246,8 @@ class Deployment(morpheus.MorpheusDict):
         else:
             try:
                 self.fsm.change_to(self['status'])
-            except InvalidStateError as error:
-                raise CheckmateValidationException(str(error))
+            except fsmexc.InvalidStateError as error:
+                raise cmexc.CheckmateValidationException(str(error))
 
         if 'created' not in self:
             self['created'] = utils.get_time_string()
@@ -255,8 +262,8 @@ class Deployment(morpheus.MorpheusDict):
                              self.get('tenantId'), self.get('id'),
                              self.get('status'), value)
                     self.fsm.change_to(value)
-                except InvalidStateError as error:
-                    raise CheckmateBadState(str(error))
+                except fsmexc.InvalidStateError as error:
+                    raise cmexc.CheckmateBadState(str(error))
         super(Deployment, self).__setitem__(key, value)
 
     @classmethod
@@ -273,11 +280,11 @@ class Deployment(morpheus.MorpheusDict):
         return errors
 
     def get_resources_for_service(self, service_name):
-        '''Gets all the non deleted resources for the given service name
+        """Gets all the non deleted resources for the given service name
 
         :param service_name: The name of the service
         :return: Dict of resources for the given service
-        '''
+        """
         instances = self['plan']['services'][service_name]['component'][
             'instances']
         resources = self.get_non_deleted_resources()
@@ -289,14 +296,14 @@ class Deployment(morpheus.MorpheusDict):
         return non_deleted_resources
 
     def get_statuses(self, context):
-        '''Get all statuses from a given context.
+        """Get all statuses from a given context.
 
         Loops through all the resources and gets the latest status. Based on
         the resource status calculates the status of the deployment and
         operation
         :param context:
         :return:
-        '''
+        """
         resources = {}
         env = self.environment()
 
@@ -308,16 +315,16 @@ class Deployment(morpheus.MorpheusDict):
                                                       resource, key)
                 if result:
                     resources.update(result)
-        statuses = self._calculate_deployment_and_operation_status(resources)
+        statuses = self._calc_dep_and_op_statuses(resources)
         statuses.update({'resources': resources})
         return statuses
 
-    def _calculate_deployment_and_operation_status(self, resources):
-        '''Determine deployment and operation status from resources statuses
+    def _calc_dep_and_op_statuses(self, resources):
+        """Determine deployment and operation status from resources statuses
 
         :param resources:
         :return:
-        '''
+        """
         statuses = []
         deployment_status = self['status']
         operation_status = self.get('operation', {}).get('status')
@@ -343,7 +350,7 @@ class Deployment(morpheus.MorpheusDict):
                 'operation_status': operation_status}
 
     def environment(self):
-        '''Initialize environment from Deployment.'''
+        """Initialize environment from Deployment."""
         if self._environment is None:
             entity = self.get('environment')
             if entity:
@@ -353,14 +360,14 @@ class Deployment(morpheus.MorpheusDict):
         return self._environment
 
     def current_workflow_id(self):
-        '''Return the current Workflow's ID.'''
+        """Return the current Workflow's ID."""
         operation = self.get('operation')
         if operation:
             return operation.get('workflow-id', self.get('id'))
         return None
 
     def get_operation(self, workflow_id):
-        '''Gets an operation by Workflow ID.
+        """Gets an operation by Workflow ID.
 
         Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
         blocks for an operation that has a field workflow-id with value as
@@ -372,7 +379,7 @@ class Deployment(morpheus.MorpheusDict):
 
         :param workflow_id: the workflow ID on which to search
         :return: a Tuple containing the operation type and the list
-        '''
+        """
         ret_type = 'not-found'
         ret_value = []
         op_history = self.get('operations-history', [])
@@ -399,7 +406,7 @@ class Deployment(morpheus.MorpheusDict):
         return (ret_type, ret_value)
 
     def get_current_operation(self, workflow_id):
-        '''Gets the current operation for a given Workflow ID.
+        """Gets the current operation for a given Workflow ID.
 
         Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
         blocks for an operation that has a field workflow-id with value as
@@ -412,20 +419,20 @@ class Deployment(morpheus.MorpheusDict):
 
         :param workflow_id:
         :return:
-        '''
+        """
         oper_type, oper_list = self.get_operation(workflow_id)
         return (oper_type, oper_list[-1])
 
     def inputs(self):
-        '''Return inputs of deployment.'''
+        """Return inputs of deployment."""
         return self.get('inputs', {})
 
     def settings(self):
-        '''Returns (inits if does not exist) a reference to the deployment
+        """Returns (inits if does not exist) a reference to the deployment
         settings
 
         Note: this is to be used instead of the old context object
-        '''
+        """
         if hasattr(self, '_settings'):
             return getattr(self, '_settings')
 
@@ -478,7 +485,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def get_setting(self, name, resource_type=None, service_name=None,
                     provider_key=None, relation=None, default=None):
-        '''Find a value that an option was set to.
+        """Find a value that an option was set to.
 
         Look in this order:
         - start with the deployment inputs where the paths are:
@@ -495,12 +502,12 @@ class Deployment(morpheus.MorpheusDict):
         :param resource_type: the type of the resource being evaluated (ex.
                 compute, database)
         :param default: value to return if no match found
-        '''
+        """
         if not name:
-            raise CheckmateValidationException("setting() was called with a "
-                                               "blank value. Check your map "
-                                               "file for bad calls to "
-                                               "'setting'")
+            raise cmexc.CheckmateValidationException(
+                "setting() was called with a blank value. Check your map "
+                "file for bad calls to 'setting'"
+            )
         if relation:
             result = self._get_svc_relation_attribute(name, service_name,
                                                       relation)
@@ -518,10 +525,10 @@ class Deployment(morpheus.MorpheusDict):
                 )
                 return result
 
-            result = self._get_constrained_svc_cmp_setting(name, service_name)
+            result = self._check_services_constraints(name, service_name)
             if result is not None:
                 LOG.debug("Setting '%s' matched in "
-                          "_get_constrained_svc_cmp_setting", name)
+                          "_check_services_constraints", name)
                 return result
 
         if provider_key:
@@ -533,18 +540,18 @@ class Deployment(morpheus.MorpheusDict):
                 )
                 return result
 
-        result = (self._get_constrained_static_resource_setting(name,
+        result = (self._check_resources_constraints(name,
                   service_name=service_name, resource_type=resource_type))
         if result is not None:
             LOG.debug("Setting '%s' matched in "
-                      "_get_constrained_static_resource_setting", name)
+                      "_check_resources_constraints", name)
             return result
 
-        result = (self._get_input_blueprint_option_constraint(name,
+        result = (self._check_options_constraints(name,
                   service_name=service_name, resource_type=resource_type))
         if result is not None:
             LOG.debug("Setting '%s' matched in "
-                      "_get_input_blueprint_option_constraint", name)
+                      "_check_options_constraints", name)
             return result
 
         result = self._get_input_simple(name)
@@ -557,18 +564,18 @@ class Deployment(morpheus.MorpheusDict):
             LOG.debug("Setting '%s' matched in _get_input_global", name)
             return result
 
-        result = (self._get_environment_provider_constraint(name, provider_key,
+        result = (self._get_env_provider_constraint(name, provider_key,
                   resource_type=resource_type))
         if result is not None:
             LOG.debug("Setting '%s' matched in "
-                      "_get_environment_provider_constraint", name)
+                      "_get_env_provider_constraint", name)
             return result
 
-        result = (self._get_environment_provider_constraint(name, 'common',
+        result = (self._get_env_provider_constraint(name, 'common',
                   resource_type=resource_type))
         if result is not None:
             LOG.debug("Setting '%s' matched 'common' setting in "
-                      "_get_environment_provider_constraint", name)
+                      "_get_env_provider_constraint", name)
             return result
 
         result = self._get_resource_setting(name)
@@ -587,7 +594,7 @@ class Deployment(morpheus.MorpheusDict):
         return default
 
     def _get_resource_setting(self, name):
-        '''Get a value from resources with support for paths.'''
+        """Get a value from resources with support for paths."""
         if name:
             node = self.get("resources", {})
             for key in name.split("/"):
@@ -601,10 +608,10 @@ class Deployment(morpheus.MorpheusDict):
             return node
 
     def _get_setting_by_resource_path(self, path, default=None):
-        '''Read a setting that constrains a static resource by path name
+        """Read a setting that constrains a static resource by path name
 
         The name must be resources/:resource_key/:setting
-        '''
+        """
         #FIXME: we need to confirm if we want this as part of the DSL
         blueprint = self['blueprint']
         if 'options' in blueprint:
@@ -624,7 +631,7 @@ class Deployment(morpheus.MorpheusDict):
         return default
 
     def _get_setting_value(self, name):
-        '''Get a value from the deployment hierarchy with support for paths.'''
+        """Get a value from the deployment hierarchy with support for paths."""
         if name:
             node = self
             for key in name.split("/"):
@@ -638,7 +645,7 @@ class Deployment(morpheus.MorpheusDict):
             return node
 
     def _get_input_global(self, name):
-        '''Get a setting directly under inputs.'''
+        """Get a setting directly under inputs."""
         inputs = self.inputs()
         if name in inputs:
             result = inputs[name]
@@ -647,7 +654,7 @@ class Deployment(morpheus.MorpheusDict):
             return result
 
     def _get_input_simple(self, name):
-        '''Get a setting directly from inputs/blueprint.'''
+        """Get a setting directly from inputs/blueprint."""
         inputs = self.inputs()
         if 'blueprint' in inputs:
             blueprint_inputs = inputs['blueprint']
@@ -658,14 +665,14 @@ class Deployment(morpheus.MorpheusDict):
                           name, name, result)
                 return result
 
-    def _get_input_blueprint_option_constraint(self, name, service_name=None,
-                                               resource_type=None):
-        '''Get a setting implied through blueprint option constraint
+    def _check_options_constraints(self, name, service_name=None,
+                                   resource_type=None):
+        """Get a setting implied through blueprint option constraint
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
         :param resource_type: the resource type to match the constraint with
-        '''
+        """
         blueprint = self['blueprint']
         if 'options' in blueprint:
             options = blueprint['options']
@@ -685,14 +692,14 @@ class Deployment(morpheus.MorpheusDict):
                                           " %s=%s", name, name, result)
                                 return result
 
-    def _get_constrained_static_resource_setting(self, name, service_name=None,
-                                                 resource_type=None):
-        '''Get a setting implied through a static resource constraint
+    def _check_resources_constraints(self, name, service_name=None,
+                                     resource_type=None):
+        """Get a setting implied through a static resource constraint
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
         :param resource_type: the type of the resource being evaluated
-        '''
+        """
         blueprint = self['blueprint']
         if 'resources' in blueprint:
             resources = blueprint['resources']
@@ -715,13 +722,13 @@ class Deployment(morpheus.MorpheusDict):
                                 return result
 
     def _get_svc_relation_attribute(self, name, service_name, relation_to):
-        '''Get a setting implied through a blueprint service attribute
+        """Get a setting implied through a blueprint service attribute
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
         :param relation_to: the name of the service ot which the service_name
         is related
-        '''
+        """
         blueprint = self['blueprint']
         if 'services' in blueprint:
             services = blueprint['services']
@@ -744,12 +751,12 @@ class Deployment(morpheus.MorpheusDict):
                                             name, attribute)
                                         return attribute
 
-    def _get_constrained_svc_cmp_setting(self, name, service_name):
-        '''Get a setting implied through a blueprint service constraint
+    def _check_services_constraints(self, name, service_name):
+        """Get a setting implied through a blueprint service constraint
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
-        '''
+        """
         blueprint = self['blueprint']
         if 'services' in blueprint:
             services = blueprint['services']
@@ -784,13 +791,13 @@ class Deployment(morpheus.MorpheusDict):
 
     @staticmethod
     def parse_constraints(constraints):
-        '''Ensure constraint syntax is valid
+        """Ensure constraint syntax is valid
 
         If it is key/values, convert it to a list.
         If the list has key/values, convert them to the expected format with
         setting, service, etc...
 
-        '''
+        """
         constraint_list = []
         if isinstance(constraints, list):
             constraint_list = constraints
@@ -814,13 +821,13 @@ class Deployment(morpheus.MorpheusDict):
     @staticmethod
     def constraint_applies(constraint, name, resource_type=None,
                            service_name=None):
-        '''Checks if a constraint applies
+        """Checks if a constraint applies
 
         :param constraint: the constraint dict
         :param name: the name of the setting
         :param resource_type: the resource type (ex. compute)
         :param service_name: the name of the service being evaluated
-        '''
+        """
         if 'resource_type' in constraint:
             if resource_type is None or \
                     constraint['resource_type'] != resource_type:
@@ -841,14 +848,14 @@ class Deployment(morpheus.MorpheusDict):
 
     def _apply_constraint(self, name, constraint, option=None, resource=None,
                           option_key=None):
-        '''Returns the value of the option applying any constraint definitions
+        """Returns the value of the option applying any constraint definitions
 
         :param name: the name of the option we are seeking
         :param constraint: the dict of any constraint used to find the option
         :param option: the option being evaluated
         :param resource: the resource the constraint is applied to
         :param option_key: the key of the option the constraint is coming from
-        '''
+        """
         # Return the value if it is explicitely assigned in the constraint
         if 'value' in constraint:
             return constraint['value']
@@ -890,10 +897,12 @@ class Deployment(morpheus.MorpheusDict):
                                     "obtaining option '%s' since value is " \
                                     "of type %s" % (attribute, name,
                                                     type(value).__name__)
-                    raise CheckmateUserException(error_message,
-                                                 utils.get_class_name(
-                                                     CheckmateException),
-                                                 BLUEPRINT_ERROR, "")
+                    raise cmexc.CheckmateUserException(
+                        error_message,
+                        utils.get_class_name(cmexc.CheckmateException),
+                        cmexc.BLUEPRINT_ERROR,
+                        ""
+                    )
                 if result is not None:
                     LOG.debug("Found setting '%s' from constraint. %s=%s",
                               name, option_key or name, result)
@@ -906,7 +915,7 @@ class Deployment(morpheus.MorpheusDict):
 
     @staticmethod
     def _objectify(option, value):
-        '''Parse option based on type into an object of that type.'''
+        """Parse option based on type into an object of that type."""
         if 'type' not in option:
             return value
         if option['type'] == 'url':
@@ -919,7 +928,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def _get_input_service_override(self, name, service_name,
                                     resource_type=None):
-        '''Get a setting applied through a deployment setting on a service
+        """Get a setting applied through a deployment setting on a service
 
         Params are ordered similar to how they appear in yaml/json::
             inputs/services/:id/:resource_type/:option-name
@@ -927,7 +936,7 @@ class Deployment(morpheus.MorpheusDict):
         :param service_name: the name of the service being evaluated
         :param resource_type: the resource type (ex. compute)
         :param name: the name of the setting
-        '''
+        """
         inputs = self.inputs()
         if 'services' in inputs:
             services = inputs['services']
@@ -944,7 +953,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def _get_input_provider_option(self, name, provider_key,
                                    resource_type=None):
-        '''Get a setting applied through a deployment setting to a provider
+        """Get a setting applied through a deployment setting to a provider
 
         Params are ordered similar to how they appear in yaml/json::
             inputs/providers/:id/[:resource_type/]:option-name
@@ -952,7 +961,7 @@ class Deployment(morpheus.MorpheusDict):
         :param name: the name of the setting
         :param provider_key: the key of the provider in question
         :param resource_type: the resource type (ex. compute)
-        '''
+        """
         inputs = self.inputs()
         if 'providers' in inputs:
             providers = inputs['providers']
@@ -967,15 +976,15 @@ class Deployment(morpheus.MorpheusDict):
                                   provider_key, resource_type, name, result)
                         return result
 
-    def _get_environment_provider_constraint(self, name, provider_key,
-                                             resource_type=None):
-        '''Get a setting applied through a provider constraint in the
+    def _get_env_provider_constraint(self, name, provider_key,
+                                     resource_type=None):
+        """Get a setting applied through a provider constraint in the
         environment
 
         :param name: the name of the setting
         :param provider_key: the key of the provider in question
         :param resource_type: the resource type (ex. compute)
-        '''
+        """
         environment = self.environment()
         providers = environment.dict['providers']
         if provider_key in providers:
@@ -994,12 +1003,12 @@ class Deployment(morpheus.MorpheusDict):
                     return result
 
     def get_components(self, context):
-        '''Collect all requirements from components
+        """Collect all requirements from components
 
         :param context: the call context. Component catalog may depend on
                 current context
         :returns: hash of service_name/Component
-        '''
+        """
         results = {}
         services = self['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
@@ -1012,17 +1021,19 @@ class Deployment(morpheus.MorpheusDict):
             if not component:
                 error_message = ("Could not resolve component '%s'" %
                                  service_component)
-                raise CheckmateUserException(error_message,
-                                             utils.get_class_name(
-                                                 CheckmateException),
-                                             BLUEPRINT_ERROR, "")
+                raise cmexc.CheckmateUserException(
+                    error_message,
+                    utils.get_class_name(cmexc.CheckmateException),
+                    cmexc.BLUEPRINT_ERROR,
+                    ""
+                )
             LOG.debug("Component '%s' identified as '%s' for service '%s'",
                       service_component, component['id'], service_name)
             results[service_name] = component
         return results
 
     def _constrained_to_one(self, service_name):
-        '''Return true if a service is constrained to 1, false otherwise.
+        """Return true if a service is constrained to 1, false otherwise.
 
         Example:
 
@@ -1035,7 +1046,7 @@ class Deployment(morpheus.MorpheusDict):
               constraints:
               - count: 1
               [...]
-        '''
+        """
         blueprint_resource = self['blueprint']['services'][service_name]
         if 'constraints' in blueprint_resource:
             for constraint in blueprint_resource['constraints']:
@@ -1044,14 +1055,13 @@ class Deployment(morpheus.MorpheusDict):
                         return True
         return False
 
-    # pylint: disable=C0103
     @staticmethod
-    def parse_source_URI(uri):
-        '''Parses the URI format of source
+    def parse_source_uri(uri):
+        """Parses the URI format of source
 
         :param uri: string uri based on display-output sources
         :returns: dict
-        '''
+        """
         try:
             parts = urlparse.urlparse(uri)
         except AttributeError:
@@ -1071,7 +1081,7 @@ class Deployment(morpheus.MorpheusDict):
         return result
 
     def evaluator(self, parsed_url, **kwargs):
-        '''given a parsed source URI, evaluate and return the value.'''
+        """given a parsed source URI, evaluate and return the value."""
         if parsed_url['scheme'] == 'options':
             return self.get_setting(parsed_url['netloc'])
         elif parsed_url['scheme'] == 'resources':
@@ -1079,13 +1089,14 @@ class Deployment(morpheus.MorpheusDict):
         elif parsed_url['scheme'] == 'services':
             return utils.read_path(kwargs['services'], parsed_url['path'])
         else:
-            raise CheckmateValidationException("display-output scheme not "
-                                               "supported: %s" %
-                                               parsed_url['scheme'])
+            raise cmexc.CheckmateValidationException(
+                "display-output scheme not supported: %s" %
+                parsed_url['scheme']
+            )
         return None
 
     def find_display_output_definitions(self):
-        '''Finds all display-output definitions.'''
+        """Finds all display-output definitions."""
         result = {}
         if 'blueprint' not in self:
             return result
@@ -1112,9 +1123,8 @@ class Deployment(morpheus.MorpheusDict):
                     continue
                 for do_key, output in service['display-outputs'].items():
                     if 'source' not in output:
-                        raise CheckmateValidationException("display-output "
-                                                           "without a source: "
-                                                           "%s" % do_key)
+                        raise cmexc.CheckmateValidationException(
+                            "display-output without a source: %s" % do_key)
                     definition = copy.deepcopy(output)
                     # Target output to this service
                     definition['source'] = 'services://%s/%s' % (key,
@@ -1131,7 +1141,7 @@ class Deployment(morpheus.MorpheusDict):
         return result
 
     def calculate_outputs(self):
-        '''Parse display-outputs definitions and generate display-outputs.'''
+        """Parse display-outputs definitions and generate display-outputs."""
         definitions = self.find_display_output_definitions()
         results = {}
         if not definitions:
@@ -1146,7 +1156,7 @@ class Deployment(morpheus.MorpheusDict):
                 entry['status'] = 'GENERATING'
                 results[name] = entry
             try:
-                parsed = Deployment.parse_source_URI(definition['source'])
+                parsed = Deployment.parse_source_uri(definition['source'])
                 value = self.evaluator(parsed, services=services)
                 if value is not None:
                     entry['value'] = value
@@ -1158,7 +1168,7 @@ class Deployment(morpheus.MorpheusDict):
             if 'extra-sources' in definition:
                 for key, source in definition['extra-sources'].items():
                     try:
-                        parsed = Deployment.parse_source_URI(source)
+                        parsed = Deployment.parse_source_uri(source)
                         value = self.evaluator(parsed, services=services)
                         if value is not None:
                             if 'extra-info' not in entry:
@@ -1170,7 +1180,7 @@ class Deployment(morpheus.MorpheusDict):
         return results
 
     def calculate_services(self):
-        '''Generates list of services with interfaces and output data.'''
+        """Generates list of services with interfaces and output data."""
         services = {}
 
         # Populate services key in deployment
@@ -1204,14 +1214,14 @@ class Deployment(morpheus.MorpheusDict):
 
     def create_resource_template(self, index, definition, service_name,
                                  context):
-        '''Create a new resource dict to add to the deployment
+        """Create a new resource dict to add to the deployment
 
         :param index: the index of the resource within its service (ex. web2)
         :param definition: the component definition coming from the Plan
         :param context: RequestContext (auth token, etc) for catalog calls
 
         :returns: a validated dict of the resource ready to add to deployment
-        '''
+        """
 
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
@@ -1239,18 +1249,19 @@ class Deployment(morpheus.MorpheusDict):
         return resources
 
     def on_postback(self, contents, target=None):
-        '''Called to merge in all deployment and operation data in one
+        """Called to merge in all deployment and operation data in one
 
         Validates and assigns contents data to target
 
         :param contents: dict -- the new data to write
         :param target: dict -- optional for writing to other than this
                        deployment
-        '''
+        """
         target = target or self
 
         if not isinstance(contents, dict):
-            raise CheckmateException("Postback value was not a dictionary")
+            raise cmexc.CheckmateException(
+                "Postback value was not a dictionary")
         status = contents.get('status')
         if status and not target.fsm.permitted(status):
             contents.pop('status')
@@ -1265,7 +1276,7 @@ class Deployment(morpheus.MorpheusDict):
         utils.merge_dictionary(target, updated)
 
     def on_resource_postback(self, contents, target=None):
-        '''Called to merge in contents when a postback with new resource data
+        """Called to merge in contents when a postback with new resource data
         is received.
 
         Translates values to canonical names. Iterates to one level of depth to
@@ -1274,10 +1285,11 @@ class Deployment(morpheus.MorpheusDict):
         :param contents: dict -- the new data to write
         :param target: dict -- optional for writing to other than this
                        deployment
-        '''
+        """
         if contents:
             if not isinstance(contents, dict):
-                raise CheckmateException("Postback value was not a dictionary")
+                raise cmexc.CheckmateException(
+                    "Postback value was not a dictionary")
 
             if target is None:
                 target = self
@@ -1291,7 +1303,7 @@ class Deployment(morpheus.MorpheusDict):
                         raise IndexError("Resource %s not found" % resource_id)
                     # Check the value
                     if not isinstance(value, dict):
-                        raise (CheckmateException("Postback value for "
+                        raise (cmexc.CheckmateException("Postback value for "
                                "instance '%s' was not a dictionary"
                                % resource_id))
                     if not value:
@@ -1335,7 +1347,7 @@ class Deployment(morpheus.MorpheusDict):
                                          connection_id)
                     # Check the value
                     if not isinstance(value, dict):
-                        raise (CheckmateException("Postback value for "
+                        raise (cmexc.CheckmateException("Postback value for "
                                "connection '%s' was not a dictionary" %
                                connection_id))
                     # Canonicalize it
@@ -1354,7 +1366,7 @@ class Deployment(morpheus.MorpheusDict):
                                               "yet supported: %s" % key)
 
     def get_new_and_planned_resources(self):
-        '''Return resources with statuses of NEW and PLANNED.'''
+        """Return resources with statuses of NEW and PLANNED."""
         planned_resources = {}
         for resource_key, resource_value in self.get(
                 "resources", {}).iteritems():
@@ -1363,9 +1375,7 @@ class Deployment(morpheus.MorpheusDict):
         return planned_resources
 
     def get_non_deleted_resources(self):
-        '''
-        Return resources with status not equal to DELETED.
-        '''
+        """Return resources with status not equal to DELETED."""
         resources = {}
         for resource_key, resource_value in self.get(
                 "resources", {}).iteritems():
@@ -1374,7 +1384,7 @@ class Deployment(morpheus.MorpheusDict):
         return resources
 
     def get_indexed_resources(self):
-        '''Return a set of indexed resources.'''
+        """Return a set of indexed resources."""
         indexed_resources = {}
         for resource_key, resource_value in self.get(
                 "resources", {}).iteritems():
@@ -1385,10 +1395,10 @@ class Deployment(morpheus.MorpheusDict):
 
 @celery.task(default_retry_delay=0.3, max_retries=2)
 def update_operation(deployment_id, driver=DB, **kwargs):
-    '''DEPRECATED - will be removed around v0.14
+    """DEPRECATED - will be removed around v0.14
 
     Use checkmate.common.tasks.update_operation
-    '''
+    """
     LOG.warn("DEPRECATED CALL: deployment.update_operation called")
     utils.match_celery_logging(LOG)
     if kwargs:
@@ -1397,7 +1407,7 @@ def update_operation(deployment_id, driver=DB, **kwargs):
         delta = {'operation': dict(kwargs)}
         try:
             driver.save_deployment(deployment_id, delta, partial=True)
-        except ObjectLockedError:
+        except dbcommon.ObjectLockedError:
             LOG.warn("Object lock collision in update_operation on "
                      "Deployment %s", deployment_id)
             update_operation.retry()
@@ -1405,10 +1415,10 @@ def update_operation(deployment_id, driver=DB, **kwargs):
 
 @celery.task(default_retry_delay=1, max_retries=4)
 def update_deployment_status(deployment_id, new_status, driver=DB):
-    '''DEPRECATED - will be removed around v0.14
+    """DEPRECATED - will be removed around v0.14
 
     Use update_deployment_status_new
-    '''
+    """
     LOG.warn("DEPRECATED CALL: deployment.update_deployment_status called")
 
     utils.match_celery_logging(LOG)
@@ -1421,14 +1431,14 @@ def update_deployment_status(deployment_id, new_status, driver=DB):
     if delta:
         try:
             driver.save_deployment(deployment_id, delta, partial=True)
-        except ObjectLockedError:
+        except dbcommon.ObjectLockedError:
             LOG.warn("Object lock collision in update_deployment_status on "
                      "Deployment %s", deployment_id)
             update_deployment_status.retry()
 
 
 def update_deployment_status_new(deployment_id, new_status, driver=None):
-    '''Update the status of the specified deployment.'''
+    """Update the status of the specified deployment."""
     if utils.is_simulation(deployment_id):
         driver = SIMULATOR_DB
     if not driver:
@@ -1442,10 +1452,10 @@ def update_deployment_status_new(deployment_id, new_status, driver=None):
 
 
 def get_status(deployment_id):
-    '''Gets the deployment status by deployment id.
+    """Gets the deployment status by deployment id.
 
     Protects against invalid types and key errors.
-    '''
+    """
     deployment = DB.get_deployment(deployment_id)
     if hasattr(deployment, '__getitem__'):
         return deployment.get('status')
