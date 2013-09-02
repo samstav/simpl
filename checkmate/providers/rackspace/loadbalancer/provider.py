@@ -165,6 +165,11 @@ class Provider(rsbase.RackspaceProviderBase):
                                        service_name=service,
                                        provider_key=self.key,
                                        default=templates[0].get('dns-name'))
+
+        for template in templates:
+            template['desired-state']['protocol'] = (template.get('protocol')
+                                                     or protocol)
+            template['desired-state']['region'] = region
         return templates
 
     def _support_unencrypted(self, deployment, protocol, resource_type=None,
