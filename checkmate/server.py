@@ -46,6 +46,7 @@ from checkmate import db
 from checkmate import deployments
 from checkmate import stacks
 from checkmate import workflows
+from checkmate.workflows import router as wf_router
 from checkmate.exceptions import (
     CheckmateBadState,
     CheckmateDatabaseConnectionError,

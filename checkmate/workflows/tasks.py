@@ -56,13 +56,15 @@ class WorkflowEventHandlerTask(celery.Task):
                       "permissible retries!", w_id)
         else:
             error = exc.__repr__()
-        update_deployment.delay(args[0], error=error)
+        if kwargs.get('apply_callbacks'):
+            update_deployment.delay(args[0], error=error)
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         self.on_success(None, task_id, args, kwargs)
 
     def on_success(self, retval, task_id, args, kwargs):
-        update_deployment.delay(args[0])
+        if kwargs.get('apply_callbacks'):
+            update_deployment.delay(args[0])
 
 
 @celtask.task(default_retry_delay=10, max_retries=10, ignore_result=True)
@@ -113,8 +115,8 @@ def update_deployment(w_id, error=None):
 
 
 @celtask.task(base=WorkflowEventHandlerTask, default_retry_delay=10,
-              max_retries=300, time_limit=3600, ignore_result=True)
-def cycle_workflow(w_id, wait=1):
+      max_retries=300, time_limit=3600, ignore_result=True)
+def cycle_workflow(w_id, context, wait=1, apply_callback=True):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
     extend the wait time between cycles so we don't load the system.
@@ -126,15 +128,23 @@ def cycle_workflow(w_id, wait=1):
     try:
         workflow, key = MANAGERS['workflows'].lock_workflow(w_id,
                                                             with_secrets=True)
-
+        driver = MANAGERS['workflows'].select_driver(w_id)
         serializer = DictionarySerializer()
         d_wf = Workflow.deserialize(serializer, workflow)
+        dep_id = d_wf.get_attribute("deploymentId") or w_id
 
         initial_wf_state = cmwf.update_workflow_status(d_wf)
         d_wf.complete_all()
         final_workflow_state = cmwf.update_workflow_status(d_wf)
+        errored_tasks = final_workflow_state.get('errored_tasks')
 
         if initial_wf_state != final_workflow_state:
+            if errored_tasks:
+                reset_wf = cmwf.try_create_reset_failed_tasks_workflow(
+                    d_wf, dep_id, context, errored_tasks, driver=driver)
+                if reset_wf:
+                    cycle_workflow.delay(reset_wf.get_attribute('id'), context)
+
             MANAGERS['workflows'].save_spiff_workflow(
                 d_wf, celery_task_id=cycle_workflow.request.id)
             wait = 1
@@ -161,12 +171,32 @@ def cycle_workflow(w_id, wait=1):
     except Exception as exc:
         LOG.exception(exc)
     finally:
-        MANAGERS['workflows'].unlock_workflow(w_id, key)
+        if key:
+            MANAGERS['workflows'].unlock_workflow(w_id, key)
 
     LOG.debug("Finished run of workflow '%s'. Waiting %i seconds to "
               "next run. Retries done: %s", w_id, wait,
               cycle_workflow.request.retries)
-    cycle_workflow.retry([w_id], kwargs={'wait': wait}, countdown=wait)
+    cycle_workflow.retry([w_id, context], kwargs={'wait': wait},
+                         countdown=wait)
+
+
+@celtask.task(default_retry_delay=10, max_retries=10)
+def reset_task_tree(w_id, task_id):
+    utils.match_celery_logging(LOG)
+    try:
+        workflow, key = MANAGERS['workflows'].lock_workflow(w_id,
+                                                            with_secrets=True)
+        serializer = DictionarySerializer()
+        d_wf = Workflow.deserialize(serializer, workflow)
+        wf_task = d_wf.get_task(task_id)
+        cmwf.reset_task_tree(wf_task)
+        MANAGERS['workflows'].save_spiff_workflow(d_wf)
+    except db.ObjectLockedError:
+        reset_task_tree.retry()
+    finally:
+        if key:
+            MANAGERS['workflows'].unlock_workflow(w_id, key)
 
 
 @celtask.task(default_retry_delay=10, max_retries=300)

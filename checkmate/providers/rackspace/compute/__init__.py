@@ -37,7 +37,6 @@ from checkmate.common import caching
 from checkmate.common import config
 from checkmate.common import statsd
 from checkmate import deployments as cmdeps
-from checkmate.deployments import tasks
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
 from checkmate import providers as cmprov
@@ -533,7 +532,7 @@ class Provider(RackspaceComputeProviderBase):
             },
         )
         delete_server.connect(wait_on_delete)
-        return {'root': delete_server}
+        return {'root': delete_server, 'final': wait_on_delete}
 
     @staticmethod
     def _get_api_info(context, **kwargs):
@@ -1068,7 +1067,6 @@ def create_server(context, name, region, api_object=None, flavor="2",
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
-    tasks.reset_failed_resource_task.delay(deployment_id, resource_key)
     create_server.on_failure = on_failure
 
     if api_object is None:

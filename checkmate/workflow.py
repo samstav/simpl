@@ -13,6 +13,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
+from checkmate.deployment import Deployment
 from checkmate.exceptions import CheckmateException
 from checkmate.exceptions import CheckmateResetTaskTreeException
 from checkmate.exceptions import CheckmateResumableException
@@ -20,14 +21,16 @@ from checkmate.exceptions import CheckmateRetriableException
 from checkmate.exceptions import CheckmateUserException
 from checkmate.exceptions import UNEXPECTED_ERROR
 from checkmate import utils
+from checkmate.workflows.workflow_spec import WorkflowSpec
 
+TASK_RETRY_MAX_LIMIT = 2
 DB = get_driver()
 LOG = logging.getLogger(__name__)
 
 
 def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
                     wf_type="BUILD"):
-    '''Creates a workflow for the passes in spec and deployment
+    '''Creates a workflow for the passed in spec and deployment
 
     :param spec: WorkflowSpec to use for creating the workflow
     :param deployment: deployment to create the workflow for
@@ -38,7 +41,7 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
     :return:
     '''
     if not workflow_id:
-        workflow_id = utils.get_id(context.simulation)
+        workflow_id = utils.get_id(context["simulation"])
     spiff_wf = init_spiff_workflow(spec, deployment, context, workflow_id,
                                    wf_type)
     serializer = DictionarySerializer()
@@ -50,18 +53,18 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
     return spiff_wf
 
 
-def get_number_of_errors(d_wf):
+def get_errored_tasks(d_wf):
     '''Gets the number of tasks in error for a workflow
     :param d_wf: spiff workflow to get the errors from
     :return: number of tasks in error
     '''
+    failed_tasks = []
     tasks = d_wf.get_tasks()
-    count = 0
     while tasks:
         task = tasks.pop(0)
         if is_failed_task(task):
-            count += 1
-    return count
+            failed_tasks.append(task.id)
+    return failed_tasks
 
 
 def update_workflow_status(workflow):
@@ -70,11 +73,15 @@ def update_workflow_status(workflow):
     :param workflow: workflow to be updated
     :return:
     '''
+    errored_tasks = get_errored_tasks(workflow)
+
     workflow_state = {
         'total': len(workflow.get_tasks(state=Task.ANY_MASK)),
         'completed': len(workflow.get_tasks(state=Task.COMPLETED)),
-        'errored': get_number_of_errors(workflow)
+        'errored': len(errored_tasks),
+        'errored_tasks': errored_tasks,
     }
+
     if workflow_state['total'] is not None and workflow_state['total'] > 0:
         workflow_state['progress'] = int(100 * workflow_state['completed'] /
                                          workflow_state['total'])
@@ -146,28 +153,44 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     driver.save_workflow(workflow_id, body, secrets=secrets)
 
 
-def reset_failed_tasks(d_wf):
+def try_create_reset_failed_tasks_workflow(d_wf, deployment_id, context,
+                                           failed_task_ids, driver=DB):
     '''Traverses through all the workflow tasks and searches for reset task
     tree exception. If found the task tree is reset
 
     :param d_wf: Workflow to traverse
     :return:
     '''
-    tasks = d_wf.get_tasks()
-    while tasks:
-        task = tasks.pop(0)
-        if is_failed_task(task):
-            task_state = task._get_internal_attribute("task_state")
-            info = task_state.get("info")
-            try:
-                exception = eval(info)
-                if (type(exception) is
-                        CheckmateResetTaskTreeException):
-                    reset_task_tree(task)
-            except Exception:
-                LOG.error("There was a exception while resetting the task "
-                          "tree for task %s in deployment %s", task.id,
-                          d_wf.attributes["deploymentId"])
+    deployment = Deployment(driver.get_deployment(deployment_id,
+                                                  with_secrets=False))
+    tasks_to_reset = []
+    while failed_task_ids:
+        task_id = failed_task_ids.pop(0)
+        task = d_wf.get_task(task_id)
+        task_state = task._get_internal_attribute("task_state")
+        info = task_state["info"]
+        exception = eval(info)
+
+        task_spec = task.task_spec
+        task_retry_count = task_spec.get_property("task_retry_count",
+                                                  default=0)
+        if (type(exception) is CheckmateResetTaskTreeException and
+                task_retry_count < TASK_RETRY_MAX_LIMIT):
+            tasks_to_reset.append(task)
+            task.task_spec.set_property(task_retry_count=task_retry_count+1)
+
+    if tasks_to_reset:
+        spec = WorkflowSpec.create_reset_failed_resources_spec(
+            context,
+            deployment,
+            tasks_to_reset,
+            d_wf.get_attribute('id')
+        )
+        reset_wf = create_workflow(spec, deployment, context, driver=driver,
+                                   wf_type="CLEAN UP")
+        LOG.debug("Created workflow %s for resetting failed tasks in "
+                  "deployment %s", reset_wf.get_attribute('id'), deployment_id)
+        return reset_wf
 
 
 def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
@@ -329,7 +352,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
     workflow = SpiffWorkflow(spiff_wf_spec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
-    runtime_context['token'] = context.auth_token
+    runtime_context['token'] = context["auth_token"]
     runtime_context.update(format(deployment.get_indexed_resources()))
     workflow.get_task(2).set_attribute(**runtime_context)
 
@@ -348,7 +371,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
         if expect_to_take > overall:
             overall = expect_to_take
         task._set_internal_attribute(estimated_completed_in=expect_to_take)
-    LOG.debug("Workflow %s estimated duration: %s", deployment['id'],
+    LOG.debug("Workflow %s estimated duration: %s", workflow_id,
               overall)
     workflow.attributes['estimated_duration'] = overall
     workflow.attributes['deploymentId'] = deployment['id']

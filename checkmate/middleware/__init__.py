@@ -577,7 +577,7 @@ class RequestContext(object):
         Extra kwargs from __init__ are also provided.
         '''
         keyword_args = copy.copy(self.kwargs)
-        if kwargs:
+        if self.__dict__:
             keyword_args.update(self.__dict__)
         result = dict(**keyword_args)
         result.update(kwargs)

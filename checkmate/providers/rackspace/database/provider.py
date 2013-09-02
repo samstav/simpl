@@ -407,7 +407,7 @@ class Provider(providers.ProviderBase):
             call_args=[context], properties={'estimated_duration': 10})
 
         delete_instance.connect(wait_on_delete)
-        return {'root': delete_instance}
+        return {'root': delete_instance, 'final': wait_on_delete}
 
     @staticmethod
     def _delete_comp_res_task(context):
@@ -442,7 +442,7 @@ class Provider(providers.ProviderBase):
             'checkmate.providers.rackspace.database.delete_database',
             call_args=[context], properties={'estimated_duration': 15})
 
-        return {'root': delete_db}
+        return {'root': delete_db, 'final': delete_db}
 
     def get_catalog(self, context, type_filter=None, **kwargs):
         '''Return stored/override catalog if it exists, else connect, build,

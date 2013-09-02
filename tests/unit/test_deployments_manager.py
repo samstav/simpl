@@ -106,6 +106,7 @@ class TestManager(unittest.TestCase):
             "tenantId": 1000,
             "resources": {
                 "0": {
+                    "index": "0",
                     "status": "ERROR",
                     "instance": {
                         "id": "instance_id",

@@ -33,6 +33,7 @@ from checkmate import test
 from checkmate import utils
 from checkmate import workflow
 from checkmate import workflows
+from checkmate.workflows import WorkflowSpec as cm_wfspec
 
 
 class TestWorkflow(unittest.TestCase):
@@ -50,20 +51,80 @@ class TestWorkflow(unittest.TestCase):
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
 
-    def test_reset_failed_tasks(self):
+    def test_get_errored_tasks(self):
+        failed_task_state = {
+            'state': 'FAILURE',
+        }
+        self.task_with_error._get_internal_attribute("task_state").AndReturn(
+            failed_task_state)
+        self.task_without_error._get_internal_attribute(
+            "task_state").AndReturn(None)
+        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error,
+                                                    self.task_without_error])
+        self.mox.ReplayAll()
+        self.assertEquals(workflow.get_errored_tasks(self.mocked_workflow),
+                          ['task_id'])
+
+    def test_reset_failed_tasks_when_retry_count_is_under_threshold(self):
+        context = self.mox.CreateMock(cmmid.RequestContext)
+        deployment = cmdep.Deployment({"id":"DEP_ID"})
+        driver = self.mox.CreateMockAnything()
         task_state = {
             "info": "CheckmateResetTaskTreeException()",
             "state": "FAILURE",
         }
+
+        driver.get_deployment(deployment["id"], with_secrets=False)\
+            .AndReturn(deployment)
+
+        self.mocked_workflow.get_task("task_id").AndReturn(
+            self.task_with_error)
         self.task_with_error._get_internal_attribute('task_state').AndReturn(
             task_state)
-        self.task_with_error._get_internal_attribute('task_state').AndReturn(
-            task_state)
-        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
+
+        mock_taskspec = self.mox.CreateMockAnything()
+        self.task_with_error.task_spec = mock_taskspec
+        mock_taskspec.get_property("task_retry_count", default=0).AndReturn(2)
+        resource_key = 1
+        mock_taskspec.get_property("resource").AndReturn(resource_key)
+        self.mox.StubOutWithMock(cm_wfspec,
+                                 "create_workflow_for_resource_deletion")
+        spec = self.mox.CreateMock(specs.WorkflowSpec)
+        cm_wfspec.create_reset_failed_resources_spec(context, deployment,
+                                                        resource_key).\
+            AndReturn(spec)
         self.mox.StubOutWithMock(workflow, "reset_task_tree")
         workflow.reset_task_tree(self.task_with_error)
+        self.mox.StubOutWithMock(workflow, "create_workflow")
+        workflow.create_workflow(spec, deployment, context, driver=driver)
+        mock_taskspec.set_property(task_retry_count=3)
         self.mox.ReplayAll()
-        workflow.reset_failed_tasks(self.mocked_workflow)
+        workflow.try_create_reset_failed_tasks_workflow(self.mocked_workflow, deployment["id"],
+                                    context, ["task_id"], driver)
+
+    def test_reset_failed_tasks_when_retry_count_above_threshold(self):
+        context = self.mox.CreateMock(cmmid.RequestContext)
+        deployment = cmdep.Deployment({"id":"DEP_ID"})
+        driver = self.mox.CreateMockAnything()
+        task_state = {
+            "info": "CheckmateResetTaskTreeException()",
+            "state": "FAILURE",
+        }
+
+        driver.get_deployment(deployment["id"], with_secrets=False)\
+            .AndReturn(deployment)
+        self.mocked_workflow.get_task("task_id").AndReturn(
+            self.task_with_error)
+
+        self.task_with_error._get_internal_attribute('task_state').AndReturn(
+            task_state)
+        mock_task_spec = self.mox.CreateMockAnything()
+        self.task_with_error.task_spec = mock_task_spec
+        mock_task_spec.get_property("task_retry_count", default=0).AndReturn(
+            workflow.TASK_RETRY_MAX_LIMIT + 1)
+        self.mox.ReplayAll()
+        workflow.try_create_reset_failed_tasks_workflow(self.mocked_workflow, deployment["id"],
+                                    context,["task_id"], driver)
 
     def test_convert_exc_to_dict_with_retriable_exception(self):
         info = "CheckmateRetriableException('foo', 'Exception', " \

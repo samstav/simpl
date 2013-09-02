@@ -237,7 +237,7 @@ class Manager(object):
             return resources.get(rid)
         raise ValueError("No resource %s in deployment %s" % (rid, api_id))
 
-    def execute(self, api_id, timeout=180, tenant_id=None):
+    def execute(self, api_id, context, timeout=180, tenant_id=None):
         """Process a checkmate deployment workflow
 
         Executes and moves the workflow forward.
@@ -254,7 +254,8 @@ class Manager(object):
         if not deployment:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
-        result = tasks.cycle_workflow.delay(api_id)
+        result = tasks.cycle_workflow.delay(api_id,
+                                            context.get_queued_task_dict())
         return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):
@@ -345,23 +346,17 @@ class Manager(object):
         :param resource_id:
         :return:
         """
-        #TODO: Need to move the logic to find whether a resource should be
-        # reset or not to the providers
         deployment = self.get_deployment(deployment_id)
         tenant_id = deployment["tenantId"]
         resource = deployment['resources'].get(resource_id, None)
-        if (resource.get('instance') and resource['instance'].get('id')
-            and (resource.get('status') == "ERROR" or
-                 resource.get('status') == "DELETED")):
+        if resource.get('instance') and resource['instance'].get('id'):
             failed_resource = copy.deepcopy(resource)
             resource['status'] = 'PLANNED'
             resource['instance'] = None
-            if 'relations' in failed_resource:
-                failed_resource.pop('relations')
+            failed_resource['relations'] = None
             failed_resource['index'] = (
                 str(len([res for res in deployment.get("resources").keys()
                          if res.isdigit()])))
-
             deployment_body = {
                 "id": deployment_id,
                 "tenantId": tenant_id,

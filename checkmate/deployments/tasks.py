@@ -40,6 +40,22 @@ def reset_failed_resource_task(deployment_id, resource_id):
     MANAGERS['deployments'].reset_failed_resource(deployment_id, resource_id)
 
 
+@task(default_retry_delay=2, max_retries=50)
+def wait_for_resource_status(deployment_id, resource_id, expected_status):
+    """Wait for a deployment resource to move to expected_status
+    :param deployment_id: deployment containing the resource
+    :param resource_id: resource to check the status for
+    :param expected_status: expected status
+    :return:
+    """
+    deployment = MANAGERS['deployments'].get_deployment(deployment_id)
+    resource = deployment['resources'].get(resource_id)
+    if resource and resource.get('status') != expected_status:
+        msg = "Resource is in %s status. Waiting for %s resource" % (
+            resource.get('status'), expected_status)
+        wait_for_resource_status.retry(exc=CheckmateException(msg))
+
+
 @task
 @statsd.collect
 def process_post_deployment(deployment, request_context, driver=None):
@@ -60,7 +76,7 @@ def process_post_deployment(deployment, request_context, driver=None):
     MANAGERS['deployments'].deploy(parsed_deployment, request_context)
 
     #Trigger the workflow in the queuing service
-    async_task = MANAGERS['deployments'].execute(deployment['id'])
+    async_task = MANAGERS['deployments'].execute(deployment['id'], request_context)
     LOG.debug("Triggered workflow (task='%s')", async_task)
 
 

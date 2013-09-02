@@ -480,7 +480,7 @@ class Provider(rsbase.RackspaceProviderBase):
         )
 
         delete_lb.connect(wait_on_lb_delete)
-        task_dict = {'root': [delete_lb]}
+        task_dict = {'root': [delete_lb], 'final': wait_on_lb_delete}
         if dom_id and rec_id:
             delete_record = specs.Celery(
                 wf_spec,

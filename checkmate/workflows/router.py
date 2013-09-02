@@ -197,7 +197,9 @@ class Router(object):
         if not entity:
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
-        async_call = tasks.cycle_workflow.delay(api_id)
+        context = bottle.request.context
+        async_call = tasks.cycle_workflow.delay(api_id,
+                                                context.get_queued_task_dict())
         LOG.debug("Executed a task to run workflow '%s'", async_call)
         entity = self.manager.get_workflow(api_id)
         return utils.write_body(entity, bottle.request, bottle.response)
@@ -245,7 +247,9 @@ class Router(object):
             dep_id, tenant_id=tenant_id)
         operation = deployment.get("operation")
         if operation and operation.get('status') == 'PAUSED':
-            async_call = tasks.cycle_workflow.delay(api_id)
+            context = bottle.request.context
+            async_call = tasks.cycle_workflow.delay(
+                api_id, context.get_queued_task_dict())
             LOG.debug("Executed a task to run workflow '%s'", async_call)
             workflow = self.manager.get_workflow(api_id)
         return utils.write_body(workflow, bottle.request, bottle.response)
