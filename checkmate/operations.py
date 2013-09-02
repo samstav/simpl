@@ -89,11 +89,12 @@ def update_operation(deployment_id, workflow_id, driver=None,
                      **kwargs):
     """Update the the operation in the deployment
 
+    Note: exposed in common.tasks as a celery task
+
     :param deployment_id: the string ID of the deployment
     :param driver: the backend driver to use to get the deployments
     :param kwargs: the key/value pairs to write into the operation
 
-    Note: exposed in common.tasks as a celery task
     """
     if kwargs:
         if utils.is_simulation(deployment_id):
@@ -102,37 +103,29 @@ def update_operation(deployment_id, workflow_id, driver=None,
             driver = DB
         deployment = driver.get_deployment(deployment_id, with_secrets=True)
         deployment = cmdep.Deployment(deployment)
-        operation = deployment.get_operation(workflow_id)
-        if not operation:
-            LOG.warn("Cannot find operation with workflow id %s in "
-                     "deployment %s", workflow_id, deployment_id)
-            return
-        operation_value = operation.values()[0]
-        if isinstance(operation_value, list):
-            operation_status = operation_value[-1]['status']
-        elif operation_value:
-            operation_status = operation_value['status']
-        else:
-            operation_status = None
 
-        #Do not update anything if the operation is already complete. The
-        #operation gets marked as complete for both build and delete operation.
-        if operation_status == "COMPLETE":
-            LOG.warn("Ignoring the update operation call as the operation is "
-                     "already COMPLETE")
+        _, curr_operation = deployment.get_current_operation(workflow_id)
+        if curr_operation == {}:
+            return  # Nothing to do!
+
+        op_status = curr_operation.get('status')
+        if op_status == "COMPLETE":
+            LOG.warn("Ignoring the update operation call as the "
+                     "operation is already COMPLETE")
             return
-        if "history" in operation.keys():
-            padded_list = []
-            padded_list.extend(itertools.repeat({}, len(operation_value) - 1))
-            padded_list.append(dict(kwargs))
-            delta = {'operations-history': padded_list}
-        else:
-            delta = {'operation': dict(kwargs)}
+
+        op_type, op_list = deployment.get_operation(workflow_id)
+        if op_type == 'operations-history':
+            op_list[-1] = dict(kwargs)
+        else:  # It's the current operation
+            op_list = dict(kwargs)
+
+        delta = {op_type: op_list}
         if deployment_status:
-            delta.update({'status': deployment_status})
+            delta['status'] = deployment_status
         try:
             if 'status' in kwargs:
-                if kwargs['status'] != operation_status:
+                if kwargs['status'] != op_status:
                     delta['display-outputs'] = deployment.calculate_outputs()
         except KeyError:
             LOG.warn("Cannot update deployment outputs: %s", deployment_id)

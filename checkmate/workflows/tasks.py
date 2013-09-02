@@ -269,7 +269,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(deployment_id)
-    operation = Deployment(deployment).get_current_operation(w_id)
+    _, operation = Deployment(deployment).get_current_operation(w_id)
 
     action = operation.get("action")
 
@@ -280,7 +280,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
                 revoke_task.delay(workflow['celery_task_id'])
             common_tasks.update_operation.delay(deployment_id, w_id,
                                                 driver=driver, **kwargs)
-    elif operation["status"] == "COMPLETE":
+    elif operation.get("status") == "COMPLETE":
         LOG.warn("Received a pause workflow request for a completed "
                  "operation for deployment %s. Ignoring the request",
                  deployment_id)

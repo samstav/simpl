@@ -365,22 +365,38 @@ class Deployment(morpheus.MorpheusDict):
         Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
         blocks for an operation that has a field workflow-id with value as
         that of the parameter workflow_id. If such an operation is found,
-        the method returns that operation.
+        return a list containing the operation as the last item in the list,
+        with empty dicts padding the list for all previous operations.
+        This way the operation that matches the workflow_id retains its
+        position in the list.
 
-        :param workflow_id:
-        :return:
+        :param workflow_id: the workflow ID on which to search
+        :return: a Tuple containing the operation type and the list
         '''
-        operation = self.get("operation", None)
+        ret_type = 'not-found'
+        ret_value = []
+        op_history = self.get('operations-history', [])
+
         if self.current_workflow_id() == workflow_id:
-            return {'operation': operation}
-        operations_history = self.get("operations-history", [])
-        ret = []
-        for history in operations_history:
-            if history.get("workflow-id", self.get('id')) == workflow_id:
-                ret.append(history)
-                return {'history': ret}
-            else:
-                ret.append({})
+            ret_type = 'operation'
+            ret_value.append(self.get('operation'))
+        elif len(op_history) > 0:
+            for history in op_history:
+                # TODO(Paul): Default to Deployment ID? Should we fix this
+                # using convert_data when the deployment is retrieved from
+                # storage, rather than here?
+                if history.get('workflow-id', self.get('id')) == workflow_id:
+                    ret_type = 'operations-history'
+                    ret_value.append(history)
+                    break
+                else:
+                    ret_value.append({})
+        else:
+            LOG.warn("Cannot find operation with workflow id %s in "
+                     "deployment %s", workflow_id, self.get('id'))
+            ret_value.append({})
+
+        return (ret_type, ret_value)
 
     def get_current_operation(self, workflow_id):
         '''Gets the current operation for a given Workflow ID.
@@ -397,12 +413,8 @@ class Deployment(morpheus.MorpheusDict):
         :param workflow_id:
         :return:
         '''
-        operation_result = self.get_operation(workflow_id)
-        if operation_result:
-            if "history" in operation_result:
-                return operation_result.values()[0][-1]
-            else:
-                return operation_result.values()[0]
+        oper_type, oper_list = self.get_operation(workflow_id)
+        return (oper_type, oper_list[-1])
 
     def inputs(self):
         '''Return inputs of deployment.'''
