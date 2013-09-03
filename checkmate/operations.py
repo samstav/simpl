@@ -26,6 +26,7 @@ from checkmate import celeryglobal as celery
 from checkmate.common import statsd
 from checkmate import db
 from checkmate import deployment as cmdep
+from checkmate import exceptions as cmexc
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -89,54 +90,57 @@ def update_operation(deployment_id, workflow_id, driver=None,
                      **kwargs):
     """Update the the operation in the deployment
 
+    Note: exposed in common.tasks as a celery task
+
     :param deployment_id: the string ID of the deployment
     :param driver: the backend driver to use to get the deployments
     :param kwargs: the key/value pairs to write into the operation
 
-    Note: exposed in common.tasks as a celery task
     """
     if kwargs:
         if utils.is_simulation(deployment_id):
             driver = SIMULATOR_DB
         if not driver:
             driver = DB
-        deployment = driver.get_deployment(deployment_id, with_secrets=True)
-        deployment = cmdep.Deployment(deployment)
-        operation = deployment.get_operation(workflow_id)
-        if not operation:
-            LOG.warn("Cannot find operation with workflow id %s in "
-                     "deployment %s", workflow_id, deployment_id)
-            return
-        operation_value = operation.values()[0]
-        if isinstance(operation_value, list):
-            operation_status = operation_value[-1]['status']
-        elif operation_value:
-            operation_status = operation_value['status']
-        else:
-            operation_status = None
+        dep = driver.get_deployment(deployment_id, with_secrets=True)
+        dep = cmdep.Deployment(dep)
 
-        #Do not update anything if the operation is already complete. The
-        #operation gets marked as complete for both build and delete operation.
-        if operation_status == "COMPLETE":
-            LOG.warn("Ignoring the update operation call as the operation is "
-                     "already COMPLETE")
+        try:
+            op_type, op_index, op_details = dep.get_operation(workflow_id)
+        except cmexc.CheckmateInvalidParameterError:
+            return  # Nothing to do!
+
+        op_status = op_details.get('status')
+        if op_status == "COMPLETE":
+            LOG.warn("Ignoring the update operation call as the "
+                     "operation is already COMPLETE")
             return
-        if "history" in operation.keys():
-            padded_list = []
-            padded_list.extend(itertools.repeat({}, len(operation_value) - 1))
-            padded_list.append(dict(kwargs))
-            delta = {'operations-history': padded_list}
-        else:
-            delta = {'operation': dict(kwargs)}
+
+        if op_index == -1:  # Current operation from 'operation'
+            op_list = dict(kwargs)
+        else:  # Operation found in 'operations-history'
+            op_list = _pad_list(op_index, dict(kwargs))
+
+        delta = {op_type: op_list}
         if deployment_status:
-            delta.update({'status': deployment_status})
+            delta['status'] = deployment_status
         try:
             if 'status' in kwargs:
-                if kwargs['status'] != operation_status:
-                    delta['display-outputs'] = deployment.calculate_outputs()
+                if kwargs['status'] != op_status:
+                    delta['display-outputs'] = dep.calculate_outputs()
         except KeyError:
             LOG.warn("Cannot update deployment outputs: %s", deployment_id)
         driver.save_deployment(deployment_id, delta, partial=True)
+
+
+def _pad_list(last_item_id, last_item):
+    """Return a list padded with empty dicts plus last_item."""
+    padded_list = []
+    for _ in range(last_item_id):
+        padded_list.append({})
+    padded_list.append(last_item)
+
+    return padded_list
 
 
 def get_status_info(errors, tenant_id, workflow_id):

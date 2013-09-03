@@ -1,32 +1,40 @@
 # pylint: disable=W0212
-'''
-Workflows Asynchronous tasks
-'''
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+
+"""Workflows Asynchronous tasks."""
 import logging
 import os
 
-from celery import current_app
-from celery import exceptions
-from celery.task import task
-from celery import Task as CeleryTask
-from SpiffWorkflow import Task
-from SpiffWorkflow import Workflow
+import celery
+from celery import exceptions as celexc
+from celery import task as celtask
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
+from SpiffWorkflow import Task
+from SpiffWorkflow import Workflow
 
+from checkmate.common import statsd
+from checkmate.common import tasks as cmtasks
 from checkmate import db
-from checkmate.common import (
-    statsd,
-    tasks as common_tasks,
-)
-from checkmate.deployment import (
-    Deployment,
-    OPERATION_DEPLOYMENT_STATUS_MAP,
-)
-from checkmate.middleware import RequestContext
-from checkmate.operations import get_status_info
-from checkmate import workflow as cm_workflow
+from checkmate import deployment as cmdep
+from checkmate import middleware as cmmid
+from checkmate import operations as cmops
 from checkmate import utils
+from checkmate import workflow as cmwf
 from checkmate.workflows import Manager
 
 
@@ -43,13 +51,14 @@ SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
 MANAGERS = {'workflows': Manager(DRIVERS)}
 
 
-class WorkflowEventHandlerTask(CeleryTask):
+class WorkflowEventHandlerTask(celery.Task):
+    """"Celery Task Event Handlers for Workflows."""
     abstract = True
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         w_id = args[0]
 
-        if isinstance(exc, exceptions.MaxRetriesExceededError):
+        if isinstance(exc, celexc.MaxRetriesExceededError):
             error = exc.__repr__()
             LOG.error("Workflow %s has reached the maximum number of "
                       "permissible retries!", w_id)
@@ -64,13 +73,13 @@ class WorkflowEventHandlerTask(CeleryTask):
         update_deployment.delay(args[0])
 
 
-@task(default_retry_delay=10, max_retries=10, ignore_result=True)
+@celtask.task(default_retry_delay=10, max_retries=10, ignore_result=True)
 def update_deployment(w_id, error=None):
-    '''Update the deployment progress and status depending on the status of
+    """Update the deployment progress and status depending on the status of
     the workflow
     :param w_id: Workflow to update the deployment from
     :param errors: Additional errors that need to be updated
-    '''
+    """
     driver = MANAGERS['workflows'].select_driver(w_id)
     workflow = MANAGERS['workflows'].get_workflow(w_id)
     serializer = DictionarySerializer()
@@ -85,21 +94,20 @@ def update_deployment(w_id, error=None):
     dep_status = None
 
     if d_wf.is_completed():
-        dep_status = OPERATION_DEPLOYMENT_STATUS_MAP.get(wf_type, None)
-        common_tasks.update_operation.delay(
+        dep_status = cmdep.OPERATION_DEPLOYMENT_STATUS_MAP.get(wf_type, None)
+        cmtasks.update_operation.delay(
             dep_id, w_id, driver=driver, deployment_status=dep_status,
             status=status,
             tasks=total,
             complete=completed)
     else:
         status_info = {}
-        wf_errors = cm_workflow.get_errors(d_wf, tenant_id)
+        wf_errors = cmwf.get_errors(d_wf, tenant_id)
         if error:
-            wf_errors.append(cm_workflow.convert_exc_to_dict(error, None,
-                                                             tenant_id, w_id,
-                                                             None))
+            wf_errors.append(cmwf.convert_exc_to_dict(error, None, tenant_id,
+                                                      w_id, None))
         if wf_errors:
-            status_info = get_status_info(wf_errors, tenant_id, w_id)
+            status_info = cmops.get_status_info(wf_errors, tenant_id, w_id)
             dep_status = "FAILED"
 
         operation_kwargs = {'status': status,
@@ -107,21 +115,21 @@ def update_deployment(w_id, error=None):
                             'complete': completed,
                             'errors': wf_errors}
         operation_kwargs.update(status_info)
-        common_tasks.update_operation.delay(dep_id, w_id, driver=driver,
-                                            deployment_status=dep_status,
-                                            **operation_kwargs)
+        cmtasks.update_operation.delay(dep_id, w_id, driver=driver,
+                                       deployment_status=dep_status,
+                                       **operation_kwargs)
 
 
-@task(base=WorkflowEventHandlerTask, default_retry_delay=10,
-      max_retries=300, time_limit=3600, ignore_result=True)
+@celtask.task(base=WorkflowEventHandlerTask, default_retry_delay=10,
+              max_retries=300, time_limit=3600, ignore_result=True)
 def cycle_workflow(w_id, wait=1):
-    '''Loop through trying to complete the workflow and periodically log
+    """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
     extend the wait time between cycles so we don't load the system.
 
     :param w_id: the workflow id
     :param wait: how long to wait between runs. Grows without activity
-    '''
+    """
     utils.match_celery_logging(LOG)
     try:
         workflow, key = MANAGERS['workflows'].lock_workflow(w_id,
@@ -130,9 +138,9 @@ def cycle_workflow(w_id, wait=1):
         serializer = DictionarySerializer()
         d_wf = Workflow.deserialize(serializer, workflow)
 
-        initial_wf_state = cm_workflow.update_workflow_status(d_wf)
+        initial_wf_state = cmwf.update_workflow_status(d_wf)
         d_wf.complete_all()
-        final_workflow_state = cm_workflow.update_workflow_status(d_wf)
+        final_workflow_state = cmwf.update_workflow_status(d_wf)
 
         if initial_wf_state != final_workflow_state:
             MANAGERS['workflows'].save_spiff_workflow(
@@ -169,21 +177,21 @@ def cycle_workflow(w_id, wait=1):
     cycle_workflow.retry([w_id], kwargs={'wait': wait}, countdown=wait)
 
 
-@task(default_retry_delay=10, max_retries=300)
+@celtask.task(default_retry_delay=10, max_retries=300)
 @statsd.collect
 def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
-    '''DEPRECATED: Please use cycle_workflow in checkmate.workflows.tasks
-    '''
+    """DEPRECATED: Please use cycle_workflow in checkmate.workflows.tasks
+    """
     LOG.warn('DEPRECATED method run_workflow called for workflow %s', w_id)
     cycle_workflow.delay(w_id, wait=wait)
 
 
-@task
+@celtask.task
 @statsd.collect
 def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
-    '''Attempt to complete one task.
+    """Attempt to complete one task.
     returns True/False indicating if task completed
-    '''
+    """
     utils.match_celery_logging(LOG)
     workflow = None
     key = None
@@ -214,7 +222,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
             LOG.debug("Progressing task '%s' (%s)", task_id,
                       wf_task.get_state_name())
             if isinstance(context, dict):
-                context = RequestContext(**context)
+                context = cmmid.RequestContext(**context)
             # Refresh token if it exists in args[0]['auth_token]
             if hasattr(wf_task, 'args') and wf_task.task_spec.args and \
                     len(wf_task.task_spec.args) > 0 and \
@@ -233,18 +241,18 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
                      "progressed", task_id, workflow_id,
                      wf_task.get_state_name())
             return False
-        cm_workflow.update_workflow_status(d_wf)
+        cmwf.update_workflow_status(d_wf)
         updated = d_wf.serialize(serializer)
         if original != updated:
             LOG.debug("Task '%s' in Workflow '%s' completion result: %s",
                       task_id, workflow_id, result)
             msg = "Saving: %s" % d_wf.get_dump()
             LOG.debug(msg)
-            #TODO: make DRY
+            #TODO(any): make DRY
             body, secrets = utils.extract_sensitive_data(updated)
             body['tenantId'] = workflow.get('tenantId')
             body['id'] = workflow_id
-            #TODO remove these from this whole class to the db layer
+            #TODO(any): remove these from this whole class to the db layer
             driver.save_workflow(workflow_id, body, secrets)
         return result
     finally:
@@ -252,15 +260,15 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
             driver.unlock_workflow(workflow_id, key)
 
 
-@task(default_retry_delay=10, max_retries=6)  # one minute
+@celtask.task(default_retry_delay=10, max_retries=6)  # one minute
 @statsd.collect
 def pause_workflow(w_id, driver=DB, retry_counter=0):
-    '''Waits for all the waiting celery tasks to move to ready and then marks
+    """Waits for all the waiting celery tasks to move to ready and then marks
     the operation as paused
     :param w_id: Workflow id
     :param driver: DB driver
     :return:
-    '''
+    """
     number_of_waiting_celery_tasks = 0
     try:
         workflow, key = driver.lock_workflow(w_id, with_secrets=True)
@@ -269,7 +277,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(deployment_id)
-    operation = Deployment(deployment).get_current_operation(w_id)
+    _, _, operation = cmdep.Deployment(deployment).get_operation(w_id)
 
     action = operation.get("action")
 
@@ -278,9 +286,9 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
             kwargs = {"action-response": "ACK"}
             if 'celery_task_id' in workflow:
                 revoke_task.delay(workflow['celery_task_id'])
-            common_tasks.update_operation.delay(deployment_id, w_id,
-                                                driver=driver, **kwargs)
-    elif operation["status"] == "COMPLETE":
+            cmtasks.update_operation.delay(deployment_id, w_id,
+                                           driver=driver, **kwargs)
+    elif operation.get("status") == "COMPLETE":
         LOG.warn("Received a pause workflow request for a completed "
                  "operation for deployment %s. Ignoring the request",
                  deployment_id)
@@ -303,11 +311,11 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
-    final_tasks = cm_workflow.find_tasks(d_wf, state=Task.WAITING, tag='final')
+    final_tasks = cmwf.find_tasks(d_wf, state=Task.WAITING, tag='final')
 
     for final_task in final_tasks:
         if (isinstance(final_task.task_spec, Celery) and
-                not cm_workflow.is_failed_task(final_task)):
+                not cmwf.is_failed_task(final_task)):
             final_task.task_spec._update_state(final_task)
             if final_task._has_state(Task.WAITING):
                 number_of_waiting_celery_tasks += 1
@@ -321,17 +329,17 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
         kwargs.update({'status': 'PAUSED', 'action-response': None,
                        'action': None})
 
-        common_tasks.update_operation.delay(deployment_id, w_id, driver=driver,
-                                            **kwargs)
-        cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
-                                    status="PAUSED", workflow_id=w_id)
+        cmtasks.update_operation.delay(deployment_id, w_id, driver=driver,
+                                       **kwargs)
+        cmwf.update_workflow(d_wf, workflow.get("tenantId"),
+                             status="PAUSED", workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
         return True
     else:
-        common_tasks.update_operation.delay(deployment_id, w_id, driver=driver,
-                                            **kwargs)
-        cm_workflow.update_workflow(d_wf, workflow.get("tenantId"),
-                                    workflow_id=w_id)
+        cmtasks.update_operation.delay(deployment_id, w_id, driver=driver,
+                                       **kwargs)
+        cmwf.update_workflow(d_wf, workflow.get("tenantId"),
+                             workflow_id=w_id)
         driver.unlock_workflow(w_id, key)
         pause_workflow.retry([w_id], kwargs={
             'retry_counter': retry_counter,
@@ -339,14 +347,14 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
         })
 
 
-@task
+@celtask.task
 def revoke_task(task_id):
-    '''Revoke a celery task
+    """Revoke a celery task
     :param task_id: Task Id of the task to revoke
     :return:
-    '''
+    """
     if task_id:
-        current_app.control.revoke(task_id)
+        celery.current_app.control.revoke(task_id)
         LOG.debug("Revoked task %s", task_id)
     else:
         LOG.error("No task id passed to revoke_task")
