@@ -101,8 +101,8 @@ knife-solo_data_bag:
     source ~/.rvm/scripts/rvm
 
     # Install Ruby 1.9.3 locally
-    rvm install 1.9.3-p125
-    rvm use ruby-1.9.3-p125
+    rvm install 1.9.3-p327
+    rvm use ruby-1.9.3-p327
     rvm gemset create chef
     rvm gemset use chef
     gem install bundler
@@ -122,8 +122,8 @@ server:
     source /etc/profile.d/rvm.sh
 
     # Install Ruby 1.9.3 locally
-    rvm install 1.9.3-p125
-    rvm use ruby-1.9.3-p125
+    rvm install 1.9.3-p327
+    rvm use ruby-1.9.3-p327
 
     # Exit and delete any existing gemset (makes this idempotent)
     rvm gemset use global
