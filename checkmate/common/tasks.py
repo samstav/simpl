@@ -17,7 +17,8 @@ from celery.task import task
 
 from checkmate import celeryglobal as celery  # module to be renamed
 from checkmate import db
-from checkmate import operations, deployment
+from checkmate import deployment
+from checkmate import operations
 from checkmate.common import statsd
 
 
@@ -60,7 +61,6 @@ def update_deployment_status(deployment_id, new_status, driver=None):
     status
 
     '''
-    # TODO: rename without _new
-    return deployment.update_deployment_status_new(deployment_id,
-                                                   new_status,
-                                                   driver=driver)
+    return deployment.update_deployment_status(deployment_id,
+                                               new_status,
+                                               driver=driver)

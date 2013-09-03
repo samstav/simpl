@@ -22,7 +22,6 @@ import os
 import urlparse
 
 import bottle
-from celery import task as celery
 import morpheus
 import simplefsm as fsm
 from simplefsm import exceptions as fsmexc
@@ -295,6 +294,9 @@ class Deployment(morpheus.MorpheusDict):
                     {resource_key: resources[resource_key]})
         return non_deleted_resources
 
+    # TODO(Paul): This should only return resources' statuses <<<<<
+    # Then deployment status can be pulled directly from the deployment,
+    # and operations status can be moved to the operations module
     def get_statuses(self, context):
         """Get all statuses from a given context.
 
@@ -319,6 +321,7 @@ class Deployment(morpheus.MorpheusDict):
         statuses.update({'resources': resources})
         return statuses
 
+    # TODO(Paul): See comment on get_statuses <<<<<
     def _calc_dep_and_op_statuses(self, resources):
         """Determine deployment and operation status from resources statuses
 
@@ -359,6 +362,7 @@ class Deployment(morpheus.MorpheusDict):
                 return cm_env.Environment({})
         return self._environment
 
+    # TODO(Paul): Move this to operations.py <<<<<
     def current_workflow_id(self):
         """Return the current Workflow's ID."""
         operation = self.get('operation')
@@ -366,6 +370,7 @@ class Deployment(morpheus.MorpheusDict):
             return operation.get('workflow-id', self.get('id'))
         return None
 
+    # TODO(Paul): Move this to operations.py <<<<<
     def get_operation(self, workflow_id):
         """Gets an operation by Workflow ID.
 
@@ -1374,51 +1379,7 @@ class Deployment(morpheus.MorpheusDict):
         return indexed_resources
 
 
-@celery.task(default_retry_delay=0.3, max_retries=2)
-def update_operation(deployment_id, driver=DB, **kwargs):
-    """DEPRECATED - will be removed around v0.14
-
-    Use checkmate.common.tasks.update_operation
-    """
-    LOG.warn("DEPRECATED CALL: deployment.update_operation called")
-    utils.match_celery_logging(LOG)
-    if kwargs:
-        if utils.is_simulation(deployment_id):
-            driver = SIMULATOR_DB
-        delta = {'operation': dict(kwargs)}
-        try:
-            driver.save_deployment(deployment_id, delta, partial=True)
-        except dbcommon.ObjectLockedError:
-            LOG.warn("Object lock collision in update_operation on "
-                     "Deployment %s", deployment_id)
-            update_operation.retry()
-
-
-@celery.task(default_retry_delay=1, max_retries=4)
-def update_deployment_status(deployment_id, new_status, driver=DB):
-    """DEPRECATED - will be removed around v0.14
-
-    Use update_deployment_status_new
-    """
-    LOG.warn("DEPRECATED CALL: deployment.update_deployment_status called")
-
-    utils.match_celery_logging(LOG)
-    if utils.is_simulation(deployment_id):
-        driver = SIMULATOR_DB
-
-    delta = {}
-    if new_status:
-        delta['status'] = new_status
-    if delta:
-        try:
-            driver.save_deployment(deployment_id, delta, partial=True)
-        except dbcommon.ObjectLockedError:
-            LOG.warn("Object lock collision in update_deployment_status on "
-                     "Deployment %s", deployment_id)
-            update_deployment_status.retry()
-
-
-def update_deployment_status_new(deployment_id, new_status, driver=None):
+def update_deployment_status(deployment_id, new_status, driver=None):
     """Update the status of the specified deployment."""
     if utils.is_simulation(deployment_id):
         driver = SIMULATOR_DB

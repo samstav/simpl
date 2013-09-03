@@ -708,7 +708,7 @@ class TestCeleryTasks(unittest.TestCase):
         expected = {'status': "DOWN"}
         mock_db = mock.Mock()
         mock_db.save_deployment.return_value = expected
-        cmdep.update_deployment_status_new('1234', 'DOWN', driver=mock_db)
+        cmdep.update_deployment_status('1234', 'DOWN', driver=mock_db)
         mock_db.save_deployment.assert_called_with('1234',
                                                    expected,
                                                    partial=True)

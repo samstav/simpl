@@ -561,6 +561,7 @@ class Router(object):
             bottle.request.context.simulation = True
         context = bottle.request.context
         context['deployment'] = api_id
+        # TODO(Paul): This call should be broken into multiple, specific calls <<<<<
         statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})
