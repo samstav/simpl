@@ -1046,7 +1046,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       if(object.attributes)
         params['id'] = object.attributes.deploymentId;
 
-      $scope.deployment = deployments.get(params, function () { $scope.start_tree_preview('#workflow_tree') });
+      $scope.deployment = deployments.get(params);
 
       $scope.data = object;
       $scope.tasks = workflow.flattenTasks({}, object.task_tree);

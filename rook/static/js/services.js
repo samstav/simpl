@@ -2285,12 +2285,20 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
   scope.to_streams = function(specs, deployment) {
     var position_memo = {}
     var streams = {};
+
+    var sorted_keys = []
+    for (var k in specs) {
+      sorted_keys.push(k)
+    }
+    sorted_keys.sort()
+
     streams.all = [];
     streams.nodes = [];
     streams.links = [];
     streams.width = DEFAULTS.WIDTH;
 
-    for (var key in specs) {
+    for (var idx in sorted_keys) {
+      var key = sorted_keys[idx]
       var spec = specs[key];
       if (_is_invalid(spec)) continue;
 
@@ -2316,7 +2324,6 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     }
 
     streams.links = _build_links(specs, streams.nodes);
-
     return streams;
   }
 
