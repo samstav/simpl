@@ -27,7 +27,7 @@ having special logic around celery.
 """
 import os
 
-from celery import task as celtask
+from celery import task
 
 from checkmate import celeryglobal as celery  # module to be renamed
 from checkmate.common import statsd
@@ -41,7 +41,7 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
     os.environ.get('CHECKMATE_CONNECTION_STRING')))
 
 
-@celtask.task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
+@task.task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,
               lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}",
               lock_timeout=2)
 @statsd.collect
@@ -63,7 +63,7 @@ def update_operation(deployment_id, workflow_id, driver=None,
                                 deployment_status=deployment_status, **kwargs)
 
 
-@celtask.task(base=celery.SingleTask, default_retry_delay=3, max_retries=10,
+@task.task(base=celery.SingleTask, default_retry_delay=3, max_retries=10,
               lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}",
               lock_timeout=2)
 @statsd.collect
