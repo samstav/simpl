@@ -115,10 +115,10 @@ def update_operation(deployment_id, workflow_id, driver=None,
                      "operation is already COMPLETE")
             return
 
-        if op_type == 'operations-history':
-            op_list = _pad_list(op_index, dict(kwargs))
-        else:  # It's the current operation
+        if op_index == -1:  # Current operation from 'operation'
             op_list = dict(kwargs)
+        else:  # Operation found in 'operations-history'
+            op_list = _pad_list(op_index, dict(kwargs))
 
         delta = {op_type: op_list}
         if deployment_status:

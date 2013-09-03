@@ -212,7 +212,7 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual('Invalid workflow ID.', str(expected.exception))
 
     def test_get_operation_from_current_operation(self):
-        self.assertEqual(('operation', 0, {'status': 'NEW'}),
+        self.assertEqual(('operation', -1, {'status': 'NEW'}),
                          self.deployment.get_operation("test"))
 
     def test_get_operation_from_history(self):

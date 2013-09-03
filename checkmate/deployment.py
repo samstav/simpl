@@ -389,7 +389,7 @@ class Deployment(morpheus.MorpheusDict):
         op_type, op_index, op_details = None, -1, {}
         if self.current_workflow_id() == workflow_id:
             op_type = 'operation'
-            op_index = 0
+            op_index = -1
             op_details = self.get('operation')
         else:
             for index, operation in enumerate(self.get('operations-history', [])):
