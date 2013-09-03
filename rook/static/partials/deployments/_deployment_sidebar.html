@@ -10,12 +10,10 @@
     </a>
   </li>
 
-  <li ng-show="showCommands" >
-    <a ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
-      <i class="icon-retweet"></i>
-      Sync
-    </a>
-  </li>
+  <a ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
+    <i class="icon-retweet"></i>
+    Sync
+  </a>
 
   <li ng-show="available_services(data).length > 0">
     <a ng-show="data.status == 'UP'" ng-click="open_modal('delete_nodes_warning')" tooltip="Delete Nodes from current deployment" tooltip-placement="right">

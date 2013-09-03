@@ -2123,7 +2123,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     };
 
     if (auth.is_logged_in()) {
-      Deployment.sync($scope.data, $scope.sync_success, $scope.sync_failure)
+      Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure)
     } else {
       $scope.loginPrompt().then(retry);
     }
