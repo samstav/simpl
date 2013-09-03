@@ -242,7 +242,7 @@ def main():
 
     if CONFIG.webhook is True:
         if 'github' not in MANAGERS:
-            MANAGERS['github'] = blueprints.GitHubManager(DRIVERS, CONFIG)
+            MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
         ROUTERS['webhook'] = blueprints.WebhookRouter(
             root_app, MANAGERS['github']
         )
@@ -250,14 +250,14 @@ def main():
         resources.append('webhook')
 
     # Load Deployment Handlers
-    MANAGERS['deployments'] = deployments.Manager(DRIVERS)
+    MANAGERS['deployments'] = deployments.Manager()
     ROUTERS['deployments'] = deployments.Router(
         root_app, MANAGERS['deployments']
     )
     resources.append('deployments')
 
     # Load Workflow Handlers
-    MANAGERS['workflows'] = workflows.Manager(DRIVERS)
+    MANAGERS['workflows'] = workflows.Manager()
     ROUTERS['workflows'] = workflows.Router(
         root_app, MANAGERS['workflows'], MANAGERS['deployments']
     )
@@ -266,17 +266,17 @@ def main():
     # Load Blueprint Handlers - choose between database or github cache
     if CONFIG.github_api:
         if 'github' not in MANAGERS:
-            MANAGERS['github'] = blueprints.GitHubManager(DRIVERS, CONFIG)
+            MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
         MANAGERS['blueprints'] = MANAGERS['github']
     else:
-        MANAGERS['blueprints'] = blueprints.Manager(DRIVERS)
+        MANAGERS['blueprints'] = blueprints.Manager()
     ROUTERS['blueprints'] = blueprints.Router(
         root_app, MANAGERS['blueprints']
     )
     resources.append('blueprints')
 
     # Load Stack Handlers
-    MANAGERS['stacks'] = stacks.Manager(DRIVERS)
+    MANAGERS['stacks'] = stacks.Manager()
     ROUTERS['stacks'] = stacks.Router(
         root_app, MANAGERS['stacks']
     )
@@ -285,7 +285,7 @@ def main():
     # Load admin routes if requested
     if CONFIG.with_admin is True:
         LOG.info("Loading Admin API")
-        MANAGERS['tenants'] = admin.TenantManager(DRIVERS)
+        MANAGERS['tenants'] = admin.TenantManager()
         ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'],
                                         MANAGERS['tenants'])
         resources.append('admin')

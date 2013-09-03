@@ -26,7 +26,13 @@ class TenantTagsTests(unittest.TestCase):
     def setUp(self):
         unittest.TestCase.setUp(self)
         self.mock_db = mock.Mock()
-        self.controller = admin.TenantManager({'default': self.mock_db})
+        get_driver_patcher = mock.patch.object(admin.tenants.db,
+                                               'get_driver')
+        mock_get_driver = get_driver_patcher.start()
+        mock_get_driver.return_value = self.mock_db
+        self.addCleanup(get_driver_patcher.stop)
+
+        self.controller = admin.TenantManager()
 
     def tearDown(self):
         unittest.TestCase.tearDown(self)

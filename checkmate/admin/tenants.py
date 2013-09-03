@@ -3,23 +3,23 @@ Tenants
 '''
 import logging
 
-from checkmate import base
+from checkmate import db
 from checkmate.exceptions import CheckmateDoesNotExist
 
 LOG = logging.getLogger(__name__)
 
 
-class Manager(base.ManagerBase):
+class Manager(object):
     '''Contains Tenants Model and Logic for Accessing Tenants.'''
 
     def list_tenants(self, *tags):
         '''Get existing tenants.'''
-        return self.driver.list_tenants(*tags)
+        return db.get_driver().list_tenants(*tags)
 
     def save_tenant(self, tenant_id, body):
         '''Save tenant (and overwrite).'''
         body['id'] = tenant_id
-        self.driver.save_tenant({
+        db.get_driver().save_tenant({
             'id': tenant_id,
             'tags': body.get('tags', []),
         })
@@ -27,7 +27,7 @@ class Manager(base.ManagerBase):
     def get_tenant(self, tenant_id):
         '''Get a single tenant.'''
         if tenant_id:
-            tenant = self.driver.get_tenant(tenant_id)
+            tenant = db.get_driver().get_tenant(tenant_id)
             if not tenant:
                 raise CheckmateDoesNotExist('No tenant %s' % tenant_id)
             return tenant
@@ -39,4 +39,4 @@ class Manager(base.ManagerBase):
                 tags = []
             elif not isinstance(tags, (list, tuple)):
                 tags = [tags]
-            self.driver.add_tenant_tags(tenant_id, *tags)
+            db.get_driver().add_tenant_tags(tenant_id, *tags)
