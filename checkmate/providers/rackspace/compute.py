@@ -458,7 +458,7 @@ class Provider(RackspaceComputeProviderBase):
                 'checkmate.ssh.execute_2',
                 call_args=[
                     queued_task_dict,
-                    swops.PathAttrib("instance:%s/public_ip" % key),
+                    swops.PathAttrib("instance:%s/ip" % key),
                     "touch /tmp/checkmate-complete",
                     "root",
                 ],
