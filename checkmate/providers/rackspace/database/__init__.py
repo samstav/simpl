@@ -210,10 +210,15 @@ def delete_instance_task(context, api=None):
                     'status-message': 'Host %s is being deleted'
                 }
             })
-    except (pyexc.ClientException, pyexc.NotFound) as rese:
-        if rese.code in [401, 403, 404]:  # already deleted
+    except pyexc.NotFound as rese:
+        if rese.code == '404':  # already deleted
             # TODO(Nate): Remove status-message on current resource
-            res = {inst_key: {'status': 'DELETED'}}
+            res = {
+                inst_key: {
+                    'status': 'DELETED'
+                    'status-message': ''
+                }
+            }
             for hosted in resource.get('hosts', []):
                 res.update({
                     'instance:%s' % hosted: {
@@ -291,7 +296,7 @@ def wait_on_del_instance(context, api=None):
         api = Provider.connect(context, region)
     try:
         instance = api.get(instance_id)
-    except (pyexc.ClientException, pyexc.NotFound):
+    except pyexc.NotFound:
         pass
 
     if not instance or ('DELETED' == instance.status):
@@ -391,8 +396,8 @@ def delete_database(context, api=None):
     instance = None
     try:
         instance = api.get(instance_id)
-    except (pyexc.ClientException, pyexc.NotFound) as respe:
-        if respe.code != 404:
+    except pyexc.ClientException as respe:
+        if respe.code != '404':
             delete_database.retry(exc=respe)
     if not instance or (instance.status == 'DELETED'):
         # instance is gone, so is the db
