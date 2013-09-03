@@ -236,7 +236,7 @@ describe('AppController', function(){
     });
 
     it('should redirect user to the homepage', function() {
-      expect(location.url).toHaveBeenCalledWith('/');
+      expect(location.url).toHaveBeenCalledWith('/admin/deployments');
     })
   });
 

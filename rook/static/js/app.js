@@ -594,7 +594,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
 
   $scope.exit_impersonation = function() {
     auth.exit_impersonation();
-    $location.url('/');
+    $location.url('/admin/deployments');
   };
 
   $scope.is_impersonating = function() {
