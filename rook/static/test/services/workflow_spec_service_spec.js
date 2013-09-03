@@ -52,6 +52,23 @@ describe('Deployment service', function(){
         streams = WorkflowSpec.to_streams(specs);
       });
 
+      it('should return stream nodes sorted by key', function(){
+        var spec_2 = {
+          id: 2,
+          properties: { resource: '0' },
+          inputs: [ 'Alpha Spec' ]
+        };
+        var spec_3 = {
+          id: 3,
+          properties: { resource: '0' },
+          inputs: [ 'Alpha Spec' ]
+        };
+        var deployment = { resources: {} };
+        specs = { 'Zeta Spec': spec_3, 'Bravo Spec': spec_2, 'Alpha Spec': spec };
+        streams = WorkflowSpec.to_streams(specs);
+        expect(streams.nodes).toEqual([spec, spec_2, spec_3])
+      });
+
       it('if no resource ID in properties, read it from the inputs', function() {
         spec = {
           id: 1,
