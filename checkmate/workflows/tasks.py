@@ -34,8 +34,8 @@ from checkmate import middleware as cmmid
 from checkmate import operations as cmops
 from checkmate import utils
 from checkmate import workflow as cmwf
+from checkmate.workflows import exception_handlers as cmexch
 from checkmate.workflows import Manager
-
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
@@ -115,35 +115,41 @@ def update_deployment(w_id, error=None):
 
 
 @celtask.task(base=WorkflowEventHandlerTask, default_retry_delay=10,
-      max_retries=300, time_limit=3600, ignore_result=True)
-def cycle_workflow(w_id, context, wait=1, apply_callback=True):
+              max_retries=300, time_limit=3600)
+def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
     extend the wait time between cycles so we don't load the system.
 
     :param w_id: the workflow id
     :param wait: how long to wait between runs. Grows without activity
+    :param apply_callbacks: whether to apply success and failure callbacks
     """
     utils.match_celery_logging(LOG)
+    key = None
     try:
         workflow, key = MANAGERS['workflows'].lock_workflow(w_id,
                                                             with_secrets=True)
-        driver = MANAGERS['workflows'].select_driver(w_id)
         serializer = DictionarySerializer()
         d_wf = Workflow.deserialize(serializer, workflow)
-        dep_id = d_wf.get_attribute("deploymentId") or w_id
+        driver = MANAGERS['workflows'].select_driver(w_id)
 
         initial_wf_state = cmwf.update_workflow_status(d_wf)
         d_wf.complete_all()
         final_workflow_state = cmwf.update_workflow_status(d_wf)
-        errored_tasks = final_workflow_state.get('errored_tasks')
+        errored_tasks_ids = final_workflow_state.get('errored_tasks')
 
         if initial_wf_state != final_workflow_state:
-            if errored_tasks:
-                reset_wf = cmwf.try_create_reset_failed_tasks_workflow(
-                    d_wf, dep_id, context, errored_tasks, driver=driver)
-                if reset_wf:
-                    cycle_workflow.delay(reset_wf.get_attribute('id'), context)
+            if errored_tasks_ids:
+                handlers = cmexch.get_handlers(
+                    d_wf, errored_tasks_ids, context, driver)
+                for handler in handlers:
+                    handler_wf_id = handler.handle()
+                    if handler_wf_id:
+                        cycle_workflow.apply_async(
+                            args=[handler_wf_id, context],
+                            kwargs={'apply_callbacks': False},
+                            task_id=handler_wf_id)
 
             MANAGERS['workflows'].save_spiff_workflow(
                 d_wf, celery_task_id=cycle_workflow.request.id)
@@ -177,13 +183,18 @@ def cycle_workflow(w_id, context, wait=1, apply_callback=True):
     LOG.debug("Finished run of workflow '%s'. Waiting %i seconds to "
               "next run. Retries done: %s", w_id, wait,
               cycle_workflow.request.retries)
-    cycle_workflow.retry([w_id, context], kwargs={'wait': wait},
+    cycle_workflow.retry([w_id, context],
+                         kwargs={
+                             'wait': wait,
+                             'apply_callbacks': apply_callbacks
+                         },
                          countdown=wait)
 
 
 @celtask.task(default_retry_delay=10, max_retries=10)
 def reset_task_tree(w_id, task_id):
     utils.match_celery_logging(LOG)
+    key = None
     try:
         workflow, key = MANAGERS['workflows'].lock_workflow(w_id,
                                                             with_secrets=True)

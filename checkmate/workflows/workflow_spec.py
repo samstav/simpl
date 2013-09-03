@@ -103,99 +103,98 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     @staticmethod
-    def create_reset_failed_resources_spec(context, deployment,
-                                           tasks_to_reset, workflow_id):
+    def create_reset_failed_resource_spec(context, deployment,
+                                          task_to_reset, workflow_id):
         """Creates workflow spec for passed in failed resource and task
         :param context: request context
         :param deployment: deployment
-        :param tasks_to_reset: failed task ids
+        :param task_to_reset: failed task id
         :param workflow_id: workflow containing the task
         :return:
         """
         wf_spec = WorkflowSpec(name=('Reset failed resources in Deployment '
                                      '%s' % deployment['id']))
         environment = deployment.environment()
-        for task in tasks_to_reset:
-            context = copy.deepcopy(context)
-            resource_key = task.task_spec.get_property("resource")
-            LOG.info("Building workflow spec for deleting resource %s "
-                     "deployment %s", resource_key, deployment['id'])
+        context = copy.deepcopy(context)
+        resource_key = task_to_reset.task_spec.get_property("resource")
+        LOG.info("Building workflow spec for deleting resource %s "
+                 "deployment %s", resource_key, deployment['id'])
 
-            wait_for_errored_resource = specs.Celery(
-                wf_spec,
-                'Wait for resource %s to move to ERROR status' %
+        wait_for_errored_resource = specs.Celery(
+            wf_spec,
+            'Wait for resource %s to move to ERROR status' %
+            resource_key,
+            'checkmate.deployments.tasks.wait_for_resource_status',
+            call_args=[
+                deployment.get("id"),
                 resource_key,
-                'checkmate.deployments.tasks.wait_for_resource_status',
-                call_args=[
-                    deployment.get("id"),
-                    resource_key,
-                    "ERROR"
-                ],
-                defines=dict(
-                    resource=resource_key,
-                ),
-                properties={'estimated_duration': 10}
-            )
+                "ERROR"
+            ],
+            defines=dict(
+                resource=resource_key,
+            ),
+            properties={'estimated_duration': 10}
+        )
 
-            resource = deployment.get("resources").get(resource_key)
-            provider = environment.get_provider(resource["provider"])
-            delete_tasks = provider.delete_resource_tasks(wf_spec,
-                                                          context,
-                                                          deployment["id"],
-                                                          resource,
-                                                          resource_key)
-            wait_for_deleted_resource = specs.Celery(
-                wf_spec,
-                'Wait for resource %s to move to DELETED status' %
+        resource = deployment.get("resources").get(resource_key)
+        provider = environment.get_provider(resource["provider"])
+        delete_tasks = provider.delete_resource_tasks(wf_spec,
+                                                      context,
+                                                      deployment["id"],
+                                                      resource,
+                                                      resource_key)
+        wait_for_deleted_resource = specs.Celery(
+            wf_spec,
+            'Wait for resource %s to move to DELETED status' %
+            resource_key,
+            'checkmate.deployments.tasks.wait_for_resource_status',
+            call_args=[
+                deployment.get("id"),
                 resource_key,
-                'checkmate.deployments.tasks.wait_for_resource_status',
-                call_args=[
-                    deployment.get("id"),
-                    resource_key,
-                    "DELETED"
-                ],
-                defines=dict(
-                    resource=resource_key,
-                ),
-                properties={'estimated_duration': 10}
-            )
+                "DELETED"
+            ],
+            defines=dict(
+                resource=resource_key,
+            ),
+            properties={'estimated_duration': 10}
+        )
 
-            reset_errored_resource_task = specs.Celery(
-                wf_spec,
-                'Copy errored resource %s to a new resource' % resource_key,
-                'checkmate.deployments.tasks.reset_failed_resource_task',
-                call_args=[
-                    deployment.get("id"),
-                    resource_key
-                ],
-                defines=dict(
-                    resource=resource_key,
-                ),
-                properties={'estimated_duration': 5}
-            )
+        reset_errored_resource_task = specs.Celery(
+            wf_spec,
+            'Copy errored resource %s to a new resource' % resource_key,
+            'checkmate.deployments.tasks.reset_failed_resource_task',
+            call_args=[
+                deployment.get("id"),
+                resource_key
+            ],
+            defines=dict(
+                resource=resource_key,
+            ),
+            properties={'estimated_duration': 5}
+        )
 
-            reset_task_tree = specs.Celery(
-                wf_spec,
-                'Reset task %s in workflow %s' % (task.id, workflow_id),
-                'checkmate.workflows.tasks.reset_task_tree',
-                call_args=[
-                    workflow_id,
-                    task.id
-                ],
-                properties={'estimated_duration': 5}
-            )
+        reset_task_tree = specs.Celery(
+            wf_spec,
+            'Reset task %s in workflow %s' % (task_to_reset.id, workflow_id),
+            'checkmate.workflows.tasks.reset_task_tree',
+            call_args=[
+                workflow_id,
+                task_to_reset.id
+            ],
+            properties={'estimated_duration': 5}
+        )
 
-            wf_spec.start.connect(wait_for_errored_resource)
-            if delete_tasks:
-                tasks = delete_tasks.get('root')
-                if isinstance(tasks, list):
-                    for task in tasks:
-                        wait_for_errored_resource.connect(task)
-                else:
-                    wait_for_errored_resource.connect(tasks)
-            delete_tasks.get('final').connect(wait_for_deleted_resource)
-            wait_for_deleted_resource.connect(reset_errored_resource_task)
-            reset_errored_resource_task.connect(reset_task_tree)
+        wf_spec.start.connect(wait_for_errored_resource)
+        if delete_tasks:
+            tasks = delete_tasks.get('root')
+            if isinstance(tasks, list):
+                for task in tasks:
+                    wait_for_errored_resource.connect(task)
+            else:
+                wait_for_errored_resource.connect(tasks)
+        delete_tasks.get('final').connect(wait_for_deleted_resource)
+        wait_for_deleted_resource.connect(reset_errored_resource_task)
+        reset_errored_resource_task.connect(reset_task_tree)
 
         if not wf_spec.start.outputs:
             noop = specs.Simple(wf_spec, "end")

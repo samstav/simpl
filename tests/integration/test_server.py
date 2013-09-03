@@ -29,6 +29,7 @@ from checkmate import environments
 from checkmate import middleware as cmmid
 from checkmate import server
 from checkmate import workflows
+from checkmate.workflows import router
 
 
 class TestServer(unittest.TestCase):
@@ -49,7 +50,6 @@ class TestServer(unittest.TestCase):
         self.workflow_router = workflows.Router(self.root_app,
                                                 workflows_manager,
                                                 deployments_manager)
-
         tenant = cmmid.TenantMiddleware(self.root_app)
         context = cmmid.ContextMiddleware(tenant)
         extension = cmmid.ExtensionsMiddleware(context)

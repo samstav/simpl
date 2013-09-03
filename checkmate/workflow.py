@@ -15,7 +15,6 @@ from checkmate.classes import ExtensibleDict
 from checkmate.db import get_driver
 from checkmate.deployment import Deployment
 from checkmate.exceptions import CheckmateException
-from checkmate.exceptions import CheckmateResetTaskTreeException
 from checkmate.exceptions import CheckmateResumableException
 from checkmate.exceptions import CheckmateRetriableException
 from checkmate.exceptions import CheckmateUserException
@@ -153,44 +152,32 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     driver.save_workflow(workflow_id, body, secrets=secrets)
 
 
-def try_create_reset_failed_tasks_workflow(d_wf, deployment_id, context,
-                                           failed_task_ids, driver=DB):
-    '''Traverses through all the workflow tasks and searches for reset task
-    tree exception. If found the task tree is reset
-
-    :param d_wf: Workflow to traverse
+def create_reset_failed_task_workflow(d_wf, deployment_id, context,
+                                      failed_task, driver=DB):
+    """
+    Creates workflow for resetting a failed task
+    :param d_wf: workflow containing the task
+    :param deployment_id: deployment id
+    :param context: context
+    :param failed_task: failed task
+    :param driver: db driver
     :return:
-    '''
+    """
     deployment = Deployment(driver.get_deployment(deployment_id,
                                                   with_secrets=False))
-    tasks_to_reset = []
-    while failed_task_ids:
-        task_id = failed_task_ids.pop(0)
-        task = d_wf.get_task(task_id)
-        task_state = task._get_internal_attribute("task_state")
-        info = task_state["info"]
-        exception = eval(info)
 
-        task_spec = task.task_spec
-        task_retry_count = task_spec.get_property("task_retry_count",
-                                                  default=0)
-        if (type(exception) is CheckmateResetTaskTreeException and
-                task_retry_count < TASK_RETRY_MAX_LIMIT):
-            tasks_to_reset.append(task)
-            task.task_spec.set_property(task_retry_count=task_retry_count+1)
-
-    if tasks_to_reset:
-        spec = WorkflowSpec.create_reset_failed_resources_spec(
-            context,
-            deployment,
-            tasks_to_reset,
-            d_wf.get_attribute('id')
-        )
-        reset_wf = create_workflow(spec, deployment, context, driver=driver,
-                                   wf_type="CLEAN UP")
-        LOG.debug("Created workflow %s for resetting failed tasks in "
-                  "deployment %s", reset_wf.get_attribute('id'), deployment_id)
-        return reset_wf
+    spec = WorkflowSpec.create_reset_failed_resource_spec(
+        context,
+        deployment,
+        failed_task,
+        d_wf.get_attribute('id')
+    )
+    reset_wf = create_workflow(spec, deployment, context, driver=driver,
+                               wf_type="CLEAN UP")
+    LOG.debug("Created workflow %s for resetting failed task %s in "
+              "deployment %s", reset_wf.get_attribute('id'),
+              failed_task.id, deployment_id)
+    return reset_wf
 
 
 def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
@@ -406,6 +393,27 @@ def find_tasks(wf, state=Task.ANY_MASK, **kwargs):
         if match:
             tasks.append(task)
     return tasks
+
+
+def add_subworkflow(d_wf, subworkflow_id, task_id):
+    task_id = str(task_id)
+    subworkflows = d_wf.get_attribute("subworkflows", {})
+
+    if task_id in subworkflows:
+        history = d_wf.get_attribute("subworkflows-history", {})
+
+        historical_subworkflows = history.get(task_id, [])
+        historical_subworkflows.append(subworkflows[task_id])
+        history[task_id] = historical_subworkflows
+        d_wf.attributes["subworkflows-history"] = history
+
+    subworkflows.update({task_id: subworkflow_id})
+    d_wf.attributes["subworkflows"] = subworkflows
+
+
+def get_subworkflow(wf, task_id):
+    if "subworkflows" in wf.attributes:
+        return wf.get_attribute("subworkflows", {}).get(str(task_id))
 
 
 class Workflow(ExtensibleDict):
