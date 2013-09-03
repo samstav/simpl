@@ -22,9 +22,7 @@ from checkmate.exceptions import (
     CheckmateException,
     CheckmateResumableException,
 )
-from checkmate.utils import (
-    match_celery_logging,
-)
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -104,7 +102,7 @@ def add_databases(context, instance_id, databases, region, api=None):
                     'collate': 'latin5_turkish_ci'}]
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
     '''
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     dbnames = []
     for database in databases:
@@ -131,7 +129,7 @@ def delete_instance_task(context, api=None):
     users.
     '''
 
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         '''Handle task failure.'''
@@ -238,7 +236,7 @@ def delete_instance_task(context, api=None):
 def wait_on_del_instance(context, api=None):
     '''Wait for the specified instance to be deleted.'''
 
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         '''Handle task failure.'''
@@ -331,7 +329,7 @@ def wait_on_del_instance(context, api=None):
 def delete_database(context, api=None):
     '''Delete a database from an instance.'''
 
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         '''Handle task failure.'''
@@ -423,7 +421,7 @@ def delete_database(context, api=None):
 @statsd.collect
 def delete_user(context, instance_id, username, region, api=None):
     '''Delete a database user from an instance.'''
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
     if api is None:
         api = Provider.connect(context, region)
 
