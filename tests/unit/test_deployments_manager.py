@@ -29,8 +29,14 @@ from checkmate import workflows
 class TestManager(unittest.TestCase):
 
     def setUp(self):
-        self.mock_db = mock.Mock()
-        self.controller = deployments.Manager({'default': self.mock_db})
+        self.driver = mock.Mock()
+        get_driver_patcher = mock.patch.object(deployments.manager.db,
+                                               'get_driver')
+        mock_get_driver = get_driver_patcher.start()
+        mock_get_driver.return_value = self.driver
+        self.addCleanup(get_driver_patcher.stop)
+
+        self.controller = deployments.Manager()
         unittest.TestCase.setUp(self)
 
     def tearDown(self):
@@ -61,7 +67,7 @@ class TestManager(unittest.TestCase):
             mock_spec,
             deployment,
             mock_context,
-            driver=self.controller.driver,
+            driver=self.driver,
             wf_type="SCALE DOWN"
         )
         mock_add.assert_called_with(deployment, mock_wf,
@@ -87,7 +93,7 @@ class TestManager(unittest.TestCase):
             mock_spec,
             deployment,
             mock_context,
-            driver=self.controller.driver,
+            driver=self.driver,
             wf_type="SCALE UP"
         )
         mock_add.assert_called_with(deployment, mock_wf,
@@ -133,12 +139,12 @@ class TestManager(unittest.TestCase):
             }
         }})
 
-        self.mock_db.get_deployment.return_value = deployment
-        self.mock_db.save_deployment(deployment_id, expected_deployment, None,
-                                     tenant_id=1000, partial=True)
+        self.driver.get_deployment.return_value = deployment
+        self.driver.save_deployment(deployment_id, expected_deployment, None,
+                                    tenant_id=1000, partial=True)
         self.controller.reset_failed_resource(deployment_id, "0")
-        self.mock_db.get_deployment.assert_called_with(deployment_id,
-                                                       with_secrets=False)
+        self.driver.get_deployment.assert_called_with(deployment_id,
+                                                      with_secrets=False)
 
     def test_reset_failed_resources_without_instance_key(self):
         deployment_id = 1234
@@ -151,10 +157,10 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        self.mock_db.get_deployment.return_value = deployment
+        self.driver.get_deployment.return_value = deployment
         self.controller.reset_failed_resource(deployment_id, "0")
-        self.mock_db.get_deployment.assert_called_with(deployment_id,
-                                                       with_secrets=False)
+        self.driver.get_deployment.assert_called_with(deployment_id,
+                                                      with_secrets=False)
 
     def test_reset_failed_resources_without_instance_id_key(self):
         deployment_id = 1234
@@ -169,10 +175,10 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        self.mock_db.get_deployment.return_value = deployment
+        self.driver.get_deployment.return_value = deployment
         self.controller.reset_failed_resource(deployment_id, "0")
-        self.mock_db.get_deployment.assert_called_with(deployment_id,
-                                                       with_secrets=False)
+        self.driver.get_deployment.assert_called_with(deployment_id,
+                                                      with_secrets=False)
 
     def test_reset_failed_resources_without_error_status(self):
         deployment_id = 1234
@@ -188,31 +194,38 @@ class TestManager(unittest.TestCase):
                 },
             }
         }
-        self.mock_db.get_deployment.return_value = deployment
+        self.driver.get_deployment.return_value = deployment
         self.controller.reset_failed_resource(deployment_id, "0")
-        self.mock_db.get_deployment.assert_called_with(deployment_id,
-                                                       with_secrets=False)
+        self.driver.get_deployment.assert_called_with(deployment_id,
+                                                      with_secrets=False)
 
 
 class TestCount(unittest.TestCase):
     def setUp(self):
         self._deployments = json.load(open(os.path.join(
             os.path.dirname(__file__), '../data', 'deployments.json')))
-        self.mock_db = mock.Mock()
-        self.controller = deployments.Manager({'default': self.mock_db})
+        self.driver = mock.Mock()
+
+        get_driver_patcher = mock.patch.object(deployments.manager.db,
+                                               'get_driver')
+        mock_get_driver = get_driver_patcher.start()
+        mock_get_driver.return_value = self.driver
+        self.addCleanup(get_driver_patcher.stop)
+
+        self.controller = deployments.Manager()
         unittest.TestCase.setUp(self)
 
     def tearDown(self):
         unittest.TestCase.tearDown(self)
 
     def test_get_count_all(self):
-        self.mock_db.get_deployments = mock.Mock(
+        self.driver.get_deployments = mock.Mock(
             return_value=self._deployments)
         self.assertEqual(self.controller.count(), 4)
-        self.mock_db.get_deployments.assert_called_with(tenant_id=None,
-                                                        with_count=True,
-                                                        status=None,
-                                                        query=None)
+        self.driver.get_deployments.assert_called_with(tenant_id=None,
+                                                       with_count=True,
+                                                       status=None,
+                                                       query=None)
 
     def test_get_count_tenant(self):
         # remove the deployments that dont belong to our tenant
@@ -220,22 +233,22 @@ class TestCount(unittest.TestCase):
         deps['results'].pop("3fgh")
         deps['results'].pop("4ijk")
         deps['collection-count'] = 2
-        self.mock_db.get_deployments = mock.Mock(return_value=deps)
+        self.driver.get_deployments = mock.Mock(return_value=deps)
         self.assertEqual(self.controller.count(tenant_id="12345"), 2)
-        self.mock_db.get_deployments.assert_called_with(tenant_id="12345",
-                                                        with_count=True,
-                                                        status=None,
-                                                        query=None)
+        self.driver.get_deployments.assert_called_with(tenant_id="12345",
+                                                       with_count=True,
+                                                       status=None,
+                                                       query=None)
 
     def test_get_count_blueprint(self):
-        self.mock_db.get_deployments = mock.Mock(
+        self.driver.get_deployments = mock.Mock(
             return_value=self._deployments)
         result = self.controller.count(blueprint_id="blp-123-aabc-efg")
         self.assertEqual(result, 2)
-        self.mock_db.get_deployments.assert_called_with(tenant_id=None,
-                                                        with_count=True,
-                                                        status=None,
-                                                        query=None)
+        self.driver.get_deployments.assert_called_with(tenant_id=None,
+                                                       with_count=True,
+                                                       status=None,
+                                                       query=None)
 
     def test_get_count_blueprint_and_tenant(self):
         deps = self._deployments.copy()
@@ -244,23 +257,21 @@ class TestCount(unittest.TestCase):
         deps['results'].pop("4ijk")
         deps['collection-count'] = 1
 
-        self.mock_db.get_deployments = mock.Mock(return_value=deps)
+        self.driver.get_deployments = mock.Mock(return_value=deps)
         result = self.controller.count(blueprint_id="blp-123-aabc-efg",
                                        tenant_id="12345")
         self.assertEquals(result, 1)
-        self.mock_db.get_deployments.assert_called_with(tenant_id="12345",
-                                                        with_count=True,
-                                                        status=None,
-                                                        query=None)
+        self.driver.get_deployments.assert_called_with(tenant_id="12345",
+                                                       with_count=True,
+                                                       status=None,
+                                                       query=None)
 
     def test_send_query_to_driver(self):
         # set up
         results = {'_links': {}, 'results': {}, 'collection-count': 0}
-        self.driver = mock.Mock()
         self.driver.get_deployments.return_value = results
-        self.manager = deployments.Manager({'default': self.driver})
 
-        self.manager.count(query='fake query')
+        self.controller.count(query='fake query')
         self.driver.get_deployments.assert_called_with(
             tenant_id=mock.ANY,
             with_count=mock.ANY,
@@ -311,7 +322,14 @@ class TestSecrets(unittest.TestCase):
         deployment['display-outputs'].update(deployment.calculate_outputs())
         self.deployment = deployment
         self.driver = mock.Mock()
-        self.manager = deployments.Manager({'default': self.driver})
+
+        get_driver_patcher = mock.patch.object(deployments.manager.db,
+                                               'get_driver')
+        mock_get_driver = get_driver_patcher.start()
+        mock_get_driver.return_value = self.driver
+        self.addCleanup(get_driver_patcher.stop)
+
+        self.manager = deployments.Manager()
 
     def test_get_deployment_hides_secrets(self):
         """Check that GET deployment responds without secrets."""
@@ -400,8 +418,14 @@ class TestDeploymentManager(unittest.TestCase):
     def setUp(self):
         results = {'_links': {}, 'results': {}, 'collection-count': 0}
         self.driver = mock.Mock()
+        get_driver_patcher = mock.patch.object(deployments.manager.db,
+                                               'get_driver')
+        mock_get_driver = get_driver_patcher.start()
+        mock_get_driver.return_value = self.driver
+        self.addCleanup(get_driver_patcher.stop)
+
         self.driver.get_deployments.return_value = results
-        self.manager = deployments.Manager({'default': self.driver})
+        self.manager = deployments.Manager()
 
 
 class TestGetDeployments(TestDeploymentManager):

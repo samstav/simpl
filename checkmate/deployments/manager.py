@@ -12,7 +12,6 @@ import uuid
 import eventlet
 
 from .planner import Planner
-from checkmate import base
 from checkmate import db
 from checkmate import operations
 from checkmate import utils
@@ -32,7 +31,7 @@ from checkmate.exceptions import (
 LOG = logging.getLogger(__name__)
 
 
-class Manager(base.ManagerBase):
+class Manager(object):
     """Contains Deployments Model and Logic for Accessing Deployments."""
 
     def count(self, tenant_id=None, blueprint_id=None, status=None,
@@ -40,10 +39,10 @@ class Manager(base.ManagerBase):
         """Return count of deployments filtered by passed in parameters."""
         # TODO: This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
-        deployments = self.driver.get_deployments(tenant_id=tenant_id,
-                                                  with_count=True,
-                                                  status=status,
-                                                  query=query)
+        deployments = db.get_driver().get_deployments(tenant_id=tenant_id,
+                                                      with_count=True,
+                                                      status=status,
+                                                      query=query)
         count = 0
         if blueprint_id:
             if not deployments:
@@ -64,8 +63,8 @@ class Manager(base.ManagerBase):
 
     def get_deployments(self, tenant_id=None, offset=None, limit=None,
                         with_deleted=False, status=None, query=None):
-        """Get existing deployments.."""
-        results = self.driver.get_deployments(
+        """Get existing deployments."""
+        results = db.get_driver().get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
@@ -116,10 +115,11 @@ class Manager(base.ManagerBase):
             assert tenant_id, "Tenant ID must be specified in deployment"
             deployment['tenantId'] = tenant_id
         body, secrets = utils.extract_sensitive_data(deployment)
-        return self.select_driver(api_id).save_deployment(api_id, body,
-                                                          secrets,
-                                                          tenant_id=tenant_id,
-                                                          partial=partial)
+        return db.get_driver(api_id=api_id).save_deployment(api_id, body,
+                                                            secrets,
+                                                            tenant_id=
+                                                            tenant_id,
+                                                            partial=partial)
 
     def deploy(self, deployment, context):
         """Deploys a deployment and returns the operation."""
@@ -134,8 +134,8 @@ class Manager(base.ManagerBase):
         deploy_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
             deployment, context)
         spiff_wf = workflow.create_workflow(
-            deploy_spec, deployment, context, driver=self.select_driver(
-                deployment['id']), workflow_id=deployment['id'],
+            deploy_spec, deployment, context, driver=db.get_driver(
+                api_id=deployment['id']), workflow_id=deployment['id'],
             wf_type="BUILD")
         deployment['workflow'] = spiff_wf.attributes['id']
         operations.add(deployment, spiff_wf, "BUILD",
@@ -145,9 +145,9 @@ class Manager(base.ManagerBase):
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
         """Get a single deployment by id.
         """
-        entity = self.select_driver(api_id).get_deployment(api_id,
-                                                           with_secrets=
-                                                           with_secrets)
+        entity = db.get_driver(api_id=api_id).get_deployment(api_id,
+                                                             with_secrets=
+                                                             with_secrets)
         if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
@@ -180,8 +180,8 @@ class Manager(base.ManagerBase):
     def get_deployment_secrets(self, api_id, tenant_id=None):
         """Get the passwords and keys of a single deployment by id.
         """
-        entity = self.select_driver(api_id).get_deployment(api_id,
-                                                           with_secrets=True)
+        entity = db.get_driver(api_id=api_id).get_deployment(api_id,
+                                                             with_secrets=True)
         if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
@@ -403,8 +403,9 @@ class Manager(base.ManagerBase):
             }
         """
 
-        deployment = self.select_driver(
-            deployment_id).get_deployment(deployment_id, with_secrets=True)
+        deployment = db.get_driver(
+            api_id=deployment_id
+        ).get_deployment(deployment_id, with_secrets=True)
         deployment = Deployment(deployment)
 
         if not isinstance(contents, dict):
@@ -414,9 +415,9 @@ class Manager(base.ManagerBase):
         deployment.on_postback(contents, target=deployment)
 
         body, secrets = utils.extract_sensitive_data(deployment)
-        self.driver.save_deployment(deployment_id, body, secrets,
-                                    partial=True,
-                                    tenant_id=deployment['tenantId'])
+        db.get_driver().save_deployment(deployment_id, body, secrets,
+                                        partial=True,
+                                        tenant_id=deployment['tenantId'])
 
         LOG.debug("Updated deployment %s with postback", deployment_id,
                   extra=dict(data=contents))
@@ -463,7 +464,7 @@ class Manager(base.ManagerBase):
         resources_for_service = list(set(resources_for_service) - set(
             victim_list))
         victim_list.extend(resources_for_service[:(count - len(victim_list))])
-        driver = self.select_driver(deployment["id"])
+        driver = db.get_driver(api_id=deployment["id"])
         wf_spec = workflows.WorkflowSpec.create_delete_node_spec(
             deployment, victim_list, context)
         delete_node_workflow = workflow.create_workflow(wf_spec, deployment,
@@ -481,7 +482,7 @@ class Manager(base.ManagerBase):
         :param tenant_id: TenantId
         :return:
         """
-        driver = self.select_driver(deployment["id"])
+        driver = db.get_driver(api_id=deployment["id"])
         add_node_workflow_spec = (workflows.WorkflowSpec
                                   .create_workflow_spec_deploy(deployment,
                                                                context))

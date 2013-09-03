@@ -41,7 +41,7 @@ class TestServer(unittest.TestCase):
         self.root_app = bottle.default_app.pop()
         self.root_app.catchall = False
 
-        deployments_manager = deployments.Manager({'default': db.get_driver()})
+        deployments_manager = deployments.Manager()
         self.dep_router = deployments.Router(self.root_app,
                                              deployments_manager)
 

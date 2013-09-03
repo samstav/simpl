@@ -490,7 +490,7 @@ class Router(object):
                          "being deleted.")
 
         #TODO(any): driver will come from workflow manager once we create that
-        driver = self.manager.select_driver(api_id)
+        driver = db.get_driver(api_id=api_id)
         if (operation and operation.get('action') != 'PAUSE' and
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
             common_tasks.update_operation.delay(api_id, api_id, driver=driver,

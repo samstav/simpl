@@ -23,6 +23,7 @@ import time
 import unittest
 
 from celery.app import task
+import mock
 import mox
 from SpiffWorkflow import Workflow
 
@@ -180,9 +181,11 @@ class TestDeploymentDeployer(unittest.TestCase):
     def tearDown(self):
         self._mox.UnsetStubs()
 
-    def test_deployer(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_deployer(self, mock_get_driver):
         mock_db = self._mox.CreateMockAnything()
-        manager = cmdeps.Manager({'default': mock_db})
+        mock_get_driver.return_value = mock_db
+        manager = cmdeps.Manager()
         mock_db.save_workflow(mox.IgnoreArg(),
                               mox.IgnoreArg(),
                               mox.IgnoreArg(),
@@ -1208,7 +1211,7 @@ class TestCloneDeployments(unittest.TestCase):
         self._mox.UnsetStubs()
 
     def test_clone_deployment_failure_path(self):
-        manager = cmdeps.Manager({})
+        manager = cmdeps.Manager()
         self._mox.StubOutWithMock(manager, "get_deployment")
         manager.get_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
@@ -1223,7 +1226,7 @@ class TestCloneDeployments(unittest.TestCase):
     def test_clone_deployment_happy_path(self):
         self._deployment['status'] = 'DELETED'
 
-        manager = cmdeps.Manager({})
+        manager = cmdeps.Manager()
         self._mox.StubOutWithMock(manager, "get_deployment")
         manager.get_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
@@ -1241,7 +1244,7 @@ class TestCloneDeployments(unittest.TestCase):
     def test_clone_deployment_simulation(self):
         self._deployment['status'] = 'DELETED'
 
-        manager = cmdeps.Manager({})
+        manager = cmdeps.Manager()
         self._mox.StubOutWithMock(manager, "get_deployment")
         manager.get_deployment('1234', tenant_id='T1000')\
             .AndReturn(self._deployment)
@@ -1312,7 +1315,8 @@ class TestDeleteDeployments(unittest.TestCase):
         except cmexc.CheckmateDoesNotExist as exc:
             self.assertEqual("No deployment with id 1234", str(exc))
 
-    def test_happy_path(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_happy_path(self, mock_get_driver):
         self._deployment['status'] = 'UP'
         self._deployment['created'] = utils.get_time_string()
         self._deployment['operation'] = {'status': 'IN PROGRESS'}
@@ -1320,10 +1324,10 @@ class TestDeleteDeployments(unittest.TestCase):
         mock_spec = self._mox.CreateMock(Workflow)
         mock_spiff_wf = self._mox.CreateMockAnything()
         mock_spiff_wf.attributes = {"id": "w_id"}
-        manager = self._mox.CreateMock(cmdeps.Manager)
+        manager = mock.Mock()
+        manager.get_deployment.return_value = self._deployment
         router = cmdeps.Router(bottle.default_app(), manager)
-        manager.get_deployment('1234').AndReturn(self._deployment)
-        manager.select_driver('1234').AndReturn(mock_driver)
+        mock_get_driver.return_value = mock_driver
 
         self._mox.StubOutWithMock(workflows.WorkflowSpec,
                                   "create_delete_dep_wf_spec")
@@ -1393,22 +1397,26 @@ class TestGetResourceStuff(unittest.TestCase):
         self._mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
 
-    def test_happy_resources(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_happy_resources(self, mock_get_driver):
         mock_db = self._mox.CreateMockAnything()
-        manager = cmdeps.Manager({'default': mock_db})
-        router = cmdeps.Router(bottle.default_app(), manager)
         mock_db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
+        mock_get_driver.return_value = mock_db
+        manager = cmdeps.Manager()
+        router = cmdeps.Router(bottle.default_app(), manager)
         self._mox.ReplayAll()
         ret = json.loads(router.get_deployment_resources('1234'))
         self.assertDictEqual(self._deployment.get('resources'), ret)
 
-    def test_happy_status(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_happy_status(self, mock_get_driver):
         mock_db = self._mox.CreateMockAnything()
-        manager = cmdeps.Manager({'default': mock_db})
-        router = cmdeps.Router(bottle.default_app(), manager)
         mock_db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
+        mock_get_driver.return_value = mock_db
+        manager = cmdeps.Manager()
+        router = cmdeps.Router(bottle.default_app(), manager)
         self._mox.ReplayAll()
         ret = json.loads(router.get_resources_statuses('1234'))
         self.assertNotIn('fake', ret)
@@ -1417,13 +1425,15 @@ class TestGetResourceStuff(unittest.TestCase):
         self.assertEquals('A certain error happened',
                           ret.get('2', {}).get('error-message'))
 
-    def test_no_resources(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_no_resources(self, mock_get_driver):
         del self._deployment['resources']
         mock_db = self._mox.CreateMockAnything()
-        manager = cmdeps.Manager({'default': mock_db})
-        router = cmdeps.Router(bottle.default_app(), manager)
         mock_db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
+        mock_get_driver.return_value = mock_db
+        manager = cmdeps.Manager()
+        router = cmdeps.Router(bottle.default_app(), manager)
 
         self._mox.ReplayAll()
         self.assertRaisesRegexp(cmexc.CheckmateDoesNotExist,
@@ -1431,25 +1441,29 @@ class TestGetResourceStuff(unittest.TestCase):
                                 "for deployment 1234",
                                 router.get_deployment_resources, '1234')
 
-    def test_no_res_status(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_no_res_status(self, mock_get_driver):
         del self._deployment['resources']
         mock_db = self._mox.CreateMockAnything()
-        manager = cmdeps.Manager({'default': mock_db})
-        router = cmdeps.Router(bottle.default_app(), manager)
         mock_db.get_deployment('1234', with_secrets=False)\
             .AndReturn(self._deployment)
 
+        mock_get_driver.return_value = mock_db
+        manager = cmdeps.Manager()
+        router = cmdeps.Router(bottle.default_app(), manager)
         self._mox.ReplayAll()
         self.assertRaisesRegexp(cmexc.CheckmateDoesNotExist,
                                 "No resources found "
                                 "for deployment 1234",
                                 router.get_resources_statuses, '1234')
 
-    def test_dep_404(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_dep_404(self, mock_get_driver):
         mock_db = self._mox.CreateMockAnything()
-        manager = cmdeps.Manager({'default': mock_db})
-        router = cmdeps.Router(bottle.default_app(), manager)
         mock_db.get_deployment('1234', with_secrets=False).AndReturn(None)
+        mock_get_driver.return_value = mock_db
+        manager = cmdeps.Manager()
+        router = cmdeps.Router(bottle.default_app(), manager)
 
         self._mox.ReplayAll()
         try:
@@ -1459,11 +1473,13 @@ class TestGetResourceStuff(unittest.TestCase):
         except cmexc.CheckmateDoesNotExist as exc:
             self.assertIn("No deployment with id 1234", str(exc))
 
-    def test_dep_404_status(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_dep_404_status(self, mock_get_driver):
         mock_db = self._mox.CreateMockAnything()
-        manager = cmdeps.Manager({'default': mock_db})
-        router = cmdeps.Router(bottle.default_app(), manager)
         mock_db.get_deployment('1234', with_secrets=False).AndReturn(None)
+        mock_get_driver.return_value = mock_db
+        manager = cmdeps.Manager()
+        router = cmdeps.Router(bottle.default_app(), manager)
 
         self._mox.ReplayAll()
         try:
@@ -1514,7 +1530,7 @@ class TestPostbackHelpers(unittest.TestCase):
 
     def test_provider_update(self):
         mock_db = self._mox.CreateMockAnything()
-        manager = cmdeps.Manager({'default': mock_db})
+        manager = cmdeps.Manager()
         cmdeps.Router(bottle.default_app(), manager)
         mock_db.get_deployment('1234').AndReturn(self._deployment)
         self._mox.StubOutWithMock(cmdeps.tasks.resource_postback, "delay")

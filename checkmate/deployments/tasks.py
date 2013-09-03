@@ -32,7 +32,7 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_LOCK_CONNECTION_STRING',
     os.environ.get('CHECKMATE_CONNECTION_STRING')))
 
-MANAGERS = {'deployments': Manager(DRIVERS)}
+MANAGERS = {'deployments': Manager()}
 
 
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=10,

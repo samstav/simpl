@@ -28,7 +28,6 @@ import pyrax
 import redis
 
 from checkmate.common import caching
-from checkmate import db
 from checkmate import deployments
 from checkmate import exceptions
 from checkmate import middleware
@@ -66,14 +65,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
         LOG.warn("Error connecting to Redis: %s", exception)
 
 DRIVERS = {}
-DB = DRIVERS['default'] = db.get_driver()
-SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
-    connection_string=os.environ.get(
-        'CHECKMATE_SIMULATOR_CONNECTION_STRING',
-        os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
-    )
-)
-MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
+MANAGERS = {'deployments': deployments.Manager()}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
