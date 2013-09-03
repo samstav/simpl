@@ -199,7 +199,7 @@ class Router(object):
                   self.get_resources_statuses)
         app.route('/deployments/<api_id>/resources/<rid>', 'GET',
                   self.get_resource)
-        self.stack_router = stacks.Router(self.app, stacks.Manager(DRIVERS))
+        self.stack_router = stacks.Router(self.app, stacks.Manager())
 
     param_whitelist = ['search', 'name', 'blueprint.name', 'status',
                        'start_date', 'end_date']
