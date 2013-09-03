@@ -3,7 +3,7 @@ Rackspace Cloud Databases Provider
 '''
 import logging
 
-from celery.task import task, current
+from celery.task import task
 from pyrax import exceptions as pyexc
 
 from .manager import Manager
@@ -411,7 +411,7 @@ def delete_database(context, api=None):
                                                      "be out of BUILD status"))
     try:
         instance.delete_database(db_name)
-    except (pyexc.ClientException, pyexc.NotFound) as respe:
+    except pyexc.ClientException as respe:
         delete_database.retry(exc=respe)
     LOG.info('Database %s deleted from instance %s', db_name, instance_id)
     ret = {inst_key: {'status': 'DELETED'}}
