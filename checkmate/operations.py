@@ -30,10 +30,6 @@ from checkmate import exceptions as cmexc
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
-DB = db.get_driver()
-SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
-    'CHECKMATE_SIMULATOR_CONNECTION_STRING',
-    os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
 LOCK_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_LOCK_CONNECTION_STRING',
     os.environ.get('CHECKMATE_CONNECTION_STRING')))
@@ -48,14 +44,9 @@ def create(dep_id, workflow_id, op_type, tenant_id=None):
     _create(dep_id, workflow_id, op_type, tenant_id)
 
 
-def _get_db_driver(dep_id):
-    """Get the simulations db driver if in sim mode, else checkmate db."""
-    return SIMULATOR_DB if utils.is_simulation(dep_id) else DB
-
-
 def _create(dep_id, workflow_id, op_type, tenant_id):
     """Create a new operation of type 'op_type'."""
-    driver = _get_db_driver(dep_id)
+    driver = db.get_driver(api_id=dep_id)
     deployment = driver.get_deployment(dep_id, with_secrets=False)
     workflow = driver.get_workflow(workflow_id, with_secrets=False)
     serializer = DictionarySerializer()
@@ -108,7 +99,7 @@ def update_operation(deployment_id, workflow_id, driver=None,
         return  # Nothing to do!
 
     if not driver:
-        driver = _get_db_driver(deployment_id)
+        driver = db.get_driver(api_id=deployment_id)
 
     dep = driver.get_deployment(deployment_id, with_secrets=True)
     dep = cmdep.Deployment(dep)

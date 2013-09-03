@@ -26,30 +26,15 @@ from checkmate import operations
 
 
 class TestOperations(unittest.TestCase):
-    @mock.patch.object(operations, 'SIMULATOR_DB')
-    @mock.patch.object(operations.utils, 'is_simulation', return_value=True)
-    def test_get_db_driver_returns_simulation_driver(self, mock_is_sim,
-                                                     mock_db):
-        result = operations._get_db_driver('simulation')
-        mock_is_sim.assert_called_once_with('simulation')
-        self.assertEqual(mock_db, result)
-
-    @mock.patch.object(operations, 'DB')
-    @mock.patch.object(operations.utils, 'is_simulation', return_value=False)
-    def test_get_db_driver_returns_db_driver(self, mock_is_sim, mock_db):
-        result = operations._get_db_driver('simulation')
-        mock_is_sim.assert_called_once_with('simulation')
-        self.assertEqual(mock_db, result)
-
     @mock.patch.object(operations.SpiffWorkflow, 'deserialize')
     @mock.patch.object(operations, 'add')
-    @mock.patch.object(operations, '_get_db_driver')
+    @mock.patch('checkmate.operations.db.get_driver')
     def test_operations_create(self, mock_get_db, mock_add, mock_deserialize):
         mock_get_db.return_value = mock_db = mock.Mock()
 
         operations._create('depid', 'wfid', 'test', '123456')
 
-        mock_get_db.assert_called_once_with('depid')
+        mock_get_db.assert_called_once_with(api_id='depid')
         mock_db.get_deployment.assert_called_once_with('depid',
                                                        with_secrets=False)
         mock_db.get_workflow.assert_called_once_with('wfid',
@@ -104,14 +89,14 @@ class TestOperationsAddOperation(unittest.TestCase):
 
 
 class TestOperationsUpdateOperation(unittest.TestCase):
-    @mock.patch.object(operations, '_get_db_driver')
+    @mock.patch('checkmate.operations.db.get_driver')
     def test_do_nothing_if_no_kwargs(self, mock_get_db):
         operations.update_operation('depid', 'wfid', driver='Mock')
         assert not mock_get_db.called
 
-    @mock.patch.object(operations, '_get_db_driver')
+    @mock.patch('checkmate.operations.db.get_driver')
     def test_db_driver_passed_in(self, mock_get_db):
-        mock_db = mock.Mock()
+        mock_get_db.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         operations.update_operation('depid', 'wfid', driver=mock_db,
                                     test_kwarg='test')
@@ -119,16 +104,19 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         mock_db.get_deployment.assert_called_once_with('depid',
                                                        with_secrets=True)
 
-    @mock.patch.object(operations, 'DB')
-    def test_db_driver_not_passed_in(self, mock_db):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_db_driver_not_passed_in(self, mock_get_driver):
+        mock_get_driver.return_value = mock_db = mock.Mock()
+        mock_db.get_deployment.return_value = {}
         operations.update_operation('depid', 'wfid', test_kwarg='test')
         mock_db.get_deployment.assert_called_once_with('depid',
                                                        with_secrets=True)
 
     @mock.patch.object(operations, 'get_operation',
                        side_effect=cmexc.CheckmateInvalidParameterError)
-    @mock.patch.object(operations, 'DB')
-    def test_no_operation_found(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_no_operation_found(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         operations.update_operation('depid', 'wfid', test_kwarg='test')
         mock_getop.assert_called_once_with(mock.ANY, 'wfid')
@@ -136,9 +124,10 @@ class TestOperationsUpdateOperation(unittest.TestCase):
 
     @mock.patch.object(operations.LOG, 'warn')
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_status_complete_nothing_to_do(self, mock_db, mock_getop,
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_status_complete_nothing_to_do(self, mock_get_driver, mock_getop,
                                            mock_logger):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'COMPLETE'})
         operations.update_operation('depid', 'wfid', test_kwarg='test')
@@ -147,8 +136,9 @@ class TestOperationsUpdateOperation(unittest.TestCase):
                                             "COMPLETE")
 
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_curr_operation_from_operation(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_curr_operation_from_operation(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
         operations.update_operation('depid', 'wfid', test_kwarg='test')
@@ -156,8 +146,9 @@ class TestOperationsUpdateOperation(unittest.TestCase):
             'depid', {'operation': {'test_kwarg': 'test'}}, partial=True)
 
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_curr_operation_from_history(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_curr_operation_from_history(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = (
             'operations-history', 0, {'status': 'BUILD'})
@@ -168,9 +159,28 @@ class TestOperationsUpdateOperation(unittest.TestCase):
             partial=True
         )
 
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_update_operation(self, mock_get_driver):
+        mock_db = mock.Mock()
+
+        mock_db.get_deployment.return_value = {
+            'id': '1234', 'operation': {'status': 'NEW'}
+        }
+        mock_db.save_deployment.return_value = None
+        mock_get_driver.return_value = mock_db
+        operations.update_operation('1234', '1234', status='NEW',
+                                    driver=mock_db)
+        mock_db.get_deployment.assert_called_with('1234', with_secrets=True)
+        mock_db.save_deployment.assert_called_with(
+            '1234',
+            {'operation': {'status': 'NEW'}},
+            partial=True
+        )
+
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_include_deployment_status(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_include_deployment_status(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
         operations.update_operation('depid', 'wfid',
@@ -183,8 +193,9 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         )
 
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_op_status_matches_kwarg_status(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_op_status_matches_kwarg_status(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
         operations.update_operation('depid', 'wfid',
@@ -193,8 +204,11 @@ class TestOperationsUpdateOperation(unittest.TestCase):
             'depid', {'operation': {'status': 'BUILD'}}, partial=True)
 
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_op_status_does_not_match_kwarg_status(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_op_status_does_not_match_kwarg_status(self,
+                                                   mock_get_driver,
+                                                   mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'UP'})
         operations.update_operation('depid', 'wfid',
@@ -208,9 +222,12 @@ class TestOperationsUpdateOperation(unittest.TestCase):
     @mock.patch.object(operations, 'cmdep')
     @mock.patch.object(operations.LOG, 'warn')
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_calculate_outputs_throws_key_error(self, mock_db, mock_getop,
-                                                mock_logger, mock_cmdep):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_calculate_outputs_throws_key_error(self, mock_get_driver,
+                                                mock_getop,
+                                                mock_logger,
+                                                mock_cmdep):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_dep = mock.Mock()
         mock_dep.calculate_outputs.side_effect = KeyError

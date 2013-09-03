@@ -19,14 +19,6 @@ from checkmate import operations
 
 
 LOG = logging.getLogger(__name__)
-DRIVERS = {}
-DB = DRIVERS['default'] = db.get_driver()
-SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
-    connection_string=os.environ.get(
-        'CHECKMATE_SIMULATOR_CONNECTION_STRING',
-        os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
-    )
-)
 
 LOCK_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_LOCK_CONNECTION_STRING',
@@ -50,7 +42,7 @@ def reset_failed_resource_task(deployment_id, resource_id):
 
 @task
 @statsd.collect
-def process_post_deployment(deployment, request_context, driver=DB):
+def process_post_deployment(deployment, request_context):
     '''Assess deployment, then create and trigger a workflow.'''
     utils.match_celery_logging(LOG)
 
@@ -70,20 +62,20 @@ def process_post_deployment(deployment, request_context, driver=DB):
 
 @task
 @statsd.collect
-def update_operation(deployment_id, workflow_id, driver=DB, **kwargs):
+def update_operation(deployment_id, workflow_id, driver=None, **kwargs):
     '''Wrapper for common_tasks.update_operation.'''
     # TODO(any): Deprecate this
+    driver = db.get_driver()
     return common_tasks.update_operation(deployment_id, workflow_id,
                                          driver=driver, **kwargs)
 
 
 @task(default_retry_delay=2, max_retries=60)
 @statsd.collect
-def delete_deployment_task(dep_id, driver=DB):
+def delete_deployment_task(dep_id, driver=None):
     """Mark the specified deployment as deleted."""
     utils.match_celery_logging(LOG)
-    if utils.is_simulation(dep_id):
-        driver = SIMULATOR_DB
+    driver = db.get_driver(api_id=dep_id)
     deployment = Deployment(driver.get_deployment(dep_id))
     if not deployment:
         raise CheckmateException("Could not finalize delete for deployment "
@@ -118,26 +110,24 @@ def delete_deployment_task(dep_id, driver=DB):
 
 @task(default_retry_delay=0.25, max_retries=4)
 @statsd.collect
-def alt_resource_postback(contents, deployment_id, driver=DB):
+def alt_resource_postback(contents, deployment_id, driver=None):
     '''This is just an argument shuffle to make it easier
     to chain this with other tasks.
     '''
     utils.match_celery_logging(LOG)
-    if utils.is_simulation(deployment_id):
-        driver = SIMULATOR_DB
+    driver = db.get_driver(api_id=deployment_id)
     resource_postback.delay(deployment_id, contents, driver=driver)
 
 
 @task(default_retry_delay=0.25, max_retries=4)
 @statsd.collect
 def update_all_provider_resources(provider, deployment_id, status,
-                                  message=None, trace=None, driver=DB):
+                                  message=None, trace=None, driver=None):
     '''Given a deployment, update all resources
     associated with a given provider
     '''
     utils.match_celery_logging(LOG)
-    if utils.is_simulation(deployment_id):
-        driver = SIMULATOR_DB
+    driver = db.get_driver(api_id=deployment_id)
     dep = driver.get_deployment(deployment_id)
     if dep:
         rupdate = {'status': status}
@@ -163,7 +153,7 @@ def postback(deployment_id, contents):
 
 @task(default_retry_delay=0.5, max_retries=6)
 @statsd.collect
-def resource_postback(deployment_id, contents, driver=DB):
+def resource_postback(deployment_id, contents, driver=None):
     #FIXME: we need to receive a context and check access
     """Accepts back results from a remote call and updates the deployment with
     the result data for a specific resource.
@@ -193,8 +183,7 @@ def resource_postback(deployment_id, contents, driver=DB):
     The contents are a hash (dict) of all the above
     """
     utils.match_celery_logging(LOG)
-    if utils.is_simulation(deployment_id):
-        driver = SIMULATOR_DB
+    driver = db.get_driver(api_id=deployment_id)
 
     deployment = driver.get_deployment(deployment_id, with_secrets=True)
     deployment = Deployment(deployment)

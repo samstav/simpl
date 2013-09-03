@@ -17,7 +17,6 @@
 
 """Workflows Asynchronous tasks."""
 import logging
-import os
 
 import celery
 from celery import exceptions as celexc
@@ -39,14 +38,7 @@ from checkmate.workflows import Manager
 
 
 LOG = logging.getLogger(__name__)
-DRIVERS = {}
-DB = DRIVERS['default'] = db.get_driver()
-SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
-    connection_string=os.environ.get(
-        'CHECKMATE_SIMULATOR_CONNECTION_STRING',
-        os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
-    )
-)
+DB = db.get_driver()
 
 MANAGERS = {'workflows': Manager()}
 
@@ -80,7 +72,7 @@ def update_deployment(w_id, error=None):
     :param w_id: Workflow to update the deployment from
     :param errors: Additional errors that need to be updated
     """
-    driver = MANAGERS['workflows'].select_driver(w_id)
+    driver = db.get_driver(api_id=w_id)
     workflow = MANAGERS['workflows'].get_workflow(w_id)
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)

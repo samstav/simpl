@@ -1351,12 +1351,14 @@ class TestDeleteDeployments(unittest.TestCase):
         router.delete_deployment('1234', tenant_id="T1000")
         self._mox.VerifyAll()
 
-    def test_delete_deployment_task(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_delete_deployment_task(self, mock_get_driver):
         self._deployment['tenantId'] = '4567'
         self._deployment['status'] = 'UP'
         self._deployment['operation'] = {'workflow-id': "w_id"}
         mock_driver = self._mox.CreateMockAnything()
         mock_driver.get_deployment('1234').AndReturn(self._deployment)
+        mock_get_driver.return_value = mock_driver
 
         self._mox.StubOutWithMock(common_tasks.update_operation, "delay")
         common_tasks.update_operation.delay('1234', 'w_id', status="COMPLETE",
@@ -1528,11 +1530,13 @@ class TestPostbackHelpers(unittest.TestCase):
         self._mox.UnsetStubs()
         unittest.TestCase.tearDown(self)
 
-    def test_provider_update(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_provider_update(self, mock_get_driver):
         mock_db = self._mox.CreateMockAnything()
         manager = cmdeps.Manager()
         cmdeps.Router(bottle.default_app(), manager)
         mock_db.get_deployment('1234').AndReturn(self._deployment)
+        mock_get_driver.return_value = mock_db
         self._mox.StubOutWithMock(cmdeps.tasks.resource_postback, "delay")
         cmdeps.tasks.resource_postback.delay(
             '1234', mox.IgnoreArg(), driver=mock_db).AndReturn(True)
@@ -1670,7 +1674,8 @@ class TestCeleryTasks(unittest.TestCase):
     def tearDown(self):
         self.mox.UnsetStubs()
 
-    def test_resource_postback(self):
+    @mock.patch('checkmate.deployments.manager.db.get_driver')
+    def test_resource_postback(self, mock_get_driver):
         mock_db = self.mox.CreateMockAnything()
         target = {
             'id': '1234',
@@ -1700,6 +1705,7 @@ class TestCeleryTasks(unittest.TestCase):
         }
         mock_db.save_deployment('1234', expected, None, partial=True,
                                 tenant_id='T1000').AndReturn(None)
+        mock_get_driver.return_value = mock_db
         self.mox.ReplayAll()
         contents = {
             'instance:0': {

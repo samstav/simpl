@@ -237,9 +237,7 @@ class Router(object):
             request_context = copy.deepcopy(bottle.request.context)
             tasks.process_post_deployment.delay(deployment, request_context)
         else:
-            tasks.process_post_deployment(deployment, bottle.request.context,
-                                          driver=self.manager
-                                          .select_driver(api_id))
+            tasks.process_post_deployment(deployment, bottle.request.context)
         bottle.response.status = 202
         write_deploy_headers(api_id, tenant_id=tenant_id)
         return utils.write_body(deployment, bottle.request, bottle.response)

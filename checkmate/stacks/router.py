@@ -17,21 +17,14 @@ Deployments Resource Router
 Handles API calls to /deployments and routes them appropriately
 """
 import logging
-import os
 
 import bottle  # pylint: disable=E0611
 
 
-from checkmate import db
 from checkmate import exceptions
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
-DB = db.get_driver()
-SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
-    'CHECKMATE_SIMULATOR_CONNECTION_STRING',
-    os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
-DRIVERS = {'default': DB, 'simulation': SIMULATOR_DB}
 
 
 class Router(object):
