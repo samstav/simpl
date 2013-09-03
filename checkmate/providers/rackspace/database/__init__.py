@@ -215,7 +215,7 @@ def delete_instance_task(context, api=None):
             # TODO(Nate): Remove status-message on current resource
             res = {
                 inst_key: {
-                    'status': 'DELETED'
+                    'status': 'DELETED',
                     'status-message': ''
                 }
             }
