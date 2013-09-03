@@ -20,16 +20,16 @@ import os
 import sys
 import tldextract
 
-import clouddns
 import eventlet.greenpool
+import pyrax
 import SpiffWorkflow.operators
 from SpiffWorkflow.specs import Celery
 
 from checkmate.common import caching
-from checkmate import exceptions
 import checkmate.middleware
 import checkmate.providers
 import checkmate.providers.base
+from checkmate.providers.rackspace import base as rsbase
 
 LOG = logging.getLogger(__name__)
 DNS_API_CACHE = {}
@@ -39,12 +39,12 @@ class Provider(checkmate.providers.ProviderBase):
     """Rackspace Cloud DNS provider class."""
     name = 'dns'
     vendor = 'rackspace'
+    method = 'cloud_dns'
 
     @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=DNS_API_CACHE)
-    def _get_limits(self, url, token):
+    def _get_limits(self, url, api):
         '''Returns the Cloud DNS API limits.'''
-        api = self.connect(token=token, url=url)
-        return api.get_limits()
+        return api.get_absolute_limits()
 
     def _is_new_domain(self, domain, context):
         '''Returns True if domain does not already exist on this account.'''
@@ -58,9 +58,9 @@ class Provider(checkmate.providers.ProviderBase):
     def _my_list_domains_info(api, dom_name):
         '''Fetch information for specified domain name.'''
         try:
-            return api.list_domains_info(filter_by_name=dom_name)
-        except clouddns.errors.ResponseError as resp_error:
-            if resp_error.status != 404:
+            return api.find(name=dom_name)
+        except pyrax.exceptions.NotFound as resp_error:
+            if resp_error.status != '404':
                 LOG.warn("Error checking record limits for %s", dom_name,
                          exc_info=True)
 
@@ -71,14 +71,13 @@ class Provider(checkmate.providers.ProviderBase):
             api = self.connect(context)
             if dom_name:
                 num_recs = 0
-                doms = self._my_list_domains_info(api, dom_name)
-                if doms:
-                    dom = clouddns.domain.Domain(api, doms[0])
+                dom = self._my_list_domains_info(api, dom_name)
+                if dom:
                     try:
-                        num_recs = len(dom.list_records_info())
-                    except clouddns.errors.ResponseError as resp_error:
+                        num_recs = len(dom.list_records())
+                    except pyrax.exceptions.ClientException as resp_error:
                         num_recs = 0
-                        if resp_error.status != 404:
+                        if resp_error.code != '404':
                             LOG.warn("Error getting records for %s", dom_name,
                                      exc_info=True)
                 if num_recs + num_new_recs > max_records:
@@ -96,12 +95,15 @@ class Provider(checkmate.providers.ProviderBase):
     def verify_limits(self, context, resources):
         messages = []
         api = self.connect(context)
-        limits = self._get_limits(self._find_url(context.catalog),
-                                  context.auth_token)
-        max_doms = limits.get('absolute', {}).get('domains', sys.maxint)
-        max_recs = limits.get('absolute', {}).get('records per domain',
-                                                  sys.maxint)
-        cur_doms = api.get_total_domain_count()
+        limits = self._get_limits(self._find_url(context.catalog), api)
+        max_doms = limits.get('domains', sys.maxint)
+        max_recs = limits.get('records per domain', sys.maxint)
+        cur_doms = len(api.list())
+        while True:
+            try:
+                cur_doms = cur_doms + len(api.list_next_page())
+            except pyrax.exceptions.NoMoreResults:
+                break
         # get a list of the possible domains
         domain_names = set(map(lambda x: parse_domain(x.get('dns-name')),
                                resources))
@@ -201,8 +203,8 @@ class Provider(checkmate.providers.ProviderBase):
     @staticmethod
     def get_resources(context, tenant_id=None):
         """Proxy request through to provider"""
-        api = _get_dns_object(context)
-        return Provider._my_list_domains_info(api, None) or []
+        api = Provider.connect(context)
+        return api.list() or []
 
     @staticmethod
     def _find_url(catalog):
@@ -214,41 +216,10 @@ class Provider(checkmate.providers.ProviderBase):
                     return endpoint['publicURL']
 
     @staticmethod
-    def connect(context=None, token=None, url=None):
-        """Use context info to connect to API and return api object."""
-
-        if (not context) and not (token and url):
-            raise ValueError("Must pass either a context or a token and url")
-
-        if context:
-            #FIXME: figure out better serialization/deserialization scheme
-            if isinstance(context, dict):
-                context = checkmate.middleware.RequestContext(**context)
-            if not context.auth_token:
-                raise exceptions.CheckmateNoTokenError()
-            token = context.auth_token
-            url = Provider._find_url(context.catalog)
-
-        class CloudDNSAuthProxy(object):
-            '''We pass this class to clouddns to bypass its auth mechanism.'''
-            def __init__(self, url, token):
-                self.url = url
-                self.token = token
-
-            def authenticate(self):
-                '''Called by clouddns. Expects back a url and token.'''
-                return (self.url, self.token)
-
-        proxy = CloudDNSAuthProxy(url=url, token=token)
-        api = clouddns.connection.Connection(auth=proxy)
-        LOG.debug("Connected to cloud DNS using token of length %s "
-                  "and url of %s", len(token), url)
-        return api
-
-
-def _get_dns_object(context):
-    '''Returns a handle to an API object.'''
-    return Provider.connect(context)
+    def connect(context, region=None):
+        '''Use context info to connect to API and return api object.'''
+        return getattr(rsbase.RackspaceProviderBase._connect(context, region),
+                       Provider.method)
 
 
 def parse_domain(domain_str):
