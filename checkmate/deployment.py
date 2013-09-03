@@ -30,7 +30,6 @@ from checkmate import blueprints
 from checkmate.common import schema
 from checkmate import constraints as cm_constraints
 from checkmate import db
-from checkmate.db import common as dbcommon
 from checkmate import environment as cm_env
 from checkmate import exceptions as cmexc
 from checkmate import inputs as cm_inputs
@@ -392,14 +391,14 @@ class Deployment(morpheus.MorpheusDict):
             op_index = -1
             op_details = self.get('operation')
         else:
-            for index, operation in enumerate(self.get('operations-history', [])):
+            for index, oper in enumerate(self.get('operations-history', [])):
                 # TODO(Paul): Default to Deployment ID? Should we fix this
                 # using convert_data when the deployment is retrieved from
                 # storage, rather than here?
-                if operation.get('workflow-id', self.get('id')) == workflow_id:
+                if oper.get('workflow-id', self.get('id')) == workflow_id:
                     op_type = 'operations-history'
                     op_index = index
-                    op_details = operation
+                    op_details = oper
                     break
 
         if not op_type:

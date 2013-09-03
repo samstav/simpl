@@ -207,7 +207,7 @@ class TestDeployments(unittest.TestCase):
                                                  'workflow-id': 'w_id'}]
         with self.assertRaises(
                 cmexc.CheckmateInvalidParameterError) as expected:
-                    self.deployment.get_operation('foobar_w_id')
+            self.deployment.get_operation('foobar_w_id')
 
         self.assertEqual('Invalid workflow ID.', str(expected.exception))
 

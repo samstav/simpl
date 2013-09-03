@@ -26,6 +26,7 @@ from checkmate import celeryglobal as celery
 from checkmate.common import statsd
 from checkmate import db
 from checkmate import deployment as cmdep
+from checkmate import exceptions as cmexc
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -133,8 +134,9 @@ def update_operation(deployment_id, workflow_id, driver=None,
 
 
 def _pad_list(last_item_id, last_item):
+    """Return a list padded with empty dicts plus last_item."""
     padded_list = []
-    for index in range(last_item_id):
+    for _ in range(last_item_id):
         padded_list.append({})
     padded_list.append(last_item)
 
