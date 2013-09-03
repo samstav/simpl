@@ -277,7 +277,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(deployment_id)
-    _, operation = cmdep.Deployment(deployment).get_current_operation(w_id)
+    _, _, operation = cmdep.Deployment(deployment).get_operation(w_id)
 
     action = operation.get("action")
 

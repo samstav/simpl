@@ -197,24 +197,29 @@ class TestDeployments(unittest.TestCase):
         self.assertEqual(workflow_id, 'w_id')
 
     def test_get_operation_invalid_id_and_no_history(self):
-        self.assertEqual(('not-found', [{}]),
-                         self.deployment.get_operation('bad-id'))
+        with self.assertRaises(
+                cmexc.CheckmateInvalidParameterError) as expected:
+            self.deployment.get_operation('bad-id')
+        self.assertEqual('Invalid workflow ID.', str(expected.exception))
 
     def test_get_operation_invalid_id_with_history(self):
         self.deployment['operations-history'] = [{'status': 'PAUSED',
                                                  'workflow-id': 'w_id'}]
-        self.assertEqual(('not-found', [{}]),
-                         self.deployment.get_operation('foobar_w_id'))
+        with self.assertRaises(
+                cmexc.CheckmateInvalidParameterError) as expected:
+                    self.deployment.get_operation('foobar_w_id')
+
+        self.assertEqual('Invalid workflow ID.', str(expected.exception))
 
     def test_get_operation_from_current_operation(self):
-        self.assertEqual(('operation', [{'status': 'NEW'}]),
+        self.assertEqual(('operation', 0, {'status': 'NEW'}),
                          self.deployment.get_operation("test"))
 
     def test_get_operation_from_history(self):
         self.deployment['operations-history'] = [{'status': 'PAUSED',
                                                   'workflow-id': 'w_id'}]
-        expected = ('operations-history',
-                    [{'status': 'PAUSED', 'workflow-id': 'w_id'}])
+        expected = ('operations-history', 0,
+                    {'status': 'PAUSED', 'workflow-id': 'w_id'})
         self.assertEqual(expected, self.deployment.get_operation('w_id'))
 
     def test_get_operation_from_history_with_multiples(self):
@@ -222,40 +227,15 @@ class TestDeployments(unittest.TestCase):
                                                   'workflow-id': 'w_id'},
                                                  {'status': 'NEW',
                                                   'workflow-id': 'w_id2'}]
-        expected = ('operations-history',
-                    [{}, {'status': 'NEW', 'workflow-id': 'w_id2'}])
+        expected = ('operations-history', 1,
+                    {'status': 'NEW', 'workflow-id': 'w_id2'})
         self.assertEqual(expected, self.deployment.get_operation('w_id2'))
 
     def test_get_operation_old_deployment_with_no_id_in_history(self):
         self.deployment['operation'] = {}
         self.deployment['operations-history'] = [{'status': 'PAUSED'}]
-        self.assertEqual(('operations-history', [{'status': 'PAUSED'}]),
+        self.assertEqual(('operations-history', 0, {'status': 'PAUSED'}),
                          self.deployment.get_operation('test'))
-
-    def test_get_current_operation_invalid_workflow_id(self):
-        self.deployment['operations-history'] = [
-            {'status': 'PAUSED', 'workflow-id': 'w_id'}]
-        self.assertEqual(('not-found', {}),
-                         self.deployment.get_current_operation('foobar_w_id'))
-
-    def test_get_current_operation_from_current_operation(self):
-        self.deployment['operation']['workflow-id'] = 'w_id'
-        expected = ('operation', {'status': 'NEW', 'workflow-id': 'w_id'})
-        self.assertEqual(expected,
-                         self.deployment.get_current_operation("w_id"))
-
-    def test_get_current_operation_with_no_workflow_id(self):
-        expected = ('operation', {'status': 'NEW'})
-        self.assertEqual(self.deployment.get_current_operation('test'),
-                         expected)
-
-    def test_get_current_operation_from_history(self):
-        self.deployment['operations-history'] = [{'status': 'PAUSED',
-                                                  'workflow-id': 'w_id'}]
-        expected = ('operations-history',
-                    {'status': 'PAUSED', 'workflow-id': 'w_id'})
-        self.assertEqual(expected,
-                         self.deployment.get_current_operation('w_id'))
 
     def test_get_statuses_for_deleted_resources(self):
         resource_status = {'instance:0': {'status': 'DELETED'}}

@@ -101,22 +101,22 @@ def update_operation(deployment_id, workflow_id, driver=None,
             driver = SIMULATOR_DB
         if not driver:
             driver = DB
-        deployment = driver.get_deployment(deployment_id, with_secrets=True)
-        deployment = cmdep.Deployment(deployment)
+        dep = driver.get_deployment(deployment_id, with_secrets=True)
+        dep = cmdep.Deployment(dep)
 
-        _, curr_operation = deployment.get_current_operation(workflow_id)
-        if curr_operation == {}:
+        try:
+            op_type, op_index, op_details = dep.get_operation(workflow_id)
+        except cmexc.CheckmateInvalidParameterError:
             return  # Nothing to do!
 
-        op_status = curr_operation.get('status')
+        op_status = op_details.get('status')
         if op_status == "COMPLETE":
             LOG.warn("Ignoring the update operation call as the "
                      "operation is already COMPLETE")
             return
 
-        op_type, op_list = deployment.get_operation(workflow_id)
         if op_type == 'operations-history':
-            op_list[-1] = dict(kwargs)
+            op_list = _pad_list(op_index, dict(kwargs))
         else:  # It's the current operation
             op_list = dict(kwargs)
 
@@ -126,10 +126,19 @@ def update_operation(deployment_id, workflow_id, driver=None,
         try:
             if 'status' in kwargs:
                 if kwargs['status'] != op_status:
-                    delta['display-outputs'] = deployment.calculate_outputs()
+                    delta['display-outputs'] = dep.calculate_outputs()
         except KeyError:
             LOG.warn("Cannot update deployment outputs: %s", deployment_id)
         driver.save_deployment(deployment_id, delta, partial=True)
+
+
+def _pad_list(last_item_id, last_item):
+    padded_list = []
+    for index in range(last_item_id):
+        padded_list.append({})
+    padded_list.append(last_item)
+
+    return padded_list
 
 
 def get_status_info(errors, tenant_id, workflow_id):

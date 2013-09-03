@@ -370,58 +370,39 @@ class Deployment(morpheus.MorpheusDict):
         """Gets an operation by Workflow ID.
 
         Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
-        blocks for an operation that has a field workflow-id with value as
-        that of the parameter workflow_id. If such an operation is found,
-        return a list containing the operation as the last item in the list,
-        with empty dicts padding the list for all previous operations.
-        This way the operation that matches the workflow_id retains its
-        position in the list.
+        blocks for an operation that has a workflow-id that matches the passed
+        in workflow_id. If found, returns a tuple containing three values:
+          - where the operation was found: 'operation' or 'operations-history'
+          - the index of the operation (mainly for 'operations-history')
+          - the operation details as a dict
+
+        If the worfklow_id is not found, raises a KeyError
 
         :param workflow_id: the workflow ID on which to search
-        :return: a Tuple containing the operation type and the list
+        :return: a Tuple containing op_type, op_index, and op_details
         """
-        ret_type = 'not-found'
-        ret_value = []
-        op_history = self.get('operations-history', [])
-
+        op_type, op_index, op_details = None, -1, {}
         if self.current_workflow_id() == workflow_id:
-            ret_type = 'operation'
-            ret_value.append(self.get('operation'))
-        elif len(op_history) > 0:
-            for history in op_history:
+            op_type = 'operation'
+            op_index = 0
+            op_details = self.get('operation')
+        else:
+            for index, operation in enumerate(self.get('operations-history', [])):
                 # TODO(Paul): Default to Deployment ID? Should we fix this
                 # using convert_data when the deployment is retrieved from
                 # storage, rather than here?
-                if history.get('workflow-id', self.get('id')) == workflow_id:
-                    ret_type = 'operations-history'
-                    ret_value.append(history)
+                if operation.get('workflow-id', self.get('id')) == workflow_id:
+                    op_type = 'operations-history'
+                    op_index = index
+                    op_details = operation
                     break
-                else:
-                    ret_value.append({})
-        else:
+
+        if not op_type:
             LOG.warn("Cannot find operation with workflow id %s in "
                      "deployment %s", workflow_id, self.get('id'))
-            ret_value.append({})
+            raise cmexc.CheckmateInvalidParameterError('Invalid workflow ID.')
 
-        return (ret_type, ret_value)
-
-    def get_current_operation(self, workflow_id):
-        """Gets the current operation for a given Workflow ID.
-
-        Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
-        blocks for an operation that has a field workflow-id with value as
-        that of the parameter workflow_id. If such an operation is found,
-        the method returns that operation.
-
-        The return value would contain only the operation that matched the
-        workflow, and it would not indicate whether the operation was from
-        the OPERATION block or the OPERATIONS-HISTORY
-
-        :param workflow_id:
-        :return:
-        """
-        oper_type, oper_list = self.get_operation(workflow_id)
-        return (oper_type, oper_list[-1])
+        return (op_type, op_index, op_details)
 
     def inputs(self):
         """Return inputs of deployment."""
