@@ -290,7 +290,7 @@ class TestAddUser(unittest.TestCase):
     @mock.patch.object(database._add_user, 'retry')
     def test_api_get_exc_retry(self, mock_retry):
         api = mock.Mock()
-        mock_exception = pyrax.exceptions.ClientException(code=422)
+        mock_exception = pyrax.exceptions.ClientException(code='422')
         api.get = mock.MagicMock(side_effect=mock_exception)
         mock_retry.side_effect = AssertionError('retry')
 
@@ -323,7 +323,7 @@ class TestAddUser(unittest.TestCase):
     @mock.patch.object(database._add_user, 'callback')
     @mock.patch.object(database._add_user, 'retry')
     def test_instance_create_user_exc_retry(self, mock_retry, mock_callback):
-        mock_exception = pyrax.exceptions.ClientException(code=422)
+        mock_exception = pyrax.exceptions.ClientException(code='422')
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'ACTIVE'
@@ -465,7 +465,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
             'resource_key': '1'
         }
         api = mock.Mock()
-        mock_exception = pyrax.exceptions.ClientException(code=400)
+        mock_exception = pyrax.exceptions.ClientException(code='400')
         api.get = mock.MagicMock(
             side_effect=mock_exception)
         mock_retry.side_effect = AssertionError('retry')
@@ -542,7 +542,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
             'deployment_id': '123',
             'resource_key': '1'
         }
-        mock_exception = pyrax.exceptions.ClientException(code=400)
+        mock_exception = pyrax.exceptions.ClientException(code='400')
         instance = mock.Mock()
         instance.delete_database = mock.MagicMock(side_effect=mock_exception)
         instance.status = 'ACTIVE'
@@ -552,7 +552,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
         try:
             database.delete_database(context, api)
         except pyrax.exceptions.ClientException as exc:
-            self.assertEqual(exc.code, 400)
+            self.assertEqual(exc.code, '400')
 
         instance.delete_database.assert_called_with('test_name')
 
@@ -726,30 +726,35 @@ class DeleteInstanceTaskTest(unittest.TestCase):
     @mock.patch.object(database.delete_instance_task, 'retry')
     def test_api_client_exception_400(self, mock_retry, mock_postback):
         api = mock.Mock()
-        mock_exception = pyrax.exceptions.ClientException(code=400)
+        mock_exception = pyrax.exceptions.NotFound(code='400')
         api.delete = mock.MagicMock(side_effect=mock_exception)
         database.delete_instance_task(self.context, api)
         mock_retry.assert_called_with(exc=mock_exception)
 
     @mock.patch.object(database.resource_postback, 'delay')
-    def test_api_client_exception_401_no_hosts(self, mock_postback):
+    def test_api_client_exception_404_no_hosts(self, mock_postback):
         api = mock.Mock()
-        mock_exception = pyrax.exceptions.ClientException(code=401)
+        mock_exception = pyrax.exceptions.NotFound(code='404')
         api.delete = mock.MagicMock(side_effect=mock_exception)
-        expected = {'instance:0': {'status': 'DELETED'}}
+        expected = {
+            'instance:0': {
+                'status': 'DELETED',
+                'status-message': ''
+            }
+        }
         results = database.delete_instance_task(self.context, api)
         self.assertEqual(results, expected)
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
     @mock.patch.object(database.resource_postback, 'delay')
-    def test_api_client_exception_401_with_hosts(self, mock_postback):
+    def test_api_client_exception_404_with_hosts(self, mock_postback):
         self.context['resource']['hosts'] = ['1', '2']
         api = mock.Mock()
-        mock_exception = pyrax.exceptions.ClientException(code=401)
+        mock_exception = pyrax.exceptions.NotFound(code='404')
         api.delete = mock.MagicMock(side_effect=mock_exception)
         expected = {
-            'instance:0': {'status': 'DELETED'},
+            'instance:0': {'status': 'DELETED', 'status-message': ''},
             'instance:1': {'status': 'DELETED', 'status-message': ''},
             'instance:2': {'status': 'DELETED', 'status-message': ''}
         }
@@ -845,7 +850,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
     def test_no_api_get_client_exception_no_hosts(self, mock_connect,
                                                   mock_postback):
         api = mock.Mock()
-        mock_exception = pyrax.exceptions.ClientException(code=404)
+        mock_exception = pyrax.exceptions.NotFound(code='404')
         api.get = mock.MagicMock(side_effect=mock_exception)
         mock_connect.return_value = api
         expected = {
@@ -1229,7 +1234,7 @@ class TestCreateDatabase(unittest.TestCase):
     def test_client_exception_400(self, mock_callback, mock_connect,
                                   mock_logger, mock_reset):
         api = mock.Mock()
-        mock_exception = pyrax.exceptions.ClientException(code=400)
+        mock_exception = pyrax.exceptions.ClientException(code='400')
         instance = mock.Mock()
         instance.status = 'ACTIVE'
         instance.create_database = mock.MagicMock(side_effect=mock_exception)
@@ -1248,7 +1253,7 @@ class TestCreateDatabase(unittest.TestCase):
                                       mock_connect,
                                       mock_logger, mock_reset):
         api = mock.Mock()
-        mock_exception = pyrax.exceptions.ClientException(code=402)
+        mock_exception = pyrax.exceptions.ClientException(code='402')
         instance = mock.Mock()
         instance.status = 'ACTIVE'
         instance.create_database = mock.MagicMock(side_effect=mock_exception)

@@ -223,7 +223,7 @@ class Manager(object):
                 instance.create_database(name, character_set, collate)
             except cdb_errors.ClientException as exc:
                 LOG.exception(exc)
-                if exc.code == 400:
+                if exc.code == '400':
                     raise
                 else:
                     raise CheckmateResumableException(str(exc),

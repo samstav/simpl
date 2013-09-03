@@ -3,8 +3,8 @@ Rackspace Cloud Databases Provider
 '''
 import logging
 
-from celery.task import task, current
-from pyrax.exceptions import ClientException
+from celery.task import task
+from pyrax import exceptions as pyexc
 
 from .manager import Manager
 from .provider import Provider
@@ -22,9 +22,7 @@ from checkmate.exceptions import (
     CheckmateException,
     CheckmateResumableException,
 )
-from checkmate.utils import (
-    match_celery_logging,
-)
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -104,7 +102,7 @@ def add_databases(context, instance_id, databases, region, api=None):
                     'collate': 'latin5_turkish_ci'}]
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
     '''
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     dbnames = []
     for database in databases:
@@ -131,7 +129,7 @@ def delete_instance_task(context, api=None):
     users.
     '''
 
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         '''Handle task failure.'''
@@ -212,10 +210,15 @@ def delete_instance_task(context, api=None):
                     'status-message': 'Host %s is being deleted'
                 }
             })
-    except ClientException as rese:
-        if rese.code in [401, 403, 404]:  # already deleted
+    except pyexc.NotFound as rese:
+        if rese.code == '404':  # already deleted
             # TODO(Nate): Remove status-message on current resource
-            res = {inst_key: {'status': 'DELETED'}}
+            res = {
+                inst_key: {
+                    'status': 'DELETED',
+                    'status-message': ''
+                }
+            }
             for hosted in resource.get('hosts', []):
                 res.update({
                     'instance:%s' % hosted: {
@@ -238,7 +241,7 @@ def delete_instance_task(context, api=None):
 def wait_on_del_instance(context, api=None):
     '''Wait for the specified instance to be deleted.'''
 
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         '''Handle task failure.'''
@@ -293,7 +296,7 @@ def wait_on_del_instance(context, api=None):
         api = Provider.connect(context, region)
     try:
         instance = api.get(instance_id)
-    except ClientException:
+    except pyexc.NotFound:
         pass
 
     if not instance or ('DELETED' == instance.status):
@@ -331,7 +334,7 @@ def wait_on_del_instance(context, api=None):
 def delete_database(context, api=None):
     '''Delete a database from an instance.'''
 
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         '''Handle task failure.'''
@@ -393,8 +396,8 @@ def delete_database(context, api=None):
     instance = None
     try:
         instance = api.get(instance_id)
-    except ClientException as respe:
-        if respe.code != 404:
+    except pyexc.ClientException as respe:
+        if respe.code != '404':
             delete_database.retry(exc=respe)
     if not instance or (instance.status == 'DELETED'):
         # instance is gone, so is the db
@@ -411,7 +414,7 @@ def delete_database(context, api=None):
                                                      "be out of BUILD status"))
     try:
         instance.delete_database(db_name)
-    except ClientException as respe:
+    except pyexc.ClientException as respe:
         delete_database.retry(exc=respe)
     LOG.info('Database %s deleted from instance %s', db_name, instance_id)
     ret = {inst_key: {'status': 'DELETED'}}
@@ -423,7 +426,7 @@ def delete_database(context, api=None):
 @statsd.collect
 def delete_user(context, instance_id, username, region, api=None):
     '''Delete a database user from an instance.'''
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
     if api is None:
         api = Provider.connect(context, region)
 
