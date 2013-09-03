@@ -63,9 +63,9 @@ def _handle_ghe(ghe, msg="Unexpected Github error"):
         LOG.warn(msg or "", exc_info=True)
 
 
-class GitHubManager(base.ManagerBase):
+class GitHubManager(object):
     """Manage the catalog of "known good" blueprints."""
-    def __init__(self, drivers, config):
+    def __init__(self, config):
         """Init Github blueprint manager.
 
         Config params used
@@ -76,7 +76,6 @@ class GitHubManager(base.ManagerBase):
         :repo_org: the organization owning the blueprint repositories
         :cache_dir: directory to write cached blueprint data to
         """
-        base.ManagerBase.__init__(self, drivers)
         self._github_api_base = config.github_api
         if self._github_api_base:
             self._github = github.Github(base_url=self._github_api_base)

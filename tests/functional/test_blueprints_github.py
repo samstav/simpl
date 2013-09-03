@@ -35,7 +35,7 @@ class TestGitHubManager(unittest.TestCase):
             'ref': 'master',
             'cache_dir': '/tmp',
         })
-        self.manager = github.GitHubManager({}, self.config)
+        self.manager = github.GitHubManager(self.config)
 
     def tearDown(self):
         self.mox.UnsetStubs()

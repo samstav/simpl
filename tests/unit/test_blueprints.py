@@ -180,25 +180,25 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.config.cache_dir = 'blah'
         self.config.group_refs = {}
         self.config.preview_tenants = []
-        self._manager = cmbps.GitHubManager({}, self.config)
+        self._manager = cmbps.GitHubManager(self.config)
 
     def test_no_api(self):
         conf = self.config
         conf.github_api = None
         with self.assertRaises(AssertionError):
-            cmbps.GitHubManager({}, conf)
+            cmbps.GitHubManager(conf)
 
     def test_no_org(self):
         conf = self.config
         conf.organization = None
         with self.assertRaises(AssertionError):
-            cmbps.GitHubManager({}, conf)
+            cmbps.GitHubManager(conf)
 
     def test_no_group_refs(self):
         conf = self.config
         conf.group_refs = None
         self.assertIsInstance(
-            cmbps.GitHubManager({}, conf), cmbps.GitHubManager)
+            cmbps.GitHubManager(conf), cmbps.GitHubManager)
 
     def test_failsafe_returns_master(self):
         self._manager._ref = None

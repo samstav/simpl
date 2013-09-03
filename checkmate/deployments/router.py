@@ -17,7 +17,6 @@ Handles API calls to /deployments and routes them appropriately
 """
 import copy
 import logging
-import os
 import uuid
 
 import bottle
@@ -38,11 +37,6 @@ from checkmate import workflows
 from checkmate.workflows import tasks as wf_tasks
 
 LOG = logging.getLogger(__name__)
-DB = db.get_driver()
-SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
-    'CHECKMATE_SIMULATOR_CONNECTION_STRING',
-    os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
-DRIVERS = {'default': DB, 'simulation': SIMULATOR_DB}
 
 
 #
@@ -97,7 +91,7 @@ def _validate_blueprint(deployment):
     if curr_config.github_api is None:
         raise exceptions.CheckmateValidationException(
             'Cannot validate blueprint.')
-    github_manager = blueprints.GitHubManager(DRIVERS, curr_config)
+    github_manager = blueprints.GitHubManager(curr_config)
     if github_manager.blueprint_is_invalid(deployment):
         LOG.info("X-Source-Untrusted: Passed in Blueprint did not match "
                  "anything in Checkmate's cache.")
