@@ -1599,9 +1599,13 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     $scope.load().then($scope.auto_refresh_success, $scope.increase_timeout);
   }
 
-  $scope.cancel_auto_refresh = function() {
-    if ($scope.auto_refresh_promise)
+  $scope.toggle_auto_refresh = function() {
+    if ($scope.auto_refresh_promise){
       $timeout.cancel($scope.auto_refresh_promise);
+      $scope.auto_refresh_promise = null;
+    } else {
+      $scope.auto_refresh();
+    }
   }
 }
 

@@ -78,7 +78,9 @@
         Database instance <a target="_blank" href="{{urlBuilder.myCloudURL('database', auth.context.username, resource(current_task, current_spec).region || current_task.attributes.region, resource(current_task, current_spec).id)}}">{{resource(current_task, current_spec).id}}</a> was created on host {{resource(current_task, current_spec).interfaces.mysql.host}}. Open it in <a target="_blank" href="{{urlBuilder.cloudControlURL('database', resource(current_task, current_spec).id, resource(current_task, current_spec).region || current_task.attributes.region, data.tenantId)}}">Cloud Control</a>.
       </alert>
 
-      <textarea id="task_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="current_task_json"></textarea>
+      <ng-include src="'/partials/workflows/_auto_refresh.html'"></ng-include>
+
+      <textarea id="task_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="$parent.current_task_json"></textarea>
     </div>
   </div>
 </div>
