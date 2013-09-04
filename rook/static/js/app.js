@@ -1061,8 +1061,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
       if (path_parts.slice(-1)[0] == 'status' || path_parts.slice(2,3) == 'deployments') {
         if ($scope.taskStates.completed < $scope.count) {
           var original_url = $location.url();
-          if ($scope.auto_refresh !== false)
-            setTimeout(function() {$scope.reload(original_url);}, 2000);
+          setTimeout(function() {$scope.reload(original_url);}, 2000);
         } else {
           var d = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id.json?with_secrets');
           d.get($routeParams, function(object, getResponseHeaders){
