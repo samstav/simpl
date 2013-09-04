@@ -29,6 +29,6 @@ def register():
     from checkmate.providers.rackspace.loadbalancer import (
         Provider as loadbalancer)
     from checkmate.providers.rackspace.database import Provider as database
-    from checkmate.providers.rackspace.dns import Provider as dns
+    from checkmate.providers.rackspace.dns.provider import Provider as dns
     from checkmate.providers.rackspace.files import Provider as files
     rps([legacy, nova, loadbalancer, database, dns, files])

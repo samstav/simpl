@@ -96,17 +96,22 @@ class Provider(checkmate.providers.ProviderBase):
         messages = []
         api = self.connect(context)
         limits = self._get_limits(self._find_url(context.catalog), api)
-        max_doms = limits.get('domains', sys.maxint)
-        max_recs = limits.get('records per domain', sys.maxint)
+        max_doms = limits.get('absolute', {}).get('domains', sys.maxint)
+        max_recs = limits.get('absolute', {}).get('records per domain',
+                                                  sys.maxint)
         cur_doms = len(api.list())
+        #import ipdb; ipdb.set_trace()
         while True:
             try:
                 cur_doms = cur_doms + len(api.list_next_page())
             except pyrax.exceptions.NoMoreResults:
                 break
         # get a list of the possible domains
-        domain_names = set(map(lambda x: parse_domain(x.get('dns-name')),
-                               resources))
+        domain_names = []
+        for resource in resources:
+            if resource.get('dns-name'):
+                domain_names.append(resource['dns-name'])
+
         # find the ones that are new
         pile = eventlet.greenpool.GreenPile()
         for dom in domain_names:

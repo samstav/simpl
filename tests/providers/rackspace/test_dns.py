@@ -20,6 +20,7 @@ import os
 import unittest
 
 import mox
+import pyrax
 import tldextract
 
 from checkmate import middleware as cmmid
@@ -69,26 +70,28 @@ class TestDnsProvider(unittest.TestCase):
         context.catalog = {
         }
         mock_api = self.mox.CreateMockAnything()
-        self.mox.StubOutWithMock(dns.Provider, 'connect')
-        dns.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
-        self.mox.StubOutWithMock(dns.Provider, "_get_limits")
-        (dns.Provider._get_limits(mox.IgnoreArg(), mox.IgnoreArg())
+        self.mox.StubOutWithMock(dns.provider.Provider, 'connect')
+        dns.provider.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
+        self.mox.StubOutWithMock(dns.provider.Provider, "_get_limits")
+        (dns.provider.Provider._get_limits(mox.IgnoreArg(), mox.IgnoreArg())
          .AndReturn(limits))
-        mock_api.get_total_domain_count().AndReturn(existing_doms)
-        dns.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
-        mock_api.list_domains_info(
-            filter_by_name=mox.IgnoreArg()).AndReturn(None)
-        dns.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
-        mock_api.list_domains_info(
-            filter_by_name=mox.IgnoreArg()).AndReturn(None)
+        mock_api.list().AndReturn(existing_doms)
+        mock_api.list_next_page().AndRaise(pyrax.exceptions.NoMoreResults())
+        dns.provider.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
+        mock_api.find(name=mox.IgnoreArg()).AndReturn(None)
+
+        dns.provider.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
+        mock_api.find(name=mox.IgnoreArg()).AndReturn(None)
+        dns.provider.Provider.connect(mox.IgnoreArg()).AndReturn(mock_api)
+        mock_api.find(name=mox.IgnoreArg()).AndReturn(None)
         self.mox.ReplayAll()
-        result = dns.Provider({}).verify_limits(context, resources)
+        result = dns.provider.Provider({}).verify_limits(context, resources)
         self.mox.VerifyAll()
         return result
 
     def test_verify_limits_negative(self):
         """Test that verify_limits() returns warning if limits exceeded."""
-        result = self.verify_limits(1, 1, 0)
+        result = self.verify_limits([1], 1, 0)
         LOG.debug(result)
         self.assertEqual(2, len(result))
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
@@ -97,7 +100,7 @@ class TestDnsProvider(unittest.TestCase):
         """Test that verify_access() returns ACCESS-OK if user has access."""
         context = cmmid.RequestContext()
         context.roles = 'identity:user-admin'
-        provider = dns.Provider({})
+        provider = dns.provider.Provider({})
         result = provider.verify_access(context)
         self.assertEqual(result['type'], 'ACCESS-OK')
         context.roles = 'dnsaas:admin'
@@ -111,7 +114,7 @@ class TestDnsProvider(unittest.TestCase):
         """Test that verify_access() returns ACCESS-OK if user has access."""
         context = cmmid.RequestContext()
         context.roles = 'dnsaas:observer'
-        provider = dns.Provider({})
+        provider = dns.provider.Provider({})
         result = provider.verify_access(context)
         self.assertEqual(result['type'], 'NO-ACCESS')
 
