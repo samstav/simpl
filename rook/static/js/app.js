@@ -594,7 +594,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
 
   $scope.exit_impersonation = function() {
     auth.exit_impersonation();
-    $location.url('/');
+    $location.url('/admin/deployments');
   };
 
   $scope.is_impersonating = function() {
@@ -2123,7 +2123,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     };
 
     if (auth.is_logged_in()) {
-      Deployment.sync($scope.data, $scope.sync_success, $scope.sync_failure)
+      Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure)
     } else {
       $scope.loginPrompt().then(retry);
     }

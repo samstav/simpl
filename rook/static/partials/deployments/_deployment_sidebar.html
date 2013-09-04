@@ -10,12 +10,10 @@
     </a>
   </li>
 
-  <li ng-show="showCommands" >
-    <a ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
-      <i class="icon-retweet"></i>
-      Sync
-    </a>
-  </li>
+  <a ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
+    <i class="icon-retweet"></i>
+    Sync
+  </a>
 
   <li ng-show="available_services(data).length > 0">
     <a ng-show="data.status == 'UP'" ng-click="open_modal('delete_nodes_warning')" tooltip="Delete Nodes from current deployment" tooltip-placement="right">
@@ -46,11 +44,7 @@
   </li>
 
   <li>
-    <a ng-show="showCommands" ng-click="open_modal('delete_warning')" tooltip="Delete Resources and Deployment" tooltip-placement="right">
-      <i class="icon-remove"></i>
-      Delete
-    </a>
-    <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this" tooltip-placement="right">
+    <a ng-click="open_modal('delete_warning')" tooltip="Delete Resources and Deployment" tooltip-placement="right">
       <i class="icon-remove"></i>
       Delete
     </a>
@@ -63,17 +57,14 @@
         <p>Deleting the deployment will also delete all resources and data in it.</p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-primary" ng-click="delete_deployment()">Go ahead and Delete</button>
+        <button class="btn btn-primary" ng-click="wrap_admin_call(data['created-by'], delete_deployment)">Go ahead and Delete</button>
         <button class="btn" ng-click="close_modal('delete_warning')">Cancel</button>
       </div>
     </div>
   </li>
 
   <li>
-    <a ng-show="showCommands" ng-click="open_modal('force_delete_warning')" tooltip="Delete Resources and Deployment even if status does not allow it" tooltip-placement="right">
-      <i class="icon-remove"></i> Force Delete
-    </a>
-    <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this" tooltip-placement="right">
+    <a ng-click="open_modal('force_delete_warning')" tooltip="Delete Resources and Deployment even if status does not allow it" tooltip-placement="right">
       <i class="icon-remove"></i> Force Delete
     </a>
     <!-- forceDeleteWarning -->
@@ -86,7 +77,7 @@
         <p>A forced delete may also result in a deployment that is broken and in an indeterminate state.</p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-primary" href="#" ng-click="delete_deployment('1')">Go ahead and Force Delete</button>
+        <button class="btn btn-primary" href='#' ng-click="wrap_admin_call(data['created-by'], delete_deployment, '1')">Go ahead and Force Delete</button>
         <button class="btn" ng-click="close_modal('force_delete_warning')">Cancel</button>
       </div>
     </div>
