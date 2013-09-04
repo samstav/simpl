@@ -545,7 +545,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                                                     "Node was not added")
                 return add_node.retry(exc=exc)
         except pyrax.exceptions.ClientException as exc:
-            if exc.code == 422:
+            if exc.code == '422':
                 LOG.debug("Cannot modify load balancer %d. Will retry "
                           "adding %s (%d %s)", lbid, ipaddr, exc.code,
                           exc.message)
@@ -595,7 +595,7 @@ def delete_node(context, lbid, ipaddr, region, api=None):
             node_to_delete.delete()
             LOG.info('Removed %s from load balancer %s', ipaddr, lbid)
         except pyrax.exceptions.ClientException as exc:
-            if exc.code == 422:
+            if exc.code == '422':
                 LOG.debug("Cannot modify load balancer %d. Will retry "
                           "deleting %s (%s %s)", lbid, ipaddr, exc.code,
                           exc.message)
@@ -638,7 +638,7 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
             statusRegex=status,
             bodyRegex=body)
     except pyrax.exceptions.ClientException as response_error:
-        if response_error.code == 422:
+        if response_error.code == '422':
             LOG.debug("Cannot modify load balancer %s. Will retry setting %s "
                       "monitor (%s %s)", lbid, type,
                       response_error.code, response_error.message)

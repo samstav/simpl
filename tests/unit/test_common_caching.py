@@ -192,6 +192,7 @@ class TestCachingIgnoreArgs(unittest.TestCase):
         self.assertEqual(results1, 5)
         self.assertEqual(results2, 5)
 
+
 @caching.Cache(store=store, ignore_kwargs=['ignore_num'])
 def example2(ignore_num, unique):
     """Sample method for testing ignore_kwargs."""
