@@ -174,8 +174,10 @@ class TestCachingMocked(unittest.TestCase):
         mock_thread.start.assert_called_once_with()
 
 
-store = {}  # stale cache entry
-@caching.Cache(max_entries=5, timeout=100, store=store, ignore_args=[0,1])
+STORE = {}  # stale cache entry
+
+
+@caching.Cache(max_entries=5, timeout=100, store=STORE, ignore_args=[0, 1])
 def example(ignore_num, unique):
     """Sample method for testing ignore_args."""
     return ignore_num
@@ -193,7 +195,7 @@ class TestCachingIgnoreArgs(unittest.TestCase):
         self.assertEqual(results2, 5)
 
 
-@caching.Cache(store=store, ignore_kwargs=['ignore_num'])
+@caching.Cache(store=STORE, ignore_kwargs=['ignore_num'])
 def example2(ignore_num, unique):
     """Sample method for testing ignore_kwargs."""
     return ignore_num
