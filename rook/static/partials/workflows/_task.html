@@ -16,13 +16,13 @@
             <p>Resetting a task will delete all the task history and data in it that references any resources created.</p>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-primary" ng-href="#{{current_task.task_spec}}" ng-click="reset_task()">Go ahead and Reset</button>
+            <button class="btn btn-primary" ng-href="#{{current_task.task_spec}}" ng-click="wrap_admin_call(deployment['created-by'], reset_task)">Go ahead and Reset</button>
             <button class="btn" ng-click="close_modal('reset_warning')">Cancel</button>
           </div>
         </div>
       </li>
-      <li><a ng-href="#{{current_task.task_spec}}" ng-click="execute_task()" tooltip-placement='left' tooltip="Tries to move the task along or checks the latest status if it is pending."><i class="icon-play"></i> Poke</a></li>
-      <li><a ng-href="#{{current_task.task_spec}}" ng-click="resubmit_task()" tooltip-placement='left' tooltip="Retries the task. It Aborts an existing task if it is running."><i class="icon-retweet"></i> Retry</a></li>
+      <li><a ng-href="#{{current_task.task_spec}}" ng-click="wrap_admin_call(deployment['created-by'], execute_task)" tooltip-placement='left' tooltip="Tries to move the task along or checks the latest status if it is pending."><i class="icon-play"></i> Poke</a></li>
+      <li><a ng-href="#{{current_task.task_spec}}" ng-click="wrap_admin_call(deployment['created-by'], resubmit_task)" tooltip-placement='left' tooltip="Retries the task. It Aborts an existing task if it is running."><i class="icon-retweet"></i> Retry</a></li>
     </ul>
   </div>
 
