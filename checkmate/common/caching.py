@@ -86,14 +86,17 @@ class Cache:
     '''Cache a function'''
 
     def __init__(self, max_entries=1000, timeout=DEFAULT_TIMEOUT,
-                 sensitive_args=None, sensitive_kwargs=None, salt='a_salt',
-                 store=None, cache_exceptions=False, backing_store=None,
+                 sensitive_args=None, sensitive_kwargs=None, ignore_args=None,
+                 ignore_kwargs=None, salt='a_salt', store=None,
+                 cache_exceptions=False, backing_store=None,
                  backing_store_key=None):
         self.max_entries = max_entries
         self.salt = salt
         self.max_age = timeout
         self.sensitive_args = sensitive_args
         self.sensitive_kwargs = sensitive_kwargs
+        self.ignore_args = ignore_args
+        self.ignore_kwargs = ignore_kwargs
 
         self.cleaning_schedule = int(timeout / 2) if timeout > 1 else 1
         self.limit_reached = False
@@ -119,7 +122,7 @@ class Cache:
                     return result
             try:
                 result = func(*args, **kwargs)
-            except Exception as exc:
+            except StandardError as exc:
                 if self.cache_exceptions:
                     self.cache(exc, self.get_hash(*args, **kwargs))
                 raise exc
@@ -190,7 +193,8 @@ class Cache:
 
     def get_hash(self, *args, **kwargs):
         '''Calculate a secure hash'''
-        if not self.sensitive_args and not self.sensitive_kwargs:
+        if (not self.sensitive_args and not self.sensitive_kwargs and not
+          self.ignore_args and not self.ignore_kwargs):
             return (args, tuple(sorted(kwargs.items())))
         clean_args = list(copy.deepcopy(args))
         clean_kwargs = copy.deepcopy(kwargs)
@@ -206,6 +210,13 @@ class Cache:
                 if key in clean_kwargs:
                     value = clean_kwargs.pop(key)
                     secrets.append("%s|%s" % (key, value))
+        if self.ignore_args:
+            self.ignore_args = sorted(self.ignore_args, reverse=True)
+            for x in self.ignore_args:
+                del clean_args[x]
+        if self.ignore_kwargs:
+            for k, v in self.ignore_kwargs.items():
+                del clean_kwargs[k]
         if secrets:
             hasher = hashlib.md5("%s:%s" % (self.salt, ':'.join(secrets)))
             secret_hash = hasher.hexdigest()
