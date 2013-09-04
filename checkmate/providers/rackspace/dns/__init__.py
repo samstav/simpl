@@ -141,7 +141,7 @@ def create_record(context, domain, name, dnstype, data,
         'ttl': rec_ttl
     }
     try:
-        rec = domain_object.add_record(record)
+        rec = domain_object.add_record(record)[0]
         LOG.debug('Created DNS %s record %s -> %s. TTL: %s', dnstype, name,
                   data, rec_ttl)
     except pyrax.exceptions.DomainRecordAdditionFailed as resp_error:
