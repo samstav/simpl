@@ -1,0 +1,10 @@
+<li id="autologin_localhost_apikey">
+<script>function autologin_localhost_apikey_submit() { document.getElementById("autologin_localhost_apikey_form").submit(); return false; } </script>
+<form id="autologin_localhost_apikey_form" action="http://localhost:8080/autologin" method="post">
+  <input name="username" value="rackcloudtech" type="hidden">
+  <input name="api_key"    value="a1207b3b4eb8638d02cdb1c4f3f36644" type="hidden">
+  <input name="endpoint" value="https://identity-internal.api.rackspacecloud.com/v2.0/tokens" type="hidden">
+  <!-- <input name="endpoint_scheme" value="Keystone" type="hidden"> -->
+</form> 
+<a href="#" onclick="autologin_localhost_apikey_submit();">Auto Login API_KEY</a>
+</li>

@@ -1,0 +1,7 @@
+<button class="btn btn-mini tip" title="Auto refresh" ng-class="{active: auto_refresh_promise}" ng-click="toggle_auto_refresh()">
+  <i class="icon-refresh"></i> auto refresh
+  <span ng-switch on="auto_refresh_promise">
+    <span ng-switch-when="null">disabled</span>
+    <span ng-switch-default>enabled</span>
+  </span>
+</button>

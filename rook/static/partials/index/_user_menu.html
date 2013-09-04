@@ -34,10 +34,10 @@
             <input ng-model="impersonation.username" type="text" placeholder="Username" cm-stop-click-propagation />
           </form>
         </li>
-        <li role="presentation" ng-repeat="tenant in auth.cache.tenants">
+        <li ng-show="auth.is_admin()" role="presentation" ng-repeat="tenant in auth.cache.tenants">
             <a role="menutitem" ng-click="impersonate(tenant.username)">{{tenant.username}} ({{tenant.tenantId}})</a>
         </li>
-        <li ng-show="auth.cache.tenants" class="divider"></li>
+        <li ng-show="auth.is_admin() &amp;&amp; auth.cache.tenants" class="divider"></li>
 
         <li><a ng-show="is_impersonating()" ng-click="exit_impersonation()">Exit Impersonation</a></li>
         <li ng-show="is_impersonating()" class="divider"></li>

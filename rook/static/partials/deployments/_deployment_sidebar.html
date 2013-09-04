@@ -87,12 +87,10 @@
   <li class="nav-header">
     Workflows
   </li>
-  <li ng-repeat="operation in data['operations-history'].reverse() | filter:{ link: '!canvas' }">
-    <a ng-show="showCommands" href="{{operation.link}}">{{operation.type | capitalize}}</a>
-    <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this" tooltip-placement="right">{{operation.type | capitalize}}</a>
+  <li ng-repeat="operation in operations_history | filter:{ link: '!canvas' }">
+    <a href="{{operation.link}}">{{operation.type | capitalize}}</a>
   </li>
   <li>
-    <a ng-show="showCommands &amp;&amp; data.operation.link" href="{{data.operation.link}}">{{data.operation.type | capitalize}}</a>
-    <a ng-hide="showCommands" class="muted" tooltip="You must impersonate this user to use this" tooltip-placement="right">{{data.operation.type | capitalize}}</a>
+    <a ng-show="data.operation.link" href="{{data.operation.link}}">{{data.operation.type | capitalize}}</a>
   </li>
 </ul>
