@@ -35,7 +35,7 @@ LOG = logging.getLogger(__name__)
 DNS_API_CACHE = {}
 
 
-class Provider(checkmate.providers.ProviderBase):
+class Provider(rsbase.RackspaceProviderBase):
     """Rackspace Cloud DNS provider class."""
     name = 'dns'
     vendor = 'rackspace'

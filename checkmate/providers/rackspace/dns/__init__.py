@@ -19,16 +19,12 @@ from celery import task
 import pyrax
 
 from checkmate.common import statsd
-from checkmate import utils
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateUserException,
-    UNEXPECTED_ERROR,
-)
+from checkmate import exceptions
 import checkmate.middleware
 import checkmate.providers
 import checkmate.providers.base
 from checkmate.providers.rackspace.dns import provider
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -39,7 +35,7 @@ LOG = logging.getLogger(__name__)
 def get_domains(context, limit=None, offset=None):
     '''Returns list of domains for an account.'''
     checkmate.utils.match_celery_logging(LOG)
-    api = provider.Provider(context)
+    api = provider.Provider.connect(context)
     try:
         domains = api.list(limit=limit, offset=offset)
         LOG.debug('Successfully retrieved domains.')
@@ -136,8 +132,8 @@ def create_record(context, domain, name, dnstype, data,
                 dnstype, name, data, domain)
             )
             LOG.error(msg)
-            raise CheckmateUserException(msg, utils.get_class_name(
-                Exception), UNEXPECTED_ERROR, '')
+            raise exceptions.CheckmateUserException(msg, utils.get_class_name(
+                Exception), exceptions.UNEXPECTED_ERROR, '')
     record = {
         'name': name,
         'type': dnstype,
@@ -180,18 +176,18 @@ def delete_record_task(context, domain_id, record_id):
         msg = ('Error finding domain %s. Cannot delete record %s.'
                % (domain_id, record_id))
         LOG.error(msg, exc_info=True)
-        raise CheckmateUserException(msg, utils.get_class_name(
-            CheckmateException), UNEXPECTED_ERROR, '')
+        raise exceptions.CheckmateUserException(msg, utils.get_class_name(
+            exceptions.CheckmateException), exceptions.UNEXPECTED_ERROR, '')
     try:
         domain.delete_record(record=record_id)
         LOG.debug('Deleted DNS record %s.', record_id)
         return True
+    except pyrax.exceptions.NotFound as exc:
+        return
     except pyrax.exceptions.ClientException as resp_error:
         LOG.debug('Error deleting DNS record %s. Error %s %s. Retrying.',
                   record_id, resp_error.status, resp_error.reason)
         delete_record_task.retry(exc=resp_error)
-    except pyrax.exceptions.NotFound as exc:
-        return
     except StandardError as exc:
         LOG.debug('Error deleting DNS record %s. Retrying.', record_id,
                   exc_info=True)

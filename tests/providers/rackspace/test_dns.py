@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,R0904
+# pylint: disable=C0103,E1101,R0904,W0212,E1120
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -25,7 +25,7 @@ import tldextract
 
 from checkmate import middleware as cmmid
 from checkmate.providers.rackspace import dns
-from checkmate.providers.rackspace.dns.provider import parse_domain
+from checkmate.providers.rackspace.dns import provider
 
 LOG = logging.getLogger(__name__)
 
@@ -100,22 +100,22 @@ class TestDnsProvider(unittest.TestCase):
         """Test that verify_access() returns ACCESS-OK if user has access."""
         context = cmmid.RequestContext()
         context.roles = 'identity:user-admin'
-        provider = dns.provider.Provider({})
-        result = provider.verify_access(context)
+        dnsprovider = dns.provider.Provider({})
+        result = dnsprovider.verify_access(context)
         self.assertEqual(result['type'], 'ACCESS-OK')
         context.roles = 'dnsaas:admin'
-        result = provider.verify_access(context)
+        result = dnsprovider.verify_access(context)
         self.assertEqual(result['type'], 'ACCESS-OK')
         context.roles = 'dnsaas:creator'
-        result = provider.verify_access(context)
+        result = dnsprovider.verify_access(context)
         self.assertEqual(result['type'], 'ACCESS-OK')
 
     def test_verify_access_negative(self):
         """Test that verify_access() returns ACCESS-OK if user has access."""
         context = cmmid.RequestContext()
         context.roles = 'dnsaas:observer'
-        provider = dns.provider.Provider({})
-        result = provider.verify_access(context)
+        dnsprovider = dns.provider.Provider({})
+        result = dnsprovider.verify_access(context)
         self.assertEqual(result['type'], 'NO-ACCESS')
 
 
@@ -135,6 +135,7 @@ class TestParseDomain(unittest.TestCase):
             ('ftp.regaion1.sample.co.uk', 'sample.co.uk')
         ]
         self.mox = mox.Mox()
+        self.save_failed = False
 
     def tearDown(self):
         self.mox.UnsetStubs()
@@ -145,7 +146,7 @@ class TestParseDomain(unittest.TestCase):
         if os.path.exists(self.default_tld_cache_file):
             try:
                 os.remove(self.default_tld_cache_file)
-            except Exception:
+            except StandardError:
                 # Not that big a deal if the file couldn't be removed by the
                 # user running the test.
                 pass
@@ -171,7 +172,7 @@ class TestParseDomain(unittest.TestCase):
         ).WithSideEffects(failed)
         self.mox.ReplayAll()
 
-        answer = parse_domain(domain)
+        answer = provider.parse_domain(domain)
         self.assertEquals(answer, expected)
         if not self.save_failed:
             self.assertTrue(os.path.exists(self.default_tld_cache_file))
@@ -181,13 +182,13 @@ class TestParseDomain(unittest.TestCase):
             os.remove(self.custom_tld_cache_file)
         os.environ[self.tld_cache_env] = self.custom_tld_cache_file
         domain, expected = self.sample_domain
-        answer = parse_domain(domain)
+        answer = provider.parse_domain(domain)
         self.assertEquals(answer, expected)
         self.assertTrue(os.path.exists(self.custom_tld_cache_file))
 
     def test_sample_data(self):
         for domain, expected in self.sample_data:
-            answer = parse_domain(domain)
+            answer = provider.parse_domain(domain)
             self.assertEquals(answer, expected)
 
 if __name__ == '__main__':
