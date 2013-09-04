@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+#pylint: disable=R0201,C0111,C0103
+
 import mock
 import unittest
 
@@ -50,9 +52,9 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
 
         handler = exception_handlers.ResetTaskTreeExceptionHandler(
             mock_workflow, "task_id", mock_context, mock_driver)
-        wf = handler.handle()
+        reset_wf = handler.handle()
 
-        self.assertEqual("1111", wf)
+        self.assertEqual("1111", reset_wf)
         mock_task_spec.get_property.assert_called_with(
             "task_retry_count", default=0)
         mock_get_subwf.assert_called_with(mock_workflow, "task_id")

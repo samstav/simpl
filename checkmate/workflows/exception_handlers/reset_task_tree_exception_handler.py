@@ -11,13 +11,16 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
+# pylint: disable=R0903
+'''Reset Task Tree Exception Handler - Used to reset task tree for failed
+tasks in the workflow
+'''
 import logging
 
 from celery.result import AsyncResult
 
-from exception_handler import ExceptionHandler
 from checkmate import workflow as cmwf
+from exception_handler import ExceptionHandler
 
 LOG = logging.getLogger(__name__)
 
@@ -27,8 +30,7 @@ class ResetTaskTreeExceptionHandler(ExceptionHandler):
     MAX_RETRIES_FOR_TASK = 3
 
     def handle(self):
-        """
-        Handler method that does the required actions with the task
+        """Handler method that does the required actions with the task
         :return:
         """
         failed_task = self.d_wf.get_task(self.task_id)

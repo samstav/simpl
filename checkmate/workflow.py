@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 '''
 Workflow Class and Helper Functions
 '''
@@ -6,12 +20,15 @@ import logging
 import uuid
 
 from celery.exceptions import MaxRetriesExceededError
-from SpiffWorkflow import Workflow as SpiffWorkflow, Task
+from SpiffWorkflow import (
+    Workflow as SpiffWorkflow,
+    Task
+)
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
+from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.deployment import Deployment
 from checkmate.exceptions import CheckmateException
@@ -103,14 +120,14 @@ def update_workflow_status(workflow):
 
 
 def reset_task_tree(task):
-    '''
-    For a given task, would traverse through the parents of the task, changing
-    the state of each of the task(s) to FUTURE, until the 'root' task is found.
+    """For a given task, would traverse through the parents of the task,
+    changing the state of each of the task(s) to FUTURE, until the 'root'
+    task is found.
     For this 'root' task, the state is changed to WAITING.
 
     :param task: Task which would have to be reset.
     :return:
-    '''
+    """
     while True:
         if isinstance(task.task_spec, Celery):
             task.task_spec._clear_celery_task_data(task)
@@ -127,7 +144,7 @@ def reset_task_tree(task):
 
 
 def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
-    '''Updates the workflow status, and saves the workflow. Worflow status
+    """Updates the workflow status, and saves the workflow. Worflow status
     can be overriden by providing a custom value for the 'status' parameter.
 
     :param d_wf: De-serialized workflow
@@ -138,7 +155,7 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
         associated with the workflow.
     :param driver: DB driver
     :return:
-    '''
+    """
 
     update_workflow_status(d_wf)
     if status:
@@ -154,8 +171,7 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
 
 def create_reset_failed_task_workflow(d_wf, deployment_id, context,
                                       failed_task, driver=DB):
-    """
-    Creates workflow for resetting a failed task
+    """Creates workflow for resetting a failed task
     :param d_wf: workflow containing the task
     :param deployment_id: deployment id
     :param context: context
@@ -319,10 +335,10 @@ def get_spiff_workflow_status(workflow):
 
 def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
                         wf_type):
-    '''Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
+    """Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
 
     :returns: SpiffWorkflow.Workflow
-    '''
+    """
     LOG.info("Creating workflow for deployment '%s'", deployment['id'])
     results = spiff_wf_spec.validate()
     if results:

@@ -11,6 +11,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+# pylint: disable=R0903
+
+"""ExceptionHandler Base Class"""
 
 import logging
 
@@ -18,6 +21,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ExceptionHandler(object):
+    """Base Class for Exception Handlers"""
     def __init__(self, d_wf, task_id, context, driver):
         self.d_wf = d_wf
         self.task_id = task_id
@@ -25,5 +29,8 @@ class ExceptionHandler(object):
         self.driver = driver
 
     def handle(self):
+        """Handler method that does the required actions with the task
+        :return:
+        """
         LOG.debug("%s.handle called, but was not implemented",
                   self.__class__.__name__)
