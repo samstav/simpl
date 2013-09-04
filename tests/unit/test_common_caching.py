@@ -174,6 +174,42 @@ class TestCachingMocked(unittest.TestCase):
         mock_thread.start.assert_called_once_with()
 
 
+store = {}  # stale cache entry
+@caching.Cache(max_entries=5, timeout=100, store=store, ignore_args=[0,1])
+def example(ignore_num, unique):
+    """Sample method for testing ignore_args."""
+    return ignore_num
+
+
+class TestCachingIgnoreArgs(unittest.TestCase):
+    """Verifies methods and cache data with ignore_args set."""
+
+    def test_ignore_args(self):
+        """Verifies cache returns."""
+        unique = '39285471287546'
+        results1 = example(5, unique)
+        results2 = example(7, unique)
+        self.assertEqual(results1, 5)
+        self.assertEqual(results2, 5)
+
+@caching.Cache(store=store, ignore_kwargs=['ignore_num'])
+def example2(ignore_num, unique):
+    """Sample method for testing ignore_kwargs."""
+    return ignore_num
+
+
+class TestCachingIgnoreKwargs(unittest.TestCase):
+    """Verifies cache returns on ignore_kwargs set."""
+
+    def test_ignore_kwargs(self):
+        """Verify results."""
+        unique = '12897623875412'
+        results1 = example2(ignore_num=3, unique=unique)
+        results2 = example2(ignore_num=9, unique=unique)
+        self.assertEqual(results1, 3)
+        self.assertEqual(results2, 3)
+
+
 class TestSecretHashing(unittest.TestCase):
     def setUp(self):
         self.cache = caching.Cache(sensitive_args=[0],

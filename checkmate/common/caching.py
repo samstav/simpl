@@ -212,10 +212,10 @@ class Cache:
                     secrets.append("%s|%s" % (key, value))
         if self.ignore_args:
             self.ignore_args = sorted(self.ignore_args, reverse=True)
-            for x in self.ignore_args:
-                del clean_args[x]
+            for a in self.ignore_args:
+                del clean_args[a]
         if self.ignore_kwargs:
-            for k, v in self.ignore_kwargs.items():
+            for k in self.ignore_kwargs:
                 del clean_kwargs[k]
         if secrets:
             hasher = hashlib.md5("%s:%s" % (self.salt, ':'.join(secrets)))
