@@ -111,9 +111,9 @@ def update_operation(deployment_id, workflow_id, driver=None,
     dep = cmdep.Deployment(dep)
 
     try:
-        op_type, op_index, op_details = dep.get_operation(workflow_id)
+        op_type, op_index, op_details = get_operation(dep, workflow_id)
     except cmexc.CheckmateInvalidParameterError:
-        return  # Nothing to do!
+        return  # No workflow found
 
     op_status = op_details.get('status')
     if op_status == "COMPLETE":
@@ -275,3 +275,50 @@ def _get_distinct_errors(errors):
         new_error = list(group)[0]
         distinct_errors.append(new_error)
     return distinct_errors
+
+
+def current_workflow_id(deployment):
+    """Return the current Workflow's ID."""
+    operation = deployment.get('operation')
+    if operation:
+        return operation.get('workflow-id', deployment.get('id'))
+    return None
+
+
+def get_operation(deployment, workflow_id):
+    """Gets an operation by Workflow ID.
+
+    Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
+    blocks for an operation that has a workflow-id that matches the passed
+    in workflow_id. If found, returns a tuple containing three values:
+      - where the operation was found: 'operation' or 'operations-history'
+      - the index of the operation (mainly for 'operations-history')
+      - the operation details as a dict
+
+    If the worfklow_id is not found, raises a KeyError
+
+    :param workflow_id: the workflow ID on which to search
+    :return: a Tuple containing op_type, op_index, and op_details
+    """
+    op_type, op_index, op_details = None, -1, {}
+    if current_workflow_id(deployment) == workflow_id:
+        op_type = 'operation'
+        op_index = -1
+        op_details = deployment.get('operation')
+    else:
+        for index, oper in enumerate(deployment.get('operations-history', [])):
+            # TODO(Paul): Default to Deployment ID? Should we fix this
+            # using convert_data when the deployment is retrieved from
+            # storage, rather than here?
+            if oper.get('workflow-id', deployment.get('id')) == workflow_id:
+                op_type = 'operations-history'
+                op_index = index
+                op_details = oper
+                break
+
+    if not op_type:
+        LOG.warn("Cannot find operation with workflow id %s in "
+                 "deployment %s", workflow_id, deployment.get('id'))
+        raise cmexc.CheckmateInvalidParameterError('Invalid workflow ID.')
+
+    return (op_type, op_index, op_details)

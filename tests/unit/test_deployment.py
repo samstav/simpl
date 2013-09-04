@@ -187,56 +187,6 @@ class TestDeployments(unittest.TestCase):
                                          "3": {"status": "BUILD",
                                                "provider": "something"}})
 
-    def test_get_workflow_id_when_w_id_not_in_operation(self):
-        workflow_id = self.deployment.current_workflow_id()
-        self.assertEqual(workflow_id, self.deployment['id'])
-
-    def test_get_workflow_id_when_w_id_in_operation(self):
-        self.deployment['operation']['workflow-id'] = 'w_id'
-        workflow_id = self.deployment.current_workflow_id()
-        self.assertEqual(workflow_id, 'w_id')
-
-    def test_get_operation_invalid_id_and_no_history(self):
-        with self.assertRaises(
-                cmexc.CheckmateInvalidParameterError) as expected:
-            self.deployment.get_operation('bad-id')
-        self.assertEqual('Invalid workflow ID.', str(expected.exception))
-
-    def test_get_operation_invalid_id_with_history(self):
-        self.deployment['operations-history'] = [{'status': 'PAUSED',
-                                                 'workflow-id': 'w_id'}]
-        with self.assertRaises(
-                cmexc.CheckmateInvalidParameterError) as expected:
-            self.deployment.get_operation('foobar_w_id')
-
-        self.assertEqual('Invalid workflow ID.', str(expected.exception))
-
-    def test_get_operation_from_current_operation(self):
-        self.assertEqual(('operation', -1, {'status': 'NEW'}),
-                         self.deployment.get_operation("test"))
-
-    def test_get_operation_from_history(self):
-        self.deployment['operations-history'] = [{'status': 'PAUSED',
-                                                  'workflow-id': 'w_id'}]
-        expected = ('operations-history', 0,
-                    {'status': 'PAUSED', 'workflow-id': 'w_id'})
-        self.assertEqual(expected, self.deployment.get_operation('w_id'))
-
-    def test_get_operation_from_history_with_multiples(self):
-        self.deployment['operations-history'] = [{'status': 'PAUSED',
-                                                  'workflow-id': 'w_id'},
-                                                 {'status': 'NEW',
-                                                  'workflow-id': 'w_id2'}]
-        expected = ('operations-history', 1,
-                    {'status': 'NEW', 'workflow-id': 'w_id2'})
-        self.assertEqual(expected, self.deployment.get_operation('w_id2'))
-
-    def test_get_operation_old_deployment_with_no_id_in_history(self):
-        self.deployment['operation'] = {}
-        self.deployment['operations-history'] = [{'status': 'PAUSED'}]
-        self.assertEqual(('operations-history', 0, {'status': 'PAUSED'}),
-                         self.deployment.get_operation('test'))
-
     def test_get_statuses_for_deleted_resources(self):
         resource_status = {'instance:0': {'status': 'DELETED'}}
         self.provider.get_resource_status.return_value = resource_status

@@ -21,6 +21,8 @@ import unittest
 #from SpiffWorkflow import specs
 #from SpiffWorkflow import Workflow
 
+from checkmate import deployment as cmdep
+from checkmate import exceptions as cmexc
 from checkmate import operations
 
 
@@ -119,21 +121,97 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         mock_db.get_deployment.assert_called_once_with('depid',
                                                        with_secrets=True)
 
-    @mock.patch.object(operations.LOG, 'warn')
+    @mock.patch.object(operations, 'get_operation', side_effect=cmexc.CheckmateInvalidParameterError)
     @mock.patch.object(operations, 'DB')
-    def test_no_operation_found(self, mock_db, mock_log):
+    def test_no_operation_found(self, mock_db, mock_getop):
         mock_db.get_deployment.return_value = {}
         operations.update_operation('depid', 'wfid', test_kwarg='test')
-        mock_log.assert_called_once_with(
-            'Cannot find operation with workflow id %s in deployment %s',
-            'wfid',
-            'depid'
-        )
+        mock_getop.assert_called_once_with(mock.ANY, 'wfid')
 
-    #@mock.patch.object(operations, 'DB')
-    #def test_first_operation_value_is_a_list(self, mock_db):
-    #    mock_db.get_deployment.return_value = {'operation': [[]]}
-    #    operations.update_operation('depid', 'wfid', test_kwarg='test')
+    def test_status_complete_nothing_to_do(self):
+        pass
+
+class TestOperationsCurrentWorkflowIdAndGetOperation(unittest.TestCase):
+    def setUp(self):
+        deployment_dict = {
+            'id': 'test',
+            'name': 'test',
+            'resources': {
+                '0': {'provider': 'test'},
+                '1': {'status': 'DELETED'},
+                '2': {'status': 'ACTIVE'}
+            },
+            'status': 'NEW',
+            'operation': {
+                'status': 'NEW',
+            },
+            'plan': {
+                'services': {
+                    'web': {
+                        'component': {
+                            'instances': ["1", "2"]
+                        }
+                    }
+                }
+            }
+        }
+        self.deployment = cmdep.Deployment(deployment_dict)
+        self.deployment.environment = mock.Mock()
+        self.context = mock.MagicMock()
+        environment = mock.Mock()
+        self.provider = mock.Mock()
+        self.deployment.environment.return_value = environment
+        environment.get_provider.return_value = self.provider
+
+    def test_get_workflow_id_when_w_id_not_in_operation(self):
+        workflow_id = operations.current_workflow_id(self.deployment)
+        self.assertEqual(workflow_id, self.deployment['id'])
+
+    def test_get_workflow_id_when_w_id_in_operation(self):
+        self.deployment['operation']['workflow-id'] = 'w_id'
+        workflow_id = operations.current_workflow_id(self.deployment)
+        self.assertEqual(workflow_id, 'w_id')
+
+    def test_get_operation_invalid_id_and_no_history(self):
+        with self.assertRaises(
+                cmexc.CheckmateInvalidParameterError) as expected:
+            operations.get_operation(self.deployment, 'bad-id')
+        self.assertEqual('Invalid workflow ID.', str(expected.exception))
+
+    def test_get_operation_invalid_id_with_history(self):
+        self.deployment['operations-history'] = [{'status': 'PAUSED',
+                                                 'workflow-id': 'w_id'}]
+        with self.assertRaises(
+                cmexc.CheckmateInvalidParameterError) as expected:
+            operations.get_operation(self.deployment, 'foobar_w_id')
+
+        self.assertEqual('Invalid workflow ID.', str(expected.exception))
+
+    def test_get_operation_from_current_operation(self):
+        self.assertEqual(('operation', -1, {'status': 'NEW'}),
+                         operations.get_operation(self.deployment, "test"))
+
+    def test_get_operation_from_history(self):
+        self.deployment['operations-history'] = [{'status': 'PAUSED',
+                                                  'workflow-id': 'w_id'}]
+        expected = ('operations-history', 0,
+                    {'status': 'PAUSED', 'workflow-id': 'w_id'})
+        self.assertEqual(expected, operations.get_operation(self.deployment, 'w_id'))
+
+    def test_get_operation_from_history_with_multiples(self):
+        self.deployment['operations-history'] = [{'status': 'PAUSED',
+                                                  'workflow-id': 'w_id'},
+                                                 {'status': 'NEW',
+                                                  'workflow-id': 'w_id2'}]
+        expected = ('operations-history', 1,
+                    {'status': 'NEW', 'workflow-id': 'w_id2'})
+        self.assertEqual(expected, operations.get_operation(self.deployment, 'w_id2'))
+
+    def test_get_operation_old_deployment_with_no_id_in_history(self):
+        self.deployment['operation'] = {}
+        self.deployment['operations-history'] = [{'status': 'PAUSED'}]
+        self.assertEqual(('operations-history', 0, {'status': 'PAUSED'}),
+                         operations.get_operation(self.deployment, 'test'))
 
 
 if __name__ == '__main__':
