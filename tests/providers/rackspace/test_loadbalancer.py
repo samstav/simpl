@@ -447,7 +447,8 @@ class TestGetAlgorithms(unittest.TestCase):
         self.api.region_name = 'ORD'
         self.api.algorithms = ['RANDOM', 'ROUND_ROBIN']
 
-        results = loadbalancer.provider._get_algorithms(self.context)
+        results = loadbalancer.provider._get_algorithms(self.context,
+            self.context.auth_token, self.context.region)
         self.assertEqual(results, self.api.algorithms)
         mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
                                          'algorithms for %s', 'ORD')
@@ -464,7 +465,9 @@ class TestGetAlgorithms(unittest.TestCase):
 
         # caching decorator re-raises so not able to assertRaises
         try:
-            loadbalancer.provider._get_algorithms(self.context)
+            loadbalancer.provider._get_algorithms(self.context,
+                                                  self.context.auth_token,
+                                                  self.context.region)
         except StandardError as exc:
             self.assertEqual(str(exc), 'test error')
 
@@ -489,7 +492,8 @@ class TestGetProtocols(unittest.TestCase):
         self.api.region_name = 'ORD'
         self.api.protocols = ['HTTP', 'HTTPS']
 
-        results = loadbalancer.provider._get_protocols(self.context)
+        results = loadbalancer.provider._get_protocols(self.context,
+            self.context.auth_token, self.context.region)
         self.assertEqual(results, self.api.protocols)
         mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
                                          'protocols for %s', 'localhost:8080')
@@ -499,14 +503,16 @@ class TestGetProtocols(unittest.TestCase):
 
     @mock.patch.object(loadbalancer.provider.LOG, 'error')
     @mock.patch.object(loadbalancer.Provider, 'connect')
-    def test_get_algorithms_exception(self, mock_connect, mock_logger):
+    def test_get_protocols_exception(self, mock_connect, mock_logger):
         """Verifies method calls when StandardError raised."""
         mock_exception = StandardError('test error')
         mock_connect.side_effect = mock_exception
 
         # caching decorator re-raises so not able to assertRaises
         try:
-            loadbalancer.provider._get_protocols(self.context)
+            loadbalancer.provider._get_protocols(self.context,
+                                                 self.context.auth_token,
+                                                 self.context.region)
         except StandardError as exc:
             self.assertEqual(str(exc), 'test error')
 
