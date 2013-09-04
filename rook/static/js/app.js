@@ -2847,6 +2847,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.load_workflow_stats(data.operation);
       data.display_status = Deployment.status(data);
       $scope.data = data;
+      $scope.operations_history = angular.copy(data['operations-history']).reverse();
       $scope.resources = _.values($scope.data.resources);
       $scope.showCommands = $scope.auth.is_current_tenant($scope.data.tenantId);
       $scope.abs_url = $location.absUrl();

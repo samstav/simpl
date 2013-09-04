@@ -87,7 +87,7 @@
   <li class="nav-header">
     Workflows
   </li>
-  <li ng-repeat="operation in data['operations-history'].reverse() | filter:{ link: '!canvas' }">
+  <li ng-repeat="operation in operations_history | filter:{ link: '!canvas' }">
     <a href="{{operation.link}}">{{operation.type | capitalize}}</a>
   </li>
   <li>
