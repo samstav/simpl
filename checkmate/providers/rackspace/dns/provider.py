@@ -60,7 +60,7 @@ class Provider(rsbase.RackspaceProviderBase):
         try:
             return api.find(name=dom_name)
         except pyrax.exceptions.NotFound as resp_error:
-            if resp_error.status != '404':
+            if resp_error.code != '404':
                 LOG.warn("Error checking record limits for %s", dom_name,
                          exc_info=True)
 
@@ -100,7 +100,6 @@ class Provider(rsbase.RackspaceProviderBase):
         max_recs = limits.get('absolute', {}).get('records per domain',
                                                   sys.maxint)
         cur_doms = len(api.list())
-        #import ipdb; ipdb.set_trace()
         while True:
             try:
                 cur_doms = cur_doms + len(api.list_next_page())
