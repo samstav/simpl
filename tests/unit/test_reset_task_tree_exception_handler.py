@@ -26,7 +26,7 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
 
     @mock.patch("checkmate.workflow.get_subworkflow")
     @mock.patch.object(AsyncResult, 'ready')
-    @mock.patch("checkmate.workflow.create_reset_failed_task_workflow")
+    @mock.patch("checkmate.workflow.create_reset_failed_task_wf")
     @mock.patch("checkmate.workflow.add_subworkflow")
     def test_should_retry_a_failed_task(self, mock_add_subwf, mock_create_wf,
                                         mock_async_result, mock_get_subwf):
