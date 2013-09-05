@@ -320,6 +320,112 @@ class TestKnife(unittest.TestCase):
                              expected)
         self.mox.VerifyAll()
 
+
+class TestKnifeTasks(unittest.TestCase):
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_register_node(self):
+        ignore = mox.IgnoreArg()
+        path = '/fake_path'
+        workspace_path = os.path.join(path, "test")
+        service = "test_service"
+        kitchen_path = os.path.join(workspace_path, service)
+        node_path = os.path.join(kitchen_path, 'nodes', 'localhost.json')
+
+        # Stub frst call to postback
+        self.mox.StubOutWithMock(knife.cmdeps.resource_postback, 'delay')
+        postback_mock = knife.cmdeps.resource_postback.delay
+        postback_mock(ignore, ignore).AndReturn(None)
+
+        # Stub out path checks
+        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
+        knife._get_root_environments_path("test", None).AndReturn(path)
+
+        self.mox.StubOutWithMock(os.path, 'exists')
+        os.path.exists(kitchen_path).AndReturn(True)
+
+        # Stubout mkdir ssh call
+        self.mox.StubOutWithMock(knife.ssh, 'remote_execute')
+        knife.ssh.remote_execute('localhost', ignore, ignore,
+                                 identity_file=None, password=None)\
+            .AndReturn(True)
+
+        # Stubout check for already registered
+        os.path.exists(node_path).AndReturn(False)
+
+        # Stubout chef run
+        self.mox.StubOutWithMock(knife, '_run_kitchen_command')
+        knife._run_kitchen_command("test", kitchen_path, ignore)\
+            .AndReturn(None)
+
+        # Stubout check for installed chef
+        res = {'stderr': '', 'stdout': 'Chef: 10.12.0\n'}
+        knife.ssh.remote_execute('localhost', "chef-solo -v", 'root',
+                                 identity_file=None, password=None)\
+            .AndReturn(res)
+
+        # Stub out call to write node attributes
+        self.mox.StubOutWithMock(knife, '_write_node_attributes')
+        knife._write_node_attributes(node_path, ignore).AndReturn({})
+
+        resource = {'hosted_on': '1', 'index': '0'}
+        self.mox.ReplayAll()
+        knife.register_node('localhost', 'test', resource,
+                            kitchen_name=service)
+        self.mox.VerifyAll()
+
+    def test_register_node_retry_chef(self):
+        ignore = mox.IgnoreArg()
+        path = '/fake_path'
+        workspace_path = os.path.join(path, "test")
+        service = "test_service"
+        kitchen_path = os.path.join(workspace_path, service)
+        node_path = os.path.join(kitchen_path, 'nodes', 'localhost.json')
+
+        # Stub frst call to postback
+        self.mox.StubOutWithMock(knife.cmdeps.resource_postback, 'delay')
+        postback_mock = knife.cmdeps.resource_postback.delay
+        postback_mock(ignore, ignore).AndReturn(None)
+
+        # Stub out path checks
+        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
+        knife._get_root_environments_path("test", None).AndReturn(path)
+
+        self.mox.StubOutWithMock(os.path, 'exists')
+        os.path.exists(kitchen_path).AndReturn(True)
+
+        # Stubout mkdir ssh call
+        self.mox.StubOutWithMock(knife.ssh, 'remote_execute')
+        knife.ssh.remote_execute('localhost', ignore, ignore,
+                                 identity_file=None, password=None)\
+            .AndReturn(True)
+
+        # Stubout check for already registered
+        os.path.exists(node_path).AndReturn(False)
+
+        # Stubout chef run
+        self.mox.StubOutWithMock(knife, '_run_kitchen_command')
+        knife._run_kitchen_command("test", kitchen_path, ignore)\
+            .AndReturn(None)
+
+        # Stubout check for installed chef
+        res = {'stderr': 'bash: chef-solo: command not found\n', 'stdout': ''}
+        knife.ssh.remote_execute('localhost', "chef-solo -v", 'root',
+                                 identity_file=None, password=None)\
+            .AndReturn(res)
+
+        resource = {'hosted_on': '1', 'index': '0'}
+        self.mox.ReplayAll()
+        with self.assertRaises(cmexc.CheckmateException):
+            knife.register_node('localhost', 'test', resource,
+                                kitchen_name=service)
+        self.mox.VerifyAll()
+
+
 CHEFFILE = """#!/usr/bin/env ruby
 #^syntax detection
 
