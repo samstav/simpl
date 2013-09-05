@@ -14,6 +14,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 from checkmate.common import tasks as common_tasks
 from checkmate import db
 from checkmate.deployment import Deployment
+from checkmate import operations
 from checkmate import utils
 from checkmate import workflow as cm_wf
 from checkmate.workflows import tasks
@@ -205,7 +206,7 @@ class Router(object):
         if (operation and operation.get('action') != 'PAUSE' and
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
             common_tasks.update_operation.delay(
-                dep_id, deployment.current_workflow_id(), action='PAUSE')
+                dep_id, operations.current_workflow_id(deployment), action='PAUSE')
             tasks.pause_workflow.delay(api_id)
         return utils.write_body(workflow, bottle.request, bottle.response)
 

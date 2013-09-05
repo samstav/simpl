@@ -15,6 +15,7 @@ from checkmate.deployments import Manager
 from checkmate.db.common import ObjectLockedError
 from checkmate.deployment import Deployment
 from checkmate.exceptions import CheckmateException
+from checkmate import operations
 
 
 LOG = logging.getLogger(__name__)
@@ -106,7 +107,7 @@ def delete_deployment_task(dep_id, driver=DB):
                     resource_postback.delay(dep_id, contents, driver=driver)
 
     common_tasks.update_operation.delay(dep_id,
-                                        deployment.current_workflow_id(),
+                                        operations.current_workflow_id(deployment),
                                         status="COMPLETE",
                                         driver=driver,
                                         deployment_status="DELETED",

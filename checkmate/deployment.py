@@ -361,53 +361,6 @@ class Deployment(morpheus.MorpheusDict):
                 return cm_env.Environment({})
         return self._environment
 
-    # TODO(Paul): Move this to operations.py <<<<<
-    def current_workflow_id(self):
-        """Return the current Workflow's ID."""
-        operation = self.get('operation')
-        if operation:
-            return operation.get('workflow-id', self.get('id'))
-        return None
-
-    # TODO(Paul): Move this to operations.py <<<<<
-    def get_operation(self, workflow_id):
-        """Gets an operation by Workflow ID.
-
-        Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
-        blocks for an operation that has a workflow-id that matches the passed
-        in workflow_id. If found, returns a tuple containing three values:
-          - where the operation was found: 'operation' or 'operations-history'
-          - the index of the operation (mainly for 'operations-history')
-          - the operation details as a dict
-
-        If the worfklow_id is not found, raises a KeyError
-
-        :param workflow_id: the workflow ID on which to search
-        :return: a Tuple containing op_type, op_index, and op_details
-        """
-        op_type, op_index, op_details = None, -1, {}
-        if self.current_workflow_id() == workflow_id:
-            op_type = 'operation'
-            op_index = -1
-            op_details = self.get('operation')
-        else:
-            for index, oper in enumerate(self.get('operations-history', [])):
-                # TODO(Paul): Default to Deployment ID? Should we fix this
-                # using convert_data when the deployment is retrieved from
-                # storage, rather than here?
-                if oper.get('workflow-id', self.get('id')) == workflow_id:
-                    op_type = 'operations-history'
-                    op_index = index
-                    op_details = oper
-                    break
-
-        if not op_type:
-            LOG.warn("Cannot find operation with workflow id %s in "
-                     "deployment %s", workflow_id, self.get('id'))
-            raise cmexc.CheckmateInvalidParameterError('Invalid workflow ID.')
-
-        return (op_type, op_index, op_details)
-
     def inputs(self):
         """Return inputs of deployment."""
         return self.get('inputs', {})

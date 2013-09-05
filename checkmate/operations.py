@@ -44,11 +44,18 @@ LOCK_DB = db.get_driver(connection_string=os.environ.get(
               lock_timeout=2)
 @statsd.collect
 def create(dep_id, workflow_id, op_type, tenant_id=None):
+    """Decouples statsd and celery from the underlying implementation."""
+    _create(dep_id, workflow_id, op_type, tenant_id)
+
+
+def _get_db_driver(dep_id):
+    """Get the simulations db driver if in sim mode, else checkmate db."""
+    return SIMULATOR_DB if utils.is_simulation(dep_id) else DB
+
+
+def _create(dep_id, workflow_id, op_type, tenant_id):
     """Create a new operation of type 'op_type'."""
-    if utils.is_simulation(dep_id):
-        driver = SIMULATOR_DB
-    else:
-        driver = DB
+    driver = _get_db_driver(dep_id)
     deployment = driver.get_deployment(dep_id, with_secrets=False)
     workflow = driver.get_workflow(workflow_id, with_secrets=False)
     serializer = DictionarySerializer()
@@ -97,50 +104,87 @@ def update_operation(deployment_id, workflow_id, driver=None,
     :param kwargs: the key/value pairs to write into the operation
 
     """
-    if kwargs:
-        if utils.is_simulation(deployment_id):
-            driver = SIMULATOR_DB
-        if not driver:
-            driver = DB
-        dep = driver.get_deployment(deployment_id, with_secrets=True)
-        dep = cmdep.Deployment(dep)
+    if not kwargs:
+        return  # Nothing to do!
 
-        try:
-            op_type, op_index, op_details = dep.get_operation(workflow_id)
-        except cmexc.CheckmateInvalidParameterError:
-            return  # Nothing to do!
+    if not driver:
+        driver = _get_db_driver(deployment_id)
 
-        op_status = op_details.get('status')
-        if op_status == "COMPLETE":
-            LOG.warn("Ignoring the update operation call as the "
-                     "operation is already COMPLETE")
-            return
+    dep = driver.get_deployment(deployment_id, with_secrets=True)
+    dep = cmdep.Deployment(dep)
 
-        if op_index == -1:  # Current operation from 'operation'
-            op_list = dict(kwargs)
-        else:  # Operation found in 'operations-history'
-            op_list = _pad_list(op_index, dict(kwargs))
+    try:
+        op_type, op_index, op_details = get_operation(dep, workflow_id)
+    except cmexc.CheckmateInvalidParameterError:
+        return  # No workflow found
 
-        delta = {op_type: op_list}
-        if deployment_status:
-            delta['status'] = deployment_status
-        try:
-            if 'status' in kwargs:
-                if kwargs['status'] != op_status:
-                    delta['display-outputs'] = dep.calculate_outputs()
-        except KeyError:
-            LOG.warn("Cannot update deployment outputs: %s", deployment_id)
-        driver.save_deployment(deployment_id, delta, partial=True)
+    op_status = op_details.get('status')
+    if op_status == "COMPLETE":
+        LOG.warn("Ignoring the update operation call as the "
+                 "operation is already COMPLETE")
+        return
+
+    if op_index == -1:  # Current operation from 'operation'
+        operation = dict(kwargs)
+    else:  # Pad a list so we can put it back in the right spot
+        operation = [{}] * op_index + [dict(kwargs)]
+
+    delta = {op_type: operation}
+    if deployment_status:
+        delta['status'] = deployment_status
+    try:
+        if 'status' in kwargs:
+            if kwargs['status'] != op_status:
+                delta['display-outputs'] = dep.calculate_outputs()
+    except KeyError:
+        LOG.warn("Cannot update deployment outputs: %s", deployment_id)
+    driver.save_deployment(deployment_id, delta, partial=True)
 
 
-def _pad_list(last_item_id, last_item):
-    """Return a list padded with empty dicts plus last_item."""
-    padded_list = []
-    for _ in range(last_item_id):
-        padded_list.append({})
-    padded_list.append(last_item)
+def current_workflow_id(deployment):
+    """Return the current Workflow's ID."""
+    operation = deployment.get('operation')
+    if operation:
+        return operation.get('workflow-id', deployment.get('id'))
 
-    return padded_list
+
+def get_operation(deployment, workflow_id):
+    """Gets an operation by Workflow ID.
+
+    Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
+    blocks for an operation that has a workflow-id that matches the passed
+    in workflow_id. If found, returns a tuple containing three values:
+      - where the operation was found: 'operation' or 'operations-history'
+      - the index of the operation (mainly for 'operations-history')
+      - the operation details as a dict
+
+    If the worfklow_id is not found, raises a KeyError
+
+    :param workflow_id: the workflow ID on which to search
+    :return: a Tuple containing op_type, op_index, and op_details
+    """
+    op_type, op_index, op_details = None, -1, {}
+    if current_workflow_id(deployment) == workflow_id:
+        op_type = 'operation'
+        op_index = -1
+        op_details = deployment.get('operation')
+    else:
+        for index, oper in enumerate(deployment.get('operations-history', [])):
+            # TODO(Paul): Default to Deployment ID? Should we fix this
+            # using convert_data when the deployment is retrieved from
+            # storage, rather than here?
+            if oper.get('workflow-id', deployment.get('id')) == workflow_id:
+                op_type = 'operations-history'
+                op_index = index
+                op_details = oper
+                break
+
+    if not op_type:
+        LOG.warn("Cannot find operation with workflow id %s in "
+                 "deployment %s", workflow_id, deployment.get('id'))
+        raise cmexc.CheckmateInvalidParameterError('Invalid workflow ID.')
+
+    return (op_type, op_index, op_details)
 
 
 def get_status_info(errors, tenant_id, workflow_id):
