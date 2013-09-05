@@ -35,9 +35,7 @@ class ResetTaskTreeExceptionHandler(ExceptionHandler):
         :return:
         """
         failed_task = self.d_wf.get_task(self.task_id)
-        LOG.debug("Mock failed task %s", failed_task)
         task_spec = failed_task.task_spec
-        LOG.debug("Mock spec %s", task_spec)
         task_retry_count = task_spec.get_property("task_retry_count",
                                                   default=0)
         if (task_retry_count
@@ -60,7 +58,6 @@ class ResetTaskTreeExceptionHandler(ExceptionHandler):
             return
 
         dep_id = self.d_wf.get_attribute("deploymentId")
-        LOG.debug("Dep id %s", dep_id)
         reset_wf = cmwf.create_reset_failed_task_wf(
             self.d_wf, dep_id, self.context, failed_task, driver=self.driver)
 

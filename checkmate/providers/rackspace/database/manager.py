@@ -30,7 +30,7 @@ from checkmate.exceptions import (
     CheckmateRetriableException,
     CheckmateUserException,
     UNEXPECTED_ERROR,
-    CheckmateResourceRollbackException)
+    CheckmateResetTaskTreeException)
 
 LOG = logging.getLogger(__name__)
 
@@ -63,12 +63,7 @@ class Manager(object):
         if data['status'] == 'ERROR':
             data['status-message'] = 'Instance went into status ERROR'
             callback(data)
-            exc = CheckmateRetriableException(data['status-message'],
-                                              utils.get_class_name(
-                                                  CheckmateException()),
-                                              data['status-message'], '')
-            raise CheckmateResourceRollbackException("Need to rollback "
-                                                     "resource creation", exc)
+            raise CheckmateResetTaskTreeException()
         elif data['status'] in ['ACTIVE', 'DELETED']:
             data['status-message'] = ''
         else:

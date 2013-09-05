@@ -158,7 +158,10 @@ class CheckmateResourceRollbackException(CheckmateException):
             error_message, inner_exception)
 
 
+
 class CheckmateResetTaskTreeException(CheckmateException):
+    """Used by the workflow to identify a failed task that can be reset and
+retried automatically"""
     pass
 
 

@@ -45,7 +45,7 @@ MANAGERS = {'workflows': Manager()}
 
 
 class WorkflowEventHandlerTask(celery.Task):
-    """"Celery Task Event Handlers for Workflows."""
+    """Celery Task Event Handlers for Workflows."""
     abstract = True
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):

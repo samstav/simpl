@@ -610,11 +610,6 @@ class ProviderTask(celery.Task):
             return self.retry(exc=exc)
         except exceptions.CheckmateResumableException as exc:
             return self.retry(exc=exc)
-        except exceptions.CheckmateResourceRollbackException as exc:
-            delete_tasks = self.provider.delete_one_resource(context=context)
-            LOG.debug("Going to delete resources")
-            delete_tasks.apply_async()
-            raise exc.inner_exception
         self.callback(context, data)
         return {'instance:%s' % context["resource_key"]: data}
 

@@ -18,15 +18,15 @@ Rackspace Cloud Load Balancer provider and specs.Celery tasks
 import logging
 import os
 
-from celery import canvas
 from celery import task
 import pyrax
 import redis
 
 from checkmate.common import statsd
 from checkmate import deployments
-from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate import exceptions
+from checkmate.deployments.tasks import reset_failed_resource_task
+from checkmate.providers.rackspace.loadbalancer.manager import Manager
 from checkmate.providers.rackspace.loadbalancer.provider import Provider
 from checkmate import utils
 
@@ -684,15 +684,7 @@ def wait_on_build(context, lbid, region, api=None):
             }
         }
         deployments.resource_postback.delay(context['deployment'], results)
-
-        # Delete the loadbalancer if it failed building
-        canvas.chain(
-            delete_lb_task.si(context, context["resource"], lbid, region, api),
-            wait_on_lb_delete_task.si(context, context["resource"], lbid,
-                                      region, api)).apply_async()
-        raise exceptions.CheckmateRetriableException(
-            msg, "",
-            utils.get_class_name(CheckmateLoadbalancerBuildFailed()), msg, '')
+        raise exceptions.CheckmateResetTaskTreeException()
     elif loadbalancer.status == "ACTIVE":
         results = {
             instance_key: {
