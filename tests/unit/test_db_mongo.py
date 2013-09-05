@@ -1,4 +1,4 @@
-# pylint: disable=C0103,R0904,W0212,W0613
+# pylint: disable=C0103,R0904,W0212
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -22,7 +22,6 @@ from checkmate.db import mongodb
 
 
 class TestBuildFilter(unittest.TestCase):
-
     def test_return_value_if_no_operator_is_used(self):
         query = mongodb._build_filter('foobar')
         self.assertEqual(query, 'foobar')
@@ -52,8 +51,89 @@ class TestBuildFilter(unittest.TestCase):
         self.assertEqual(query, {'$regex': 'foobar', '$options': 'i'})
 
 
-class TestMongoDB(unittest.TestCase):
+class TestRelateResources(unittest.TestCase):
+    def test_existing_and_incoming_are_none(self):
+        with self.assertRaises(AttributeError) as expected:
+            mongodb.Driver._relate_resources(None, None)
+        self.assertEqual("'NoneType' object has no attribute 'iteritems'",
+                         str(expected.exception))
 
+    def test_existing_is_none(self):
+        result = mongodb.Driver._relate_resources(None, {})
+        self.assertEqual([], result)
+
+    def test_incoming_is_none(self):
+        with self.assertRaises(AttributeError) as expected:
+            mongodb.Driver._relate_resources({}, None)
+        self.assertEqual("'NoneType' object has no attribute 'iteritems'",
+                         str(expected.exception))
+
+    @mock.patch.object(mongodb.uuid, 'uuid4')
+    def test_empty_existing_non_empty_incoming(self, mock_uuid):
+        mock_uuid.return_value = mock.Mock(hex='uuid')
+        incoming = {'0': {}}
+        expected = [{
+            'body': {'0': {}, 'id': 'uuid'},
+            'id': 'uuid',
+            'secret': None}]
+        result = mongodb.Driver._relate_resources({}, incoming, {})
+        self.assertEqual(expected, result)
+
+    def test_incoming_replaces_existing(self):
+        existing = [{'0': {'status': 'ERROR'}, 'id': 'existing'}]
+        incoming = {'0': {'status': 'ACTIVE'}}
+        result = mongodb.Driver._relate_resources(existing, incoming, {})
+        self.assertEqual('ACTIVE', result[0]['body']['0']['status'])
+
+    @mock.patch.object(mongodb.uuid, 'uuid4')
+    def test_existing_not_returned_if_not_in_incoming(self, mock_uuid):
+        """Also shows that incoming IS returned even if not in existing."""
+        mock_uuid.return_value = mock.Mock(hex='uuid')
+        existing = [{'0': {'status': 'ERROR'}}]
+        incoming = {'1': {'status': 'ACTIVE'}}
+        expected = [{
+            'body': {'1': {'status': 'ACTIVE'}, 'id': 'uuid'},
+            'id': 'uuid',
+            'secret': None
+        }]
+        result = mongodb.Driver._relate_resources(existing, incoming, {})
+        self.assertEqual(expected, result)
+
+    def test_id_from_existing_is_used_if_available(self):
+        existing = [{'1': {'status': 'ERROR'}, 'id': 'existing'}]
+        incoming = {'1': {'status': 'ERROR'}}
+        result = mongodb.Driver._relate_resources(existing, incoming, {})
+        self.assertEqual('existing', result[0]['id'])
+
+    @mock.patch.object(mongodb.LOG, 'warn')
+    def test_duplicates_in_existing(self, mock_logger):
+        existing = [{'1': {'status': 'PLANNED'}, 'id': 'existing'},
+                    {'1': {'status': 'NEW'}, 'id': 'existing'}]
+        incoming = {'1': {'status': 'BUILD'}}
+        expected = [{
+            'body': {'1': {'status': 'BUILD'}},
+            'id': 'existing',
+            'secret': None
+        }]
+        result = mongodb.Driver._relate_resources(existing, incoming, {})
+        self.assertEqual(expected, result)
+        mock_logger.assert_called_once_with(
+            '_relate_resources was going to try to pop a non-existent key %s '
+            'off incoming_copy. Here is the existing list suspected of '
+            'containing duplicates: %s',
+            '1',
+            existing
+        )
+
+    def test_with_secrets(self):
+        existing = [{'1': {'status': 'ERROR'}, 'id': 'existing'}]
+        incoming = {'1': {'status': 'ERROR'}}
+        secrets = {'1': {'password': 'the_password'}}
+        result = mongodb.Driver._relate_resources(existing, incoming, secrets)
+        self.assertEqual(secrets, result[0]['secret'])
+
+
+class TestMongoDB(unittest.TestCase):
     @mock.patch.object(mongodb.Driver, 'tune')
     def setUp(self, tune_mock):
         self.driver = mongodb.Driver('mongodb://fake.connection.string')
@@ -104,7 +184,6 @@ class TestMongoDB(unittest.TestCase):
 
 
 class TestGetDeployments(TestMongoDB):
-
     @mock.patch.object(mongodb.Driver, '_get_objects')
     def test_send_query_to_get_objects(self, __get_objects):
         self.driver.get_deployments(query='fake query')
@@ -122,7 +201,6 @@ class TestGetDeployments(TestMongoDB):
 
 
 class TestGetObjects(TestMongoDB):
-
     @mock.patch.object(mongodb.Driver, '_get_client')
     @mock.patch.object(mongodb.Driver, '_build_filters')
     def test_send_query_to_build_filters(self, __build_filters, __get_client):
@@ -145,7 +223,6 @@ class TestGetObjects(TestMongoDB):
 
 
 class TestGetCount(TestMongoDB):
-
     @mock.patch.object(mongodb.Driver, '_get_client')
     @mock.patch.object(mongodb.Driver, '_build_filters')
     def test_send_query_to_build_filters(self, __build_filters, __get_client):
@@ -156,7 +233,6 @@ class TestGetCount(TestMongoDB):
 
 
 class TestBuildFilters(TestMongoDB):
-
     def test_create_empty_filter_if_no_query(self):
         filters = self.driver._build_filters('deployments', None, True, None,
                                              query=None)
