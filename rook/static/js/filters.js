@@ -140,7 +140,11 @@ filters.filter('barClass', function(){
   return function(status){
     if(status === 'UP') {
       return 'bar-success';
+    } else if(status === 'COMPLETE') {
+      return 'bar-success';
     } else if(status === 'FAILED') {
+      return 'bar-danger';
+    } else if(status === 'ERROR') {
       return 'bar-danger';
     } else if(status === 'DELETED') {
       return 'bar-inverse';

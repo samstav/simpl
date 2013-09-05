@@ -17,6 +17,14 @@ describe('barClass filter', function(){
     expect(barClassFilter('DELETED')).toEqual('bar-inverse');
   });
 
+  it('should classify COMPLETE as a success', function(){
+    expect(barClassFilter('COMPLETE')).toEqual('bar-success')
+  });
+
+  it('should classify ERROR as a danger', function(){
+    expect(barClassFilter('ERROR')).toEqual('bar-danger')
+  });
+
   it('should not classify anything else', function(){
     expect(barClassFilter('BATMAN')).toEqual('');
   });

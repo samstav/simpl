@@ -13,8 +13,7 @@
         <td>{{workflow.name}}</td>
         <td>
           <div class="progress progress-container">
-            <div class="bar" ng-style="{width: (workflow.progress || '0') + '%'}"
-              ng-class="{'bar-success': workflow.status == 'COMPLETE'}">
+            <div class="bar {{ workflow.status | barClass }}" ng-style="{width: (workflow.progress || '0') + '%'}">
             </div>
             <span>{{workflow.status}}</span>
           </div>
