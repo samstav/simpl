@@ -1460,15 +1460,7 @@ def wait_on_build(context, server_id, region, resource,
 
         cmdeps.resource_postback.delay(deployment_id, results)
         context["instance_id"] = server_id
-        canvas.chain(delete_server_task.si(context), wait_on_delete_server.si(
-            context)).apply_async()
-
-        raise cmexc.CheckmateRetriableException(
-            results[instance_key]['status-message'],
-            utils.get_class_name(cmexc.CheckmateServerBuildFailed()),
-            results[instance_key]['status-message'],
-            '')
-
+        raise cmexc.CheckmateResetTaskTreeException()
     if server.status == 'BUILD':
         results['progress'] = server.progress
         results['status-message'] = "%s%% Complete" % server.progress
