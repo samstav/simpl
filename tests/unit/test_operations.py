@@ -1,4 +1,4 @@
-# pylint: disable=C0103
+# pylint: disable=C0103,R0201,R0904,W0212
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -21,7 +21,6 @@ import unittest
 #from SpiffWorkflow import specs
 #from SpiffWorkflow import Workflow
 
-from checkmate import deployment as cmdep
 from checkmate import exceptions as cmexc
 from checkmate import operations
 
@@ -29,7 +28,8 @@ from checkmate import operations
 class TestOperations(unittest.TestCase):
     @mock.patch.object(operations, 'SIMULATOR_DB')
     @mock.patch.object(operations.utils, 'is_simulation', return_value=True)
-    def test_get_db_driver_returns_simulation_driver(self, mock_is_sim, mock_db):
+    def test_get_db_driver_returns_simulation_driver(self, mock_is_sim,
+                                                     mock_db):
         result = operations._get_db_driver('simulation')
         mock_is_sim.assert_called_once_with('simulation')
         self.assertEqual(mock_db, result)
@@ -65,11 +65,12 @@ class TestOperations(unittest.TestCase):
 
     @mock.patch.object(operations, 'add_operation')
     @mock.patch.object(operations, 'init_operation')
-    def test_add_operation_called_successfully(self, mock_init, mock_add):
+    def test_add_called_successfully(self, mock_init, mock_add):
         mock_init.return_value = {'data': 'item'}
         operations.add('deployment', 'spiff_wf', 'op_type')
         mock_init.assert_called_once_with('spiff_wf', tenant_id=None)
         mock_add.assert_called_once_with('deployment', 'op_type', data='item')
+
 
 class TestOperationsAddOperation(unittest.TestCase):
     def test_op_type_is_added_to_operation(self):
@@ -87,7 +88,8 @@ class TestOperationsAddOperation(unittest.TestCase):
         """Test the deployment's operations history is updated."""
         deployment = {'operation': 'new-op', 'operations-history': ['old-op']}
         operations.add_operation(deployment, 'op_type')
-        self.assertEqual(['new-op', 'old-op'], deployment['operations-history'])
+        self.assertEqual(
+            ['new-op', 'old-op'], deployment['operations-history'])
 
     def test_no_operation_in_deployment(self):
         deployment = {}
@@ -96,8 +98,10 @@ class TestOperationsAddOperation(unittest.TestCase):
 
     def test_passed_in_kwarg_added_to_operation(self):
         deployment = {}
-        result = operations.add_operation(deployment, 'op_type', op_kwarg='op_stuff')
+        result = operations.add_operation(
+            deployment, 'op_type', op_kwarg='op_stuff')
         self.assertEqual('op_stuff', result['op_kwarg'])
+
 
 class TestOperationsUpdateOperation(unittest.TestCase):
     @mock.patch.object(operations, '_get_db_driver')
@@ -121,97 +125,175 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         mock_db.get_deployment.assert_called_once_with('depid',
                                                        with_secrets=True)
 
-    @mock.patch.object(operations, 'get_operation', side_effect=cmexc.CheckmateInvalidParameterError)
+    @mock.patch.object(operations, 'get_operation',
+                       side_effect=cmexc.CheckmateInvalidParameterError)
     @mock.patch.object(operations, 'DB')
     def test_no_operation_found(self, mock_db, mock_getop):
         mock_db.get_deployment.return_value = {}
         operations.update_operation('depid', 'wfid', test_kwarg='test')
         mock_getop.assert_called_once_with(mock.ANY, 'wfid')
+        assert not mock_db.save_deployment.called
 
-    def test_status_complete_nothing_to_do(self):
-        pass
+    @mock.patch.object(operations.LOG, 'warn')
+    @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(operations, 'DB')
+    def test_status_complete_nothing_to_do(self, mock_db, mock_getop,
+                                           mock_logger):
+        mock_db.get_deployment.return_value = {}
+        mock_getop.return_value = ('operation', -1, {'status': 'COMPLETE'})
+        operations.update_operation('depid', 'wfid', test_kwarg='test')
+        mock_logger.assert_called_once_with("Ignoring the update operation "
+                                            "call as the operation is already "
+                                            "COMPLETE")
 
-class TestOperationsCurrentWorkflowIdAndGetOperation(unittest.TestCase):
-    def setUp(self):
-        deployment_dict = {
-            'id': 'test',
-            'name': 'test',
-            'resources': {
-                '0': {'provider': 'test'},
-                '1': {'status': 'DELETED'},
-                '2': {'status': 'ACTIVE'}
-            },
-            'status': 'NEW',
-            'operation': {
-                'status': 'NEW',
-            },
-            'plan': {
-                'services': {
-                    'web': {
-                        'component': {
-                            'instances': ["1", "2"]
-                        }
-                    }
-                }
-            }
-        }
-        self.deployment = cmdep.Deployment(deployment_dict)
-        self.deployment.environment = mock.Mock()
-        self.context = mock.MagicMock()
-        environment = mock.Mock()
-        self.provider = mock.Mock()
-        self.deployment.environment.return_value = environment
-        environment.get_provider.return_value = self.provider
+    @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(operations, 'DB')
+    def test_curr_operation_from_operation(self, mock_db, mock_getop):
+        mock_db.get_deployment.return_value = {}
+        mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
+        operations.update_operation('depid', 'wfid', test_kwarg='test')
+        mock_db.save_deployment.assert_called_once_with(
+            'depid', {'operation': {'test_kwarg': 'test'}}, partial=True)
 
-    def test_get_workflow_id_when_w_id_not_in_operation(self):
-        workflow_id = operations.current_workflow_id(self.deployment)
-        self.assertEqual(workflow_id, self.deployment['id'])
+    @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(operations, 'DB')
+    def test_curr_operation_from_history(self, mock_db, mock_getop):
+        mock_db.get_deployment.return_value = {}
+        mock_getop.return_value = (
+            'operations-history', 0, {'status': 'BUILD'})
+        operations.update_operation('depid', 'wfid', test_kwarg='test')
+        mock_db.save_deployment.assert_called_once_with(
+            'depid',
+            {'operations-history': [{'test_kwarg': 'test'}]},
+            partial=True
+        )
 
-    def test_get_workflow_id_when_w_id_in_operation(self):
-        self.deployment['operation']['workflow-id'] = 'w_id'
-        workflow_id = operations.current_workflow_id(self.deployment)
-        self.assertEqual(workflow_id, 'w_id')
+    @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(operations, 'DB')
+    def test_include_deployment_status(self, mock_db, mock_getop):
+        mock_db.get_deployment.return_value = {}
+        mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
+        operations.update_operation('depid', 'wfid',
+                                    deployment_status='test_status',
+                                    test_kwarg='test')
+        mock_db.save_deployment.assert_called_once_with(
+            'depid',
+            {'operation': {'test_kwarg': 'test'}, 'status': 'test_status'},
+            partial=True
+        )
 
-    def test_get_operation_invalid_id_and_no_history(self):
+    @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(operations, 'DB')
+    def test_op_status_matches_kwarg_status(self, mock_db, mock_getop):
+        mock_db.get_deployment.return_value = {}
+        mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
+        operations.update_operation('depid', 'wfid',
+                                    status='BUILD')
+        mock_db.save_deployment.assert_called_once_with(
+            'depid', {'operation': {'status': 'BUILD'}}, partial=True)
+
+    @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(operations, 'DB')
+    def test_op_status_does_not_match_kwarg_status(self, mock_db, mock_getop):
+        mock_db.get_deployment.return_value = {}
+        mock_getop.return_value = ('operation', -1, {'status': 'UP'})
+        operations.update_operation('depid', 'wfid',
+                                    status='BUILD')
+        mock_db.save_deployment.assert_called_once_with(
+            'depid',
+            {'operation': {'status': 'BUILD'}, 'display-outputs': {}},
+            partial=True
+        )
+
+    @mock.patch.object(operations, 'cmdep')
+    @mock.patch.object(operations.LOG, 'warn')
+    @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(operations, 'DB')
+    def test_calculate_outputs_throws_key_error(self, mock_db, mock_getop,
+                                                mock_logger, mock_cmdep):
+        mock_db.get_deployment.return_value = {}
+        mock_dep = mock.Mock()
+        mock_dep.calculate_outputs.side_effect = KeyError
+        mock_cmdep.Deployment.return_value = mock_dep
+        mock_getop.return_value = ('operation', -1, {'status': 'UP'})
+        operations.update_operation('depid', 'wfid',
+                                    status='BUILD')
+        mock_db.save_deployment.assert_called_once_with(
+            'depid',
+            {'operation': {'status': 'BUILD'}},
+            partial=True
+        )
+        mock_logger.assert_called_once_with(
+            'Cannot update deployment outputs: %s', 'depid')
+
+
+class TestOperationsPadList(unittest.TestCase):
+    def test_invalid_item_id(self):
+        self.assertEqual([None], operations._pad_list('not an int', None))
+
+    def test_last_item_id_is_zero(self):
+        self.assertEqual(['last_item'], operations._pad_list(0, 'last_item'))
+
+    def test_last_item_id_is_one(self):
+        self.assertEqual([{}, 'last_item'],
+                         operations._pad_list(1, 'last_item'))
+
+    def test_last_item_id_is_many(self):
+        self.assertEqual([{}, {}, {}, {}, 'last_item'],
+                         operations._pad_list(4, 'last_item'))
+
+
+class TestOperationsCurrentWorkflowId(unittest.TestCase):
+    def test_no_operation_in_deployment(self):
+        self.assertEqual(None, operations.current_workflow_id({}))
+
+    def test_no_workflow_id_no_dep_id(self):
+        deployment = {'operation': {'blah': 'blah'}}
+        self.assertEqual(None, operations.current_workflow_id(deployment))
+
+    def test_no_workflow_id_defaults_to_dep_id(self):
+        deployment = {'operation': {'blah': 'blah'}, 'id': 'depid'}
+        self.assertEqual('depid', operations.current_workflow_id(deployment))
+
+    def test_prefer_workflow_id_over_dep_id(self):
+        deployment = {'operation': {'workflow-id': 'wfid'}, 'id': 'depid'}
+        self.assertEqual('wfid', operations.current_workflow_id(deployment))
+
+
+class TestOperationsGetOperation(unittest.TestCase):
+    def test_get_operation_finds_nothing(self):
         with self.assertRaises(
                 cmexc.CheckmateInvalidParameterError) as expected:
-            operations.get_operation(self.deployment, 'bad-id')
+            operations.get_operation({'operation': {}}, 'wfid')
         self.assertEqual('Invalid workflow ID.', str(expected.exception))
 
-    def test_get_operation_invalid_id_with_history(self):
-        self.deployment['operations-history'] = [{'status': 'PAUSED',
-                                                 'workflow-id': 'w_id'}]
-        with self.assertRaises(
-                cmexc.CheckmateInvalidParameterError) as expected:
-            operations.get_operation(self.deployment, 'foobar_w_id')
+    def test_wf_id_is_current_operation(self):
+        result = operations.get_operation(
+            {'operation': {'workflow-id': 'wfid'}}, 'wfid')
+        self.assertEqual(('operation', -1, {'workflow-id': 'wfid'}), result)
 
-        self.assertEqual('Invalid workflow ID.', str(expected.exception))
+    def test_wf_id_is_the_only_one_in_history(self):
+        result = operations.get_operation(
+            {'operations-history': [{'workflow-id': 'wfid'}]}, 'wfid')
+        self.assertEqual(
+            ('operations-history', 0, {'workflow-id': 'wfid'}), result)
 
-    def test_get_operation_from_current_operation(self):
-        self.assertEqual(('operation', -1, {'status': 'NEW'}),
-                         operations.get_operation(self.deployment, "test"))
+    def test_wf_id_is_one_of_many_in_history(self):
+        result = operations.get_operation(
+            {'operations-history':
+                [{'workflow-id': 'nothere'},
+                 {'workflow-id': 'nope'},
+                 {'workflow-id': 'wfid'},
+                 {'workflow-id': 'nothisoneeither'}]},
+            'wfid'
+        )
+        self.assertEqual(
+            ('operations-history', 2, {'workflow-id': 'wfid'}), result)
 
-    def test_get_operation_from_history(self):
-        self.deployment['operations-history'] = [{'status': 'PAUSED',
-                                                  'workflow-id': 'w_id'}]
-        expected = ('operations-history', 0,
-                    {'status': 'PAUSED', 'workflow-id': 'w_id'})
-        self.assertEqual(expected, operations.get_operation(self.deployment, 'w_id'))
-
-    def test_get_operation_from_history_with_multiples(self):
-        self.deployment['operations-history'] = [{'status': 'PAUSED',
-                                                  'workflow-id': 'w_id'},
-                                                 {'status': 'NEW',
-                                                  'workflow-id': 'w_id2'}]
-        expected = ('operations-history', 1,
-                    {'status': 'NEW', 'workflow-id': 'w_id2'})
-        self.assertEqual(expected, operations.get_operation(self.deployment, 'w_id2'))
-
-    def test_get_operation_old_deployment_with_no_id_in_history(self):
-        self.deployment['operation'] = {}
-        self.deployment['operations-history'] = [{'status': 'PAUSED'}]
-        self.assertEqual(('operations-history', 0, {'status': 'PAUSED'}),
-                         operations.get_operation(self.deployment, 'test'))
+    def test_wf_in_history_but_id_in_deployment(self):
+        result = operations.get_operation(
+            {'operations-history': [{'blah': 'blah'}], 'id': 'wfid'}, 'wfid')
+        self.assertEqual(('operations-history', 0, {'blah': 'blah'}), result)
 
 
 if __name__ == '__main__':

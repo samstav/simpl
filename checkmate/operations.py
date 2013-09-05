@@ -47,13 +47,15 @@ def create(dep_id, workflow_id, op_type, tenant_id=None):
     """Decouples statsd and celery from the underlying implementation."""
     _create(dep_id, workflow_id, op_type, tenant_id)
 
+
 def _get_db_driver(dep_id):
+    """Get the simulations db driver if in sim mode, else checkmate db."""
     return SIMULATOR_DB if utils.is_simulation(dep_id) else DB
+
 
 def _create(dep_id, workflow_id, op_type, tenant_id):
     """Create a new operation of type 'op_type'."""
     driver = _get_db_driver(dep_id)
-    print driver
     deployment = driver.get_deployment(dep_id, with_secrets=False)
     workflow = driver.get_workflow(workflow_id, with_secrets=False)
     serializer = DictionarySerializer()
@@ -61,6 +63,7 @@ def _create(dep_id, workflow_id, op_type, tenant_id):
     add(deployment, spiff_wf, op_type, tenant_id=tenant_id)
     driver.save_deployment(dep_id, deployment, secrets=None,
                            tenant_id=tenant_id, partial=False)
+
 
 def add(deployment, spiff_wf, op_type, tenant_id=None):
     """Initialize new workflow in the operation and add to the deployment."""
@@ -141,11 +144,60 @@ def update_operation(deployment_id, workflow_id, driver=None,
 def _pad_list(last_item_id, last_item):
     """Return a list padded with empty dicts plus last_item."""
     padded_list = []
-    for _ in range(last_item_id):
-        padded_list.append({})
+    try:
+        for _ in range(last_item_id):
+            padded_list.append({})
+    except TypeError:
+        LOG.warn('last_item_id passed to _pad_list was not an integer.')
     padded_list.append(last_item)
 
     return padded_list
+
+
+def current_workflow_id(deployment):
+    """Return the current Workflow's ID."""
+    operation = deployment.get('operation')
+    if operation:
+        return operation.get('workflow-id', deployment.get('id'))
+
+
+def get_operation(deployment, workflow_id):
+    """Gets an operation by Workflow ID.
+
+    Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
+    blocks for an operation that has a workflow-id that matches the passed
+    in workflow_id. If found, returns a tuple containing three values:
+      - where the operation was found: 'operation' or 'operations-history'
+      - the index of the operation (mainly for 'operations-history')
+      - the operation details as a dict
+
+    If the worfklow_id is not found, raises a KeyError
+
+    :param workflow_id: the workflow ID on which to search
+    :return: a Tuple containing op_type, op_index, and op_details
+    """
+    op_type, op_index, op_details = None, -1, {}
+    if current_workflow_id(deployment) == workflow_id:
+        op_type = 'operation'
+        op_index = -1
+        op_details = deployment.get('operation')
+    else:
+        for index, oper in enumerate(deployment.get('operations-history', [])):
+            # TODO(Paul): Default to Deployment ID? Should we fix this
+            # using convert_data when the deployment is retrieved from
+            # storage, rather than here?
+            if oper.get('workflow-id', deployment.get('id')) == workflow_id:
+                op_type = 'operations-history'
+                op_index = index
+                op_details = oper
+                break
+
+    if not op_type:
+        LOG.warn("Cannot find operation with workflow id %s in "
+                 "deployment %s", workflow_id, deployment.get('id'))
+        raise cmexc.CheckmateInvalidParameterError('Invalid workflow ID.')
+
+    return (op_type, op_index, op_details)
 
 
 def get_status_info(errors, tenant_id, workflow_id):
@@ -275,50 +327,3 @@ def _get_distinct_errors(errors):
         new_error = list(group)[0]
         distinct_errors.append(new_error)
     return distinct_errors
-
-
-def current_workflow_id(deployment):
-    """Return the current Workflow's ID."""
-    operation = deployment.get('operation')
-    if operation:
-        return operation.get('workflow-id', deployment.get('id'))
-    return None
-
-
-def get_operation(deployment, workflow_id):
-    """Gets an operation by Workflow ID.
-
-    Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
-    blocks for an operation that has a workflow-id that matches the passed
-    in workflow_id. If found, returns a tuple containing three values:
-      - where the operation was found: 'operation' or 'operations-history'
-      - the index of the operation (mainly for 'operations-history')
-      - the operation details as a dict
-
-    If the worfklow_id is not found, raises a KeyError
-
-    :param workflow_id: the workflow ID on which to search
-    :return: a Tuple containing op_type, op_index, and op_details
-    """
-    op_type, op_index, op_details = None, -1, {}
-    if current_workflow_id(deployment) == workflow_id:
-        op_type = 'operation'
-        op_index = -1
-        op_details = deployment.get('operation')
-    else:
-        for index, oper in enumerate(deployment.get('operations-history', [])):
-            # TODO(Paul): Default to Deployment ID? Should we fix this
-            # using convert_data when the deployment is retrieved from
-            # storage, rather than here?
-            if oper.get('workflow-id', deployment.get('id')) == workflow_id:
-                op_type = 'operations-history'
-                op_index = index
-                op_details = oper
-                break
-
-    if not op_type:
-        LOG.warn("Cannot find operation with workflow id %s in "
-                 "deployment %s", workflow_id, deployment.get('id'))
-        raise cmexc.CheckmateInvalidParameterError('Invalid workflow ID.')
-
-    return (op_type, op_index, op_details)
