@@ -70,7 +70,7 @@ describe('ResourcesController', function(){
       $scope.get_new_deployment = sinon.stub().returns(mock_deployment)
       $scope.submit();
       expect(mock_deployment.name).toEqual('deadpool')
-      expect(mock_deployment['meta-data']).toEqual({'application-name': 'Custom'})
+      expect(mock_deployment.blueprint['meta-data']).toEqual({'application-name': 'Custom'})
     });
   });
 });
