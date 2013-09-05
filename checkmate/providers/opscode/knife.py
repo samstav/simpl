@@ -1171,9 +1171,10 @@ def _write_node_attributes(node_path, attributes):
         lock.acquire()
         try:
             node = {'run_list': []}  # default
-            with file(node_path, 'r') as node_file_r:
-                node = json.load(node_file_r)
-            node.update(attributes)
+            if os.path.exists(node_path):
+                with file(node_path, 'r') as node_file_r:
+                    node = json.load(node_file_r)
+            utils.merge_dictionary(node, attributes)
             with file(node_path, 'w') as node_file_w:
                 json.dump(node, node_file_w)
             LOG.info("Node attributes written in %s", node_path, extra=dict(
