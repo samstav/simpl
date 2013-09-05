@@ -227,22 +227,6 @@ class TestOperationsUpdateOperation(unittest.TestCase):
             'Cannot update deployment outputs: %s', 'depid')
 
 
-class TestOperationsPadList(unittest.TestCase):
-    def test_invalid_item_id(self):
-        self.assertEqual([None], operations._pad_list('not an int', None))
-
-    def test_last_item_id_is_zero(self):
-        self.assertEqual(['last_item'], operations._pad_list(0, 'last_item'))
-
-    def test_last_item_id_is_one(self):
-        self.assertEqual([{}, 'last_item'],
-                         operations._pad_list(1, 'last_item'))
-
-    def test_last_item_id_is_many(self):
-        self.assertEqual([{}, {}, {}, {}, 'last_item'],
-                         operations._pad_list(4, 'last_item'))
-
-
 class TestOperationsCurrentWorkflowId(unittest.TestCase):
     def test_no_operation_in_deployment(self):
         self.assertEqual(None, operations.current_workflow_id({}))

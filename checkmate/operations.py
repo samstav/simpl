@@ -125,11 +125,11 @@ def update_operation(deployment_id, workflow_id, driver=None,
         return
 
     if op_index == -1:  # Current operation from 'operation'
-        op_list = dict(kwargs)
-    else:  # Operation found in 'operations-history'
-        op_list = _pad_list(op_index, dict(kwargs))
+        operation = dict(kwargs)
+    else:  # Pad a list so we can put it back in the right spot
+        operation = [{}] * op_index + [dict(kwargs)]
 
-    delta = {op_type: op_list}
+    delta = {op_type: operation}
     if deployment_status:
         delta['status'] = deployment_status
     try:
@@ -139,19 +139,6 @@ def update_operation(deployment_id, workflow_id, driver=None,
     except KeyError:
         LOG.warn("Cannot update deployment outputs: %s", deployment_id)
     driver.save_deployment(deployment_id, delta, partial=True)
-
-
-def _pad_list(last_item_id, last_item):
-    """Return a list padded with empty dicts plus last_item."""
-    padded_list = []
-    try:
-        for _ in range(last_item_id):
-            padded_list.append({})
-    except TypeError:
-        LOG.warn('last_item_id passed to _pad_list was not an integer.')
-    padded_list.append(last_item)
-
-    return padded_list
 
 
 def current_workflow_id(deployment):
