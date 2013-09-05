@@ -482,13 +482,13 @@ class TestKnifeTasks(unittest.TestCase):
 
         # Stubout check for installed chef
         res = {'stderr': 'bash: chef-solo: command not found\n', 'stdout': ''}
-        knife.ssh.remote_execute('localhost', "chef-solo -v", 'root',
+        knife.ssh.remote_execute('localhost', "knife -v", 'root',
                                  identity_file=None, password=None)\
             .AndReturn(res)
 
         resource = {'hosted_on': '1', 'index': '0'}
         self.mox.ReplayAll()
-        with self.assertRaises(cmexc.CheckmateException):
+        with self.assertRaisesRegexp(cmexc.CheckmateException, "Check for*"):
             knife.register_node('localhost', 'test', resource,
                                 kitchen_name=service)
         self.mox.VerifyAll()

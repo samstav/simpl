@@ -1138,20 +1138,24 @@ def register_node(host, environment, resource, path=None, password=None,
             raise exc
 
     try:
-        results = ssh.remote_execute(host, "chef-solo -v", 'root',
+        results = ssh.remote_execute(host, "knife -v", 'root',
                                      password=password,
                                      identity_file=identity_file)
-        if re.match('^Chef: [0-9]+.[0-9]+.[0-9]+', results['stdout']) is None:
-            raise cmexc.CheckmateException("Check for chef install failed "
-                                           "with unexpected response '%s'" %
-                                           results)
-    except celexc.SoftTimeLimitExceeded:
-        msg = "Timeout vrifying chef install on %s" % host
+        LOG.debug("Chef install check results on %s: %s", host,
+                  results['stdout'])
+    except celexc.SoftTimeLimitExceeded as exc:
+        msg = "Timeout verifying chef install on %s" % host
         LOG.info("%s in deployment %s", msg, environment)
-        raise cmexc.CheckmateUserException(msg, utils.get_class_name(
-            cmexc.CheckmateException), cmexc.UNEXPECTED_ERROR, '')
+        user_exc = cmexc.CheckmateUserException(msg, utils.get_class_name(exc),
+                                                cmexc.UNEXPECTED_ERROR, '')
+        raise register_node.retry(exc=user_exc)
     except StandardError as exc:
         LOG.error("Chef install failed on %s: %s", host, exc)
+        raise register_node.retry(exc=exc)
+
+    if re.match('^Chef: [0-9]+.[0-9]+.[0-9]+', results['stdout']) is None:
+        exc = cmexc.CheckmateException("Check for chef install failed with "
+                                       "unexpected response '%s'" % results)
         raise register_node.retry(exc=exc)
 
     node_data = _write_node_attributes(node_path, attributes)
