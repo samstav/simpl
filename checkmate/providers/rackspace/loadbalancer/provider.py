@@ -633,7 +633,8 @@ class Provider(rsbase.RackspaceProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'load-balancer':
-            algorithms = _get_algorithms(context)
+            algorithms = _get_algorithms(context, context.auth_token,
+                                         api_endpoint)
             options = {
                 'algorithm': {
                     'type': 'list',
@@ -658,7 +659,8 @@ class Provider(rsbase.RackspaceProviderBase):
 
             # provide list of available load balancer types
 
-            protocols = _get_protocols(context)
+            protocols = _get_protocols(context, context.auth_token,
+                                       api_endpoint)
             protocols = [p.lower() for p in protocols]
             for protocol in protocols:
                 item = {'id': protocol, 'is': 'load-balancer',
@@ -759,10 +761,11 @@ class Provider(rsbase.RackspaceProviderBase):
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE,
-               backing_store=REDIS, backing_store_key='rax.lb.algorithms')
-def _get_algorithms(context):
+               backing_store=REDIS, backing_store_key='rax.lb.algorithms',
+               ignore_args=[0])
+def _get_algorithms(context, auth_token, api_endpoint):
     '''Ask CLB for Algorithms.'''
-    # the region must be supplied but is not used
+    # the auth_token and api_endpoint must be supplied but are not used
     try:
         api = Provider.connect(context)
         LOG.info("Calling Cloud Load Balancers to get algorithms for %s",
@@ -778,10 +781,11 @@ def _get_algorithms(context):
 
 
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_PROTOCOL_CACHE,
-               backing_store=REDIS, backing_store_key='rax.lb.protocols')
-def _get_protocols(context):
+               backing_store=REDIS, backing_store_key='rax.lb.protocols',
+               ignore_args=[0])
+def _get_protocols(context, auth_token, api_endpoint):
     '''Ask CLB for Protocols.'''
-    # the region must be supplied but is not used
+    # the auth_token and api_endpoint must be supplied but are not used
     try:
         api = Provider.connect(context)
         LOG.info("Calling Cloud Load Balancers to get protocols for %s",

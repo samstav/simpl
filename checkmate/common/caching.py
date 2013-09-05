@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 '''
 Function Caching Decorators
 
@@ -49,6 +63,12 @@ Specify which arguments need to be hashed to protect them from being exposed:
     def my_cached_function(data, encryption_key=None):
         ...
 
+Specify which arguments to ignore when generating the hash.
+
+    @caching.Cache(ignore_args=[1,3]) or ignore_kwargs=['mutable1', 'mutable2']
+    def my_cached_function(mutable1, not1, mutable2, not2):
+        ...
+    This prevents the mutable data from being used to gen the hash
 Tune cache timeout and whether you also want exceptions cached:
 
 
@@ -68,9 +88,9 @@ Note: avoid using arguments that cannot be used as a hash key (ex. an object)
 
 '''
 import copy
+import cPickle as pickle
 import hashlib
 import logging
-import cPickle as pickle
 import time
 
 from eventlet.green import threading
@@ -83,17 +103,20 @@ DEFAULT_TIMEOUT = 3600
 
 
 class Cache:
-    '''Cache a function'''
+    '''Cache a function.'''
 
     def __init__(self, max_entries=1000, timeout=DEFAULT_TIMEOUT,
-                 sensitive_args=None, sensitive_kwargs=None, salt='a_salt',
-                 store=None, cache_exceptions=False, backing_store=None,
+                 sensitive_args=None, sensitive_kwargs=None, ignore_args=None,
+                 ignore_kwargs=None, salt='a_salt', store=None,
+                 cache_exceptions=False, backing_store=None,
                  backing_store_key=None):
         self.max_entries = max_entries
         self.salt = salt
         self.max_age = timeout
         self.sensitive_args = sensitive_args
         self.sensitive_kwargs = sensitive_kwargs
+        self.ignore_args = ignore_args
+        self.ignore_kwargs = ignore_kwargs
 
         self.cleaning_schedule = int(timeout / 2) if timeout > 1 else 1
         self.limit_reached = False
@@ -109,7 +132,7 @@ class Cache:
         self.memorized_function = func.__name__
 
         def wrapped_f(*args, **kwargs):
-            '''The function to return in place of the cached function'''
+            '''The function to return in place of the cached function.'''
             key, result = self.try_cache(*args, **kwargs)
             if key:
                 if self.cache_exceptions and isinstance(result, Exception):
@@ -119,7 +142,7 @@ class Cache:
                     return result
             try:
                 result = func(*args, **kwargs)
-            except Exception as exc:
+            except StandardError as exc:
                 if self.cache_exceptions:
                     self.cache(exc, self.get_hash(*args, **kwargs))
                 raise exc
@@ -157,13 +180,13 @@ class Cache:
         return None, None
 
     def cache(self, data, key):
-        '''Store return value in cache'''
+        '''Store return value in cache.'''
         self._cache_local(data, key)
         if self.backing_store:
             self._cache_backing(data, key)
 
     def _cache_local(self, data, key):
-        '''Cache item to local, in-momory store'''
+        '''Cache item to local, in-momory store.'''
         if self.max_entries == 0 or len(self._store) < self.max_entries:
             self._store[key] = (time.time(), data)
         elif self.limit_reached is not True:
@@ -171,7 +194,7 @@ class Cache:
             LOG.warn("Maximum entries reached for %s", self.memorized_function)
 
     def _cache_backing(self, data, key):
-        '''Cache item to backing store (if it is configured)'''
+        '''Cache item to backing store (if it is configured).'''
         if self.backing_store:
             try:
                 self.backing_store.setex(self._backing_store_key(key),
@@ -189,8 +212,9 @@ class Cache:
             return '%s.%s' % (key, self.backing_store_key)
 
     def get_hash(self, *args, **kwargs):
-        '''Calculate a secure hash'''
-        if not self.sensitive_args and not self.sensitive_kwargs:
+        '''Calculate a secure hash.'''
+        if (not self.sensitive_args and not self.sensitive_kwargs and not
+          self.ignore_args and not self.ignore_kwargs):
             return (args, tuple(sorted(kwargs.items())))
         clean_args = list(copy.deepcopy(args))
         clean_kwargs = copy.deepcopy(kwargs)
@@ -206,6 +230,13 @@ class Cache:
                 if key in clean_kwargs:
                     value = clean_kwargs.pop(key)
                     secrets.append("%s|%s" % (key, value))
+        if self.ignore_args:
+            self.ignore_args = sorted(self.ignore_args, reverse=True)
+            for arg in self.ignore_args:
+                del clean_args[arg]
+        if self.ignore_kwargs:
+            for kwarg in self.ignore_kwargs:
+                del clean_kwargs[kwarg]
         if secrets:
             hasher = hashlib.md5("%s:%s" % (self.salt, ':'.join(secrets)))
             secret_hash = hasher.hexdigest()
@@ -226,7 +257,8 @@ class Cache:
 
     def collect(self):
         '''Clean out any cache entries in this store that are currently older
-        than allowed'''
+        than allowed.
+        '''
         now = time.time()
         for key, entry in self._store.items():
             birthday, _ = entry
@@ -236,35 +268,35 @@ class Cache:
         self.last_reaping = time.time()
 
     def start_collection(self):
-        '''Initizate the removal of stale cache items'''
+        '''Initizate the removal of stale cache items.'''
         if self.reaper is None:
             try:
                 self.reaper = threading.Thread(target=self.collect)
                 self.reaper.setDaemon(False)
                 LOG.debug("Reaping cache for %s", self.memorized_function)
                 self.reaper.start()
-            except Exception as exc:
-                print "E", exc
+            except StandardError as exc:
+                print("Exception: %s" % exc)
                 raise exc
 
     @staticmethod
     def _encode(data):
-        '''Encode python data into format we can restore from Redis'''
+        '''Encode python data into format we can restore from Redis.'''
         return pickle.dumps(data, pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
     def _decode(data):
-        '''Decode our python data from the Redis string'''
+        '''Decode our python data from the Redis string.'''
         return pickle.loads(data)
 
 
 class CacheMethod(Cache):
-    '''Use this instead of @Cache with instance methods'''
+    '''Use this instead of @Cache with instance methods.'''
     def __call__(self, func):
         self.memorized_function = func.__name__
 
         def wrapped_f(itself, *args, **kwargs):
-            '''The function to return in place of the cached function'''
+            '''The function to return in place of the cached function.'''
             key, result = self.try_cache(*args, **kwargs)
             if key:
                 if self.cache_exceptions and isinstance(result, Exception):
