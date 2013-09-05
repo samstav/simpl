@@ -452,26 +452,36 @@ class Driver(common.DbBase):
 
     @staticmethod
     def _relate_resources(existing, incoming, secrets=None):
-        '''Perform an inclusive merge of existing and incoming.
+        """Create a list from resources in incoming, using id from existing.
 
-        If a resource exists in both existing and incoming, existing's data is
-        merged with incoming's data. Any resources in incoming that were not
-        in existing are added to the merged data before returning the new
-        collection.
-        '''
+        If a resource in incoming matches one in existing, grab the id from
+        existing and add it to incoming. If there is no match, generate a new
+        id.
+
+        :existing: a list containing existing resources
+        :incoming: a dict containing resources to manipulate
+        :secrets: (optional) a dict containing resources' secret data
+
+        :returns: a list of all resources in incoming with ID's
+        """
         incoming_copy = copy.deepcopy(incoming)
         resources = []
         resource_secret = None
 
         for key, incoming_resource in incoming.iteritems():
             for existing_resource in existing:
-                if key in existing_resource:
+                if key in existing_resource and key in incoming_copy:
                     if key in secrets:
                         resource_secret = {key: secrets.get(key)}
                     resources.append({'id': existing_resource["id"],
                                       'body': {key: incoming_resource},
                                       'secret': resource_secret})
                     incoming_copy.pop(key)
+                else:
+                    LOG.warn('_relate_resources just tried to pop '
+                             'non-existent key %s off incoming_copy. Here is '
+                             'the existing list suspected of containing '
+                             'duplicates: %s', key, existing)
 
         for key, left_over_resource in incoming_copy.iteritems():
             resource_id = uuid.uuid4().hex
@@ -488,7 +498,7 @@ class Driver(common.DbBase):
         resources = []
         if resource_ids:
             resources_cursor = self.database()[self._resource_collection_name]\
-                .find({'id': {'$in': resource_ids}}, {"tenantId": 0, "_id": 0})
+                .find({'_id': {'$in': resource_ids}}, {"tenantId": 0, "_id": 0})
             for resource in resources_cursor:
                 if with_secrets:
                     self.merge_secrets(self._resource_collection_name,
