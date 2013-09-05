@@ -3315,7 +3315,13 @@ function ResourcesController($scope, $resource, $location, Deployment){
     for (i=0; i<$scope.selected_resources.length; i++){
       deployment.resources[i] = $scope.selected_resources[i]
     }
-    deployment.blueprint = {"services": {}, 'name': $scope.deployment.name};
+    deployment.blueprint = {
+      'services': {},
+      'name': $scope.deployment.name,
+      'meta-data': {
+        'application-name': 'Custom'
+      }
+    };
     deployment.environment = { //TODO Make providers list dynamic based on resources
         "description": "This environment uses next-gen cloud servers.",
         "name": "Next-Gen Open Cloud",
@@ -3330,7 +3336,6 @@ function ResourcesController($scope, $resource, $location, Deployment){
     };
     deployment.status = 'UP';
     deployment.name = $scope.deployment.name;
-    deployment['meta-data'] = {'application-name': 'Custom'};
     deployment.$save(function(result, getHeaders){
       console.log("Posted deployment");
       Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure)
