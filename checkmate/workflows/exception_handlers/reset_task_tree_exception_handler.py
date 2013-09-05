@@ -20,7 +20,8 @@ import logging
 from celery.result import AsyncResult
 
 from checkmate import workflow as cmwf
-from exception_handler import ExceptionHandler
+from checkmate.workflows.exception_handlers.exception_handler import \
+    ExceptionHandler
 
 LOG = logging.getLogger(__name__)
 
