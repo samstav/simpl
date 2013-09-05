@@ -169,7 +169,7 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     driver.save_workflow(workflow_id, body, secrets=secrets)
 
 
-def create_reset_failed_task_workflow(d_wf, deployment_id, context,
+def create_reset_failed_task_wf(d_wf, deployment_id, context,
                                       failed_task, driver=DB):
     """Creates workflow for resetting a failed task
     :param d_wf: workflow containing the task
@@ -387,6 +387,12 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
 
 
 def format(resources):
+    """Returns a dictionary of resources in the {"instance:[resource_key]":
+    [resource_instance]} format
+    @param resources: A dict of resources, in {[resource_key]:[resource]}
+    format
+    @return:
+    """
     formatted_resources = {}
     for resource_key, resource_value in resources.iteritems():
         formatted_resources.update({("instance:%s" % resource_key):
@@ -394,9 +400,15 @@ def format(resources):
     return formatted_resources
 
 
-def find_tasks(wf, state=Task.ANY_MASK, **kwargs):
+def find_tasks(d_wf, state=Task.ANY_MASK, **kwargs):
+    """ Find tasks in the workflow, based on the task_tags for that task
+    @param d_wf: Workflow
+    @param state: state of the Task
+    @param kwargs: search parameters
+    @return:
+    """
     tasks = []
-    filtered_tasks = wf.get_tasks(state=state)
+    filtered_tasks = d_wf.get_tasks(state=state)
     for task in filtered_tasks:
         match = True
         if kwargs:
@@ -412,6 +424,17 @@ def find_tasks(wf, state=Task.ANY_MASK, **kwargs):
 
 
 def add_subworkflow(d_wf, subworkflow_id, task_id):
+    """Adds a subworkflow_id correspoding to a failed task to an existing
+    workflow.
+    If the failed task already has a subworkflow_id associated with it,
+    that older subworkflow is moved into the subworkflows-history and the
+    subworkflow_id is added to 'subworkflows'
+
+    @param d_wf: Workflow to which the subworkflows is to be added
+    @param subworkflow_id: ID of the subworkflow
+    @param task_id: Failed task id
+    @return: Nothing
+    """
     task_id = str(task_id)
     subworkflows = d_wf.get_attribute("subworkflows", {})
 
@@ -427,9 +450,14 @@ def add_subworkflow(d_wf, subworkflow_id, task_id):
     d_wf.attributes["subworkflows"] = subworkflows
 
 
-def get_subworkflow(wf, task_id):
-    if "subworkflows" in wf.attributes:
-        return wf.get_attribute("subworkflows", {}).get(str(task_id))
+def get_subworkflow(d_wf, task_id):
+    """Gets a subworkflow corresponding to a task-id
+    @param d_wf: Workflow which has the subworkflows
+    @param task_id: Task id for which the subworkflow has to be retrieved
+    @return: a subworkflow id corresponding to the failed task
+    """
+    if "subworkflows" in d_wf.attributes:
+        return d_wf.get_attribute("subworkflows", {}).get(str(task_id))
 
 
 class Workflow(ExtensibleDict):

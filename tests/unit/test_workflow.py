@@ -86,7 +86,7 @@ class TestWorkflow(unittest.TestCase):
                                  wf_type="CLEAN UP").AndReturn(subworkflow)
         subworkflow.get_attribute('id').AndReturn("WF_ID")
         self.mox.ReplayAll()
-        workflow.create_reset_failed_task_workflow(self.mocked_workflow,
+        workflow.create_reset_failed_task_wf(self.mocked_workflow,
                                                    deployment["id"],
                                                    context,
                                                    failed_task,

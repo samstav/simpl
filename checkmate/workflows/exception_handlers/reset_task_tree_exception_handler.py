@@ -61,7 +61,7 @@ class ResetTaskTreeExceptionHandler(ExceptionHandler):
 
         dep_id = self.d_wf.get_attribute("deploymentId")
         LOG.debug("Dep id %s", dep_id)
-        reset_wf = cmwf.create_reset_failed_task_workflow(
+        reset_wf = cmwf.create_reset_failed_task_wf(
             self.d_wf, dep_id, self.context, failed_task, driver=self.driver)
 
         reset_wf_id = reset_wf.get_attribute('id')
