@@ -33,7 +33,7 @@ from checkmate import test
 from checkmate import utils
 from checkmate import workflow
 from checkmate import workflows
-from checkmate.workflows import WorkflowSpec
+from checkmate import workflow_spec
 
 
 class TestWorkflow(unittest.TestCase):
@@ -77,9 +77,9 @@ class TestWorkflow(unittest.TestCase):
             .AndReturn(deployment)
 
         self.mocked_workflow.get_attribute('id').AndReturn("WF_ID")
-        self.mox.StubOutWithMock(WorkflowSpec,
+        self.mox.StubOutWithMock(workflow_spec.WorkflowSpec,
                                  "create_reset_failed_resource_spec")
-        WorkflowSpec.create_reset_failed_resource_spec(
+        workflow_spec.WorkflowSpec.create_reset_failed_resource_spec(
             context, deployment, failed_task, "WF_ID").AndReturn(spec)
         self.mox.StubOutWithMock(workflow, "create_workflow")
         workflow.create_workflow(spec, deployment, context, driver=driver,
@@ -363,10 +363,10 @@ class TestWorkflow(unittest.TestCase):
         deployments.Manager.plan(deployment_with_lb_provider, context)
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
-        workflow_spec = workflows.WorkflowSpec.create_delete_dep_wf_spec(
+        wf_spec = workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
             deployment_with_lb_provider, context)
         test_workflow = workflow.init_spiff_workflow(
-            workflow_spec, deployment_with_lb_provider, context, "w_id",
+            wf_spec, deployment_with_lb_provider, context, "w_id",
             "DELETE")
         workflow_dump = re.sub(r"\s", "", test_workflow.get_dump())
         expected_dump = """
@@ -432,11 +432,10 @@ class TestWorkflow(unittest.TestCase):
         deployments.Manager.plan(deployment_with_lb_provider, context)
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
-        workflow_spec = workflows.WorkflowSpec\
-            .create_delete_dep_wf_spec(
-                deployment_with_lb_provider, context)
+        wf_spec = workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
+            deployment_with_lb_provider, context)
         test_workflow = workflow.init_spiff_workflow(
-            workflow_spec, deployment_with_lb_provider, context, "w_id",
+            wf_spec, deployment_with_lb_provider, context, "w_id",
             "DELETE")
         workflow_dump = re.sub(r"\s", "", test_workflow.get_dump())
         expected_dump = """

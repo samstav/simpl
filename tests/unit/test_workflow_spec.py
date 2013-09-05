@@ -19,7 +19,7 @@ import mox
 import unittest
 
 from checkmate import deployment as cmdep
-from checkmate import workflows as cmwfs
+from checkmate import workflow_spec
 
 
 class TestWorkflowSpec(unittest.TestCase):
@@ -82,8 +82,8 @@ class TestWorkflowSpec(unittest.TestCase):
         nova_provider.delete_resource_tasks(mox.IgnoreArg(), context, "TEST",
                                             self.resource2, "2")
         self._mox.ReplayAll()
-        cmwfs.WorkflowSpec.create_delete_node_spec(self.deployment, ["1"],
-                                                   context)
+        workflow_spec.WorkflowSpec.create_delete_node_spec(self.deployment,
+                                                           ["1"], context)
         self._mox.VerifyAll()
 
 

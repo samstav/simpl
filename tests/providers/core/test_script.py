@@ -29,7 +29,7 @@ from checkmate.providers.core import script
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow
-from checkmate import workflows
+from checkmate import workflow_spec
 
 LOG = logging.getLogger(__name__)
 
@@ -240,10 +240,10 @@ devstack.git
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         wflow = workflow.init_spiff_workflow(
-            workflow_spec, self.deployment, context, "w_id", "BUILD")
+            wf_spec, self.deployment, context, "w_id", "BUILD")
         task_list = wflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',

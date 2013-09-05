@@ -18,7 +18,7 @@ LOG = logging.getLogger(__name__)
 
 from checkmate.deployment import Deployment
 from checkmate import deployments
-from checkmate import workflows
+from checkmate import workflow_spec
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                                  'data')
@@ -26,7 +26,6 @@ os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
 from checkmate.common import schema
 from checkmate import exceptions
 from checkmate.providers import base, register_providers, get_provider_class
-from checkmate.providers import base
 from checkmate.middleware import RequestContext  # also enables logging
 from checkmate import utils
 from checkmate.workflow import init_spiff_workflow
@@ -254,9 +253,9 @@ class StubbedWorkflowBase(unittest.TestCase):
         if self.deployment.get('status') == 'NEW':
             deployments.Manager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
-        workflow = init_spiff_workflow(workflow_spec, self.deployment,
+        workflow = init_spiff_workflow(wf_spec, self.deployment,
                                        context, "w_id", "BUILD")
 
         if not expected_calls:

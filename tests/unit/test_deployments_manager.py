@@ -23,7 +23,7 @@ import unittest
 
 from checkmate import deployment as cmdep
 from checkmate import deployments
-from checkmate import workflows
+from checkmate import workflow_spec
 
 
 class TestManager(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestManager(unittest.TestCase):
 
     @mock.patch('checkmate.workflow.create_workflow')
     @mock.patch('checkmate.operations.add')
-    @mock.patch.object(workflows.WorkflowSpec, 'create_delete_node_spec')
+    @mock.patch.object(workflow_spec.WorkflowSpec, 'create_delete_node_spec')
     def test_delete_nodes(self, mock_create_delete, mock_add, mock_create_wf):
         resources = {
             '0': {},
@@ -75,7 +75,8 @@ class TestManager(unittest.TestCase):
 
     @mock.patch('checkmate.workflow.create_workflow')
     @mock.patch('checkmate.operations.add')
-    @mock.patch.object(workflows.WorkflowSpec, 'create_workflow_spec_deploy')
+    @mock.patch.object(workflow_spec.WorkflowSpec,
+                       'create_workflow_spec_deploy')
     def test_deploy_add_nodes(self,
                               mock_create_wf_s_d,
                               mock_add,

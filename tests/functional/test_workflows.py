@@ -23,12 +23,12 @@ from SpiffWorkflow import storage
 from SpiffWorkflow import Workflow as SpiffWorkflow
 
 from checkmate import workflow
-from checkmate import workflows as cmwfs
+from checkmate import workflow_spec
 
 
 class TestWorkflowTools(unittest.TestCase):
     def test_simple_wait_for(self):
-        wf_spec = cmwfs.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         wf_a = specs.Simple(wf_spec, 'A')
         wf_b = specs.Simple(wf_spec, 'B')
 
@@ -36,7 +36,7 @@ class TestWorkflowTools(unittest.TestCase):
         self.assertListEqual(wf_a.inputs, [wf_b])
 
     def test_insert_wait_for(self):
-        wf_spec = cmwfs.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         wf_a = specs.Simple(wf_spec, 'A')
         wf_b = specs.Simple(wf_spec, 'B')
         wf_spec.start.connect(wf_a)
@@ -56,7 +56,7 @@ class TestWorkflowTools(unittest.TestCase):
         self.assertIn(wf_b, wf_a.ancestors())
 
     def test_inject_wait_for(self):
-        wf_spec = cmwfs.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         wf_a = specs.Simple(wf_spec, 'A')
         wf_b = specs.Simple(wf_spec, 'B')
         wf_spec.start.connect(wf_a)
@@ -76,7 +76,7 @@ class TestWorkflowTools(unittest.TestCase):
         self.assertNotIn(wf_spec.start, wf_a.inputs)
 
     def test_wait_for_chain(self):
-        wf_spec = cmwfs.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         wf_a = specs.Simple(wf_spec, 'A')
         wf_b = specs.Simple(wf_spec, 'B')
         wf_spec.start.connect(wf_spec.wait_for(wf_b, [wf_a]))
@@ -90,7 +90,7 @@ class TestWorkflowTools(unittest.TestCase):
         self.assertEqual(spiff_wf.get_dump(), expected.strip())
 
     def test_wait_for_none(self):
-        wf_spec = cmwfs.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         wf_a = specs.Simple(wf_spec, 'A')
         wf_spec.start.connect(wf_spec.wait_for(wf_a, None))
 
@@ -102,7 +102,7 @@ class TestWorkflowTools(unittest.TestCase):
         self.assertEqual(spiff_wf.get_dump(), expected.strip())
 
     def test_insert_wait_for_many(self):
-        wf_spec = cmwfs.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         wf_a1 = specs.Simple(wf_spec, 'A1')
         wf_a2 = specs.Simple(wf_spec, 'A2')
         wf_a3 = specs.Simple(wf_spec, 'A3')
@@ -128,7 +128,7 @@ class TestWorkflowTools(unittest.TestCase):
         self.assertEqual(spiff_wf.get_dump(), expected.strip())
 
     def test_wait_for_merge_exists(self):
-        wf_spec = cmwfs.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         wf_a = specs.Simple(wf_spec, 'A')
         wf_b = specs.Simple(wf_spec, 'B')
         wf_c = specs.Simple(wf_spec, 'C')
@@ -147,7 +147,7 @@ class TestWorkflow(unittest.TestCase):
         self.assertDictEqual(wflow._data, {})
 
     def test_spiff_serialization(self):
-        wf_spec = cmwfs.WorkflowSpec(name="Test")
+        wf_spec = workflow_spec.WorkflowSpec(name="Test")
         wf_a = specs.Simple(wf_spec, 'A')
         wf_spec.start.connect(wf_a)
         spiff_wf = SpiffWorkflow(wf_spec)
@@ -165,7 +165,7 @@ class TestWorkflow(unittest.TestCase):
 
     @mock.patch.object(workflow, 'get_errored_tasks')
     def test_workflow_error(self, mock_get_errored_tasks):
-        wf_spec = cmwfs.WorkflowSpec(name="Test")
+        wf_spec = workflow_spec.WorkflowSpec(name="Test")
         wf_a = specs.Simple(wf_spec, 'A')
         wf_spec.start.connect(wf_a)
         spiff_wf = SpiffWorkflow(wf_spec)

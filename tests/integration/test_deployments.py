@@ -38,7 +38,7 @@ from checkmate import operations
 from checkmate.providers import base
 from checkmate import utils
 from checkmate import workflow
-from checkmate import workflows
+from checkmate import workflow_spec
 from checkmate.workflows import tasks as wf_tasks
 
 LOG = logging.getLogger(__name__)
@@ -1329,9 +1329,9 @@ class TestDeleteDeployments(unittest.TestCase):
         router = cmdeps.Router(bottle.default_app(), manager)
         mock_get_driver.return_value = mock_driver
 
-        self._mox.StubOutWithMock(workflows.WorkflowSpec,
+        self._mox.StubOutWithMock(workflow_spec.WorkflowSpec,
                                   "create_delete_dep_wf_spec")
-        workflows.WorkflowSpec.create_delete_dep_wf_spec(
+        workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
             self._deployment, bottle.request.context).AndReturn(mock_spec)
         self._mox.StubOutWithMock(workflow,
                                   "create_workflow")
