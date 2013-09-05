@@ -260,7 +260,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
             driver.unlock_workflow(workflow_id, key)
 
 
-@celtask.task(default_retry_delay=10, max_retries=6)  # one minute
+@celtask.task(default_retry_delay=10, max_retries=30)  # five minutes
 @statsd.collect
 def pause_workflow(w_id, driver=DB, retry_counter=0):
     """Waits for all the waiting celery tasks to move to ready and then marks
