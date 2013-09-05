@@ -1,4 +1,4 @@
-# pylint: disable=C0103,R0904,W0212,W0613
+# pylint: disable=C0103,R0904,W0212
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -54,7 +54,7 @@ class TestBuildFilter(unittest.TestCase):
 class TestRelateResources(unittest.TestCase):
     def test_existing_and_incoming_are_none(self):
         with self.assertRaises(AttributeError) as expected:
-            result = mongodb.Driver._relate_resources(None, None)
+            mongodb.Driver._relate_resources(None, None)
         self.assertEqual("'NoneType' object has no attribute 'iteritems'",
                          str(expected.exception))
 
@@ -64,7 +64,7 @@ class TestRelateResources(unittest.TestCase):
 
     def test_incoming_is_none(self):
         with self.assertRaises(AttributeError) as expected:
-            result = mongodb.Driver._relate_resources({}, None)
+            mongodb.Driver._relate_resources({}, None)
         self.assertEqual("'NoneType' object has no attribute 'iteritems'",
                          str(expected.exception))
 
@@ -92,10 +92,10 @@ class TestRelateResources(unittest.TestCase):
         existing = [{'0': {'status': 'ERROR'}}]
         incoming = {'1': {'status': 'ACTIVE'}}
         expected = [{
-                'body': {'1': {'status': 'ACTIVE'}, 'id': 'uuid'},
-                'id': 'uuid',
-                'secret': None
-            }]
+            'body': {'1': {'status': 'ACTIVE'}, 'id': 'uuid'},
+            'id': 'uuid',
+            'secret': None
+        }]
         result = mongodb.Driver._relate_resources(existing, incoming, {})
         self.assertEqual(expected, result)
 
@@ -111,16 +111,16 @@ class TestRelateResources(unittest.TestCase):
                     {'1': {'status': 'NEW'}, 'id': 'existing'}]
         incoming = {'1': {'status': 'BUILD'}}
         expected = [{
-                'body': {'1': {'status': 'BUILD'}},
-                'id': 'existing',
-                'secret': None
-            }]
+            'body': {'1': {'status': 'BUILD'}},
+            'id': 'existing',
+            'secret': None
+        }]
         result = mongodb.Driver._relate_resources(existing, incoming, {})
         self.assertEqual(expected, result)
         mock_logger.assert_called_once_with(
-            '_relate_resources just tried to pop non-existent key %s off '
-            'incoming_copy. Here is the existing list suspected of containing '
-            'duplicates: %s',
+            '_relate_resources was going to try to pop a non-existent key %s '
+            'off incoming_copy. Here is the existing list suspected of '
+            'containing duplicates: %s',
             '1',
             existing
         )
