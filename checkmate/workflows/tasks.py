@@ -69,11 +69,12 @@ class WorkflowEventHandlerTask(celery.Task):
 
 
 @celtask.task(default_retry_delay=10, max_retries=10, ignore_result=True)
+@statsd.collect
 def update_deployment(w_id, error=None):
     """Update the deployment progress and status depending on the status of
     the workflow
     :param w_id: Workflow to update the deployment from
-    :param errors: Additional errors that need to be updated
+    :param error: Additional errors that need to be updated
     """
     driver = db.get_driver(api_id=w_id)
     workflow = MANAGERS['workflows'].get_workflow(w_id)
@@ -117,6 +118,7 @@ def update_deployment(w_id, error=None):
 
 @celtask.task(base=WorkflowEventHandlerTask, default_retry_delay=10,
               max_retries=300, time_limit=3600)
+@statsd.collect
 def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
@@ -194,6 +196,12 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
 
 @celtask.task(default_retry_delay=10, max_retries=10)
 def reset_task_tree(w_id, task_id):
+    """
+    Resets the tree for a spiff task for it to rerun
+    :param w_id: workflow id
+    :param task_id: task id
+    :return:
+    """
     utils.match_celery_logging(LOG)
     key = None
     try:

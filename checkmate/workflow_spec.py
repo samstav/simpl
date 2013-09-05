@@ -11,8 +11,10 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-
+# pylint: disable=R0903
+"""
+Creates spiff workflow spec for different actions
+"""
 import copy
 import logging
 
@@ -27,11 +29,11 @@ LOG = logging.getLogger(__name__)
 class WorkflowSpec(specs.WorkflowSpec):
     @staticmethod
     def create_delete_dep_wf_spec(deployment, context):
-        '''Creates a SpiffWorkflow spec for deleting a deployment
+        """Creates a SpiffWorkflow spec for deleting a deployment
         :param deployment:
         :param context:
         :return: SpiffWorkflow.WorkflowSpec
-        '''
+        """
         LOG.info("Building workflow spec for deleting deployment '%s'",
                  deployment['id'])
         blueprint = deployment['blueprint']
@@ -247,7 +249,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         def recursive_add_host(sorted_list, resource_key, resources, stack):
             if resource_key in new_and_planned_resources.keys():
                 resource = resources[resource_key]
-                for key, relation in resource.get('relations', {}).iteritems():
+                for _, relation in resource.get('relations', {}).iteritems():
                     if 'target' in relation:
                         if relation['target'] not in sorted_list:
                             if relation['target'] in stack:
@@ -264,7 +266,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                                                relation['target'], resources,
                                                stack)
                 if resource_key not in sorted_list:
-                        sorted_list.append(resource_key)
+                    sorted_list.append(resource_key)
         for key, resource in new_and_planned_resources.iteritems():
             if key not in ['connections', 'keys'] and 'provider' in resource:
                 recursive_add_host(sorted_resources, key,
@@ -347,7 +349,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     def find_task_specs(self, **kwargs):
-        '''Find tasks in the workflow with matching properties.
+        """Find tasks in the workflow with matching properties.
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
         :param kwargs: properties to match (all must match)
@@ -361,7 +363,7 @@ class WorkflowSpec(specs.WorkflowSpec):
             resource: the ID of the resource we are looking for
             provider: the key of the provider we are looking for
             tag: the tag for the task (root, final, create, etc..)
-        '''
+        """
         tasks = []
         for task in self.task_specs.values():
             match = True
@@ -462,14 +464,13 @@ class WorkflowSpec(specs.WorkflowSpec):
 
     @staticmethod
     def create_delete_node_spec(deployment, resources_to_delete, context):
-        '''
-        Create the workflow spec for deleting a node in a deployment
+        """Create the workflow spec for deleting a node in a deployment
         :param deployment: The deployment to delete the node from
         :param resources_to_delete: Comma separated list of resource ids
         which need to be deleted
         :param context: RequestContext
         :return: Workflow spec for delete of passed in resources
-        '''
+        """
         LOG.debug("Creating workflow spec for deleting resources %s",
                   resources_to_delete)
         dep_id = deployment["id"]
@@ -530,15 +531,14 @@ class WorkflowSpec(specs.WorkflowSpec):
     @staticmethod
     def _add_del_tasks_for_resource_relation(wf_spec, deployment,
                                              resource_key, context):
-        '''
-        Adds the delete task for a resource relation
+        """Adds the delete task for a resource relation
         :param wf_spec: Workflow Spec to add the tasks to
         :param deployment: The deployment from which the resourced need to
         be deleted
         :param resource_key: The resource key of the resource to be deleted
         :param context: RequestContext
         :return:
-        '''
+        """
         resources = deployment['resources']
         resource = resources[resource_key]
         if resource["status"] == "DELETED":

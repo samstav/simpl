@@ -29,7 +29,9 @@ from checkmate.deployment import Deployment
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow as cm_wf
-from tasks import *
+from tasks import cycle_workflow
+from tasks import pause_workflow
+from tasks import run_one_task
 
 LOG = logging.getLogger(__name__)
 
@@ -82,7 +84,13 @@ class Router(object):
     @utils.with_tenant
     @utils.formatted_response('workflows', with_pagination=True)
     def get_workflows(self, tenant_id=None, offset=None, limit=None):
-        """Get list of workflows from database."""
+        """
+        Gets all the workflows for a tenant
+        :param tenant_id: tenant id
+        :param offset: start record index
+        :param limit: Max number of records to return
+        :return: Workflows for the tenant
+        """
         limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         if 'with_secrets' in bottle.request.query:
             if bottle.request.context.is_admin is True:
@@ -105,7 +113,11 @@ class Router(object):
 
     @utils.with_tenant
     def add_workflow(self, tenant_id=None):
-        """Save new workflow to database."""
+        """
+        Add a new workflow
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         entity = utils.read_body(bottle.request)
         if 'workflow' in entity and isinstance(entity['workflow'], dict):
             entity = entity['workflow']
@@ -123,7 +135,12 @@ class Router(object):
 
     @utils.with_tenant
     def save_workflow(self, api_id, tenant_id=None):
-        """Save existing workflow to database."""
+        """
+        Save a workflow
+        :param api_id: id of the workflow
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         entity = utils.read_body(bottle.request)
 
         if 'workflow' in entity and isinstance(entity['workflow'], dict):
@@ -154,7 +171,12 @@ class Router(object):
 
     @utils.with_tenant
     def get_workflow(self, api_id, tenant_id=None):
-        """Get existing workflow from database."""
+        """
+        Gets a workflow
+        :param api_id: Workflow id
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         if 'with_secrets' in bottle.request.query:
             LOG.info("Administrator accessing workflow %s with secrets: %s",
                      api_id, bottle.request.context.username)
@@ -174,7 +196,12 @@ class Router(object):
 
     @utils.with_tenant
     def get_workflow_status(self, api_id, tenant_id=None):
-        """Get the status of a workflow stored in the database."""
+        """
+        Gets the status of a workflow
+        :param api_id: workflow id
+        :param tenant_id: tenant id
+        :return: workflow status
+        """
         entity = self.manager.get_workflow(api_id)
         if not entity:
             bottle.abort(404, 'No workflow with id %s' % api_id)
@@ -256,7 +283,12 @@ class Router(object):
 
     @utils.with_tenant
     def retry_all_failed_tasks(self, api_id, tenant_id=None):
-        """Retry all failed tasks that can be retried."""
+        """
+        Resets all the failed tasks in a workflow
+        :param api_id: workflow id
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         workflow = self.manager.get_workflow(api_id)
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
@@ -294,7 +326,12 @@ class Router(object):
 
     @utils.with_tenant
     def resume_all_failed_tasks(self, api_id, tenant_id=None):
-        """Start all failed tasks again if they are resumable."""
+        """
+        Resumes all the failed tasks in a workflow
+        :param api_id: workflow id
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         workflow = self.manager.get_workflow(api_id)
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
