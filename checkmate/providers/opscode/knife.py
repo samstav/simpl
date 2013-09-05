@@ -25,6 +25,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -1021,7 +1022,6 @@ def register_node(host, environment, resource, path=None, password=None,
         res.update(results)
         cmdeps.resource_postback.delay(environment, res)
 
-
         if attributes:
             node = {'run_list': []}  # default
             node.update(attributes)
@@ -1131,30 +1131,59 @@ def register_node(host, environment, resource, path=None, password=None,
         except (subprocess.CalledProcessError,
                 cmexc.CheckmateCalledProcessError) as exc:
             LOG.warn("Knife prepare failed for %s. Retrying.", host)
-            register_node.retry(exc=exc)
+            raise register_node.retry(exc=exc)
         except StandardError as exc:
             LOG.error("Knife prepare failed with an unhandled error '%s' for "
                       "%s.", exc, host)
             raise exc
 
+    try:
+        results = ssh.remote_execute(host, "knife -v", 'root',
+                                     password=password,
+                                     identity_file=identity_file)
+        LOG.debug("Chef install check results on %s: %s", host,
+                  results['stdout'])
+    except celexc.SoftTimeLimitExceeded as exc:
+        msg = "Timeout verifying chef install on %s" % host
+        LOG.info("%s in deployment %s", msg, environment)
+        user_exc = cmexc.CheckmateUserException(msg, utils.get_class_name(exc),
+                                                cmexc.UNEXPECTED_ERROR, '')
+        raise register_node.retry(exc=user_exc)
+    except StandardError as exc:
+        LOG.error("Chef install failed on %s: %s", host, exc)
+        raise register_node.retry(exc=exc)
+
+    if re.match('^Chef: [0-9]+.[0-9]+.[0-9]+', results['stdout']) is None:
+        exc = cmexc.CheckmateException("Check for chef install failed with "
+                                       "unexpected response '%s'" % results)
+        raise register_node.retry(exc=exc)
+
+    node_data = _write_node_attributes(node_path, attributes)
+    if attributes:
+        results = {
+            instance_key: {
+                'node-attributes': node_data
+            }
+        }
+        cmdeps.resource_postback.delay(environment, results)
+
+
+def _write_node_attributes(node_path, attributes):
+    '''Merge node attributes into existing ones in node file.'''
     if attributes:
         lock = threading.Lock()
         lock.acquire()
         try:
             node = {'run_list': []}  # default
-            with file(node_path, 'r') as node_file_r:
-                node = json.load(node_file_r)
-            node.update(attributes)
+            if os.path.exists(node_path):
+                with file(node_path, 'r') as node_file_r:
+                    node = json.load(node_file_r)
+            utils.merge_dictionary(node, attributes)
             with file(node_path, 'w') as node_file_w:
                 json.dump(node, node_file_w)
             LOG.info("Node attributes written in %s", node_path, extra=dict(
                      data=node))
-            results = {
-                instance_key: {
-                    'node-attributes': node
-                }
-            }
-            cmdeps.resource_postback.delay(environment, results)
+            return node
         except StandardError as exc:
             raise exc
         finally:

@@ -60,6 +60,9 @@ class TestKnife(unittest.TestCase):
         databag_path = os.path.join(self.kitchen_path, "data_bags")
         if not os.path.exists(databag_path):
             os.makedirs(databag_path)
+        nodes_path = os.path.join(self.kitchen_path, "nodes")
+        if not os.path.exists(nodes_path):
+            os.makedirs(nodes_path)
         with open(
                 os.path.join(self.kitchen_path, "Cheffile"), 'w') as the_file:
             the_file.write(CHEFFILE)
@@ -319,6 +322,177 @@ class TestKnife(unittest.TestCase):
                                                       source_repo="git://ggg"),
                              expected)
         self.mox.VerifyAll()
+
+    def test_write_node_attributes_new(self):
+        original = {
+            'a': 1,
+        }
+        expected = {
+            'run_list': [],  # gets added
+            'a': 1,
+        }
+        node_path = os.path.join(self.kitchen_path, 'nodes', 'localhost.json')
+
+        # Validate writing to blank
+        knife._write_node_attributes(node_path, original)
+        with file(node_path, 'r') as node_file_r:
+            self.assertEqual(json.load(node_file_r), expected)
+
+    def test_write_node_attributes_existing(self):
+        original = {
+            'run_list': [],
+            'a': 1,
+            'b': '2',
+            'boolean': False,
+            'blank': None,
+            'multi-level': {
+                'ml_stays': "I'm here!",
+                'ml_goes': 'Bye!',
+            },
+        }
+        merge = {
+            'b': 3,
+            'multi-level': {
+                'ml_goes': 'fishing',
+            },
+        }
+        expected = {
+            'run_list': [],
+            'a': 1,
+            'b': 3,
+            'boolean': False,
+            'blank': None,
+            'multi-level': {
+                'ml_stays': "I'm here!",
+                'ml_goes': 'fishing',
+            },
+        }
+        node_path = os.path.join(self.kitchen_path, 'nodes', 'localhost.json')
+        with file(node_path, 'w') as node_file_w:
+            json.dump(original, node_file_w)
+
+        # Validate merging
+        knife._write_node_attributes(node_path, merge)
+        with file(node_path, 'r') as merged_file_r:
+            self.assertEqual(json.load(merged_file_r), expected)
+
+
+class TestKnifeTasks(unittest.TestCase):
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_register_node(self):
+        ignore = mox.IgnoreArg()
+        path = '/fake_path'
+        workspace_path = os.path.join(path, "test")
+        service = "test_service"
+        kitchen_path = os.path.join(workspace_path, service)
+        node_path = os.path.join(kitchen_path, 'nodes', 'localhost.json')
+        fake_attrs = {'id': 'X'}
+
+        # Stub first call to postback
+        self.mox.StubOutWithMock(knife.cmdeps.resource_postback, 'delay')
+        postback_mock = knife.cmdeps.resource_postback.delay
+        postback_mock(ignore, ignore).AndReturn(None)
+
+        # Stub out path checks
+        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
+        knife._get_root_environments_path("test", None).AndReturn(path)
+
+        self.mox.StubOutWithMock(os.path, 'exists')
+        os.path.exists(kitchen_path).AndReturn(True)
+
+        # Stubout mkdir ssh call
+        self.mox.StubOutWithMock(knife.ssh, 'remote_execute')
+        knife.ssh.remote_execute('localhost', ignore, ignore,
+                                 identity_file=None, password=None)\
+            .AndReturn(True)
+
+        # Stubout check for already registered
+        os.path.exists(node_path).AndReturn(False)
+
+        # Stubout chef run
+        self.mox.StubOutWithMock(knife, '_run_kitchen_command')
+        params = ['knife', 'solo', 'prepare', 'root@localhost', '-c',
+                  '/fake_path/test/test_service/solo.rb']
+        knife._run_kitchen_command("test", kitchen_path, params)\
+            .AndReturn(None)
+
+        # Stubout check for installed chef
+        res = {'stderr': '', 'stdout': 'Chef: 10.12.0\n'}
+        knife.ssh.remote_execute('localhost', "knife -v", 'root',
+                                 identity_file=None, password=None)\
+            .AndReturn(res)
+
+        # Stub out call to write node attributes
+        self.mox.StubOutWithMock(knife, '_write_node_attributes')
+        knife._write_node_attributes(node_path, fake_attrs).AndReturn(
+            fake_attrs)
+
+        # Stub out update to node
+        node_attributes = {
+            "instance:0": {
+                'node-attributes': fake_attrs
+            }
+        }
+        postback_mock("test", node_attributes).AndReturn(None)
+
+        resource = {'hosted_on': '1', 'index': '0'}
+        self.mox.ReplayAll()
+        knife.register_node('localhost', 'test', resource,
+                            kitchen_name=service, attributes=fake_attrs)
+        self.mox.VerifyAll()
+
+    def test_register_node_retry_chef(self):
+        ignore = mox.IgnoreArg()
+        path = '/fake_path'
+        workspace_path = os.path.join(path, "test")
+        service = "test_service"
+        kitchen_path = os.path.join(workspace_path, service)
+        node_path = os.path.join(kitchen_path, 'nodes', 'localhost.json')
+
+        # Stub frst call to postback
+        self.mox.StubOutWithMock(knife.cmdeps.resource_postback, 'delay')
+        postback_mock = knife.cmdeps.resource_postback.delay
+        postback_mock(ignore, ignore).AndReturn(None)
+
+        # Stub out path checks
+        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
+        knife._get_root_environments_path("test", None).AndReturn(path)
+
+        self.mox.StubOutWithMock(os.path, 'exists')
+        os.path.exists(kitchen_path).AndReturn(True)
+
+        # Stubout mkdir ssh call
+        self.mox.StubOutWithMock(knife.ssh, 'remote_execute')
+        knife.ssh.remote_execute('localhost', ignore, ignore,
+                                 identity_file=None, password=None)\
+            .AndReturn(True)
+
+        # Stubout check for already registered
+        os.path.exists(node_path).AndReturn(False)
+
+        # Stubout chef run
+        self.mox.StubOutWithMock(knife, '_run_kitchen_command')
+        knife._run_kitchen_command("test", kitchen_path, ignore)\
+            .AndReturn(None)
+
+        # Stubout check for installed chef
+        res = {'stderr': 'bash: chef-solo: command not found\n', 'stdout': ''}
+        knife.ssh.remote_execute('localhost', "knife -v", 'root',
+                                 identity_file=None, password=None)\
+            .AndReturn(res)
+
+        resource = {'hosted_on': '1', 'index': '0'}
+        self.mox.ReplayAll()
+        with self.assertRaisesRegexp(cmexc.CheckmateException, "Check for*"):
+            knife.register_node('localhost', 'test', resource,
+                                kitchen_name=service)
+        self.mox.VerifyAll()
+
 
 CHEFFILE = """#!/usr/bin/env ruby
 #^syntax detection
