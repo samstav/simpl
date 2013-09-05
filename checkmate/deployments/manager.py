@@ -352,8 +352,8 @@ class Manager(object):
         if resource.get('instance') and resource['instance'].get('id'):
             failed_resource = copy.deepcopy(resource)
             resource['status'] = 'PLANNED'
-            resource['instance'] = None
-            failed_resource['relations'] = None
+            resource.pop('instance', None)
+            failed_resource.pop('relations', None)
             failed_resource['index'] = (
                 str(len([res for res in deployment.get("resources").keys()
                          if res.isdigit()])))
