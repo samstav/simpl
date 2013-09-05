@@ -471,8 +471,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('height', DEFAULTS.ICON_HEIGHT + 'px');
     stream.append("text")
       .attr("class", "nodetext")
-      .attr("dx", '0px')
-      .attr("dy", height + 'px')
+      .attr("dx", function(d) { return (height - DEFAULTS.ICON_WIDTH) / 2 })
+      .attr("dy", function(d) { return (height - DEFAULTS.ICON_HEIGHT) / 2 })
       .text(function(d) { return d.title.split('.').shift(); });
 
     // Exit
