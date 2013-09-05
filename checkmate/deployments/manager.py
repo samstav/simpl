@@ -16,8 +16,8 @@ from checkmate import db
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow
+from checkmate import workflow_spec
 from checkmate import workflows
-from checkmate.workflows import tasks
 from checkmate.deployment import (
     Deployment,
     generate_keys,
@@ -131,7 +131,7 @@ class Manager(object):
         generate_keys(deployment)
         deployment['display-outputs'] = deployment.calculate_outputs()
 
-        deploy_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        deploy_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             deployment, context)
         spiff_wf = workflow.create_workflow(
             deploy_spec, deployment, context, driver=db.get_driver(
@@ -254,8 +254,8 @@ class Manager(object):
         if not deployment:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
-        result = tasks.cycle_workflow.delay(api_id,
-                                            context.get_queued_task_dict())
+        result = workflows.tasks.cycle_workflow.delay(
+            api_id, context.get_queued_task_dict())
         return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):
@@ -461,7 +461,7 @@ class Manager(object):
             victim_list))
         victim_list.extend(resources_for_service[:(count - len(victim_list))])
         driver = db.get_driver(api_id=deployment["id"])
-        wf_spec = workflows.WorkflowSpec.create_delete_node_spec(
+        wf_spec = workflow_spec.WorkflowSpec.create_delete_node_spec(
             deployment, victim_list, context)
         delete_node_workflow = workflow.create_workflow(wf_spec, deployment,
                                                         context,
@@ -479,7 +479,7 @@ class Manager(object):
         :return:
         """
         driver = db.get_driver(api_id=deployment["id"])
-        add_node_workflow_spec = (workflows.WorkflowSpec
+        add_node_workflow_spec = (workflow_spec.WorkflowSpec
                                   .create_workflow_spec_deploy(deployment,
                                                                context))
         add_node_workflow = workflow.create_workflow(add_node_workflow_spec,

@@ -29,7 +29,7 @@ from checkmate.deployment import Deployment
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow as cm_wf
-from checkmate.workflows import tasks
+from tasks import *
 
 LOG = logging.getLogger(__name__)
 
@@ -198,8 +198,8 @@ class Router(object):
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
         context = bottle.request.context
-        async_call = tasks.cycle_workflow.delay(api_id,
-                                                context.get_queued_task_dict())
+        async_call = cycle_workflow.delay(api_id,
+                                          context.get_queued_task_dict())
         LOG.debug("Executed a task to run workflow '%s'", async_call)
         entity = self.manager.get_workflow(api_id)
         return utils.write_body(entity, bottle.request, bottle.response)
@@ -227,7 +227,7 @@ class Router(object):
             common_tasks.update_operation.delay(
                 dep_id, operations.current_workflow_id(deployment),
                 action='PAUSE')
-            tasks.pause_workflow.delay(api_id)
+            pause_workflow.delay(api_id)
         return utils.write_body(workflow, bottle.request, bottle.response)
 
     @utils.with_tenant
@@ -248,8 +248,8 @@ class Router(object):
         operation = deployment.get("operation")
         if operation and operation.get('status') == 'PAUSED':
             context = bottle.request.context
-            async_call = tasks.cycle_workflow.delay(
-                api_id, context.get_queued_task_dict())
+            async_call = cycle_workflow.delay(api_id,
+                                              context.get_queued_task_dict())
             LOG.debug("Executed a task to run workflow '%s'", async_call)
             workflow = self.manager.get_workflow(api_id)
         return utils.write_body(workflow, bottle.request, bottle.response)
@@ -309,8 +309,8 @@ class Router(object):
             for error in retriable_errors:
                 task_id = error["task-id"]
                 LOG.debug("Resuming task %s for workflow %s", task_id, id)
-                tasks.run_one_task.delay(bottle.request.context, api_id,
-                                         task_id, timeout=10)
+                run_one_task.delay(bottle.request.context, api_id, task_id,
+                                   timeout=10)
 
             workflow = self.manager.get_workflow(id)
 
@@ -640,8 +640,7 @@ class Router(object):
 
         try:
             #Synchronous call
-            tasks.run_one_task(bottle.request.context, api_id, task_id,
-                               timeout=10)
+            run_one_task(bottle.request.context, api_id, task_id, timeout=10)
         except db.InvalidKeyError:
             bottle.abort(404, "Cannot execute task(%s) while workflow(%s) is "
                               "executing." % (task_id, api_id))

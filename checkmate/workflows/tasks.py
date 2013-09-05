@@ -35,7 +35,8 @@ from checkmate import operations as cmops
 from checkmate import utils
 from checkmate import workflow as cmwf
 from checkmate.workflows import exception_handlers as cmexch
-from checkmate.workflows import Manager
+from manager import Manager
+
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()

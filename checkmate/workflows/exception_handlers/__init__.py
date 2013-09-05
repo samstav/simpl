@@ -15,8 +15,10 @@
 import logging
 
 from checkmate.exceptions import CheckmateResetTaskTreeException
-from exception_handler import ExceptionHandler
-from reset_task_tree_exception_handler import ResetTaskTreeExceptionHandler
+from checkmate.workflows.exception_handlers.exception_handler import \
+    ExceptionHandler
+from checkmate.workflows.exception_handlers.reset_task_tree_exception_handler \
+    import ResetTaskTreeExceptionHandler
 
 LOG = logging.getLogger(__name__)
 

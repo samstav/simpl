@@ -1,9 +1,9 @@
 '''
 All the Deployments things
 '''
-from .manager import Manager
-from .router import Router
-from .planner import Planner
+from checkmate.deployments.manager import Manager
+from checkmate.deployments.router import Router
+from checkmate.deployments.planner import Planner
 
 # Legacy compatibility with Celery tasks for deployments
 #

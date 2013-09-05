@@ -1,2 +1,2 @@
 from checkmate.workflows.manager import Manager
-from checkmate.workflows.workflow_spec import WorkflowSpec
+from checkmate.workflows.router import Router

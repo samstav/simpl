@@ -37,7 +37,7 @@ from checkmate.exceptions import CheckmateRetriableException
 from checkmate.exceptions import CheckmateUserException
 from checkmate.exceptions import UNEXPECTED_ERROR
 from checkmate import utils
-from checkmate.workflows.workflow_spec import WorkflowSpec
+from checkmate.workflow_spec import WorkflowSpec
 
 TASK_RETRY_MAX_LIMIT = 2
 DB = get_driver()
