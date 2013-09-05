@@ -508,6 +508,13 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .on('click', function(d) { return _draw_highlight(d, streams, scope, this); });
     // Update
     elements.style('fill', function(d) { return _node_color(d, scope); });
+    $('svg circle').tipsy({
+      gravity: 'e',
+      html: true,
+      title: function() {
+        return this.__data__.name;
+      }
+    })
   }
 
   var create_svg = function(element, attrs) {
