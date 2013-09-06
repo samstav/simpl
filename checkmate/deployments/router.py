@@ -475,6 +475,8 @@ class Router(object):
             raise exceptions.CheckmateDoesNotExist(
                 "No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
+        if deployment.get('status') == "DELETED":
+            bottle.abort(400, "Deployment %s is already DELETED" % api_id)
         if bottle.request.query.get('force') != '1':
             if not deployment.fsm.permitted('DELETED'):
                 bottle.abort(
@@ -482,6 +484,10 @@ class Router(object):
                     "Deployment %s cannot be deleted while in status %s." % (
                         api_id, deployment.get('status', 'UNKNOWN')))
         operation = deployment.get('operation')
+        if (operation.get("type") == "DELETE"
+                and operation.get("status") != "COMPLETE"):
+            bottle.abort(400, "'DELETE' request for deployment %s is already "
+                              "in progress" % api_id)
 
         #TODO(any): driver will come from workflow manager once we create that
         driver = self.manager.select_driver(api_id)
@@ -565,10 +571,10 @@ class Router(object):
         statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})
-        common_tasks.update_operation(api_id, operations.current_workflow_id(deployment),
-                                      deployment_status=statuses[
-                                          'deployment_status'],
-                                      status=statuses['operation_status'])
+        common_tasks.update_operation(
+            api_id, operations.current_workflow_id(deployment),
+            deployment_status=statuses['deployment_status'],
+            status=statuses['operation_status'])
         return utils.write_body(
             statuses.get('resources'), bottle.request, bottle.response)
 
