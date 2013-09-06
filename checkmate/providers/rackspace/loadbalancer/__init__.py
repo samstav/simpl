@@ -108,8 +108,6 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
     if api is None:
         api = Provider.connect(context, region)
 
-    reset_failed_resource_task.delay(deployment_id, context["resource"])
-
     #FIXME: should pull default from lb api but thats not exposed via the
     #       client yet
     if not port:
