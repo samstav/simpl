@@ -833,7 +833,7 @@ def delete_environment(name, path=None):
                      exc_info=True)
         else:
             msg = "Could not delete environment %s. Reason '%s'. Error "
-            "Number %s", (full_path, ose.strerror, ose.errno)
+            "Number %s" % (full_path, ose.strerror, ose.errno)
             raise cmexc.CheckmateUserException(msg, utils.get_class_name(
                 cmexc.CheckmateException), cmexc.UNEXPECTED_ERROR, '')
 
@@ -859,7 +859,7 @@ def delete_cookbooks(name, service_name, path=None):
                              exc_info=True)
                 else:
                     msg = "Could not delete cookbooks directory %s. Reason "
-                    "'%s'. Error Number %s", (path, ose.strerror, ose.errno)
+                    "'%s'. Error Number %s" % (path, ose.strerror, ose.errno)
                     raise cmexc.CheckmateUserException(
                         msg,
                         utils.get_class_name(cmexc.CheckmateException),
@@ -926,7 +926,7 @@ def create_environment(name, service_name, path=None, private_key=None,
             LOG.warn("Environment directory %s already exists", fullpath,
                      exc_info=True)
         else:
-            msg = "Could not create environment %s", fullpath
+            msg = "Could not create environment %s" % fullpath
             raise cmexc.CheckmateUserException(msg, utils.get_class_name(
                 cmexc.CheckmateException), cmexc.UNEXPECTED_ERROR, '')
 
