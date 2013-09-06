@@ -29,6 +29,7 @@ from checkmate import deployments as cm_deps
 from checkmate import exceptions
 from checkmate import middleware as cm_mid
 from checkmate.providers.rackspace import compute
+from checkmate import rdp
 from checkmate import ssh
 from checkmate import test
 
@@ -296,7 +297,6 @@ class TestNovaCompute(test.ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-        self.mox.StubOutWithMock(ssh, 'test_connection')
 
         #Create appropriate api mocks
         openstack_api_mock = self.mox.CreateMockAnything()
@@ -304,16 +304,9 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.client.region_name = 'North'
         openstack_api_mock.servers = self.mox.CreateMockAnything()
         openstack_api_mock.servers.find(id=server.id).AndReturn(server)
-        openstack_api_mock.images = self.mox.CreateMockAnything()
-        image_mock = self.mox.CreateMockAnything()
-        image_mock.metadata = {'os_type': 'linux'}
-        openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
         context = dict(deployment_id='DEP', resource_key='1',
                        roles=['rack_connect'])
-        ssh.test_connection(context, "8.8.8.8", "root", timeout=10,
-                            password=None, identity_file=None, port=22,
-                            private_key=None).AndReturn(True)
 
         expected = {
             'instance:1': {
@@ -341,8 +334,8 @@ class TestNovaCompute(test.ProviderTester):
                                         expected).AndReturn(True)
 
         self.mox.ReplayAll()
-        results = compute.wait_on_build(
-            context, server.id, 'North', [], api_object=openstack_api_mock)
+        results = compute.wait_on_build(context, server.id, 'North',
+                                        api_object=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -377,7 +370,6 @@ class TestNovaCompute(test.ProviderTester):
 
         #Stub out postback call
         self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-        self.mox.StubOutWithMock(ssh, 'test_connection')
 
         #Create appropriate api mocks
         openstack_api_mock = self.mox.CreateMockAnything()
@@ -386,14 +378,8 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.servers = self.mox.CreateMockAnything()
         openstack_api_mock.servers.find(id=server.id).AndReturn(server)
         openstack_api_mock.images = self.mox.CreateMockAnything()
-        image_mock = self.mox.CreateMockAnything()
-        image_mock.metadata = {'os_type': 'linux'}
-        openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
         context = dict(deployment_id='DEP', resource_key='1', roles=[])
-        ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
-                            password=None, identity_file=None, port=22,
-                            private_key=None).AndReturn(True)
 
         expected = {
             'instance:1': {
@@ -422,9 +408,64 @@ class TestNovaCompute(test.ProviderTester):
 
         self.mox.ReplayAll()
         results = compute.wait_on_build(
-            context, server.id, 'North', [], api_object=openstack_api_mock)
+            context, server.id, 'North', api_object=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
+    def test_verify_ssh_connection_for_linux(self):
+        server = self.mox.CreateMockAnything()
+        server.image = {'id': 1}
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(ssh, 'test_connection')
+
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock.client.region_name = 'North'
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
+        openstack_api_mock.images = self.mox.CreateMockAnything()
+        image_mock = self.mox.CreateMockAnything()
+        image_mock.metadata = {'os_type': 'linux'}
+        openstack_api_mock.images.find(id=1).AndReturn(image_mock)
+
+        context = dict(deployment_id='DEP', resource_key='1')
+        ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
+                            password=None, identity_file=None, port=22,
+                            private_key=None).AndReturn(True)
+
+        self.mox.ReplayAll()
+        compute.verify_ssh_connection(context, server.id, 'North', "4.4.4.4",
+                                      api_object=openstack_api_mock)
+        self.mox.VerifyAll()
+
+    def test_verify_ssh_connection_for_windows(self):
+        server = self.mox.CreateMockAnything()
+        server.image = {'id': 1}
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(rdp, 'test_connection')
+
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock.client.region_name = 'North'
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
+        openstack_api_mock.images = self.mox.CreateMockAnything()
+        image_mock = self.mox.CreateMockAnything()
+        image_mock.name = "windows"
+        image_mock.metadata = {'os_type': 'windows'}
+        openstack_api_mock.images.find(id=1).AndReturn(image_mock)
+
+        context = dict(deployment_id='DEP', resource_key='1')
+        rdp.test_connection(context, "4.4.4.4", timeout=10,).AndReturn(True)
+
+        self.mox.ReplayAll()
+        compute.verify_ssh_connection(context, server.id, 'North', "4.4.4.4",
+                                      api_object=openstack_api_mock)
         self.mox.VerifyAll()
 
     def test_wait_on_build_connect_error(self):
