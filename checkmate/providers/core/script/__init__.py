@@ -14,18 +14,57 @@ environment:
             - application: http
             requires:
             - host: linux
-            dependencies:
-              script: |
-                apt-get update
-                apt-get install -y git
-                git clone git://github.com/openstack-dev/devstack.git
-                cd devstack
-                echo 'DATABASE_PASSWORD=simple' > localrc
-                echo 'RABBIT_PASSWORD=simple' >> localrc
-                echo 'SERVICE_TOKEN=1111' >> localrc
-                echo 'SERVICE_PASSWORD=simple' >> localrc
-                echo 'ADMIN_PASSWORD=simple' >> localrc
-                ./stack.sh > stack.out
+            properties:
+              scripts:
+                install: |
+                  apt-get update
+                  apt-get install -y git
+                  git clone git://github.com/openstack-dev/devstack.git
+                  cd devstack
+                  echo 'DATABASE_PASSWORD=simple' > localrc
+                  echo 'RABBIT_PASSWORD=simple' >> localrc
+                  echo 'SERVICE_TOKEN=1111' >> localrc
+                  echo 'SERVICE_PASSWORD=simple' >> localrc
+                  echo 'ADMIN_PASSWORD=simple' >> localrc
+                  ./stack.sh > stack.out
+                verify: "ls /opt/devstack"
+                delete:
+                    parameters:
+                      node_ip:
+                    template:
+                      "rm -rf /opt/devstack"
+
+
+Syntax options for script:
+  if a string is supplied, it is executed as a command-line script
+  if an array is supplied, it is treated as multiple entries and executed as
+      multiple scripts
+  if an object is supplied, the following values are allowed/supported:
+
+      parameters: used to replace entries in the script body. URL syntax
+          similar to display-outputs can be used to obtain values from a
+          deployment. Examples:
+
+              # Get the value of the 'url' option
+              source: options://url
+
+              # Get the private_key of the 'url' option
+              source: options://url/private_key
+
+              # Get the private_key of the deployment keys
+              source: "resources://deployment-keys/instance/private_key"
+
+              # Get the database password
+              source: "services://db/interfaces/mysql/datebase_password"
+
+              # Specific resource IP
+              resources://instance/ip?resource.service=lb&type=resource.compute
+
+      template: a template to parse (=include() can be used to load a file from
+          a path or url
+
+      body: the final parsed/processed body (=include() can also be used)
+
 
 '''
 import logging
