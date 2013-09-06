@@ -37,7 +37,7 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
         mock_failed_task = mock_workflow.get_task("task_id")
 
         mock_task_spec = mock_failed_task.task_spec
-        mock_task_spec.get_property.return_value = 1
+        mock_task_spec.get_property.return_value = 2
 
         mock_get_subwf.return_value = 1001
         mock_async_result.return_value = True
@@ -56,7 +56,7 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
 
         self.assertEqual("1111", reset_wf)
         mock_task_spec.get_property.assert_called_with(
-            "task_retry_count", default=0)
+            "auto_retry_count")
         mock_get_subwf.assert_called_with(mock_workflow, "task_id")
         self.assertTrue(mock_async_result.called)
         mock_workflow.get_attribute.assert_called_with("deploymentId")
@@ -66,15 +66,13 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
                                           driver=mock_driver)
         mock_reset_wf.get_attribute.assert_called_with("id")
         mock_add_subwf.assert_called_with(mock_workflow, "1111", "task_id")
-        mock_set_property.assert_called_with(task_retry_count=2)
+        mock_set_property.assert_called_with(auto_retry_count=1)
 
     def test_max_retries_limit(self):
         mock_workflow = mock.Mock()
 
         mock_workflow.get_task(
-            "task_id").task_spec.get_property.return_value = (
-                exception_handlers.ResetTaskTreeExceptionHandler
-                .MAX_RETRIES_FOR_TASK + 1)
+            "task_id").task_spec.get_property.return_value = 0
         mock_workflow.get_attribute.return_value = 1
 
         handler = exception_handlers.ResetTaskTreeExceptionHandler(
@@ -82,7 +80,7 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
         handler.handle()
         mock_workflow.get_task(
             "task_id").task_spec.get_property.assert_called_with(
-                "task_retry_count", default=0)
+                "auto_retry_count")
         mock_workflow.get_attribute.assert_called_with('id')
 
     @mock.patch("checkmate.workflow.get_subworkflow")
@@ -104,6 +102,6 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
         handler.handle()
         mock_workflow.get_task(
             "task_id").task_spec.get_property.assert_called_with(
-                "task_retry_count", default=0)
+                "auto_retry_count")
         mock_workflow.get_attribute.assert_called_with('id')
         self.assertTrue(mock_async_result.called)

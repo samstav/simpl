@@ -23,15 +23,38 @@ class TestExceptionHandlers(unittest.TestCase):
 
     def test_get_handlers(self):
         task_state = {
-            "info": "CheckmateResetTaskTreeException()",
+            "info": "CheckmateRetriableException('','','','')",
         }
         mock_wf = mock.Mock()
         mock_context = mock.Mock()
         mock_driver = mock.Mock()
 
-        mock_wf.get_task(1001)._get_internal_attribute.return_value = \
+        mock_wf.get_task(1001)._get_internal_attribute\
+            .return_value = \
             task_state
+        mock_wf.get_task(1001).task_spec.get_property.return_value = 3
         handlers = cmexch.get_handlers(mock_wf, [1001], mock_context,
                                        mock_driver)
         self.assertIsInstance(handlers[0],
                               cmexch.ResetTaskTreeExceptionHandler)
+        mock_wf.get_task(1001).task_spec.get_property.\
+            assert_called_with("auto_retry_count")
+
+
+    def test_should_not_get_handler_when_property_is_not_set(self):
+        task_state = {
+            "info": "CheckmateRetriableException('','','','')",
+        }
+        mock_wf = mock.Mock()
+        mock_context = mock.Mock()
+        mock_driver = mock.Mock()
+
+        mock_wf.get_task(1001)._get_internal_attribute\
+            .return_value = \
+            task_state
+        mock_wf.get_task(1001).task_spec.get_property.return_value = None
+        handlers = cmexch.get_handlers(mock_wf, [1001], mock_context,
+                                       mock_driver)
+        self.assertEquals(0, len(handlers))
+        mock_wf.get_task(1001).task_spec.get_property.\
+            assert_called_with("auto_retry_count")

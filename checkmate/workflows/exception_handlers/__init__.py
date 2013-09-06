@@ -14,7 +14,7 @@
 
 import logging
 
-from checkmate.exceptions import CheckmateResetTaskTreeException
+from checkmate.exceptions import CheckmateRetriableException
 from checkmate.workflows.exception_handlers.exception_handler import \
     ExceptionHandler
 from checkmate.workflows.exception_handlers.reset_task_tree_exception_handler \
@@ -40,7 +40,10 @@ def get_handlers(d_wf, failed_tasks_ids, context, driver):
             info = task_state["info"]
             exception = eval(info)
 
-            if type(exception) is CheckmateResetTaskTreeException:
+            auto_retry_count = failed_task.task_spec.get_property(
+                "auto_retry_count")
+            if (isinstance(exception, CheckmateRetriableException) and
+                    auto_retry_count):
                 handlers.append(ResetTaskTreeExceptionHandler(
                     d_wf, failed_task_id, context, driver))
         except Exception as exp:

@@ -12,9 +12,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 # pylint: disable=R0903
+
 '''Reset Task Tree Exception Handler - Used to reset task tree for failed
 tasks in the workflow
 '''
+
 import logging
 
 from celery.result import AsyncResult
@@ -36,10 +38,9 @@ class ResetTaskTreeExceptionHandler(ExceptionHandler):
         """
         failed_task = self.d_wf.get_task(self.task_id)
         task_spec = failed_task.task_spec
-        task_retry_count = task_spec.get_property("task_retry_count",
-                                                  default=0)
-        if (task_retry_count
-                >= ResetTaskTreeExceptionHandler.MAX_RETRIES_FOR_TASK):
+        auto_retry_count = task_spec.get_property("auto_retry_count")
+
+        if auto_retry_count <= 0:
             LOG.debug("RetryTaskTreeExceptionHandler will not handle task %s"
                       " in workflow %s, as it has crossed the maximum "
                       "retries permissible %s", self.task_id,
@@ -64,5 +65,6 @@ class ResetTaskTreeExceptionHandler(ExceptionHandler):
         reset_wf_id = reset_wf.get_attribute('id')
         cmwf.add_subworkflow(self.d_wf, reset_wf_id, self.task_id)
 
-        task_spec.set_property(task_retry_count=task_retry_count + 1)
+        failed_task.task_spec.set_property(
+            auto_retry_count=auto_retry_count-1)
         return reset_wf_id

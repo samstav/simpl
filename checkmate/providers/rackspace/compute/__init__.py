@@ -417,10 +417,17 @@ class Provider(RackspaceComputeProviderBase):
                 swops.PathAttrib('instance:%s/id' % key),
                 resource['region'],
             ],
-            properties={'estimated_duration': 150},
+            verify_up=True,
+            password=swops.PathAttrib('instance:%s/password' % key),
+            private_key=deployment.settings().get('keys', {}).get(
+                'deployment', {}).get('private_key'),
+            merge_results=True,
+            properties={'estimated_duration': 150,
+                        'auto_retry_count': 3},
             defines=dict(
                 resource=key,
                 provider=self.key,
+                task_tags=['final'],
             )
         )
 
@@ -1474,7 +1481,11 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 
         cmdeps.resource_postback.delay(deployment_id, results)
         context["instance_id"] = server_id
-        raise cmexc.CheckmateResetTaskTreeException()
+        raise cmexc.CheckmateRetriableException(
+            results[instance_key]['status-message'],
+            utils.get_class_name(cmexc.CheckmateServerBuildFailed()),
+            results[instance_key]['status-message'],
+            '')
     if server.status == 'BUILD':
         results['progress'] = server.progress
         results['status-message'] = "%s%% Complete" % server.progress
