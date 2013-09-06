@@ -28,7 +28,7 @@ from checkmate.workflows.exception_handlers.exception_handler import \
 LOG = logging.getLogger(__name__)
 
 
-class ResetTaskTreeExceptionHandler(ExceptionHandler):
+class AutomaticResetAndRetryHandler(ExceptionHandler):
     """Handles a reset task tree exception"""
     MAX_RETRIES_FOR_TASK = 3
 
@@ -45,7 +45,7 @@ class ResetTaskTreeExceptionHandler(ExceptionHandler):
                       " in workflow %s, as it has crossed the maximum "
                       "retries permissible %s", self.task_id,
                       self.d_wf.get_attribute('id'),
-                      ResetTaskTreeExceptionHandler.MAX_RETRIES_FOR_TASK)
+                      AutomaticResetAndRetryHandler.MAX_RETRIES_FOR_TASK)
             return
 
         reset_workflow_celery_id = cmwf.get_subworkflow(self.d_wf,

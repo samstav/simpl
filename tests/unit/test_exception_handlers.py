@@ -36,7 +36,7 @@ class TestExceptionHandlers(unittest.TestCase):
         handlers = cmexch.get_handlers(mock_wf, [1001], mock_context,
                                        mock_driver)
         self.assertIsInstance(handlers[0],
-                              cmexch.ResetTaskTreeExceptionHandler)
+                              cmexch.AutomaticResetAndRetryHandler)
         mock_wf.get_task(1001).task_spec.get_property.\
             assert_called_with("auto_retry_count")
 

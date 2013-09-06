@@ -30,7 +30,7 @@ from checkmate.exceptions import (
     CheckmateRetriableException,
     CheckmateUserException,
     UNEXPECTED_ERROR,
-    CheckmateResetTaskTreeException)
+    )
 
 LOG = logging.getLogger(__name__)
 

@@ -17,8 +17,8 @@ import logging
 from checkmate.exceptions import CheckmateRetriableException
 from checkmate.workflows.exception_handlers.exception_handler import \
     ExceptionHandler
-from checkmate.workflows.exception_handlers.reset_task_tree_exception_handler \
-    import ResetTaskTreeExceptionHandler
+from checkmate.workflows.exception_handlers.automatic_reset_and_retry_handler \
+    import AutomaticResetAndRetryHandler
 
 LOG = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def get_handlers(d_wf, failed_tasks_ids, context, driver):
                 "auto_retry_count")
             if (isinstance(exception, CheckmateRetriableException) and
                     auto_retry_count):
-                handlers.append(ResetTaskTreeExceptionHandler(
+                handlers.append(AutomaticResetAndRetryHandler(
                     d_wf, failed_task_id, context, driver))
         except Exception as exp:
             LOG.debug("ExceptionHandlerBase raised exception %s", str(exp))

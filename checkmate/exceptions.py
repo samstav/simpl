@@ -157,14 +157,6 @@ class CheckmateResourceRollbackException(CheckmateException):
         super(CheckmateResourceRollbackException, self).__init__(
             error_message, inner_exception)
 
-
-
-class CheckmateResetTaskTreeException(CheckmateException):
-    """Used by the workflow to identify a failed task that can be reset and
-retried automatically"""
-    pass
-
-
 class CheckmateValidationException(CheckmateException):
     """Validation Error."""
     pass

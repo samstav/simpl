@@ -50,7 +50,7 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
 
         mock_set_property = mock_task_spec.set_property
 
-        handler = exception_handlers.ResetTaskTreeExceptionHandler(
+        handler = exception_handlers.AutomaticResetAndRetryHandler(
             mock_workflow, "task_id", mock_context, mock_driver)
         reset_wf = handler.handle()
 
@@ -75,7 +75,7 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
             "task_id").task_spec.get_property.return_value = 0
         mock_workflow.get_attribute.return_value = 1
 
-        handler = exception_handlers.ResetTaskTreeExceptionHandler(
+        handler = exception_handlers.AutomaticResetAndRetryHandler(
             mock_workflow, "task_id", None, None)
         handler.handle()
         mock_workflow.get_task(
@@ -97,7 +97,7 @@ class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
         mock_async_result.return_value = False
         mock_workflow.get_attribute.return_value = 1
 
-        handler = exception_handlers.ResetTaskTreeExceptionHandler(
+        handler = exception_handlers.AutomaticResetAndRetryHandler(
             mock_workflow, "task_id", None, None)
         handler.handle()
         mock_workflow.get_task(
