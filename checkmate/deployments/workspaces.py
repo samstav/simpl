@@ -1,5 +1,5 @@
-'''
-Workspace: a directory where file oprations can be performed for a deployment.
+"""
+Workspace: a directory where file operations can be performed for a deployment.
 
 Handles:
 - directory creation
@@ -13,7 +13,7 @@ Examples:
 - chef: kitchen for knife solo
 - script: repo to rsync up to hosts
 
-'''
+"""
 import errno
 import hashlib
 import logging
@@ -25,11 +25,7 @@ from celery.task import task
 
 from checkmate.common import config
 from checkmate.common import statsd
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateUserException,
-    UNEXPECTED_ERROR,
-)
+from checkmate import exceptions
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -37,24 +33,25 @@ CONFIG = config.current()
 
 
 def workspace_root_path():
-    '''Get the root path for all worksaces.
+    """Get the root path for all worksaces.
 
     Ensure it exists.
     :returns: string path
-    '''
+    """
     root = CONFIG.deployments_path
     if not os.path.exists(root):
         msg = "Invalid workspace root path: %s" % root
-        raise CheckmateUserException(msg, utils.get_class_name(
-            CheckmateException), UNEXPECTED_ERROR, '')
+        raise exceptions.CheckmateUserException(
+            msg, utils.get_class_name(exceptions.CheckmateException),
+            exceptions.UNEXPECTED_ERROR, '')
     return root
 
 
 def get_workspace(deployment_id):
-    '''Create/return deployment workspace.
+    """Create/return deployment workspace.
 
     :param deployment_id: the ID of the deployment the workspace is for
-    '''
+    """
     root = workspace_root_path()
     fullpath = os.path.join(root, deployment_id)
 
@@ -62,10 +59,10 @@ def get_workspace(deployment_id):
         return fullpath
 
     if not os.path.exists(root):
-        raise CheckmateException("Root workspace directory does not exist: %s",
-                                 root)
+        raise exceptions.CheckmateException("Root workspace directory does "
+                                            "not exist: %s", root)
     try:
-        os.mkdir(fullpath, 0770)
+        os.mkdir(fullpath, 0o770)
         LOG.info("Created workspace: %s", fullpath)
     except OSError as ose:
         if ose.errno == errno.EEXIST:
@@ -73,13 +70,16 @@ def get_workspace(deployment_id):
                      "%s", fullpath, exc_info=True)
         else:
             msg = "Could not create workspace %s" % fullpath
-            raise CheckmateUserException(msg, utils.get_class_name(
-                CheckmateException), UNEXPECTED_ERROR, '')
+            raise exceptions.CheckmateUserException(
+                msg,
+                utils.get_class_name(exceptions.CheckmateException),
+                exceptions.UNEXPECTED_ERROR,
+                '')
     return fullpath
 
 
 def get_blueprints_cache_path(source_repo):
-    '''Return the path of the blueprint cache directory.'''
+    """Return the path of the blueprint cache directory."""
     utils.match_celery_logging(LOG)
     LOG.debug("source_repo: %s", source_repo)
     prefix = CONFIG.deployments_path
@@ -88,7 +88,7 @@ def get_blueprints_cache_path(source_repo):
 
 
 def cache_blueprint(source_repo):
-    '''Cache a blueprint repo or update an existing cache, if necessary.'''
+    """Cache a blueprint repo or update an existing cache, if necessary."""
     LOG.debug("(cache) Running %s.cache_blueprint()...", __name__)
     cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
     if not cache_expire_time:
@@ -143,8 +143,11 @@ def cache_blueprint(source_repo):
         except subprocess.CalledProcessError as exc:
             error_message = ("Git repository could not be cloned from '%s'.  "
                              "The error returned was '%s'")
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                exc), UNEXPECTED_ERROR, '')
+            raise exceptions.CheckmateUserException(
+                error_message,
+                utils.get_class_name(exc),
+                exceptions.UNEXPECTED_ERROR,
+                '')
         tags = utils.git_tags(repo_cache)
         if branch in tags:
             tag = branch
@@ -152,8 +155,8 @@ def cache_blueprint(source_repo):
 
 
 def blueprint_exists(source, dest):
-    '''Check that all files in the source blueprint exist in the destination.
-    '''
+    """Check that all files in the source blueprint exist in the destination.
+    """
     for source_file in os.listdir(source):
         dest_file = os.path.join(dest, source_file)
         if not os.path.exists(dest_file):
@@ -161,19 +164,22 @@ def blueprint_exists(source, dest):
     return True
 
 
-def retrieve_blueprint(destination, source_repo):
-    '''Update the blueprint cache and copy the blueprint to the destination.
+def download_blueprint(destination, source_repo):
+    """Update the blueprint cache and copy the blueprint to the destination.
 
     :param destination: Path to the destination
     :param source_repo: URL of the git-hosted blueprint
-    '''
+    """
     utils.match_celery_logging(LOG)
     cache_blueprint(source_repo)
     repo_cache = get_blueprints_cache_path(source_repo)
     if not os.path.exists(repo_cache):
         message = "No blueprint repository found in %s" % repo_cache
-        raise CheckmateUserException(message, utils.get_class_name(
-            CheckmateException), UNEXPECTED_ERROR, '')
+        raise exceptions.CheckmateUserException(
+            message,
+            utils.get_class_name(exceptions.CheckmateException),
+            exceptions.UNEXPECTED_ERROR,
+            '')
     LOG.debug("repo_cache: %s", repo_cache)
     LOG.debug("destination: %s", destination)
     if not blueprint_exists(repo_cache, destination):
@@ -186,7 +192,7 @@ def retrieve_blueprint(destination, source_repo):
 @task
 @statsd.collect
 def create_workspace(context, name, source_repo=None):
-    '''Create a filesystem workspace.
+    """Create a filesystem workspace.
 
     The workspace is a directory structure that is self-contained and
     seperate from other workspaces. It is used by providers to perform
@@ -194,7 +200,7 @@ def create_workspace(context, name, source_repo=None):
 
     :param name: the name of the workspace. This will be the directory name.
     :param source_repo: provides a git repository to clone into the workspace
-    '''
+    """
     utils.match_celery_logging(LOG)
 
     #TODO: add context
@@ -207,6 +213,6 @@ def create_workspace(context, name, source_repo=None):
     results = {'workspace': path}
 
     if source_repo:
-        retrieve_blueprint(path, source_repo)
+        download_blueprint(path, source_repo)
     LOG.debug("create_workspace returning: %s", results)
     return results
