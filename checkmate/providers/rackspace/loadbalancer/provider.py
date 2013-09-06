@@ -355,7 +355,8 @@ class Provider(rsbase.RackspaceProviderBase):
                 operators.PathAttrib('instance:%s/id' % key),
                 resource['region']
             ],
-            properties={'estimated_druation': 150},
+            properties={'estimated_druation': 150,
+                        'auto_retry_count': 3},
             merge_results=True,
             defines=dict(
                 resource=key,

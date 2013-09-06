@@ -682,7 +682,9 @@ def wait_on_build(context, lbid, region, api=None):
             }
         }
         deployments.resource_postback.delay(context['deployment'], results)
-        raise exceptions.CheckmateResetTaskTreeException()
+        raise exceptions.CheckmateRetriableException(
+            msg, utils.get_class_name(CheckmateLoadbalancerBuildFailed()),
+            msg, '')
     elif loadbalancer.status == "ACTIVE":
         results = {
             instance_key: {
