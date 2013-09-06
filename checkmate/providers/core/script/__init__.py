@@ -17,15 +17,15 @@ environment:
             properties:
               scripts:
                 install: |
-                  apt-get update
-                  apt-get install -y git
-                  git clone git://github.com/openstack-dev/devstack.git
+                  apt-get update || yum update -y
+                  apt-get install -qqy git || yum install -y git
+                  git clone https://github.com/openstack-dev/devstack.git
                   cd devstack
-                  echo 'DATABASE_PASSWORD=simple' > localrc
+                  echo 'ADMIN_PASSWORD=simple' > localrc
+                  echo 'MYSQL_PASSWORD=simple' >> localrc
                   echo 'RABBIT_PASSWORD=simple' >> localrc
-                  echo 'SERVICE_TOKEN=1111' >> localrc
                   echo 'SERVICE_PASSWORD=simple' >> localrc
-                  echo 'ADMIN_PASSWORD=simple' >> localrc
+                  echo 'SERVICE_TOKEN=1111' >> localrc
                   ./stack.sh > stack.out
                 verify: "ls /opt/devstack"
                 delete:
@@ -128,7 +128,12 @@ class Provider(providers.ProviderBase):
         '''Create and write settings, generate run_list, and call cook.'''
         wait_on, _, component = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
-        script_source = component.get('dependencies', {}).get('script')
+        properties = component.get('properties') or {}
+        scripts = properties.get('scripts') or {}
+        script_source = scripts.get('install')
+        if not script_source:
+          return dict(root=None, final=None)
+
         task_name = 'Execute Script %s (%s)' % (key, resource['hosted_on'])
         host_ip_path = "instance:%s/public_ip" % resource['hosted_on']
         password_path = 'instance:%s/password' % resource['hosted_on']

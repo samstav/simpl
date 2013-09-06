@@ -183,8 +183,17 @@ BLUEPRINT_SCHEMA = [
 ]
 
 COMPONENT_SCHEMA = [
-    'id', 'options', 'requires', 'provides', 'summary', 'dependencies',
-    'version', 'is', 'role', 'roles', 'source_name',
+    'id',
+    'options',
+    'requires',
+    'provides',
+    'summary',
+    'version',
+    'is',
+    'role',
+    'roles',
+    'source_name',
+    'properties',
 ]
 
 OPTION_SCHEMA = [

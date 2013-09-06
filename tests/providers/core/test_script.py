@@ -59,19 +59,20 @@ class TestSingleWorkflow(test.StubbedWorkflowBase):
                             - application: http
                             requires:
                             - host: linux
-                            dependencies:
-                              script: |
-                                apt-get update
-                                apt-get install -y git
-                                git clone git://github.com/openstack-dev/devst\
-ack.git
-                                cd devstack
-                                echo 'DATABASE_PASSWORD=simple' > localrc
-                                echo 'RABBIT_PASSWORD=simple' >> localrc
-                                echo 'SERVICE_TOKEN=1111' >> localrc
-                                echo 'SERVICE_PASSWORD=simple' >> localrc
-                                echo 'ADMIN_PASSWORD=simple' >> localrc
-                                ./stack.sh > stack.out
+                            properties:
+                              scripts:
+                                install: |
+                                    apt-get update
+                                    apt-get install -y git
+                                    git clone git://github.com/openstack-dev/\
+devstack.git
+                                    cd devstack
+                                    echo 'DATABASE_PASSWORD=simple' > localrc
+                                    echo 'RABBIT_PASSWORD=simple' >> localrc
+                                    echo 'SERVICE_TOKEN=1111' >> localrc
+                                    echo 'SERVICE_PASSWORD=simple' >> localrc
+                                    echo 'ADMIN_PASSWORD=simple' >> localrc
+                                    ./stack.sh > stack.out
                     base:
                       vendor: test
                       catalog:
