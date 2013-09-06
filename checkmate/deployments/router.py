@@ -571,10 +571,10 @@ class Router(object):
         statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})
-        common_tasks.update_operation(api_id, operations.current_workflow_id(deployment),
-                                      deployment_status=statuses[
-                                          'deployment_status'],
-                                      status=statuses['operation_status'])
+        common_tasks.update_operation(
+            api_id, operations.current_workflow_id(deployment),
+            deployment_status=statuses['deployment_status'],
+            status=statuses['operation_status'])
         return utils.write_body(
             statuses.get('resources'), bottle.request, bottle.response)
 
