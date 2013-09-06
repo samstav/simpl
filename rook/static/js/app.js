@@ -2114,7 +2114,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   }
 
   $scope.sync_failure = function(error){
-    $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+    $scope.$root.error = {data: error.data, status: error.status, title: "Error Syncing",
                           message: "There was an error syncing your deployment"};
     $scope.open_modal('error');
   }
@@ -3004,7 +3004,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   }
 
   $scope.sync_failure = function(error){
-    $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+    $scope.$root.error = {data: error.data, status: error.status, title: "Error Syncing",
                           message: "There was an error syncing your deployment"};
     $scope.open_modal('error');
   }
@@ -3301,7 +3301,7 @@ function ResourcesController($scope, $resource, $location, Deployment){
   }
 
   $scope.sync_failure = function(error){
-    $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
+    $scope.$root.error = {data: error.data, status: error.status, title: "Error Syncing",
                           message: "There was an error syncing your deployment"};
     $scope.open_modal('error');
   }
