@@ -476,7 +476,7 @@ class Router(object):
                 "No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
         if deployment.get('status') == "DELETED":
-            bottle.abort(400, "Deployment %s is already DELETED" % api_id)
+            bottle.abort(400, "This deployment has already been deleted.")
         if bottle.request.query.get('force') != '1':
             if not deployment.fsm.permitted('DELETED'):
                 bottle.abort(
@@ -486,8 +486,8 @@ class Router(object):
         operation = deployment.get('operation')
         if (operation.get("type") == "DELETE"
                 and operation.get("status") != "COMPLETE"):
-            bottle.abort(400, "'DELETE' request for deployment %s is already "
-                              "in progress" % api_id)
+            bottle.abort(400, "This deployment is already in the process of "
+                         "being deleted.")
 
         #TODO(any): driver will come from workflow manager once we create that
         driver = self.manager.select_driver(api_id)

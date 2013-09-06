@@ -1,6 +1,20 @@
-# pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
-# pylint: disable=W0613
-# pylint: disable=C0302
+# pylint: disable=C0103,R0201,R0904,W0212,W0613
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Unit Tests for the Rackspace Provider's database tasks."""
 import functools
 import logging
 import mock
@@ -8,9 +22,9 @@ import unittest
 
 import pyrax
 
-from checkmate import exceptions, deployment
-from checkmate import middleware
 from checkmate.deployments import tasks
+from checkmate import exceptions
+from checkmate import middleware
 from checkmate.providers.rackspace import database
 
 LOG = logging.getLogger(__name__)
@@ -613,7 +627,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
         instance.delete_user.assert_called_with(username)
 
 
-class DeleteInstanceTaskTest(unittest.TestCase):
+class TestDeleteInstanceTask(unittest.TestCase):
     def setUp(self):
         self.context = {
             'deployment_id': '12345',
@@ -980,7 +994,6 @@ class TestCreateDatabase(unittest.TestCase):
                                            instance_id=self.instance_id)
         self.assertEqual(expected, results)
 
-    #pylint: disable=R0913
     @mock.patch.object(database._create_database, 'callback')
     @mock.patch.object(database.Manager, 'wait_on_build')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
