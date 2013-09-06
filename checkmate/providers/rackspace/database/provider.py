@@ -337,7 +337,8 @@ class Provider(providers.ProviderBase):
                     provider=self.key,
                     task_tags=['final']
                 ),
-                properties={'estimated_duration': 80},
+                properties={'estimated_duration': 80,
+                            'auto_retry_count': 3},
                 instance=operators.PathAttrib('instance:%s' % key),
             )
             wait_task.follow(create_instance_task)

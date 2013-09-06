@@ -26,7 +26,16 @@ from SpiffWorkflow import specs
 from checkmate import exceptions as cmexc
 from checkmate.common import statsd
 from checkmate.deployments import resource_postback
-from checkmate.deployments.tasks import reset_failed_resource_task
+from checkmate.exceptions import (
+    BLUEPRINT_ERROR,
+    CheckmateNoTokenError,
+    CheckmateNoMapping,
+    CheckmateException,
+    CheckmateRetriableException,
+    CheckmateServerBuildFailed,
+    CheckmateUserException,
+    UNEXPECTED_ERROR,
+)
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
 from checkmate import utils
 
@@ -170,7 +179,7 @@ class Provider(RackspaceComputeProviderBase):
                     image = key
                     break
         if image not in catalog['lists']['types']:
-            raise cmexc.CheckmateNoMapping("No image mapping for '%s' in "
+            raise CheckmateNoMapping("No image mapping for '%s' in "
                                            "'%s'"
                                         % (
                 image, self.name))
@@ -187,7 +196,7 @@ class Provider(RackspaceComputeProviderBase):
         matches = [e['memory'] for e in catalog['lists']['sizes'].values()
                    if int(e['memory']) >= memory]
         if not matches:
-            raise cmexc.CheckmateNoMapping("No flavor has at least '%s'memory"
+            raise CheckmateNoMapping("No flavor has at least '%s'memory"
                                            % memory)
         match = str(min(matches))
         for key, value in catalog['lists']['sizes'].iteritems():
@@ -196,7 +205,7 @@ class Provider(RackspaceComputeProviderBase):
                 flavor = key
                 break
         if not flavor:
-            raise cmexc.CheckmateNoMapping(
+            raise CheckmateNoMapping(
                 "No flavor mapping for '%s' in '%s'" % (memory, self.key)
             )
         for template in templates:
@@ -251,7 +260,8 @@ class Provider(RackspaceComputeProviderBase):
             private_key=deployment.settings().get('keys', {}).get(
                 'deployment', {}).get('private_key'),
             merge_results=True,
-            properties={'estimated_duration': 150},
+            properties={'estimated_duration': 150,
+                        'auto_retry_count': 3},
             defines=dict(
                 resource=key,
                 provider=self.key,
@@ -431,7 +441,7 @@ class Provider(RackspaceComputeProviderBase):
             from checkmate.middleware import RequestContext
             context = RequestContext(**context)
         if not context.auth_token:
-            raise cmexc.CheckmateNoTokenError()
+            raise CheckmateNoTokenError()
         api = openstack.compute.Compute()
         api.client.auth_token = context.auth_token
 
@@ -497,9 +507,6 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     if api_object is None:
         api_object = Provider.connect(context)
 
-    reset_failed_resource_task.delay(context["deployment"],
-                                     context["resource"])
-
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor, name,
               files)
 
@@ -531,15 +538,11 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
         )
         raise
     except OverLimit as exc:
-        raise cmexc.CheckmateRetriableException(str(exc),
-                                          utils.get_class_name(exc),
-                                          "You have reached the maximum "
-                                          "number of servers that can be "
-                                          "spun up using this account. "
-                                          "Please delete some servers to "
-                                          "continue or contact your support "
-                                          "team to increase your limit",
-                                          "")
+        raise cmexc.CheckmateRetriableException(
+            str(exc),  utils.get_class_name(exc),
+            "You have reached the maximum number of servers that can be spun"
+            " up using this account. Please delete some servers to continue "
+            "or contact your support team to increase your limit", "")
     except Exception, exc:
         LOG.debug('Error creating server %s (image: %s, flavor: %s) Error: %s',
                   name, image, flavor, str(exc))
@@ -655,7 +658,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
             resource_postback.delay(context['deployment'],
                                     results)
             return results
-        return wait_on_build.retry(exc=cmexc.CheckmateException("Server %s not"
+        return wait_on_build.retry(exc=CheckmateException("Server %s not"
                                    " ready yet" % server_id))
 
 

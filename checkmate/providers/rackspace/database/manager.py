@@ -63,7 +63,11 @@ class Manager(object):
         if data['status'] == 'ERROR':
             data['status-message'] = 'Instance went into status ERROR'
             callback(data)
-            raise CheckmateResetTaskTreeException()
+            exc = CheckmateRetriableException(data['status-message'],
+                                              utils.get_class_name(
+                                                  CheckmateException()),
+                                              data['status-message'], '')
+            raise exc
         elif data['status'] in ['ACTIVE', 'DELETED']:
             data['status-message'] = ''
         else:
