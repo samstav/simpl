@@ -1059,7 +1059,10 @@ def create_server(context, name, region, api_object=None, flavor="2",
                 'id': str(1000 + int(resource_key)),
                 'status': "BUILD",
                 'password': 'RandomPass',
-            }
+            },
+            'resources': {
+                resource_key: context.get('resource'),
+            },
         }
         # Send data back to deployment
         cmdeps.resource_postback.delay(deployment_id, results)
@@ -1132,7 +1135,10 @@ def create_server(context, name, region, api_object=None, flavor="2",
             'image': image,
             'error-message': '',
             'status-message': '',
-        }
+        },
+        'resources': {
+            resource_key: context.get('resource'),
+        },
     }
 
     # Send data back to deployment
