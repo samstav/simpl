@@ -173,7 +173,7 @@ class RackspaceComputeProviderBase(base.RackspaceProviderBase):
         #kwargs added to server creation calls (contain things like ssh keys)
         self._kwargs = {}
         with open(os.path.join(os.path.dirname(__file__),
-                               "managed_cloud",
+                               "scripts", "managed_cloud",
                                "delay.sh")) as open_file:
             self.managed_cloud_script = open_file.read()
 

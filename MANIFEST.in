@@ -2,5 +2,5 @@ graft examples
 include setup.py
 include README.md
 include checkmate/checkmate.cfg
-include checkmate/providers/rackspace/compute/managed_cloud/delay.sh
+graft checkmate/providers/rackspace/compute/scripts
 global-exclude *.pyc *.sdx *.log *.db *.swp
