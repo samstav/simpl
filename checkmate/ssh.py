@@ -5,12 +5,12 @@ import logging
 import os
 import StringIO
 
-from celery.exceptions import SoftTimeLimitExceeded
 from celery.task.sets import subtask
 from celery.task import task
 import paramiko
 
 from checkmate.common import statsd
+from checkmate import powershell
 from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
@@ -202,10 +202,17 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
         msg = ("ssh://%s@%s:%d failed:  %s. You might have a bad key "
                "entry on your server, but this is a security issue and won't "
                "be handled automatically. To fix this you can remove the "
-               "host entry for this host from the /.ssh/known_hosts file" % (
-               username, ip, port, exc))
+               "host entry for this host from the /.ssh/known_hosts file" %
+               (username, ip, port, exc))
         LOG.info(msg)
         raise exc
     except Exception, exc:
         LOG.info('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
         raise exc
+
+
+def ps_execute(host, command, filename, username, password, port=445,
+               timeout=300):
+    """Make ps_exec available to be used as an api object in compute."""
+    return powershell.execute(host, command, filename, username, password,
+                              port=port, timeout=timeout)

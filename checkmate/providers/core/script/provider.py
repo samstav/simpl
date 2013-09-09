@@ -74,9 +74,11 @@ class Provider(providers.ProviderBase):
         if not script_source:
             return dict(root=None, final=None)
 
-        task_name = 'Execute Script %s (%s)' % (key, resource['hosted_on'])
-        host_ip_path = "instance:%s/public_ip" % resource['hosted_on']
-        password_path = 'instance:%s/password' % resource['hosted_on']
+        host_id = resource['hosted_on']
+        task_name = 'Execute Script %s (%s)' % (key, host_id)
+        host_ip_path = "instance:%s/public_ip" % host_id
+        password_path = 'instance:%s/password' % host_id
+        type_path = 'resources/%s/desired-state/os-type' % host_id
         private_key = deployment.settings().get('keys', {}).get(
             'deployment', {}).get('private_key')
         queued_task_dict = context.get_queued_task_dict(
@@ -94,6 +96,7 @@ class Provider(providers.ProviderBase):
             password=operators.PathAttrib(password_path),
             private_key=private_key,
             install_script=script_source,
+            host_os=operators.PathAttrib(type_path),
             properties={
                 'estimated_duration': 600,
                 'task_tags': ['final'],
