@@ -1,8 +1,26 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""
+Workflows Manager
+
+Handles workflow logic
+"""
 import logging
 
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate import base
 from checkmate import db
 from checkmate import utils
 
@@ -10,14 +28,19 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
+    """Contains Workflows Model and Logic for Accessing Workflows."""
 
-    def get_workflows(self, tenant_id=None, offset=None, limit=None,
+    @staticmethod
+    def get_workflows(tenant_id=None, offset=None, limit=None,
                       with_secrets=None):
+        """Return all workflows associated with the given tenant ID."""
         return db.get_driver().get_workflows(tenant_id=tenant_id,
                                              with_secrets=with_secrets,
                                              offset=offset, limit=limit)
 
-    def get_workflow(self, api_id, with_secrets=None):
+    @staticmethod
+    def get_workflow(api_id, with_secrets=None):
+        """Get the workflow specified by api_id."""
         return db.get_driver(api_id=api_id).get_workflow(
             api_id, with_secrets=with_secrets)
 
@@ -37,11 +60,15 @@ class Manager(object):
                                          tenant_id=tenant_id)
         return results
 
-    def lock_workflow(self, api_id, with_secrets=None, key=None):
+    @staticmethod
+    def lock_workflow(api_id, with_secrets=None, key=None):
+        """Lock the workflow specified by api_id."""
         return db.get_driver(api_id=api_id).lock_workflow(
             api_id, with_secrets=with_secrets, key=key)
 
-    def unlock_workflow(self, api_id, key):
+    @staticmethod
+    def unlock_workflow(api_id, key):
+        """Unlock the workflow specified by api_id."""
         return db.get_driver(api_id=api_id).unlock_workflow(api_id, key)
 
     def save_spiff_workflow(self, d_wf, **kwargs):
@@ -69,7 +96,9 @@ class Manager(object):
                                   secrets=secrets,
                                   tenant_id=tenant_id)
 
-    def save_workflow(self, obj_id, body, secrets=None, tenant_id=None):
+    @staticmethod
+    def save_workflow(obj_id, body, secrets=None, tenant_id=None):
+        """Store the workflow details specified in body. Store by obj_id."""
         return db.get_driver(api_id=obj_id).save_workflow(obj_id, body,
-                                                        secrets=secrets,
-                                                        tenant_id=tenant_id)
+                                                          secrets=secrets,
+                                                          tenant_id=tenant_id)
