@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """
 Provider for Rackspace Cloud Servers 1.0 API
 """
@@ -223,6 +237,11 @@ class Provider(RackspaceComputeProviderBase):
                 provider=self.key,
                 task_tags=['create']
             ),
+            tags=self.generate_resource_tag(
+                context.base_url,
+                context.tenant,
+                deployment['id'], key
+            ),
             properties={'estimated_duration': 20}
         )
 
@@ -245,11 +264,6 @@ class Provider(RackspaceComputeProviderBase):
                 provider=self.key,
                 task_tags=['final']
             ),
-            tag=self.generate_resource_tag(
-                context.base_url,
-                context.tenant,
-                deployment['id'], key
-            )
         )
         create_server_task.connect(build_wait_task)
 
