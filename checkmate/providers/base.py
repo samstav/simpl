@@ -135,7 +135,6 @@ class ProviderBaseWorkflowMixIn(object):
         '''
         LOG.debug("%s.%s.add_delete_connection_tasks called, "
                   "but was not implemented", self.vendor, self.name)
-        pass
 
     # pylint: disable=R0913
     def add_connection_tasks(self, resource, key, relation, relation_key,
@@ -158,7 +157,8 @@ class ProviderBaseWorkflowMixIn(object):
         LOG.debug("%s.%s.add_connection_tasks called, "
                   "but was not implemented", self.vendor, self.name)
 
-    def get_host_ready_tasks(self, resource, wfspec, deployment):
+    @staticmethod
+    def get_host_ready_tasks(resource, wfspec, deployment):
         '''Get tasks to wait on host if this is hosted on another resource
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
@@ -182,7 +182,8 @@ class ProviderBaseWorkflowMixIn(object):
                                                 tag=['final'])
         return relation_final
 
-    def get_relation_final_tasks(self, wfspec, resource):
+    @staticmethod
+    def get_relation_final_tasks(wfspec, resource):
         '''Get all 'final' tasks  for relations where this resource is a source
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
@@ -197,7 +198,8 @@ class ProviderBaseWorkflowMixIn(object):
                     tasks.extend(relation_final)
         return tasks
 
-    def get_host_complete_task(self, wfspec, resource):
+    @staticmethod
+    def get_host_complete_task(wfspec, resource):
         '''Get the task tagged as 'complete' (if any) for the resource's
         host.
         '''
@@ -587,6 +589,7 @@ class ProviderTask(celery.Task):
             raise exceptions.CheckmateException(
                 'Context passed into ProviderTask is an unsupported type %s.'
                 % type(context))
+        # TODO (zns): remove region - this is specific to Rackspace provider
         if context.region is None and 'region' in kwargs:
             context.region = kwargs.get('region')
 

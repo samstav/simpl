@@ -18,10 +18,10 @@ LOG = logging.getLogger(__name__)
 
 
 class Provider(ProviderBase):
+    """Implements a Chef Server configuration management provider"""
     name = 'chef-server'
     vendor = 'opscode'
 
-    """Implements a Chef Server configuration management provider"""
     def provides(self, resource_type=None, interface=None):
         return [dict(application='http'), dict(database='mysql')]
 
@@ -41,10 +41,8 @@ class Provider(ProviderBase):
         self.prep_task = create_environment
         return {'root': self.prep_task, 'final': self.prep_task}
 
-    def add_resource_tasks(
-        self, resource, key, wfspec,
-        deployment, context, wait_on=None
-    ):
+    def add_resource_tasks(self, resource, key, wfspec, deployment, context,
+                           wait_on=None):
         register_node_task = Celery(
             wfspec,
             'Register Server:%s (%s)' % (key, resource['service']),
@@ -99,10 +97,8 @@ class Provider(ProviderBase):
                             key, resource['service']))
         return {'root': register_node_task, 'final': bootstrap_task}
 
-    def add_connection_tasks(
-        self, resource, key, relation,
-        relation_key, wfspec, deployment
-    ):
+    def add_connection_tasks(self, resource, key, relation, relation_key,
+                             wfspec, deployment):
         target = deployment['resources'][relation['target']]
         interface = relation['interface']
 
@@ -110,9 +106,8 @@ class Provider(ProviderBase):
             #Take output from Create DB task and write it into
             # the 'override' dict to be available to future tasks
 
-            db_final = self.find_resource_task(
-                wfspec, relation['target'], target['provider'], 'final'
-            )
+            db_final = self.find_resource_task(wfspec, relation['target'],
+                                               target['provider'], 'final')
 
             compile_override = Transform(
                 wfspec,
@@ -152,25 +147,21 @@ class Provider(ProviderBase):
             )
 
             wait_on = [compile_override, self.prep_task]
-            wfspec.wait_for(set_overrides, wait_on, name="Wait on Environment "
-                                                         "and Settings:%s" %
-                                                         key)
-
-            config_final = self.find_resource_task(
-                wfspec, key, self.key, 'final'
+            wfspec.wait_for(
+                set_overrides, wait_on,
+                name="Wait on Environment and Settings:%s" % key
             )
+
+            config_final = self.find_resource_task(wfspec, key, self.key,
+                                                   'final')
             # Assuming input is join
             assert isinstance(config_final.inputs[0], Merge)
             set_overrides.connect(config_final.inputs[0])
 
         else:
             LOG.warning(
-                "Provider '%s' does not recognized connection interface '%s'" %
-                (self.key, interface), defines=dict(
-                    relation=relation_key,
-                    provider=self.key,
-                    task_tags=None
-                )
+                "Provider '%s' does not recognized connection interface '%s'",
+                self.key, interface
             )
 
 
@@ -181,6 +172,7 @@ class Provider(ProviderBase):
 #  configuration instance. The knife.rb from that path will be used.
 
 def create_role_recipe_string(roles=None, recipes=None):
+    '''Return roles and recipes in chef cook format.'''
     s = ''
     if roles is not None:
         for role in roles:
@@ -196,6 +188,7 @@ def create_role_recipe_string(roles=None, recipes=None):
 @statsd.collect
 def register_node(deployment, name, runlist=None, attributes=None,
                   environment=None):
+    '''Register node on chef server.'''
     match_celery_logging(LOG)
     try:
         api = chef.autoconfigure(
@@ -209,15 +202,13 @@ def register_node(deployment, name, runlist=None, attributes=None,
         if environment is not None:
             n.chef_environment = environment
         n.save()
-        LOG.debug(
-            'Registered %s with Chef Server. Setting runlist to %s' % (
-            name, runlist))
+        LOG.debug('Registered %s with Chef Server. Setting runlist to %s',
+                  name, runlist)
     except chef.ChefError, exc:
-        LOG.debug(
-            'Node registration failed. Chef Error: %s. Retrying.' % exc)
+        LOG.debug('Node registration failed. Chef Error: %s. Retrying.', exc)
         register_node.retry(exc=exc)
     except Exception, exc:
-        LOG.debug('Node registration failed. Error: %s. Retrying.' % exc)
+        LOG.debug('Node registration failed. Error: %s. Retrying.', exc)
         register_node.retry(exc=exc)
 
 
@@ -251,11 +242,11 @@ def bootstrap(
         if os.path.exists(os.path.join(path, 'knife.rb')):
             params.extend(['-c', os.path.join(path, 'knife.rb')])
 
-    LOG.debug('Running: %s' % ' '.join(params))
+    LOG.debug('Running: %s', ' '.join(params))
     result = check_output(params)
     if 'FATAL' in result:
         errors = [line for line in result.split('/n') if 'FATAL' in line]
-        LOG.debug("Bootstrap errors: %s" % '/n'.join(errors))
+        LOG.debug("Bootstrap errors: %s", '/n'.join(errors))
         raise CalledProcessError('/n'.join(errors), ' '.join(params))
     return True
 
@@ -274,15 +265,12 @@ def manage_databag(deployment, bagname, itemname, contents):
         for key, value in contents.iteritems():
             item[key] = value
         item.save()
-        LOG.debug(
-            'Databag %s updated. Setting items to %s' % (
-            bag, item))
+        LOG.debug('Databag %s updated. Setting items to %s', bag, item)
     except chef.ChefError, exc:
-        LOG.debug(
-            'Databag management failed. Chef Error: %s. Retrying.' % exc)
+        LOG.debug('Databag management failed. Chef Error: %s. Retrying.', exc)
         manage_databag.retry(exc=exc)
     except Exception, exc:
-        LOG.debug('Databag management failed. Error: %s. Retrying.' % exc)
+        LOG.debug('Databag management failed. Error: %s. Retrying.', exc)
         manage_databag.retry(exc=exc)
 
 

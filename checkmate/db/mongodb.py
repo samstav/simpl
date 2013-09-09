@@ -565,9 +565,9 @@ class Driver(common.DbBase):
                                  offset=offset, limit=limit)
 
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
+        projection = {'_lock': 1, '_lock_timestamp': 1}
         current = self._get_object(self._workflow_collection_name, api_id,
-                                   projection={'_lock': 1,
-                                               '_lock_timestamp': 1})
+                                   projection=projection)
         if current and '_lock' in current:
             body['_lock'] = current['_lock']
             body['_lock_timestamp'] = current.get('_lock_timestamp')

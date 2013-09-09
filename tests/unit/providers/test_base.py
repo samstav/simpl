@@ -162,6 +162,7 @@ def do_something(context, name, api, region=None):
         'status': 'BLOCKED'
     }
 
+
 if __name__ == '__main__':
     # Any change here should be made in all test files
     from checkmate import test

@@ -18,7 +18,7 @@ Common tasks
 Tasks here generally:
 - are loaded by the engine
 - have access to the backend database
-- do not belong to a specific porovider
+- do not belong to a specific provider
 
 
 Tasks are wrapped by a base task class we create that will capture exceptions

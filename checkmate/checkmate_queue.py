@@ -27,6 +27,7 @@ def main_func():
             'checkmate.celeryapp',
             'checkmate.common.tasks',
             'checkmate.workflows_new',
+            'checkmate.workspaces',
         ]
 
         params.extend([
