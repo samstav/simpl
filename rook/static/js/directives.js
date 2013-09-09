@@ -337,7 +337,9 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     AVAILABLE_ICONS: ['compute', 'load-balancer', 'database'],
     ICON_FOLDER: '/img/icons/',
     ICON_HEIGHT: 8,
-    ICON_WIDTH: 8
+    ICON_WIDTH: 8,
+    ICON_MARGIN: 4,
+    TEXT_MARGIN: 3
   };
 
   var _even_odd = function(num) {
@@ -542,14 +544,14 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('height', function(d) { return d.height; });
     stream.append('svg:image')
       .attr('xlink:href', _get_icon)
-      .attr('x', function(d) { return (d.height - DEFAULTS.ICON_WIDTH) / 2 })
+      .attr('x', DEFAULTS.ICON_MARGIN)
       .attr('y', function(d) { return (d.height - DEFAULTS.ICON_HEIGHT) / 2 })
       .attr('width', DEFAULTS.ICON_WIDTH + 'px')
       .attr('height', DEFAULTS.ICON_HEIGHT + 'px');
     stream.append("text")
       .attr("class", "nodetext")
-      .attr("dx", function(d) { return (d.height - DEFAULTS.ICON_WIDTH) / 2 })
-      .attr("dy", function(d) { return (d.height - DEFAULTS.ICON_HEIGHT) / 2 })
+      .attr("dx", DEFAULTS.TEXT_MARGIN)
+      .attr("dy", function(d) { return (d.height - DEFAULTS.ICON_HEIGHT) / 2 + DEFAULTS.ICON_HEIGHT })
       .text(function(d) { return d.title.split('.').shift(); });
 
     // Exit
