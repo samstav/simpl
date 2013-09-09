@@ -38,4 +38,4 @@ def register():
 def register_tasks(**kwargs):  # pylint: disable=W0613
     """Register tasks in celery."""
     LOG.info("Initializing provider tasks %s", __name__)
-    __import__('checkmate.providers.core.script')
+    __import__('checkmate.providers.core.script.tasks')
