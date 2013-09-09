@@ -415,9 +415,10 @@ class Manager(object):
         deployment.on_postback(contents, target=deployment)
 
         body, secrets = utils.extract_sensitive_data(deployment)
-        db.get_driver().save_deployment(deployment_id, body, secrets,
-                                        partial=True,
-                                        tenant_id=deployment['tenantId'])
+        db.get_driver(api_id=deployment_id).save_deployment(
+            deployment_id, body, secrets, partial=True,
+            tenant_id=deployment['tenantId']
+        )
 
         LOG.debug("Updated deployment %s with postback", deployment_id,
                   extra=dict(data=contents))

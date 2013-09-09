@@ -42,9 +42,13 @@ def reset_failed_resource_task(deployment_id, resource_id):
 
 @task
 @statsd.collect
-def process_post_deployment(deployment, request_context):
+def process_post_deployment(deployment, request_context, driver=None):
     '''Assess deployment, then create and trigger a workflow.'''
     utils.match_celery_logging(LOG)
+
+    if driver is not None:
+        LOG.warn("LEGACY TASK: process_post_deployment called with driver %s "
+                 "passed in. This parameter has been deprecated.", driver)
 
     deployment = Deployment(deployment)
 
