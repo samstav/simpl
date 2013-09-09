@@ -390,7 +390,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     update_svg(scope);
   }
 
-  var _interpolate = function(x, new_width, old_width) {
+  var _interpolate_node = function(x, new_width, old_width) {
     var padded_width = new_width - DEFAULTS.ICON_WIDTH;
     return x * padded_width / old_width + DEFAULTS.ICON_WIDTH;
   }
@@ -491,8 +491,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
     for (var i=0 ; i<streams.nodes.length ; i++) {
       var node = streams.nodes[i];
-      var x = _interpolate(node.position.x, scope.svg.width, streams.width);
-      var y = (node.position.y) * stream_height + stream_height / 2;
+      var x = _interpolate_node(node.position.x, scope.svg.width, streams.width);
+      var y = node.position.y;
       var id = [x, y].join('--');
       node.interpolated_position = { x: x };
 
