@@ -34,8 +34,9 @@ def register():
     providers.register_providers([script.Provider])
 
 
+# pylint: disable=W0613
 @signals.celeryd_after_setup.connect
-def register_tasks(**kwargs):  # pylint: disable=W0613
+def register_tasks(sender, instance, **kwargs):
     """Register tasks in celery."""
-    LOG.info("Initializing provider tasks %s", __name__)
+    LOG.info("Initializing provider tasks %s on %s", __name__, sender)
     __import__('checkmate.providers.core.script.tasks')
