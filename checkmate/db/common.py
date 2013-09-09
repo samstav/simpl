@@ -1,4 +1,18 @@
-'''Common Exceptions and functions for database drivers.'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Common Exceptions and functions for database drivers."""
 import logging
 import os
 
@@ -30,22 +44,22 @@ DRIVERS_AVAILABLE = {
 
 
 class DatabaseTimeoutException(Exception):
-    '''Timeout or Retry value exceeded while trying to access the database.'''
+    """Timeout or Retry value exceeded while trying to access the database."""
     pass
 
 
 class ObjectLockedError(Exception):
-    '''Raised when trying to access a database resource with an invalid key.'''
+    """Raised when trying to access a database resource with an invalid key."""
     pass
 
 
 class InvalidKeyError(Exception):
-    '''Raised when a specified key is invalid.'''
+    """Raised when a specified key is invalid."""
     pass
 
 
 def get_driver(name=None, reset=False, connection_string=None, api_id=None):
-    '''Get Shared Driver Instance
+    """Get Shared Driver Instance
 
     :param name: the class of the driver to load
     :param reset: whether to reset the driver before returning it
@@ -57,7 +71,7 @@ def get_driver(name=None, reset=False, connection_string=None, api_id=None):
 
     Resetting will reconnect the database (for in-momory databases this could
     also reset all data)
-    '''
+    """
     if api_id and utils.is_simulation(api_id) and \
             (connection_string is None and name is None):
         connection_string = CONFIG.simulator_connection_string
@@ -90,12 +104,12 @@ def get_driver(name=None, reset=False, connection_string=None, api_id=None):
 
 
 def any_id_problems(api_id):
-    '''Validates the ID provided is safe and returns problems as a string.
+    """Validates the ID provided is safe and returns problems as a string.
 
     To use this, call it with an ID you want to validate. If the response is
     None, then the ID is good. Otherwise, the response is a string explaining
     the problem with the ID that you can use to return to the client
-    '''
+    """
     allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
                           "0123456789"
@@ -117,13 +131,13 @@ def any_id_problems(api_id):
 
 
 def any_tenant_id_problems(api_id):
-    '''Validates the tenant provided is safe and returns problems as a string.
+    """Validates the tenant provided is safe and returns problems as a string.
 
     To use this, call it with a tenant ID you want to validate. If the response
     is None, then the ID is good. Otherwise, the response is a string
     explaining the problem with the ID that you can use to return to the
     client
-    '''
+    """
     allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
                           "0123456789"
