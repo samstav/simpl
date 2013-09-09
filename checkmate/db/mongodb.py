@@ -337,6 +337,13 @@ class Driver(common.DbBase):
                                         query=query)
         return deployments
 
+    def get_resources(self, tenant_id=None, limit=None, offset=None):
+        resources = self._get_objects(self._resource_collection_name,
+                                      tenant_id=tenant_id,
+                                      limit=limit,
+                                      offset=offset)
+        return resources
+
     def _remove_all(self, collection_name, ids):
         """Remove all objects with the ids in the ids list supplied."""
         if ids:

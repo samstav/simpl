@@ -33,6 +33,11 @@ except ImportError as exc:
 
 @unittest.skipIf(SKIP, REASON)
 class TestDBMongo(base.DBDriverTests, unittest.TestCase):
+    COLLECTIONS_TO_CLEAN = ['tenants',
+                            'deployments',
+                            'blueprints',
+                            'resource_secrets',
+                            'resources']
     _connection_string = None
 
     @property
@@ -71,15 +76,10 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         if SKIP is True:
             self.skipTest(REASON)
         base.DBDriverTests.setUp(self)
-        # HACK until we get proper test data management; don't drop collections
-        # as there is a risk of deleting everything out of a remote database
-        # as per line 50 above
-        self.driver.database()['tenants'].remove({'id': '1234'})
-        self.driver.database()['tenants'].remove({'id': '111111'})
-        self.driver.database()['deployments'].remove({'tenantId': 'T3'})
-        self.driver.database()['deployments'].remove({'tenantId': 'TOTHER'})
-        self.driver.database()['blueprints'].remove({})
-        self.driver.database()['resource_secrets'].remove({'id': '12345'})
+
+    def tearDown(self):
+        for collection_name in TestDBMongo.COLLECTIONS_TO_CLEAN:
+            self.driver.database()[collection_name].drop()
 
     def test_merge_secrets(self):
         self.driver.database()["resources_secrets"].insert({
@@ -100,6 +100,62 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
             }
         }
         self.assertDictEqual(body, expected)
+
+    def test_get_deployments_does_not_return__id(self):
+        self.driver.database()['deployments'].insert({
+            '_id': 'abc',
+            'id': '123',
+            'tenantId': '321'
+        })
+        result = self.driver.get_deployments()
+        expected = {'123': {'id': '123', 'tenantId': '321'}}
+        self.assertDictEqual(result['results'], expected)
+
+    def test_get_deployments_with_offset(self):
+        self.driver.database()['deployments'].insert([
+            {'id': '123', 'tenantId': '321'},
+            {'id': '777', 'tenantId': '888'}
+        ])
+        result = self.driver.get_deployments(offset=1)
+        expected = {'777': {'id': '777', 'tenantId': '888'}}
+        self.assertDictEqual(result['results'], expected)
+
+    def test_get_resources_does_not_return__id(self):
+        self.driver.database()['resources'].insert({
+            '_id': 'abc',
+            'id': '123',
+            'tenantId': '321'
+        })
+        result = self.driver.get_resources()
+        expected = {'123': {'id': '123', 'tenantId': '321'}}
+        self.assertDictEqual(result['results'], expected)
+
+    def test_get_resources_with_tenant_id(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123', 'tenantId': '321'},
+            {'id': '777', 'tenantId': '888'}
+        ])
+        result = self.driver.get_resources(tenant_id='888')
+        expected = {'777': {'id': '777', 'tenantId': '888'}}
+        self.assertDictEqual(result['results'], expected)
+
+    def test_get_resources_with_limit(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123', 'tenantId': '321'},
+            {'id': '777', 'tenantId': '888'}
+        ])
+        result = self.driver.get_resources(limit=1)
+        expected = {'123': {'id': '123', 'tenantId': '321'}}
+        self.assertDictEqual(result['results'], expected)
+
+    def test_get_resources_with_offset(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123', 'tenantId': '321'},
+            {'id': '777', 'tenantId': '888'}
+        ])
+        result = self.driver.get_resources(offset=1)
+        expected = {'777': {'id': '777', 'tenantId': '888'}}
+        self.assertDictEqual(result['results'], expected)
 
 
 @unittest.skipIf(SKIP, REASON)
