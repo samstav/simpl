@@ -33,6 +33,12 @@ class Provider(providers.ProviderBase):
     name = 'script'
     vendor = 'core'
 
+    __status_mapping__ = {
+        'ACTIVE': 'ACTIVE',
+        'DELETED': 'DELETED',
+        'ERROR': 'ERROR',
+    }
+
     def prep_environment(self, wfspec, deployment, context):
         providers.ProviderBase.prep_environment(self, wfspec, deployment,
                                                 context)
@@ -76,7 +82,7 @@ class Provider(providers.ProviderBase):
         private_key = deployment.settings().get('keys', {}).get(
             'deployment', {}).get('private_key')
         queued_task_dict = context.get_queued_task_dict(
-            resource_id=key, deployment_id=deployment['id'])
+            resource_key=key, deployment_id=deployment['id'])
 
         execute_task = Celery(
             wfspec,

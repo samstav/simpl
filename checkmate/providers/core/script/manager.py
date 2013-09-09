@@ -53,7 +53,7 @@ class Manager(object):
         """
         desired = resource.get('desired') or {}
         if self.simulate is True:
-            instance = {'instance': copy.deepcopy(desired)}
+            instance = copy.deepcopy(desired)
         else:
             try:
                 results = self.api.remote_execute(host, install_script,
@@ -62,11 +62,13 @@ class Manager(object):
                                                   timeout=timeout)
                 LOG.debug("remote execute results: %s", results)
 
-                instance = {'instance': copy.deepcopy(desired)}
+                instance = copy.deepcopy(desired)
             except Exception as exc:
                 raise exceptions.CheckmateRetriableException(
                     str(exc), utils.get_class_name(exc),
                     exceptions.UNEXPECTED_ERROR, '')
+
+        instance['status'] = 'ACTIVE'
 
         if callable(self.callback):
             self.callback(instance)

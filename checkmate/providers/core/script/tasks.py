@@ -38,7 +38,7 @@ def create_resource(context, deployment_id, resource, host, username,
     :param callback:
     :return:
     """
-    manager = Manager(api=api, callback=callback or create_resource.callback,
+    manager = Manager(api=api, callback=callback or create_resource.partial,
                       simulate=context.simulation)
     return manager.create_resource(context, deployment_id, resource, host,
                                    username, password=password,

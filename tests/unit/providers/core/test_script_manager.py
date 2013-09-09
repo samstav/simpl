@@ -31,7 +31,7 @@ class TestCreateReqource(unittest.TestCase):
         self.callback = mock.MagicMock()
 
     def test_simulation(self):
-        expected = {'instance': {'A': 1}}
+        expected = {'A': 1, 'status': 'ACTIVE'}
         manager = Manager(api=self.api, callback=self.callback, simulate=True)
         results = manager.create_resource({}, 'D1', {'desired': {'A': 1}},
                                           'localhost', 'root')
@@ -43,7 +43,7 @@ class TestCreateReqource(unittest.TestCase):
             'stdout': 'OK',
             'stderr': None,
         }
-        expected = {'instance': {'A': 1}}
+        expected = {'A': 1, 'status': 'ACTIVE'}
         manager = Manager(api=self.api, callback=self.callback)
         results = manager.create_resource({}, 'D1', {'desired': {'A': 1}},
                                           'localhost', 'root',
