@@ -297,6 +297,34 @@ class TestOperationsGetOperation(unittest.TestCase):
         self.assertEqual(('operations-history', 0, {'blah': 'blah'}), result)
 
 
+# class TestOperationsGetStatusInfo(unittest.TestCase):
+# class TestOperationsInitOperation(unittest.TestCase):
+# class TestOperationsHiddenUpdateOperation(unittest.TestCase):
+
+
+class TestOperationsGetDistinctErrors(unittest.TestCase):
+    def test_no_errors(self):
+        self.assertEqual([], operations._get_distinct_errors([]))
+
+    def test_only_one_error(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'}]
+        self.assertEqual(errors, operations._get_distinct_errors(errors))
+
+    def test_no_duplicate_errors(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '2', 'friendly-message': 'Heya!'}]
+        self.assertEqual(errors, operations._get_distinct_errors(errors))
+
+    def test_duplicate_errors(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '2', 'friendly-message': 'Heya!'},
+                  {'error-type': '2', 'friendly-message': 'Heya!'}]
+        expected = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                    {'error-type': '2', 'friendly-message': 'Heya!'}]
+        self.assertEqual(expected, operations._get_distinct_errors(errors))
+
+
 if __name__ == '__main__':
     import sys
 

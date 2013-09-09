@@ -298,10 +298,8 @@ def _update_operation(operation, workflow):
 
 def _get_distinct_errors(errors):
     """Eliminate duplicate errors."""
-    distinct_errors = []
-    sorted_errors = sorted(errors, key=lambda k: k.get('error-type'))
-    for _, group in itertools.groupby(sorted_errors,
-                                      lambda x: x.get("error-type")):
-        new_error = list(group)[0]
-        distinct_errors.append(new_error)
-    return distinct_errors
+    errs = sorted(errors, key=lambda k: k.get('error-type'))
+    seen = set()
+    seen_add = seen.add
+    return [err for err in errs if err.get('error-type') not in seen and not
+            seen_add(err.get('error-type'))]
