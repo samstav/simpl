@@ -83,3 +83,4 @@ Syntax options for script:
 '''
 
 from .provider import Provider
+from .manager import Manager
