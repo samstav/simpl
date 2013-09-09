@@ -173,7 +173,7 @@ devstack.git
         provider = self.deployment['environment']['providers']['script']
         component = provider['catalog']['application']['openstack']
         script_body = component['properties']['scripts']['install']
-        self.assertEqual(spec.args[2], script_body)
+        self.assertEqual(spec.kwargs['install_script'], script_body)
 
 
 class TestSingleWorkflow(test.StubbedWorkflowBase):

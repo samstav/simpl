@@ -70,4 +70,4 @@ class Manager(object):
 
         LOG.info("Created %s resource on %s", resource.get('type'), host)
 
-        return results
+        return instance

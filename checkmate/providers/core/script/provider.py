@@ -23,6 +23,7 @@ from SpiffWorkflow import operators
 from SpiffWorkflow.specs import Celery
 
 from checkmate import providers
+from checkmate import ssh
 
 LOG = logging.getLogger(__name__)
 
@@ -76,23 +77,26 @@ class Provider(providers.ProviderBase):
         private_key = deployment.settings().get('keys', {}).get(
             'deployment', {}).get('private_key')
         queued_task_dict = context.get_queued_task_dict(
-            deployment_id=deployment['id'], resource_key=key,
-            resource=resource)
-        execute_task = Celery(wfspec,
-                              task_name,
-                              'checkmate.ssh.execute_2',
-                              call_args=[queued_task_dict,
-                                         operators.PathAttrib(host_ip_path),
-                                         script_source,
-                                         "root"],
-                              password=operators.PathAttrib(password_path),
-                              private_key=private_key,
-                              properties={
-                                  'estimated_duration': 600,
-                                  'task_tags': ['final'],
-                              },
-                              defines={'resource': key, 'provider': self.key}
-                              )
+            resource_id=key, deployment_id=deployment['id'])
+
+        execute_task = Celery(
+            wfspec,
+            task_name,
+            'checkmate.providers.core.script.tasks.create_resource',
+            call_args=[queued_task_dict,
+                       deployment['id'],
+                       resource,
+                       operators.PathAttrib(host_ip_path),
+                       "root"],
+            password=operators.PathAttrib(password_path),
+            private_key=private_key,
+            install_script=script_source,
+            properties={
+                'estimated_duration': 600,
+                'task_tags': ['final'],
+            },
+            defines={'resource': key, 'provider': self.key}
+        )
 
         if wait_on is None:
             wait_on = []
@@ -126,3 +130,14 @@ class Provider(providers.ProviderBase):
         results = providers.ProviderBase.get_catalog(self, context,
                                                      type_filter=type_filter)
         return results
+
+    @staticmethod
+    def connect(context, *args):
+        """Returns API connection object for rempte calls.
+
+        :param context: the call context from checkmate
+        :param *args: just there to handle region which leaked out of
+            rackspace providers
+        """
+        # TODO (zns): remove region (i.e. *args)
+        return ssh
