@@ -223,6 +223,11 @@ class Provider(RackspaceComputeProviderBase):
                 provider=self.key,
                 task_tags=['create']
             ),
+            tags=self.generate_resource_tag(
+                context.base_url,
+                context.tenant,
+                deployment['id'], key
+            ),
             properties={'estimated_duration': 20}
         )
 
@@ -245,11 +250,6 @@ class Provider(RackspaceComputeProviderBase):
                 provider=self.key,
                 task_tags=['final']
             ),
-            tag=self.generate_resource_tag(
-                context.base_url,
-                context.tenant,
-                deployment['id'], key
-            )
         )
         create_server_task.connect(build_wait_task)
 
