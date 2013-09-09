@@ -119,8 +119,8 @@ describe('Deployment service', function(){
           expect(stream.title).toBe('');
         });
 
-        it('should contain a position', function() {
-          expect(stream.position).toBe(1);
+        it('should contain a position starting from zero', function() {
+          expect(stream.position).toBe(0);
         });
       });
     });
