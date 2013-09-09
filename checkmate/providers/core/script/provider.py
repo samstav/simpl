@@ -1,5 +1,6 @@
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
+#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -12,9 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Simple Script Provider.
-"""
+"""Simple Script Provider."""
 
 import logging
 
@@ -30,7 +29,7 @@ LOG = logging.getLogger(__name__)
 
 # pylint: disable=R0904
 class Provider(providers.ProviderBase):
-    '''Implements a script configuration management provider.'''
+    """Implements a script configuration management provider."""
     name = 'script'
     vendor = 'core'
 
@@ -62,7 +61,7 @@ class Provider(providers.ProviderBase):
     # pylint: disable=R0913,R0914
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
-        '''Create and write settings, generate run_list, and call cook.'''
+        """Create and write settings, generate run_list, and call cook."""
         wait_on, _, component = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
         properties = component.get('properties') or {}
@@ -114,16 +113,16 @@ class Provider(providers.ProviderBase):
     # pylint: disable=R0913
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
-        '''Generate tasks for a connection.'''
+        """Generate tasks for a connection."""
         LOG.debug("Adding connection task for resource '%s' for relation '%s'",
                   key, relation_key, extra={'data': {'resource': resource,
                                                      'relation': relation}})
 
     def get_catalog(self, context, type_filter=None):
-        '''Return stored/override catalog.
+        """Return stored/override catalog.
 
         If it does not exist then connect, build, and return one.
-        '''
+        """
 
         # TODO: maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
@@ -131,6 +130,7 @@ class Provider(providers.ProviderBase):
                                                      type_filter=type_filter)
         return results
 
+    # pylint: disable=W0613
     @staticmethod
     def connect(context, *args):
         """Returns API connection object for rempte calls.

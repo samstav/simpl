@@ -287,14 +287,14 @@ def validate_inputs(deployment):
         options = blueprint.get('options') or {}
         for key, value in inputs.iteritems():
             if key == 'blueprint':
-                for k, v in value.iteritems():
-                    option = options.get(k)
+                for key2, value2 in value.iteritems():
+                    option = options.get(key2)
                     if not option:
                         pass
                     elif option.get('type') == 'url':
-                        errors.extend(validate_url_input(k, v))
+                        errors.extend(validate_url_input(key2, value2))
                     else:
-                        errors.extend(validate_input(k, v))
+                        errors.extend(validate_input(key2, value2))
             elif key == 'services':
                 for service_name, service_input in value.iteritems():
                     if service_name not in deployment['blueprint']['services']:
@@ -328,8 +328,8 @@ def validate_type_inputs(inputs):
                     errors.append("Invalid type '%s' in inputs" % key)
                 else:
                     if isinstance(value, dict):
-                        for k, v in value.iteritems():
-                            errors.extend(validate_input(k, v))
+                        for key2, value2 in value.iteritems():
+                            errors.extend(validate_input(key2, value2))
                     else:
                         errors.append("Input '%s' is not a key/value pair" %
                                       value)
@@ -356,8 +356,8 @@ def validate_url_input(key, value):
             errors.extend(validate(value, OPTION_SCHEMA_URL))
         elif not isinstance(value, basestring):
             errors.append("Option '%s' should be a string or valid url "
-                          "mapping. It is a '%s' which is not valid" % (
-                          key, value.__class__.__name__))
+                          "mapping. It is a '%s' which is not valid" %
+                          (key, value.__class__.__name__))
 
     return errors
 
@@ -371,8 +371,8 @@ def validate_option(key, option):
             option_type = option.get('type')
             if option_type not in OPTION_TYPES:
                 errors.append("Option '%s' type is invalid. It is '%s' and "
-                              "the only allowed types are: %s" % (key,
-                              option_type, OPTION_TYPES))
+                              "the only allowed types are: %s" %
+                              (key, option_type, OPTION_TYPES))
         else:
             errors.append("Option '%s' must be a map" % key)
     return errors
@@ -570,7 +570,7 @@ def translate(name):
         #return '_'.join(words)
 
     if not recognized:
-        LOG.debug("Unrecognized name: %s" % name)
+        LOG.debug("Unrecognized name: %s", name)
     return name
 
 
@@ -584,6 +584,6 @@ def translate_dict(data):
         for key, value in data.iteritems():
             canonical = translate(key)
             if key != canonical:
-                LOG.debug("Translating '%s' to '%s'" % (key, canonical))
+                LOG.debug("Translating '%s' to '%s'", key, canonical)
             results[canonical] = value
         return results

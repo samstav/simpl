@@ -112,8 +112,7 @@ class TestScriptTasks(unittest.TestCase):
 
     def test_install_script(self):
         '''Verify workflow includes the supplied install script run.'''
-        self.deployment = \
-            deployment.Deployment(utils.yaml_to_dict('''
+        test_dep = deployment.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 tenantId: T1000
                 environment:
@@ -166,11 +165,11 @@ devstack.git
                         value: 2048
             '''))
 
-        deployments.Manager.plan(self.deployment, self.context)
+        deployments.Manager.plan(test_dep, self.context)
         workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
-            self.deployment, self.context)
+            test_dep, self.context)
         spec = workflow_spec.task_specs['Execute Script 0 (1)']
-        provider = self.deployment['environment']['providers']['script']
+        provider = test_dep['environment']['providers']['script']
         component = provider['catalog']['application']['openstack']
         script_body = component['properties']['scripts']['install']
         self.assertEqual(spec.kwargs['install_script'], script_body)

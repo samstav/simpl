@@ -31,7 +31,7 @@ LOG = logging.getLogger(__name__)
 
 
 class TestDatabaseTasks(unittest.TestCase):
-    'Class to test rackspace.database celery tasks.'
+    '''Class to test rackspace.database celery tasks.'''
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_sim_no_dbs(self, mock_reset):
         'Create instance with simulation and no databases.'
@@ -68,7 +68,7 @@ class TestDatabaseTasks(unittest.TestCase):
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_sim_with_dbs(self, mock_reset):
-        'Create instance with simulation and databases.'
+        '''Create instance with simulation and databases.'''
         api = mock.Mock()
         database._create_instance.provider = mock.Mock(return_value=api)
         database._create_instance.callback = mock.Mock()
@@ -127,7 +127,7 @@ class TestDatabaseTasks(unittest.TestCase):
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_no_sim_no_dbs(self, mock_reset):
-        'Create instance no databases.'
+        '''Create instance no databases.'''
         context = {'resource_key': '0', 'deployment_id': 0, 'region': 'DFW'}
         context = middleware.RequestContext(**context)
         api = mock.Mock()
@@ -174,7 +174,7 @@ class TestDatabaseTasks(unittest.TestCase):
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_no_sim_with_dbs(self, mock_reset):
-        'Create instance with databases.'
+        '''Create instance with databases.'''
         context = {'resource_key': '0', 'deployment_id': 'DEP_ID',
                    'region': 'DFW'}
         context = middleware.RequestContext(**context)
@@ -1079,7 +1079,7 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_create.assert_called_with(self.name+'_instance', '1', 1,
                                        [{'name': self.name,
-                                       'character_set': 'latin'}],
+                                         'character_set': 'latin'}],
                                        self.context, mock_connect.return_value,
                                        database._create_database.partial)
 
@@ -1127,7 +1127,7 @@ class TestCreateDatabase(unittest.TestCase):
 
         mock_create.assert_called_with(self.name+'_instance', '1', 1,
                                        [{'name': self.name,
-                                       'character_set': 'latin'}],
+                                         'character_set': 'latin'}],
                                        self.context, mock_connect.return_value,
                                        database._create_database.partial)
 
@@ -1310,13 +1310,7 @@ class TestCreateDatabase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Run tests. Handle our parameters seprately
+    # Any change here should be made in all test files
+    from checkmate import test
     import sys
-
-    args = sys.argv[:]
-    # Our --debug means --verbose for unittest
-    if '--debug' in args:
-        args.pop(args.index('--debug'))
-        if '--verbose' not in args:
-            args.insert(1, '--verbose')
-    unittest.main(argv=args)
+    test.run_with_params(sys.argv[:])

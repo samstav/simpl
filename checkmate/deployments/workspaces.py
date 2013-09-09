@@ -28,8 +28,8 @@ from checkmate.common import statsd
 from checkmate import exceptions
 from checkmate import utils
 
-LOG = logging.getLogger(__name__)
 CONFIG = config.current()
+LOG = logging.getLogger(__name__)
 
 
 def workspace_root_path():

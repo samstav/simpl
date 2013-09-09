@@ -24,6 +24,7 @@ from checkmate import utils
 LOG = logging.getLogger(__name__)
 
 
+# pylint: disable=R0903
 class Manager(object):
     """Contains script provider model and logic for interaction."""
 
@@ -39,6 +40,7 @@ class Manager(object):
         self.callback = callback
         self.simulate = simulate
 
+    # pylint: disable=W0613,R0913
     def create_resource(self, context, deployment_id, resource, host, username,
                         password=None, private_key=None, install_script=None,
                         timeout=60):
@@ -58,6 +60,7 @@ class Manager(object):
                                                   username, password=password,
                                                   private_key=private_key,
                                                   timeout=timeout)
+                LOG.debug("remote execute results: %s", results)
 
                 instance = {'instance': copy.deepcopy(desired)}
             except Exception as exc:
