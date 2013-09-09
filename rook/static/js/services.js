@@ -2331,6 +2331,7 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       }
 
       spec.position = {};
+      spec.position.stream = resource_id;
       spec.position.x = _get_distance_from_start(spec, specs, position_memo);
       spec.position.y = stream.position;
       stream.data.push(spec);
