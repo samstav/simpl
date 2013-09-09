@@ -4,3 +4,4 @@ include README.md
 include checkmate/checkmate.cfg
 graft checkmate/providers/rackspace/compute/scripts
 global-exclude *.pyc *.sdx *.log *.db *.swp
+prune bin
