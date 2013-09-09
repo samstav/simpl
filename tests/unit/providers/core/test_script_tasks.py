@@ -40,12 +40,12 @@ class TestScriptTasks(unittest.TestCase):
             'resource_key': '0',
         }
         context = middleware.RequestContext(**context)
-        expected_result = {'instance:0': {'instance': {'A': 1}}}
+        expected_result = {'instance:0': {'A': 1, 'status': 'ACTIVE'}}
         results = tasks.create_resource(
             context, 'D1', {'desired': {'A': 1}}, 'localhost', 'root')
         self.assertEqual(expected_result, results)
         tasks.create_resource.callback.assert_called_with(
-            context, {'instance': {'A': 1}})
+            context, {'A': 1, 'status': 'ACTIVE'})
 
 
 if __name__ == '__main__':
