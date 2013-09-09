@@ -32,14 +32,17 @@ LOG = logging.getLogger(__name__)
 
 class TestDatabaseTasks(unittest.TestCase):
     '''Class to test rackspace.database celery tasks.'''
+    @mock.patch.object(functools, 'partial')
+    @mock.patch.object(database._create_instance, 'callback')
+    @mock.patch.object(database._create_instance, 'provider')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    def test_create_instance_sim_no_dbs(self, mock_reset):
+    def test_create_instance_sim_no_dbs(self, mock_reset,
+                                        mock_provider,
+                                        mock_callback,
+                                        mock_partial):
         'Create instance with simulation and no databases.'
-        api = mock.Mock()
-        database._create_instance.provider = mock.Mock(return_value=api)
-        database._create_instance.callback = mock.Mock()
         partial = mock.Mock()
-        functools.partial = mock.Mock(return_value=partial)
+        mock_partial.return_value = partial
         context = {
             'simulation': True,
             'resource_key': '0',
@@ -63,17 +66,20 @@ class TestDatabaseTasks(unittest.TestCase):
             context, 'test_instance', 1, 1, None, None)
         self.assertEqual(expected_result, results)
         partial.assert_called_with({'id': 'DBS0'})
-        database._create_instance.callback.assert_called_with(
+        mock_callback.assert_called_with(
             context, expected_result['instance:0'])
 
+    @mock.patch.object(functools, 'partial')
+    @mock.patch.object(database._create_instance, 'callback')
+    @mock.patch.object(database._create_instance, 'provider')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    def test_create_instance_sim_with_dbs(self, mock_reset):
+    def test_create_instance_sim_with_dbs(self, mock_reset,
+                                          mock_provider,
+                                          mock_callback,
+                                          mock_partial):
         '''Create instance with simulation and databases.'''
-        api = mock.Mock()
-        database._create_instance.provider = mock.Mock(return_value=api)
-        database._create_instance.callback = mock.Mock()
         partial = mock.Mock()
-        functools.partial = mock.Mock(return_value=partial)
+        mock_partial.return_value = partial
         context = {
             'simulation': True,
             'resource_key': '0',
@@ -121,22 +127,26 @@ class TestDatabaseTasks(unittest.TestCase):
             context, 'test_instance', 1, 1, databases, None)
         self.assertEqual(expected_result, results)
         partial.assert_called_with({'id': 'DBS0'})
-        database._create_instance.callback.assert_called_with(
+        mock_callback.assert_called_with(
             context, expected_result['instance:0'])
         mock_reset.assert_called_with('DEP_ID', '0')
 
+    @mock.patch.object(functools, 'partial')
+    @mock.patch.object(database._create_instance, 'callback')
+    @mock.patch.object(database._create_instance, 'provider')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    def test_create_instance_no_sim_no_dbs(self, mock_reset):
+    def test_create_instance_no_sim_no_dbs(self, mock_reset,
+                                           mock_provider,
+                                           mock_callback,
+                                           mock_partial):
         '''Create instance no databases.'''
         context = {'resource_key': '0', 'deployment_id': 0, 'region': 'DFW'}
         context = middleware.RequestContext(**context)
         api = mock.Mock()
-        database._create_instance.provider = mock.Mock()
-        database._create_instance.provider.connect = mock.Mock(
+        mock_provider.connect = mock.Mock(
             return_value=api)
-        database._create_instance.callback = mock.Mock()
         partial = mock.Mock()
-        functools.partial = mock.Mock(return_value=partial)
+        mock_partial.return_value = partial
         instance = mock.Mock()
         instance.id = 1234
         instance.name = 'test_instance'
@@ -163,28 +173,33 @@ class TestDatabaseTasks(unittest.TestCase):
         results = database.create_instance(context, 'test_instance', '1', '1',
                                            None, 'DFW')
 
-        database._create_instance.provider.connect.assert_called_with(
+        mock_provider.connect.assert_called_with(
             context, 'DFW')
         api.create.assert_called_with('test_instance', flavor=1, volume=1,
                                       databases=[])
         partial.assert_called_with({'id': 1234})
-        database._create_instance.callback.assert_called_with(
+        mock_callback.assert_called_with(
             context, expected['instance:0'])
         self.assertEqual(results, expected)
 
+    @mock.patch.object(functools, 'partial')
+    @mock.patch.object(database._create_instance, 'callback')
+    @mock.patch.object(database._create_instance, 'provider')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    def test_create_instance_no_sim_with_dbs(self, mock_reset):
+    def test_create_instance_no_sim_with_dbs(self, mock_reset,
+                                             mock_provider,
+                                             mock_callback,
+                                             mock_partial):
         '''Create instance with databases.'''
         context = {'resource_key': '0', 'deployment_id': 'DEP_ID',
                    'region': 'DFW'}
         context = middleware.RequestContext(**context)
         api = mock.Mock()
         instance = mock.Mock()
-        database._create_instance.provider = mock.Mock()
-        database._create_instance.provider.connect = mock.Mock(
+        mock_provider.connect = mock.Mock(
             return_value=api)
         partial = mock.Mock()
-        functools.partial = mock.Mock(return_value=partial)
+        mock_partial.return_value = partial
         instance.id = 1234
         instance.name = 'test_instance'
         instance.hostname = 'test.hostname'
@@ -226,17 +241,16 @@ class TestDatabaseTasks(unittest.TestCase):
             }
         }
         api.create = mock.Mock(return_value=instance)
-        database._create_instance.callback = mock.Mock()
 
         results = database.create_instance(context, 'test_instance', '1', '1',
                                            databases, 'DFW')
 
-        database._create_instance.provider.connect.assert_called_with(
+        mock_provider.connect.assert_called_with(
             context, 'DFW')
         api.create.assert_called_with('test_instance', volume=1, flavor=1,
                                       databases=databases)
         partial.assert_called_with({'id': 1234})
-        database._create_instance.callback.assert_called_with(
+        mock_callback.assert_called_with(
             context, expected['instance:0'])
         self.assertEqual(results, expected)
         mock_reset.assert_called_with('DEP_ID', '0')
