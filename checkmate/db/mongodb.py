@@ -644,7 +644,7 @@ class Driver(common.DbBase):
                         'Cross-Tenant Violation in _get_objects: requested '
                         'tenant %s does not match tenant %s in response.'
                         '\nLocals:\n %s\nGlobals:\n%s',
-                        tenant_id, entry.get('tenandId'), locals(), globals()
+                        tenant_id, entry.get('tenantId'), locals(), globals()
                     )
                     raise cmexc.CheckmateDataIntegrityError(
                         'A Tenant ID in the results does not match %s.',
