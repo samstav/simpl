@@ -423,13 +423,15 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     }
 
     var num_remaining_streams = streams.all.length - num_custom_heights;
-    var remaining_height = DEFAULTS.TOTAL_HEIGHT / num_remaining_streams;
+    var remaining_height = DEFAULTS.TOTAL_HEIGHT - streams.custom_height;
+    var remaining_stream_height = remaining_height / num_remaining_streams;
+
     for (var key in streams) {
       var stream = streams[key];
       if (!_is_stream(stream)) continue;
       if (stream.height) continue;
 
-      stream.height = remaining_height;
+      stream.height = remaining_stream_height;
     }
   }
 
