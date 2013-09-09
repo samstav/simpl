@@ -19,6 +19,7 @@
 '''Tests for script provider'''
 
 import logging
+import unittest
 
 from checkmate import deployment
 from checkmate import deployments
@@ -36,6 +37,143 @@ LOG = logging.getLogger(__name__)
 class TestScriptProvider(test.ProviderTester):
 
     klass = script.Provider
+
+
+class TestResources(unittest.TestCase):
+    def setUp(self):
+        providers.base.PROVIDER_CLASSES = {}
+        providers.register_providers([script.Provider, test.TestProvider])
+        self.deployment = \
+            deployment.Deployment(utils.yaml_to_dict('''
+                id: 'DEP-ID-1000'
+                tenantId: T1000
+                environment:
+                  name: Rackspace Open Cloud
+                  providers:
+                    script:
+                      vendor: core
+                      catalog:
+                        application:
+                          foo:
+                            provides:
+                            - application: http
+                            requires:
+                            - host: linux
+                            properties:
+                              scripts:
+                                install: |
+                                    apt-get update
+                                    apt-get install -y git
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            is: compute
+                            provides:
+                            - compute: linux
+                blueprint:
+                  name: "DevStack"
+                  description: "Simple Blueprint."
+                  services:
+                    devstack:
+                      component:
+                        interface: http
+                        type: application
+                        name: openstack
+                      constraints:
+                      - setting: memory
+                        resource_type: compute
+                        value: 2048
+            '''))
+
+    def test_resource_creation(self):
+        planner = deployments.Planner(self.deployment, parse_only=True)
+        resources = planner.plan(middleware.RequestContext())
+        self.assertEqual(len(resources), 2)
+
+        apps = [r for r in resources.values() if 'hosts' not in r]
+        self.assertEqual(len(apps), 1)
+        app = apps[0]
+
+        self.assertEqual(app['type'], 'application')
+        self.assertEqual(app['provider'], 'script')
+        self.assertEqual(app['component'], 'foo')
+
+
+class TestScriptTasks(unittest.TestCase):
+
+    def setUp(self):
+        self.context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                                 username='MOCK_USER')
+        providers.base.PROVIDER_CLASSES = {}
+        providers.register_providers([script.Provider, test.TestProvider])
+
+    def test_install_script(self):
+        '''Verify workflow includes the supplied install script run.'''
+        self.deployment = \
+            deployment.Deployment(utils.yaml_to_dict('''
+                id: 'DEP-ID-1000'
+                tenantId: T1000
+                environment:
+                  name: Rackspace Open Cloud
+                  providers:
+                    script:
+                      vendor: core
+                      catalog:
+                        application:
+                          openstack:
+                            provides:
+                            - application: http
+                            requires:
+                            - host: linux
+                            properties:
+                              scripts:
+                                install: |
+                                    apt-get update
+                                    apt-get install -y git
+                                    git clone git://github.com/openstack-dev/\
+devstack.git
+                                    cd devstack
+                                    echo 'DATABASE_PASSWORD=simple' > localrc
+                                    echo 'RABBIT_PASSWORD=simple' >> localrc
+                                    echo 'SERVICE_TOKEN=1111' >> localrc
+                                    echo 'SERVICE_PASSWORD=simple' >> localrc
+                                    echo 'ADMIN_PASSWORD=simple' >> localrc
+                                    ./stack.sh > stack.out
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            id: linux_instance
+                            is: compute
+                            provides:
+                            - compute: linux
+                blueprint:
+                  name: "DevStack"
+                  description: "Simple Blueprint for deploying DevStack."
+                  services:
+                    devstack:
+                      component:
+                        interface: http
+                        type: application
+                        name: openstack
+                      constraints:
+                      - setting: memory
+                        resource_type: compute
+                        value: 2048
+            '''))
+
+        deployments.Manager.plan(self.deployment, self.context)
+        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+            self.deployment, self.context)
+        spec = workflow_spec.task_specs['Execute Script 0 (1)']
+        provider = self.deployment['environment']['providers']['script']
+        component = provider['catalog']['application']['openstack']
+        script_body = component['properties']['scripts']['install']
+        self.assertEqual(spec.args[2], script_body)
 
 
 class TestSingleWorkflow(test.StubbedWorkflowBase):
