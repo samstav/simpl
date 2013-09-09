@@ -1,10 +1,25 @@
-#!/usr/bin/env python
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Checkmate module that registers/configures Celery tasks."""
 import os
-from subprocess import call
+import subprocess
 import sys
 
 
 def main_func():
+    "Called automatically when this module is loaded."""
     if len(sys.argv) > 1 and sys.argv[1] == 'START':
         params = []
         if '--newrelic' in sys.argv:
@@ -27,7 +42,7 @@ def main_func():
             'checkmate.celeryapp',
             'checkmate.common.tasks',
             'checkmate.workflows_new',
-            'checkmate.workspaces',
+            'checkmate.deployments.workspaces',
         ]
 
         params.extend([
@@ -50,28 +65,28 @@ def main_func():
             params.extend(sys.argv[2:])
 
         try:
-            print 'Running: %s' % ' '.join(params)
-            call(params)
+            print('Running: %s' % ' '.join(params))
+            subprocess.call(params)
         except OSError as exc:
             if params[0] == 'newrelic-admin':
                 print ("I got a 'File not found' error trying to run "
                        "newrelic-admin. Make sure the newrelic python agent "
                        "is installed")
             else:
-                print exc
+                print(exc)
 
         except KeyboardInterrupt:
-            print "\nExiting by keyboard request"
+            print("\nExiting by keyboard request")
     elif len(sys.argv) > 1 and sys.argv[1] == 'MONITOR':
         params = [sys.executable, '-m', 'celery.bin.celeryev',
                   '--config=checkmate.celeryconfig']
         try:
-            print 'Running: %s' % ' '.join(params)
-            call(params)
+            print('Running: %s' % ' '.join(params))
+            subprocess.call(params)
         except KeyboardInterrupt:
             pass
     else:
-        print """
+        print("""
         *** (Opinionated) Checkmate Queue Command-line Utility ***
 
         Starts the Checkmate Celery Queue Listener with some default settings
@@ -92,13 +107,13 @@ def main_func():
 
 
         Settings:
-        """
+        """)
         for key in os.environ:
             if key.startswith('CHECKMATE_') or key.startswith('CELERY'):
                 if key.startswith('CHECKMATE_CLIENT'):
                     pass
                 else:
-                    print key, '=', os.environ[key]
+                    print(key, '=', os.environ[key])
 
 if __name__ == '__main__':
     main_func()

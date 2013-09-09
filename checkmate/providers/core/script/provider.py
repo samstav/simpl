@@ -27,7 +27,6 @@ from checkmate import ssh
 LOG = logging.getLogger(__name__)
 
 
-# pylint: disable=R0904
 class Provider(providers.ProviderBase):
     """Implements a script configuration management provider."""
     name = 'script'
@@ -49,7 +48,7 @@ class Provider(providers.ProviderBase):
         if source_repo:
             defines = {'provider': self.key}
             properties = {'estimated_duration': 10, 'task_tags': ['root']}
-            task_name = 'checkmate.workspaces.create_workspace'
+            task_name = 'checkmate.deployments.workspaces.create_workspace'
             queued_task_dict = context.get_queued_task_dict(
                 deployment_id=deployment['id'])
             self.prep_task = Celery(wfspec,
@@ -64,7 +63,6 @@ class Provider(providers.ProviderBase):
 
         return results
 
-    # pylint: disable=R0913,R0914
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         """Create and write settings, generate run_list, and call cook."""
@@ -116,7 +114,6 @@ class Provider(providers.ProviderBase):
 
         return dict(root=join or execute_task, final=execute_task)
 
-    # pylint: disable=R0913
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
         """Generate tasks for a connection."""
@@ -130,13 +127,12 @@ class Provider(providers.ProviderBase):
         If it does not exist then connect, build, and return one.
         """
 
-        # TODO: maybe implement this an on_get_catalog so we don't have to do
-        #        this for every provider
+        # TODO(any): maybe implement this an on_get_catalog so we don't have
+        #            to do this for every provider.
         results = providers.ProviderBase.get_catalog(self, context,
                                                      type_filter=type_filter)
         return results
 
-    # pylint: disable=W0613
     @staticmethod
     def connect(context, *args):
         """Returns API connection object for rempte calls.
@@ -145,5 +141,5 @@ class Provider(providers.ProviderBase):
         :param *args: just there to handle region which leaked out of
             rackspace providers
         """
-        # TODO (zns): remove region (i.e. *args)
+        # TODO(zns): remove region (i.e. *args)
         return ssh
