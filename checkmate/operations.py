@@ -206,6 +206,15 @@ def get_status_info(errors, tenant_id, workflow_id):
     return status_info
 
 
+def _get_distinct_errors(errors):
+    """Eliminate duplicate errors."""
+    errs = sorted(errors, key=lambda k: k.get('error-type'))
+    seen = set()
+    seen_add = seen.add
+    return [err for err in errs if err.get('error-type') not in seen and not
+            seen_add(err.get('error-type'))]
+
+
 def init_operation(workflow, tenant_id=None):
     """Create a new operation dictionary for a given workflow.
 
@@ -294,12 +303,3 @@ def _update_operation(operation, workflow):
         operation['status'] = "COMPLETE"
     else:
         operation['status'] = "UNKNOWN"
-
-
-def _get_distinct_errors(errors):
-    """Eliminate duplicate errors."""
-    errs = sorted(errors, key=lambda k: k.get('error-type'))
-    seen = set()
-    seen_add = seen.add
-    return [err for err in errs if err.get('error-type') not in seen and not
-            seen_add(err.get('error-type'))]

@@ -297,9 +297,49 @@ class TestOperationsGetOperation(unittest.TestCase):
         self.assertEqual(('operations-history', 0, {'blah': 'blah'}), result)
 
 
-# class TestOperationsGetStatusInfo(unittest.TestCase):
-# class TestOperationsInitOperation(unittest.TestCase):
-# class TestOperationsHiddenUpdateOperation(unittest.TestCase):
+class TestOperationsGetStatusInfo(unittest.TestCase):
+    def test_no_errors(self):
+        self.assertEqual({'status-message': ''},
+                         operations.get_status_info([], 'T0', 'wfid'))
+
+    def test_friendly_message_in_one_error(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'}]
+        self.assertEqual({'status-message': '1. Hi!\n'},
+                         operations.get_status_info(errors, 'T0', 'wfid'))
+
+    def test_no_friendly_message_in_one_error(self):
+        errors = [{'error-type': '1'}]
+        self.assertEqual({'status-message': 'Multiple errors have occurred. '
+                          'Please contact support'},
+                         operations.get_status_info(errors, 'T0', 'wfid'))
+
+    def test_multiple_errors_with_friendly_messages(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '2', 'friendly-message': 'Heya!'}]
+        self.assertEqual({'status-message': '1. Hi!\n2. Heya!\n'},
+                         operations.get_status_info(errors, 'T0', 'wfid'))
+
+    def test_duplicate_errors_occurred(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '1', 'friendly-message': 'Hi!'}]
+        self.assertEqual({'status-message': '1. Hi!\n'},
+                         operations.get_status_info(errors, 'T0', 'wfid'))
+
+    def test_with_retriable_error(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!',
+                  'retriable': True}]
+        self.assertEqual({'retriable': True,
+                          'retry-link': '/T0/workflows/wfid/+retry-failed-tasks',
+                          'status-message': '1. Hi!\n'},
+                         operations.get_status_info(errors, 'T0', 'wfid'))
+
+    def test_with_resumable_error(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!',
+                  'resumable': True}]
+        self.assertEqual({'resumable': True,
+                          'resume-link': '/T0/workflows/wfid/+resume-failed-tasks',
+                          'status-message': '1. Hi!\n'},
+                         operations.get_status_info(errors, 'T0', 'wfid'))
 
 
 class TestOperationsGetDistinctErrors(unittest.TestCase):
