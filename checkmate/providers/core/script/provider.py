@@ -121,18 +121,6 @@ class Provider(providers.ProviderBase):
                   key, relation_key, extra={'data': {'resource': resource,
                                                      'relation': relation}})
 
-    def get_catalog(self, context, type_filter=None):
-        """Return stored/override catalog.
-
-        If it does not exist then connect, build, and return one.
-        """
-
-        # TODO(any): maybe implement this an on_get_catalog so we don't have
-        #            to do this for every provider.
-        results = providers.ProviderBase.get_catalog(self, context,
-                                                     type_filter=type_filter)
-        return results
-
     @staticmethod
     def connect(context, *args):
         """Returns API connection object for rempte calls.
