@@ -1582,12 +1582,8 @@ services.factory('deploymentDataParser', function(){
     return vip;
   }
 
-  function formatData(data) {
-    var formatted_data = {};
-
-    var vip = _get_vip(data.resources);
-    if (vip)
-      formatted_data.vip = vip;
+  var _get_url_info = function(data, default_domain) {
+    var url_info = {};
 
     var url;
     try {
@@ -1596,9 +1592,9 @@ services.factory('deploymentDataParser', function(){
       } else {
         url = data.inputs.blueprint.url.url;
       }
-      formatted_data.path = url;
+      url_info.path = url;
       var u = URI(url);
-      formatted_data.domain = u.hostname();
+      url_info.domain = u.hostname();
     }
     catch (error) {
       console.log("url not found", error);
@@ -1607,14 +1603,14 @@ services.factory('deploymentDataParser', function(){
       //Find domain in inputs
       try {
         domain = data.inputs.blueprint.domain;
-        formatted_data.domain = domain;
+        url_info.domain = domain;
       }
       catch (error) {
         console.log(error);
       }
       //If no domain, use load-balancer VIP
       if (domain === null) {
-        domain = formatted_data.vip;
+        domain = default_domain;
       }
       //Find path in inputs
       var path = "/";
@@ -1625,8 +1621,23 @@ services.factory('deploymentDataParser', function(){
         console.log(error);
       }
       if (domain !== undefined && path !== undefined)
-        formatted_data.path = "http://" + domain + path;
+        url_info.path = "http://" + domain + path;
     }
+
+    return url_info;
+  }
+
+  function formatData(data) {
+    var formatted_data = {};
+
+    var vip = _get_vip(data.resources);
+    if (vip)
+      formatted_data.vip = vip;
+
+    var url_info = _get_url_info(data, formatted_data.vip);
+    formatted_data.path = url_info.path;
+    formatted_data.domain = url_info.domain;
+
     try {
       var user = _.find(data.resources, function(r, k) { return r.type == 'user';});
       if (user !== undefined && 'instance' in user) {
