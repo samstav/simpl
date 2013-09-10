@@ -1,4 +1,4 @@
-'''Chef Solo configuration management provider.'''
+"""Chef Solo configuration management provider."""
 import copy
 import json
 import logging
@@ -36,7 +36,7 @@ CODE_CACHE = {}
 
 
 class CompilerCache(BytecodeCache):
-    '''Cache for compiled template code.'''
+    """Cache for compiled template code."""
 
     def load_bytecode(self, bucket):
         if bucket.key in CODE_CACHE:
@@ -47,10 +47,9 @@ class CompilerCache(BytecodeCache):
 
 
 def register_scheme(scheme):
-    '''
-    Use this to register a new scheme with urlparse and have it be
+    """Use this to register a new scheme with urlparse and have it be
     parsed in the same way as http is parsed
-    '''
+    """
     for method in filter(lambda s: s.startswith('uses_'), dir(urlparse)):
         getattr(urlparse, method).append(scheme)
 
@@ -58,12 +57,12 @@ register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
 class SoloProviderNotReady(CheckmateException):
-    '''Expected data are not yet available.'''
+    """Expected data are not yet available."""
     pass
 
 
 class Provider(ProviderBase):
-    '''Implements a Chef Solo configuration management provider.'''
+    """Implements a Chef Solo configuration management provider."""
     name = 'chef-solo'
     vendor = 'opscode'
 
@@ -123,12 +122,11 @@ class Provider(ProviderBase):
         return {'root': cleanup_task, 'final': cleanup_task}
 
     def cleanup_temp_files(self, wfspec, deployment):
-
-        '''Cleans up temporary files created during a deployment
+        """Cleans up temporary files created during a deployment
         :param wfspec: workflow spec
         :param deployment: deployment being worked on
         :return: root and final tasks for cleaning up the environment
-        '''
+        """
         client_ready_tasks = wfspec.find_task_specs(provider=self.key,
                                                     tag='client-ready')
         final_tasks = wfspec.find_task_specs(provider=self.key, tag='final')
@@ -148,7 +146,7 @@ class Provider(ProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
-        '''Create and write settings, generate run_list, and call cook.'''
+        """Create and write settings, generate run_list, and call cook."""
         wait_on, service_name, component = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
         #chef_map = self.get_map(component)
@@ -248,7 +246,7 @@ class Provider(ProviderBase):
 
     def get_prep_tasks(self, wfspec, deployment, resource_key, component,
                        collect_tag='collect', ready_tag='options-ready'):
-        '''Create (or get if they exist) tasks that collect and write map
+        """Create (or get if they exist) tasks that collect and write map
         options.
 
         The collect task will run its code whenever an input task completes.
@@ -279,7 +277,7 @@ class Provider(ProviderBase):
         Note:
         Only one databag with one item is currently supported per component.
         Only one role per component is supported now.
-        '''
+        """
         # Do tasks already exist?
         collect_tasks = wfspec.find_task_specs(provider=self.key,
                                                resource=resource_key,
@@ -509,7 +507,7 @@ class Provider(ProviderBase):
         return result
 
     def get_map_with_context(self, **kwargs):
-        '''Returns a map file that was parsed with real data in the context.'''
+        """Returns a map file that was parsed with real data in the context."""
         # Add defaults if there is a component and no defaults specified
         if kwargs and 'defaults' not in kwargs and 'component' in kwargs:
             component = kwargs['component']
@@ -529,7 +527,7 @@ class Provider(ProviderBase):
         return ChefMap(parsed=parsed)
 
     def get_resource_prepared_maps(self, resource, deployment, map_file=None):
-        '''Parse maps for a resource and identify paths for finding the map
+        """Parse maps for a resource and identify paths for finding the map
         data.
 
         By looking at a requirement's key and finding the relations that
@@ -537,7 +535,7 @@ class Provider(ProviderBase):
         'target' attribute, we can identify the resource we need to get the
         data from and provide the path to that resource as a hint to the
         TransMerge task
-        '''
+        """
         if map_file is None:
             map_file = self.map_file
 
@@ -590,7 +588,7 @@ class Provider(ProviderBase):
         return result
 
     def _hash_all_user_resource_passwords(self, deployment):
-        '''Chef needs all passwords to be a hash.'''
+        """Chef needs all passwords to be a hash."""
         if 'resources' in deployment:
             for resource in deployment['resources'].values():
                 if resource.get('type') == 'user':
@@ -600,9 +598,9 @@ class Provider(ProviderBase):
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
-        '''Write out or Transform data. Provide final task for relation sources
+        """Write out or Transform data. Provide final task for relation sources
         to hook into.
-        '''
+        """
         LOG.debug("Adding connection task for resource '%s' for relation '%s'",
                   key, relation_key, extra={'data': {'resource': resource,
                   'relation': relation}})
@@ -752,7 +750,7 @@ class Provider(ProviderBase):
 
     def get_reconfigure_tasks(self, wfspec, deployment, client, server,
                               server_component):
-        '''Gets (creates if does not exist) a task to reconfigure a server when
+        """Gets (creates if does not exist) a task to reconfigure a server when
         a client is ready.
 
         This generates only one task per workflow which all clients tie in to.
@@ -765,7 +763,7 @@ class Provider(ProviderBase):
         :param client: the client resource dict
         :param server: the server resource dict
         :param server_component: the component for the server
-        '''
+        """
         LOG.debug("Inform server %s (%s) that client %s (%s) is ready to "
                   "connect it", server['index'], server['component'],
                   client['index'], client['component'])
@@ -826,9 +824,9 @@ class Provider(ProviderBase):
         return result
 
     def get_catalog(self, context, type_filter=None):
-        '''Return stored/override catalog if it exists, else connect, build,
+        """Return stored/override catalog if it exists, else connect, build,
         and return one.
-        '''
+        """
 
         # TODO(zns): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
@@ -849,9 +847,9 @@ class Provider(ProviderBase):
             return catalog
 
     def get_remote_catalog(self, source=None):
-        '''Gets the remote catalog from a repo by obtaining a Chefmap file, if
+        """Gets the remote catalog from a repo by obtaining a Chefmap file, if
         it exists, and parsing it.
-        '''
+        """
         if source:
             map_file = ChefMap(url=source)
         else:
@@ -881,17 +879,17 @@ class Provider(ProviderBase):
 
 
 class Transforms(object):
-    '''Class to hold transform functions.
+    """Class to hold transform functions.
 
     We put them in a separate class to:
     - access them from tests
     - possible, in the future, use them as a library instead of passing the
       actual code in to Spiff for better security
     TODO(zns): Should separate them out into their own module (not class)
-    '''
+    """
     @staticmethod  # self will actually be a SpiffWorkflow.TaskSpec
     def collect_options(self, my_task):  # pylint: disable=W0211
-        '''Collect and write run-time options.'''
+        """Collect and write run-time options."""
         try:
             import copy  # pylint: disable=W0404,W0621
             # pylint: disable=W0621
@@ -985,10 +983,10 @@ class Transforms(object):
 
 
 class ChefMap(object):
-    '''Retrieves and parses Chefmap files.'''
+    """Retrieves and parses Chefmap files."""
 
     def __init__(self, url=None, raw=None, parsed=None):
-        '''Create a new Chefmap instance.
+        """Create a new Chefmap instance.
 
         :param url: is the path to the root git repo. Supported protocols
                        are http, https, and git. The .git extension is
@@ -1002,27 +1000,27 @@ class ChefMap(object):
 
         :return: solo.ChefMap
 
-        '''
+        """
         self.url = url
         self._raw = raw
         self._parsed = parsed
 
     @property
     def raw(self):
-        '''Returns the raw file contents.'''
+        """Returns the raw file contents."""
         if self._raw is None:
             self._raw = self.get_map_file()
         return self._raw
 
     @property
     def parsed(self):
-        '''Returns the parsed file contents.'''
+        """Returns the parsed file contents."""
         if self._parsed is None:
             self._parsed = self.parse(self.raw)
         return self._parsed
 
     def get_map_file(self):
-        '''Return the Chefmap file as a string.'''
+        """Return the Chefmap file as a string."""
         if self.url.startswith("file://"):
             chefmap_dir = self.url[7:]  # strip off "file://"
             chefmap_path = os.path.join(chefmap_dir, "Chefmap")
@@ -1043,7 +1041,7 @@ class ChefMap(object):
 
     @property
     def components(self):
-        '''The components in the map file.'''
+        """The components in the map file."""
         try:
             result = [
                 c for c in yaml.safe_load_all(self.parsed) if 'id' in c
@@ -1057,7 +1055,7 @@ class ChefMap(object):
         return result
 
     def has_mappings(self, component_id):
-        '''Does the map file have any mappings for this component.'''
+        """Does the map file have any mappings for this component."""
         for component in self.components:
             if component_id == component['id']:
                 if component.get('maps') or component.get('output'):
@@ -1065,9 +1063,9 @@ class ChefMap(object):
         return False
 
     def has_requirement_mapping(self, component_id, requirement_key):
-        '''Does the map file have any 'requirements' mappings for this
+        """Does the map file have any 'requirements' mappings for this
         component's requirement_key requirement.
-        '''
+        """
         for component in self.components:
             if component_id == component['id']:
                 for _map in component.get('maps', []):
@@ -1078,9 +1076,9 @@ class ChefMap(object):
         return False
 
     def has_client_mapping(self, component_id, provides_key):
-        '''Does the map file have any 'clients' mappings for this
+        """Does the map file have any 'clients' mappings for this
         component's provides_key connection point.
-        '''
+        """
         for component in self.components:
             if component_id == component['id']:
                 for _map in component.get('maps', []):
@@ -1092,13 +1090,13 @@ class ChefMap(object):
 
     @staticmethod
     def is_writable_val(val):
-        '''Determine if we should write the value.'''
+        """Determine if we should write the value."""
         return val is not None and len(str(val)) > 0
 
     def get_attributes(self, component_id, deployment):
-        '''Parse maps and get attributes for a specific component that are
+        """Parse maps and get attributes for a specific component that are
         ready.
-        '''
+        """
         for component in self.components:
             if component_id == component['id']:
                 maps = (m for m in component.get('maps', [])
@@ -1124,31 +1122,31 @@ class ChefMap(object):
                     return result
 
     def get_component_maps(self, component_id):
-        '''Get maps for a specific component.'''
+        """Get maps for a specific component."""
         for component in self.components:
             if component_id == component['id']:
                 return component.get('maps')
 
     def get_component_output_template(self, component_id):
-        '''Get output template for a specific component.'''
+        """Get output template for a specific component."""
         for component in self.components:
             if component_id == component['id']:
                 return component.get('output')
 
     def get_component_run_list(self, component_id):
-        '''Get run_list for a specific component.'''
+        """Get run_list for a specific component."""
         for component in self.components:
             if component_id == component['id']:
                 return component.get('run_list')
 
     def has_runtime_options(self, component_id):
-        '''Check if a component has maps that can only be resolved at run-time.
+        """Check if a component has maps that can only be resolved at run-time.
 
         Those would be items like:
         - requirement sources where the required resource does not exist yet
 
         :returns: boolean
-        '''
+        """
         for component in self.components:
             if component_id == component['id']:
                 maps = (m for m in component.get('maps', [])
@@ -1160,7 +1158,7 @@ class ChefMap(object):
 
     @staticmethod
     def filter_maps_by_schemes(maps, target_schemes=None):
-        '''Returns the maps that have specific target schemes.'''
+        """Returns the maps that have specific target schemes."""
         if not maps or not target_schemes:
             return maps
         result = []
@@ -1174,7 +1172,7 @@ class ChefMap(object):
 
     @staticmethod
     def resolve_map(mapping, data, output):
-        '''Resolve mapping and write output.'''
+        """Resolve mapping and write output."""
         ChefMap.apply_mapping(
             mapping,
             ChefMap.evaluate_mapping_source(mapping, data),
@@ -1183,12 +1181,12 @@ class ChefMap(object):
 
     @staticmethod
     def apply_mapping(mapping, value, output):
-        '''Applies the mapping value to all the targets.
+        """Applies the mapping value to all the targets.
 
         :param mapping: dict of the mapping
         :param value: the value of the mapping. This is evaluated elsewhere.
         :param output: a dict to apply the mapping to
-        '''
+        """
         # FIXME: hack to get v0.5 out. Until we implement search() or Craig's
         # ValueFilter. For now, just write arrays for all 'clients' mappings
         if not ChefMap.is_writable_val(value):
@@ -1256,7 +1254,7 @@ class ChefMap(object):
 
     @staticmethod
     def evaluate_mapping_source(mapping, data):
-        '''Returns the mapping source value.
+        """Returns the mapping source value.
 
         Raises a SoloProviderNotReady exception if the source is not yet
         available
@@ -1264,7 +1262,7 @@ class ChefMap(object):
         :param mapping: the mapping to resolved
         :param data: the data to read from
         :returns: the value
-        '''
+        """
         value = None
         if 'source' in mapping:
             url = ChefMap.parse_map_URI(mapping['source'])
@@ -1294,13 +1292,13 @@ class ChefMap(object):
 
     @staticmethod
     def resolve_ready_maps(maps, data, output):
-        '''Parse and apply maps that are ready.
+        """Parse and apply maps that are ready.
 
         :param maps: a list of maps to attempt to resolve
         :param data: the source of the data (a deployment)
         :param output: a dict to write the output to
         :returns: unresolved maps
-        '''
+        """
         unresolved = []
         for mapping in maps:
             value = None
@@ -1317,11 +1315,11 @@ class ChefMap(object):
 
     @staticmethod
     def parse_map_URI(uri):
-        '''Parses the URI format of a map.
+        """Parses the URI format of a map.
 
         :param uri: string uri based on map file supported sources and targets
         :returns: dict
-        '''
+        """
         try:
             parts = urlparse.urlparse(uri)
         except AttributeError:
@@ -1342,17 +1340,17 @@ class ChefMap(object):
 
     @staticmethod
     def parse(template, **kwargs):
-        '''Parse template.
+        """Parse template.
 
         :param template: the template contents as a string
         :param kwargs: extra arguments are passed to the renderer
-        '''
+        """
         template_map = {'template': template}
         env = ImmutableSandboxedEnvironment(loader=DictLoader(template_map),
                                             bytecode_cache=CompilerCache())
 
         def do_prepend(value, param='/'):
-            '''Prepend a string if the passed in string exists.
+            """Prepend a string if the passed in string exists.
 
             Example:
             The template '{{ root|prepend('/')}}/path';
@@ -1360,7 +1358,7 @@ class ChefMap(object):
                 /path
             Called with root defined as 'root' renders:
                 /root/path
-            '''
+            """
             if value:
                 return '%s%s' % (param, value)
             else:
@@ -1370,7 +1368,7 @@ class ChefMap(object):
         env.json = json
 
         def evaluate(value):
-            '''Handle defaults with functions.'''
+            """Handle defaults with functions."""
             if isinstance(value, basestring):
                 if value.startswith('=generate'):
                     # TODO(zns): Optimize. Maybe have Deployment class handle
@@ -1379,14 +1377,14 @@ class ChefMap(object):
             return value
 
         def parse_url(value):
-            '''Parse a url into its components.
+            """Parse a url into its components.
 
             :returns: Input parsed as url to support full option parsing
 
             returns a blank URL if none provided to make this a safe function
             to call from within a Jinja template which will generally not cause
             exceptions and will always return a url object
-            '''
+            """
             result = Input(value or '')
             result.parse_url()
             for attribute in ['certificate', 'private_key',

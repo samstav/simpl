@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 # encoding: utf-8
 """
 Rackspace Cloud Databases provider tasks
@@ -18,8 +32,7 @@ from checkmate.providers.rackspace.database import Provider
       acks_late=True, provider=Provider)
 @statsd.collect
 def wait_on_build(context, region, instance=None, api=None, callback=None):
-    '''
-    Waits on the instance to be created, deletes the instance if it goes
+    """Waits on the instance to be created, deletes the instance if it goes
     into an ERRORed status
     :param context: Context
     :param region: Region
@@ -27,7 +40,7 @@ def wait_on_build(context, region, instance=None, api=None, callback=None):
     :param api:
     :param callback:
     :return:
-    '''
+    """
     #TODO(vv) This is a temp fix, until we can delete ERROR-ed
     # instances
     #using workflows
@@ -109,6 +122,6 @@ def create_database(context, name, region=None, character_set=None,
       provider=Provider)
 def add_user(context, instance_id, databases, username, password,
              api=None, callback=None):
-    ''' Add a database user to an instance for one or more databases'''
+    """Add a database user to an instance for one or more databases"""
     return Manager.add_user(instance_id, databases, username, password,
                             add_user.api, add_user.partial, context.simulation)
