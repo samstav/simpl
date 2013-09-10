@@ -269,6 +269,29 @@ class TestWorkflow(unittest.TestCase):
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
+    def test_find_tasks_with_no_tasks_matching_filter(self):
+        self.mocked_workflow.get_tasks(state=Task.ANY_MASK).AndReturn([])
+        self.mox.ReplayAll()
+        matched = workflow.find_tasks(self.mocked_workflow)
+        self.mox.VerifyAll()
+        self.assertListEqual(matched, [])
+
+    def test_find_tasks_with_tasks_matching_filter(self):
+        task1 = self.mox.CreateMockAnything()
+        task2 = self.mox.CreateMockAnything()
+
+        task1.get_property("task_tags", []).AndReturn(["tag1"])
+        task2.get_property("task_tags", []).AndReturn([])
+
+        self.mocked_workflow.get_tasks(state=Task.ANY_MASK).AndReturn([
+            task1, task2])
+        self.mox.ReplayAll()
+        matched = workflow.find_tasks(self.mocked_workflow,
+                                      state=Task.ANY_MASK,
+                                      tag='tag1')
+        self.mox.VerifyAll()
+        self.assertListEqual(matched, [task1])
+
     def test_get_failed_tasks_with_valid_exception(self):
         task_state = {
             "info": "Exception('This is an exception')",
