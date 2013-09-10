@@ -97,8 +97,9 @@ class Provider(providers.ProviderBase):
             private_key=private_key,
             install_script=script_source,
             host_os=operators.PathAttrib(type_path),
+            timeout=300,
             properties={
-                'estimated_duration': 600,
+                'estimated_duration': 300,
                 'task_tags': ['final'],
             },
             defines={'resource': key, 'provider': self.key}
