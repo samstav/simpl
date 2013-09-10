@@ -86,7 +86,9 @@ class TestRelateResources(unittest.TestCase):
         self.assertEqual('ACTIVE', result[0]['body']['0']['status'])
 
     @mock.patch.object(mongodb.uuid, 'uuid4')
-    def test_existing_not_returned_if_not_in_incoming(self, mock_uuid):
+    @mock.patch.object(mongodb.LOG, 'warn')
+    def test_existing_not_returned_if_not_in_incoming(self, mock_log,
+                                                      mock_uuid):
         """Also shows that incoming IS returned even if not in existing."""
         mock_uuid.return_value = mock.Mock(hex='uuid')
         existing = [{'0': {'status': 'ERROR'}}]
@@ -98,6 +100,7 @@ class TestRelateResources(unittest.TestCase):
         }]
         result = mongodb.Driver._relate_resources(existing, incoming, {})
         self.assertEqual(expected, result)
+        self.assertFalse(mock_log.called)
 
     def test_id_from_existing_is_used_if_available(self):
         existing = [{'1': {'status': 'ERROR'}, 'id': 'existing'}]

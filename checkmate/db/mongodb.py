@@ -489,7 +489,7 @@ class Driver(common.DbBase):
                                       'body': {key: incoming_resource},
                                       'secret': resource_secret})
                     incoming_copy.pop(key)
-                else:
+                elif key in existing_resource:
                     LOG.warn('_relate_resources was going to try to pop a '
                              'non-existent key %s off incoming_copy. Here is '
                              'the existing list suspected of containing '

@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 #pylint: disable=W0212
 import logging
 import uuid
@@ -206,7 +220,8 @@ class Router(object):
         if (operation and operation.get('action') != 'PAUSE' and
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
             common_tasks.update_operation.delay(
-                dep_id, operations.current_workflow_id(deployment), action='PAUSE')
+                dep_id, operations.current_workflow_id(deployment),
+                action='PAUSE')
             tasks.pause_workflow.delay(api_id)
         return utils.write_body(workflow, bottle.request, bottle.response)
 
