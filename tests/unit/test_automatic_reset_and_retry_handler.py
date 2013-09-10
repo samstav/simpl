@@ -22,7 +22,7 @@ from celery.result import AsyncResult
 from checkmate.workflows import exception_handlers
 
 
-class TestRetryTaskTreeExceptionHandler(unittest.TestCase):
+class AutomaticResetAndRetryHandlerTests(unittest.TestCase):
 
     @mock.patch("checkmate.workflow.get_subworkflow")
     @mock.patch.object(AsyncResult, 'ready')

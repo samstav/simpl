@@ -17,9 +17,11 @@
 """Tests for Workflow class."""
 import re
 import unittest
+from mock import MagicMock, patch
 
 import mox
 from SpiffWorkflow import specs
+from SpiffWorkflow import Task
 from SpiffWorkflow import storage
 from SpiffWorkflow.Workflow import Workflow
 
@@ -122,6 +124,45 @@ class TestWorkflow(unittest.TestCase):
         self.assertDictEqual(subworkflows_history, {
             "task_id": ["subworkflow_id_1"]
         })
+
+    def test_reset_task_tree_for_celery_task_with_no_parents(self):
+        task1 = MagicMock(spec=specs.Celery)
+        task1.task_spec = MagicMock(spec=specs.Celery)
+        task1.task_spec._clear_celery_task_data = MagicMock()
+        task1.task_spec._update_state = MagicMock()
+
+        task1.parent = None
+        task1.get_property.return_value = ['root']
+
+        workflow.reset_task_tree(task1)
+        task1.task_spec._clear_celery_task_data.assert_called_with(task1)
+        task1.task_spec._update_state.assert_called_once_with(task1)
+
+        self.assertEquals(task1._state, Task.FUTURE)
+
+    def test_reset_task_tree_for_celery_task_with_parents(self):
+        task1 = MagicMock()
+        task1.task_spec = MagicMock(spec=specs.Celery)
+        task1.task_spec._clear_celery_task_data = MagicMock()
+        task1.task_spec._update_state = MagicMock()
+
+        task2 = MagicMock()
+        task2.task_spec = MagicMock()
+        task2.get_property.return_value = ['root']
+
+        task1.parent = task2
+        task1.get_property.return_value = []
+
+        workflow.reset_task_tree(task1)
+
+        task1.task_spec._clear_celery_task_data.assert_called_with(task1)
+
+        task2.task_spec._update_state.assert_called_once_with(task2)
+
+        self.assertEquals(task1._state, Task.FUTURE)
+        self.assertEquals(task2._state, Task.FUTURE)
+
+
 
     def test_convert_exc_to_dict_with_retriable_exception(self):
         info = "CheckmateRetriableException('foo', 'Exception', " \
