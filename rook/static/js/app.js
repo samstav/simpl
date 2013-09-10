@@ -3192,14 +3192,15 @@ function ResourcesController($scope, $resource, $location, Deployment){
   $scope.resources_by_provider.database = [];
   $scope.resources_by_provider['load-balancer'] = [];
 
-  $scope.add_to_deployment = function(resource){
-    $scope.selected_resources.push(resource);
-    $scope.resources_by_provider[resource.provider].splice($scope.resources_by_provider[resource.provider].indexOf(resource), 1);
+  $scope.add_to_deployment = function(decorated_resource){
+    var resource_list = $scope.resources_by_provider[decorated_resource.resource.provider];
+    $scope.selected_resources.push(decorated_resource);
+    resource_list.splice(resource_list.indexOf(decorated_resource), 1);
   };
 
-  $scope.remove_from_deployment = function(resource){
-    $scope.resources_by_provider[resource.provider].push(resource);
-    $scope.selected_resources.splice($scope.selected_resources.indexOf(resource), 1);
+  $scope.remove_from_deployment = function(decorated_resource){
+    $scope.resources_by_provider[decorated_resource.resource.provider].push(decorated_resource);
+    $scope.selected_resources.splice($scope.selected_resources.indexOf(decorated_resource), 1);
   };
 
   $scope.get_load_balancers = function(){
@@ -3208,7 +3209,10 @@ function ResourcesController($scope, $resource, $location, Deployment){
       var url = '/:tenantId/providers/rackspace.load-balancer/resources';
       var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
       lb_api.query(function(results) {
-        $scope.resources_by_provider['load-balancer'] = results;
+        $scope.resources_by_provider['load-balancer'] = [];
+        angular.forEach(results, function(lb){
+          $scope.resources_by_provider['load-balancer'].push({resource: lb})
+        });
         if(results.length === 0){
           $scope.no_lbs = true;
         }
@@ -3227,7 +3231,10 @@ function ResourcesController($scope, $resource, $location, Deployment){
       var url = '/:tenantId/providers/rackspace.nova/resources';
       var server_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
       server_api.query(function(results) {
-        $scope.resources_by_provider.nova = results;
+        $scope.resources_by_provider.nova = [];
+        angular.forEach(results, function(server){
+          $scope.resources_by_provider.nova.push({resource: server})
+        });
         if(results.length === 0){
           $scope.no_servers = true;
         }
@@ -3246,7 +3253,10 @@ function ResourcesController($scope, $resource, $location, Deployment){
       var url = '/:tenantId/providers/rackspace.database/resources';
       var db_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
       var results = db_api.query(function() {
-        $scope.resources_by_provider.database = results;
+        $scope.resources_by_provider.database = [];
+        angular.forEach(results, function(db){
+          $scope.resources_by_provider.database.push({resource: db})
+        });
         if(results.length === 0){
           $scope.no_dbs = true;
         }
@@ -3291,7 +3301,7 @@ function ResourcesController($scope, $resource, $location, Deployment){
 
     deployment.resources = {};
     for (i=0; i<$scope.selected_resources.length; i++){
-      deployment.resources[i] = $scope.selected_resources[i]
+      deployment.resources[i] = $scope.selected_resources[i].resource
     }
     deployment.blueprint = {
       'services': {},

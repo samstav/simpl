@@ -15,12 +15,12 @@
             </tr>
           </thead>
           <tbody>
-            <tr ng-repeat="serv in resources_by_provider['nova'] | orderBy:'instance.id'">
-              <td>{{serv['dns-name']}}</td>
-              <td>{{serv['instance']['id']}}</td>
-              <td>{{serv['region']}}</td>
-              <td>{{serv['status']}}</td>
-              <td><i ng-click="add_to_deployment(serv)" class="icon-plus-sign-alt clickable"></i></td>
+            <tr ng-repeat="decorated_serv in resources_by_provider['nova'] | orderBy:'resource.instance.id'">
+              <td>{{decorated_serv.resource['dns-name']}}</td>
+              <td>{{decorated_serv.resource['instance']['id']}}</td>
+              <td>{{decorated_serv.resource['region']}}</td>
+              <td>{{decorated_serv.resource['status']}}</td>
+              <td><i ng-click="add_to_deployment(decorated_serv)" class="icon-plus-sign-alt clickable"></i></td>
             </tr>
             <tr class='messages'>
               <td colspan="5">
@@ -55,12 +55,12 @@
             </tr>
           </thead>
           <tbody>
-            <tr ng-repeat="lb in resources_by_provider['load-balancer'] | orderBy:'instance.id'">
-              <td>{{lb['dns-name']}}</td>
-              <td>{{lb['instance']['id']}}</td>
-              <td>{{lb['region']}}</td>
-              <td>{{lb['status']}}</td>
-              <td><i ng-click="add_to_deployment(lb)" class="icon-plus-sign-alt clickable"></i></td>
+            <tr ng-repeat="decorated_lb in resources_by_provider['load-balancer'] | orderBy:'resource.instance.id'">
+              <td>{{decorated_lb.resource['dns-name']}}</td>
+              <td>{{decorated_lb.resource['instance']['id']}}</td>
+              <td>{{decorated_lb.resource['region']}}</td>
+              <td>{{decorated_lb.resource['status']}}</td>
+              <td><i ng-click="add_to_deployment(decorated_lb)" class="icon-plus-sign-alt clickable"></i></td>
             </tr>
 
             <tr class='messages'>
@@ -96,12 +96,12 @@
             </tr>
           </thead>
           <tbody>
-            <tr ng-repeat="db in resources_by_provider['database'] | orderBy:'instance.id'">
-              <td>{{db['dns-name']}}</td>
-              <td>{{db['instance']['id']}}</td>
-              <td>{{db['region']}}</td>
-              <td>{{db['status']}}</td>
-              <td><i ng-click="add_to_deployment(db)" class="icon-plus-sign-alt clickable"></i></td>
+            <tr ng-repeat="decorated_db in resources_by_provider['database'] | orderBy:'resource.instance.id'">
+              <td>{{decorated_db.resource['dns-name']}}</td>
+              <td>{{decorated_db.resource['instance']['id']}}</td>
+              <td>{{decorated_db.resource['region']}}</td>
+              <td>{{decorated_db.resource['status']}}</td>
+              <td><i ng-click="add_to_deployment(decorated_db)" class="icon-plus-sign-alt clickable"></i></td>
             </tr>
 
             <tr class='messages'>
@@ -141,12 +141,12 @@
             </tr>
           </thead>
           <tbody>
-            <tr ng-repeat="resource in selected_resources">
-              <td><i ng-click="remove_from_deployment(resource)" class="icon-minus-sign-alt clickable"></i></td>
-              <td>{{resource['dns-name']}}</td>
-              <td>{{resource['instance']['id']}}</td>
-              <td>{{resource['region']}}</td>
-              <td>{{resource['status']}}</td>
+            <tr ng-repeat="decorated_resource in selected_resources">
+              <td><i ng-click="remove_from_deployment(decorated_resource)" class="icon-minus-sign-alt clickable"></i></td>
+              <td>{{decorated_resource.resource['dns-name']}}</td>
+              <td>{{decorated_resource.resource['instance']['id']}}</td>
+              <td>{{decorated_resource.resource['region']}}</td>
+              <td>{{decorated_resource.resource['status']}}</td>
             </tr>
           </tbody>
         </table>
