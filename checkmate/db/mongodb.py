@@ -20,6 +20,7 @@ TODO:
 - Check indeces; if we fix mapping do we still need an index on workflow.id?
 
 """
+import bson
 import copy
 import logging
 import pymongo
@@ -337,12 +338,14 @@ class Driver(common.DbBase):
                                         query=query)
         return deployments
 
-    def get_resources(self, tenant_id=None, limit=None, offset=None):
-        resources = self._get_objects(self._resource_collection_name,
-                                      tenant_id=tenant_id,
-                                      limit=limit,
-                                      offset=offset)
-        return resources
+    def get_resources(self, tenant_id=None, limit=None, offset=None,
+                      resource_type=None, provider=None):
+        return self._get_objects(self._resource_collection_name,
+                                 tenant_id=tenant_id,
+                                 limit=limit,
+                                 offset=offset,
+                                 resource_type=resource_type,
+                                 provider=provider)
 
     def _remove_all(self, collection_name, ids):
         """Remove all objects with the ids in the ids list supplied."""
@@ -607,7 +610,8 @@ class Driver(common.DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
                      limit=0, with_count=True, with_deleted=False,
-                     status=None, query=None):
+                     status=None, query=None, resource_type=None,
+                     provider=None):
         """Returns a list of objects for the given Tenant ID.
 
         :param klass: The klass to query from
@@ -637,7 +641,8 @@ class Driver(common.DbBase):
             limit = 0
         with self._get_client().start_request():
             results = self.database()[klass].find(self._build_filters(
-                klass, tenant_id, with_deleted, status, query), projection)
+                klass, tenant_id, with_deleted,
+                status, query, resource_type, provider), projection)
             if sort_key:
                 results.sort(sort_key, sort_direction)
             results = results.skip(offset).limit(limit)
@@ -664,11 +669,12 @@ class Driver(common.DbBase):
 
             if with_count:
                 response['collection-count'] = self._get_count(
-                    klass, tenant_id, with_deleted, status, query)
+                    klass, tenant_id, with_deleted,
+                    status, query, resource_type, provider)
         return response
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None,
-                   query=None):
+                   query=None, resource_type=None, provider=None):
         """Returns a record count for the given tenant.
 
         :param klass: the collection to query
@@ -679,13 +685,13 @@ class Driver(common.DbBase):
         """
         return self.database()[klass].find(
             self._build_filters(klass, tenant_id, with_deleted, status,
-                                query),
+                                query, resource_type, provider),
             self._object_projection
         ).count()
 
     @staticmethod
     def _build_filters(klass, tenant_id, with_deleted, status=None,
-                       query=None):
+                       query=None, resource_type=None, provider=None):
         """Build MongoDB filters.
 
         `with_deleted` is a handy shortcut for including/excluding deleted
@@ -733,6 +739,37 @@ class Driver(common.DbBase):
                         else:
                             condition = _parse_comparison(query[key])
                             filters[key] = condition
+
+        if klass == Driver._resource_collection_name:
+            js_function_top = "function() {" + \
+                                  "for (var key in this) {" + \
+                                      "if (this.hasOwnProperty(key)) {" + \
+                                          "if (key.match(/^\d+$/)){"
+
+            js_function_bottom =                  "return true" + \
+                                              "}" + \
+                                          "}" + \
+                                      "}" + \
+                                  "}" + \
+                              "}"
+
+            if resource_type or provider:
+                if resource_type and provider:
+                    js_function_conditional = \
+                        "if (this[key]['type'] == '%s' &&" % resource_type + \
+                        "this[key]['provider'] == '%s'){" % provider
+                elif resource_type:
+                    js_function_conditional = \
+                        "if (this[key]['type'] == '%s'){" % resource_type
+                else:
+                    js_function_conditional = \
+                        "if (this[key]['provider'] == '%s'){" % provider
+
+                filters['$where'] = bson.code.Code(
+                    js_function_top +
+                    js_function_conditional +
+                    js_function_bottom
+                )
 
         return filters
 

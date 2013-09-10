@@ -157,6 +157,17 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         expected = {'777': {'id': '777', 'tenantId': '888'}}
         self.assertDictEqual(result['results'], expected)
 
+    def test_get_resources_with_resource_type(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123', 'tenantId': '321', '4': {'type': 'load-balancer'}},
+            {'id': '777', 'tenantId': '888', '4': {'type': 'compute'}}
+        ])
+        result = self.driver.get_resources(resource_type='compute')
+        expected = {
+            '777': {'id': '777', 'tenantId': '888', '4': {'type': 'compute'}}
+        }
+        self.assertDictEqual(result['results'], expected)
+
 
 @unittest.skipIf(SKIP, REASON)
 class TestMongoDBCapabilities(unittest.TestCase):
