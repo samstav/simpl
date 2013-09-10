@@ -1571,18 +1571,23 @@ services.factory('pagination', function(){
 });
 
 services.factory('deploymentDataParser', function(){
+  var _get_vip = function(resources) {
+    var vip;
+
+    var lb = _.find(resources, function(resource) { return resource.type == 'load-balancer'; });
+    if (lb && 'instance' in lb) {
+      vip = lb.instance.public_ip;
+    }
+
+    return vip;
+  }
+
   function formatData(data) {
     var formatted_data = {};
 
-    try {
-      var lb = _.find(data.resources, function(r, k) { return r.type == 'load-balancer';});
-      if ('instance' in lb) {
-        formatted_data.vip = lb.instance.public_ip;
-      }
-    }
-    catch (error) {
-      console.log(error);
-    }
+    var vip = _get_vip(data.resources);
+    if (vip)
+      formatted_data.vip = vip;
 
     var url;
     try {
