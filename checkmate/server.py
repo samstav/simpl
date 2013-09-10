@@ -256,6 +256,10 @@ def main():
             os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
         )
     )
+    DRIVERS['lock'] = db.get_driver(
+        connection_string=os.environ.get(
+            'CHECKMATE_LOCK_CONNECTION_STRING',
+            os.environ.get('CHECKMATE_CONNECTION_STRING')))
 
     if CONFIG.webhook is True:
         if 'github' not in MANAGERS:

@@ -156,18 +156,6 @@ class DbBase(object):  # pylint: disable=R0921
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
         raise NotImplementedError()
 
-    def unlock_workflow(self, api_id, key):
-        raise NotImplementedError()
-
-    def lock_workflow(self, api_id, with_secrets=None, key=None):
-        raise NotImplementedError()
-
-    def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        raise NotImplementedError()
-
-    def unlock_object(self, klass, api_id, key):
-        raise NotImplementedError()
-
     #
     # Data conversion helper
     # TODO(zns): remove this when we're done
