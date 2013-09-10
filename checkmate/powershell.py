@@ -1,3 +1,4 @@
+# pylint: disable=W0613
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #
@@ -35,7 +36,6 @@ class Alarm(Exception):
     pass
 
 
-# pylint: disable=W0613
 def alarm_handler(signum, frame):
     """Called when a timeout signal is raised."""
     raise Alarm
