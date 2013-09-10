@@ -699,6 +699,18 @@ angular.module('checkmate.directives').directive('cmStopClickPropagation', ['$ro
   };
 }]);
 
+angular.module('checkmate.directives').directive('cmPasswordManager', ['$rootScope', function($rootScope) {
+  return {
+    require: ['ngModel'],
+    link: function(scope, element, attrs, controllers) {
+      element.on('change', function(e) {
+        var modelCtrl = controllers[0];
+        modelCtrl.$setViewValue(element.val());
+      })
+    }
+  };
+}]);
+
 // Extend ui-bootstrap to use HTML popovers
 directives.directive( 'popoverHtmlUnsafePopup', function () {
   return {
