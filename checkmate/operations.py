@@ -207,10 +207,9 @@ def get_status_info(errors, tenant_id, workflow_id):
 
 def _get_distinct_errors(errors):
     """Eliminate duplicate errors."""
-    errs = sorted(errors, key=lambda k: k.get('error-type'))
     seen = set()
     seen_add = seen.add
-    return [err for err in errs if err.get('error-type') not in seen and not
+    return [err for err in errors if err.get('error-type') not in seen and not
             seen_add(err.get('error-type'))]
 
 

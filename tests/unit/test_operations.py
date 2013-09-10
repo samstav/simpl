@@ -373,6 +373,49 @@ class TestOperationsGetDistinctErrors(unittest.TestCase):
         self.assertEqual(expected, operations._get_distinct_errors(errors))
 
 
+class TestOperationsInitOperation(unittest.TestCase):
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_update_operation_stats_is_called(self, mock_update_stats):
+        mock_wf = mock.Mock()
+        operations.init_operation(mock_wf)
+        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_worfklow_id_pulled_from_id(self, mock_update_stats):
+        mock_wf = mock.Mock()
+        mock_wf.attributes = {'id': 'wfid', 'deploymentId': 'depid'}
+        result = operations.init_operation(mock_wf)
+        self.assertEqual('wfid', result['workflow-id'])
+        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_worfklow_id_pulled_from_deployment_id(self, mock_update_stats):
+        mock_wf = mock.Mock()
+        mock_wf.attributes = {'deploymentId': 'depid'}
+        result = operations.init_operation(mock_wf)
+        self.assertEqual('depid', result['workflow-id'])
+        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_link_added_with_no_tenant_id(self, mock_update_stats):
+        mock_wf = mock.Mock()
+        mock_wf.attributes = {'id': 'wfid'}
+        result = operations.init_operation(mock_wf)
+        self.assertEqual('/None/workflows/wfid', result['link'])
+        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_link_added_with_tenant_id(self, mock_update_stats):
+        mock_wf = mock.Mock()
+        mock_wf.attributes = {'id': 'wfid'}
+        mock_task = mock.Mock()
+        mock_task._state = {'id': ''}
+        mock_wf.task_tree.children = [mock_task]
+        result = operations.init_operation(mock_wf, 'T0')
+        self.assertEqual('/T0/workflows/wfid', result['link'])
+        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+
+
 class TestOperationsUpdateOperationStats(unittest.TestCase):
     def test_no_change_to_status(self):
         mock_wf = mock.Mock()
