@@ -18,8 +18,7 @@
 import mock
 import unittest
 
-#from SpiffWorkflow import specs
-#from SpiffWorkflow import Workflow
+from SpiffWorkflow import Task
 
 from checkmate import exceptions as cmexc
 from checkmate import operations
@@ -376,51 +375,116 @@ class TestOperationsGetDistinctErrors(unittest.TestCase):
 class TestOperationsInitOperation(unittest.TestCase):
     @mock.patch.object(operations, '_update_operation_stats')
     def test_update_operation_stats_is_called(self, mock_update_stats):
-        mock_wf = mock.Mock()
-        operations.init_operation(mock_wf)
-        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+        mockwf = mock.Mock()
+        operations.init_operation(mockwf)
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
 
     @mock.patch.object(operations, '_update_operation_stats')
     def test_worfklow_id_pulled_from_id(self, mock_update_stats):
-        mock_wf = mock.Mock()
-        mock_wf.attributes = {'id': 'wfid', 'deploymentId': 'depid'}
-        result = operations.init_operation(mock_wf)
+        mockwf = mock.Mock()
+        mockwf.attributes = {'id': 'wfid', 'deploymentId': 'depid'}
+        result = operations.init_operation(mockwf)
         self.assertEqual('wfid', result['workflow-id'])
-        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
 
     @mock.patch.object(operations, '_update_operation_stats')
     def test_worfklow_id_pulled_from_deployment_id(self, mock_update_stats):
-        mock_wf = mock.Mock()
-        mock_wf.attributes = {'deploymentId': 'depid'}
-        result = operations.init_operation(mock_wf)
+        mockwf = mock.Mock()
+        mockwf.attributes = {'deploymentId': 'depid'}
+        result = operations.init_operation(mockwf)
         self.assertEqual('depid', result['workflow-id'])
-        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
 
     @mock.patch.object(operations, '_update_operation_stats')
     def test_link_added_with_no_tenant_id(self, mock_update_stats):
-        mock_wf = mock.Mock()
-        mock_wf.attributes = {'id': 'wfid'}
-        result = operations.init_operation(mock_wf)
+        mockwf = mock.Mock()
+        mockwf.attributes = {'id': 'wfid'}
+        result = operations.init_operation(mockwf)
         self.assertEqual('/None/workflows/wfid', result['link'])
-        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
 
     @mock.patch.object(operations, '_update_operation_stats')
     def test_link_added_with_tenant_id(self, mock_update_stats):
-        mock_wf = mock.Mock()
-        mock_wf.attributes = {'id': 'wfid'}
+        mockwf = mock.Mock()
+        mockwf.attributes = {'id': 'wfid'}
         mock_task = mock.Mock()
         mock_task._state = {'id': ''}
-        mock_wf.task_tree.children = [mock_task]
-        result = operations.init_operation(mock_wf, 'T0')
+        mockwf.task_tree.children = [mock_task]
+        result = operations.init_operation(mockwf, 'T0')
         self.assertEqual('/T0/workflows/wfid', result['link'])
-        mock_update_stats.assert_called_once_with(mock.ANY, mock_wf)
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
 
 
 class TestOperationsUpdateOperationStats(unittest.TestCase):
-    def test_no_change_to_status(self):
-        mock_wf = mock.Mock()
-        mock_wf.task_tree.children = []
-        self.assertEqual(None, operations._update_operation_stats({}, mock_wf))
+    def setUp(self):
+        self.future_task = self._build_task([], Task.FUTURE, 2, 0, 'NA')
+        self.complete_task = self._build_task([], Task.COMPLETED, 0, 4, 'NA')
+        self.ready_task = self._build_task([], Task.READY, 4, 0, 'NA')
+        self.compound_task = self._build_task(
+            [self.complete_task, self.ready_task], Task.COMPLETED, 0, 6, 'NA')
+        self.failed_task = self._build_task(
+            [], Task.TRIGGERED, 0, 6, 'FAILURE')
+        self.mockwf = mock.Mock()
+
+    def _build_task(self, children, state, duration, changed, task_state):
+        """Helper method to create a mock task."""
+        the_task = mock.Mock()
+        the_task.children = children
+        the_task._state = state
+        the_task.last_state_change = changed
+        the_task._get_internal_attribute.side_effect = (
+            lambda x: {'estimated_completed_in': duration,
+                       'task_state': {'state': task_state}}[x]
+        )
+        return the_task
+
+    def test_no_tasks(self):
+        self.mockwf.task_tree.children = []
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual(0, operation['tasks'])
+
+    def test_duration_calculated_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.ready_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual(2+4, operation['estimated-duration'])
+
+    def test_total_calculated_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual(4, operation['tasks'])
+
+    def test_complete_calculated_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual(2, operation['complete'])
+
+    def test_last_change_calculated_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual('1970-01-01 00:00:06 +0000', operation['last-change'])
+
+    def test_error_state_reported_correctly(self):
+        self.mockwf.task_tree.children = [self.failed_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual('ERROR', operation['status'])
+
+    def test_in_progress_state_reported_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual('IN PROGRESS', operation['status'])
+
+    def test_complete_state_reported_correctly(self):
+        self.mockwf.task_tree.children = [self.complete_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual('COMPLETE', operation['status'])
 
 
 if __name__ == '__main__':

@@ -19,6 +19,7 @@ import time
 
 from celery import task as celtask
 from SpiffWorkflow.storage import DictionarySerializer
+from SpiffWorkflow import Task
 from SpiffWorkflow import Workflow as SpiffWorkflow
 
 from checkmate import celeryglobal as celery
@@ -27,6 +28,7 @@ from checkmate import db
 from checkmate import deployment as cmdep
 from checkmate import exceptions as cmexc
 from checkmate import utils
+from checkmate import workflow
 
 LOG = logging.getLogger(__name__)
 LOCK_DB = db.get_driver(connection_string=os.environ.get(
@@ -47,9 +49,9 @@ def _create(dep_id, workflow_id, op_type, tenant_id):
     """Create a new operation of type 'op_type'."""
     driver = db.get_driver(api_id=dep_id)
     deployment = driver.get_deployment(dep_id, with_secrets=False)
-    workflow = driver.get_workflow(workflow_id, with_secrets=False)
+    curr_wf = driver.get_workflow(workflow_id, with_secrets=False)
     serializer = DictionarySerializer()
-    spiff_wf = SpiffWorkflow.deserialize(serializer, workflow)
+    spiff_wf = SpiffWorkflow.deserialize(serializer, curr_wf)
     add(deployment, spiff_wf, op_type, tenant_id=tenant_id)
     driver.save_deployment(dep_id, deployment, secrets=None,
                            tenant_id=tenant_id, partial=False)
@@ -213,7 +215,7 @@ def _get_distinct_errors(errors):
             seen_add(err.get('error-type'))]
 
 
-def init_operation(workflow, tenant_id=None):
+def init_operation(spiffwf, tenant_id=None):
     """Create a new operation dictionary for a given workflow.
 
     Example:
@@ -229,48 +231,24 @@ def init_operation(workflow, tenant_id=None):
     """
     operation = {}
 
-    _update_operation_stats(operation, workflow)
+    _update_operation_stats(operation, spiffwf)
 
     # Operation link
-    workflow_id = (workflow.attributes.get('id') or
-                   workflow.attributes.get('deploymentId'))
+    workflow_id = (spiffwf.attributes.get('id') or
+                   spiffwf.attributes.get('deploymentId'))
     operation['link'] = "/%s/workflows/%s" % (tenant_id, workflow_id)
     operation['workflow-id'] = workflow_id
 
     return operation
 
 
-def _update_operation_stats(operation, workflow):
+def _update_operation_stats(operation, spiffwf):
     """Update an operation dictionary for a given workflow.
 
-    Example:
-
-    'operation': {
-        'type': 'deploy',
-        'status': 'IN PROGRESS',
-        'estimated-duration': 2400,
-        'tasks': 175,
-        'complete': 100,
-        'link': '/v1/{tenant_id}/workflows/982h3f28937h4f23847'
-    }
-
     :param operation: a deployment operation dict
-    :param workflow: SpiffWorkflow
+    :param spiffwf: SpiffWorkflow
     """
-
-    tasks = workflow.task_tree.children
-
-    # Loop through tasks and calculate statistics
-    spiff_status = {
-        1: "FUTURE",
-        2: "LIKELY",
-        4: "MAYBE",
-        8: "WAITING",
-        16: "READY",
-        32: "CANCELLED",
-        64: "COMPLETED",
-        128: "TRIGGERED"
-    }
+    tasks = spiffwf.task_tree.children
     duration = 0
     complete = 0
     failure = 0
@@ -279,10 +257,9 @@ def _update_operation_stats(operation, workflow):
     while tasks:
         current = tasks.pop(0)
         tasks.extend(current.children)
-        status = spiff_status[current._state]
-        if status == "COMPLETED":
+        if current._state == Task.COMPLETED:
             complete += 1
-        elif status == "FAILURE":
+        elif workflow.is_failed_task(current):
             failure += 1
         duration += current._get_internal_attribute('estimated_completed_in')
         if current.last_state_change > last_change:
@@ -299,5 +276,3 @@ def _update_operation_stats(operation, workflow):
         operation['status'] = "IN PROGRESS"
     elif total == complete:
         operation['status'] = "COMPLETE"
-    else:
-        operation['status'] = "UNKNOWN"
