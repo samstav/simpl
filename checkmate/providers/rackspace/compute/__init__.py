@@ -1552,14 +1552,15 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 
 
 @ctask.task(default_retry_delay=30, max_retries=120)
-def verify_ssh_connection(context, server_id, region, ip, username='root',
-                          timeout=10, password=None, identity_file=None,
-                          port=22, api_object=None, private_key=None):
+def verify_ssh_connection(context, server_id, region, server_ip,
+                          username='root', timeout=10, password=None,
+                          identity_file=None, port=22, api_object=None,
+                          private_key=None):
     """Verifies the ssh connection to a server
     :param context: context data
     :param server_id: server id
     :param region: region where the server exists
-    :param ip: ip of the server
+    :param server_ip: ip of the server
     :param username: username for ssh
     :param timeout: timeout for ssh
     :param password: password for ssh
@@ -1600,8 +1601,8 @@ def verify_ssh_connection(context, server_id, region, ip, username='root',
     if ((metadata and metadata['os_type'] == 'linux') or
             ('windows' not in image_details.name.lower())):
         msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
-              "to connect." % (server_id, username, ip, port)
-        is_up = ssh.test_connection(context, ip, username,
+              "to connect." % (server_id, username, server_ip, port)
+        is_up = ssh.test_connection(context, server_ip, username,
                                     timeout=timeout,
                                     password=password,
                                     identity_file=identity_file,
@@ -1610,7 +1611,7 @@ def verify_ssh_connection(context, server_id, region, ip, username='root',
     else:
         msg = "Server '%s' is ACTIVE but is not responding to ping " \
               " attempts" % server_id
-        is_up = rdp.test_connection(context, ip, timeout=timeout)
+        is_up = rdp.test_connection(context, server_ip, timeout=timeout)
 
     if not is_up:
         # try again in half a second but only wait for another 2 minutes

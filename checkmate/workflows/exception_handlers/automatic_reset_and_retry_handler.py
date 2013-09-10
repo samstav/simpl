@@ -13,9 +13,10 @@
 #    under the License.
 # pylint: disable=R0903
 
-'''Reset Task Tree Exception Handler - Used to reset task tree for failed
-tasks in the workflow
-'''
+"""Automatic Reset and Retry Handler - Used to reset task tree for failed
+tasks in the workflow, so that they can be automatically retried in a
+subsequent workflow run
+"""
 
 import logging
 

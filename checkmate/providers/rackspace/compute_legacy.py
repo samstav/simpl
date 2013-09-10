@@ -561,15 +561,15 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
 
 @task(default_retry_delay=30, max_retries=120)
 @statsd.collect
-def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
+def wait_on_build(context, server_id, ip_address_type='public',
                   username='root', timeout=10, password=None,
                   identity_file=None, port=22, api_object=None,
                   private_key=None):
     """Checks build is complete and. optionally, that SSH is working.
 
-    :param ip_adress_type: the type of IP addresss to return as 'ip' in the
+    :param ip_adress_type: the type of IP addresss to return as 'server_ip' in the
         response
-    :returns: False when build not ready. Dict with ip addresses when done.
+    :returns: False when build not ready. Dict with server_ip addresses when done.
     """
     utils.match_celery_logging(LOG)
     if api_object is None:
@@ -594,14 +594,14 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         raise cmexc.CheckmateRetriableException(msg, utils.get_class_name(
             cmexc.CheckmateServerBuildFailed()), msg, '')
 
-    ip = None
+    server_ip = None
     if server.addresses:
         # Get requested IP
         addresses = server.addresses.get(ip_address_type or 'public', None)
         if addresses:
             if isinstance(addresses, list):
-                ip = addresses[0]
-            results['ip'] = ip
+                server_ip = addresses[0]
+            results['ip'] = server_ip
 
         # Get public (default) IP
         addresses = server.addresses.get('public', None)
@@ -637,14 +637,14 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         LOG.warning("Server %s status is %s, which is not recognized. "
                     "Assuming it is active", server_id, server.status)
 
-    if not ip:
+    if not server_ip:
         error_message = "Could not find IP of server %s" % server_id
         raise cmexc.CheckmateUserException(error_message,
                                            utils.get_class_name(
                                                cmexc.CheckmateException),
                                            cmexc.UNEXPECTED_ERROR, '')
     else:
-        up = test_connection(context, ip, username, timeout=timeout,
+        up = test_connection(context, server_ip, username, timeout=timeout,
                              password=password, identity_file=identity_file,
                              port=port, private_key=private_key)
         if up:
@@ -692,14 +692,14 @@ def _convert_v1_adresses_to_v2(addresses):
             ]
         }
     """
-    v2 = {'addresses': {}}
+    v2_address = {'addresses': {}}
     if isinstance(addresses, dict) and 'addresses' in addresses:
         for key, value in addresses['addresses'].iteritems():
-            entries = v2['addresses'].get(key, [])
-            for ip in value:
-                entries.append({'addr': ip, 'version': 4})
-            v2['addresses'][key] = entries
-    return v2
+            entries = v2_address['addresses'].get(key, [])
+            for ip_address in value:
+                entries.append({'addr': ip_address, 'version': 4})
+            v2_address['addresses'][key] = entries
+    return v2_address
 
 
 @task

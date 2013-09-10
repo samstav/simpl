@@ -12,8 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 # pylint: disable=R0903
-"""
-Creates spiff workflow spec for different actions
+
+"""Creates spiff workflow spec for different actions
 """
 import copy
 import logging
@@ -27,6 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 class WorkflowSpec(specs.WorkflowSpec):
+    """Workflow Spec related methods."""
     @staticmethod
     def create_delete_dep_wf_spec(deployment, context):
         """Creates a SpiffWorkflow spec for deleting a deployment
@@ -485,10 +486,10 @@ class WorkflowSpec(specs.WorkflowSpec):
             resource_ids_to_delete = [resource_key]
 
             #Process relations for resource
-            WorkflowSpec._add_del_tasks_for_resource_relation(wf_spec,
-                                                              deployment,
-                                                              resource_key,
-                                                              context)
+            WorkflowSpec._add_del_tasks_for_res_relatns(wf_spec,
+                                                        deployment,
+                                                        resource_key,
+                                                        context)
             wait_tasks.extend(wf_spec.find_task_specs(resource=resource_key,
                                                       tag="delete_connection"))
 
@@ -529,8 +530,8 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     @staticmethod
-    def _add_del_tasks_for_resource_relation(wf_spec, deployment,
-                                             resource_key, context):
+    def _add_del_tasks_for_res_relatns(wf_spec, deployment,
+                                       resource_key, context):
         """Adds the delete task for a resource relation
         :param wf_spec: Workflow Spec to add the tasks to
         :param deployment: The deployment from which the resourced need to

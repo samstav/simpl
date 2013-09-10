@@ -251,7 +251,7 @@ class Manager(object):
             return resources.get(rid)
         raise ValueError("No resource %s in deployment %s" % (rid, api_id))
 
-    def execute(self, api_id, context, timeout=180, tenant_id=None):
+    def execute(self, api_id, context):
         """Process a checkmate deployment workflow
 
         Executes and moves the workflow forward.
