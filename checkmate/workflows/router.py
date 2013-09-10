@@ -19,10 +19,8 @@ import uuid
 #pylint: disable=E0611
 import bottle
 
-from SpiffWorkflow import (
-    Workflow as SpiffWorkflow,
-    Task,
-)
+import SpiffWorkflow as spiff
+from SpiffWorkflow import Task
 from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate.common import tasks as common_tasks
@@ -37,10 +35,10 @@ LOG = logging.getLogger(__name__)
 
 
 class Router(object):
-    '''Route /deployments/ calls.'''
+    """Route /deployments/ calls."""
 
     def __init__(self, app, manager, deployment_manager):
-        '''Takes a bottle app and routes traffic for it.'''
+        """Takes a bottle app and routes traffic for it."""
         self.app = app
         self.manager = manager
         self.deployment_manager = deployment_manager
@@ -84,6 +82,7 @@ class Router(object):
     @utils.with_tenant
     @utils.formatted_response('workflows', with_pagination=True)
     def get_workflows(self, tenant_id=None, offset=None, limit=None):
+        """Get list of workflows from database."""
         limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         if 'with_secrets' in bottle.request.query:
             if bottle.request.context.is_admin is True:
@@ -106,6 +105,7 @@ class Router(object):
 
     @utils.with_tenant
     def add_workflow(self, tenant_id=None):
+        """Save new workflow to database."""
         entity = utils.read_body(bottle.request)
         if 'workflow' in entity and isinstance(entity['workflow'], dict):
             entity = entity['workflow']
@@ -123,6 +123,7 @@ class Router(object):
 
     @utils.with_tenant
     def save_workflow(self, api_id, tenant_id=None):
+        """Save existing workflow to database."""
         entity = utils.read_body(bottle.request)
 
         if 'workflow' in entity and isinstance(entity['workflow'], dict):
@@ -153,6 +154,7 @@ class Router(object):
 
     @utils.with_tenant
     def get_workflow(self, api_id, tenant_id=None):
+        """Get existing workflow from database."""
         if 'with_secrets' in bottle.request.query:
             LOG.info("Administrator accessing workflow %s with secrets: %s",
                      api_id, bottle.request.context.username)
@@ -172,12 +174,13 @@ class Router(object):
 
     @utils.with_tenant
     def get_workflow_status(self, api_id, tenant_id=None):
+        """Get the status of a workflow stored in the database."""
         entity = self.manager.get_workflow(api_id)
         if not entity:
             bottle.abort(404, 'No workflow with id %s' % api_id)
         serializer = DictionarySerializer()
-        wf = SpiffWorkflow.deserialize(serializer, entity)
-        return utils.write_body(cm_wf.get_spiff_workflow_status(wf),
+        wflow = spiff.Workflow.deserialize(serializer, entity)
+        return utils.write_body(cm_wf.get_spiff_workflow_status(wflow),
                                 bottle.request, bottle.response)
 
     @utils.with_tenant
@@ -201,11 +204,11 @@ class Router(object):
 
     @utils.with_tenant
     def pause_workflow(self, api_id, tenant_id=None):
-        '''Pauses the workflow.
+        """Pauses the workflow.
         Updates the operation status to pauses when done
 
         :param api_id: checkmate workflow id
-        '''
+        """
         workflow = self.manager.get_workflow(api_id)
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
@@ -249,12 +252,13 @@ class Router(object):
 
     @utils.with_tenant
     def retry_all_failed_tasks(self, api_id, tenant_id=None):
+        """Retry all failed tasks that can be retried."""
         workflow = self.manager.get_workflow(api_id)
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
         serializer = DictionarySerializer()
-        wf = SpiffWorkflow.deserialize(serializer, workflow)
+        wflow = spiff.Workflow.deserialize(serializer, workflow)
 
         dep_id = workflow["attributes"]["deploymentId"] or api_id
         deployment = self.deployment_manager.get_deployment(
@@ -266,12 +270,12 @@ class Router(object):
                                       operation.get("errors"))
             for error in retriable_errors:
                 task_id = error["task-id"]
-                task = wf.get_task(task_id)
+                task = wflow.get_task(task_id)
                 LOG.debug("Resetting task %s for workflow %s", task_id, id)
                 cm_wf.reset_task_tree(task)
 
-            cm_wf.update_workflow_status(wf)
-            entity = wf.serialize(serializer)
+            cm_wf.update_workflow_status(wflow)
+            entity = wflow.serialize(serializer)
             body, secrets = utils.extract_sensitive_data(entity)
             body['tenantId'] = workflow.get('tenantId', tenant_id)
             body['id'] = api_id
@@ -286,6 +290,7 @@ class Router(object):
 
     @utils.with_tenant
     def resume_all_failed_tasks(self, api_id, tenant_id=None):
+        """Start all failed tasks again if they are resumable."""
         workflow = self.manager.get_workflow(api_id)
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
@@ -321,13 +326,13 @@ class Router(object):
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % workflow_id)
 
-        spec = workflow['wf_spec']['task_specs'].get(spec_id)
+        spec = workflow['wflow_spec']['task_specs'].get(spec_id)
         if not spec:
             bottle.abort(404, 'No spec with id %s' % spec_id)
 
         LOG.debug("Updating spec '%s' in workflow '%s'", spec_id, workflow_id,
                   extra=dict(data=dict(old=spec, new=entity)))
-        workflow['wf_spec']['task_specs'][spec_id] = entity
+        workflow['wflow_spec']['task_specs'][spec_id] = entity
 
         # Save workflow (with secrets)
         body, secrets = utils.extract_sensitive_data(workflow)
@@ -345,7 +350,7 @@ class Router(object):
 
     @utils.with_tenant
     def get_workflow_task(self, api_id, task_id, tenant_id=None):
-        """Get a workflow task
+        """Get a workflow task.
 
         :param api_id: checkmate workflow id
         :param task_id: checkmate workflow task id
@@ -358,9 +363,9 @@ class Router(object):
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
         serializer = DictionarySerializer()
-        wf = SpiffWorkflow.deserialize(serializer, entity)
+        wflow = spiff.Workflow.deserialize(serializer, entity)
 
-        task = wf.get_task(task_id)
+        task = wflow.get_task(task_id)
         if not task:
             bottle.abort(404, 'No task with id %s' % task_id)
         data = serializer._serialize_task(task, skip_children=True)
@@ -371,7 +376,7 @@ class Router(object):
 
     @utils.with_tenant
     def post_workflow_task(self, api_id, task_id, tenant_id=None):
-        """Update a workflow task
+        """Update a workflow task.
 
         Attributes that can be updated are:
         - attributes
@@ -389,9 +394,9 @@ class Router(object):
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
         serializer = DictionarySerializer()
-        wf = SpiffWorkflow.deserialize(serializer, workflow)
+        wflow = spiff.Workflow.deserialize(serializer, workflow)
 
-        task = wf.get_task(task_id)
+        task = wflow.get_task(task_id)
         if not task:
             bottle.abort(404, 'No task with id %s' % task_id)
 
@@ -416,9 +421,10 @@ class Router(object):
             task._state = entity['state']
 
         # Save workflow (with secrets)
-        cm_wf.update_workflow_status(wf)
+        cm_wf.update_workflow_status(wflow)
         serializer = DictionarySerializer()
-        body, secrets = utils.extract_sensitive_data(wf.serialize(serializer))
+        body, secrets = utils.extract_sensitive_data(
+            wflow.serialize(serializer))
         body['tenantId'] = workflow.get('tenantId', tenant_id)
         body['id'] = api_id
 
@@ -431,15 +437,15 @@ class Router(object):
                               "lock.")
         # Updated does not have secrets, so we deserialize that
         serializer = DictionarySerializer()
-        wf = SpiffWorkflow.deserialize(serializer, updated)
-        task = wf.get_task(task_id)
+        wflow = spiff.Workflow.deserialize(serializer, updated)
+        task = wflow.get_task(task_id)
         results = serializer._serialize_task(task, skip_children=True)
         results['workflow_id'] = api_id
         return utils.write_body(results, bottle.request, bottle.response)
 
     @utils.with_tenant
     def reset_workflow_task(self, api_id, task_id, tenant_id=None):
-        """Reset a Celery workflow task and retry it
+        """Reset a Celery workflow task and retry it.
 
         Checks if task is a celery task in waiting state.
         Resets parent to READY and task to FUTURE.
@@ -453,9 +459,9 @@ class Router(object):
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
         serializer = DictionarySerializer()
-        wf = SpiffWorkflow.deserialize(serializer, workflow)
+        wflow = spiff.Workflow.deserialize(serializer, workflow)
 
-        task = wf.get_task(task_id)
+        task = wflow.get_task(task_id)
         if not task:
             bottle.abort(404, 'No task with id %s' % task_id)
 
@@ -472,9 +478,9 @@ class Router(object):
         task._state = Task.FUTURE
         task.parent._state = Task.READY
 
-        cm_wf.update_workflow_status(wf)
+        cm_wf.update_workflow_status(wflow)
         serializer = DictionarySerializer()
-        entity = wf.serialize(serializer)
+        entity = wflow.serialize(serializer)
         body, secrets = utils.extract_sensitive_data(entity)
         body['tenantId'] = workflow.get('tenantId', tenant_id)
         body['id'] = api_id
@@ -485,7 +491,7 @@ class Router(object):
             bottle.abort(404, "The workflow is already locked, cannot obtain "
                               "lock.")
 
-        task = wf.get_task(task_id)
+        task = wflow.get_task(task_id)
         if not task:
             bottle.abort(404, 'No task with id %s' % task_id)
 
@@ -497,20 +503,20 @@ class Router(object):
 
     @utils.with_tenant
     def reset_task_tree(self, api_id, task_id, tenant_id=None):
-        '''Resets all the tasks starting from the passed in task_id and going
-        up the chain till the root task is reset
+        """Resets all the tasks starting from the passed in task_id and going
+        up the chain till the root task is reset.
 
         :param api_id: checkmate workflow id
         :param task_id: checkmate workflow task id
-        '''
+        """
         workflow = self.manager.get_workflow(api_id, with_secrets=True)
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
         serializer = DictionarySerializer()
-        wf = SpiffWorkflow.deserialize(serializer, workflow)
+        wflow = spiff.Workflow.deserialize(serializer, workflow)
 
-        task = wf.get_task(task_id)
+        task = wflow.get_task(task_id)
         if not task:
             bottle.abort(404, 'No task with id %s' % task_id)
 
@@ -523,9 +529,9 @@ class Router(object):
                               " in '%s'" % task.get_state_name())
 
         cm_wf.reset_task_tree(task)
-        cm_wf.update_workflow_status(wf)
+        cm_wf.update_workflow_status(wflow)
         serializer = DictionarySerializer()
-        entity = wf.serialize(serializer)
+        entity = wflow.serialize(serializer)
         body, secrets = utils.extract_sensitive_data(entity)
         body['tenantId'] = workflow.get('tenantId', tenant_id)
         body['id'] = api_id
@@ -557,9 +563,9 @@ class Router(object):
             if not workflow:
                 bottle.abort(404, "No workflow with id '%s' found" % api_id)
             serializer = DictionarySerializer()
-            wf = SpiffWorkflow.deserialize(serializer, workflow)
+            wflow = spiff.Workflow.deserialize(serializer, workflow)
 
-            task = wf.get_task(task_id)
+            task = wflow.get_task(task_id)
             if not task:
                 bottle.abort(404, 'No task with id %s' % task_id)
 
@@ -586,15 +592,15 @@ class Router(object):
                           task.get_state_name())
                 task.task_spec._update_state(task)
 
-            cm_wf.update_workflow_status(wf)
+            cm_wf.update_workflow_status(wflow)
             serializer = DictionarySerializer()
-            entity = wf.serialize(serializer)
+            entity = wflow.serialize(serializer)
             body, secrets = utils.extract_sensitive_data(entity)
             body['tenantId'] = workflow.get('tenantId', tenant_id)
             body['id'] = api_id
             self.manager.save_workflow(api_id, body, secrets=secrets,
                                        tenant_id=tenant_id)
-            task = wf.get_task(task_id)
+            task = wflow.get_task(task_id)
             if not task:
                 bottle.abort(404, "No task with id '%s' found" % task_id)
 
@@ -623,7 +629,7 @@ class Router(object):
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
         serializer = DictionarySerializer()
-        workflow = SpiffWorkflow.deserialize(serializer, entity)
+        workflow = spiff.Workflow.deserialize(serializer, entity)
         task = workflow.get_task(task_id)
         if not task:
             bottle.abort(404, 'No task with id %s' % task_id)
@@ -638,7 +644,7 @@ class Router(object):
 
         entity = self.manager.get_workflow(api_id)
 
-        workflow = SpiffWorkflow.deserialize(serializer, entity)
+        workflow = spiff.Workflow.deserialize(serializer, entity)
 
         task = workflow.get_task(task_id)
         data = serializer._serialize_task(task, skip_children=True)
