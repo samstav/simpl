@@ -1297,6 +1297,13 @@ class Deployment(morpheus.MorpheusDict):
                               connection_id, value,
                               extra=dict(data=connection))
                     utils.merge_dictionary(connection, value)
+                elif key == 'resources':
+                    LOG.debug("Merging postback resources: %s", value.keys(),
+                              extra=dict(data=value))
+                    # Canonicalize it
+                    value = {'resources': schema.translate_dict(value)}
+                    # Merge it in
+                    utils.merge_dictionary(target, value)
                 else:
                     if isinstance(value, dict):
                         value = schema.translate_dict(value)

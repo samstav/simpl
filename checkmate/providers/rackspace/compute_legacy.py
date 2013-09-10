@@ -19,8 +19,9 @@ import copy
 import logging
 
 import openstack.compute
-from SpiffWorkflow.operators import PathAttrib
-from SpiffWorkflow.specs import Celery
+from openstack.compute.exceptions import OverLimit
+from SpiffWorkflow import operators
+from SpiffWorkflow import specs
 
 from checkmate.common import statsd
 from checkmate.deployments import resource_postback
@@ -36,8 +37,8 @@ from checkmate.exceptions import (
     UNEXPECTED_ERROR,
 )
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
-from checkmate.utils import match_celery_logging, yaml_to_dict, get_class_name
-from openstack.compute.exceptions import OverLimit
+from checkmate import utils
+
 
 LOG = logging.getLogger(__name__)
 # This supports translating airport codes to city names. Checkmate expects to
@@ -49,7 +50,7 @@ REGION_MAP = {
     'london': 'LON',
     'sydney': 'SYD',
 }
-CATALOG_TEMPLATE = yaml_to_dict("""compute:
+CATALOG_TEMPLATE = utils.yaml_to_dict("""compute:
   linux_instance:
     id: linux_instance
     is: compute
@@ -153,7 +154,7 @@ class Provider(RackspaceComputeProviderBase):
                                     "provision servers in '%s'."\
                                     % (legacy_regions.keys()[0], region)
                     raise CheckmateUserException(error_message,
-                                                 get_class_name(
+                                                 utils.get_class_name(
                                                      CheckmateException),
                                                  BLUEPRINT_ERROR, '')
                 else:
@@ -220,7 +221,7 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO: use environment keys instead of private key
         """
-        create_server_task = Celery(
+        create_server_task = specs.Celery(
             wfspec, 'Create Server %s (%s)' % (key, resource['service']),
             'checkmate.providers.rackspace.compute_legacy.create_server',
             call_args=[context.get_queued_task_dict(
@@ -245,16 +246,16 @@ class Provider(RackspaceComputeProviderBase):
             properties={'estimated_duration': 20}
         )
 
-        build_wait_task = Celery(
+        build_wait_task = specs.Celery(
             wfspec,
             'Wait for Server %s (%s) build' % (key, resource['service']),
             'checkmate.providers.rackspace.compute_legacy.wait_on_build',
             call_args=[context.get_queued_task_dict(
                 deployment=deployment['id'],
                 resource=key),
-                PathAttrib('instance:%s/id' % key)
+                operators.PathAttrib('instance:%s/id' % key)
             ],
-            password=PathAttrib('instance:%s/password' % key),
+            password=operators.PathAttrib('instance:%s/password' % key),
             private_key=deployment.settings().get('keys', {}).get(
                 'deployment', {}).get('private_key'),
             merge_results=True,
@@ -270,15 +271,15 @@ class Provider(RackspaceComputeProviderBase):
         #If Managed Cloud, add a Completion task to release RBA
         # other providers may delay this task until they are done
         if 'rax_managed' in context.roles:
-            touch_complete = Celery(
+            touch_complete = specs.Celery(
                 wfspec,
                 'Mark Server %s (%s) Complete' % (key, resource['service']),
                 'checkmate.ssh.execute',
                 call_args=[
-                    PathAttrib("instance:%s/public_ip" % key),
+                    operators.PathAttrib("instance:%s/public_ip" % key),
                     "touch /tmp/checkmate-complete", "root"
                 ],
-                password=PathAttrib('instance:%s/password' % key),
+                password=operators.PathAttrib('instance:%s/password' % key),
                 private_key=deployment.settings().get('keys', {}).get(
                     'deployment', {}).get('private_key'),
                 properties={'estimated_duration': 10},
@@ -297,9 +298,11 @@ class Provider(RackspaceComputeProviderBase):
 
         join = wfspec.wait_for(create_server_task,
                                wait_on, name="Server %s (%s) Wait on Prereqs"
-                               % (key, resource['service']), defines=dict(
-                               resource=key, provider=self.key,
-                               task_tags=['root'])
+                               % (key, resource['service']),
+                               defines=dict(resource=key,
+                                            provider=self.key,
+                                            task_tags=['root'],
+                                            )
                                )
 
         return dict(root=join, final=build_wait_task,
@@ -498,7 +501,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     }
 
     """
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider.connect(context)
 
@@ -537,7 +540,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
         raise
     except OverLimit as exc:
         raise CheckmateRetriableException(str(exc),
-                                          get_class_name(exc),
+                                          utils.get_class_name(exc),
                                           "You have reached the maximum "
                                           "number of servers that can be "
                                           "spun up using this account. "
@@ -575,7 +578,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         response
     :returns: False when build not ready. Dict with ip addresses when done.
     """
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider.connect(context)
 
@@ -595,7 +598,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         delete_server(context, server_id, api_object)
-        raise CheckmateRetriableException(msg, get_class_name(
+        raise CheckmateRetriableException(msg, utils.get_class_name(
             CheckmateServerBuildFailed()), msg, '')
 
     ip = None
@@ -643,7 +646,7 @@ def wait_on_build(context, server_id, ip_address_type='public', check_ssh=True,
 
     if not ip:
         error_message = "Could not find IP of server %s" % server_id
-        raise CheckmateUserException(error_message, get_class_name(
+        raise CheckmateUserException(error_message, utils.get_class_name(
             CheckmateException), UNEXPECTED_ERROR, '')
     else:
         up = test_connection(context, ip, username, timeout=timeout,
@@ -708,7 +711,7 @@ def _convert_v1_adresses_to_v2(addresses):
 @statsd.collect
 def delete_server(context, serverid, api_object=None):
     """Task to delete legacy cloud server."""
-    match_celery_logging(LOG)
+    utils.match_celery_logging(LOG)
     if api_object is None:
         api_object = Provider.connect(context)
     api_object.servers.delete(serverid)

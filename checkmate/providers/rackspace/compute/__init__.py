@@ -2,6 +2,7 @@
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
+#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -173,7 +174,7 @@ class RackspaceComputeProviderBase(base.RackspaceProviderBase):
         #kwargs added to server creation calls (contain things like ssh keys)
         self._kwargs = {}
         with open(os.path.join(os.path.dirname(__file__),
-                               "managed_cloud",
+                               "scripts", "managed_cloud",
                                "delay.sh")) as open_file:
             self.managed_cloud_script = open_file.read()
 
@@ -1059,7 +1060,10 @@ def create_server(context, name, region, api_object=None, flavor="2",
                 'id': str(1000 + int(resource_key)),
                 'status': "BUILD",
                 'password': 'RandomPass',
-            }
+            },
+            'resources': {
+                resource_key: context.get('resource'),
+            },
         }
         # Send data back to deployment
         cmdeps.resource_postback.delay(deployment_id, results)
@@ -1132,7 +1136,10 @@ def create_server(context, name, region, api_object=None, flavor="2",
             'image': image,
             'error-message': '',
             'status-message': '',
-        }
+        },
+        'resources': {
+            resource_key: context.get('resource'),
+        },
     }
 
     # Send data back to deployment
@@ -1288,7 +1295,7 @@ def delete_server_task(context, api=None):
         cmdeps.resource_postback.delay(deployment_id,
                                        {inst_key: {'status': 'DELETING',
                                                    'status-message': msg}})
-        delete_server_task.retry(exc=CheckmateException(msg))
+        delete_server_task.retry(exc=cmexc.CheckmateException(msg))
     cmdeps.resource_postback.delay(deployment_id, ret)
     return ret
 

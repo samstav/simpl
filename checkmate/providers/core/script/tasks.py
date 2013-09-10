@@ -29,7 +29,7 @@ from checkmate.providers.core.script import Provider
 @statsd.collect
 def create_resource(context, deployment_id, resource, host, username,
                     password=None, private_key=None, install_script=None,
-                    timeout=60, api=None, callback=None):
+                    timeout=60, host_os=None, api=None, callback=None):
     """Waits on the instance to be created, deletes the instance if it goes
     into an ERRORed status.
 
@@ -38,10 +38,11 @@ def create_resource(context, deployment_id, resource, host, username,
     :param callback:
     :return:
     """
-    manager = Manager(api=api, callback=callback or create_resource.partial,
+    manager = Manager(api=api or create_resource.api,
+                      callback=callback or create_resource.partial,
                       simulate=context.simulation)
     return manager.create_resource(context, deployment_id, resource, host,
                                    username, password=password,
                                    private_key=private_key,
                                    install_script=install_script,
-                                   timeout=timeout)
+                                   host_os=host_os, timeout=timeout)

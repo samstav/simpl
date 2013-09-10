@@ -43,12 +43,13 @@ class Manager(object):
     # pylint: disable=W0613,R0913
     def create_resource(self, context, deployment_id, resource, host, username,
                         password=None, private_key=None, install_script=None,
-                        timeout=60):
+                        timeout=60, host_os="linux"):
         """Creates a script-defined resource.
 
         :param context: a call context (identity, etc...)
         :param resource: a dict defining the resource to create
         :param host: the address of the compute host to create the resource on
+        :param host_os: 'linux' or 'windows'
 
         """
         desired = resource.get('desired') or {}
@@ -56,10 +57,26 @@ class Manager(object):
             instance = copy.deepcopy(desired)
         else:
             try:
-                results = self.api.remote_execute(host, install_script,
-                                                  username, password=password,
-                                                  private_key=private_key,
-                                                  timeout=timeout)
+                if host_os == 'windows':
+                    if username == 'root':
+                        username = 'Administrator'
+                    (status, output) = self.api.ps_execute(host,
+                                                           install_script,
+                                                           "install.ps1",
+                                                           username,
+                                                           password,
+                                                           timeout=timeout)
+                    if status != 0:
+                        LOG.error("Error while executing powershell command: "
+                                  "%s", output)
+                        raise exceptions.CheckmateException(
+                            "Error executing powershell command")
+                else:
+                    results = self.api.remote_execute(host, install_script,
+                                                      username,
+                                                      password=password,
+                                                      private_key=private_key,
+                                                      timeout=timeout)
                 LOG.debug("remote execute results: %s", results)
 
                 instance = copy.deepcopy(desired)

@@ -72,7 +72,15 @@ class TestNovaCompute(test.ProviderTester):
             'deployment_id': 'DEP',
             'resource_key': '1',
             'tenant': 'TMOCK',
-            'base_url': 'http://MOCK'
+            'base_url': 'http://MOCK',
+            'resource': {
+                'index': '1',
+                'instance': {},
+                'desired-state': {
+                    'flavor': flavor.id,
+                    'image': image.id,
+                },
+            },
         }
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
         tasks.reset_failed_resource_task.delay(context['deployment_id'],
@@ -113,7 +121,17 @@ class TestNovaCompute(test.ProviderTester):
                 'image': image.id,
                 'error-message': '',
                 'status-message': ''
-            }
+            },
+            'resources': {
+                '1': {
+                    'index': '1',
+                    'instance': {},
+                    'desired-state': {
+                        'flavor': flavor.id,
+                        'image': image.id,
+                    },
+                },
+            },
         }
 
         cm_deps.resource_postback.delay(context['deployment_id'],

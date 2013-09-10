@@ -81,6 +81,7 @@ billiard==2.7.3.28
 bottle==0.10.11
 celery==3.0.19
 eventlet==0.12.1
+impacket==0.9.10
 Jinja2==2.6
 kombu==2.5.10
 morpheus==0.0.4

@@ -74,9 +74,11 @@ class Provider(providers.ProviderBase):
         if not script_source:
             return dict(root=None, final=None)
 
-        task_name = 'Execute Script %s (%s)' % (key, resource['hosted_on'])
-        host_ip_path = "instance:%s/public_ip" % resource['hosted_on']
-        password_path = 'instance:%s/password' % resource['hosted_on']
+        host_id = resource['hosted_on']
+        task_name = 'Execute Script %s (%s)' % (key, host_id)
+        host_ip_path = "instance:%s/public_ip" % host_id
+        password_path = 'instance:%s/password' % host_id
+        type_path = 'resources/%s/desired-state/os-type' % host_id
         private_key = deployment.settings().get('keys', {}).get(
             'deployment', {}).get('private_key')
         queued_task_dict = context.get_queued_task_dict(
@@ -94,8 +96,10 @@ class Provider(providers.ProviderBase):
             password=operators.PathAttrib(password_path),
             private_key=private_key,
             install_script=script_source,
+            host_os=operators.PathAttrib(type_path),
+            timeout=300,
             properties={
-                'estimated_duration': 600,
+                'estimated_duration': 300,
                 'task_tags': ['final'],
             },
             defines={'resource': key, 'provider': self.key}
@@ -120,18 +124,6 @@ class Provider(providers.ProviderBase):
         LOG.debug("Adding connection task for resource '%s' for relation '%s'",
                   key, relation_key, extra={'data': {'resource': resource,
                                                      'relation': relation}})
-
-    def get_catalog(self, context, type_filter=None):
-        """Return stored/override catalog.
-
-        If it does not exist then connect, build, and return one.
-        """
-
-        # TODO(any): maybe implement this an on_get_catalog so we don't have
-        #            to do this for every provider.
-        results = providers.ProviderBase.get_catalog(self, context,
-                                                     type_filter=type_filter)
-        return results
 
     @staticmethod
     def connect(context, *args):
