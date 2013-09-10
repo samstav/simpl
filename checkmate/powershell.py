@@ -23,6 +23,7 @@ import shlex
 import signal
 import socket
 import subprocess
+import time
 
 import eventlet
 
@@ -34,6 +35,7 @@ class Alarm(Exception):
     pass
 
 
+# pylint: disable=W0613
 def alarm_handler(signum, frame):
     """Called when a timeout signal is raised."""
     raise Alarm
@@ -60,15 +62,13 @@ def execute(host, command, filename, username, password, port=445,
     cmd = cmd_string % (psexec, save_path, username, password, host)
     lines = "put %s %s\n%s\nexit\n" % (filename, path, command)
 
-    timeout_msg = "Port 445 never opened up after %s seconds" % timeout
-
     LOG.info("Executing powershell command '%s' on %s", filename, host)
     if wait_net_service(host, port, timeout=timeout):
         return run_command(cmd, lines=lines, timeout=timeout)
     else:
         LOG.debug("Timeout executing powershell command '%s' on %s", filename,
                   host)
-        output = timeout_msg
+        output = "Port 445 never opened up after %s seconds" % timeout
         status = 1
 
         return (status, output)
@@ -83,14 +83,13 @@ def wait_net_service(server, port, timeout=None):
     """
     sock = socket.socket()
     if timeout:
-        from time import time as now
         # time module is needed to calc timeout shared between two exceptions
-        end = now() + timeout
+        end = time.time() + timeout
 
     while True:
         try:
             if timeout:
-                next_timeout = end - now()
+                next_timeout = end - time.time()
                 if next_timeout < 0:
                     return False
                 else:
@@ -101,7 +100,7 @@ def wait_net_service(server, port, timeout=None):
         except Exception:
             # Handle refused connections, etc.
             if timeout:
-                next_timeout = end - now()
+                next_timeout = end - time.time()
                 if next_timeout < 0:
                     return False
                 else:
@@ -116,6 +115,7 @@ def wait_net_service(server, port, timeout=None):
 
 def run_command(cmd, lines=None, timeout=None):
     """TODO: docs."""
+    LOG.debug("Executing: %s", cmd)
     proc = subprocess.Popen(shlex.split(cmd),
                             close_fds=True,
                             stdin=subprocess.PIPE,
@@ -129,11 +129,12 @@ def run_command(cmd, lines=None, timeout=None):
     try:
         if lines:
             (stdout, stderr) = proc.communicate(input=lines)
+            LOG.debug("Response: stdout=%s, stderr=%s", stdout, stderr)
 
         status = proc.wait()
         signal.alarm(0)
     except Alarm:
-        print "Timeout running script"
+        LOG.info("Timeout running script")
         status = 1
         stdout = ''
         proc.kill()

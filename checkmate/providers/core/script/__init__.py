@@ -72,7 +72,7 @@ Syntax options for script:
               source: "services://db/interfaces/mysql/datebase_password"
 
               # Specific resource IP
-              resources://instance/ip?resource.service=lb&type=resource.compute
+              resources://instance/ip?resource.service=lb&resource.type=compute
 
       template: a template to parse (=include() can be used to load a file from
           a path or url

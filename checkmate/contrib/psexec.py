@@ -355,7 +355,6 @@ class RemoteShell(cmd.Cmd):
 
         self.send_data('\r\n')
 
-
     def do_lcd(self, s):
         if s == '':
             print os.getcwd()
