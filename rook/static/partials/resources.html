@@ -24,12 +24,12 @@
             </tr>
             <tr class='messages'>
               <td colspan="5">
-                <div ng-show="!servers_loaded">
+                <div ng-show="resources_by_provider['nova'] == undefined">
                   <img class="loading" src="/img/ajax-loader.gif" />
                   Loading...
                 </div>
 
-                <div ng-show="no_servers">
+                <div ng-show="resources_by_provider['nova'].length == 0">
                   No servers found
                 </div>
 
@@ -65,12 +65,12 @@
 
             <tr class='messages'>
               <td colspan="5">
-                <div ng-show="!lbs_loaded">
+                <div ng-show="resources_by_provider['load-balancer'] == undefined">
                   <img class="loading" src="/img/ajax-loader.gif" />
                   Loading...
                 </div>
 
-                <div ng-show="no_lbs">
+                <div ng-show="resources_by_provider['load-balancer'].length == 0">
                   No load balancers found
                 </div>
 
@@ -106,12 +106,12 @@
 
             <tr class='messages'>
               <td colspan="5">
-                <div ng-show="!dbs_loaded">
+                <div ng-show="resources_by_provider['database'] == undefined">
                   <img class="loading" src="/img/ajax-loader.gif" />
                   Loading...
                 </div>
 
-                <div ng-show="no_dbs">
+                <div ng-show="resources_by_provider['database'].length == 0">
                   No databases found
                 </div>
 

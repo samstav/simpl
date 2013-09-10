@@ -3188,9 +3188,6 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
 function ResourcesController($scope, $resource, $location, Deployment){
   $scope.selected_resources = [];
   $scope.resources_by_provider = {};
-  $scope.resources_by_provider.nova = [];
-  $scope.resources_by_provider.database = [];
-  $scope.resources_by_provider['load-balancer'] = [];
 
   $scope.add_to_deployment = function(decorated_resource){
     var resource_list = $scope.resources_by_provider[decorated_resource.resource.provider];
@@ -3213,14 +3210,9 @@ function ResourcesController($scope, $resource, $location, Deployment){
         angular.forEach(results, function(lb){
           $scope.resources_by_provider['load-balancer'].push({resource: lb})
         });
-        if(results.length === 0){
-          $scope.no_lbs = true;
-        }
-        $scope.lbs_loaded = true;
       },
       function(response) {
         $scope.lbs_error = "Error loading load balancer list";
-        $scope.lbs_loaded = true;
       });
     }
   };
@@ -3235,14 +3227,9 @@ function ResourcesController($scope, $resource, $location, Deployment){
         angular.forEach(results, function(server){
           $scope.resources_by_provider.nova.push({resource: server})
         });
-        if(results.length === 0){
-          $scope.no_servers = true;
-        }
-        $scope.servers_loaded = true;
       },
       function(response) {
         $scope.servers_error = "Error loading server list";
-        $scope.servers_loaded = true;
       });
     }
   };
