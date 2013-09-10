@@ -1294,7 +1294,7 @@ def delete_server_task(context, api=None):
         cmdeps.resource_postback.delay(deployment_id,
                                        {inst_key: {'status': 'DELETING',
                                                    'status-message': msg}})
-        delete_server_task.retry(exc=CheckmateException(msg))
+        delete_server_task.retry(exc=cmexc.CheckmateException(msg))
     cmdeps.resource_postback.delay(deployment_id, ret)
     return ret
 
