@@ -114,7 +114,13 @@ def wait_net_service(server, port, timeout=None):
 
 
 def run_command(cmd, lines=None, timeout=None):
-    """TODO: docs."""
+    """Executes commands against an executable.
+
+    :param cmd: the command or shell to launch
+    :param lines: a list of commands to execute
+    :param timeout: in seconds
+    :returns: status (0=success) + output as a string
+    """
     LOG.debug("Executing: %s", cmd)
     proc = subprocess.Popen(shlex.split(cmd),
                             close_fds=True,
