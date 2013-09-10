@@ -328,18 +328,26 @@ class TestOperationsGetStatusInfo(unittest.TestCase):
     def test_with_retriable_error(self):
         errors = [{'error-type': '1', 'friendly-message': 'Hi!',
                   'retriable': True}]
-        self.assertEqual({'retriable': True,
-                          'retry-link': '/T0/workflows/wfid/+retry-failed-tasks',
-                          'status-message': '1. Hi!\n'},
-                         operations.get_status_info(errors, 'T0', 'wfid'))
+        self.assertEqual(
+            {
+                'retriable': True,
+                'retry-link': '/T0/workflows/wfid/+retry-failed-tasks',
+                'status-message': '1. Hi!\n'
+            },
+            operations.get_status_info(errors, 'T0', 'wfid')
+        )
 
     def test_with_resumable_error(self):
         errors = [{'error-type': '1', 'friendly-message': 'Hi!',
                   'resumable': True}]
-        self.assertEqual({'resumable': True,
-                          'resume-link': '/T0/workflows/wfid/+resume-failed-tasks',
-                          'status-message': '1. Hi!\n'},
-                         operations.get_status_info(errors, 'T0', 'wfid'))
+        self.assertEqual(
+            {
+                'resumable': True,
+                'resume-link': '/T0/workflows/wfid/+resume-failed-tasks',
+                'status-message': '1. Hi!\n'
+            },
+            operations.get_status_info(errors, 'T0', 'wfid')
+        )
 
 
 class TestOperationsGetDistinctErrors(unittest.TestCase):
@@ -363,6 +371,13 @@ class TestOperationsGetDistinctErrors(unittest.TestCase):
         expected = [{'error-type': '1', 'friendly-message': 'Hi!'},
                     {'error-type': '2', 'friendly-message': 'Heya!'}]
         self.assertEqual(expected, operations._get_distinct_errors(errors))
+
+
+class TestOperationsUpdateOperationStats(unittest.TestCase):
+    def test_no_change_to_status(self):
+        mock_wf = mock.Mock()
+        mock_wf.task_tree.children = []
+        self.assertEqual(None, operations._update_operation_stats({}, mock_wf))
 
 
 if __name__ == '__main__':

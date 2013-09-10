@@ -13,7 +13,6 @@
 #    under the License.
 
 """Common code, utilities, and classes for managing the 'operation' object."""
-import itertools
 import logging
 import os
 import time
@@ -231,7 +230,7 @@ def init_operation(workflow, tenant_id=None):
     """
     operation = {}
 
-    _update_operation(operation, workflow)
+    _update_operation_stats(operation, workflow)
 
     # Operation link
     workflow_id = (workflow.attributes.get('id') or
@@ -242,7 +241,7 @@ def init_operation(workflow, tenant_id=None):
     return operation
 
 
-def _update_operation(operation, workflow):
+def _update_operation_stats(operation, workflow):
     """Update an operation dictionary for a given workflow.
 
     Example:
