@@ -170,7 +170,7 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
 
 
 def create_reset_failed_task_wf(d_wf, deployment_id, context,
-                                      failed_task, driver=DB):
+                                failed_task, driver=DB):
     """Creates workflow for resetting a failed task
     :param d_wf: workflow containing the task
     :param deployment_id: deployment id
@@ -317,7 +317,7 @@ def get_spiff_workflow_status(workflow):
     @return: The debug information.
     """
     def get_task_status(task, output):
-        """Recursively fills task data into dict"""
+        """Recursively fills task data into dict."""
         my_dict = {
             'id': task.id,
             'threadId': task.thread_id,
@@ -401,7 +401,7 @@ def format(resources):
 
 
 def find_tasks(d_wf, state=Task.ANY_MASK, **kwargs):
-    """ Find tasks in the workflow, based on the task_tags for that task
+    """Find tasks in the workflow, based on the task_tags for that task
     @param d_wf: Workflow
     @param state: state of the Task
     @param kwargs: search parameters

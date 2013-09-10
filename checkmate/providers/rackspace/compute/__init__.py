@@ -1555,8 +1555,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 def verify_ssh_connection(context, server_id, region, ip, username='root',
                           timeout=10, password=None, identity_file=None,
                           port=22, api_object=None, private_key=None):
-    """
-    Verifies the ssh connection to a server
+    """Verifies the ssh connection to a server
     :param context: context data
     :param server_id: server id
     :param region: region where the server exists

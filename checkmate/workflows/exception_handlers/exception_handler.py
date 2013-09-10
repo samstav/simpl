@@ -21,7 +21,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ExceptionHandler(object):
-    """Base Class for Exception Handlers"""
+    """Base Class for Exception Handlers."""
     def __init__(self, d_wf, task_id, context, driver):
         self.d_wf = d_wf
         self.task_id = task_id

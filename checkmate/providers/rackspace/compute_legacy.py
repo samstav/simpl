@@ -179,9 +179,7 @@ class Provider(RackspaceComputeProviderBase):
                     image = key
                     break
         if image not in catalog['lists']['types']:
-            raise CheckmateNoMapping("No image mapping for '%s' in "
-                                           "'%s'"
-                                        % (
+            raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
                 image, self.name))
 
         # Get setting
@@ -196,8 +194,8 @@ class Provider(RackspaceComputeProviderBase):
         matches = [e['memory'] for e in catalog['lists']['sizes'].values()
                    if int(e['memory']) >= memory]
         if not matches:
-            raise CheckmateNoMapping("No flavor has at least '%s'memory"
-                                           % memory)
+            raise CheckmateNoMapping("No flavor has at least '%s'memory" %
+                                     memory)
         match = str(min(matches))
         for key, value in catalog['lists']['sizes'].iteritems():
             if match == str(value['memory']):

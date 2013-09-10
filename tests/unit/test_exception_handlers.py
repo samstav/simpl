@@ -40,7 +40,6 @@ class TestExceptionHandlers(unittest.TestCase):
         mock_wf.get_task(1001).task_spec.get_property.\
             assert_called_with("auto_retry_count")
 
-
     def test_should_not_get_handler_when_property_is_not_set(self):
         task_state = {
             "info": "CheckmateRetriableException('','','','')",

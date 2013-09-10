@@ -167,8 +167,7 @@ devstack.git
 
         deployments.Manager.plan(test_dep, self.context)
         workflow_spec = cmwfspec.WorkflowSpec\
-            .create_workflow_spec_deploy(
-            test_dep, self.context)
+            .create_workflow_spec_deploy(test_dep, self.context)
         spec = workflow_spec.task_specs['Execute Script 0 (1)']
         provider = test_dep['environment']['providers']['script']
         component = provider['catalog']['application']['openstack']

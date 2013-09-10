@@ -114,9 +114,7 @@ class CheckmateServerBuildFailed(CheckmateException):
 
 
 class CheckmateUserException(CheckmateException):
-    """
-    Exception with user friendly messages
-    """
+    """Exception with user friendly messages."""
     def __init__(self, error_message, error_type, friendly_message,
                  error_help):
         self.friendly_message = friendly_message
@@ -156,6 +154,7 @@ class CheckmateResourceRollbackException(CheckmateException):
         self.inner_exception = inner_exception
         super(CheckmateResourceRollbackException, self).__init__(
             error_message, inner_exception)
+
 
 class CheckmateValidationException(CheckmateException):
     """Validation Error."""

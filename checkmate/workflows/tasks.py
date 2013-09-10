@@ -196,8 +196,7 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
 
 @celtask.task(default_retry_delay=10, max_retries=10)
 def reset_task_tree(w_id, task_id):
-    """
-    Resets the tree for a spiff task for it to rerun
+    """Resets the tree for a spiff task for it to rerun
     :param w_id: workflow id
     :param task_id: task id
     :return:

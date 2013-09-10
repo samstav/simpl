@@ -32,8 +32,8 @@ from checkmate.providers.rackspace import loadbalancer
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow
-from checkmate import workflows
 from checkmate import workflow_spec
+from checkmate import workflows
 
 
 class TestWorkflow(unittest.TestCase):
@@ -87,10 +87,10 @@ class TestWorkflow(unittest.TestCase):
         subworkflow.get_attribute('id').AndReturn("WF_ID")
         self.mox.ReplayAll()
         workflow.create_reset_failed_task_wf(self.mocked_workflow,
-                                                   deployment["id"],
-                                                   context,
-                                                   failed_task,
-                                                   driver)
+                                             deployment["id"],
+                                             context,
+                                             failed_task,
+                                             driver)
 
     def test_set_and_get_subworkflows_on_the_workflow(self):
         wf_spec = specs.WorkflowSpec()

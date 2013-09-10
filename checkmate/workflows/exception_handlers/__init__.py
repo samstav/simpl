@@ -15,10 +15,11 @@
 import logging
 
 from checkmate.exceptions import CheckmateRetriableException
-from checkmate.workflows.exception_handlers.exception_handler import \
-    ExceptionHandler
 from checkmate.workflows.exception_handlers.automatic_reset_and_retry_handler \
     import AutomaticResetAndRetryHandler
+from checkmate.workflows.exception_handlers.exception_handler import \
+    ExceptionHandler
+
 
 LOG = logging.getLogger(__name__)
 

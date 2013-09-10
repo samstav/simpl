@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 
 
 class AutomaticResetAndRetryHandler(ExceptionHandler):
-    """Handles a reset task tree exception"""
+    """Handles a reset task tree exception."""
     MAX_RETRIES_FOR_TASK = 3
 
     def handle(self):

@@ -84,8 +84,7 @@ class Router(object):
     @utils.with_tenant
     @utils.formatted_response('workflows', with_pagination=True)
     def get_workflows(self, tenant_id=None, offset=None, limit=None):
-        """
-        Gets all the workflows for a tenant
+        """Gets all the workflows for a tenant
         :param tenant_id: tenant id
         :param offset: start record index
         :param limit: Max number of records to return
@@ -113,8 +112,7 @@ class Router(object):
 
     @utils.with_tenant
     def add_workflow(self, tenant_id=None):
-        """
-        Add a new workflow
+        """Add a new workflow
         :param tenant_id: tenant id
         :return: workflow document
         """
@@ -135,8 +133,7 @@ class Router(object):
 
     @utils.with_tenant
     def save_workflow(self, api_id, tenant_id=None):
-        """
-        Save a workflow
+        """Save a workflow
         :param api_id: id of the workflow
         :param tenant_id: tenant id
         :return: workflow document
@@ -171,8 +168,7 @@ class Router(object):
 
     @utils.with_tenant
     def get_workflow(self, api_id, tenant_id=None):
-        """
-        Gets a workflow
+        """Gets a workflow
         :param api_id: Workflow id
         :param tenant_id: tenant id
         :return: workflow document
@@ -196,8 +192,7 @@ class Router(object):
 
     @utils.with_tenant
     def get_workflow_status(self, api_id, tenant_id=None):
-        """
-        Gets the status of a workflow
+        """Gets the status of a workflow
         :param api_id: workflow id
         :param tenant_id: tenant id
         :return: workflow status
@@ -283,8 +278,7 @@ class Router(object):
 
     @utils.with_tenant
     def retry_all_failed_tasks(self, api_id, tenant_id=None):
-        """
-        Resets all the failed tasks in a workflow
+        """Resets all the failed tasks in a workflow
         :param api_id: workflow id
         :param tenant_id: tenant id
         :return: workflow document
@@ -326,8 +320,7 @@ class Router(object):
 
     @utils.with_tenant
     def resume_all_failed_tasks(self, api_id, tenant_id=None):
-        """
-        Resumes all the failed tasks in a workflow
+        """Resumes all the failed tasks in a workflow
         :param api_id: workflow id
         :param tenant_id: tenant id
         :return: workflow document

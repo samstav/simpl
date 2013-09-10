@@ -447,8 +447,10 @@ class TestGetAlgorithms(unittest.TestCase):
         self.api.region_name = 'ORD'
         self.api.algorithms = ['RANDOM', 'ROUND_ROBIN']
 
-        results = loadbalancer.provider._get_algorithms(self.context,
-            self.context.auth_token, self.context.region)
+        results = loadbalancer.provider._get_algorithms(
+            self.context,
+            self.context.auth_token,
+            self.context.region)
         self.assertEqual(results, self.api.algorithms)
         mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
                                          'algorithms for %s', 'ORD')
@@ -492,8 +494,10 @@ class TestGetProtocols(unittest.TestCase):
         self.api.region_name = 'ORD'
         self.api.protocols = ['HTTP', 'HTTPS']
 
-        results = loadbalancer.provider._get_protocols(self.context,
-            self.context.auth_token, self.context.region)
+        results = loadbalancer.provider._get_protocols(
+            self.context,
+            self.context.auth_token,
+            self.context.region)
         self.assertEqual(results, self.api.protocols)
         mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
                                          'protocols for %s', 'localhost:8080')

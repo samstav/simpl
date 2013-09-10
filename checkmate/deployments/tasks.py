@@ -12,9 +12,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-'''
+"""
 Deployments Asynchronous tasks
-'''
+"""
+
 import logging
 import os
 

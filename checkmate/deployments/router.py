@@ -33,8 +33,8 @@ from checkmate import operations
 from checkmate import stacks
 from checkmate import utils
 from checkmate import workflow
-from checkmate import workflows
 from checkmate import workflow_spec
+from checkmate import workflows
 from checkmate.workflows import tasks as wf_tasks
 
 LOG = logging.getLogger(__name__)
