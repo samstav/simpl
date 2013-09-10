@@ -1582,47 +1582,34 @@ services.factory('deploymentDataParser', function(){
     return vip;
   }
 
-  var _get_url_info = function(data, default_domain) {
+  var _get_url_info = function(inputs, default_domain) {
     var url_info = {};
-
     var url;
-    try {
-      if (typeof data.inputs.blueprint.url == "string") {
-        url = data.inputs.blueprint.url;
-      } else {
-        url = data.inputs.blueprint.url.url;
-      }
-      url_info.path = url;
-      var u = URI(url);
-      url_info.domain = u.hostname();
-    }
-    catch (error) {
-      console.log("url not found", error);
+    var domain;
+    var blueprint;
+    if (inputs)
+      blueprint = inputs.blueprint;
 
-      var domain = null;
-      //Find domain in inputs
-      try {
-        domain = data.inputs.blueprint.domain;
-        url_info.domain = domain;
+    if (blueprint) {
+      if (blueprint.url) {
+        var blueprint_url = inputs.blueprint.url;
+        if (typeof blueprint_url !== 'string') {
+          blueprint_url = blueprint_url.url;
+        }
+        var uri = URI(blueprint_url);
+        domain = uri.hostname();
+        url = blueprint_url;
+      } else {
+        domain = blueprint.domain;
+        url = 'http://' + domain + blueprint.path;
       }
-      catch (error) {
-        console.log(error);
-      }
-      //If no domain, use load-balancer VIP
-      if (domain === null) {
-        domain = default_domain;
-      }
-      //Find path in inputs
-      var path = "/";
-      try {
-        path = data.inputs.blueprint.path;
-      }
-      catch (error) {
-        console.log(error);
-      }
-      if (domain !== undefined && path !== undefined)
-        url_info.path = "http://" + domain + path;
+    } else {
+      domain = default_domain;
+      url = 'http://' + domain + '/';
     }
+
+    url_info.path = url;
+    url_info.domain = domain;
 
     return url_info;
   }
@@ -1634,7 +1621,7 @@ services.factory('deploymentDataParser', function(){
     if (vip)
       formatted_data.vip = vip;
 
-    var url_info = _get_url_info(data, formatted_data.vip);
+    var url_info = _get_url_info(data.inputs, formatted_data.vip);
     formatted_data.path = url_info.path;
     formatted_data.domain = url_info.domain;
 
