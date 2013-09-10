@@ -35,3 +35,4 @@ def count_seconds(seconds):
                                    meta={'complete': elapsed,
                                          'total': seconds})
     return seconds
+

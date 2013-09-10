@@ -462,14 +462,7 @@ class Router(object):
 
                 # Save workflow (with secrets)
                 cm_wf.update_workflow_status(wf)
-                serializer = DictionarySerializer()
-                body, secrets = utils.extract_sensitive_data(wf.serialize(
-                    serializer))
-                body['tenantId'] = workflow.get('tenantId', tenant_id)
-                body['id'] = api_id
-                updated = self.manager.save_workflow(api_id, body,
-                                                     secrets=secrets,
-                                                     tenant_id=tenant_id)
+                updated = self.manager.save_spiff_workflow(wf)
         except db.ObjectLockedError:
             bottle.abort(404, "The workflow is already locked, cannot obtain "
                               "lock.")
@@ -522,13 +515,7 @@ class Router(object):
                 task.parent._state = Task.READY
 
                 cm_wf.update_workflow_status(wflow)
-                serializer = DictionarySerializer()
-                entity = wflow.serialize(serializer)
-                body, secrets = utils.extract_sensitive_data(entity)
-                body['tenantId'] = workflow.get('tenantId', tenant_id)
-                body['id'] = api_id
-                self.manager.save_workflow(api_id, body, secrets=secrets,
-                                           tenant_id=tenant_id,)
+                self.manager.save_spiff_workflow(wflow)
         except db.ObjectLockedError:
             bottle.abort(404, "The workflow is already locked, cannot obtain "
                               "lock.")
@@ -576,14 +563,7 @@ class Router(object):
 
                 cm_wf.reset_task_tree(task)
                 cm_wf.update_workflow_status(wflow)
-                serializer = DictionarySerializer()
-                entity = wflow.serialize(serializer)
-                body, secrets = utils.extract_sensitive_data(entity)
-                body['tenantId'] = workflow.get('tenantId', tenant_id)
-                body['id'] = api_id
-                updated = self.manager.save_workflow(api_id, body,
-                                                     secrets=secrets,
-                                                     tenant_id=tenant_id)
+                updated = self.manager.save_spiff_workflow(wflow)
         except db.ObjectLockedError:
             bottle.abort(404, "The workflow is already locked, cannot obtain "
                               "lock.")
@@ -639,13 +619,7 @@ class Router(object):
                     task.task_spec._update_state(task)
 
                 cm_wf.update_workflow_status(wflow)
-                serializer = DictionarySerializer()
-                entity = wflow.serialize(serializer)
-                body, secrets = utils.extract_sensitive_data(entity)
-                body['tenantId'] = workflow.get('tenantId', tenant_id)
-                body['id'] = api_id
-                self.manager.save_workflow(api_id, body, secrets=secrets,
-                                           tenant_id=tenant_id)
+                self.manager.save_spiff_workflow(wflow)
                 task = wflow.get_task(task_id)
                 if not task:
                     bottle.abort(404, "No task with id '%s' found" % task_id)

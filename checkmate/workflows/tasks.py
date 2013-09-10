@@ -217,7 +217,7 @@ def reset_task_tree(w_id, task_id):
 @celtask.task(base=celeryglobal.SingleTask, lock_db=LOCK_DB,
               lock_key="async_wf_writer:{args[1]}", lock_timeout=5)
 @statsd.collect
-def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
+def run_one_task(context, workflow_id, task_id, timeout=60):
     """Attempt to complete one task.
     returns True/False indicating if task completed
     """
@@ -270,12 +270,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
                   task_id, workflow_id, result)
         msg = "Saving: %s" % d_wf.get_dump()
         LOG.debug(msg)
-        #TODO(any): make DRY
-        body, secrets = utils.extract_sensitive_data(updated)
-        body['tenantId'] = workflow.get('tenantId')
-        body['id'] = workflow_id
-        #TODO(any): remove these from this whole class to the db layer
-        driver.save_workflow(workflow_id, body, secrets)
+        MANAGERS['workflows'].save_spiff_workflow(d_wf)
     return result
 
 
