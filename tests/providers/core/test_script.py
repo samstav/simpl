@@ -29,7 +29,7 @@ from checkmate.providers.core import script
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow
-from checkmate import workflow_spec
+from checkmate import workflow_spec as cmwfspec
 
 LOG = logging.getLogger(__name__)
 
@@ -166,7 +166,8 @@ devstack.git
             '''))
 
         deployments.Manager.plan(test_dep, self.context)
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        workflow_spec = cmwfspec.WorkflowSpec\
+            .create_workflow_spec_deploy(
             test_dep, self.context)
         spec = workflow_spec.task_specs['Execute Script 0 (1)']
         provider = test_dep['environment']['providers']['script']
@@ -240,10 +241,10 @@ devstack.git
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
+        workflow_spec = cmwfspec.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         wflow = workflow.init_spiff_workflow(
-            wf_spec, self.deployment, context, "w_id", "BUILD")
+            workflow_spec, self.deployment, context, "w_id", "BUILD")
         task_list = wflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',
