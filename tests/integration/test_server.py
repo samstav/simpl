@@ -29,6 +29,7 @@ from checkmate import environments
 from checkmate import middleware as cmmid
 from checkmate import server
 from checkmate import workflows
+from checkmate.workflows import router
 
 
 class TestServer(unittest.TestCase):

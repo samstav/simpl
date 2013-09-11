@@ -34,7 +34,7 @@ from checkmate.providers.rackspace import loadbalancer
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
-from checkmate import workflows
+from checkmate import workflow_spec
 
 LOG = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class TestLoadBalancer(test.ProviderTester):
         self.assertEqual(provider.key, 'rackspace.load-balancer')
 
     def test_generate_delete_connection_tasks(self):
-        wf_spec = workflows.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         deployment = cm_dep.Deployment({
             'id': 'TEST',
 
@@ -447,8 +447,10 @@ class TestGetAlgorithms(unittest.TestCase):
         self.api.region_name = 'ORD'
         self.api.algorithms = ['RANDOM', 'ROUND_ROBIN']
 
-        results = loadbalancer.provider._get_algorithms(self.context,
-            self.context.auth_token, self.context.region)
+        results = loadbalancer.provider._get_algorithms(
+            self.context,
+            self.context.auth_token,
+            self.context.region)
         self.assertEqual(results, self.api.algorithms)
         mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
                                          'algorithms for %s', 'ORD')
@@ -492,8 +494,10 @@ class TestGetProtocols(unittest.TestCase):
         self.api.region_name = 'ORD'
         self.api.protocols = ['HTTP', 'HTTPS']
 
-        results = loadbalancer.provider._get_protocols(self.context,
-            self.context.auth_token, self.context.region)
+        results = loadbalancer.provider._get_protocols(
+            self.context,
+            self.context.auth_token,
+            self.context.region)
         self.assertEqual(results, self.api.protocols)
         mock_log_info.assert_called_with('Calling Cloud Load Balancers to get '
                                          'protocols for %s', 'localhost:8080')
@@ -644,10 +648,10 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             """))
         vip_deployment['tenantId'] = "tenantId"
         deployments.Manager.plan(vip_deployment, self.context)
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             vip_deployment, self.context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, vip_deployment, self.context, "w_id", "BUILD")
+            wf_spec, vip_deployment, self.context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root', 'Start',
@@ -730,10 +734,10 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         dep_with_allow_unencrypted['tenantId'] = 'tenantId'
         deployments.Manager.plan(
             dep_with_allow_unencrypted, self.context)
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             dep_with_allow_unencrypted, self.context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, dep_with_allow_unencrypted, self.context, "w_id",
+            wf_spec, dep_with_allow_unencrypted, self.context, "w_id",
             "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
@@ -808,9 +812,9 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         """))
         deployment['tenantId'] = "tenantId"
         deployments.Manager.plan(deployment, self.context)
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             deployment, self.context)
-        workflow = cm_wf.init_spiff_workflow(workflow_spec, deployment,
+        workflow = cm_wf.init_spiff_workflow(wf_spec, deployment,
                                              self.context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
@@ -830,9 +834,9 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected)
 
     def test_workflow_task_generation(self):
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, self.context)
-        workflow = cm_wf.init_spiff_workflow(workflow_spec, self.deployment,
+        workflow = cm_wf.init_spiff_workflow(wf_spec, self.deployment,
                                              self.context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()

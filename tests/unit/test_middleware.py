@@ -110,6 +110,22 @@ class TestExtensionsMiddleware(unittest.TestCase):
         self.assertEqual('application/json', env['HTTP_ACCEPT'])
 
 
+class RequestContextTests(unittest.TestCase):
+    """RequestContextTests"""
+    def test_dict_conversion(self):
+        context = cmmid.RequestContext(simulation='True',
+                                       param1='value1', param2='value2')
+        dict = context.get_queued_task_dict(param3='value3')
+        self.assertDictContainsSubset({'param1': 'value1',
+                                       'param2': 'value2',
+                                       'param3': 'value3',
+                                       'simulation': 'True'}, dict)
+        dict2 = context.get_queued_task_dict()
+        self.assertDictContainsSubset({'param1': 'value1',
+                                       'param2': 'value2',
+                                       'simulation': 'True'}, dict2)
+
+
 class TestRequestContext(unittest.TestCase):
     def setUp(self):
         self.filter = cmmid.ContextMiddleware(MockWsgiApp())

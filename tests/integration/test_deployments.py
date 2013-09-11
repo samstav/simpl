@@ -38,7 +38,7 @@ from checkmate import operations
 from checkmate.providers import base
 from checkmate import utils
 from checkmate import workflow
-from checkmate import workflows
+from checkmate import workflow_spec
 from checkmate.workflows import tasks as wf_tasks
 
 LOG = logging.getLogger(__name__)
@@ -1268,7 +1268,7 @@ class TestDeleteDeployments(unittest.TestCase):
 
     def setUp(self):
         bottle.request.bind({})
-        bottle.request.context = task.Context()
+        bottle.request.context = cmmid.RequestContext()
         bottle.request.context.tenant = None
         self._deployment = {
             'id': '1234',
@@ -1329,9 +1329,9 @@ class TestDeleteDeployments(unittest.TestCase):
         router = cmdeps.Router(bottle.default_app(), manager)
         mock_get_driver.return_value = mock_driver
 
-        self._mox.StubOutWithMock(workflows.WorkflowSpec,
+        self._mox.StubOutWithMock(workflow_spec.WorkflowSpec,
                                   "create_delete_dep_wf_spec")
-        workflows.WorkflowSpec.create_delete_dep_wf_spec(
+        workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
             self._deployment, bottle.request.context).AndReturn(mock_spec)
         self._mox.StubOutWithMock(workflow,
                                   "create_workflow")
@@ -1345,7 +1345,9 @@ class TestDeleteDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(operations, "create")
         operations.create.delay('1234', 'w_id', 'DELETE', 'T1000')
         self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
-        wf_tasks.cycle_workflow.delay('w_id').AndReturn(4)
+        wf_tasks.cycle_workflow.delay(
+            'w_id',
+            bottle.request.context.get_queued_task_dict()).AndReturn(4)
 
         self._mox.ReplayAll()
         router.delete_deployment('1234', tenant_id="T1000")
@@ -1496,7 +1498,7 @@ class TestPostbackHelpers(unittest.TestCase):
     def setUp(self):
         self._mox = mox.Mox()
         bottle.request.bind({})
-        bottle.request.context = task.Context()
+        bottle.request.context = cmmid.RequestContext()
         bottle.request.context.tenant = None
         self._deployment = {
             'id': '1234',
@@ -1558,7 +1560,7 @@ class TestDeploymentAddNodes(unittest.TestCase):
     def setUp(self):
         self._mox = mox.Mox()
         bottle.request.bind({})
-        bottle.request.context = task.Context()
+        bottle.request.context = cmmid.RequestContext()
         bottle.request.context.tenant = None
         self._deployment = {
             'id': '1234',
@@ -1595,7 +1597,9 @@ class TestDeploymentAddNodes(unittest.TestCase):
         manager.save_deployment(self._deployment, api_id='1234',
                                 tenant_id='T1000').AndReturn(self._deployment)
         self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
-        wf_tasks.cycle_workflow.delay('w_id')
+        wf_tasks.cycle_workflow.delay(
+            'w_id',
+            bottle.request.context.get_queued_task_dict())
 
         self._mox.ReplayAll()
         router.add_nodes("1234", tenant_id="T1000")

@@ -18,15 +18,14 @@ Rackspace Cloud Load Balancer provider and specs.Celery tasks
 import logging
 import os
 
-from celery import canvas
 from celery import task
 import pyrax
 import redis
 
 from checkmate.common import statsd
 from checkmate import deployments
-from checkmate.deployments.tasks import reset_failed_resource_task
 from checkmate import exceptions
+from checkmate.providers.rackspace.loadbalancer.manager import Manager
 from checkmate.providers.rackspace.loadbalancer.provider import Provider
 from checkmate import utils
 
@@ -58,7 +57,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
         LOG.warn("Error connecting to Redis: %s", exception)
 
 MANAGERS = {'deployments': deployments.Manager()}
-get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
+GET_RESOURCE_BY_ID = MANAGERS['deployments'].get_resource_by_id
 
 
 # Cloud Load Balancers needs an IP for all load balancers. To create one we
@@ -107,8 +106,6 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
 
     if api is None:
         api = Provider.connect(context, region)
-
-    reset_failed_resource_task.delay(deployment_id, context["resource"])
 
     #FIXME: should pull default from lb api but thats not exposed via the
     #       client yet
@@ -684,15 +681,9 @@ def wait_on_build(context, lbid, region, api=None):
             }
         }
         deployments.resource_postback.delay(context['deployment'], results)
-
-        # Delete the loadbalancer if it failed building
-        canvas.chain(
-            delete_lb_task.si(context, context["resource"], lbid, region, api),
-            wait_on_lb_delete_task.si(context, context["resource"], lbid,
-                                      region, api)).apply_async()
         raise exceptions.CheckmateRetriableException(
-            msg, "",
-            utils.get_class_name(CheckmateLoadbalancerBuildFailed()), msg, '')
+            msg, utils.get_class_name(CheckmateLoadbalancerBuildFailed()),
+            msg, '')
     elif loadbalancer.status == "ACTIVE":
         results = {
             instance_key: {

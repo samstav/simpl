@@ -24,7 +24,6 @@ import eventlet
 import logging
 import os
 
-from celery import canvas
 from celery import task as ctask
 from novaclient import exceptions as ncexc
 import pyrax
@@ -37,7 +36,6 @@ from checkmate.common import caching
 from checkmate.common import config
 from checkmate.common import statsd
 from checkmate import deployments as cmdeps
-from checkmate.deployments import tasks
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
 from checkmate import providers as cmprov
@@ -153,7 +151,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
 
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 MANAGERS = {'deployments': cmdeps.Manager()}
-get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
+GET_RESOURCE_BY_ID = MANAGERS['deployments'].get_resource_by_id
 pyrax.set_setting('identity_type', 'rackspace')
 
 
@@ -418,18 +416,12 @@ class Provider(RackspaceComputeProviderBase):
                 queued_task_dict,
                 swops.PathAttrib('instance:%s/id' % key),
                 resource['region'],
-                resource
             ],
-            verify_up=True,
-            password=swops.PathAttrib('instance:%s/password' % key),
-            private_key=deployment.settings().get('keys', {}).get(
-                'deployment', {}).get('private_key'),
-            merge_results=True,
-            properties={'estimated_duration': 150},
+            properties={'estimated_duration': 150,
+                        'auto_retry_count': 3},
             defines=dict(
                 resource=key,
                 provider=self.key,
-                task_tags=['final']
             )
         )
 
@@ -439,6 +431,28 @@ class Provider(RackspaceComputeProviderBase):
         build_wait_task = specs.Celery(
             wfspec, task_name, celery_call, **kwargs)
         create_server_task.connect(build_wait_task)
+
+        verify_ssh_task = specs.Celery(
+            wfspec, 'Verify server %s (%s) ssh connection' % (
+                key, resource['service']),
+            'checkmate.providers.rackspace.compute.verify_ssh_connection',
+            call_args=[
+                queued_task_dict,
+                swops.PathAttrib('instance:%s/id' % key),
+                resource['region'],
+                swops.PathAttrib('instance:%s/ip' % key)
+            ],
+            password=swops.PathAttrib('instance:%s/password' % key),
+            private_key=deployment.settings().get('keys', {}).get(
+                'deployment', {}).get('private_key'),
+            properties={'estimated_duration': 10},
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['final']
+            )
+        )
+        build_wait_task.connect(verify_ssh_task)
 
         # If Managed Cloud Linux servers, add a Completion task to release
         # RBA. Other providers may delay this task until they are done.
@@ -464,7 +478,7 @@ class Provider(RackspaceComputeProviderBase):
                     task_tags=['complete']
                 )
             )
-            build_wait_task.connect(touch_complete)
+            verify_ssh_task.connect(touch_complete)
 
         if wait_on is None:
             wait_on = []
@@ -533,7 +547,7 @@ class Provider(RackspaceComputeProviderBase):
             },
         )
         delete_server.connect(wait_on_delete)
-        return {'root': delete_server}
+        return {'root': delete_server, 'final': wait_on_delete}
 
     @staticmethod
     def _get_api_info(context, **kwargs):
@@ -1068,7 +1082,6 @@ def create_server(context, name, region, api_object=None, flavor="2",
         method = "create_server"
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
-    tasks.reset_failed_resource_task.delay(deployment_id, resource_key)
     create_server.on_failure = on_failure
 
     if api_object is None:
@@ -1375,17 +1388,17 @@ def wait_on_delete_server(context, api=None):
 # max 60 minute wait
 @ctask.task(default_retry_delay=30, max_retries=120, acks_late=True)
 @statsd.collect
-def wait_on_build(context, server_id, region, resource,
-                  ip_address_type='public', verify_up=True, username='root',
-                  timeout=10, password=None, identity_file=None, port=22,
-                  api_object=None, private_key=None):
-    """Checks build is complete and. optionally, that SSH is working.
+def wait_on_build(context, server_id, region, ip_address_type='public',
+                  api_object=None):
+    """Checks build is complete.
 
-    :param ip_adress_type: the type of IP addresss to return as 'ip' in the
+    :param context: context data
+    :param server_id: server id of the server to wait for
+    :param region: region in which the server exists
+    :param ip_address_type: the type of IP address to return as 'ip' in the
         response
-    :param prefix: a string to prepend to any results. Used by Spiff and
-            Checkmate
-    :returns: False when build not ready. Dict with ip addresses when done.
+    :param api_object: api object for getting server details
+    :return: False when build not ready. Dict with ip addresses when done.
     """
     utils.match_celery_logging(LOG)
     deployment_id = context["deployment_id"]
@@ -1441,7 +1454,7 @@ def wait_on_build(context, server_id, region, resource,
         )
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               (api_object.client.management_url))
+               api_object.client.management_url)
         LOG.error(msg, exc_info=True)
         raise wait_on_build.retry(exc=exc)
 
@@ -1462,15 +1475,11 @@ def wait_on_build(context, server_id, region, resource,
 
         cmdeps.resource_postback.delay(deployment_id, results)
         context["instance_id"] = server_id
-        canvas.chain(delete_server_task.si(context), wait_on_delete_server.si(
-            context)).apply_async()
-
         raise cmexc.CheckmateRetriableException(
             results[instance_key]['status-message'],
             utils.get_class_name(cmexc.CheckmateServerBuildFailed()),
             results[instance_key]['status-message'],
             '')
-
     if server.status == 'BUILD':
         results['progress'] = server.progress
         results['status-message'] = "%s%% Complete" % server.progress
@@ -1522,7 +1531,6 @@ def wait_on_build(context, server_id, region, resource,
                                                {instance_key: results})
                 wait_on_build.retry(exc=cmexc.CheckmateException(msg))
 
-    # should be active now, grab an appropriate address and check connectivity
     ips = utils.get_ips_from_server(
         server,
         context['roles'],
@@ -1536,44 +1544,78 @@ def wait_on_build(context, server_id, region, resource,
                                    "Could not find IP of server '%s'" %
                                    server_id))
 
-    if verify_up:
-        ip_addr = results['ip']
-        isup = False
-        image_details = api_object.images.find(id=server.image['id'])
-        metadata = image_details.metadata
-        if ((metadata and metadata['os_type'] == 'linux') or
-                ('windows' not in image_details.name.lower())):
-            msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
-                  "to connect." % (server_id, username, ip_addr, port)
-            isup = ssh.test_connection(context, ip_addr, username,
-                                       timeout=timeout,
-                                       password=password,
-                                       identity_file=identity_file,
-                                       port=port,
-                                       private_key=private_key)
-        else:
-            msg = "Server '%s' is ACTIVE but is not responding to ping " \
-                  " attempts" % server_id
-            isup = rdp.test_connection(context, ip_addr, timeout=timeout)
-
-        if not isup:
-            # try again in half a second but only wait for another 2 minutes
-            results['status-message'] = msg
-            cmdeps.resource_postback.delay(deployment_id,
-                                           {instance_key: results})
-            raise wait_on_build.retry(exc=cmexc.CheckmateException(msg),
-                                      countdown=0.5,
-                                      max_retries=240)
-    else:
-        LOG.info("Server '%s' is ACTIVE. Not verified to be up", server_id)
-
-    # Check to see if we have another resource that needs to install on this
-    # server
-    # if 'hosts' in resource:
-    #    results['status'] = "CONFIGURE"
-    # else:
     results['status'] = "ACTIVE"
     results['status-message'] = ''
     results = {instance_key: results}
     cmdeps.resource_postback.delay(deployment_id, results)
     return results
+
+
+@ctask.task(default_retry_delay=30, max_retries=120)
+def verify_ssh_connection(context, server_id, region, server_ip,
+                          username='root', timeout=10, password=None,
+                          identity_file=None, port=22, api_object=None,
+                          private_key=None):
+    """Verifies the ssh connection to a server
+    :param context: context data
+    :param server_id: server id
+    :param region: region where the server exists
+    :param server_ip: ip of the server
+    :param username: username for ssh
+    :param timeout: timeout for ssh
+    :param password: password for ssh
+    :param identity_file: identity file for ssh
+    :param port: port fpr ssh
+    :param api_object: api object for getting server details
+    :param private_key: private key
+    :return:
+    """
+    utils.match_celery_logging(LOG)
+    deployment_id = context["deployment_id"]
+    instance_key = 'instance:%s' % context['resource_key']
+
+    if context.get('simulation') is True:
+        return
+
+    if api_object is None:
+        api_object = Provider.connect(context, region)
+
+    try:
+        server = api_object.servers.find(id=server_id)
+    except (ncexc.NotFound, ncexc.NoUniqueMatch):
+        msg = "No server matching id %s" % server_id
+        LOG.error(msg, exc_info=True)
+        raise cmexc.CheckmateUserException(
+            msg,
+            utils.get_class_name(cmexc.CheckmateException),
+            cmexc.UNEXPECTED_ERROR, ''
+        )
+    except requests.ConnectionError as exc:
+        msg = ("Connection error talking to %s endpoint" %
+               api_object.client.management_url)
+        LOG.error(msg, exc_info=True)
+        raise verify_ssh_connection.retry(exc=exc)
+
+    image_details = api_object.images.find(id=server.image['id'])
+    metadata = image_details.metadata
+    if ((metadata and metadata['os_type'] == 'linux') or
+            ('windows' not in image_details.name.lower())):
+        msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
+              "to connect." % (server_id, username, server_ip, port)
+        is_up = ssh.test_connection(context, server_ip, username,
+                                    timeout=timeout,
+                                    password=password,
+                                    identity_file=identity_file,
+                                    port=port,
+                                    private_key=private_key)
+    else:
+        msg = "Server '%s' is ACTIVE but is not responding to ping " \
+              " attempts" % server_id
+        is_up = rdp.test_connection(context, server_ip, timeout=timeout)
+
+    if not is_up:
+        # try again in half a second but only wait for another 2 minutes
+        cmdeps.resource_postback.delay(deployment_id, {
+            instance_key: {'status-message': msg}
+        })
+        raise wait_on_build.retry(exc=cmexc.CheckmateException(msg))

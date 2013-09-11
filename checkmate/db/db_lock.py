@@ -1,3 +1,4 @@
+"""Used for DB Locking"""
 class DbLock(object):
     def __init__(self, driver, key, timeout):
         self.key = key

@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 #!/usr/bin/env python
 """File with testing primitives for use in tests and external providers."""
 import json
@@ -18,7 +32,7 @@ LOG = logging.getLogger(__name__)
 
 from checkmate.deployment import Deployment
 from checkmate import deployments
-from checkmate import workflows
+from checkmate import workflow_spec
 
 os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
                                                  'data')
@@ -26,7 +40,6 @@ os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
 from checkmate.common import schema
 from checkmate import exceptions
 from checkmate.providers import base, register_providers, get_provider_class
-from checkmate.providers import base
 from checkmate.middleware import RequestContext  # also enables logging
 from checkmate import utils
 from checkmate.workflow import init_spiff_workflow
@@ -254,18 +267,18 @@ class StubbedWorkflowBase(unittest.TestCase):
         if self.deployment.get('status') == 'NEW':
             deployments.Manager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
-        workflow = init_spiff_workflow(workflow_spec, self.deployment,
+        workflow = init_spiff_workflow(wf_spec, self.deployment,
                                        context, "w_id", "BUILD")
 
         if not expected_calls:
             expected_calls = self._get_expected_calls()
         self.expected_calls = expected_calls
         if not expected_calls:
-            raise exceptions.CheckmateException("Unable to identify expected calls "
-                                     "which is needed to run a simulated "
-                                     "workflow")
+            raise exceptions.CheckmateException("Unable to identify expected "
+                                                "calls which is needed to run "
+                                                "a simulated workflow")
 
         #Mock out celery calls
         self.mock_tasks = {}
@@ -875,7 +888,8 @@ class TestProvider(base.ProviderBase):
             tag='final'
         )
         if not target_final:
-            raise exceptions.CheckmateException("Relation final task not found")
+            raise exceptions.CheckmateException("Relation final task not "
+                                                "found")
         if len(target_final) > 1:
             raise exceptions.CheckmateException(
                 "Multiple relation final tasks "

@@ -129,7 +129,6 @@ class TestDatabaseTasks(unittest.TestCase):
         partial.assert_called_with({'id': 'DBS0'})
         mock_callback.assert_called_with(
             context, expected_result['instance:0'])
-        mock_reset.assert_called_with('DEP_ID', '0')
 
     @mock.patch.object(functools, 'partial')
     @mock.patch.object(database._create_instance, 'callback')
@@ -253,7 +252,6 @@ class TestDatabaseTasks(unittest.TestCase):
         mock_callback.assert_called_with(
             context, expected['instance:0'])
         self.assertEqual(results, expected)
-        mock_reset.assert_called_with('DEP_ID', '0')
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_invalid_api(self, mock_reset):

@@ -102,7 +102,6 @@ class TestDatabase(test.ProviderTester):
                                            {'id': instance.id}).AndReturn(True)
         database._create_instance.callback(
             context, expected['instance:1']).AndReturn(True)
-        tasks.reset_failed_resource_task.delay('DEP_ID', '1')
 
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name, 1, 1,
@@ -131,7 +130,6 @@ class TestDatabase(test.ProviderTester):
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get(instance.id).AndReturn(instance)
-        tasks.reset_failed_resource_task.delay('DEP', '1')
         self.mox.ReplayAll()
         #Should throw exception when instance.status="BUILD"
         self.assertRaises(exceptions.CheckmateException,
@@ -183,7 +181,6 @@ class TestDatabase(test.ProviderTester):
         database._create_database.callback(
             context, {'status': instance.status}).AndReturn(True)
         database._create_database.callback(context, expected['instance:1'])
-        tasks.reset_failed_resource_task.delay('DEP', '1')
         self.mox.ReplayAll()
         results = database.create_database(context, 'db1', 'NORTH',
                                            instance_id=instance.id,

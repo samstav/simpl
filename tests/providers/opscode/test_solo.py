@@ -38,7 +38,7 @@ from checkmate.providers.opscode import solo
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
-from checkmate import workflows
+from checkmate import workflow_spec
 
 LOG = logging.getLogger(__name__)
 
@@ -202,7 +202,7 @@ class TestChefSoloProvider(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_cleanup_environment(self):
-        wf_spec = workflows.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         provider = solo.Provider({})
         cleanup_result = provider.cleanup_environment(wf_spec, {'id': 'DEP1'})
         cleanup_task_spec = cleanup_result['root']
@@ -221,7 +221,7 @@ class TestChefSoloProvider(test.ProviderTester):
                                     '.delete_environment')
 
     def test_cleanup_temp_files(self):
-        wf_spec = workflows.WorkflowSpec()
+        wf_spec = workflow_spec.WorkflowSpec()
         self.mox.StubOutWithMock(wf_spec, "find_task_specs")
         self.mox.StubOutWithMock(wf_spec, "wait_for")
         mock_task_spec = self.mox.CreateMock(specs.TaskSpec)
@@ -385,10 +385,10 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
     def test_workflow_task_generation(self):
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, self.deployment, context, "w_id", "BUILD")
+            wf_spec, self.deployment, context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
@@ -594,10 +594,10 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
 
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, self.deployment, context, "w_id", "BUILD")
+            wf_spec, self.deployment, context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
         self.assertNotIn('Collect Chef Data for 0', task_list,
@@ -725,10 +725,10 @@ interfaces/mysql/host
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, self.deployment, context, "w_id", "BUILD")
+            wf_spec, self.deployment, context, "w_id", "BUILD")
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root',
                     'Start',
@@ -1047,10 +1047,10 @@ interfaces/mysql/database_name
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             self.deployment, context)
         workflow = cm_wf.init_spiff_workflow(
-            workflow_spec, self.deployment, context, "w_id", "BUILD")
+            wf_spec, self.deployment, context, "w_id", "BUILD")
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']
         ancestors = collect_task.ancestors()
         host_done = workflow.spec.task_specs['Configure bar: 2 (backend)']

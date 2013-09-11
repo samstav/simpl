@@ -17,9 +17,11 @@
 """Tests for Workflow class."""
 import re
 import unittest
+from mock import MagicMock, patch
 
 import mox
 from SpiffWorkflow import specs
+from SpiffWorkflow import Task
 from SpiffWorkflow import storage
 from SpiffWorkflow.Workflow import Workflow
 
@@ -32,6 +34,7 @@ from checkmate.providers.rackspace import loadbalancer
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow
+from checkmate import workflow_spec
 from checkmate import workflows
 
 
@@ -50,20 +53,116 @@ class TestWorkflow(unittest.TestCase):
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
 
-    def test_reset_failed_tasks(self):
-        task_state = {
-            "info": "CheckmateResetTaskTreeException()",
-            "state": "FAILURE",
+    def test_get_errored_tasks(self):
+        failed_task_state = {
+            'state': 'FAILURE',
         }
-        self.task_with_error._get_internal_attribute('task_state').AndReturn(
-            task_state)
-        self.task_with_error._get_internal_attribute('task_state').AndReturn(
-            task_state)
-        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error])
-        self.mox.StubOutWithMock(workflow, "reset_task_tree")
-        workflow.reset_task_tree(self.task_with_error)
+        self.task_with_error._get_internal_attribute("task_state").AndReturn(
+            failed_task_state)
+        self.task_without_error._get_internal_attribute(
+            "task_state").AndReturn(None)
+        self.mocked_workflow.get_tasks().AndReturn([self.task_with_error,
+                                                    self.task_without_error])
         self.mox.ReplayAll()
-        workflow.reset_failed_tasks(self.mocked_workflow)
+        self.assertEquals(workflow.get_errored_tasks(self.mocked_workflow),
+                          ['task_id'])
+
+    def test_create_reset_failed_task_workflow(self):
+        spec = self.mox.CreateMockAnything()
+        failed_task = self.mox.CreateMockAnything()
+        subworkflow = self.mox.CreateMockAnything()
+        context = self.mox.CreateMock(cmmid.RequestContext)
+        deployment = cmdep.Deployment({"id": "DEP_ID"})
+
+        driver = self.mox.CreateMockAnything()
+        driver.get_deployment(deployment["id"], with_secrets=False)\
+            .AndReturn(deployment)
+
+        self.mocked_workflow.get_attribute('id').AndReturn("WF_ID")
+        self.mox.StubOutWithMock(workflow_spec.WorkflowSpec,
+                                 "create_reset_failed_resource_spec")
+        workflow_spec.WorkflowSpec.create_reset_failed_resource_spec(
+            context, deployment, failed_task, "WF_ID").AndReturn(spec)
+        self.mox.StubOutWithMock(workflow, "create_workflow")
+        workflow.create_workflow(spec, deployment, context, driver=driver,
+                                 wf_type="CLEAN UP").AndReturn(subworkflow)
+        subworkflow.get_attribute('id').AndReturn("WF_ID")
+        self.mox.ReplayAll()
+        workflow.create_reset_failed_task_wf(self.mocked_workflow,
+                                             deployment["id"],
+                                             context,
+                                             failed_task,
+                                             driver)
+
+    def test_set_and_get_subworkflows_on_the_workflow(self):
+        wf_spec = specs.WorkflowSpec()
+        simple_spec = specs.Simple(wf_spec, "Foo")
+        wf_spec.start.connect(simple_spec)
+
+        wf = Workflow(wf_spec)
+        workflow.add_subworkflow(wf, "subworkflow_id",
+                                 "task_id")
+        self.assertDictEqual({"task_id": "subworkflow_id"},
+                             wf.get_attribute("subworkflows"))
+
+        s_wf_id = workflow.get_subworkflow(wf, "task_id")
+        self.assertEqual("subworkflow_id", s_wf_id)
+
+    def test_should_archive_older_subworkflows_during_add(self):
+        wf_spec = specs.WorkflowSpec()
+        simple_spec = specs.Simple(wf_spec, "Foo")
+        wf_spec.start.connect(simple_spec)
+
+        wf = Workflow(wf_spec)
+        workflow.add_subworkflow(wf, "subworkflow_id_1", "task_id")
+        workflow.add_subworkflow(wf, "subworkflow_id_2", "task_id")
+
+        subworkflows = wf.get_attribute("subworkflows")
+        self.assertEqual(subworkflows["task_id"], "subworkflow_id_2")
+
+        subworkflows_history = wf.get_attribute("subworkflows-history")
+        self.assertDictEqual(subworkflows_history, {
+            "task_id": ["subworkflow_id_1"]
+        })
+
+    def test_reset_task_tree_for_celery_task_with_no_parents(self):
+        task1 = MagicMock(spec=specs.Celery)
+        task1.task_spec = MagicMock(spec=specs.Celery)
+        task1.task_spec._clear_celery_task_data = MagicMock()
+        task1.task_spec._update_state = MagicMock()
+
+        task1.parent = None
+        task1.get_property.return_value = ['root']
+
+        workflow.reset_task_tree(task1)
+        task1.task_spec._clear_celery_task_data.assert_called_with(task1)
+        task1.task_spec._update_state.assert_called_once_with(task1)
+
+        self.assertEquals(task1._state, Task.FUTURE)
+
+    def test_reset_task_tree_for_celery_task_with_parents(self):
+        task1 = MagicMock()
+        task1.task_spec = MagicMock(spec=specs.Celery)
+        task1.task_spec._clear_celery_task_data = MagicMock()
+        task1.task_spec._update_state = MagicMock()
+
+        task2 = MagicMock()
+        task2.task_spec = MagicMock()
+        task2.get_property.return_value = ['root']
+
+        task1.parent = task2
+        task1.get_property.return_value = []
+
+        workflow.reset_task_tree(task1)
+
+        task1.task_spec._clear_celery_task_data.assert_called_with(task1)
+
+        task2.task_spec._update_state.assert_called_once_with(task2)
+
+        self.assertEquals(task1._state, Task.FUTURE)
+        self.assertEquals(task2._state, Task.FUTURE)
+
+
 
     def test_convert_exc_to_dict_with_retriable_exception(self):
         info = "CheckmateRetriableException('foo', 'Exception', " \
@@ -169,6 +268,29 @@ class TestWorkflow(unittest.TestCase):
                           "error-traceback": "Traceback"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
+
+    def test_find_tasks_with_no_tasks_matching_filter(self):
+        self.mocked_workflow.get_tasks(state=Task.ANY_MASK).AndReturn([])
+        self.mox.ReplayAll()
+        matched = workflow.find_tasks(self.mocked_workflow)
+        self.mox.VerifyAll()
+        self.assertListEqual(matched, [])
+
+    def test_find_tasks_with_tasks_matching_filter(self):
+        task1 = self.mox.CreateMockAnything()
+        task2 = self.mox.CreateMockAnything()
+
+        task1.get_property("task_tags", []).AndReturn(["tag1"])
+        task2.get_property("task_tags", []).AndReturn([])
+
+        self.mocked_workflow.get_tasks(state=Task.ANY_MASK).AndReturn([
+            task1, task2])
+        self.mox.ReplayAll()
+        matched = workflow.find_tasks(self.mocked_workflow,
+                                      state=Task.ANY_MASK,
+                                      tag='tag1')
+        self.mox.VerifyAll()
+        self.assertListEqual(matched, [task1])
 
     def test_get_failed_tasks_with_valid_exception(self):
         task_state = {
@@ -305,10 +427,10 @@ class TestWorkflow(unittest.TestCase):
         deployments.Manager.plan(deployment_with_lb_provider, context)
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
-        workflow_spec = workflows.WorkflowSpec.create_delete_dep_wf_spec(
+        wf_spec = workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
             deployment_with_lb_provider, context)
         test_workflow = workflow.init_spiff_workflow(
-            workflow_spec, deployment_with_lb_provider, context, "w_id",
+            wf_spec, deployment_with_lb_provider, context, "w_id",
             "DELETE")
         workflow_dump = re.sub(r"\s", "", test_workflow.get_dump())
         expected_dump = """
@@ -374,11 +496,10 @@ class TestWorkflow(unittest.TestCase):
         deployments.Manager.plan(deployment_with_lb_provider, context)
         deployment_with_lb_provider['resources']['0']['instance'] = {
             'id': 'lbid'}
-        workflow_spec = workflows.WorkflowSpec\
-            .create_delete_dep_wf_spec(
-                deployment_with_lb_provider, context)
+        wf_spec = workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
+            deployment_with_lb_provider, context)
         test_workflow = workflow.init_spiff_workflow(
-            workflow_spec, deployment_with_lb_provider, context, "w_id",
+            wf_spec, deployment_with_lb_provider, context, "w_id",
             "DELETE")
         workflow_dump = re.sub(r"\s", "", test_workflow.get_dump())
         expected_dump = """

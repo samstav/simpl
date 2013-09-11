@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 '''
 Workflow Class and Helper Functions
 '''
@@ -6,20 +20,24 @@ import logging
 import uuid
 
 from celery.exceptions import MaxRetriesExceededError
-from SpiffWorkflow import Workflow as SpiffWorkflow, Task
+from SpiffWorkflow import (
+    Workflow as SpiffWorkflow,
+    Task
+)
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate.common import schema
 from checkmate.classes import ExtensibleDict
+from checkmate.common import schema
 from checkmate.db import get_driver
+from checkmate.deployment import Deployment
 from checkmate.exceptions import CheckmateException
-from checkmate.exceptions import CheckmateResetTaskTreeException
 from checkmate.exceptions import CheckmateResumableException
 from checkmate.exceptions import CheckmateRetriableException
 from checkmate.exceptions import CheckmateUserException
 from checkmate.exceptions import UNEXPECTED_ERROR
 from checkmate import utils
+from checkmate.workflow_spec import WorkflowSpec
 
 DB = get_driver()
 LOG = logging.getLogger(__name__)
@@ -27,7 +45,7 @@ LOG = logging.getLogger(__name__)
 
 def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
                     wf_type="BUILD"):
-    '''Creates a workflow for the passes in spec and deployment
+    '''Creates a workflow for the passed in spec and deployment
 
     :param spec: WorkflowSpec to use for creating the workflow
     :param deployment: deployment to create the workflow for
@@ -38,7 +56,7 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
     :return:
     '''
     if not workflow_id:
-        workflow_id = utils.get_id(context.simulation)
+        workflow_id = utils.get_id(context["simulation"])
     spiff_wf = init_spiff_workflow(spec, deployment, context, workflow_id,
                                    wf_type)
     serializer = DictionarySerializer()
@@ -50,18 +68,18 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
     return spiff_wf
 
 
-def get_number_of_errors(d_wf):
+def get_errored_tasks(d_wf):
     '''Gets the number of tasks in error for a workflow
     :param d_wf: spiff workflow to get the errors from
     :return: number of tasks in error
     '''
+    failed_tasks = []
     tasks = d_wf.get_tasks()
-    count = 0
     while tasks:
         task = tasks.pop(0)
         if is_failed_task(task):
-            count += 1
-    return count
+            failed_tasks.append(task.id)
+    return failed_tasks
 
 
 def update_workflow_status(workflow):
@@ -70,11 +88,15 @@ def update_workflow_status(workflow):
     :param workflow: workflow to be updated
     :return:
     '''
+    errored_tasks = get_errored_tasks(workflow)
+
     workflow_state = {
         'total': len(workflow.get_tasks(state=Task.ANY_MASK)),
         'completed': len(workflow.get_tasks(state=Task.COMPLETED)),
-        'errored': get_number_of_errors(workflow)
+        'errored': len(errored_tasks),
+        'errored_tasks': errored_tasks,
     }
+
     if workflow_state['total'] is not None and workflow_state['total'] > 0:
         workflow_state['progress'] = int(100 * workflow_state['completed'] /
                                          workflow_state['total'])
@@ -97,14 +119,14 @@ def update_workflow_status(workflow):
 
 
 def reset_task_tree(task):
-    '''
-    For a given task, would traverse through the parents of the task, changing
-    the state of each of the task(s) to FUTURE, until the 'root' task is found.
+    """For a given task, would traverse through the parents of the task,
+    changing the state of each of the task(s) to FUTURE, until the 'root'
+    task is found.
     For this 'root' task, the state is changed to WAITING.
 
     :param task: Task which would have to be reset.
     :return:
-    '''
+    """
     while True:
         if isinstance(task.task_spec, Celery):
             task.task_spec._clear_celery_task_data(task)
@@ -121,7 +143,7 @@ def reset_task_tree(task):
 
 
 def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
-    '''Updates the workflow status, and saves the workflow. Worflow status
+    """Updates the workflow status, and saves the workflow. Worflow status
     can be overriden by providing a custom value for the 'status' parameter.
 
     :param d_wf: De-serialized workflow
@@ -132,7 +154,7 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
         associated with the workflow.
     :param driver: DB driver
     :return:
-    '''
+    """
 
     update_workflow_status(d_wf)
     if status:
@@ -146,28 +168,31 @@ def update_workflow(d_wf, tenant_id, status=None, driver=DB, workflow_id=None):
     driver.save_workflow(workflow_id, body, secrets=secrets)
 
 
-def reset_failed_tasks(d_wf):
-    '''Traverses through all the workflow tasks and searches for reset task
-    tree exception. If found the task tree is reset
-
-    :param d_wf: Workflow to traverse
+def create_reset_failed_task_wf(d_wf, deployment_id, context,
+                                failed_task, driver=DB):
+    """Creates workflow for resetting a failed task
+    :param d_wf: workflow containing the task
+    :param deployment_id: deployment id
+    :param context: context
+    :param failed_task: failed task
+    :param driver: db driver
     :return:
-    '''
-    tasks = d_wf.get_tasks()
-    while tasks:
-        task = tasks.pop(0)
-        if is_failed_task(task):
-            task_state = task._get_internal_attribute("task_state")
-            info = task_state.get("info")
-            try:
-                exception = eval(info)
-                if (type(exception) is
-                        CheckmateResetTaskTreeException):
-                    reset_task_tree(task)
-            except Exception:
-                LOG.error("There was a exception while resetting the task "
-                          "tree for task %s in deployment %s", task.id,
-                          d_wf.attributes["deploymentId"])
+    """
+    deployment = Deployment(driver.get_deployment(deployment_id,
+                                                  with_secrets=False))
+
+    spec = WorkflowSpec.create_reset_failed_resource_spec(
+        context,
+        deployment,
+        failed_task,
+        d_wf.get_attribute('id')
+    )
+    reset_wf = create_workflow(spec, deployment, context, driver=driver,
+                               wf_type="CLEAN UP")
+    LOG.debug("Created workflow %s for resetting failed task %s in "
+              "deployment %s", reset_wf.get_attribute('id'),
+              failed_task.id, deployment_id)
+    return reset_wf
 
 
 def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
@@ -291,7 +316,7 @@ def get_spiff_workflow_status(workflow):
     @return: The debug information.
     """
     def get_task_status(task, output):
-        """Recursively fills task data into dict"""
+        """Recursively fills task data into dict."""
         my_dict = {
             'id': task.id,
             'threadId': task.thread_id,
@@ -309,10 +334,10 @@ def get_spiff_workflow_status(workflow):
 
 def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
                         wf_type):
-    '''Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
+    """Creates a SpiffWorkflow for initial deployment of a Checkmate deployment
 
     :returns: SpiffWorkflow.Workflow
-    '''
+    """
     LOG.info("Creating workflow for deployment '%s'", deployment['id'])
     results = spiff_wf_spec.validate()
     if results:
@@ -329,7 +354,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
     workflow = SpiffWorkflow(spiff_wf_spec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
-    runtime_context['token'] = context.auth_token
+    runtime_context['token'] = context["auth_token"]
     runtime_context.update(format(deployment.get_indexed_resources()))
     workflow.get_task(2).set_attribute(**runtime_context)
 
@@ -348,7 +373,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
         if expect_to_take > overall:
             overall = expect_to_take
         task._set_internal_attribute(estimated_completed_in=expect_to_take)
-    LOG.debug("Workflow %s estimated duration: %s", deployment['id'],
+    LOG.debug("Workflow %s estimated duration: %s", workflow_id,
               overall)
     workflow.attributes['estimated_duration'] = overall
     workflow.attributes['deploymentId'] = deployment['id']
@@ -361,6 +386,12 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
 
 
 def format(resources):
+    """Returns a dictionary of resources in the {"instance:[resource_key]":
+    [resource_instance]} format
+    @param resources: A dict of resources, in {[resource_key]:[resource]}
+    format
+    @return:
+    """
     formatted_resources = {}
     for resource_key, resource_value in resources.iteritems():
         formatted_resources.update({("instance:%s" % resource_key):
@@ -368,9 +399,15 @@ def format(resources):
     return formatted_resources
 
 
-def find_tasks(wf, state=Task.ANY_MASK, **kwargs):
+def find_tasks(d_wf, state=Task.ANY_MASK, **kwargs):
+    """Find tasks in the workflow, based on the task_tags for that task
+    @param d_wf: Workflow
+    @param state: state of the Task
+    @param kwargs: search parameters
+    @return:
+    """
     tasks = []
-    filtered_tasks = wf.get_tasks(state=state)
+    filtered_tasks = d_wf.get_tasks(state=state)
     for task in filtered_tasks:
         match = True
         if kwargs:
@@ -383,6 +420,43 @@ def find_tasks(wf, state=Task.ANY_MASK, **kwargs):
         if match:
             tasks.append(task)
     return tasks
+
+
+def add_subworkflow(d_wf, subworkflow_id, task_id):
+    """Adds a subworkflow_id correspoding to a failed task to an existing
+    workflow.
+    If the failed task already has a subworkflow_id associated with it,
+    that older subworkflow is moved into the subworkflows-history and the
+    subworkflow_id is added to 'subworkflows'
+
+    @param d_wf: Workflow to which the subworkflows is to be added
+    @param subworkflow_id: ID of the subworkflow
+    @param task_id: Failed task id
+    @return: Nothing
+    """
+    task_id = str(task_id)
+    subworkflows = d_wf.get_attribute("subworkflows", {})
+
+    if task_id in subworkflows:
+        history = d_wf.get_attribute("subworkflows-history", {})
+
+        historical_subworkflows = history.get(task_id, [])
+        historical_subworkflows.append(subworkflows[task_id])
+        history[task_id] = historical_subworkflows
+        d_wf.attributes["subworkflows-history"] = history
+
+    subworkflows.update({task_id: subworkflow_id})
+    d_wf.attributes["subworkflows"] = subworkflows
+
+
+def get_subworkflow(d_wf, task_id):
+    """Gets a subworkflow corresponding to a task-id
+    @param d_wf: Workflow which has the subworkflows
+    @param task_id: Task id for which the subworkflow has to be retrieved
+    @return: a subworkflow id corresponding to the failed task
+    """
+    if "subworkflows" in d_wf.attributes:
+        return d_wf.get_attribute("subworkflows", {}).get(str(task_id))
 
 
 class Workflow(ExtensibleDict):

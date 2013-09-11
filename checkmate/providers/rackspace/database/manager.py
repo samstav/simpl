@@ -14,9 +14,9 @@
 
 # encoding: utf-8
 # pylint: disable=E1103
-'''
+"""
 Rackspace Cloud Databases provider manager.
-'''
+"""
 import copy
 import logging
 
@@ -30,19 +30,19 @@ from checkmate.exceptions import (
     CheckmateRetriableException,
     CheckmateUserException,
     UNEXPECTED_ERROR,
-    CheckmateResourceRollbackException)
+)
 
 LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
-    '''Contains database provider model and logic for interaction.'''
+    """Contains database provider model and logic for interaction."""
 
     @staticmethod
     def wait_on_build(instance_id, api, callback, simulate=False):
-        '''Checks provider resource.  Returns True when built otherwise False.
+        """Checks provider resource.  Returns True when built otherwise False.
         If resource goes into error state, raises exception.
-        '''
+        """
         assert api, "API is required in wait_on_build"
         data = {}
         try:
@@ -67,8 +67,7 @@ class Manager(object):
                                               utils.get_class_name(
                                                   CheckmateException()),
                                               data['status-message'], '')
-            raise CheckmateResourceRollbackException("Need to rollback "
-                                                     "resource creation", exc)
+            raise exc
         elif data['status'] in ['ACTIVE', 'DELETED']:
             data['status-message'] = ''
         else:
@@ -84,7 +83,7 @@ class Manager(object):
 
     @staticmethod
     def sync_resource(resource, api, simulate=False):
-        '''Syncronizes provider status with checkmate resource status.'''
+        """Syncronizes provider status with checkmate resource status."""
         if simulate:
             results = {'status': 'ACTIVE'}
         else:
@@ -108,7 +107,7 @@ class Manager(object):
     @staticmethod
     def create_instance(instance_name, flavor, size, databases, context,
                         api, callback, simulate=False):
-        '''Creates a Cloud Database instance with optional initial databases.
+        """Creates a Cloud Database instance with optional initial databases.
 
         :param databases: an array of dictionaries with keys to set the
         database name, character set and collation.  For example:
@@ -116,7 +115,7 @@ class Manager(object):
             databases=[{'name': 'db1'},
                        {'name': 'db2', 'character_set': 'latin5',
                         'collate': 'latin5_turkish_ci'}]
-        '''
+        """
         assert api, "API is required in create_instance"
         databases = databases or []
         flavor = int(flavor)
@@ -183,10 +182,10 @@ class Manager(object):
     def create_database(name, instance_id, api, callback, context,
                         character_set=None, collate=None, instance_attrs=None,
                         simulate=False):
-        '''Creates database in existing db instance.  Returns
+        """Creates database in existing db instance.  Returns
         instance, dbs and its interfaces. If resource goes into
         error state, raises exception.
-        '''
+        """
         assert api, "API is required in create_database_pop"
         assert callback, 'Callback is required in create_database_pop.'
 
@@ -270,7 +269,7 @@ class Manager(object):
     def add_user(instance_id, databases, username, password,
                  api, callback, simulate=False):
         """Add a database user to an instance for one or more databases.
-           Returns instance data.
+        Returns instance data.
         """
 
         assert instance_id, "Instance ID not supplied"

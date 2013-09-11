@@ -19,7 +19,6 @@ import time
 from celery import task as celtask
 
 from checkmate import utils
-from checkmate.workflows import tasks
 
 LOG = logging.getLogger(__name__)
 
@@ -36,28 +35,3 @@ def count_seconds(seconds):
                                    meta={'complete': elapsed,
                                          'total': seconds})
     return seconds
-
-
-@celtask.task(default_retry_delay=10, max_retries=300)
-def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=None):
-    """DEPRECATED
-
-    To be removed after the running celery tasks complete. Please
-    use run_workflow in checkmate.workflows.tasks
-    """
-    LOG.warn('DEPRECATED method run_workflow called for workflow %s', w_id)
-    tasks.run_workflow.delay(w_id, timeout=timeout, wait=wait,
-                             counter=counter, driver=driver)
-
-
-@celtask.task
-def run_one_task(context, workflow_id, task_id, timeout=60, driver=None):
-    """DEPRECATED
-
-    To be removed after the running celery tasks complete. Please
-    use run_one_task in checkmate.workflows.tasks
-    """
-    LOG.warn('DEPRECATED method run_one_task called for workflow %s and task '
-             '%s', workflow_id, task_id)
-    tasks.run_one_task.delay(context, workflow_id, task_id, timeout=timeout,
-                             driver=driver)

@@ -1,6 +1,21 @@
-'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""
 Deployments Asynchronous tasks
-'''
+"""
+
 import logging
 import os
 
@@ -9,11 +24,12 @@ from celery.task import task
 from checkmate import celeryglobal as celery
 from checkmate import db
 from checkmate import utils
-from checkmate.common import tasks as common_tasks
+
 from checkmate.common import statsd
-from checkmate.deployments import Manager
+from checkmate.common import tasks as common_tasks
 from checkmate.db.common import ObjectLockedError
 from checkmate.deployment import Deployment
+from checkmate.deployments import Manager
 from checkmate.exceptions import CheckmateException
 from checkmate import operations
 
@@ -30,7 +46,7 @@ MANAGERS = {'deployments': Manager()}
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=10,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
 def reset_failed_resource_task(deployment_id, resource_id):
-    ''' Creates a copy of a failed resource and appends it at the end of
+    '''Creates a copy of a failed resource and appends it at the end of
         the resources collection.
 
     :param deployment_id:
@@ -38,6 +54,22 @@ def reset_failed_resource_task(deployment_id, resource_id):
     :return:
     '''
     MANAGERS['deployments'].reset_failed_resource(deployment_id, resource_id)
+
+
+@task(default_retry_delay=2, max_retries=50)
+def wait_for_resource_status(deployment_id, resource_id, expected_status):
+    """Wait for a deployment resource to move to expected_status
+    :param deployment_id: deployment containing the resource
+    :param resource_id: resource to check the status for
+    :param expected_status: expected status
+    :return:
+    """
+    deployment = MANAGERS['deployments'].get_deployment(deployment_id)
+    resource = deployment['resources'].get(resource_id)
+    if resource and resource.get('status') != expected_status:
+        msg = "Resource is in %s status. Waiting for %s resource" % (
+            resource.get('status'), expected_status)
+        wait_for_resource_status.retry(exc=CheckmateException(msg))
 
 
 @task
@@ -60,7 +92,8 @@ def process_post_deployment(deployment, request_context, driver=None):
     MANAGERS['deployments'].deploy(parsed_deployment, request_context)
 
     #Trigger the workflow in the queuing service
-    async_task = MANAGERS['deployments'].execute(deployment['id'])
+    async_task = MANAGERS['deployments'].execute(deployment['id'],
+                                                 request_context)
     LOG.debug("Triggered workflow (task='%s')", async_task)
 
 
@@ -103,7 +136,8 @@ def delete_deployment_task(dep_id, driver=None):
                     resource_postback.delay(dep_id, contents, driver=driver)
 
     common_tasks.update_operation.delay(dep_id,
-                                        operations.current_workflow_id(deployment),
+                                        operations.current_workflow_id(
+                                            deployment),
                                         status="COMPLETE",
                                         driver=driver,
                                         deployment_status="DELETED",

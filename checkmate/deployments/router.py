@@ -33,6 +33,7 @@ from checkmate import operations
 from checkmate import stacks
 from checkmate import utils
 from checkmate import workflow
+from checkmate import workflow_spec
 from checkmate import workflows
 from checkmate.workflows import tasks as wf_tasks
 
@@ -350,8 +351,9 @@ class Router(object):
         :param tenant_id:
         :return:
         """
+        context = bottle.request.context
         if utils.is_simulation(api_id):
-            bottle.request.context.simulation = True
+            context.simulation = True
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
                                                  with_secrets=True)
         if not deployment:
@@ -387,13 +389,14 @@ class Router(object):
         LOG.debug("Received request to delete %s nodes for service %s for "
                   "deployment %s", count, service_name, deployment['id'])
 
-        self.manager.delete_nodes(deployment, bottle.request.context,
+        self.manager.delete_nodes(deployment, context,
                                   service_name, count, victim_list, tenant_id)
 
         deployment = self.manager.save_deployment(deployment, api_id=api_id,
                                                   tenant_id=tenant_id)
         delete_nodes_wf_id = deployment['operation']['workflow-id']
-        wf_tasks.cycle_workflow.delay(delete_nodes_wf_id)
+        wf_tasks.cycle_workflow.delay(delete_nodes_wf_id,
+                                      context.get_queued_task_dict())
 
         # Set headers
         location = "/deployments/%s" % api_id
@@ -441,7 +444,9 @@ class Router(object):
         deployment = self.manager.save_deployment(deployment, api_id=api_id,
                                                   tenant_id=tenant_id)
         add_nodes_wf_id = deployment['operation']['workflow-id']
-        wf_tasks.cycle_workflow.delay(add_nodes_wf_id)
+        context = bottle.request.context
+        wf_tasks.cycle_workflow.delay(add_nodes_wf_id,
+                                      context.get_queued_task_dict())
 
         # Set headers
         location = "/deployments/%s" % api_id
@@ -460,8 +465,9 @@ class Router(object):
     @utils.with_tenant
     def delete_deployment(self, api_id, tenant_id=None):
         """Delete the specified deployment."""
+        request_context = bottle.request.context
         if utils.is_simulation(api_id):
-            bottle.request.context.simulation = True
+            request_context.simulation = True
         deployment = self.manager.get_deployment(api_id)
         if not deployment:
             raise exceptions.CheckmateDoesNotExist(
@@ -488,16 +494,17 @@ class Router(object):
             common_tasks.update_operation.delay(api_id, api_id, driver=driver,
                                                 action='PAUSE')
         delete_workflow_spec = (
-            workflows.WorkflowSpec.create_delete_dep_wf_spec(
-                deployment, bottle.request.context))
+            workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
+                deployment, request_context))
         spiff_workflow = workflow.create_workflow(
-            delete_workflow_spec, deployment, bottle.request.context,
+            delete_workflow_spec, deployment, request_context,
             driver=driver, wf_type="DELETE")
         workflow_id = spiff_workflow.attributes.get('id')
         LOG.debug("Workflow %s created for deleting deployment %s",
                   workflow_id, api_id)
         operations.create.delay(api_id, workflow_id, "DELETE", tenant_id)
-        wf_tasks.cycle_workflow.delay(workflow_id)
+        wf_tasks.cycle_workflow.delay(workflow_id,
+                                      request_context.get_queued_task_dict())
         # Set headers
         location = "/deployments/%s" % api_id
         link = "/workflows/%s" % workflow_id
@@ -581,8 +588,9 @@ class Router(object):
             exceptions.CheckmateDoesNotExist(
                 'No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)  # Also validates syntax
+        context = bottle.request.context
         if entity.get('status', 'NEW') == 'NEW':
-            deployment = self.manager.plan(deployment, bottle.request.context)
+            deployment = self.manager.plan(deployment, context)
         if entity.get('status') != 'PLANNED':
             raise exceptions.CheckmateBadState(
                 "Deployment '%s' is in '%s' status and must be in 'PLANNED' "
@@ -590,10 +598,10 @@ class Router(object):
                                                     entity.get('status')))
 
         # Create a 'new deployment' workflow
-        self.manager.deploy(deployment, bottle.request.context)
+        self.manager.deploy(deployment, context)
 
         # Trigger the workflow
-        async_task = self.manager.execute(api_id)
+        async_task = self.manager.execute(api_id, context)
         LOG.debug("Triggered workflow (task='%s')", async_task)
 
         return utils.write_body(deployment, bottle.request, bottle.response)

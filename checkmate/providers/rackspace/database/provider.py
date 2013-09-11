@@ -1,5 +1,19 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 # encoding: utf-8
-'''Provider module for interfacing with Cloud Databases.'''
+"""Provider module for interfacing with Cloud Databases."""
 import logging
 import os
 import string
@@ -45,7 +59,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
 
 
 class Provider(providers.ProviderBase):
-    '''Provider class for Cloud Databases.'''
+    """Provider class for Cloud Databases."""
     name = 'database'
     method = 'cloud_databases'
     vendor = 'rackspace'
@@ -121,7 +135,7 @@ class Provider(providers.ProviderBase):
         return templates
 
     def verify_limits(self, context, resources):
-        '''Verify that deployment stays within absolute resource limits.'''
+        """Verify that deployment stays within absolute resource limits."""
 
         # Cloud databases absolute limits are currently hard-coded
         # The limits are per customer per region.
@@ -167,9 +181,9 @@ class Provider(providers.ProviderBase):
         return messages
 
     def verify_access(self, context):
-        '''Verify that the user has permissions to create database
+        """Verify that the user has permissions to create database
         resources.
-        '''
+        """
         roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
         if providers.user_has_access(context, roles):
             return {
@@ -337,7 +351,8 @@ class Provider(providers.ProviderBase):
                     provider=self.key,
                     task_tags=['final']
                 ),
-                properties={'estimated_duration': 80},
+                properties={'estimated_duration': 80,
+                            'auto_retry_count': 3},
                 instance=operators.PathAttrib('instance:%s' % key),
             )
             wait_task.follow(create_instance_task)
@@ -355,11 +370,11 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def delete_one_resource(context):
-        '''Used by the ProviderTask baseclass to create delete tasks that
+        """Used by the ProviderTask baseclass to create delete tasks that
         are used to delete errored instances
         :param context:
         :return:
-        '''
+        """
         resource_type = context.get("resource_type")
         assert resource_type is not None
         if resource_type == 'compute':
@@ -395,7 +410,7 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def _delete_comp_res_tasks(wf_spec, context, key):
-        '''Delete Computer Resource Tasks.'''
+        """Delete Computer Resource Tasks."""
         delete_instance = specs.Celery(
             wf_spec, 'Delete Computer Resource Tasks (%s)' % key,
             'checkmate.providers.rackspace.database.delete_instance_task',
@@ -407,14 +422,14 @@ class Provider(providers.ProviderBase):
             call_args=[context], properties={'estimated_duration': 10})
 
         delete_instance.connect(wait_on_delete)
-        return {'root': delete_instance}
+        return {'root': delete_instance, 'final': wait_on_delete}
 
     @staticmethod
     def _delete_comp_res_task(context):
-        '''Returns a chain of delete tasks to remove an instance
+        """Returns a chain of delete tasks to remove an instance
         :param context:
         :return:
-        '''
+        """
         from checkmate.providers.rackspace.database import \
             delete_instance_task, wait_on_del_instance
         return canvas.chain(
@@ -424,10 +439,10 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def _delete_db_res_task(context):
-        '''Returns a chain of delete task to remove a db resource
+        """Returns a chain of delete task to remove a db resource
         :param context:
         :return:
-        '''
+        """
         from checkmate.providers.rackspace.database import \
             delete_database
         return canvas.chain(
@@ -436,18 +451,18 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def _delete_db_res_tasks(wf_spec, context, key):
-        '''Return delete tasks for the specified database instance.'''
+        """Return delete tasks for the specified database instance."""
         delete_db = specs.Celery(
             wf_spec, 'Delete DB Resource tasks (%s)' % key,
             'checkmate.providers.rackspace.database.delete_database',
             call_args=[context], properties={'estimated_duration': 15})
 
-        return {'root': delete_db}
+        return {'root': delete_db, 'final': delete_db}
 
     def get_catalog(self, context, type_filter=None, **kwargs):
-        '''Return stored/override catalog if it exists, else connect, build,
+        """Return stored/override catalog if it exists, else connect, build,
         and return one.
-        '''
+        """
 
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
@@ -569,7 +584,7 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def find_url(catalog, region):
-        '''Returns a URL for a region/catalog.'''
+        """Returns a URL for a region/catalog."""
         for service in catalog:
             if service['type'] == 'rax:database':
                 endpoints = service['endpoints']
@@ -579,7 +594,7 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def find_a_region(catalog):
-        '''Any region.'''
+        """Any region."""
         for service in catalog:
             if service['type'] == 'rax:database':
                 endpoints = service['endpoints']
@@ -588,7 +603,7 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def connect(context, region=None):
-        '''Use context info to connect to API and return api object.'''
+        """Use context info to connect to API and return api object."""
         return getattr(base.RackspaceProviderBase._connect(context, region),
                        Provider.method)
 
@@ -596,7 +611,7 @@ class Provider(providers.ProviderBase):
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE,
                backing_store=REDIS, backing_store_key='rax.database.flavors')
 def _get_flavors(api_endpoint, auth_token):
-    '''Ask DBaaS for Flavors (RAM, CPU, HDD) options.'''
+    """Ask DBaaS for Flavors (RAM, CPU, HDD) options."""
     # the region must be supplied but is not used
     api = clouddb.CloudDB('ignore', 'ignore', 'DFW')
     api.client.auth_token = auth_token

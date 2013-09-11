@@ -11,7 +11,11 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+# pylint: disable=R0903
 
+"""Creates spiff workflow spec for different actions
+"""
+import copy
 import logging
 
 from SpiffWorkflow import specs
@@ -23,13 +27,14 @@ LOG = logging.getLogger(__name__)
 
 
 class WorkflowSpec(specs.WorkflowSpec):
+    """Workflow Spec related methods."""
     @staticmethod
     def create_delete_dep_wf_spec(deployment, context):
-        '''Creates a SpiffWorkflow spec for deleting a deployment
+        """Creates a SpiffWorkflow spec for deleting a deployment
         :param deployment:
         :param context:
         :return: SpiffWorkflow.WorkflowSpec
-        '''
+        """
         LOG.info("Building workflow spec for deleting deployment '%s'",
                  deployment['id'])
         blueprint = deployment['blueprint']
@@ -101,6 +106,106 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     @staticmethod
+    def create_reset_failed_resource_spec(context, deployment,
+                                          task_to_reset, workflow_id):
+        """Creates workflow spec for passed in failed resource and task
+        :param context: request context
+        :param deployment: deployment
+        :param task_to_reset: failed task id
+        :param workflow_id: workflow containing the task
+        :return:
+        """
+        wf_spec = WorkflowSpec(name=('Reset failed resources in Deployment '
+                                     '%s' % deployment['id']))
+        environment = deployment.environment()
+        context = copy.deepcopy(context)
+        resource_key = task_to_reset.task_spec.get_property("resource")
+        LOG.info("Building workflow spec for deleting resource %s "
+                 "deployment %s", resource_key, deployment['id'])
+
+        wait_for_errored_resource = specs.Celery(
+            wf_spec,
+            'Wait for resource %s to move to ERROR status' %
+            resource_key,
+            'checkmate.deployments.tasks.wait_for_resource_status',
+            call_args=[
+                deployment.get("id"),
+                resource_key,
+                "ERROR"
+            ],
+            defines=dict(
+                resource=resource_key,
+            ),
+            properties={'estimated_duration': 10}
+        )
+
+        resource = deployment.get("resources").get(resource_key)
+        provider = environment.get_provider(resource["provider"])
+        delete_tasks = provider.delete_resource_tasks(wf_spec,
+                                                      context,
+                                                      deployment["id"],
+                                                      resource,
+                                                      resource_key)
+        wait_for_deleted_resource = specs.Celery(
+            wf_spec,
+            'Wait for resource %s to move to DELETED status' %
+            resource_key,
+            'checkmate.deployments.tasks.wait_for_resource_status',
+            call_args=[
+                deployment.get("id"),
+                resource_key,
+                "DELETED"
+            ],
+            defines=dict(
+                resource=resource_key,
+            ),
+            properties={'estimated_duration': 10}
+        )
+
+        reset_errored_resource_task = specs.Celery(
+            wf_spec,
+            'Copy errored resource %s to a new resource' % resource_key,
+            'checkmate.deployments.tasks.reset_failed_resource_task',
+            call_args=[
+                deployment.get("id"),
+                resource_key
+            ],
+            defines=dict(
+                resource=resource_key,
+            ),
+            properties={'estimated_duration': 5}
+        )
+
+        reset_task_tree = specs.Celery(
+            wf_spec,
+            'Reset task %s in workflow %s' % (task_to_reset.id, workflow_id),
+            'checkmate.workflows.tasks.reset_task_tree',
+            call_args=[
+                workflow_id,
+                task_to_reset.id
+            ],
+            properties={'estimated_duration': 5}
+        )
+
+        wf_spec.start.connect(wait_for_errored_resource)
+        if delete_tasks:
+            tasks = delete_tasks.get('root')
+            if isinstance(tasks, list):
+                for task in tasks:
+                    wait_for_errored_resource.connect(task)
+            else:
+                wait_for_errored_resource.connect(tasks)
+        delete_tasks.get('final').connect(wait_for_deleted_resource)
+        wait_for_deleted_resource.connect(reset_errored_resource_task)
+        reset_errored_resource_task.connect(reset_task_tree)
+
+        if not wf_spec.start.outputs:
+            noop = specs.Simple(wf_spec, "end")
+            wf_spec.start.connect(noop)
+
+        return wf_spec
+
+    @staticmethod
     def create_workflow_spec_deploy(deployment, context):
         """Creates a SpiffWorkflow spec for initial deployment of a Checkmate
         deployment
@@ -145,7 +250,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         def recursive_add_host(sorted_list, resource_key, resources, stack):
             if resource_key in new_and_planned_resources.keys():
                 resource = resources[resource_key]
-                for key, relation in resource.get('relations', {}).iteritems():
+                for _, relation in resource.get('relations', {}).iteritems():
                     if 'target' in relation:
                         if relation['target'] not in sorted_list:
                             if relation['target'] in stack:
@@ -162,7 +267,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                                                relation['target'], resources,
                                                stack)
                 if resource_key not in sorted_list:
-                        sorted_list.append(resource_key)
+                    sorted_list.append(resource_key)
         for key, resource in new_and_planned_resources.iteritems():
             if key not in ['connections', 'keys'] and 'provider' in resource:
                 recursive_add_host(sorted_resources, key,
@@ -245,7 +350,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     def find_task_specs(self, **kwargs):
-        '''Find tasks in the workflow with matching properties.
+        """Find tasks in the workflow with matching properties.
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
         :param kwargs: properties to match (all must match)
@@ -259,7 +364,7 @@ class WorkflowSpec(specs.WorkflowSpec):
             resource: the ID of the resource we are looking for
             provider: the key of the provider we are looking for
             tag: the tag for the task (root, final, create, etc..)
-        '''
+        """
         tasks = []
         for task in self.task_specs.values():
             match = True
@@ -360,14 +465,13 @@ class WorkflowSpec(specs.WorkflowSpec):
 
     @staticmethod
     def create_delete_node_spec(deployment, resources_to_delete, context):
-        '''
-        Create the workflow spec for deleting a node in a deployment
+        """Create the workflow spec for deleting a node in a deployment
         :param deployment: The deployment to delete the node from
         :param resources_to_delete: Comma separated list of resource ids
         which need to be deleted
         :param context: RequestContext
         :return: Workflow spec for delete of passed in resources
-        '''
+        """
         LOG.debug("Creating workflow spec for deleting resources %s",
                   resources_to_delete)
         dep_id = deployment["id"]
@@ -382,10 +486,10 @@ class WorkflowSpec(specs.WorkflowSpec):
             resource_ids_to_delete = [resource_key]
 
             #Process relations for resource
-            WorkflowSpec._add_del_tasks_for_resource_relation(wf_spec,
-                                                              deployment,
-                                                              resource_key,
-                                                              context)
+            WorkflowSpec._add_del_tasks_for_res_relatns(wf_spec,
+                                                        deployment,
+                                                        resource_key,
+                                                        context)
             wait_tasks.extend(wf_spec.find_task_specs(resource=resource_key,
                                                       tag="delete_connection"))
 
@@ -426,17 +530,16 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     @staticmethod
-    def _add_del_tasks_for_resource_relation(wf_spec, deployment,
-                                             resource_key, context):
-        '''
-        Adds the delete task for a resource relation
+    def _add_del_tasks_for_res_relatns(wf_spec, deployment,
+                                       resource_key, context):
+        """Adds the delete task for a resource relation
         :param wf_spec: Workflow Spec to add the tasks to
         :param deployment: The deployment from which the resourced need to
         be deleted
         :param resource_key: The resource key of the resource to be deleted
         :param context: RequestContext
         :return:
-        '''
+        """
         resources = deployment['resources']
         resource = resources[resource_key]
         if resource["status"] == "DELETED":

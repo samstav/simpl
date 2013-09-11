@@ -17,6 +17,8 @@ import logging
 import uuid
 
 #pylint: disable=E0611
+"""Workflows Router"""
+
 import bottle
 
 import SpiffWorkflow as spiff
@@ -29,7 +31,9 @@ from checkmate.deployment import Deployment
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow as cm_wf
-from checkmate.workflows import tasks
+from tasks import cycle_workflow
+from tasks import pause_workflow
+from tasks import run_one_task
 
 LOG = logging.getLogger(__name__)
 
@@ -82,7 +86,12 @@ class Router(object):
     @utils.with_tenant
     @utils.formatted_response('workflows', with_pagination=True)
     def get_workflows(self, tenant_id=None, offset=None, limit=None):
-        """Get list of workflows from database."""
+        """Gets all the workflows for a tenant
+        :param tenant_id: tenant id
+        :param offset: start record index
+        :param limit: Max number of records to return
+        :return: Workflows for the tenant
+        """
         limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         if 'with_secrets' in bottle.request.query:
             if bottle.request.context.is_admin is True:
@@ -105,7 +114,10 @@ class Router(object):
 
     @utils.with_tenant
     def add_workflow(self, tenant_id=None):
-        """Save new workflow to database."""
+        """Add a new workflow
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         entity = utils.read_body(bottle.request)
         if 'workflow' in entity and isinstance(entity['workflow'], dict):
             entity = entity['workflow']
@@ -123,7 +135,11 @@ class Router(object):
 
     @utils.with_tenant
     def save_workflow(self, api_id, tenant_id=None):
-        """Save existing workflow to database."""
+        """Save a workflow
+        :param api_id: id of the workflow
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         entity = utils.read_body(bottle.request)
 
         if 'workflow' in entity and isinstance(entity['workflow'], dict):
@@ -154,7 +170,11 @@ class Router(object):
 
     @utils.with_tenant
     def get_workflow(self, api_id, tenant_id=None):
-        """Get existing workflow from database."""
+        """Gets a workflow
+        :param api_id: Workflow id
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         if 'with_secrets' in bottle.request.query:
             LOG.info("Administrator accessing workflow %s with secrets: %s",
                      api_id, bottle.request.context.username)
@@ -174,7 +194,11 @@ class Router(object):
 
     @utils.with_tenant
     def get_workflow_status(self, api_id, tenant_id=None):
-        """Get the status of a workflow stored in the database."""
+        """Gets the status of a workflow
+        :param api_id: workflow id
+        :param tenant_id: tenant id
+        :return: workflow status
+        """
         entity = self.manager.get_workflow(api_id)
         if not entity:
             bottle.abort(404, 'No workflow with id %s' % api_id)
@@ -197,7 +221,9 @@ class Router(object):
         if not entity:
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
-        async_call = tasks.cycle_workflow.delay(api_id)
+        context = bottle.request.context
+        async_call = cycle_workflow.delay(api_id,
+                                          context.get_queued_task_dict())
         LOG.debug("Executed a task to run workflow '%s'", async_call)
         entity = self.manager.get_workflow(api_id)
         return utils.write_body(entity, bottle.request, bottle.response)
@@ -225,7 +251,7 @@ class Router(object):
             common_tasks.update_operation.delay(
                 dep_id, operations.current_workflow_id(deployment),
                 action='PAUSE')
-            tasks.pause_workflow.delay(api_id)
+            pause_workflow.delay(api_id)
         return utils.write_body(workflow, bottle.request, bottle.response)
 
     @utils.with_tenant
@@ -245,14 +271,20 @@ class Router(object):
             dep_id, tenant_id=tenant_id)
         operation = deployment.get("operation")
         if operation and operation.get('status') == 'PAUSED':
-            async_call = tasks.cycle_workflow.delay(api_id)
+            context = bottle.request.context
+            async_call = cycle_workflow.delay(api_id,
+                                              context.get_queued_task_dict())
             LOG.debug("Executed a task to run workflow '%s'", async_call)
             workflow = self.manager.get_workflow(api_id)
         return utils.write_body(workflow, bottle.request, bottle.response)
 
     @utils.with_tenant
     def retry_all_failed_tasks(self, api_id, tenant_id=None):
-        """Retry all failed tasks that can be retried."""
+        """Resets all the failed tasks in a workflow
+        :param api_id: workflow id
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         workflow = self.manager.get_workflow(api_id)
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
@@ -290,7 +322,11 @@ class Router(object):
 
     @utils.with_tenant
     def resume_all_failed_tasks(self, api_id, tenant_id=None):
-        """Start all failed tasks again if they are resumable."""
+        """Resumes all the failed tasks in a workflow
+        :param api_id: workflow id
+        :param tenant_id: tenant id
+        :return: workflow document
+        """
         workflow = self.manager.get_workflow(api_id)
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
@@ -305,8 +341,8 @@ class Router(object):
             for error in retriable_errors:
                 task_id = error["task-id"]
                 LOG.debug("Resuming task %s for workflow %s", task_id, id)
-                tasks.run_one_task.delay(bottle.request.context, api_id,
-                                         task_id, timeout=10)
+                run_one_task.delay(bottle.request.context, api_id, task_id,
+                                   timeout=10)
 
             workflow = self.manager.get_workflow(id)
 
@@ -636,8 +672,7 @@ class Router(object):
 
         try:
             #Synchronous call
-            tasks.run_one_task(bottle.request.context, api_id, task_id,
-                               timeout=10)
+            run_one_task(bottle.request.context, api_id, task_id, timeout=10)
         except db.InvalidKeyError:
             bottle.abort(404, "Cannot execute task(%s) while workflow(%s) is "
                               "executing." % (task_id, api_id))

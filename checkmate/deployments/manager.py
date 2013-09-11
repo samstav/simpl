@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """
 Deployments Manager
 
@@ -16,8 +30,8 @@ from checkmate import db
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow
+from checkmate import workflow_spec
 from checkmate import workflows
-from checkmate.workflows import tasks
 from checkmate.deployment import (
     Deployment,
     generate_keys,
@@ -131,7 +145,7 @@ class Manager(object):
         generate_keys(deployment)
         deployment['display-outputs'] = deployment.calculate_outputs()
 
-        deploy_spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        deploy_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             deployment, context)
         spiff_wf = workflow.create_workflow(
             deploy_spec, deployment, context, driver=db.get_driver(
@@ -237,7 +251,7 @@ class Manager(object):
             return resources.get(rid)
         raise ValueError("No resource %s in deployment %s" % (rid, api_id))
 
-    def execute(self, api_id, timeout=180, tenant_id=None):
+    def execute(self, api_id, context):
         """Process a checkmate deployment workflow
 
         Executes and moves the workflow forward.
@@ -254,7 +268,8 @@ class Manager(object):
         if not deployment:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
-        result = tasks.cycle_workflow.delay(api_id)
+        result = workflows.tasks.cycle_workflow.delay(
+            api_id, context.get_queued_task_dict())
         return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):
@@ -345,23 +360,17 @@ class Manager(object):
         :param resource_id:
         :return:
         """
-        #TODO: Need to move the logic to find whether a resource should be
-        # reset or not to the providers
         deployment = self.get_deployment(deployment_id)
         tenant_id = deployment["tenantId"]
         resource = deployment['resources'].get(resource_id, None)
-        if (resource.get('instance') and resource['instance'].get('id')
-            and (resource.get('status') == "ERROR" or
-                 resource.get('status') == "DELETED")):
+        if resource.get('instance') and resource['instance'].get('id'):
             failed_resource = copy.deepcopy(resource)
             resource['status'] = 'PLANNED'
-            resource['instance'] = None
-            if 'relations' in failed_resource:
-                failed_resource.pop('relations')
+            resource.pop('instance', None)
+            failed_resource.pop('relations', None)
             failed_resource['index'] = (
                 str(len([res for res in deployment.get("resources").keys()
                          if res.isdigit()])))
-
             deployment_body = {
                 "id": deployment_id,
                 "tenantId": tenant_id,
@@ -466,7 +475,7 @@ class Manager(object):
             victim_list))
         victim_list.extend(resources_for_service[:(count - len(victim_list))])
         driver = db.get_driver(api_id=deployment["id"])
-        wf_spec = workflows.WorkflowSpec.create_delete_node_spec(
+        wf_spec = workflow_spec.WorkflowSpec.create_delete_node_spec(
             deployment, victim_list, context)
         delete_node_workflow = workflow.create_workflow(wf_spec, deployment,
                                                         context,
@@ -484,7 +493,7 @@ class Manager(object):
         :return:
         """
         driver = db.get_driver(api_id=deployment["id"])
-        add_node_workflow_spec = (workflows.WorkflowSpec
+        add_node_workflow_spec = (workflow_spec.WorkflowSpec
                                   .create_workflow_spec_deploy(deployment,
                                                                context))
         add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
