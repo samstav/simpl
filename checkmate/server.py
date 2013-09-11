@@ -290,7 +290,7 @@ def main():
     resources.append('stacks')
 
     # Load Resources Handlers
-    MANAGERS['resources'] = deployment_resources.Manager(DRIVERS)
+    MANAGERS['resources'] = deployment_resources.Manager()
     ROUTERS['resources'] = deployment_resources.Router(
         root_app, MANAGERS['resources']
     )
