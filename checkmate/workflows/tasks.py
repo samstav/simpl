@@ -42,10 +42,9 @@ from manager import Manager
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
-LOCK_DB = db.get_driver(
-    connection_string=os.environ.get(
-        'CHECKMATE_LOCK_CONNECTION_STRING',
-        os.environ.get('CHECKMATE_CONNECTION_STRING')))
+LOCK_DB = db.get_driver(connection_string=os.environ.get(
+    'CHECKMATE_LOCK_CONNECTION_STRING',
+    os.environ.get('CHECKMATE_CONNECTION_STRING')))
 
 MANAGERS = {'workflows': Manager()}
 

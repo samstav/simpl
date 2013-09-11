@@ -22,9 +22,9 @@ from checkmate import workflows
 
 
 class TestManager(unittest.TestCase):
-    def test_workflow_lock(self):
-        mock_driver = mock.Mock()
-        mock_lock = mock_driver.lock
-        manager = workflows.Manager({'lock': mock_driver})
+    @mock.patch('checkmate.db.get_lock_db_driver')
+    def test_workflow_lock(self, mock_driver):
+        mock_lock = mock_driver().lock
+        manager = workflows.Manager()
         manager.workflow_lock("WF_ID")
         mock_lock.assert_called_with("async_wf_writer:WF_ID", 5)

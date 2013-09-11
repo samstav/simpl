@@ -31,7 +31,6 @@ from SpiffWorkflow import util as swutil
 
 from checkmate import classes
 from checkmate.db import common
-from checkmate.db import db_lock
 from checkmate import exceptions as cmexc
 from checkmate import utils as cmutils
 
@@ -198,14 +197,6 @@ class Driver(common.DbBase):
         response['blueprints'] = self.get_blueprints()
         response['workflows'] = self.get_workflows()
         return response
-
-    def lock(self, key, timeout):
-        """Attempt to lock with the provided key."""
-        return db_lock.DbLock(self, key, timeout)
-
-    def unlock(self, key):
-        """Release the lock for the provided key."""
-        return self.release_lock(key)
 
     def _find_existing_lock(self, key):
         """Look for lock by provided key."""

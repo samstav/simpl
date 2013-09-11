@@ -51,7 +51,7 @@ class Manager(object):
         :return: a lock object for locking the workflow and unlocking it
         """
         lock_key = "async_wf_writer:%s" % workflow_id
-        return self.lock_driver.lock(lock_key, 5)
+        return db.get_lock_db_driver().lock(lock_key, 5)
 
     def save_spiff_workflow(self, d_wf, **kwargs):
         '''Serializes a spiff worklfow and save it. Worflow status can be

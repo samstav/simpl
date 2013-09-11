@@ -102,6 +102,14 @@ def get_driver(name=None, reset=False, connection_string=None, api_id=None):
     return driver
 
 
+def get_lock_db_driver():
+    """
+    Get the driver for connecting to the lock db
+    :return:
+    """
+    return get_driver(connection_string=CONFIG.lock_connection_string)
+
+
 def any_id_problems(api_id):
     """Validates the ID provided is safe and returns problems as a string.
 
