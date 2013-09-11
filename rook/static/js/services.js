@@ -2259,6 +2259,23 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     return position;
   }
 
+  var _offset_stream_position = function(streams) {
+    // If stream DEFAULTS.NO_RESOURCE does not exist
+    // offset all streams one position down
+    if (streams[DEFAULTS.NO_RESOURCE]) return;
+
+    for (var key in streams) {
+      var stream = streams[key];
+      if (!(stream instanceof Object && 'position' in stream)) continue;
+
+      stream.position--;
+      for (var j=0 ; j<stream.data.length ; j++) {
+        var node = stream.data[j];
+        node.position.y = stream.position;
+      }
+    }
+  }
+
   var _build_links = function(specs, nodes) {
     var links = [];
 
@@ -2314,6 +2331,7 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
       }
 
       spec.position = {};
+      spec.position.stream = resource_id;
       spec.position.x = _get_distance_from_start(spec, specs, position_memo);
       spec.position.y = stream.position;
       stream.data.push(spec);
@@ -2324,6 +2342,8 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     }
 
     streams.links = _build_links(specs, streams.nodes);
+    _offset_stream_position(streams);
+
     return streams;
   }
 

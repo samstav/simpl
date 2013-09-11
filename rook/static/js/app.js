@@ -3031,6 +3031,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     // Cassandra
     seed: 0,
     node: 1,
+    'region-two': 2,
 
     // Mongo
     primary: 0,

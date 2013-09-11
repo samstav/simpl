@@ -337,7 +337,9 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     AVAILABLE_ICONS: ['compute', 'load-balancer', 'database'],
     ICON_FOLDER: '/img/icons/',
     ICON_HEIGHT: 8,
-    ICON_WIDTH: 8
+    ICON_WIDTH: 8,
+    ICON_MARGIN: 4,
+    TEXT_MARGIN: 3
   };
 
   var _even_odd = function(num) {
@@ -390,9 +392,98 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     update_svg(scope);
   }
 
-  var _interpolate = function(x, new_width, old_width) {
+  var _interpolate_node = function(x, new_width, old_width) {
     var padded_width = new_width - DEFAULTS.ICON_WIDTH;
     return x * padded_width / old_width + DEFAULTS.ICON_WIDTH;
+  }
+
+  var _is_stream = function(stream) {
+    return ( stream instanceof Object && 'position' in stream );
+  }
+
+  var _get_stream = function(streams, id) {
+    return streams[id];
+  }
+
+  var _calculate_stream_heights = function(streams, positions) {
+    var stream_height = DEFAULTS.TOTAL_HEIGHT / streams.all.length;
+    streams.custom_height = 0;
+    var num_custom_heights = 0;
+    for (id in positions) {
+      var row = positions[id];
+      var num_nodes = row.length;
+      var some_node = row[0];
+      var stream = _get_stream(streams, some_node.position.stream);
+      if (num_nodes > 1 && !('height' in stream)) {
+        var custom_height = num_nodes * DEFAULTS.NODE_HEIGHT;
+        if (custom_height > stream_height) {
+          streams.custom_height += custom_height;
+          stream.height = custom_height;
+          num_custom_heights++;
+        }
+      }
+    }
+
+    var num_remaining_streams = streams.all.length - num_custom_heights;
+    var remaining_height = DEFAULTS.TOTAL_HEIGHT - streams.custom_height;
+    var remaining_stream_height = remaining_height / num_remaining_streams;
+
+    for (var key in streams) {
+      var stream = streams[key];
+      if (!_is_stream(stream)) continue;
+      if (stream.height) continue;
+
+      stream.height = remaining_stream_height;
+    }
+  }
+
+  var _sort_streams = function(streams) {
+    var _by_position = function(stream) {
+      return stream.position;
+    }
+    var stream_info = [];
+    for (var key in streams) {
+      var stream = streams[key];
+      if (_is_stream(stream))
+        stream_info.push(stream);
+    }
+    return _.sortBy(stream_info, _by_position);
+  }
+
+  var _avoid_node_collision = function(streams, positions) {
+    for (id in positions) {
+      var row = positions[id];
+      var num_nodes = row.length;
+      var some_node = row[0];
+      var stream = _get_stream(streams, some_node.position.stream);
+      if (num_nodes > 1) {
+        var total_height = num_nodes * DEFAULTS.NODE_HEIGHT;
+        var start_position = (stream.height - total_height) / 2;
+        var current_position = start_position;
+        for (var i=0 ; i<num_nodes ; i++) {
+          var node = row[i];
+          node.interpolated_position.y = current_position + DEFAULTS.NODE_HEIGHT / 2;
+          current_position += DEFAULTS.NODE_HEIGHT;
+        }
+      }
+    }
+  }
+
+  var _interpolate_streams = function(streams) {
+    var current_stream_position = 0;
+
+    for (var i=0 ; i<streams.length ; i++) {
+      var stream = streams[i];
+      stream.interpolated_position = current_stream_position;
+      for (var j=0 ; j<stream.data.length ; j++) {
+        var node = stream.data[j];
+        if (!node.interpolated_position.hasOwnProperty('y')) {
+          node.interpolated_position.y = stream.height / 2;
+        }
+        node.interpolated_position.y += current_stream_position;
+      }
+      current_stream_position += stream.height;
+    }
   }
 
   var _calculate_node_position = function(streams, scope) {
@@ -402,32 +493,20 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
     for (var i=0 ; i<streams.nodes.length ; i++) {
       var node = streams.nodes[i];
-      var x = _interpolate(node.position.x, scope.svg.width, streams.width);
-      // var y = stream_height / 2;
-      var y = (node.position.y) * stream_height + stream_height / 2;
+      var x = _interpolate_node(node.position.x, scope.svg.width, streams.width);
+      var y = node.position.y;
       var id = [x, y].join('--');
-      node.interpolated_position = { x: x, y: y };
+      node.interpolated_position = { x: x };
 
       if (!positions[id]) { positions[id] = []; }
       positions[id].push(node);
     }
 
-    for (id in positions) {
-      var row = positions[id];
-      var num_nodes = row.length;
-      var some_node = row[0];
-      var node_position = some_node.interpolated_position.y;
-      if (num_nodes > 1) {
-        var total_height = num_nodes * DEFAULTS.NODE_HEIGHT;
-        var start_position = node_position - total_height / 2;
-        var current_position = start_position;
-        for (var i=0 ; i<num_nodes ;  i++) {
-          var node = row[i];
-          node.interpolated_position.y = current_position + DEFAULTS.NODE_HEIGHT / 2;
-          current_position += DEFAULTS.NODE_HEIGHT;
-        }
-      }
-    }
+    _calculate_stream_heights(streams, positions);
+    _avoid_node_collision(streams, positions);
+    var sorted_streams = _sort_streams(streams);
+    _interpolate_streams(sorted_streams);
+    console.log(streams);
   }
 
   var _draw_highlight = function(d, streams, scope, element) {
@@ -457,22 +536,22 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .append('svg:g')
       .attr('class', function(d) { return 'stream ' + _even_odd(d.position); })
       .attr('transform', function(d) {
-        return 'translate(0, '+ d.position * height +')';
+        return 'translate(0, '+ d.interpolated_position +')';
       });
     stream.append('svg:rect')
       .attr('class', 'border')
       .attr('width', '100%')
-      .attr('height', height);
+      .attr('height', function(d) { return d.height; });
     stream.append('svg:image')
       .attr('xlink:href', _get_icon)
-      .attr('x', function(d) { return (height - DEFAULTS.ICON_WIDTH) / 2 })
-      .attr('y', function(d) { return (height - DEFAULTS.ICON_HEIGHT) / 2 })
+      .attr('x', DEFAULTS.ICON_MARGIN)
+      .attr('y', function(d) { return (d.height - DEFAULTS.ICON_HEIGHT) / 2 })
       .attr('width', DEFAULTS.ICON_WIDTH + 'px')
       .attr('height', DEFAULTS.ICON_HEIGHT + 'px');
     stream.append("text")
       .attr("class", "nodetext")
-      .attr("dx", function(d) { return (height - DEFAULTS.ICON_WIDTH) / 2 })
-      .attr("dy", function(d) { return (height - DEFAULTS.ICON_HEIGHT) / 2 })
+      .attr("dx", DEFAULTS.TEXT_MARGIN)
+      .attr("dy", function(d) { return (d.height - DEFAULTS.ICON_HEIGHT) / 2 + DEFAULTS.ICON_HEIGHT })
       .text(function(d) { return d.title.split('.').shift(); });
 
     // Exit
