@@ -117,8 +117,8 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
             {'id': '777'}
         ])
         result = self.driver.get_deployments(offset=1)
-        expected = {'777': {'id': '777'}}
-        self.assertDictEqual(result['results'], expected)
+        self.assertNotIn('123', result['results'])
+        self.assertIn('777', result['results'])
 
     def test_get_resources_does_not_return__id(self):
         self.driver.database()['resources'].insert({
@@ -135,8 +135,8 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
             {'id': '777', 'tenantId': '888'}
         ])
         result = self.driver.get_resources(tenant_id='888')
-        self.assertIsNone(result['results'].get('123'))
-        self.assertIsNotNone(result['results'].get('777'))
+        self.assertNotIn('123', result['results'])
+        self.assertIn('777', result['results'])
 
     def test_get_resources_with_limit(self):
         self.driver.database()['resources'].insert([
@@ -144,8 +144,8 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
             {'id': '777'}
         ])
         result = self.driver.get_resources(limit=1)
-        expected = {'123': {'id': '123'}}
-        self.assertDictEqual(result['results'], expected)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
 
     def test_get_resources_with_offset(self):
         self.driver.database()['resources'].insert([
@@ -153,8 +153,8 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
             {'id': '777'}
         ])
         result = self.driver.get_resources(offset=1)
-        expected = {'777': {'id': '777'}}
-        self.assertDictEqual(result['results'], expected)
+        self.assertNotIn('123', result['results'])
+        self.assertIn('777', result['results'])
 
     def test_get_resources_with_resource_ids(self):
         self.driver.database()['resources'].insert([
@@ -167,8 +167,10 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
         ])
         query = {'resource_ids': ['id1', 'id3']}
         result = self.driver.get_resources(query=query)
-        self.assertIsNone(result['results'].get('777'))
         self.assertEqual(len(result['results']), 2)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
+        self.assertIn('999', result['results'])
 
     def test_get_resources_with_provider(self):
         self.driver.database()['resources'].insert([
@@ -179,8 +181,8 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
         ])
         query = {'provider': 'nova'}
         result = self.driver.get_resources(query=query)
-        self.assertIsNone(result['results'].get('777'))
-        self.assertIsNotNone(result['results'].get('123'))
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
 
     def test_get_resources_with_resource_type(self):
         self.driver.database()['resources'].insert([
@@ -191,8 +193,8 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
         ])
         query = {'resource_type': 'compute'}
         result = self.driver.get_resources(query=query)
-        self.assertIsNone(result['results'].get('777'))
-        self.assertIsNotNone(result['results'].get('123'))
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
 
     def test_get_resources_with_type_and_provider_and_ids(self):
         self.driver.database()['resources'].insert([
@@ -217,9 +219,9 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
                  'provider': 'nova',
                  'resource_ids': ['xxx', 'doesntexist']}
         result = self.driver.get_resources(query=query)
-        self.assertIsNone(result['results'].get('777'))
-        self.assertIsNone(result['results'].get('888'))
-        self.assertIsNotNone(result['results'].get('123'))
+        self.assertNotIn('777', result['results'])
+        self.assertNotIn('888', result['results'])
+        self.assertIn('123', result['results'])
 
     def test_get_resources_checks_numbered_keys_only(self):
         self.driver.database()['resources'].insert([
@@ -230,8 +232,8 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
         ])
         query = {'resource_type': 'compute'}
         result = self.driver.get_resources(query=query)
-        self.assertIsNone(result['results'].get('123'))
-        self.assertIsNotNone(result['results'].get('321'))
+        self.assertNotIn('123', result['results'])
+        self.assertIn('321', result['results'])
 
 
 @unittest.skipIf(SKIP, REASON)
