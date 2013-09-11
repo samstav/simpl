@@ -22,6 +22,7 @@ from tests.integration import base
 LOG = logging.getLogger(__name__)
 try:
     import mongobox as mbox
+    from mongobox.unittest import MongoTestCase
     SKIP = False
     REASON = None
 except ImportError as exc:
@@ -32,7 +33,7 @@ except ImportError as exc:
 
 
 @unittest.skipIf(SKIP, REASON)
-class TestDBMongo(base.DBDriverTests, unittest.TestCase):
+class TestDBMongo(base.DBDriverTests, MongoTestCase):
     COLLECTIONS_TO_CLEAN = ['tenants',
                             'deployments',
                             'blueprints',
@@ -50,7 +51,7 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         """Fire up a sandboxed mongodb instance."""
         super(TestDBMongo, cls).setUpClass()
         try:
-            cls.box = mbox.MongoBox()
+            cls.box = mbox.MongoBox(scripting=True)
             cls.box.start()
             cls._connection_string = ("mongodb://localhost:%s/test" %
                                       cls.box.port)
@@ -157,16 +158,18 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         expected = {'777': {'id': '777', 'tenantId': '888'}}
         self.assertDictEqual(result['results'], expected)
 
-    def test_get_resources_with_resource_type(self):
+    def test_get_resources_with_resource_ids(self):
         self.driver.database()['resources'].insert([
-            {'id': '123', 'tenantId': '321', '4': {'type': 'load-balancer'}},
-            {'id': '777', 'tenantId': '888', '4': {'type': 'compute'}}
+            {'id': '123', 'tenantId': '321',
+                '4': {'instance': {'id': 'id1'}}},
+            {'id': '777', 'tenantId': '888',
+                '4': {'instance': {'id': 'id2'}}},
+            {'id': '999', 'tenantId': '123',
+                '4': {'instance': {'id': 'id3'}}}
         ])
-        result = self.driver.get_resources(resource_type='compute')
-        expected = {
-            '777': {'id': '777', 'tenantId': '888', '4': {'type': 'compute'}}
-        }
-        self.assertDictEqual(result['results'], expected)
+        result = self.driver.get_resources(resource_ids=['id1', 'id3'])
+        self.assertIsNone(result['results'].get('777'))
+        self.assertEqual(len(result['results']), 2)
 
 
 @unittest.skipIf(SKIP, REASON)

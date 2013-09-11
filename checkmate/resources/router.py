@@ -15,12 +15,9 @@ class Router(object):
 
     @utils.with_tenant
     @utils.formatted_response('resources', with_pagination=True)
-    def get_resources(self, tenant_id=None, offset=None, limit=None,
-                      resource_type=None, provider=None):
+    def get_resources(self, tenant_id=None, offset=None, limit=None):
         limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
-        resource_type = bottle.request.query.get('resource_type')
-        provider = bottle.request.query.get('provider')
+        resource_ids = bottle.request.query.getall('id')
         return self.manager.get_resources(tenant_id=tenant_id, offset=offset,
                                           limit=limit,
-                                          resource_type=resource_type,
-                                          provider=provider)
+                                          resource_ids=resource_ids)
