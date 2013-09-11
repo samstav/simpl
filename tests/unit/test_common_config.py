@@ -22,7 +22,7 @@ from checkmate.common import config
 
 class TestConfig(unittest.TestCase):
     def test_defaults(self):
-        default = config.current()
+        default = config.Config()
         self.assertIsInstance(default, config.Config)
 
         self.assertIsNone(default.logconfig)
@@ -132,7 +132,7 @@ class TestEnvParser(unittest.TestCase):
 
     def test_applying_config(self):
         """Check that we can take an env and apply it as a config."""
-        current = config.current()
+        current = config.Config()
         self.assertEqual(current.deployments_path,
                          '/var/local/checkmate/deployments')
         parsed = config.parse_environment({

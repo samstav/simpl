@@ -1,3 +1,5 @@
+# pylint: disable=E1101,W0613
+
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -58,8 +60,8 @@ signals.after_setup_logger.connect(after_setup_logger_handler)
 signals.after_setup_task_logger.connect(after_setup_logger_handler)
 
 
-@signals.worker_process_init.connect
-def init_checkmate_worker(**kwargs):
+@signals.celeryd_init.connect
+def init_checkmate_worker(sender=None, conf=None, **kwargs):
     """Initialize Configuration."""
     LOG.info("Initializing Checkmate worker")
     CONFIG.update(config.parse_environment(env=os.environ))
