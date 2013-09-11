@@ -29,7 +29,8 @@ class TestPackage(unittest.TestCase):
         self.assertIn('rackspace.load-balancer', base.PROVIDER_CLASSES)
         self.assertIn('rackspace.dns', base.PROVIDER_CLASSES)
         self.assertIn('rackspace.files', base.PROVIDER_CLASSES)
-        self.assertEqual(len(base.PROVIDER_CLASSES), 6, msg="Check that all "
+        self.assertIn('rackspace.mailgun', base.PROVIDER_CLASSES)
+        self.assertEqual(len(base.PROVIDER_CLASSES), 7, msg="Check that all "
                          "your providers are registered and tested for")
 
 
