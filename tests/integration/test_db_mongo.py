@@ -105,30 +105,28 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
     def test_get_deployments_does_not_return__id(self):
         self.driver.database()['deployments'].insert({
             '_id': 'abc',
-            'id': '123',
-            'tenantId': '321'
+            'id': '123'
         })
         result = self.driver.get_deployments()
-        expected = {'123': {'id': '123', 'tenantId': '321'}}
+        expected = {'123': {'id': '123'}}
         self.assertDictEqual(result['results'], expected)
 
     def test_get_deployments_with_offset(self):
         self.driver.database()['deployments'].insert([
-            {'id': '123', 'tenantId': '321'},
-            {'id': '777', 'tenantId': '888'}
+            {'id': '123'},
+            {'id': '777'}
         ])
         result = self.driver.get_deployments(offset=1)
-        expected = {'777': {'id': '777', 'tenantId': '888'}}
+        expected = {'777': {'id': '777'}}
         self.assertDictEqual(result['results'], expected)
 
     def test_get_resources_does_not_return__id(self):
         self.driver.database()['resources'].insert({
             '_id': 'abc',
-            'id': '123',
-            'tenantId': '321'
+            'id': '123'
         })
         result = self.driver.get_resources()
-        expected = {'123': {'id': '123', 'tenantId': '321'}}
+        expected = {'123': {'id': '123'}}
         self.assertDictEqual(result['results'], expected)
 
     def test_get_resources_with_tenant_id(self):
@@ -137,39 +135,103 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
             {'id': '777', 'tenantId': '888'}
         ])
         result = self.driver.get_resources(tenant_id='888')
-        expected = {'777': {'id': '777', 'tenantId': '888'}}
-        self.assertDictEqual(result['results'], expected)
+        self.assertIsNone(result['results'].get('123'))
+        self.assertIsNotNone(result['results'].get('777'))
 
     def test_get_resources_with_limit(self):
         self.driver.database()['resources'].insert([
-            {'id': '123', 'tenantId': '321'},
-            {'id': '777', 'tenantId': '888'}
+            {'id': '123'},
+            {'id': '777'}
         ])
         result = self.driver.get_resources(limit=1)
-        expected = {'123': {'id': '123', 'tenantId': '321'}}
+        expected = {'123': {'id': '123'}}
         self.assertDictEqual(result['results'], expected)
 
     def test_get_resources_with_offset(self):
         self.driver.database()['resources'].insert([
-            {'id': '123', 'tenantId': '321'},
-            {'id': '777', 'tenantId': '888'}
+            {'id': '123'},
+            {'id': '777'}
         ])
         result = self.driver.get_resources(offset=1)
-        expected = {'777': {'id': '777', 'tenantId': '888'}}
+        expected = {'777': {'id': '777'}}
         self.assertDictEqual(result['results'], expected)
 
     def test_get_resources_with_resource_ids(self):
         self.driver.database()['resources'].insert([
-            {'id': '123', 'tenantId': '321',
+            {'id': '123',
                 '4': {'instance': {'id': 'id1'}}},
-            {'id': '777', 'tenantId': '888',
+            {'id': '777',
                 '4': {'instance': {'id': 'id2'}}},
-            {'id': '999', 'tenantId': '123',
+            {'id': '999',
                 '4': {'instance': {'id': 'id3'}}}
         ])
-        result = self.driver.get_resources(resource_ids=['id1', 'id3'])
+        query = {'resource_ids': ['id1', 'id3']}
+        result = self.driver.get_resources(query=query)
         self.assertIsNone(result['results'].get('777'))
         self.assertEqual(len(result['results']), 2)
+
+    def test_get_resources_with_provider(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+             '6': {'provider': 'nova', 'instance': {}}},
+            {'id': '777',
+             '6': {'provider': 'foobar', 'instance': {}}}
+        ])
+        query = {'provider': 'nova'}
+        result = self.driver.get_resources(query=query)
+        self.assertIsNone(result['results'].get('777'))
+        self.assertIsNotNone(result['results'].get('123'))
+
+    def test_get_resources_with_resource_type(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+             '6': {'type': 'compute', 'instance': {}}},
+            {'id': '777',
+             '6': {'type': 'foobar', 'instance': {}}}
+        ])
+        query = {'resource_type': 'compute'}
+        result = self.driver.get_resources(query=query)
+        self.assertIsNone(result['results'].get('777'))
+        self.assertIsNotNone(result['results'].get('123'))
+
+    def test_get_resources_with_type_and_provider_and_ids(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+             '6': {'type': 'compute',
+                   'provider': 'nova',
+                   'instance': {'id': 'xxx'}}},
+            {'id': '999',
+             '6': {'type': 'load-balancer',
+                   'provider': 'nova',
+                   'instance': {'id': 'xxx'}}},
+            {'id': '888',
+             '6': {'type': 'compute',
+                   'provider': 'nova',
+                   'instance': {'id': 'foo'}}},
+            {'id': '777',
+             '6': {'type': 'compute',
+                   'provider': 'legacy',
+                   'instance': {'id': 'xxx'}}}
+        ])
+        query = {'resource_type': 'compute',
+                 'provider': 'nova',
+                 'resource_ids': ['xxx', 'doesntexist']}
+        result = self.driver.get_resources(query=query)
+        self.assertIsNone(result['results'].get('777'))
+        self.assertIsNone(result['results'].get('888'))
+        self.assertIsNotNone(result['results'].get('123'))
+
+    def test_get_resources_checks_numbered_keys_only(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+             'deployment-keys': {'type': 'compute', 'instance': {}}},
+            {'id': '321',
+             '2': {'type': 'compute', 'instance': {}}},
+        ])
+        query = {'resource_type': 'compute'}
+        result = self.driver.get_resources(query=query)
+        self.assertIsNone(result['results'].get('123'))
+        self.assertIsNotNone(result['results'].get('321'))
 
 
 @unittest.skipIf(SKIP, REASON)

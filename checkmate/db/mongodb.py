@@ -231,12 +231,12 @@ class Driver(common.DbBase):
                                          "exist!" % key)
 
     def get_resources(self, tenant_id=None, limit=None, offset=None,
-                      resource_ids=None):
+                      query=None):
         return self._get_objects(self._resource_collection_name,
                                  tenant_id=tenant_id,
                                  limit=limit,
                                  offset=offset,
-                                 resource_ids=resource_ids)
+                                 query=query)
 
     # TENANTS
     def save_tenant(self, tenant):
@@ -609,7 +609,7 @@ class Driver(common.DbBase):
 
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
                      limit=0, with_count=True, with_deleted=False,
-                     status=None, query=None, resource_ids=None):
+                     status=None, query=None):
         """Returns a list of objects for the given Tenant ID.
 
         :param klass: The klass to query from
@@ -640,7 +640,7 @@ class Driver(common.DbBase):
         with self._get_client().start_request():
             results = self.database()[klass].find(self._build_filters(
                 klass, tenant_id, with_deleted,
-                status, query, resource_ids), projection)
+                status, query), projection)
             if sort_key:
                 results.sort(sort_key, sort_direction)
             results = results.skip(offset).limit(limit)
@@ -668,11 +668,11 @@ class Driver(common.DbBase):
             if with_count:
                 response['collection-count'] = self._get_count(
                     klass, tenant_id, with_deleted,
-                    status, query, resource_ids)
+                    status, query)
         return response
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None,
-                   query=None, resource_ids=None):
+                   query=None):
         """Returns a record count for the given tenant.
 
         :param klass: the collection to query
@@ -683,13 +683,13 @@ class Driver(common.DbBase):
         """
         return self.database()[klass].find(
             self._build_filters(klass, tenant_id, with_deleted, status,
-                                query, resource_ids),
+                                query),
             self._object_projection
         ).count()
 
     @staticmethod
     def _build_filters(klass, tenant_id, with_deleted, status=None,
-                       query=None, resource_ids=None):
+                       query=None):
         """Build MongoDB filters.
 
         `with_deleted` is a handy shortcut for including/excluding deleted
@@ -739,18 +739,32 @@ class Driver(common.DbBase):
                             filters[key] = condition
 
         if klass == Driver._resource_collection_name:
-            if resource_ids:
-                filters['$where'] = bson.code.Code(
+            if query:
+                query_condition = ['true']
+                if query.get('provider'):
+                    query_condition.append("provider == '%s'" %
+                                           query['provider'])
+                if query.get('resource_type'):
+                    query_condition.append("resource_type == '%s'" %
+                                           query['resource_type'])
+                if query.get('resource_ids'):
+                    query_condition.append("%s.indexOf(instance_id) > -1" %
+                                           str(query['resource_ids']))
+                search_function = (
                     "function() {"
                         "for (var key in this) {"
                             "if (!this.hasOwnProperty(key)) {continue;}"
                             "if (!key.match(/^\d+$/)) {continue;}"
                             "var instance_id = this[key]['instance']['id'];"
-                            "if (%s.indexOf(instance_id) > -1){"
+                            "var provider = this[key]['provider'];"
+                            "var resource_type = this[key]['type'];"
+                            "if (%s){"
                                 "return true;"
                             "}"
                         "}"
-                    "}" % str(resource_ids)
+                    "}")
+                filters['$where'] = bson.code.Code(
+                    search_function % " && ".join(query_condition)
                 )
 
         return filters
