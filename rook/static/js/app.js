@@ -3200,6 +3200,23 @@ function ResourcesController($scope, $resource, $location, Deployment){
     $scope.selected_resources.splice($scope.selected_resources.indexOf(decorated_resource), 1);
   };
 
+  $scope.get_checkmate_resources = function(instance_ids, provider, type){
+    var tenant_id = $scope.auth.context.tenantId;
+    var url = '/:tenantId/resources.json';
+    var params = { tenantId: tenant_id }
+    if (instance_ids)
+      params.id = instance_ids
+    if (provider)
+      params.provider = provider
+    if (type)
+      params.type = type
+
+    var resources_api = $resource((checkmate_server_base || '') + url, params);
+    resources_api.get(function(results){
+      $scope.answers = results;
+    });
+  };
+
   $scope.get_load_balancers = function(){
     var tenant_id = $scope.auth.context.tenantId;
     if ($scope.auth.identity.loggedIn && tenant_id){
