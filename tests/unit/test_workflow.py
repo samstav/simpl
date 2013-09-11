@@ -317,19 +317,6 @@ class TestWorkflow(unittest.TestCase):
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
-    def test_is_failed_task(self):
-        task_with_error = self.mox.CreateMockAnything()
-        task_without_error = self.mox.CreateMockAnything()
-
-        task_with_error._get_internal_attribute('task_state').AndReturn({
-            "info": "Error Information",
-            "state": "FAILURE",
-            "traceback": "Traceback"})
-        task_without_error._get_internal_attribute('task_state').AndReturn({})
-        self.mox.ReplayAll()
-
-        self.assertTrue(workflow.is_failed_task(task_with_error))
-        self.assertFalse(workflow.is_failed_task(task_without_error))
 
     def test_update_status_without_an_overriding_status_value(self):
         w_id = "1"

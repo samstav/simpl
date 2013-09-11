@@ -32,6 +32,7 @@ from checkmate import db
 from checkmate import deployment as cmdep
 from checkmate import middleware as cmmid
 from checkmate import operations as cmops
+from checkmate import task
 from checkmate import utils
 from checkmate import workflow as cmwf
 from checkmate.workflows import exception_handlers as cmexch
@@ -355,7 +356,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
     for final_task in final_tasks:
         if (isinstance(final_task.task_spec, Celery) and
-                not cmwf.is_failed_task(final_task)):
+                not task.is_failed_task(final_task)):
             final_task.task_spec._update_state(final_task)
             if final_task._has_state(Task.WAITING):
                 number_of_waiting_celery_tasks += 1

@@ -27,6 +27,7 @@ from SpiffWorkflow import (
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
+from checkmate import task as cmtsk
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.db import get_driver
@@ -77,7 +78,7 @@ def get_errored_tasks(d_wf):
     tasks = d_wf.get_tasks()
     while tasks:
         task = tasks.pop(0)
-        if is_failed_task(task):
+        if cmtsk.is_failed_task(task):
             failed_tasks.append(task.id)
     return failed_tasks
 
@@ -275,7 +276,7 @@ def get_errors(wf_dict, tenant_id):
 
     while tasks:
         task = tasks.pop(0)
-        if is_failed_task(task):
+        if cmtsk.is_failed_task(task):
             task_state = task._get_internal_attribute("task_state")
             info = task_state.get("info")
             traceback = task_state.get("traceback")
@@ -291,21 +292,6 @@ def get_errors(wf_dict, tenant_id):
                     "error-traceback": traceback
                 })
     return results
-
-
-def is_failed_task(task):
-    '''Checks whether a task has failed by checking the task_state dict in
-    internal attribs. The format of task_state is
-    task_state: {
-        'state': 'FAILURE',
-        'traceback': 'Has the stacktrace of the exception',
-        'info': 'info about the exception',
-    }
-    :param task:
-    :return:
-    '''
-    task_state = task._get_internal_attribute("task_state")
-    return task_state and task_state.get("state") == "FAILURE"
 
 
 def get_spiff_workflow_status(workflow):
