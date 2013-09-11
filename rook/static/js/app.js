@@ -521,32 +521,9 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     var password = $scope.bound_creds.password;
     var apikey = $scope.bound_creds.apikey;
     var pin_rsa = $scope.bound_creds.pin_rsa;
+    var endpoint = $scope.get_selected_endpoint();
     auth.error_message = null;
 
-    //Handle auto_complete sync issues (1Pass, LastPass do not update scope)
-    try {
-      var login_form = window.document.forms.loginForm;
-
-      var realvalue = loginForm.username.value;
-      if (realvalue !== undefined && username != realvalue)
-        username = realvalue;
-
-      realvalue = loginForm.password.value;
-      if (realvalue !== undefined && password != realvalue)
-        password = realvalue;
-
-      realvalue = loginForm.apikey.value;
-      if (realvalue !== undefined && apikey != realvalue)
-        apikey = realvalue;
-
-      //!Pass puts the password in the apikey field too. Assume it's password
-      if (password == apikey)
-        apikey = undefined;
-    } catch(err) {
-      console.log(err);
-    }
-
-    var endpoint = $scope.get_selected_endpoint();
     return auth.authenticate(endpoint, username, apikey, password, null, pin_rsa, null)
       .then($scope.on_auth_success, $scope.on_auth_failed);
   };

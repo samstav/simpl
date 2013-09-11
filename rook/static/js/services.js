@@ -1571,57 +1571,60 @@ services.factory('pagination', function(){
 });
 
 services.factory('deploymentDataParser', function(){
+  var _get_vip = function(resources) {
+    var vip;
+
+    var lb = _.find(resources, function(resource) { return resource.type == 'load-balancer'; });
+    if (lb && 'instance' in lb) {
+      vip = lb.instance.public_ip;
+    }
+
+    return vip;
+  }
+
+  var _get_url_info = function(inputs, default_domain) {
+    var url_info = {};
+    var url;
+    var domain;
+    var blueprint;
+    if (inputs)
+      blueprint = inputs.blueprint;
+
+    if (blueprint) {
+      if (blueprint.url) {
+        var blueprint_url = inputs.blueprint.url;
+        if (typeof blueprint_url !== 'string') {
+          blueprint_url = blueprint_url.url;
+        }
+        var uri = URI(blueprint_url);
+        domain = uri.hostname();
+        url = blueprint_url;
+      } else {
+        domain = blueprint.domain;
+        url = 'http://' + domain + blueprint.path;
+      }
+    } else {
+      domain = default_domain;
+      url = 'http://' + domain + '/';
+    }
+
+    url_info.path = url;
+    url_info.domain = domain;
+
+    return url_info;
+  }
+
   function formatData(data) {
     var formatted_data = {};
 
-    try {
-      var lb = _.find(data.resources, function(r, k) { return r.type == 'load-balancer';});
-      if ('instance' in lb) {
-        formatted_data.vip = lb.instance.public_ip;
-      }
-    }
-    catch (error) {
-      console.log(error);
-    }
+    var vip = _get_vip(data.resources);
+    if (vip)
+      formatted_data.vip = vip;
 
-    var url;
-    try {
-      if (typeof data.inputs.blueprint.url == "string") {
-        url = data.inputs.blueprint.url;
-      } else {
-        url = data.inputs.blueprint.url.url;
-      }
-      formatted_data.path = url;
-      var u = URI(url);
-      formatted_data.domain = u.hostname();
-    }
-    catch (error) {
-      console.log("url not found", error);
+    var url_info = _get_url_info(data.inputs, formatted_data.vip);
+    formatted_data.path = url_info.path;
+    formatted_data.domain = url_info.domain;
 
-      var domain = null;
-      //Find domain in inputs
-      try {
-        domain = data.inputs.blueprint.domain;
-        formatted_data.domain = domain;
-      }
-      catch (error) {
-        console.log(error);
-      }
-      //If no domain, use load-balancer VIP
-      if (domain === null) {
-        domain = formatted_data.vip;
-      }
-      //Find path in inputs
-      var path = "/";
-      try {
-        path = data.inputs.blueprint.path;
-      }
-      catch (error) {
-        console.log(error);
-      }
-      if (domain !== undefined && path !== undefined)
-        formatted_data.path = "http://" + domain + path;
-    }
     try {
       var user = _.find(data.resources, function(r, k) { return r.type == 'user';});
       if (user !== undefined && 'instance' in user) {
