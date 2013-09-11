@@ -13,6 +13,7 @@ from checkmate.providers import get_provider_class
 LOG = logging.getLogger(__name__)
 API_POOL = eventlet.GreenPool()
 
+"""Environment"""
 
 class Environment(object):
     def __init__(self, environment):

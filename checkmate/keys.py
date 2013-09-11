@@ -9,6 +9,7 @@ from passlib.hash import sha512_crypt
 
 LOG = logging.getLogger(__name__)
 
+"""Key management module"""
 
 def generate_key_pair(bits=2048):
     """Generates a private/public key pair.

@@ -111,6 +111,7 @@ class TestExtensionsMiddleware(unittest.TestCase):
 
 
 class RequestContextTests(unittest.TestCase):
+    """RequestContextTests"""
     def test_dict_conversion(self):
         context = cmmid.RequestContext(simulation='True',
                                        param1='value1', param2='value2')
