@@ -31,7 +31,7 @@ API_FLAVOR_CACHE = {}
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
 from checkmate import deployments
 MANAGERS = {'deployments': deployments.Manager()}
-get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
+GET_RESOURCE_BY_ID = MANAGERS['deployments'].get_resource_by_id
 
 
 #

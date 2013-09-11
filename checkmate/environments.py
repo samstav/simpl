@@ -12,10 +12,8 @@ from checkmate import utils
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
 
+"""Environments"""
 
-#
-# Environments
-#
 @bottle.get('/environments')
 @utils.with_tenant
 def get_environments(tenant_id=None):

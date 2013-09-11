@@ -17,6 +17,8 @@ import logging
 import uuid
 
 #pylint: disable=E0611
+"""Workflows Router"""
+
 import bottle
 
 import SpiffWorkflow as spiff

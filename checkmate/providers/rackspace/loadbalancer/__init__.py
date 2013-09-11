@@ -57,7 +57,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
         LOG.warn("Error connecting to Redis: %s", exception)
 
 MANAGERS = {'deployments': deployments.Manager()}
-get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
+GET_RESOURCE_BY_ID = MANAGERS['deployments'].get_resource_by_id
 
 
 # Cloud Load Balancers needs an IP for all load balancers. To create one we

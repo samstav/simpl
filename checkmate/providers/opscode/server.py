@@ -173,15 +173,15 @@ class Provider(ProviderBase):
 
 def create_role_recipe_string(roles=None, recipes=None):
     '''Return roles and recipes in chef cook format.'''
-    s = ''
+    recipe_string = ''
     if roles is not None:
         for role in roles:
-            s += 'role[%s], ' % role
+            recipe_string += 'role[%recipe_string], ' % role
     if recipes is not None:
         for recipe in recipes:
-            s += 'recipe[%s], ' % recipe
+            recipe_string += 'recipe[%recipe_string], ' % recipe
     # remove the trailing space and comma
-    return s[:-2]
+    return recipe_string[:-2]
 
 
 @task

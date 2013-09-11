@@ -173,7 +173,8 @@ class TestDbCommonGetDriver(unittest.TestCase):
         mock_env.connection_string = 'some://connection'
 
         common.get_driver()
-        mock_class.assert_called_once_with(connection_string='some://connection')
+        mock_class.assert_called_once_with(connection_string=
+                                           'some://connection')
 
     @mock.patch.object(common.utils, 'import_class')
     def test_default_to_sql_no_conn_no_name_no_environ(self, mock_import):
