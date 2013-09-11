@@ -130,13 +130,12 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
     """
     utils.match_celery_logging(LOG)
     key = None
+    driver = db.get_driver(api_id=w_id)
     try:
         workflow, key = MANAGERS['workflows'].lock_workflow(w_id,
                                                             with_secrets=True)
         serializer = DictionarySerializer()
         d_wf = Workflow.deserialize(serializer, workflow)
-        driver = MANAGERS['workflows'].select_driver(w_id)
-
         initial_wf_state = cmwf.update_workflow_status(d_wf)
         d_wf.complete_all()
         final_workflow_state = cmwf.update_workflow_status(d_wf)

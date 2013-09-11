@@ -235,7 +235,7 @@ class Provider(RackspaceComputeProviderBase):
             defines=dict(
                 resource=key,
                 provider=self.key,
-                task_tags=['create']
+                task_tags=['create', 'root']
             ),
             tags=self.generate_resource_tag(
                 context.base_url,
