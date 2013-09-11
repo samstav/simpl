@@ -32,7 +32,6 @@ import logging
 import os
 import sys
 
-CURRENT_CONFIG = None
 LOG = logging.getLogger(__name__)
 ENV_MAP = {
     'CHECKMATE_CONNECTION_STRING': 'connection_string',
@@ -321,8 +320,7 @@ def current():
     To load config from sys.args and environment variables:
         CONFIG.initialize()
     """
-    global CURRENT_CONFIG
-    if not CURRENT_CONFIG:
-        CURRENT_CONFIG = Config()
-        CURRENT_CONFIG.initialize()
     return CURRENT_CONFIG
+
+
+CURRENT_CONFIG = Config()
