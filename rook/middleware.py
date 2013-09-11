@@ -132,9 +132,10 @@ class BrowserMiddleware(object):
                           environ['REQUEST_METHOD'], path, extension)
                 return ROOK_STATIC(environ, handler)
 
-        accept = environ['HTTP_ACCEPT']
-        if ('application/json' not in accept and
-                'application/x-yaml' not in accept):
+        accept = environ.get('HTTP_ACCEPT')
+        if (accept and
+            'application/json' not in accept and
+            'application/x-yaml' not in accept):
             LOG.debug("Rook handling %s %s with accept header %s",
                       environ['REQUEST_METHOD'], path, accept)
             return ROOK_STATIC(environ, handler)
