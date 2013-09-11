@@ -235,6 +235,15 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
         self.assertNotIn('123', result['results'])
         self.assertIn('321', result['results'])
 
+    def test_dont_arbitrarily_execute_mongo_commands(self):
+        self.driver.database()['resources'].insert({
+            'id': '123', '1': {'instance': {}}
+        })
+        query = {'provider': "hahahah'){a = 1;}else {return true}; if(a == '1"}
+        self.driver.get_resources(query=query)
+        result = self.driver.get_resources(query=query)
+        self.assertNotIn('123', result['results'])
+
 
 @unittest.skipIf(SKIP, REASON)
 class TestMongoDBCapabilities(unittest.TestCase):

@@ -743,13 +743,15 @@ class Driver(common.DbBase):
                 query_condition = ['true']
                 if query.get('provider'):
                     query_condition.append("provider == '%s'" %
-                                           query['provider'])
+                                           re.escape(query['provider']))
                 if query.get('resource_type'):
                     query_condition.append("resource_type == '%s'" %
-                                           query['resource_type'])
+                                           re.escape(query['resource_type']))
                 if query.get('resource_ids'):
-                    query_condition.append("%s.indexOf(instance_id) > -1" %
-                                           str(query['resource_ids']))
+                    query_condition.append(
+                        "%s.indexOf(instance_id) > -1" %
+                        str(map(re.escape, query['resource_ids']))
+                    )
                 search_function = (
                     "function() {"
                         "for (var key in this) {"
