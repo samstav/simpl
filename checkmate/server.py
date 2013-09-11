@@ -1,12 +1,29 @@
 #!/usr/bin/env python
-'''Module to initialize and run Checkmate server.
+# pylint: disable=E1101
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Module to initialize and run Checkmate server.
 
 Note: To support running with a wsgiref server with auto reloading and also
 full eventlet support, we need to handle eventlet up front. If we are using
 eventlet, then we'll monkey_patch ASAP. If not, then we won't monkey_patch at
 all as that breaks reloading.
 
-'''
+"""
+
 # BEGIN: ignore style guide
 # monkey_patch ASAP if we're using eventlet
 import sys
@@ -71,7 +88,7 @@ CONFIG = config.current()
 
 # Check our configuration
 def check_celery_config():
-    '''Make sure a backend is configured.'''
+    """Make sure a backend is configured."""
     try:
         backend = celery.current_app.backend.__class__.__name__
         if backend not in ['DatabaseBackend', 'MongoBackend']:
@@ -104,7 +121,7 @@ DEFAULT_AUTH_ENDPOINTS = [{
 
 
 def error_formatter(error):
-    '''Catch errors and output them in the correct format/media-type.'''
+    """Catch errors and output them in the correct format/media-type."""
     output = {}
     accept = bottle.request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
@@ -169,9 +186,8 @@ def error_formatter(error):
 
 
 def main():
-    '''Start the server based on passed in arguments. Called by __main__.'''
-    global LOG  # pylint: disable=W0603
-    CONFIG.initialize()
+    """Start the server based on passed in arguments. Called by __main__."""
+    global LOG
     resources = ['version']
     anonymous_paths = ['version']
     if CONFIG.webhook:
@@ -345,6 +361,7 @@ def main():
         try:
             # pylint: disable=F0401
             import newrelic.agent
+            # pylint: enable=F0401
         except ImportError as exc:
             LOG.exception(exc)
             msg = ("The newrelic python agent could not be loaded. Make sure "
@@ -419,8 +436,9 @@ def main():
 
 
 class CustomEventletServer(bottle.ServerAdapter):
-    '''Handles added backlog.'''
+    """Handles added backlog."""
     def run(self, handler):
+        """Fire up the custom Eventlet server."""
         try:
             socket_args = {}
             for arg in ['backlog', 'family']:
@@ -436,10 +454,10 @@ class CustomEventletServer(bottle.ServerAdapter):
 
 
 class EventletLogFilter(object):
-    '''Receives eventlet log.write() calls and routes them.'''
+    """Receives eventlet log.write() calls and routes them."""
     @staticmethod
     def write(text):
-        '''Write to appropriate target.'''
+        """Write to appropriate target."""
         if text:
             if text[0] in '(w':
                 # write thread and wsgi messages to debug only
@@ -451,7 +469,7 @@ class EventletLogFilter(object):
 
 
 def run_with_profiling():
-    '''Start srver with yappi profiling and eventlet blocking detection on.'''
+    """Start srver with yappi profiling and eventlet blocking detection on."""
     LOG.warn("Profiling and blocking detection enabled")
     debug.hub_blocking_detection(state=True)
     # pylint: disable=F0401

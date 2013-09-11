@@ -1,4 +1,20 @@
-'''
+# pylint: disable=E1101
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""
 Global configuration
 
 Usage:
@@ -12,12 +28,13 @@ To update the config:
 To load config from sys.args and environment variables:
     CONFIG.initialize()
 
-'''
+"""
 import argparse
 import logging
 import os
 import sys
 
+CURRENT_CONFIG = None
 LOG = logging.getLogger(__name__)
 ENV_MAP = {
     'CHECKMATE_CONNECTION_STRING': 'connection_string',
@@ -37,9 +54,9 @@ ENV_MAP = {
 
 
 class Config(object):
-    '''Temporary placeholder until we implement a more sophisticated config
+    """Temporary placeholder until we implement a more sophisticated config
     systems
-    '''
+    """
     address = "127.0.0.1:8080"
 
     logconfig = None
@@ -81,7 +98,7 @@ class Config(object):
 
     @property
     def bottle_parent(self):
-        '''Detect if running as a bottle autoreload parent.'''
+        """Detect if running as a bottle autoreload parent."""
         return self.eventlet is False and 'BOTTLE_CHILD' not in os.environ
 
     def __init__(self, values=None):
@@ -89,7 +106,7 @@ class Config(object):
             self.update(values)
 
     def update(self, *args, **kwargs):
-        '''Update config with new values.'''
+        """Update config with new values."""
         sources = list(args)
         sources.append(kwargs)
         for source in sources:
@@ -102,37 +119,17 @@ class Config(object):
                 setattr(self, key, value)
 
     def initialize(self):
-        '''Create a config from sys.args and environment variables'''
+        """Create a config from sys.args and environment variables."""
         self.update(parse_environment(env=os.environ), vars(parse_arguments()))
 
 
-CURRENT_CONFIG = Config()
-
-
-def current():
-    '''Returns global current config object
-
-    Usage:
-
-        from checkmate.common import config
-        CONFIG = config.current()
-
-    To update the config:
-        CONFIG.update({'setting': "value"})
-
-    To load config from sys.args and environment variables:
-        CONFIG.initialize()
-    '''
-    return CURRENT_CONFIG
-
-
 def _comma_separated_strs(value):
-    '''Handles comma-separated arguments passed in command-line.'''
+    """Handles comma-separated arguments passed in command-line."""
     return map(str, value.split(","))
 
 
 def _comma_separated_key_value_pairs(value):
-    '''Handles comma-separated key/values passed in command-line.'''
+    """Handles comma-separated key/values passed in command-line."""
     pairs = value.split(",")
     results = {}
     for pair in pairs:
@@ -142,10 +139,10 @@ def _comma_separated_key_value_pairs(value):
 
 
 def parse_arguments(args=None):
-    '''Parses start-up arguments and returns namespace with config variables.
+    """Parses start-up arguments and returns namespace with config variables.
 
     :param args: defaults to sys.argv if not supplied
-    '''
+    """
 
     parser = argparse.ArgumentParser()
 
@@ -296,10 +293,10 @@ def parse_arguments(args=None):
 
 
 def parse_environment(env=None):
-    '''Parses an environment dict and returns config iterable.
+    """Parses an environment dict and returns config iterable.
 
     Use ENV_MAP to map form environment variables to config entries
-    '''
+    """
     result = {}
     if not env:
         return result
@@ -310,3 +307,24 @@ def parse_environment(env=None):
             map_entry = ENV_MAP[key]
             result[map_entry] = value
     return result
+
+
+def current():
+    """Returns global current config object
+
+    Usage:
+
+        from checkmate.common import config
+        CONFIG = config.current()
+
+    To update the config:
+        CONFIG.update({'setting': "value"})
+
+    To load config from sys.args and environment variables:
+        CONFIG.initialize()
+    """
+    global CURRENT_CONFIG
+    if not CURRENT_CONFIG:
+        CURRENT_CONFIG = Config()
+        CURRENT_CONFIG.initialize()
+    return CURRENT_CONFIG
