@@ -19,6 +19,8 @@ class Router(object):
         limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         query = {}
         query['resource_ids'] = bottle.request.query.getall('id')
+        query['provider'] = bottle.request.query.get('provider')
+        query['resource_type'] = bottle.request.query.get('type')
         return self.manager.get_resources(tenant_id=tenant_id, offset=offset,
                                           limit=limit,
                                           query=query)
