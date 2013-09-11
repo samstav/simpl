@@ -1,3 +1,5 @@
+# eventlet raising false 'no member' warnings - pylint: disable=E1101
+
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -11,6 +13,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """
 GitHub Classes
 
@@ -29,7 +32,7 @@ import time
 import urlparse
 import yaml
 
-from bottle import abort, request  # pylint: disable=E0611
+import bottle
 import eventlet
 from eventlet.green import socket
 from eventlet.green import threading
@@ -37,9 +40,8 @@ from eventlet import greenpool
 import github
 from github import GithubException
 import redis
-from redis.exceptions import ConnectionError
+from redis import exceptions as redisexc
 
-from checkmate import base
 from checkmate.common import caching
 from checkmate.common import config
 from checkmate import exceptions
@@ -63,9 +65,9 @@ def _handle_ghe(ghe, msg="Unexpected Github error"):
         LOG.warn(msg or "", exc_info=True)
 
 
-class GitHubManager(base.ManagerBase):
+class GitHubManager(object):
     """Manage the catalog of "known good" blueprints."""
-    def __init__(self, drivers, config):
+    def __init__(self, git_config):
         """Init Github blueprint manager.
 
         Config params used
@@ -76,19 +78,18 @@ class GitHubManager(base.ManagerBase):
         :repo_org: the organization owning the blueprint repositories
         :cache_dir: directory to write cached blueprint data to
         """
-        base.ManagerBase.__init__(self, drivers)
-        self._github_api_base = config.github_api
+        self._github_api_base = git_config.github_api
         if self._github_api_base:
             self._github = github.Github(base_url=self._github_api_base)
             self._api_host = urlparse.urlparse(self._github_api_base).netloc
-        self._repo_org = config.organization
-        self._ref = config.ref
-        self._cache_root = config.cache_dir or os.path.dirname(__file__)
+        self._repo_org = git_config.organization
+        self._ref = git_config.ref
+        self._cache_root = git_config.cache_dir or os.path.dirname(__file__)
         self._cache_file = os.path.join(self._cache_root, ".blueprint_cache")
         self._blueprints = {}
-        self._preview_ref = config.preview_ref
-        self._preview_tenants = config.preview_tenants
-        self._group_refs = config.group_refs or {}
+        self._preview_ref = git_config.preview_ref
+        self._preview_tenants = git_config.preview_tenants
+        self._group_refs = git_config.group_refs or {}
         self._groups = set(self._group_refs.keys())
         assert self._github_api_base, ("Must specify a source blueprint "
                                        "repository")
@@ -162,7 +163,7 @@ class GitHubManager(base.ManagerBase):
         :param offset: pagination start
         :param limit: pagination length
         """
-        tag = self.get_tenant_tag(tenant_id, request.context.roles)
+        tag = self.get_tenant_tag(tenant_id, bottle.request.context.roles)
         self._blocking_refresh_if_needed()
 
         if not tag:
@@ -289,7 +290,7 @@ class GitHubManager(base.ManagerBase):
                         return True
                     else:
                         LOG.debug("Retrieved expired blueprints.")
-            except ConnectionError as exc:
+            except redisexc.ConnectionError as exc:
                 LOG.warn("Error connecting to Redis: %s", exc)
             except KeyError:
                 pass  # expired or not there
@@ -388,7 +389,7 @@ class GitHubManager(base.ManagerBase):
                 value = json.dumps(timestamped)
                 REDIS.setex('blueprint_cache', value, DEFAULT_CACHE_TIMEOUT)
                 LOG.info("Wrote blueprints to Redis")
-            except ConnectionError as exc:
+            except redisexc.ConnectionError as exc:
                 LOG.warn("Error connecting to Redis: %s", exc)
             except StandardError:
                 pass
@@ -425,7 +426,8 @@ class GitHubManager(base.ManagerBase):
             del self._blueprints[rid]
         self._store(blueprint, self._ref, self._blueprints)
 
-    def _get_source(self, provider):
+    @staticmethod
+    def _get_source(provider):
         """Given a dict of providers, return the 'source' from 'chef-solo'."""
         # Scary assumptions here...
         return provider['constraints'][0]['source']
@@ -444,7 +446,8 @@ class GitHubManager(base.ManagerBase):
         return (self._get_source(untrusted_p['chef-solo']) ==
                 self._get_source(trusted_p['chef-solo']))
 
-    def _clean_env(self, untrusted_env, trusted_env):
+    @staticmethod
+    def _clean_env(untrusted_env, trusted_env):
         """Update all values in untrusted_env with thsoe from trusted_env."""
         delta = set(untrusted_env.keys()) - set(trusted_env.keys())
         if delta:
@@ -686,23 +689,23 @@ class WebhookRouter(object):
         :throws 403: if the request comes from an unknown Github service
         """
         self._logger.info("Received repo update notification: %s %s",
-                          request.method, request.url)
+                          bottle.request.method, bottle.request.url)
 
         if not self._is_from_our_repo():
-            source = (request.get_header("X-Forwarded-Host") or
-                      request.get_header("X-Remote-Host") or
-                      request.get_header("X-Forwarded-For") or
-                      request.get_header("REMOTE_ADDR"))
+            source = (bottle.request.get_header("X-Forwarded-Host") or
+                      bottle.request.get_header("X-Remote-Host") or
+                      bottle.request.get_header("X-Forwarded-For") or
+                      bottle.request.get_header("REMOTE_ADDR"))
             self._logger.warn("Received request from unauthorized host: %s",
                               source)
-            abort(403, "Unauthorized")
+            bottle.abort(403, "Unauthorized")
         try:
-            raw_json = request.body.read()
+            raw_json = bottle.request.body.read()
             self._logger.debug("Update data: %s", urlparse.unquote(raw_json))
         except StandardError:
             self._logger.error("Error reading repo update post body",
                                exc_info=True)
-            abort(500, "Error reading request body.")
+            bottle.abort(500, "Error reading request body.")
         raw_json = raw_json.split("=")
         if raw_json:
             raw_json = raw_json[1] if len(raw_json) > 1 else raw_json[0]
@@ -714,7 +717,7 @@ class WebhookRouter(object):
         except ValueError:
             self._logger.error("Could not parse update payload %s",
                                raw_json, exc_info=True)
-            abort(400, "Invalid payload: Error parsing json document")
+            bottle.abort(400, "Invalid payload: Error parsing json document")
         repo = updated.get("repository", {}).get("name")
         owner = updated.get("repository", {}).get("owner", {}).get("name")
         if owner and (self._manager.repo_owner == owner):
@@ -724,24 +727,23 @@ class WebhookRouter(object):
             except StandardError:
                 msg = "Error refreshing repository %s" % repo
                 self._logger.error(msg, exc_info=True)
-                abort(500, "Could not refresh repository: %s" % msg)
+                bottle.abort(500, "Could not refresh repository: %s" % msg)
             self._logger.info("%s updated", repo)
         else:
             self._logger.warn("Received update from invalid repo owner: %s",
                               owner)
-            abort(403)
+            bottle.abort(403)
 
     def _is_from_our_repo(self):
         """Check if the call came from a trusted repo.
 
-        :param request: the http request
         :returns: True if the request comes from the manager's configured
                   source api host; False otherwise
         """
-        source = (request.get_header("X-Forwarded-Host") or
-                  request.get_header("X-Remote-Host") or
-                  request.get_header("X-Forwarded-For") or
-                  request.get_header("REMOTE_ADDR"))
+        source = (bottle.request.get_header("X-Forwarded-Host") or
+                  bottle.request.get_header("X-Remote-Host") or
+                  bottle.request.get_header("X-Forwarded-For") or
+                  bottle.request.get_header("REMOTE_ADDR"))
         self._logger.debug("Checking source %s against %s", source,
                            self._manager.api_host)
         if source:

@@ -18,38 +18,22 @@
 import mock
 import unittest
 
-#from SpiffWorkflow import specs
-#from SpiffWorkflow import Workflow
+from SpiffWorkflow import Task
 
 from checkmate import exceptions as cmexc
 from checkmate import operations
 
 
 class TestOperations(unittest.TestCase):
-    @mock.patch.object(operations, 'SIMULATOR_DB')
-    @mock.patch.object(operations.utils, 'is_simulation', return_value=True)
-    def test_get_db_driver_returns_simulation_driver(self, mock_is_sim,
-                                                     mock_db):
-        result = operations._get_db_driver('simulation')
-        mock_is_sim.assert_called_once_with('simulation')
-        self.assertEqual(mock_db, result)
-
-    @mock.patch.object(operations, 'DB')
-    @mock.patch.object(operations.utils, 'is_simulation', return_value=False)
-    def test_get_db_driver_returns_db_driver(self, mock_is_sim, mock_db):
-        result = operations._get_db_driver('simulation')
-        mock_is_sim.assert_called_once_with('simulation')
-        self.assertEqual(mock_db, result)
-
     @mock.patch.object(operations.SpiffWorkflow, 'deserialize')
     @mock.patch.object(operations, 'add')
-    @mock.patch.object(operations, '_get_db_driver')
+    @mock.patch('checkmate.operations.db.get_driver')
     def test_operations_create(self, mock_get_db, mock_add, mock_deserialize):
         mock_get_db.return_value = mock_db = mock.Mock()
 
         operations._create('depid', 'wfid', 'test', '123456')
 
-        mock_get_db.assert_called_once_with('depid')
+        mock_get_db.assert_called_once_with(api_id='depid')
         mock_db.get_deployment.assert_called_once_with('depid',
                                                        with_secrets=False)
         mock_db.get_workflow.assert_called_once_with('wfid',
@@ -104,14 +88,14 @@ class TestOperationsAddOperation(unittest.TestCase):
 
 
 class TestOperationsUpdateOperation(unittest.TestCase):
-    @mock.patch.object(operations, '_get_db_driver')
+    @mock.patch('checkmate.operations.db.get_driver')
     def test_do_nothing_if_no_kwargs(self, mock_get_db):
         operations.update_operation('depid', 'wfid', driver='Mock')
         assert not mock_get_db.called
 
-    @mock.patch.object(operations, '_get_db_driver')
+    @mock.patch('checkmate.operations.db.get_driver')
     def test_db_driver_passed_in(self, mock_get_db):
-        mock_db = mock.Mock()
+        mock_get_db.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         operations.update_operation('depid', 'wfid', driver=mock_db,
                                     test_kwarg='test')
@@ -119,16 +103,19 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         mock_db.get_deployment.assert_called_once_with('depid',
                                                        with_secrets=True)
 
-    @mock.patch.object(operations, 'DB')
-    def test_db_driver_not_passed_in(self, mock_db):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_db_driver_not_passed_in(self, mock_get_driver):
+        mock_get_driver.return_value = mock_db = mock.Mock()
+        mock_db.get_deployment.return_value = {}
         operations.update_operation('depid', 'wfid', test_kwarg='test')
         mock_db.get_deployment.assert_called_once_with('depid',
                                                        with_secrets=True)
 
     @mock.patch.object(operations, 'get_operation',
                        side_effect=cmexc.CheckmateInvalidParameterError)
-    @mock.patch.object(operations, 'DB')
-    def test_no_operation_found(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_no_operation_found(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         operations.update_operation('depid', 'wfid', test_kwarg='test')
         mock_getop.assert_called_once_with(mock.ANY, 'wfid')
@@ -136,9 +123,10 @@ class TestOperationsUpdateOperation(unittest.TestCase):
 
     @mock.patch.object(operations.LOG, 'warn')
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_status_complete_nothing_to_do(self, mock_db, mock_getop,
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_status_complete_nothing_to_do(self, mock_get_driver, mock_getop,
                                            mock_logger):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'COMPLETE'})
         operations.update_operation('depid', 'wfid', test_kwarg='test')
@@ -147,8 +135,9 @@ class TestOperationsUpdateOperation(unittest.TestCase):
                                             "COMPLETE")
 
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_curr_operation_from_operation(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_curr_operation_from_operation(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
         operations.update_operation('depid', 'wfid', test_kwarg='test')
@@ -156,8 +145,9 @@ class TestOperationsUpdateOperation(unittest.TestCase):
             'depid', {'operation': {'test_kwarg': 'test'}}, partial=True)
 
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_curr_operation_from_history(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_curr_operation_from_history(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = (
             'operations-history', 0, {'status': 'BUILD'})
@@ -168,9 +158,28 @@ class TestOperationsUpdateOperation(unittest.TestCase):
             partial=True
         )
 
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_update_operation(self, mock_get_driver):
+        mock_db = mock.Mock()
+
+        mock_db.get_deployment.return_value = {
+            'id': '1234', 'operation': {'status': 'NEW'}
+        }
+        mock_db.save_deployment.return_value = None
+        mock_get_driver.return_value = mock_db
+        operations.update_operation('1234', '1234', status='NEW',
+                                    driver=mock_db)
+        mock_db.get_deployment.assert_called_with('1234', with_secrets=True)
+        mock_db.save_deployment.assert_called_with(
+            '1234',
+            {'operation': {'status': 'NEW'}},
+            partial=True
+        )
+
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_include_deployment_status(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_include_deployment_status(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
         operations.update_operation('depid', 'wfid',
@@ -183,8 +192,9 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         )
 
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_op_status_matches_kwarg_status(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_op_status_matches_kwarg_status(self, mock_get_driver, mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
         operations.update_operation('depid', 'wfid',
@@ -193,8 +203,11 @@ class TestOperationsUpdateOperation(unittest.TestCase):
             'depid', {'operation': {'status': 'BUILD'}}, partial=True)
 
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_op_status_does_not_match_kwarg_status(self, mock_db, mock_getop):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_op_status_does_not_match_kwarg_status(self,
+                                                   mock_get_driver,
+                                                   mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'UP'})
         operations.update_operation('depid', 'wfid',
@@ -208,9 +221,12 @@ class TestOperationsUpdateOperation(unittest.TestCase):
     @mock.patch.object(operations, 'cmdep')
     @mock.patch.object(operations.LOG, 'warn')
     @mock.patch.object(operations, 'get_operation')
-    @mock.patch.object(operations, 'DB')
-    def test_calculate_outputs_throws_key_error(self, mock_db, mock_getop,
-                                                mock_logger, mock_cmdep):
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_calculate_outputs_throws_key_error(self, mock_get_driver,
+                                                mock_getop,
+                                                mock_logger,
+                                                mock_cmdep):
+        mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_dep = mock.Mock()
         mock_dep.calculate_outputs.side_effect = KeyError
@@ -278,6 +294,200 @@ class TestOperationsGetOperation(unittest.TestCase):
         result = operations.get_operation(
             {'operations-history': [{'blah': 'blah'}], 'id': 'wfid'}, 'wfid')
         self.assertEqual(('operations-history', 0, {'blah': 'blah'}), result)
+
+
+class TestOperationsGetStatusInfo(unittest.TestCase):
+    def test_no_errors(self):
+        self.assertEqual({'status-message': ''},
+                         operations.get_status_info([], 'T0', 'wfid'))
+
+    def test_friendly_message_in_one_error(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'}]
+        result = operations.get_status_info(errors, 'T0', 'wfid')
+        self.assertEqual({'status-message': '1. Hi!\n'}, result)
+
+    def test_no_friendly_message_in_one_error(self):
+        errors = [{'error-type': '1'}]
+        result = operations.get_status_info(errors, 'T0', 'wfid')
+        self.assertEqual({'status-message': 'Multiple errors have occurred. '
+                          'Please contact support'},
+                         result)
+
+    def test_multiple_errors_with_friendly_messages(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '2', 'friendly-message': 'Heya!'}]
+        result = operations.get_status_info(errors, 'T0', 'wfid')
+        self.assertEqual({'status-message': '1. Hi!\n2. Heya!\n'}, result)
+
+    def test_duplicate_errors_occurred(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '1', 'friendly-message': 'Hi!'}]
+        result = operations.get_status_info(errors, 'T0', 'wfid')
+        self.assertEqual({'status-message': '1. Hi!\n'}, result)
+
+    def test_with_retriable_error(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!',
+                  'retriable': True}]
+        result = operations.get_status_info(errors, 'T0', 'wfid')
+        self.assertEqual(
+            {
+                'retriable': True,
+                'retry-link': '/T0/workflows/wfid/+retry-failed-tasks',
+                'status-message': '1. Hi!\n'
+            },
+            result
+        )
+
+    def test_with_resumable_error(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!',
+                  'resumable': True}]
+        result = operations.get_status_info(errors, 'T0', 'wfid')
+        self.assertEqual(
+            {
+                'resumable': True,
+                'resume-link': '/T0/workflows/wfid/+resume-failed-tasks',
+                'status-message': '1. Hi!\n'
+            },
+            result
+        )
+
+
+class TestOperationsGetDistinctErrors(unittest.TestCase):
+    def test_no_errors(self):
+        self.assertEqual([], operations._get_distinct_errors([]))
+
+    def test_only_one_error(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'}]
+        self.assertEqual(errors, operations._get_distinct_errors(errors))
+
+    def test_no_duplicate_errors(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '2', 'friendly-message': 'Heya!'}]
+        self.assertEqual(errors, operations._get_distinct_errors(errors))
+
+    def test_duplicate_errors(self):
+        errors = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '1', 'friendly-message': 'Hi!'},
+                  {'error-type': '2', 'friendly-message': 'Heya!'},
+                  {'error-type': '2', 'friendly-message': 'Heya!'}]
+        expected = [{'error-type': '1', 'friendly-message': 'Hi!'},
+                    {'error-type': '2', 'friendly-message': 'Heya!'}]
+        self.assertEqual(expected, operations._get_distinct_errors(errors))
+
+
+class TestOperationsInitOperation(unittest.TestCase):
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_update_operation_stats_is_called(self, mock_update_stats):
+        mockwf = mock.Mock()
+        operations.init_operation(mockwf)
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
+
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_worfklow_id_pulled_from_id(self, mock_update_stats):
+        mockwf = mock.Mock()
+        mockwf.attributes = {'id': 'wfid', 'deploymentId': 'depid'}
+        result = operations.init_operation(mockwf)
+        self.assertEqual('wfid', result['workflow-id'])
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
+
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_worfklow_id_pulled_from_deployment_id(self, mock_update_stats):
+        mockwf = mock.Mock()
+        mockwf.attributes = {'deploymentId': 'depid'}
+        result = operations.init_operation(mockwf)
+        self.assertEqual('depid', result['workflow-id'])
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
+
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_link_added_with_no_tenant_id(self, mock_update_stats):
+        mockwf = mock.Mock()
+        mockwf.attributes = {'id': 'wfid'}
+        result = operations.init_operation(mockwf)
+        self.assertEqual('/None/workflows/wfid', result['link'])
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
+
+    @mock.patch.object(operations, '_update_operation_stats')
+    def test_link_added_with_tenant_id(self, mock_update_stats):
+        mockwf = mock.Mock()
+        mockwf.attributes = {'id': 'wfid'}
+        mock_task = mock.Mock()
+        mock_task._state = {'id': ''}
+        mockwf.task_tree.children = [mock_task]
+        result = operations.init_operation(mockwf, 'T0')
+        self.assertEqual('/T0/workflows/wfid', result['link'])
+        mock_update_stats.assert_called_once_with(mock.ANY, mockwf)
+
+
+class TestOperationsUpdateOperationStats(unittest.TestCase):
+    def setUp(self):
+        self.future_task = self._build_task([], Task.FUTURE, 2, 0, 'NA')
+        self.complete_task = self._build_task([], Task.COMPLETED, 0, 4, 'NA')
+        self.ready_task = self._build_task([], Task.READY, 4, 0, 'NA')
+        self.compound_task = self._build_task(
+            [self.complete_task, self.ready_task], Task.COMPLETED, 0, 6, 'NA')
+        self.failed_task = self._build_task(
+            [], Task.TRIGGERED, 0, 6, 'FAILURE')
+        self.mockwf = mock.Mock()
+
+    def _build_task(self, children, state, duration, changed, task_state):
+        """Helper method to create a mock task."""
+        the_task = mock.Mock()
+        the_task.children = children
+        the_task._state = state
+        the_task.last_state_change = changed
+        the_task._get_internal_attribute.side_effect = (
+            lambda x: {'estimated_completed_in': duration,
+                       'task_state': {'state': task_state}}[x]
+        )
+        return the_task
+
+    def test_no_tasks(self):
+        self.mockwf.task_tree.children = []
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual(0, operation['tasks'])
+
+    def test_duration_calculated_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.ready_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual(2+4, operation['estimated-duration'])
+
+    def test_total_calculated_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual(4, operation['tasks'])
+
+    def test_complete_calculated_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual(2, operation['complete'])
+
+    def test_last_change_calculated_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual('1970-01-01 00:00:06 +0000', operation['last-change'])
+
+    def test_error_state_reported_correctly(self):
+        self.mockwf.task_tree.children = [self.failed_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual('ERROR', operation['status'])
+
+    def test_in_progress_state_reported_correctly(self):
+        self.mockwf.task_tree.children = [self.future_task, self.compound_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual('IN PROGRESS', operation['status'])
+
+    def test_complete_state_reported_correctly(self):
+        self.mockwf.task_tree.children = [self.complete_task]
+        operation = {}
+        operations._update_operation_stats(operation, self.mockwf)
+        self.assertEqual('COMPLETE', operation['status'])
 
 
 if __name__ == '__main__':

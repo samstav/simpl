@@ -22,14 +22,14 @@ import logging
 import eventlet
 import requests
 
-from checkmate import base
+from checkmate import db
 from checkmate import exceptions
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
 
-class Manager(base.ManagerBase):
+class Manager(object):
     """Contains Stacks Model and Logic for Accessing Stacks."""
 
     def get_stacks(self, context, tenant_id):
@@ -62,7 +62,7 @@ class Manager(base.ManagerBase):
 
         stacks = {'stacks': []}
 
-        results = self.driver.get_deployments(
+        results = db.get_driver().get_deployments(
             tenant_id=tenant_id,
         )
 

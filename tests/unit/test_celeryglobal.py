@@ -1,4 +1,4 @@
-# pylint: disable=W0603
+# pylint: disable=C0103,R0201,R0904,W0603
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -16,6 +16,7 @@
 
 """Tests for Celery."""
 import logging
+import mock
 import unittest
 
 from celery import task as cel_t
@@ -35,6 +36,44 @@ except ImportError as exc:
     mbox.MongoBox = object
 
 LOG = logging.getLogger(__name__)
+
+
+class TestAfterSetupLoggerHandler(unittest.TestCase):
+    @mock.patch.object(celery, 'LOG')
+    @mock.patch.object(celery, 'celconf')
+    @mock.patch.object(celery.os.path, 'exists', return_value=False)
+    def test_invalid_path(self, mock_os, mock_celconf, mock_logger):
+        mock_celconf.CHECKMATE_CELERY_LOGCONFIG = 'something'
+        celery.after_setup_logger_handler()
+        mock_os.assert_called_once_with(mock.ANY)
+        mock_logger.debug.assert_called_once_with(
+            "'CHECKMATE_CELERY_LOGCONFIG' env is not configured, or is "
+            "configured to a non-existent path."
+        )
+
+    @mock.patch.object(celery, 'LOG')
+    @mock.patch.object(celery, 'celconf')
+    def test_no_env_setting(self, mock_celconf, mock_logger):
+        mock_celconf.CHECKMATE_CELERY_LOGCONFIG = None
+        celery.after_setup_logger_handler()
+        mock_logger.debug.assert_called_once_with(
+            "'CHECKMATE_CELERY_LOGCONFIG' env is not configured, or is "
+            "configured to a non-existent path."
+        )
+
+    @mock.patch.object(celery.logging.config, 'fileConfig')
+    @mock.patch.object(celery, 'LOG')
+    @mock.patch.object(celery, 'celconf')
+    @mock.patch.object(celery.os.path, 'exists', return_value=True)
+    def test_logging_configured(self, mock_os, mock_celconf, mock_logger,
+                                mock_fconfig):
+        mock_celconf.CHECKMATE_CELERY_LOGCONFIG = 'something'
+        celery.after_setup_logger_handler()
+        mock_os.assert_called_once_with(mock.ANY)
+        mock_logger.debug.assert_called_once_with(
+            "Logging-Configuration file: %s", 'something')
+        mock_fconfig.assert_called_once_with('something',
+                                             disable_existing_loggers=False)
 
 
 class TestSingleTask(unittest.TestCase):

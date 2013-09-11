@@ -17,7 +17,6 @@ Handles API calls to /deployments and routes them appropriately
 """
 import copy
 import logging
-import os
 import uuid
 
 import bottle
@@ -38,11 +37,6 @@ from checkmate import workflows
 from checkmate.workflows import tasks as wf_tasks
 
 LOG = logging.getLogger(__name__)
-DB = db.get_driver()
-SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
-    'CHECKMATE_SIMULATOR_CONNECTION_STRING',
-    os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
-DRIVERS = {'default': DB, 'simulation': SIMULATOR_DB}
 
 
 #
@@ -97,7 +91,7 @@ def _validate_blueprint(deployment):
     if curr_config.github_api is None:
         raise exceptions.CheckmateValidationException(
             'Cannot validate blueprint.')
-    github_manager = blueprints.GitHubManager(DRIVERS, curr_config)
+    github_manager = blueprints.GitHubManager(curr_config)
     if github_manager.blueprint_is_invalid(deployment):
         LOG.info("X-Source-Untrusted: Passed in Blueprint did not match "
                  "anything in Checkmate's cache.")
@@ -199,7 +193,7 @@ class Router(object):
                   self.get_resources_statuses)
         app.route('/deployments/<api_id>/resources/<rid>', 'GET',
                   self.get_resource)
-        self.stack_router = stacks.Router(self.app, stacks.Manager(DRIVERS))
+        self.stack_router = stacks.Router(self.app, stacks.Manager())
 
     param_whitelist = ['search', 'name', 'blueprint.name', 'status',
                        'start_date', 'end_date']
@@ -243,9 +237,7 @@ class Router(object):
             request_context = copy.deepcopy(bottle.request.context)
             tasks.process_post_deployment.delay(deployment, request_context)
         else:
-            tasks.process_post_deployment(deployment, bottle.request.context,
-                                          driver=self.manager
-                                          .select_driver(api_id))
+            tasks.process_post_deployment(deployment, bottle.request.context)
         bottle.response.status = 202
         write_deploy_headers(api_id, tenant_id=tenant_id)
         return utils.write_body(deployment, bottle.request, bottle.response)
@@ -490,7 +482,7 @@ class Router(object):
                          "being deleted.")
 
         #TODO(any): driver will come from workflow manager once we create that
-        driver = self.manager.select_driver(api_id)
+        driver = db.get_driver(api_id=api_id)
         if (operation and operation.get('action') != 'PAUSE' and
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
             common_tasks.update_operation.delay(api_id, api_id, driver=driver,

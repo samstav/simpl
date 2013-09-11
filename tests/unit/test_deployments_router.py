@@ -129,7 +129,6 @@ class TestAPICalls(unittest.TestCase):
                 'services': {}
             }
         }
-        self.manager.select_driver.return_value = self.manager
         mock_tasks.process_post_deployment.return_value = None
 
         res = self.app.post('/T1000/deployments',
@@ -137,7 +136,6 @@ class TestAPICalls(unittest.TestCase):
                             content_type='application/json')
         self.assertEqual(res.status, '202 Accepted')
         self.assertEqual(res.content_type, 'application/json')
-        self.manager.select_driver.assert_called_once_with('1234')
 
     @mock.patch.object(utils, 'write_body')
     @mock.patch('bottle.request')

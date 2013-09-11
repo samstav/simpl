@@ -1,14 +1,29 @@
-'''Common Exceptions and functions for database drivers.'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Common Exceptions and functions for database drivers."""
 import logging
 import os
 
+from checkmate.common import config
+from checkmate.db.base import DbBase as dbBaseClass
 from checkmate import utils
 
+CONFIG = config.current()
 DEFAULT_DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data')
 ACTUAL_DATA_PATH = os.path.join(os.environ.get('CHECKMATE_DATA_PATH',
                                                DEFAULT_DATA_PATH))
-
-from checkmate.db.base import DbBase as dbBaseClass
 DbBase = dbBaseClass
 
 LOG = logging.getLogger(__name__)
@@ -29,22 +44,22 @@ DRIVERS_AVAILABLE = {
 
 
 class DatabaseTimeoutException(Exception):
-    '''Timeout or Retry value exceeded while trying to access the database.'''
+    """Timeout or Retry value exceeded while trying to access the database."""
     pass
 
 
 class ObjectLockedError(Exception):
-    '''Raised when trying to access a database resource with an invalid key.'''
+    """Raised when trying to access a database resource with an invalid key."""
     pass
 
 
 class InvalidKeyError(Exception):
-    '''Raised when a specified key is invalid.'''
+    """Raised when a specified key is invalid."""
     pass
 
 
-def get_driver(name=None, reset=False, connection_string=None):
-    '''Get Shared Driver Instance
+def get_driver(name=None, reset=False, connection_string=None, api_id=None):
+    """Get Shared Driver Instance
 
     :param name: the class of the driver to load
     :param reset: whether to reset the driver before returning it
@@ -56,21 +71,20 @@ def get_driver(name=None, reset=False, connection_string=None):
 
     Resetting will reconnect the database (for in-momory databases this could
     also reset all data)
-    '''
-    if connection_string and not name:
-        if connection_string.startswith('mongodb://'):
-            name = 'checkmate.db.mongodb.Driver'
-        else:
-            name = 'checkmate.db.sql.Driver'
+    """
+    if api_id and utils.is_simulation(api_id) and \
+            (connection_string is None and name is None):
+        connection_string = CONFIG.simulator_connection_string
 
     if not connection_string:
-        connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING')
-        if name and not connection_string:
+        environ_conn_string = CONFIG.connection_string
+        if environ_conn_string:
+            connection_string = environ_conn_string
+        elif name:
             connection_string = DRIVERS_AVAILABLE[name][
                 'default_connection_string']
-
-    if not connection_string:
-        connection_string = "sqlite://"
+        else:
+            connection_string = "sqlite://"
 
     if connection_string and not name:
         if connection_string.startswith('mongodb://'):
@@ -90,12 +104,12 @@ def get_driver(name=None, reset=False, connection_string=None):
 
 
 def any_id_problems(api_id):
-    '''Validates the ID provided is safe and returns problems as a string.
+    """Validates the ID provided is safe and returns problems as a string.
 
     To use this, call it with an ID you want to validate. If the response is
     None, then the ID is good. Otherwise, the response is a string explaining
     the problem with the ID that you can use to return to the client
-    '''
+    """
     allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
                           "0123456789"
@@ -117,13 +131,13 @@ def any_id_problems(api_id):
 
 
 def any_tenant_id_problems(api_id):
-    '''Validates the tenant provided is safe and returns problems as a string.
+    """Validates the tenant provided is safe and returns problems as a string.
 
     To use this, call it with a tenant ID you want to validate. If the response
     is None, then the ID is good. Otherwise, the response is a string
     explaining the problem with the ID that you can use to return to the
     client
-    '''
+    """
     allowed_start_chars = "abcdefghijklmnopqrstuvwxyz"\
                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\
                           "0123456789"

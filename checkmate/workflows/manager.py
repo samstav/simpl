@@ -1,30 +1,54 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""
+Workflows Manager
+
+Handles workflow logic
+"""
 import logging
 
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate import base
+from checkmate import db
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
 
-class Manager(base.ManagerBase):
+class Manager(object):
+    """Contains Workflows Model and Logic for Accessing Workflows."""
 
-    def get_workflows(self, tenant_id=None, offset=None, limit=None,
+    @staticmethod
+    def get_workflows(tenant_id=None, offset=None, limit=None,
                       with_secrets=None):
-        return self.driver.get_workflows(tenant_id=tenant_id,
-                                         with_secrets=with_secrets,
-                                         offset=offset, limit=limit)
+        """Return all workflows associated with the given tenant ID."""
+        return db.get_driver().get_workflows(tenant_id=tenant_id,
+                                             with_secrets=with_secrets,
+                                             offset=offset, limit=limit)
 
-    def get_workflow(self, api_id, with_secrets=None):
-        return self.select_driver(api_id).get_workflow(
+    @staticmethod
+    def get_workflow(api_id, with_secrets=None):
+        """Get the workflow specified by api_id."""
+        return db.get_driver(api_id=api_id).get_workflow(
             api_id, with_secrets=with_secrets)
 
     def safe_workflow_save(self, obj_id, body, secrets=None, tenant_id=None):
         """Locks, saves, and unlocks a workflow.
         TODO: should this be moved to the db layer?
         """
-        driver = self.select_driver(obj_id)
+        driver = db.get_driver(api_id=obj_id)
         try:
             _, key = self.lock_workflow(obj_id)
             results = self.save_workflow(obj_id, body, secrets=secrets,
@@ -36,12 +60,16 @@ class Manager(base.ManagerBase):
                                          tenant_id=tenant_id)
         return results
 
-    def lock_workflow(self, api_id, with_secrets=None, key=None):
-        return self.select_driver(api_id).lock_workflow(
+    @staticmethod
+    def lock_workflow(api_id, with_secrets=None, key=None):
+        """Lock the workflow specified by api_id."""
+        return db.get_driver(api_id=api_id).lock_workflow(
             api_id, with_secrets=with_secrets, key=key)
 
-    def unlock_workflow(self, api_id, key):
-        return self.select_driver(api_id).unlock_workflow(api_id, key)
+    @staticmethod
+    def unlock_workflow(api_id, key):
+        """Unlock the workflow specified by api_id."""
+        return db.get_driver(api_id=api_id).unlock_workflow(api_id, key)
 
     def save_spiff_workflow(self, d_wf, **kwargs):
         '''Serializes a spiff worklfow and save it. Worflow status can be
@@ -68,7 +96,9 @@ class Manager(base.ManagerBase):
                                   secrets=secrets,
                                   tenant_id=tenant_id)
 
-    def save_workflow(self, obj_id, body, secrets=None, tenant_id=None):
-        return self.select_driver(obj_id).save_workflow(obj_id, body,
-                                                        secrets=secrets,
-                                                        tenant_id=tenant_id)
+    @staticmethod
+    def save_workflow(obj_id, body, secrets=None, tenant_id=None):
+        """Store the workflow details specified in body. Store by obj_id."""
+        return db.get_driver(api_id=obj_id).save_workflow(obj_id, body,
+                                                          secrets=secrets,
+                                                          tenant_id=tenant_id)

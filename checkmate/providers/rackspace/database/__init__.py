@@ -29,18 +29,8 @@ LOG = logging.getLogger(__name__)
 API_FLAVOR_CACHE = {}
 
 #FIXME: delete tasks talk to database directly, so we load drivers and manager
-import os
-from checkmate import db
 from checkmate import deployments
-DRIVERS = {}
-DB = DRIVERS['default'] = db.get_driver()
-SIMULATOR_DB = DRIVERS['simulation'] = db.get_driver(
-    connection_string=os.environ.get(
-        'CHECKMATE_SIMULATOR_CONNECTION_STRING',
-        os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')
-    )
-)
-MANAGERS = {'deployments': deployments.Manager(DRIVERS)}
+MANAGERS = {'deployments': deployments.Manager()}
 get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
