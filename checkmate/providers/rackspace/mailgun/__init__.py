@@ -14,4 +14,7 @@
 
 from .manager import Manager
 from .provider import Provider
-from .tasks import create_domain
+from .tasks import (
+    create_domain,
+    delete_domain,
+)

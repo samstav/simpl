@@ -37,7 +37,7 @@ class Manager(object):
                                       smtp_password=password)
         else:
             if not domain_name:
-                uid = context.get('deployment').split('-')[0]
+                uid = context.get('deployment_id').split('-')[0]
                 domain_name = 'rsd%s.mailgun.org' % uid
             try:
                 domain = api.create(domain_name, smtp_pass=password)
