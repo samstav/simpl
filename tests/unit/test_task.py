@@ -13,13 +13,13 @@
 #    under the License.
 # pylint: disable=R0903
 
+"""Task module Tests - for Task class helper methods."""
+
 import mock
 import unittest
 
 from checkmate.exceptions import CheckmateRetriableException
 from checkmate import task as cmtsk
-
-"""Task module Tests - for Task class helper methods."""
 
 
 class TestTask(unittest.TestCase):

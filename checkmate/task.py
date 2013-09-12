@@ -12,11 +12,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+"""Task Class and Helper Functions"""
+
 from checkmate.exceptions import CheckmateRetriableException
 
-'''
-Task Class and Helper Functions
-'''
 
 
 def set_exception(exception, task):
