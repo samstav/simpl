@@ -120,6 +120,26 @@ class Config(object):
         self.update(parse_environment(env=os.environ), vars(parse_arguments()))
 
 
+CURRENT_CONFIG = Config()
+
+
+def current():
+    """Returns global current config object
+
+    Usage:
+
+        from checkmate.common import config
+        CONFIG = config.current()
+
+    To update the config:
+        CONFIG.update({'setting': "value"})
+
+    To load config from sys.args and environment variables:
+        CONFIG.initialize()
+    """
+    return CURRENT_CONFIG
+
+
 def _comma_separated_strs(value):
     """Handles comma-separated arguments passed in command-line."""
     return map(str, value.split(","))
@@ -304,23 +324,3 @@ def parse_environment(env=None):
             map_entry = ENV_MAP[key]
             result[map_entry] = value
     return result
-
-
-def current():
-    """Returns global current config object
-
-    Usage:
-
-        from checkmate.common import config
-        CONFIG = config.current()
-
-    To update the config:
-        CONFIG.update({'setting': "value"})
-
-    To load config from sys.args and environment variables:
-        CONFIG.initialize()
-    """
-    return CURRENT_CONFIG
-
-
-CURRENT_CONFIG = Config()

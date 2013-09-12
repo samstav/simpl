@@ -52,17 +52,11 @@ from eventlet import debug
 from eventlet.green import threading
 from eventlet import wsgi
 
-# HACK: Until server.py is refactored
-# TODO(any): Pull out entry points into simple file that initializes CONFIG
-from checkmate.common import config
-CONFIG = config.current()
-#if __name__ == '__main__':
-#    CONFIG.initialize()
-
 import checkmate
 from checkmate import admin
 from checkmate import blueprints
 from checkmate import celeryconfig
+from checkmate.common import config
 from checkmate.common import eventlet_backdoor
 from checkmate.common import gzip_middleware
 from checkmate import db
@@ -85,6 +79,7 @@ from checkmate.git import middleware as git_middleware
 from checkmate import middleware
 from checkmate import utils
 
+CONFIG = config.current()
 LOG = logging.getLogger(__name__)
 DRIVERS = {}
 MANAGERS = {}
