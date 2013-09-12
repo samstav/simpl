@@ -1,5 +1,10 @@
 <div class='well'>
-  <h4>Nova Servers</h4>
+  <h4>
+    Nova Servers
+    <button ng-click="get_servers()" class="btn btn-small pull-right">
+      <i class="icon-refresh"></i>
+    </button>
+  </h4>
   <div class='alert alert-info'>Displaying only servers that are not already part of a deployment</div>
   <table class="table table-striped">
     <thead>
