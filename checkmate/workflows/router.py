@@ -433,9 +433,9 @@ class Router(object):
                     bottle.abort(404, 'No workflow with id %s' % api_id)
 
                 serializer = DictionarySerializer()
-                wf = spiff.Workflow.deserialize(serializer, workflow)
+                d_wf = spiff.Workflow.deserialize(serializer, workflow)
 
-                task = wf.get_task(task_id)
+                task = d_wf.get_task(task_id)
                 if not task:
                     bottle.abort(404, 'No task with id %s' % task_id)
 
@@ -461,8 +461,8 @@ class Router(object):
                     task._state = entity['state']
 
                 # Save workflow (with secrets)
-                cm_wf.update_workflow_status(wf)
-                updated = self.manager.save_spiff_workflow(wf)
+                cm_wf.update_workflow_status(d_wf)
+                updated = self.manager.save_spiff_workflow(d_wf)
         except db.ObjectLockedError:
             bottle.abort(404, "The workflow is already locked, cannot obtain "
                               "lock.")

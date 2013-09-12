@@ -189,7 +189,9 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
                          countdown=wait)
 
 
-@celtask.task(default_retry_delay=10, max_retries=10)
+@celtask.task(base=celeryglobal.SingleTask, lock_db=LOCK_DB,
+              lock_key="async_wf_writer:{args[0]}", lock_timeout=2,
+              default_retry_delay=10, max_retries=10)
 def reset_task_tree(w_id, task_id):
     """Resets the tree for a spiff task for it to rerun
     :param w_id: workflow id
@@ -197,20 +199,12 @@ def reset_task_tree(w_id, task_id):
     :return:
     """
     utils.match_celery_logging(LOG)
-    key = None
-    try:
-        workflow, key = MANAGERS['workflows'].lock_workflow(w_id,
-                                                            with_secrets=True)
-        serializer = DictionarySerializer()
-        d_wf = Workflow.deserialize(serializer, workflow)
-        wf_task = d_wf.get_task(task_id)
-        cmwf.reset_task_tree(wf_task)
-        MANAGERS['workflows'].save_spiff_workflow(d_wf)
-    except db.ObjectLockedError:
-        reset_task_tree.retry()
-    finally:
-        if key:
-            MANAGERS['workflows'].unlock_workflow(w_id, key)
+    workflow = MANAGERS['workflows'].get_workflow(w_id, with_secrets=True)
+    serializer = DictionarySerializer()
+    d_wf = Workflow.deserialize(serializer, workflow)
+    wf_task = d_wf.get_task(task_id)
+    cmwf.reset_task_tree(wf_task)
+    MANAGERS['workflows'].save_spiff_workflow(d_wf)
 
 
 @celtask.task(base=celeryglobal.SingleTask, lock_db=LOCK_DB,
