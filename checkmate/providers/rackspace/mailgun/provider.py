@@ -125,7 +125,8 @@ class Provider(rsbase.RackspaceProviderBase):
             'checkmate.providers.rackspace.mailgun.tasks.delete_domain',
             call_args=[
                 queued_task_dict,
-                resource.get('id')
+                resource.get('id'),
+                resource.get('exists')
             ],
             defines=dict(
                 resource=key,

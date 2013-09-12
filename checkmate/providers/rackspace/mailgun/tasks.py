@@ -35,7 +35,7 @@ def create_domain(context, domain_name, password, api=None, callback=None):
 @task.task(base=ProviderTask, default_retry_delay=10, max_retries=2,
       provider=Provider)
 @statsd.collect
-def delete_domain(context, domain_name, api=None, callback=None):
+def delete_domain(context, domain_name, exists, api=None, callback=None):
     '''Task for deleting a domain in Mailgun.'''
-    return Manager.delete_domain(domain_name, delete_domain.api,
+    return Manager.delete_domain(domain_name, delete_domain.api, exists,
                                  context.simulation)

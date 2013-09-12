@@ -179,7 +179,7 @@ class TestDeleteDomain(unittest.TestCase):
         self.context.simulation = True
         
         results = tasks.delete_domain(self.context, self.domain_name,
-                                      api=self.api)
+                                      False, api=self.api)
         self.assertEqual(results, self.expected)
         mock_callback.assert_called_with(self.context,
                                          self.expected['instance:1'])
@@ -189,7 +189,7 @@ class TestDeleteDomain(unittest.TestCase):
         """Verifies method calls and results in delete_domain."""
         
         results = tasks.delete_domain(self.context, self.domain_name,
-                                      api=self.api)
+                                      False, api=self.api)
         self.assertEqual(results, self.expected)
         self.api.delete.assert_called_with(self.domain_name)
         mock_callback.assert_called_with(self.context,
@@ -200,7 +200,7 @@ class TestDeleteDomain(unittest.TestCase):
         """Verifies results when domain not found on delete."""
         self.api.delete.side_effect = pyrax.exceptions.DomainRecordNotFound()
         results = tasks.delete_domain(self.context, self.domain_name,
-                                      api=self.api)
+                                      False, api=self.api)
         self.assertEqual(results, self.expected)
 
     def test_client_exception_400(self):
@@ -211,7 +211,7 @@ class TestDeleteDomain(unittest.TestCase):
             code='400', message='Testing')
         self.assertRaisesRegexp(pyrax.exceptions.ClientException, 'Testing',
                                 tasks.delete_domain, self.context,
-                                self.domain_name, api=self.api)
+                                self.domain_name, False, api=self.api)
 
     def test_resumable_exc_raised(self):
         """Verifies a CheckmateResumableException is raised from a
@@ -221,10 +221,10 @@ class TestDeleteDomain(unittest.TestCase):
             code='500', message='Testing')
         self.assertRaises(exceptions.CheckmateResumableException,
                           tasks.delete_domain, self.context, self.domain_name,
-                          api=self.api)
+                          False, api=self.api)
 
     def test_user_exc_raised(self):
         self.api.delete.side_effect = StandardError('Testing')
         self.assertRaises(exceptions.CheckmateUserException,
                           tasks.delete_domain, self.context, self.domain_name,
-                          api=self.api)
+                          False, api=self.api)

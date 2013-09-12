@@ -75,9 +75,9 @@ class Manager(object):
         return results
 
     @staticmethod
-    def delete_domain(domain_name, api, simulate=False):
+    def delete_domain(domain_name, api, exists, simulate=False):
         '''Deletes a domain from Mailgun.'''
-        if simulate:
+        if simulate or exists:
             status = 'DELETED'
         else:
             try:
