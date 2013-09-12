@@ -749,9 +749,10 @@ class Driver(common.DbBase):
                     query_condition.append("resource_type == %s" %
                                            json.encoder.encode_basestring(query['resource_type']))
                 if query.get('resource_ids'):
+                    resource_ids = map(cmutils.try_int, query['resource_ids'])
                     query_condition.append(
                         "%s.indexOf(instance_id) > -1" %
-                        json.JSONEncoder().encode(query['resource_ids'])
+                        json.JSONEncoder().encode(resource_ids)
                     )
                 search_function = (
                     "function() {"

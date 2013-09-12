@@ -188,6 +188,19 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
         self.assertIn('123', result['results'])
         self.assertIn('999', result['results'])
 
+    def test_get_resources_accepts_integer_instance_ids(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+                '4': {'instance': {'id': 1}}},
+            {'id': '777',
+                '4': {'instance': {'id': 2}}}
+        ])
+        query = {'resource_ids': ['1']}
+        result = self.driver.get_resources(query=query)
+        self.assertEqual(len(result['results']), 1)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
+
     def test_get_resources_with_provider(self):
         self.driver.database()['resources'].insert([
             {'id': '123',
