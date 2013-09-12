@@ -1551,7 +1551,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     return results
 
 
-@ctask.task(default_retry_delay=30, max_retries=120)
+@ctask.task(default_retry_delay=1, max_retries=30)
 def verify_ssh_connection(context, server_id, region, server_ip,
                           username='root', timeout=10, password=None,
                           identity_file=None, port=22, api_object=None,
@@ -1618,4 +1618,4 @@ def verify_ssh_connection(context, server_id, region, server_ip,
         cmdeps.resource_postback.delay(deployment_id, {
             instance_key: {'status-message': msg}
         })
-        raise wait_on_build.retry(exc=cmexc.CheckmateException(msg))
+        raise verify_ssh_connection.retry(exc=cmexc.CheckmateException(msg))
