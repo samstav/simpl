@@ -38,6 +38,7 @@ def main_func():
             'checkmate.workflows',
             'checkmate.providers.core',
             'checkmate.providers.rackspace',
+            'checkmate.providers.rackspace.mailgun.tasks',
             'checkmate.providers.opscode',
             'checkmate.celeryapp',
             'checkmate.common.tasks',

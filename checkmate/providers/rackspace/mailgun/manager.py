@@ -31,14 +31,14 @@ class Manager(object):
     def create_domain(domain_name, password, context, api, simulate=False):
         '''Creates specified domain in Mailgun for relaying.'''
         exists = False
+        if not domain_name:
+                uid = context.get('deployment_id').split('-')[0]
+                domain_name = 'rsd%s.mailgun.org' % uid
         if simulate:
             domain = utils.Simulation(id=domain_name, name=domain_name,
                                       smtp_login='postmaster@%s' % domain_name,
                                       smtp_password=password)
         else:
-            if not domain_name:
-                uid = context.get('deployment_id').split('-')[0]
-                domain_name = 'rsd%s.mailgun.org' % uid
             try:
                 domain = api.create(domain_name, smtp_pass=password)
             except pyrax.exceptions.DomainRecordNotUnique:

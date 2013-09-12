@@ -72,6 +72,11 @@
 #             https://rax.io/openstack-compute-diff
 -e git://github.com/calebgroom/openstack.compute.git@c870e94cf53f0d5b76889d0c8ece22e9da356e65#egg=openstack.compute-2.0a1
 
+# pyrax - mailgun
+# Upstream: https://github.com/naterh/pyrax.git
+# Notes: 	This is the initial add for the mailgun module.  This should be
+			integrated into pyrax shortly and can be removed.
+-e git://github.com/naterh/pyrax.git@master#egg=pyrax
 
 #### Checkmate applications
 
@@ -92,7 +97,7 @@ prettytable==0.6
 pycrypto==2.6
 pymongo==2.5
 python-novaclient==2.14.1
-pyrax==1.4.11
+#pyrax==1.4.11
 python-keystoneclient==0.2.0
 python-statsd==1.6.0
 PyChef==0.2.1

@@ -80,6 +80,11 @@ class Provider(rsbase.RackspaceProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO(any): use environment keys instead of private key
         '''
+        if resource.get('dns-name', '').endswith('example.com'):
+            domain = None
+        else:
+            domain = resource.get('dns-name')
+
         queued_task_dict = context.get_queued_task_dict(
             deployment_id=deployment['id'], resource_key=key)
         create_domain_task = specs.Celery(
@@ -87,8 +92,8 @@ class Provider(rsbase.RackspaceProviderBase):
             'checkmate.providers.rackspace.mailgun.tasks.create_domain',
             call_args=[
                 queued_task_dict,
-                "test.local",
-                "hard-coded"
+                domain,
+                utils.generate_password()
             ],
             defines=dict(
                 resource=key,
