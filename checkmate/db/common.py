@@ -16,11 +16,9 @@
 import logging
 import os
 
-from checkmate.common import config
 from checkmate.db.base import DbBase as dbBaseClass
 from checkmate import utils
 
-CONFIG = config.current()
 DEFAULT_DATA_PATH = os.path.join(os.path.dirname(__file__), '..', 'data')
 ACTUAL_DATA_PATH = os.path.join(os.environ.get('CHECKMATE_DATA_PATH',
                                                DEFAULT_DATA_PATH))
@@ -74,10 +72,11 @@ def get_driver(name=None, reset=False, connection_string=None, api_id=None):
     """
     if api_id and utils.is_simulation(api_id) and \
             (connection_string is None and name is None):
-        connection_string = CONFIG.simulator_connection_string
+        connection_string = os.environ.get(
+            'CHECKMATE_SIMULATOR_CONNECTION_STRING')
 
     if not connection_string:
-        environ_conn_string = CONFIG.connection_string
+        environ_conn_string = os.environ.get('CHECKMATE_CONNECTION_STRING')
         if environ_conn_string:
             connection_string = environ_conn_string
         elif name:
