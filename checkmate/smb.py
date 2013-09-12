@@ -1,4 +1,3 @@
-# pylint: disable=W0613
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #
@@ -37,11 +36,12 @@ class Alarm(Exception):
     pass
 
 
-def alarm_handler(signum, frame):
+def alarm_handler(signum, frame):  # pylint: disable=W0613
     """Called when a timeout signal is raised."""
     raise Alarm
 
 
+# pylint: disable=R0913,R0914
 def execute_script(host, script, remote_filename, username, password,
                    command=None, port=445, timeout=300):
     """Executes a powershell script on a remote windows host.
@@ -94,6 +94,7 @@ def execute_script(host, script, remote_filename, username, password,
         status = 1
 
         return (status, output)
+# pylint: enable=R0913,R0914
 
 
 def wait_net_service(server, port, timeout=None):
@@ -122,7 +123,7 @@ def wait_net_service(server, port, timeout=None):
 
             sock.connect((server, port))
 
-        except Exception:
+        except StandardError:
             # Handle refused connections, etc.
             if timeout:
                 next_timeout = end - time.time()

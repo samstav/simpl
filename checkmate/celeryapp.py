@@ -19,8 +19,10 @@
 Module Registration with/for Celery.
 """
 
+from checkmate.providers import core
 from checkmate.providers import opscode
 from checkmate.providers import rackspace
 
-rackspace.register()
+core.register()
 opscode.register()
+rackspace.register()

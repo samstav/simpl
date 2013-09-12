@@ -76,7 +76,7 @@ class TestPowershell(unittest.TestCase):
         mock_socket.socket.return_value = mock_sock
         mock_sock.settimeout.return_value = None
 
-        returns = [Exception('boom'), 'response']
+        returns = [StandardError('boom'), 'response']
 
         def side_effect(*args):
             result = returns.pop(0)
@@ -110,6 +110,6 @@ class TestPowershell(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    from checkmate import test
     import sys
-    from checkmate import test as cmtest
-    cmtest.run_with_params(sys.argv[:])
+    test.run_with_params(sys.argv[:])
