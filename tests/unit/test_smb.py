@@ -29,17 +29,22 @@ class TestPowershell(unittest.TestCase):
     @mock.patch.object(smb, 'wait_net_service')
     @mock.patch.object(smb, 'run_command')
     @mock.patch.object(smb, 'os')
-    def test_execute(self, os_mock, run_mock, wait_mock):
+    @mock.patch('checkmate.smb.open', create=True)
+    def test_execute(self, open_mock, os_mock, run_mock, wait_mock):
+        open_mock.return_value = mock.MagicMock(spec=file)
         os_mock.path.dirname.return_value = 'X'
         os_mock.path.join.return_value = '/path/psexec.py'
         wait_mock.return_value = True
         run_mock.return_value = (0, 'X')
-        result = smb.execute('localhost', 'foo 2', 'install.ps1', 'Admin',
-                             'secret')
+        result = smb.execute_script('localhost', 'foo 2', 'install.ps1',
+                                    'Admin', 'secret')
         self.assertEqual(result, (0, 'X'))
         command = ("nice python /path/psexec.py -path 'c:\\windows\\temp' 'Adm"
                    "in':'secret'@'localhost' 'c:\\windows\\sysnative\\cmd'")
-        lines = "put install.ps1 temp\nfoo 2\nexit\n"
+        lines = ("put /path/psexec.py temp\nc:\\windows\\system32\\"
+                 "windowspowershell\\v1.0\\powershell.exe -ExecutionPolicy "
+                 "Bypass -Command \"c:\\windows\\temp\\install.ps1\" ;"
+                 "\nexit\n")
         run_mock.assert_called_with(command, lines=lines, timeout=300)
         wait_mock.assert_called_with('localhost', 445, timeout=300)
 
@@ -49,8 +54,8 @@ class TestPowershell(unittest.TestCase):
         os_mock.path.dirname.return_value = 'X'
         os_mock.path.join.return_value = '/path/psexec.py'
         wait_mock.return_value = False
-        result = smb.execute('localhost', 'foo 2', 'install.ps1', 'Admin',
-                             'secret')
+        result = smb.execute_script('localhost', 'foo 2', 'install.ps1',
+                                    'Admin', 'secret')
         msg = "Port 445 never opened up after 300 seconds"
         self.assertEqual(result, (1, msg))
         wait_mock.assert_called_with('localhost', 445, timeout=300)

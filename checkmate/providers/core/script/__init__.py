@@ -77,7 +77,14 @@ Syntax options for script:
       template: a template to parse (=include() can be used to load a file from
           a path or url
 
-      body: the final parsed/processed body (=include() can also be used)
+      body: the final parsed/processed body (=include() can also be used).
+      file-type:
+
+      powershell, python, bash, bat, etc... to describe file type.
+      Ex.
+      powershell: |
+        # ...
+
 
 """
 

@@ -48,6 +48,7 @@ class Manager(object):
 
         :param context: a call context (identity, etc...)
         :param resource: a dict defining the resource to create
+        :param install_script: a script string or dict
         :param host: the address of the compute host to create the resource on
         :param host_os: 'linux' or 'windows'
 
@@ -56,21 +57,19 @@ class Manager(object):
         if self.simulate is True:
             instance = copy.deepcopy(desired)
         else:
+            script = Script(install_script)
             try:
                 if host_os == 'windows':
                     if username == 'root':
                         username = 'Administrator'
-                    (status, output) = self.api.ps_execute(host,
-                                                           install_script,
-                                                           "install.ps1",
-                                                           username,
-                                                           password,
-                                                           timeout=timeout)
+                    (status, results) = self.api.ps_execute(
+                        host, script.body, script.name or 'install.ps1',
+                        username, password, timeout=timeout)
                     if status != 0:
                         LOG.error("Error while executing powershell command: "
-                                  "%s", output)
+                                  "%s", results)
                         raise exceptions.CheckmateException(
-                            "Error executing powershell command")
+                            "Error executing powershell command: %s", results)
                 else:
                     results = self.api.remote_execute(host, install_script,
                                                       username,
@@ -93,3 +92,29 @@ class Manager(object):
         LOG.info("Created %s resource on %s", resource.get('type'), host)
 
         return instance
+
+
+class Script(object):
+    """Handles script files."""
+
+    extension_map = {
+        'ps1': 'powershell',
+        'sh': 'bash',
+    }
+
+    def __init__(self, script):
+        """Accepts a script dict or string."""
+        if isinstance(script, basestring):
+            self.body = script
+            script = {}
+        else:
+            self.body = script.get('body')
+        self.name = script.get('name')
+        self.type = script.get('type') or self.detect_type()
+
+    def detect_type(self):
+        """Detect script type based on properties such as the name or body."""
+        if self.name:
+            for extension, _type in self.extension_map.iteritems():
+                if self.name.endswith('.' + extension):
+                    return _type

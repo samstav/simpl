@@ -70,8 +70,8 @@ class Provider(providers.ProviderBase):
             resource, key, wfspec, deployment, context, wait_on)
         properties = component.get('properties') or {}
         scripts = properties.get('scripts') or {}
-        script_source = scripts.get('install')
-        if not script_source:
+        script_object = scripts.get('install')
+        if not script_object:
             return dict(root=None, final=None)
 
         host_id = resource['hosted_on']
@@ -95,7 +95,7 @@ class Provider(providers.ProviderBase):
                        "root"],
             password=operators.PathAttrib(password_path),
             private_key=private_key,
-            install_script=script_source,
+            install_script=script_object,
             host_os=operators.PathAttrib(type_path),
             timeout=300,
             properties={

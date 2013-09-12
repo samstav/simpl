@@ -24,6 +24,7 @@ import shlex
 import signal
 import socket
 import subprocess
+import tempfile
 import time
 
 import eventlet
@@ -41,30 +42,52 @@ def alarm_handler(signum, frame):
     raise Alarm
 
 
-def execute(host, command, filename, username, password, port=445,
-            timeout=300):
-    """Executes an powershell command on a remote windows host.
+def execute_script(host, script, remote_filename, username, password,
+                   command=None, port=445, timeout=300):
+    """Executes a powershell script on a remote windows host.
 
-    :param host:           the ip address or host name of the server
-    :param command:        shell command to execute
-    :param filename:       the name of the file being run
-    :param username:       the username to use
-    :param password:       password to use for username/password auth
-    :param port:           TCP IP port to use (smb default is 445)
-    :param timeout:        timeout in seconds
+    :param host:            the ip address or host name of the remote server
+    :param script:          the script to execute remotely
+    :param remote_filename: the file name to use remotely
+    :param username:        the username to use
+    :param password:        password to use for username/password auth
+    :param command:         optional command to use to run the script (defaults
+                            to the script name which should be executable)
+    :param port:            TCP IP port to use (smb default is 445)
+    :param timeout:         timeout in seconds
     :returns: a dict with stdin and stdout of the call.
     """
+
+    args = ''
     path = "temp"
     save_path = "c:\\windows\\%s" % path
     psexec = os.path.join(os.path.dirname(__file__), 'contrib', 'psexec.py')
-    cmd_string = "nice python %s -path '%s' '%s':'%s'@'%s' " \
-                 "'c:\\windows\\sysnative\\cmd'"
-    cmd = cmd_string % (psexec, save_path, username, password, host)
-    lines = "put %s %s\n%s\nexit\n" % (filename, path, command)
+    cmd = ("nice python %s -path '%s' '%s':'%s'@'%s' "
+           "'c:\\windows\\sysnative\\cmd'" %
+           (psexec, save_path, username, password, host))
+    if command is None:
+        command = ("c:\\windows\\system32\\windowspowershell\\v1.0\\"
+                   "powershell.exe -ExecutionPolicy Bypass -Command \"%s\\%s\""
+                   " %s;" % (save_path, remote_filename, args))
 
     LOG.info("Executing powershell command '%s' on %s", filename, host)
     if wait_net_service(host, port, timeout=timeout):
-        return run_command(cmd, lines=lines, timeout=timeout)
+        temp_dir = tempfile.mkdtemp()
+        script_path = None
+        try:
+            script_path = os.path.join(temp_dir, remote_filename)
+            with open(script_path, 'w+b') as script_file:
+                script_file.write(script)
+            lines = "put %s %s\n%s\nexit\n" % (script_path, path, command)
+            LOG.info("Executing powershell command '%s' on %s",
+                     remote_filename, host)
+            result = run_command(cmd, lines=lines, timeout=timeout)
+            os.unlink(script_path)
+            return result
+        finally:
+            if script_path and os.path.exists(script_path):
+                os.unlink(script_path)
+            os.removedirs(temp_dir)
     else:
         LOG.debug("Timeout executing powershell command '%s' on %s", filename,
                   host)
