@@ -18,6 +18,7 @@ from checkmate.exceptions import CheckmateRetriableException
 Task Class and Helper Functions
 '''
 
+
 def set_exception(exception, task):
     """Sets an exception info in a task. Used to report errors that occurred
     during workflow run
@@ -53,4 +54,3 @@ def is_failed(task):
     '''
     task_state = task._get_internal_attribute("task_state")
     return task_state and task_state.get("state") == "FAILURE"
-

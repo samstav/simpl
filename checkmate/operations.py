@@ -29,7 +29,6 @@ from checkmate import deployment as cmdep
 from checkmate import exceptions as cmexc
 from checkmate import task as cmtsk
 from checkmate import utils
-from checkmate import task
 
 LOG = logging.getLogger(__name__)
 LOCK_DB = db.get_driver(connection_string=os.environ.get(

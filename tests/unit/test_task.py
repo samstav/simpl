@@ -1,17 +1,34 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+# pylint: disable=R0903
+
+import mock
 import unittest
 
-from mock import MagicMock
-from checkmate import task as cmtsk
 from checkmate.exceptions import CheckmateRetriableException
+from checkmate import task as cmtsk
 
-"""Task module Tests - for Task class helper methods"""
+"""Task module Tests - for Task class helper methods."""
 
 
 class TestTask(unittest.TestCase):
-    """Tests for Tasks helper methods"""
+    """Tests for Tasks helper methods."""
     def test_is_failed_task(self):
-        task_with_error = MagicMock(_get_internal_attribute=MagicMock())
-        task_without_error = MagicMock(_get_internal_attribute=MagicMock())
+        task_with_error = mock.MagicMock(
+            _get_internal_attribute=mock.MagicMock())
+        task_without_error = mock.MagicMock(
+            _get_internal_attribute=mock.MagicMock())
 
         task_with_error._get_internal_attribute.return_value = {
             "info": "Error Information",
@@ -24,8 +41,8 @@ class TestTask(unittest.TestCase):
         self.assertFalse(cmtsk.is_failed(task_without_error))
 
     def test_get_exception_on_task(self):
-        task = MagicMock()
-        task._get_internal_attribute = MagicMock()
+        task = mock.MagicMock()
+        task._get_internal_attribute = mock.MagicMock()
         task._get_internal_attribute.return_value = {
             "info": ("CheckmateRetriableException(u\'\',"
                      " \'CheckmateServerBuildFailed\', "
@@ -35,8 +52,8 @@ class TestTask(unittest.TestCase):
         self.assertTrue(isinstance(exception, CheckmateRetriableException))
 
     def test_set_exception_on_task(self):
-        task = MagicMock()
-        task._get_internal_attribute = MagicMock()
+        task = mock.MagicMock()
+        task._get_internal_attribute = mock.MagicMock()
         task._get_internal_attribute.return_value = {
             "info": ("CheckmateRetriableException(u\'\',"
                      " \'CheckmateServerBuildFailed\', "

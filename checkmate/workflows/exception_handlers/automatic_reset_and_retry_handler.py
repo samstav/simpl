@@ -23,13 +23,12 @@ import logging
 from celery.result import AsyncResult
 
 from checkmate import workflow as cmwf
-from checkmate.workflows.exception_handlers.exception_handler import \
-    ExceptionHandler
+from checkmate.workflows.exception_handlers import exception_handler
 
 LOG = logging.getLogger(__name__)
 
 
-class AutomaticResetAndRetryHandler(ExceptionHandler):
+class AutomaticResetAndRetryHandler(exception_handler.ExceptionHandler):
     """Handles a reset task tree exception."""
     MAX_RETRIES_FOR_TASK = 3
 

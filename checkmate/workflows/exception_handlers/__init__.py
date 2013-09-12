@@ -60,5 +60,3 @@ def get_handlers(d_wf, failed_tasks_ids, context, driver):
         except Exception as exp:
             LOG.debug("ExceptionHandlerBase raised exception %s", str(exp))
     return handlers
-
-

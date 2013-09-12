@@ -21,8 +21,8 @@ from mock import MagicMock, patch
 
 import mox
 from SpiffWorkflow import specs
-from SpiffWorkflow import Task
 from SpiffWorkflow import storage
+from SpiffWorkflow import Task
 from SpiffWorkflow.Workflow import Workflow
 
 from checkmate import deployment as cmdep
@@ -35,7 +35,6 @@ from checkmate import test
 from checkmate import utils
 from checkmate import workflow
 from checkmate import workflow_spec
-from checkmate import workflows
 
 
 class TestWorkflow(unittest.TestCase):
@@ -161,8 +160,6 @@ class TestWorkflow(unittest.TestCase):
 
         self.assertEquals(task1._state, Task.FUTURE)
         self.assertEquals(task2._state, Task.FUTURE)
-
-
 
     def test_convert_exc_to_dict_with_retriable_exception(self):
         info = "CheckmateRetriableException('foo', 'Exception', " \
@@ -316,7 +313,6 @@ class TestWorkflow(unittest.TestCase):
                           "error-traceback": "Traceback"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
-
 
     def test_update_status_without_an_overriding_status_value(self):
         w_id = "1"
