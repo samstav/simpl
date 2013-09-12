@@ -58,8 +58,8 @@ class TestCreateReqource(unittest.TestCase):
         """Verifies CheckmateException raised when caught SSH Exception."""
         manager = Manager(api=self.api, callback=self.callback)
         self.api.remote_execute.side_effect = Exception("Fail")
-        expected = ("('Fail', 'Exception', 'There was an unexpected error "
-                    "executing your deployment - Please contact support', '')")
+        expected = ("('There was an unexpected error executing your "
+                    "deployment - Please contact support', '')")
         self.assertRaisesRegexp(exceptions.CheckmateRetriableException,
                                 expected,
                                 manager.create_resource, {}, 'D1',

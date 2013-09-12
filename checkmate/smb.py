@@ -16,7 +16,7 @@
 
 # authorship credit to Trey Tabner/ServerMill
 
-"""PowerShell calls."""
+"""Remote calls over SMB (Windows) protocol."""
 
 import logging
 import os
@@ -70,7 +70,6 @@ def execute_script(host, script, remote_filename, username, password,
                    "powershell.exe -ExecutionPolicy Bypass -Command \"%s\\%s\""
                    " %s;" % (save_path, remote_filename, args))
 
-    LOG.info("Executing powershell command '%s' on %s", filename, host)
     if wait_net_service(host, port, timeout=timeout):
         temp_dir = tempfile.mkdtemp()
         script_path = None
@@ -89,8 +88,8 @@ def execute_script(host, script, remote_filename, username, password,
                 os.unlink(script_path)
             os.removedirs(temp_dir)
     else:
-        LOG.debug("Timeout executing powershell command '%s' on %s", filename,
-                  host)
+        LOG.debug("Timeout executing powershell command '%s' on %s",
+                  remote_filename, host)
         output = "Port 445 never opened up after %s seconds" % timeout
         status = 1
 
@@ -104,6 +103,7 @@ def wait_net_service(server, port, timeout=None):
     :return: True of False, if timeout is None may return only True or
              throw unhandled network exception
     """
+    LOG.info("Waiting for %s/%s to respond", server, port)
     sock = socket.socket()
     if timeout:
         # time module is needed to calc timeout shared between two exceptions
@@ -114,6 +114,8 @@ def wait_net_service(server, port, timeout=None):
             if timeout:
                 next_timeout = end - time.time()
                 if next_timeout < 0:
+                    LOG.info("Timeout waiting for %s/%s to respond", server,
+                             port)
                     return False
                 else:
                     sock.settimeout(next_timeout)
@@ -125,6 +127,8 @@ def wait_net_service(server, port, timeout=None):
             if timeout:
                 next_timeout = end - time.time()
                 if next_timeout < 0:
+                    LOG.info("Timeout waiting for %s/%s to respond", server,
+                             port)
                     return False
                 else:
                     sock.settimeout(next_timeout)
@@ -133,6 +137,7 @@ def wait_net_service(server, port, timeout=None):
 
         else:
             sock.close()
+            LOG.info("%s/%s is responding", server, port)
             return True
 
 
@@ -162,6 +167,7 @@ def run_command(cmd, lines=None, timeout=None):
 
         status = proc.wait()
         signal.alarm(0)
+        LOG.info("Script run completed")
     except Alarm:
         LOG.info("Timeout running script")
         status = 1
