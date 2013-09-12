@@ -3252,12 +3252,20 @@ function ResourcesController($scope, $resource, $location, Deployment, $http){
         var attr = checkmate_resource[key];
         if (typeof(attr) == 'string') continue;
         var existing_id = attr.instance.id;
-        not_in_checkmate = _.reject(all_resources, function in_checkmate(resource) {
-          return resource.instance_id == existing_id;
+        angular.forEach(all_resources, function(resource) {
+          if (resource.instance_id == existing_id)
+            resource.in_checkmate = true;
         });
       }
     }
-    return not_in_checkmate;
+  }
+
+  var decorate_resource = function(resource) {
+    return {
+      object: resource,
+      instance_id: resource.instance.id,
+      in_checkmate: false
+    };
   }
 
   $scope.get_load_balancers = function(){
@@ -3271,14 +3279,14 @@ function ResourcesController($scope, $resource, $location, Deployment, $http){
           var resource_ids = [];
           $scope.resources_by_provider['load-balancer'] = [];
           angular.forEach(results, function(lb){
-            $scope.resources_by_provider['load-balancer'].push({object: lb, instance_id: lb.instance.id})
+            $scope.resources_by_provider['load-balancer'].push(decorate_resource(lb));
             resource_ids.push(lb.instance.id);
           });
           $scope.get_checkmate_resources(resource_ids, 'load-balancer').then(
             function(response) {
               var cm_resources = response.data.results;
               var all_resources = $scope.resources_by_provider['load-balancer'];
-              $scope.resources_by_provider['load-balancer'] = exclude_resources_in_checkmate(all_resources, cm_resources);
+              exclude_resources_in_checkmate(all_resources, cm_resources);
               $scope.loading_status['load-balancer'] = false;
             },
             function(response) {
