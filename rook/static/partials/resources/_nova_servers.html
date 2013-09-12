@@ -1,0 +1,39 @@
+<div class='well'>
+  <h4>Nova Servers</h4>
+  <div class='alert alert-info'>Displaying only servers that are not already part of a deployment</div>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>ID</th>
+        <th>Region</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="decorated_serv in resources_by_provider['nova'] | orderBy:'resource.instance.id'">
+        <td>{{decorated_serv.resource['dns-name']}}</td>
+        <td>{{decorated_serv.resource['instance']['id']}}</td>
+        <td>{{decorated_serv.resource['region']}}</td>
+        <td>{{decorated_serv.resource['status']}}</td>
+        <td><i ng-click="add_to_deployment(decorated_serv)" class="icon-plus-sign-alt clickable"></i></td>
+      </tr>
+      <tr class='messages'>
+        <td colspan="5">
+          <div ng-show="resources_by_provider['nova'] == undefined">
+            <img class="loading" src="/img/ajax-loader.gif" />
+            Loading...
+          </div>
+
+          <div ng-show="resources_by_provider['nova'].length == 0">
+            No servers found
+          </div>
+
+          <div ng-show="servers_error">
+            {{servers_error}}
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
