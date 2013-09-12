@@ -217,15 +217,6 @@ def reset_task_tree(w_id, task_id):
             MANAGERS['workflows'].unlock_workflow(w_id, key)
 
 
-@celtask.task(default_retry_delay=10, max_retries=300)
-@statsd.collect
-def run_workflow(w_id, timeout=900, wait=1, counter=1, driver=DB):
-    """DEPRECATED: Please use cycle_workflow in checkmate.workflows.tasks
-    """
-    LOG.warn('DEPRECATED method run_workflow called for workflow %s', w_id)
-    cycle_workflow.delay(w_id, wait=wait)
-
-
 @celtask.task
 @statsd.collect
 def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
@@ -300,7 +291,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
             driver.unlock_workflow(workflow_id, key)
 
 
-@celtask.task(default_retry_delay=10, max_retries=30)  # five minutes
+@celtask.task(default_retry_delay=10, max_retries=90)
 @statsd.collect
 def pause_workflow(w_id, driver=DB, retry_counter=0):
     """Waits for all the waiting celery tasks to move to ready and then marks
