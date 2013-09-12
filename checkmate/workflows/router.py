@@ -539,12 +539,14 @@ class Router(object):
         :param api_id: checkmate workflow id
         :param task_id: checkmate workflow task id
         """
+
+        if utils.is_simulation(api_id):
+            bottle.request.context.simulation = True
         try:
             with(self.manager.workflow_lock(api_id)):
                 workflow = self.manager.get_workflow(api_id, with_secrets=True)
                 if not workflow:
                     bottle.abort(404, 'No workflow with id %s' % api_id)
-
                 serializer = DictionarySerializer()
                 wflow = spiff.Workflow.deserialize(serializer, workflow)
 
@@ -562,9 +564,23 @@ class Router(object):
                                       "task is in '%s'" %
                                       task.get_state_name())
 
-                cm_wf.reset_task_tree(task)
-                cm_wf.update_workflow_status(wflow)
-                updated = self.manager.save_spiff_workflow(wflow)
+        driver = db.get_driver(api_id=api_id)
+        reset_tree_wf = cm_wf.create_reset_failed_task_wf(wflow, api_id,
+                                          bottle.request.context,
+                                          task, driver=driver)
+        w_id = reset_tree_wf.get_attribute("id")
+        cm_wf.add_subworkflow(wflow, w_id, task_id)
+        cycle_workflow.apply_async(args=[w_id, bottle.request.context],
+                                   kwargs={'apply_callbacks': False},
+                                   task_id=w_id)
+
+        serializer = DictionarySerializer()
+        entity = wflow.serialize(serializer)
+        body, secrets = utils.extract_sensitive_data(entity)
+        body['tenantId'] = workflow.get('tenantId', tenant_id)
+        body['id'] = api_id
+        try:
+            updated = self.manager.save_spiff_workflow(wflow)
         except db.ObjectLockedError:
             bottle.abort(404, "The workflow is already locked, cannot obtain "
                               "lock.")
