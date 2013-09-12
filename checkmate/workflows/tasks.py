@@ -233,6 +233,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60, driver=DB):
     """Attempt to complete one task.
     returns True/False indicating if task completed
     """
+    driver = db.get_driver(api_id=workflow_id)
     utils.match_celery_logging(LOG)
     workflow = None
     key = None
@@ -310,6 +311,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
     :param driver: DB driver
     :return:
     """
+    driver = db.get_driver(api_id=w_id)
     number_of_waiting_celery_tasks = 0
     try:
         workflow, key = driver.lock_workflow(w_id, with_secrets=True)
