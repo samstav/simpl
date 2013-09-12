@@ -121,11 +121,11 @@ def update_deployment(w_id, error=None):
                                        **operation_kwargs)
 
 
-@statsd.collect
 @celtask.task(base=WorkflowEventHandlerTask, default_retry_delay=10,
               max_retries=300, time_limit=3600, ignore_result=True,
               lock_db=LOCK_DB, lock_key="async_wf_writer:{args[0]}",
-              lock_timeout=5)
+              lock_timeout=2)
+@statsd.collect
 def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
     """Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
@@ -214,7 +214,7 @@ def reset_task_tree(w_id, task_id):
 
 
 @celtask.task(base=celeryglobal.SingleTask, lock_db=LOCK_DB,
-              lock_key="async_wf_writer:{args[1]}", lock_timeout=5)
+              lock_key="async_wf_writer:{args[1]}", lock_timeout=2)
 @statsd.collect
 def run_one_task(context, workflow_id, task_id, timeout=60):
     """Attempt to complete one task.
@@ -274,7 +274,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
 
 
 @celtask.task(base=celeryglobal.SingleTask, default_retry_delay=10,
-              max_retries=30, lock_db=LOCK_DB, lock_timeout=5,
+              max_retries=30, lock_db=LOCK_DB, lock_timeout=2,
               lock_key="async_wf_writer:{args[0]}")
 @statsd.collect
 def pause_workflow(w_id, driver=DB, retry_counter=0):

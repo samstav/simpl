@@ -654,7 +654,7 @@ class Router(object):
         try:
             #Synchronous call
             run_one_task(bottle.request.context, api_id, task_id, timeout=10)
-        except db.InvalidKeyError:
+        except db.ObjectLockedError:
             bottle.abort(404, "Cannot execute task(%s) while workflow(%s) is "
                               "executing." % (task_id, api_id))
 
