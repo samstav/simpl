@@ -41,7 +41,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         environment = deployment.environment()
         dep_id = deployment["id"]
         operation = deployment['operation']
-        existing_workflow_id = operation.get('workflow-id', dep_id)
+        current_workflow_id = operation.get('workflow-id', dep_id)
 
         # Build a workflow spec (the spec is the design of the workflow)
         wf_spec = WorkflowSpec(name="Delete deployment %s(%s)" %
@@ -52,9 +52,9 @@ class WorkflowSpec(specs.WorkflowSpec):
         else:
             root_task = specs.Celery(
                 wf_spec, 'Pause %s Workflow %s' % (operation['type'],
-                                                   existing_workflow_id),
+                                                   current_workflow_id),
                 'checkmate.workflows.tasks.pause_workflow',
-                call_args=[dep_id],
+                call_args=[current_workflow_id],
                 properties={'estimated_duration': 10})
             wf_spec.start.connect(root_task)
 
