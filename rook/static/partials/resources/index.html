@@ -1,51 +1,11 @@
 <div class='entries'>
   <div class='row-fluid'>
     <div class='span6' ng-init="load_resources()">
-
       <ng-include src="'/partials/resources/_nova_servers.html'"></ng-include>
 
       <ng-include src="'/partials/resources/_load_balancers.html'"></ng-include>
 
-      <div class='well'>
-        <h4>Databases</h4>
-        <div class='alert'>Due to limitations in the Database API, <b>all</b> databases are displayed below, <b>including ones that are already part of another deployment</b>. Take caution in selecting your resources</div>
-        <table class="table table-striped">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>ID</th>
-              <th>Region</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr ng-repeat="decorated_db in resources_by_provider['database'] | orderBy:'resource.instance.id'">
-              <td>{{decorated_db.resource['dns-name']}}</td>
-              <td>{{decorated_db.resource['instance']['id']}}</td>
-              <td>{{decorated_db.resource['region']}}</td>
-              <td>{{decorated_db.resource['status']}}</td>
-              <td><i ng-click="add_to_deployment(decorated_db)" class="icon-plus-sign-alt clickable"></i></td>
-            </tr>
-
-            <tr class='messages'>
-              <td colspan="5">
-                <div ng-show="resources_by_provider['database'] == undefined">
-                  <img class="loading" src="/img/ajax-loader.gif" />
-                  Loading...
-                </div>
-
-                <div ng-show="resources_by_provider['database'].length == 0">
-                  No databases found
-                </div>
-
-                <div ng-show="dbs_error">
-                  {{dbs_error}}
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <ng-include src="'/partials/resources/_databases.html'"></ng-include>
     </div>
 
 
