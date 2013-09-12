@@ -26,7 +26,7 @@
 
       <tr class='messages'>
         <td colspan="5">
-          <div ng-show="resources_by_provider['load-balancer'] == undefined">
+          <div ng-show="loading_status['load-balancer']">
             <img class="loading" src="/img/ajax-loader.gif" />
             Loading...
           </div>
@@ -35,8 +35,8 @@
             No load balancers found
           </div>
 
-          <div ng-show="lbs_error">
-            {{lbs_error}}
+          <div ng-show="error_msgs['load-balancer']">
+            {{error_msgs['load-balancer']}}
           </div>
         </td>
       </tr>

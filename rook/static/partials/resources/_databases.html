@@ -26,7 +26,7 @@
 
       <tr class='messages'>
         <td colspan="5">
-          <div ng-show="resources_by_provider['database'] == undefined">
+          <div ng-show="loading_status.database">
             <img class="loading" src="/img/ajax-loader.gif" />
             Loading...
           </div>
@@ -35,8 +35,8 @@
             No databases found
           </div>
 
-          <div ng-show="dbs_error">
-            {{dbs_error}}
+          <div ng-show="error_msgs.database">
+            {{error_msgs.database}}
           </div>
         </td>
       </tr>

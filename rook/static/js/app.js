@@ -3188,6 +3188,12 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
 function ResourcesController($scope, $resource, $location, Deployment){
   $scope.selected_resources = [];
   $scope.resources_by_provider = {};
+  $scope.loading_status = {
+    nova: false,
+    'load-balancer': false,
+    database: false
+  };
+  $scope.error_msgs = {};
 
   $scope.add_to_deployment = function(decorated_resource){
     var resource_list = $scope.resources_by_provider[decorated_resource.resource.provider];
@@ -3222,15 +3228,20 @@ function ResourcesController($scope, $resource, $location, Deployment){
     if ($scope.auth.identity.loggedIn && tenant_id){
       var url = '/:tenantId/providers/rackspace.load-balancer/resources';
       var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      lb_api.query(function(results) {
-        $scope.resources_by_provider['load-balancer'] = [];
-        angular.forEach(results, function(lb){
-          $scope.resources_by_provider['load-balancer'].push({resource: lb})
-        });
-      },
-      function(response) {
-        $scope.lbs_error = "Error loading load balancer list";
-      });
+      $scope.loading_status['load-balancer'] = true;
+      lb_api.query(
+        function(results) {
+          $scope.resources_by_provider['load-balancer'] = [];
+          angular.forEach(results, function(lb){
+            $scope.resources_by_provider['load-balancer'].push({resource: lb})
+          });
+          $scope.loading_status['load-balancer'] = false;
+        },
+        function(response) {
+          $scope.loading_status['load-balancer'] = false;
+          $scope.error_msgs['load-balancer'] = "Error loading load balancer list";
+        }
+      );
     }
   };
 
@@ -3239,15 +3250,20 @@ function ResourcesController($scope, $resource, $location, Deployment){
     if ($scope.auth.identity.loggedIn && tenant_id){
       var url = '/:tenantId/providers/rackspace.nova/resources';
       var server_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      server_api.query(function(results) {
-        $scope.resources_by_provider.nova = [];
-        angular.forEach(results, function(server){
-          $scope.resources_by_provider.nova.push({resource: server})
-        });
-      },
-      function(response) {
-        $scope.servers_error = "Error loading server list";
-      });
+      $scope.loading_status.nova = true;
+      server_api.query(
+        function(response) {
+          $scope.resources_by_provider.nova = [];
+          angular.forEach(response, function(server){
+            $scope.resources_by_provider.nova.push({resource: server})
+          });
+          $scope.loading_status.nova = false;
+        },
+        function(response) {
+          $scope.error_msgs.nova = "Error loading server list";
+          $scope.loading_status.nova = false;
+        }
+      );
     }
   };
 
@@ -3256,20 +3272,20 @@ function ResourcesController($scope, $resource, $location, Deployment){
     if ($scope.auth.identity.loggedIn && tenant_id){
       var url = '/:tenantId/providers/rackspace.database/resources';
       var db_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      var results = db_api.query(function() {
-        $scope.resources_by_provider.database = [];
-        angular.forEach(results, function(db){
-          $scope.resources_by_provider.database.push({resource: db})
-        });
-        if(results.length === 0){
-          $scope.no_dbs = true;
+      $scope.loading_status.database = true;
+      var results = db_api.query(
+        function() {
+          $scope.resources_by_provider.database = [];
+          angular.forEach(results, function(db){
+            $scope.resources_by_provider.database.push({resource: db})
+          });
+          $scope.loading_status.database = false;
+        },
+        function(response) {
+          $scope.error_msgs.database = "Error loading database list";
+          $scope.loading_status.database = false;
         }
-        $scope.dbs_loaded = true;
-      },
-      function(response) {
-        $scope.dbs_error = "Error loading database list";
-        $scope.dbs_loaded = true;
-      });
+      );
     }
   };
 
