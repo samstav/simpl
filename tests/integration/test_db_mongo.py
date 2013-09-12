@@ -172,6 +172,22 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
         self.assertIn('123', result['results'])
         self.assertIn('999', result['results'])
 
+    def test_get_resources_accepts_instance_ids_with_dashes(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+                '4': {'instance': {'id': 'id-1'}}},
+            {'id': '777',
+                '4': {'instance': {'id': 'id-2'}}},
+            {'id': '999',
+                '4': {'instance': {'id': 'id-3'}}}
+        ])
+        query = {'resource_ids': ['id-1', 'id-3']}
+        result = self.driver.get_resources(query=query)
+        self.assertEqual(len(result['results']), 2)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
+        self.assertIn('999', result['results'])
+
     def test_get_resources_with_provider(self):
         self.driver.database()['resources'].insert([
             {'id': '123',
@@ -201,11 +217,11 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
             {'id': '123',
              '6': {'type': 'compute',
                    'provider': 'nova',
-                   'instance': {'id': 'xxx'}}},
+                   'instance': {'id': '1234-4321'}}},
             {'id': '999',
              '6': {'type': 'load-balancer',
                    'provider': 'nova',
-                   'instance': {'id': 'xxx'}}},
+                   'instance': {'id': '1234-4321'}}},
             {'id': '888',
              '6': {'type': 'compute',
                    'provider': 'nova',
@@ -213,11 +229,11 @@ class TestDBMongo(base.DBDriverTests, MongoTestCase):
             {'id': '777',
              '6': {'type': 'compute',
                    'provider': 'legacy',
-                   'instance': {'id': 'xxx'}}}
+                   'instance': {'id': '1234-4321'}}}
         ])
         query = {'resource_type': 'compute',
                  'provider': 'nova',
-                 'resource_ids': ['xxx', 'doesntexist']}
+                 'resource_ids': ['1234-4321', 'doesntexist']}
         result = self.driver.get_resources(query=query)
         self.assertNotIn('777', result['results'])
         self.assertNotIn('888', result['results'])

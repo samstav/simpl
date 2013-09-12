@@ -22,6 +22,7 @@ TODO:
 """
 import bson
 import copy
+import json
 import logging
 import pymongo
 import re
@@ -742,15 +743,15 @@ class Driver(common.DbBase):
             if query:
                 query_condition = ['true']
                 if query.get('provider'):
-                    query_condition.append("provider == '%s'" %
-                                           re.escape(query['provider']))
+                    query_condition.append("provider == %s" %
+                                           json.encoder.encode_basestring(query['provider']))
                 if query.get('resource_type'):
-                    query_condition.append("resource_type == '%s'" %
-                                           re.escape(query['resource_type']))
+                    query_condition.append("resource_type == %s" %
+                                           json.encoder.encode_basestring(query['resource_type']))
                 if query.get('resource_ids'):
                     query_condition.append(
                         "%s.indexOf(instance_id) > -1" %
-                        str(map(re.escape, query['resource_ids']))
+                        json.JSONEncoder().encode(query['resource_ids'])
                     )
                 search_function = (
                     "function() {"
