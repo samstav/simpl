@@ -491,8 +491,9 @@ class Router(object):
         driver = db.get_driver(api_id=api_id)
         if (operation and operation.get('action') != 'PAUSE' and
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
-            common_tasks.update_operation.delay(api_id, api_id, driver=driver,
-                                                action='PAUSE')
+            current_wf_id = operations.current_workflow_id(deployment)
+            common_tasks.update_operation.delay(api_id, current_wf_id,
+                                                driver=driver, action='PAUSE')
         delete_workflow_spec = (
             workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
                 deployment, request_context))
