@@ -3185,7 +3185,7 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   };
 }
 
-function ResourcesController($scope, $resource, $location, Deployment){
+function ResourcesController($scope, $resource, $location, Deployment, $http){
   $scope.selected_resources = [];
   $scope.resources_by_provider = {};
   $scope.loading_status = {
@@ -3208,8 +3208,8 @@ function ResourcesController($scope, $resource, $location, Deployment){
 
   $scope.get_checkmate_resources = function(instance_ids, provider, type){
     var tenant_id = $scope.auth.context.tenantId;
-    var url = '/:tenantId/resources.json';
-    var params = { tenantId: tenant_id }
+    var url = '/'+tenant_id+'/resources';
+    var params = {};
     if (instance_ids)
       params.id = instance_ids
     if (provider)
@@ -3217,10 +3217,8 @@ function ResourcesController($scope, $resource, $location, Deployment){
     if (type)
       params.type = type
 
-    var resources_api = $resource((checkmate_server_base || '') + url, params);
-    resources_api.get(function(results){
-      $scope.answers = results;
-    });
+    var config = { params: params };
+    return $http.get(url, config);
   };
 
   $scope.get_servers = function(){
