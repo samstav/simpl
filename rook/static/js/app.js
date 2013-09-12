@@ -3268,6 +3268,33 @@ function ResourcesController($scope, $resource, $location, Deployment, $http){
     };
   }
 
+  var exclude_load_balancers_using_metadata = function() {
+    var start = 0;
+    var batch_size = 5;
+    var get_batch = function(objects) {
+      var batch = [];
+      for (var i=start ; i<objects.length, batch.length < batch_size ; i++) {
+        var obj = objects[i];
+        if (!obj.in_checkmate) batch.push(obj);
+      }
+      start += batch_size;
+      return batch;
+    }
+    var all_lbs = $scope.resources_by_provider['load-balancer'];
+    var start_time = 0;
+    var delay = 1500;
+    while (true) {
+      batch = get_batch(all_lbs);
+      if (batch.length == 0) break;
+      $timeout(function() {
+        // Call server to get load balancers metadata
+        // Get IDs from lbs in checkmate
+        // Use exclude_resources_in_checkmate to remove them from the list
+      }, start_time);
+      start_time += delay;
+    }
+  }
+
   $scope.get_load_balancers = function(){
     var tenant_id = $scope.auth.context.tenantId;
     if ($scope.auth.identity.loggedIn && tenant_id){
