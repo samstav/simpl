@@ -605,35 +605,18 @@ class TestDatabaseGetResources(unittest.TestCase):
         api = mock.Mock()
         api.list.return_value = [db_host]
 
-        expected = {
-            0: {
-                'status': 'status',
-                'index': 0,
-                'region': 'region',
-                'provider': 'database',
-                'dns-name': 'name',
-                'instance': {
-                    'status': 'status',
-                    'name': 'name',
-                    'region': 'region',
-                    'id': 'id',
-                    'interfaces': {
-                        'mysql': {
-                            'host': 'hostname'
-                        }
-                    },
-                    'flavor': 'flavor'
-                },
-                'hosts': [],
-                'flavor': 'flavor',
-                'disk': 'size',
-                'type': 'compute'
-            }
-        }
-
         mock_connect.return_value = api
-        self.assertEqual(database.Provider.get_resources(request, 'tenant'),
-                         expected)
+        results = database.Provider.get_resources(request, 'tenant')
+        resource = results[0]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(resource['status'], 'status')
+        self.assertEqual(resource['dns-name'], 'name')
+        self.assertEqual(resource['instance']['id'], 'id')
+        self.assertEqual(resource['instance']['interfaces']['mysql']['host'],
+                         'hostname')
+        self.assertEqual(resource['flavor'], 'flavor')
+        self.assertEqual(resource['disk'], 'size')
+        self.assertEqual(resource['region'], 'region')
 
 
 if __name__ == '__main__':

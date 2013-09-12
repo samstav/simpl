@@ -695,12 +695,12 @@ class Provider(RackspaceComputeProviderBase):
             api = pyrax.connect_to_cloudservers(region=region)
             servers += api.list()
 
-        results = {}
+        results = []
         for idx, server in enumerate(servers):
             if 'RAX-CHECKMATE' in server.metadata:
                 continue
 
-            results[idx] = {
+            resource = {
                 'status': server.status,
                 'index': idx,
                 'image': server.image['id'],
@@ -717,8 +717,9 @@ class Provider(RackspaceComputeProviderBase):
                 'type': 'compute',
                 'region': server.manager.api.client.region_name
             }
+            results.append(resource)
             utils.merge_dictionary(
-                results[idx]['instance'],
+                resource['instance'],
                 utils.get_ips_from_server(server, context.roles)
             )
         return results
