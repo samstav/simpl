@@ -60,7 +60,7 @@ class Provider(rsbase.RackspaceProviderBase):
         and return one.
         '''
 
-        # TODO: maybe implement this an on_get_catalog so we don't have to do
+        # TODO(any): maybe implement this an on_get_catalog so we don't have to do
         #        this for every provider
         results = base.ProviderBase.get_catalog(self, context,
                                                 type_filter=type_filter)
@@ -121,7 +121,8 @@ class Provider(rsbase.RackspaceProviderBase):
         queued_task_dict = context.get_queued_task_dict(
             deployment_id=deployment_id, resource_key=key)
         delete_domain_task = specs.Celery(
-            wf_spec, 'Delete Relay Domain %s (%s)' % (key, resource['service']),
+            wf_spec,
+            'Delete Relay Domain %s (%s)' % (key, resource['service']),
             'checkmate.providers.rackspace.mailgun.tasks.delete_domain',
             call_args=[
                 queued_task_dict,

@@ -177,7 +177,7 @@ class TestDeleteDomain(unittest.TestCase):
     def test_sim(self, mock_callback):
         """Verifies results on delete_domain with simulation."""
         self.context.simulation = True
-        
+
         results = tasks.delete_domain(self.context, self.domain_name,
                                       False, api=self.api)
         self.assertEqual(results, self.expected)
@@ -187,7 +187,7 @@ class TestDeleteDomain(unittest.TestCase):
     @mock.patch.object(tasks.delete_domain, 'callback')
     def test_success(self, mock_callback):
         """Verifies method calls and results in delete_domain."""
-        
+
         results = tasks.delete_domain(self.context, self.domain_name,
                                       False, api=self.api)
         self.assertEqual(results, self.expected)

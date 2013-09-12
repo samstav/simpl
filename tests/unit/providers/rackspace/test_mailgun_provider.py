@@ -1,3 +1,4 @@
+# pylint: disable=R0904,C0103
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -118,7 +119,7 @@ class TestAddResourceTask(unittest.TestCase):
         self.assertEqual(expected, results)
         mock_wf_celery.assert_called_with(self.wf_spec,
             'Create Relay Domain 1 (smtp)',
-            'checkmate.providers.rackspace.mailgun.tasks.create_domain', 
+            'checkmate.providers.rackspace.mailgun.tasks.create_domain',
             properties={'estimated_duration': 20},
             call_args=[{'username': None, 'domain': None, 'resource_key': '1',
                 'auth_token': None, 'catalog': None, 'is_admin': False,
@@ -130,6 +131,7 @@ class TestAddResourceTask(unittest.TestCase):
             defines={'task_tags': ['create', 'root', 'final'], 'resource': '1',
                 'provider': 'rackspace.mailgun'}
         )
+
 
 class TestDeleteResourceTask(unittest.TestCase):
     """Class for testing mailgun delete_resource_task function."""
@@ -175,6 +177,7 @@ class TestDeleteResourceTask(unittest.TestCase):
             defines={'task_tags': ['delete', 'root', 'final'], 'resource': '1',
                 'provider': 'rackspace.mailgun'}
         )
+
 
 class TestGetResources(unittest.TestCase):
     """Class for testing mailgun get_resources."""
