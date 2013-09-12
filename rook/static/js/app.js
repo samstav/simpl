@@ -3223,28 +3223,6 @@ function ResourcesController($scope, $resource, $location, Deployment){
     });
   };
 
-  $scope.get_load_balancers = function(){
-    var tenant_id = $scope.auth.context.tenantId;
-    if ($scope.auth.identity.loggedIn && tenant_id){
-      var url = '/:tenantId/providers/rackspace.load-balancer/resources';
-      var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      $scope.loading_status['load-balancer'] = true;
-      lb_api.query(
-        function(results) {
-          $scope.resources_by_provider['load-balancer'] = [];
-          angular.forEach(results, function(lb){
-            $scope.resources_by_provider['load-balancer'].push({resource: lb})
-          });
-          $scope.loading_status['load-balancer'] = false;
-        },
-        function(response) {
-          $scope.loading_status['load-balancer'] = false;
-          $scope.error_msgs['load-balancer'] = "Error loading load balancer list";
-        }
-      );
-    }
-  };
-
   $scope.get_servers = function(){
     var tenant_id = $scope.auth.context.tenantId;
     if ($scope.auth.identity.loggedIn && tenant_id){
@@ -3262,6 +3240,28 @@ function ResourcesController($scope, $resource, $location, Deployment){
         function(response) {
           $scope.error_msgs.nova = "Error loading server list";
           $scope.loading_status.nova = false;
+        }
+      );
+    }
+  };
+
+  $scope.get_load_balancers = function(){
+    var tenant_id = $scope.auth.context.tenantId;
+    if ($scope.auth.identity.loggedIn && tenant_id){
+      var url = '/:tenantId/providers/rackspace.load-balancer/resources';
+      var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+      $scope.loading_status['load-balancer'] = true;
+      lb_api.query(
+        function(results) {
+          $scope.resources_by_provider['load-balancer'] = [];
+          angular.forEach(results, function(lb){
+            $scope.resources_by_provider['load-balancer'].push({resource: lb})
+          });
+          $scope.loading_status['load-balancer'] = false;
+        },
+        function(response) {
+          $scope.loading_status['load-balancer'] = false;
+          $scope.error_msgs['load-balancer'] = "Error loading load balancer list";
         }
       );
     }
