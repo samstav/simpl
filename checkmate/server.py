@@ -56,8 +56,8 @@ from eventlet import wsgi
 # TODO(any): Pull out entry points into simple file that initializes CONFIG
 from checkmate.common import config
 CONFIG = config.current()
-if __name__ == '__main__':
-    CONFIG.initialize()
+#if __name__ == '__main__':
+#    CONFIG.initialize()
 
 import checkmate
 from checkmate import admin
@@ -193,6 +193,7 @@ def error_formatter(error):
 def main():
     """Start the server based on passed in arguments. Called by __main__."""
     global LOG
+    CONFIG.initialize()
     resources = ['version']
     anonymous_paths = ['version']
     if CONFIG.webhook:
