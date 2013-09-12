@@ -3311,10 +3311,22 @@ function ResourcesController($scope, $resource, $location, Deployment, $http){
       var results = db_api.query(
         function() {
           $scope.resources_by_provider.database = [];
+          var resource_ids = [];
           angular.forEach(results, function(db){
-            $scope.resources_by_provider.database.push({object: db})
+            $scope.resources_by_provider.database.push(decorate_resource(db));
+            resource_ids.push(db.instance.id);
           });
-          $scope.loading_status.database = false;
+          $scope.get_checkmate_resources(resource_ids, 'database').then(
+            function(response) {
+              var cm_resources = response.data.results;
+              var all_resources = $scope.resources_by_provider.database;
+              exclude_resources_in_checkmate(all_resources, cm_resources);
+              $scope.loading_status.database = false;
+            },
+            function(response) {
+              $scope.loading_status.database = false;
+            }
+          );
         },
         function(response) {
           $scope.error_msgs.database = "Error loading database list";

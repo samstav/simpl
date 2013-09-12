@@ -16,7 +16,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="decorated_db in resources_by_provider['database'] | orderBy:'object.instance.id'">
+      <tr ng-repeat="decorated_db in resources_by_provider['database'] | orderBy:'object.instance.id' | filter: {in_checkmate: false}">
         <td>{{decorated_db.object['dns-name']}}</td>
         <td>{{decorated_db.object['instance']['id']}}</td>
         <td>{{decorated_db.object['region']}}</td>
