@@ -10,31 +10,7 @@
 
 
     <div class='span6 well'>
-      <form ng-submit='submit()'>
-        <h4>Create a Deployment</h4>
-        Name this deployment: <input type="text" ng-model="deployment.name" required>
-        </input>
-        <table class="table table-striped">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>ID</th>
-              <th>Region</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr ng-repeat="decorated_resource in selected_resources">
-              <td><i ng-click="remove_from_deployment(decorated_resource)" class="icon-minus-sign-alt clickable"></i></td>
-              <td>{{decorated_resource.resource['dns-name']}}</td>
-              <td>{{decorated_resource.resource['instance']['id']}}</td>
-              <td>{{decorated_resource.resource['region']}}</td>
-              <td>{{decorated_resource.resource['status']}}</td>
-            </tr>
-          </tbody>
-        </table>
-        <input type='submit' class='btn' value='Submit' />
-      </form>
+      <ng-include src="'/partials/resources/_create_deployment.html'"></ng-include>
     </div>
   </div>
 </div>
