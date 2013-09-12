@@ -117,7 +117,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/404.html'
   }).when('/:tenantId/resources', {
     controller: ResourcesController,
-    templateUrl: '/partials/resources.html'
+    templateUrl: '/partials/resources/index.html'
   }).otherwise({
     controller: StaticController,
     templateUrl: '/partials/404.html'
