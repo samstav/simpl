@@ -78,7 +78,7 @@ def get_errored_tasks(d_wf):
     tasks = d_wf.get_tasks()
     while tasks:
         task = tasks.pop(0)
-        if cmtsk.is_failed_task(task):
+        if cmtsk.is_failed(task):
             failed_tasks.append(task.id)
     return failed_tasks
 
@@ -276,7 +276,7 @@ def get_errors(wf_dict, tenant_id):
 
     while tasks:
         task = tasks.pop(0)
-        if cmtsk.is_failed_task(task):
+        if cmtsk.is_failed(task):
             task_state = task._get_internal_attribute("task_state")
             info = task_state.get("info")
             traceback = task_state.get("traceback")

@@ -29,7 +29,7 @@ from checkmate import deployment as cmdep
 from checkmate import exceptions as cmexc
 from checkmate import task as cmtsk
 from checkmate import utils
-from checkmate import workflow
+from checkmate import task
 
 LOG = logging.getLogger(__name__)
 LOCK_DB = db.get_driver(connection_string=os.environ.get(
@@ -260,7 +260,7 @@ def _update_operation_stats(operation, spiffwf):
         tasks.extend(current.children)
         if current._state == Task.COMPLETED:
             complete += 1
-        elif cmtsk.is_failed_task(current):
+        elif cmtsk.is_failed(current):
             failure += 1
         duration += current._get_internal_attribute('estimated_completed_in')
         if current.last_state_change > last_change:

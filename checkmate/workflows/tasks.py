@@ -356,7 +356,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
     for final_task in final_tasks:
         if (isinstance(final_task.task_spec, Celery) and
-                not task.is_failed_task(final_task)):
+                not task.is_failed(final_task)):
             final_task.task_spec._update_state(final_task)
             if final_task._has_state(Task.WAITING):
                 number_of_waiting_celery_tasks += 1

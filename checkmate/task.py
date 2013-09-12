@@ -18,7 +18,7 @@ from checkmate.exceptions import CheckmateRetriableException
 Task Class and Helper Functions
 '''
 
-def set_exception_on_task(exception, task):
+def set_exception(exception, task):
     """Sets an exception info in a task. Used to report errors that occurred
     during workflow run
     @param exception: Exception to set
@@ -27,10 +27,10 @@ def set_exception_on_task(exception, task):
     """
     task_state = task._get_internal_attribute("task_state")
     task_state["info"] = exception.__repr__()
-    task._set_internal_attribute(task_state)
+    task._set_internal_attribute(task_state=task_state)
 
 
-def get_exception_on_task(task):
+def get_exception(task):
     """Gets the exception info from a task, evals it and returns the result
     @param task: Task
     @return:
@@ -40,7 +40,7 @@ def get_exception_on_task(task):
     return eval(info)
 
 
-def is_failed_task(task):
+def is_failed(task):
     '''Checks whether a task has failed by checking the task_state dict in
     internal attribs. The format of task_state is
     task_state: {

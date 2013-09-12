@@ -33,6 +33,12 @@ class AutomaticResetAndRetryHandler(ExceptionHandler):
     """Handles a reset task tree exception."""
     MAX_RETRIES_FOR_TASK = 3
 
+    def friendly_message(self, args):
+        max_retries = AutomaticResetAndRetryHandler.MAX_RETRIES_FOR_TASK
+        retry_number = max_retries - args[1] + 1
+        return ("Attempting to automatically reset and retry failed task {0}"
+                " ({1}/{2})").format(args[0], retry_number, max_retries)
+
     def handle(self):
         """Handler method that does the required actions with the task
         :return:

@@ -28,6 +28,13 @@ class ExceptionHandler(object):
         self.context = context
         self.driver = driver
 
+    def friendly_message(self, args):
+        """Handler method that does the required actions with the task
+        :return:
+        """
+        LOG.debug("%s.friendly_message called, but was not implemented",
+                  self.__class__.__name__)
+
     def handle(self):
         """Handler method that does the required actions with the task
         :return:

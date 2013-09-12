@@ -20,8 +20,8 @@ class TestTask(unittest.TestCase):
 
         task_without_error._get_internal_attribute.return_value = {}
 
-        self.assertTrue(cmtsk.is_failed_task(task_with_error))
-        self.assertFalse(cmtsk.is_failed_task(task_without_error))
+        self.assertTrue(cmtsk.is_failed(task_with_error))
+        self.assertFalse(cmtsk.is_failed(task_without_error))
 
     def test_get_exception_on_task(self):
         task = MagicMock()
@@ -30,7 +30,7 @@ class TestTask(unittest.TestCase):
             "info": ("CheckmateRetriableException(u\'\',"
                      " \'CheckmateServerBuildFailed\', "
                      "u\'Server build failed\', \'\')")}
-        exception = cmtsk.get_exception_on_task(task)
+        exception = cmtsk.get_exception(task)
         task._get_internal_attribute.assert_called_once_with("task_state")
         self.assertTrue(isinstance(exception, CheckmateRetriableException))
 
@@ -42,7 +42,7 @@ class TestTask(unittest.TestCase):
                      " \'CheckmateServerBuildFailed\', "
                      "u\'Server build failed\', \'\')")}
         new_exception = Exception("This replaces the old exception")
-        cmtsk.set_exception_on_task(new_exception, task)
-        exception = cmtsk.get_exception_on_task(task)
+        cmtsk.set_exception(new_exception, task)
+        exception = cmtsk.get_exception(task)
         task._get_internal_attribute.assert_called_with("task_state")
         self.assertTrue(isinstance(exception, Exception))
