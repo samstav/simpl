@@ -16,11 +16,11 @@
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="decorated_lb in resources_by_provider['load-balancer'] | orderBy:'resource.instance.id'">
-        <td>{{decorated_lb.resource['dns-name']}}</td>
-        <td>{{decorated_lb.resource['instance']['id']}}</td>
-        <td>{{decorated_lb.resource['region']}}</td>
-        <td>{{decorated_lb.resource['status']}}</td>
+      <tr ng-repeat="decorated_lb in resources_by_provider['load-balancer'] | orderBy:'object.instance.id'">
+        <td>{{decorated_lb.object['dns-name']}}</td>
+        <td>{{decorated_lb.object['instance']['id']}}</td>
+        <td>{{decorated_lb.object['region']}}</td>
+        <td>{{decorated_lb.object['status']}}</td>
         <td><i ng-click="add_to_deployment(decorated_lb)" class="icon-plus-sign-alt clickable"></i></td>
       </tr>
 

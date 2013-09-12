@@ -3196,13 +3196,13 @@ function ResourcesController($scope, $resource, $location, Deployment){
   $scope.error_msgs = {};
 
   $scope.add_to_deployment = function(decorated_resource){
-    var resource_list = $scope.resources_by_provider[decorated_resource.resource.provider];
+    var resource_list = $scope.resources_by_provider[decorated_resource.object.provider];
     $scope.selected_resources.push(decorated_resource);
     resource_list.splice(resource_list.indexOf(decorated_resource), 1);
   };
 
   $scope.remove_from_deployment = function(decorated_resource){
-    $scope.resources_by_provider[decorated_resource.resource.provider].push(decorated_resource);
+    $scope.resources_by_provider[decorated_resource.object.provider].push(decorated_resource);
     $scope.selected_resources.splice($scope.selected_resources.indexOf(decorated_resource), 1);
   };
 
@@ -3233,7 +3233,7 @@ function ResourcesController($scope, $resource, $location, Deployment){
         function(response) {
           $scope.resources_by_provider.nova = [];
           angular.forEach(response, function(server){
-            $scope.resources_by_provider.nova.push({resource: server})
+            $scope.resources_by_provider.nova.push({object: server})
           });
           $scope.loading_status.nova = false;
         },
@@ -3255,7 +3255,7 @@ function ResourcesController($scope, $resource, $location, Deployment){
         function(results) {
           $scope.resources_by_provider['load-balancer'] = [];
           angular.forEach(results, function(lb){
-            $scope.resources_by_provider['load-balancer'].push({resource: lb})
+            $scope.resources_by_provider['load-balancer'].push({object: lb})
           });
           $scope.loading_status['load-balancer'] = false;
         },
@@ -3277,7 +3277,7 @@ function ResourcesController($scope, $resource, $location, Deployment){
         function() {
           $scope.resources_by_provider.database = [];
           angular.forEach(results, function(db){
-            $scope.resources_by_provider.database.push({resource: db})
+            $scope.resources_by_provider.database.push({object: db})
           });
           $scope.loading_status.database = false;
         },

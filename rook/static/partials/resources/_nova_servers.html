@@ -16,11 +16,11 @@
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="decorated_serv in resources_by_provider['nova'] | orderBy:'resource.instance.id'">
-        <td>{{decorated_serv.resource['dns-name']}}</td>
-        <td>{{decorated_serv.resource['instance']['id']}}</td>
-        <td>{{decorated_serv.resource['region']}}</td>
-        <td>{{decorated_serv.resource['status']}}</td>
+      <tr ng-repeat="decorated_serv in resources_by_provider['nova'] | orderBy:'object.instance.id'">
+        <td>{{decorated_serv.object['dns-name']}}</td>
+        <td>{{decorated_serv.object['instance']['id']}}</td>
+        <td>{{decorated_serv.object['region']}}</td>
+        <td>{{decorated_serv.object['status']}}</td>
         <td><i ng-click="add_to_deployment(decorated_serv)" class="icon-plus-sign-alt clickable"></i></td>
       </tr>
       <tr class='messages'>
@@ -34,8 +34,8 @@
             No servers found
           </div>
 
-          <div ng-show="servers_error">
-            {{servers_error}}
+          <div ng-show="error_msgs.nova">
+            {{error_msgs.nova}}
           </div>
         </td>
       </tr>

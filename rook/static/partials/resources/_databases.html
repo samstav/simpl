@@ -16,11 +16,11 @@
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="decorated_db in resources_by_provider['database'] | orderBy:'resource.instance.id'">
-        <td>{{decorated_db.resource['dns-name']}}</td>
-        <td>{{decorated_db.resource['instance']['id']}}</td>
-        <td>{{decorated_db.resource['region']}}</td>
-        <td>{{decorated_db.resource['status']}}</td>
+      <tr ng-repeat="decorated_db in resources_by_provider['database'] | orderBy:'object.instance.id'">
+        <td>{{decorated_db.object['dns-name']}}</td>
+        <td>{{decorated_db.object['instance']['id']}}</td>
+        <td>{{decorated_db.object['region']}}</td>
+        <td>{{decorated_db.object['status']}}</td>
         <td><i ng-click="add_to_deployment(decorated_db)" class="icon-plus-sign-alt clickable"></i></td>
       </tr>
 
