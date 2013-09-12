@@ -1,4 +1,3 @@
-# pylint: disable=W0613
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #
@@ -16,7 +15,7 @@
 
 # authorship credit to Trey Tabner/ServerMill
 
-"""PowerShell calls."""
+"""Remote calls over SMB (Windows) protocol."""
 
 import logging
 import os
@@ -24,6 +23,7 @@ import shlex
 import signal
 import socket
 import subprocess
+import tempfile
 import time
 
 import eventlet
@@ -36,42 +36,65 @@ class Alarm(Exception):
     pass
 
 
-def alarm_handler(signum, frame):
+def alarm_handler(signum, frame):  # pylint: disable=W0613
     """Called when a timeout signal is raised."""
     raise Alarm
 
 
-def execute(host, command, filename, username, password, port=445,
-            timeout=300):
-    """Executes an powershell command on a remote windows host.
+# pylint: disable=R0913,R0914
+def execute_script(host, script, remote_filename, username, password,
+                   command=None, port=445, timeout=300):
+    """Executes a powershell script on a remote windows host.
 
-    :param host:           the ip address or host name of the server
-    :param command:        shell command to execute
-    :param filename:       the name of the file being run
-    :param username:       the username to use
-    :param password:       password to use for username/password auth
-    :param port:           TCP IP port to use (smb default is 445)
-    :param timeout:        timeout in seconds
+    :param host:            the ip address or host name of the remote server
+    :param script:          the script to execute remotely
+    :param remote_filename: the file name to use remotely
+    :param username:        the username to use
+    :param password:        password to use for username/password auth
+    :param command:         optional command to use to run the script (defaults
+                            to the script name which should be executable)
+    :param port:            TCP IP port to use (smb default is 445)
+    :param timeout:         timeout in seconds
     :returns: a dict with stdin and stdout of the call.
     """
+
+    args = ''
     path = "temp"
     save_path = "c:\\windows\\%s" % path
     psexec = os.path.join(os.path.dirname(__file__), 'contrib', 'psexec.py')
-    cmd_string = "nice python %s -path '%s' '%s':'%s'@'%s' " \
-                 "'c:\\windows\\sysnative\\cmd'"
-    cmd = cmd_string % (psexec, save_path, username, password, host)
-    lines = "put %s %s\n%s\nexit\n" % (filename, path, command)
+    cmd = ("nice python %s -path '%s' '%s':'%s'@'%s' "
+           "'c:\\windows\\sysnative\\cmd'" %
+           (psexec, save_path, username, password, host))
+    if command is None:
+        command = ("c:\\windows\\system32\\windowspowershell\\v1.0\\"
+                   "powershell.exe -ExecutionPolicy Bypass -Command \"%s\\%s\""
+                   " %s;" % (save_path, remote_filename, args))
 
-    LOG.info("Executing powershell command '%s' on %s", filename, host)
     if wait_net_service(host, port, timeout=timeout):
-        return run_command(cmd, lines=lines, timeout=timeout)
+        temp_dir = tempfile.mkdtemp()
+        script_path = None
+        try:
+            script_path = os.path.join(temp_dir, remote_filename)
+            with open(script_path, 'w+b') as script_file:
+                script_file.write(script)
+            lines = "put %s %s\n%s\nexit\n" % (script_path, path, command)
+            LOG.info("Executing powershell command '%s' on %s",
+                     remote_filename, host)
+            result = run_command(cmd, lines=lines, timeout=timeout)
+            os.unlink(script_path)
+            return result
+        finally:
+            if script_path and os.path.exists(script_path):
+                os.unlink(script_path)
+            os.removedirs(temp_dir)
     else:
-        LOG.debug("Timeout executing powershell command '%s' on %s", filename,
-                  host)
+        LOG.debug("Timeout executing powershell command '%s' on %s",
+                  remote_filename, host)
         output = "Port 445 never opened up after %s seconds" % timeout
         status = 1
 
         return (status, output)
+# pylint: enable=R0913,R0914
 
 
 def wait_net_service(server, port, timeout=None):
@@ -81,6 +104,7 @@ def wait_net_service(server, port, timeout=None):
     :return: True of False, if timeout is None may return only True or
              throw unhandled network exception
     """
+    LOG.info("Waiting for %s/%s to respond", server, port)
     sock = socket.socket()
     if timeout:
         # time module is needed to calc timeout shared between two exceptions
@@ -91,17 +115,21 @@ def wait_net_service(server, port, timeout=None):
             if timeout:
                 next_timeout = end - time.time()
                 if next_timeout < 0:
+                    LOG.info("Timeout waiting for %s/%s to respond", server,
+                             port)
                     return False
                 else:
                     sock.settimeout(next_timeout)
 
             sock.connect((server, port))
 
-        except Exception:
+        except StandardError:
             # Handle refused connections, etc.
             if timeout:
                 next_timeout = end - time.time()
                 if next_timeout < 0:
+                    LOG.info("Timeout waiting for %s/%s to respond", server,
+                             port)
                     return False
                 else:
                     sock.settimeout(next_timeout)
@@ -110,6 +138,7 @@ def wait_net_service(server, port, timeout=None):
 
         else:
             sock.close()
+            LOG.info("%s/%s is responding", server, port)
             return True
 
 
@@ -139,6 +168,7 @@ def run_command(cmd, lines=None, timeout=None):
 
         status = proc.wait()
         signal.alarm(0)
+        LOG.info("Script run completed")
     except Alarm:
         LOG.info("Timeout running script")
         status = 1

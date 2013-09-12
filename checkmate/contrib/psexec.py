@@ -18,7 +18,7 @@
 # from https://github.rackspace.com/Servermill/servermill/commit/...
 #      fa07382e69da72625d17e98a209f25aa83ab90ee
 # flake8: noqa
-# pylint: disable=all
+# pylint: disable-all
 # noqa
 # nopep8
 

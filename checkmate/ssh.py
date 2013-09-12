@@ -10,7 +10,7 @@ from celery.task import task
 import paramiko
 
 from checkmate.common import statsd
-from checkmate import powershell
+from checkmate import smb
 from checkmate.utils import match_celery_logging
 
 LOG = logging.getLogger(__name__)
@@ -211,8 +211,8 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
         raise exc
 
 
-def ps_execute(host, command, filename, username, password, port=445,
+def ps_execute(host, script, filename, username, password, port=445,
                timeout=300):
     """Make ps_exec available to be used as an api object in compute."""
-    return powershell.execute(host, command, filename, username, password,
+    return smb.execute_script(host, script, filename, username, password,
                               port=port, timeout=timeout)
