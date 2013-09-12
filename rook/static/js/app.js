@@ -3251,11 +3251,32 @@ function ResourcesController($scope, $resource, $location, Deployment, $http){
       $scope.loading_status['load-balancer'] = true;
       lb_api.query(
         function(results) {
+          var resource_ids = [];
           $scope.resources_by_provider['load-balancer'] = [];
           angular.forEach(results, function(lb){
-            $scope.resources_by_provider['load-balancer'].push({object: lb})
+            $scope.resources_by_provider['load-balancer'].push({object: lb, instance_id: lb.instance.id})
+            resource_ids.push(lb.instance.id);
           });
-          $scope.loading_status['load-balancer'] = false;
+          $scope.get_checkmate_resources(resource_ids, 'load-balancer').then(
+            function(response) {
+              var cm_resources = response.data.results;
+              for (var id in cm_resources) {
+                var resource = cm_resources[id];
+                for (var key in resource) {
+                  var attr = resource[key];
+                  if (typeof(attr) == 'string') continue;
+                  var in_cm_instance_id = attr.instance.id;
+                  var in_rackspace = $scope.resources_by_provider['load-balancer'];
+                  var not_in_checkmate = _.reject(in_rackspace, function(in_rs) { return in_rs.instance_id == in_cm_instance_id });
+                  $scope.resources_by_provider['load-balancer'] = not_in_checkmate;
+                }
+              }
+              $scope.loading_status['load-balancer'] = false;
+            },
+            function(response) {
+              $scope.loading_status['load-balancer'] = false;
+            }
+          );
         },
         function(response) {
           $scope.loading_status['load-balancer'] = false;
