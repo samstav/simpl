@@ -3185,7 +3185,7 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   };
 }
 
-function ResourcesController($scope, $resource, $location, Deployment, $http){
+function ResourcesController($scope, $resource, $location, Deployment, $http, $q){
   $scope.deployment = {};
   $scope.selected_resources = [];
   $scope.resources_by_provider = {};
@@ -3268,31 +3268,39 @@ function ResourcesController($scope, $resource, $location, Deployment, $http){
     };
   }
 
-  var exclude_load_balancers_using_metadata = function() {
+  var exclude_load_balancers_using_metadata = function(all_lbs) {
+    var BATCH_SIZE = 5;
     var start = 0;
-    var batch_size = 5;
+
     var get_batch = function(objects) {
       var batch = [];
-      for (var i=start ; i<objects.length, batch.length < batch_size ; i++) {
+      for (var i=start ; i<objects.length, batch.length < BATCH_SIZE ; i++) {
         var obj = objects[i];
         if (!obj.in_checkmate) batch.push(obj);
       }
-      start += batch_size;
+      start += BATCH_SIZE;
       return batch;
     }
-    var all_lbs = $scope.resources_by_provider['load-balancer'];
+
+    var DELAY = 1500;
     var start_time = 0;
-    var delay = 1500;
+    var promisses = [];
+
     while (true) {
       batch = get_batch(all_lbs);
       if (batch.length == 0) break;
       $timeout(function() {
         // Call server to get load balancers metadata
-        // Get IDs from lbs in checkmate
-        // Use exclude_resources_in_checkmate to remove them from the list
+        // var promise = $http.get(...).then(
+        //   var checkmate_resources = _____;
+        //   exclude_resources_in_checkmate(all_lbs, checkmate_resources);
+        // );
+        // promisses.push(promise);
       }, start_time);
-      start_time += delay;
+      start_time += DELAY;
     }
+
+    return $q.all(promises);
   }
 
   $scope.get_load_balancers = function(){
