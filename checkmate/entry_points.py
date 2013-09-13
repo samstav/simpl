@@ -16,35 +16,41 @@
 from checkmate import checkmate_client
 from checkmate import checkmate_database
 from checkmate import checkmate_queue
-from checkmate import checkmate_simulation
 from checkmate.common import config
-from checkmate import server
+from checkmate.sample import checkmate_simulation
+from checkmate import server as cmserver
 
 
 def preconfigure():
-    config.initialize()
+    """Common configuration to be done before everything else."""
+    config.current().initialize()
 
 
 def client():
+    """Entry point for Checkmate client."""
     preconfigure()
     checkmate_client.main_func()
 
 
 def database():
+    """Entry point for Checkmate database."""
     preconfigure()
     checkmate_database.main_func()
 
 
 def queue():
+    """Entry point for Checkmate queue."""
     preconfigure()
     checkmate_queue.main_func()
 
 
 def server():
+    """Entry point for Checkmate server."""
     preconfigure()
-    server.main()
+    cmserver.main()
 
 
 def simulation():
+    """Entry point for Checkmate simulation."""
     preconfigure()
     checkmate_simulation.main_func()

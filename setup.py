@@ -56,6 +56,7 @@ class Tox(TestCommand):
 
 
 def get_config():
+    """Reads and parses the checkmate.cfg configuation file."""
     import __main__
     pwd = os.path.dirname(__file__)
     configfile = 'checkmate/checkmate.cfg'
