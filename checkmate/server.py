@@ -188,7 +188,6 @@ def error_formatter(error):
 def main():
     """Start the server based on passed in arguments. Called by __main__."""
     global LOG
-    CONFIG.initialize()
     resources = ['version']
     anonymous_paths = ['version']
     if CONFIG.webhook:

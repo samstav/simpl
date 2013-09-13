@@ -77,12 +77,11 @@ setup(
     install_requires=requires,
     entry_points={
         'console_scripts': [
-            'checkmate-server=checkmate.server:main',
-            'checkmate=checkmate.checkmate_client:main_func',
-            'checkmate-queue=checkmate.checkmate_queue:main_func',
-            'checkmate-database=checkmate.checkmate_database:main_func',
-            'checkmate-simulation=checkmate.sample.checkmate_simulation:'
-                'main_func',
+            'checkmate=checkmate.entry_points:client',
+            'checkmate-database=checkmate.entry_points:database',
+            'checkmate-queue=checkmate.entry_points:queue',
+            'checkmate-server=checkmate.entry_points:server',
+            'checkmate-simulation=checkmate.entry_points:simulation',
         ]
     },
     tests_require=['tox'],
