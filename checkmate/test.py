@@ -181,7 +181,7 @@ CATALOG = [
 
 
 def register():
-    """Register Providers"""
+    """Register Providers."""
     register_providers([TestProvider])
 
 
@@ -204,7 +204,7 @@ def run_with_params(args):
 
 
 class StubbedWorkflowBase(unittest.TestCase):
-    """StubbedWorkflowBase"""
+    """StubbedWorkflowBase."""
     def setUp(self):
         self.mox = mox.Mox()
         self.deployment = None
