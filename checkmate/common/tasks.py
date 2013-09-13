@@ -25,7 +25,6 @@ Tasks are wrapped by a base task class we create that will capture exceptions
 and retry the task. That allows the called function to raise exceptions without
 having special logic around celery.
 """
-import os
 from celery import task
 
 from checkmate import celeryglobal as celery  # module to be renamed

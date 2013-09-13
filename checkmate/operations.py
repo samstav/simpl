@@ -14,7 +14,6 @@
 
 """Common code, utilities, and classes for managing the 'operation' object."""
 import logging
-import os
 import time
 
 from celery import task as celtask

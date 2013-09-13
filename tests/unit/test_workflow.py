@@ -17,12 +17,12 @@
 """Tests for Workflow class."""
 import re
 import unittest
-from mock import MagicMock, patch
 
+import mock
 import mox
 from SpiffWorkflow import specs
-from SpiffWorkflow import Task
 from SpiffWorkflow import storage
+from SpiffWorkflow import Task
 from SpiffWorkflow.Workflow import Workflow
 
 from checkmate import deployment as cmdep
@@ -35,7 +35,6 @@ from checkmate import test
 from checkmate import utils
 from checkmate import workflow
 from checkmate import workflow_spec
-from checkmate import workflows
 
 
 class TestWorkflow(unittest.TestCase):
@@ -126,10 +125,10 @@ class TestWorkflow(unittest.TestCase):
         })
 
     def test_reset_task_tree_for_celery_task_with_no_parents(self):
-        task1 = MagicMock(spec=specs.Celery)
-        task1.task_spec = MagicMock(spec=specs.Celery)
-        task1.task_spec._clear_celery_task_data = MagicMock()
-        task1.task_spec._update_state = MagicMock()
+        task1 = mock.MagicMock(spec=specs.Celery)
+        task1.task_spec = mock.MagicMock(spec=specs.Celery)
+        task1.task_spec._clear_celery_task_data = mock.MagicMock()
+        task1.task_spec._update_state = mock.MagicMock()
 
         task1.parent = None
         task1.get_property.return_value = ['root']
@@ -141,13 +140,13 @@ class TestWorkflow(unittest.TestCase):
         self.assertEquals(task1._state, Task.FUTURE)
 
     def test_reset_task_tree_for_celery_task_with_parents(self):
-        task1 = MagicMock()
-        task1.task_spec = MagicMock(spec=specs.Celery)
-        task1.task_spec._clear_celery_task_data = MagicMock()
-        task1.task_spec._update_state = MagicMock()
+        task1 = mock.MagicMock()
+        task1.task_spec = mock.MagicMock(spec=specs.Celery)
+        task1.task_spec._clear_celery_task_data = mock.MagicMock()
+        task1.task_spec._update_state = mock.MagicMock()
 
-        task2 = MagicMock()
-        task2.task_spec = MagicMock()
+        task2 = mock.MagicMock()
+        task2.task_spec = mock.MagicMock()
         task2.get_property.return_value = ['root']
 
         task1.parent = task2
@@ -161,8 +160,6 @@ class TestWorkflow(unittest.TestCase):
 
         self.assertEquals(task1._state, Task.FUTURE)
         self.assertEquals(task2._state, Task.FUTURE)
-
-
 
     def test_convert_exc_to_dict_with_retriable_exception(self):
         info = "CheckmateRetriableException('foo', 'Exception', " \

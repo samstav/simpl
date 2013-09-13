@@ -17,7 +17,6 @@
 
 """Workflows Asynchronous tasks."""
 import logging
-import os
 
 import celery
 from celery import exceptions as celexc

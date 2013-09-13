@@ -17,7 +17,6 @@ Deployments Asynchronous tasks
 """
 
 import logging
-import os
 
 from celery.task import task
 
