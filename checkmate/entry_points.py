@@ -14,6 +14,12 @@
 
 """Things that should happen first (on app entry) go here."""
 
+# start tracer - pylint/flakes friendly
+# NOTE: this will load checklmate which wil monkeypatch if eventlet is
+#       requested. We also load this ASAP so we can trace as much code as
+#       possible. So position is important.  KEEP THIS FIRST
+__import__('checkmate.common.tracer')
+
 
 def preconfigure():
     """Common configuration to be done before everything else."""
