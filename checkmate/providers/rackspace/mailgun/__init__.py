@@ -11,10 +11,12 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-from .manager import Manager
-from .provider import Provider
-from .tasks import (
+"""
+Mailgun init module.
+"""
+from checkmate.providers.rackspace.mailgun.manager import Manager
+from checkmate.providers.rackspace.mailgun.provider import Provider
+from checkmate.providers.rackspace.mailgun.tasks import (
     create_domain,
     delete_domain,
 )

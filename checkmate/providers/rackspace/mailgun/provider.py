@@ -60,8 +60,8 @@ class Provider(rsbase.RackspaceProviderBase):
         and return one.
         '''
 
-        # TODO(any): maybe implement this an on_get_catalog so we don't have to do
-        #        this for every provider
+        # TODO(any): maybe implement this an on_get_catalog so we don't have
+        #            to do this for every provider
         results = base.ProviderBase.get_catalog(self, context,
                                                 type_filter=type_filter)
         if results:

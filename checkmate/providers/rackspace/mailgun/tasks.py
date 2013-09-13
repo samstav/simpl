@@ -28,7 +28,7 @@ from checkmate.providers.rackspace.mailgun import Provider
            provider=Provider)
 @statsd.collect
 def create_domain(context, domain_name, password, api=None, callback=None):
-    '''Task for creating a domain in Mailgun.'''
+    """Task for creating a domain in Mailgun."""
     return Manager.create_domain(domain_name, password, context,
                                  create_domain.api, context.simulation)
 
@@ -37,6 +37,10 @@ def create_domain(context, domain_name, password, api=None, callback=None):
            provider=Provider)
 @statsd.collect
 def delete_domain(context, domain_name, exists, api=None, callback=None):
-    '''Task for deleting a domain in Mailgun.'''
+    """Task for deleting a domain in Mailgun.
+    :params
+        exists: Boolean value from resource, indicating the domain existed
+                when creating.
+    """
     return Manager.delete_domain(domain_name, delete_domain.api, exists,
                                  context.simulation)

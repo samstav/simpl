@@ -88,11 +88,11 @@ class Manager(object):
                 status = 'DELETED'
             except (pyrax.exceptions.DomainDeletionFailed,
                     pyrax.exceptions.ClientException) as exc:
-                if exc.code == '400':
+                if hasattr(exc, 'code') and exc.code == '500':
                     raise
                 else:
                     raise cex.CheckmateResumableException(str(exc),
-                                                          str(exc.details),
+                                                          'Deletion Failed',
                                                           cex.UNEXPECTED_ERROR,
                                                           '')
             except StandardError as exc:

@@ -116,8 +116,8 @@ class Router(object):
             'openstack.compute',  # Rackspace CLoud Server (legacy) library
             'paramiko',  # SSH library
             'pycrypto',  # Cryptography (key generation)
+            'pyrax',  # Python Rackspace Cloud bindings
             'python-novaclient',  # OpenStack Compute client library
-            'python-clouddb',  # Rackspace DBaaS client library
             'pyyaml',  # YAML parser
             'SpiffWorkflow',  # Workflow Engine
             'sqlalchemy',  # ORM

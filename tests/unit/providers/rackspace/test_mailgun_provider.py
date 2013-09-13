@@ -117,19 +117,22 @@ class TestAddResourceTask(unittest.TestCase):
                                            self.wf_spec, self.deployment,
                                            self.context)
         self.assertEqual(expected, results)
-        mock_wf_celery.assert_called_with(self.wf_spec,
-            'Create Relay Domain 1 (smtp)',
+        mock_wf_celery.assert_called_with(
+            self.wf_spec, 'Create Relay Domain 1 (smtp)',
             'checkmate.providers.rackspace.mailgun.tasks.create_domain',
             properties={'estimated_duration': 20},
-            call_args=[{'username': None, 'domain': None, 'resource_key': '1',
+            call_args=[{
+                'username': None, 'domain': None, 'resource_key': '1',
                 'auth_token': None, 'catalog': None, 'is_admin': False,
                 'authenticated': False, 'tenant': None, 'read_only': False,
                 'resource': None, 'show_deleted': False, 'roles': [],
                 'region': None, 'user_tenants': None, 'base_url': None,
                 'simulation': False, 'kwargs': {}, 'auth_source': None,
                 'deployment_id': '12345'}, 'test.local', 'asdfg'],
-            defines={'task_tags': ['create', 'root', 'final'], 'resource': '1',
-                'provider': 'rackspace.mailgun'}
+            defines={
+                'task_tags': ['create', 'root', 'final'], 'resource': '1',
+                'provider': 'rackspace.mailgun'
+            }
         )
 
 
@@ -163,19 +166,22 @@ class TestDeleteResourceTask(unittest.TestCase):
                                               self.deployment_id,
                                               self.resource, self.key)
         self.assertEqual(expected, results)
-        mock_wf_celery.assert_called_with(self.wf_spec,
-            'Delete Relay Domain 1 (smtp)',
+        mock_wf_celery.assert_called_with(
+            self.wf_spec, 'Delete Relay Domain 1 (smtp)',
             'checkmate.providers.rackspace.mailgun.tasks.delete_domain',
             properties={'estimated_duration': 20},
-            call_args=[{'username': None, 'domain': None, 'resource_key': '1',
+            call_args=[{
+                'username': None, 'domain': None, 'resource_key': '1',
                 'auth_token': None, 'catalog': None, 'is_admin': False,
                 'authenticated': False, 'tenant': None, 'read_only': False,
                 'resource': None, 'show_deleted': False, 'roles': [],
                 'region': None, 'user_tenants': None, 'base_url': None,
                 'simulation': False, 'kwargs': {}, 'auth_source': None,
                 'deployment_id': '12345'}, 'testing.local', False],
-            defines={'task_tags': ['delete', 'root', 'final'], 'resource': '1',
-                'provider': 'rackspace.mailgun'}
+            defines={
+                'task_tags': ['delete', 'root', 'final'], 'resource': '1',
+                'provider': 'rackspace.mailgun'
+            }
         )
 
 

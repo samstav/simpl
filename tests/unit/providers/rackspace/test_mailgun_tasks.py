@@ -1,3 +1,4 @@
+# pylint: disable=R0904,C0103
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -199,16 +200,23 @@ class TestDeleteDomain(unittest.TestCase):
     def test_domain_not_found(self, mock_callback):
         """Verifies results when domain not found on delete."""
         self.api.delete.side_effect = pyrax.exceptions.DomainRecordNotFound()
+        expected = {
+            'status': 'DELETED',
+            'interfaces': {},
+            'id': 'testing.local',
+            'name': 'testing.local'
+        }
         results = tasks.delete_domain(self.context, self.domain_name,
                                       False, api=self.api)
         self.assertEqual(results, self.expected)
+        mock_callback.assert_called_with(self.context, expected)
 
     def test_client_exception_400(self):
         """Verifies method calls and exception re-raised with ClientException
         code 400's.
         """
         self.api.delete.side_effect = pyrax.exceptions.ClientException(
-            code='400', message='Testing')
+            code='500', message='Testing')
         self.assertRaisesRegexp(pyrax.exceptions.ClientException, 'Testing',
                                 tasks.delete_domain, self.context,
                                 self.domain_name, False, api=self.api)
@@ -218,7 +226,7 @@ class TestDeleteDomain(unittest.TestCase):
         ClientException with a code not 400.
         """
         self.api.delete.side_effect = pyrax.exceptions.ClientException(
-            code='500', message='Testing')
+            code='400', message='Testing')
         self.assertRaises(exceptions.CheckmateResumableException,
                           tasks.delete_domain, self.context, self.domain_name,
                           False, api=self.api)

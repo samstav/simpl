@@ -12,15 +12,6 @@
 #Upstream: https://github.com/gitpython-developers/GitPython
 -e git://github.com/gitpython-developers/GitPython.git@0b820e617ab21b372394bf12129c30174f57c5d7#egg=GitPython
 
-# python-clouddb
-#   Upstream: https://github.com/slizadel/python-clouddb
-#   Note:     This project is stale but maintained by a Racker. We had an
-#             internal fork but we've pushed everything back upstream.
-#             python-clouddb would end up being ".01", but that is not valid
-#             (with a leading ".") so we exclude it here.
--e git://github.com/slizadel/python-clouddb.git@7bee2642abb5d86c3ff943259b703f21fefbcb3a#egg=python-clouddb
-
-
 #### Packages that we've forked and cannot converge with upstream
 
 # SpiffWorkflow
@@ -30,30 +21,8 @@
 #             compatible with our changes.
 -e git://github.com/checkmate/SpiffWorkflow.git#egg=SpiffWorkflow
 
-# TODO(any): remove as dep is satisfied with pyrax
-# python-novaclient
-#  Upstream: https://github.com/openstack/python-novaclient
-#  Notes:    python-novaclient is actively developed (3-11 commits/week). Our
-#            changes are minimal but are based on a version of
-#            python-novaclient that hasn't been patched in a year. We have
-#            added the following code: https://rax.io/python-novaclient-diff
-#-e git://github.com/checkmate/python-novaclient.git@master#egg=python-novaclient-2012.2
-
-
 ##### Rackspace client packages that have been abandoned because of pyrax. We
 #     have forked and modified these in some way.
-
-# python-clouddns
-#   Upstream: https://github.com/rackerlabs/python-clouddns.
-#   Notes:    Upstream is unmaintained. There are six open pull requests
-#             currently, including two that originated from us.
-#             Version would end up being 0.0.0, which appears to be ignored by
-#             pip/setup.py, so we exclude it here.
--e git://github.com/checkmate/python-clouddns.git#egg=python-clouddns
-
-# python-cloudlb
-#   Upstream: https://github.com/rackerlabs/python-cloudlb
--e git://github.com/rackerlabs/python-cloudlb.git@641e6728d049ad6b823895b2034d9bef6d5416de#egg=python-cloudlb
 
 # python-cloudfiles
 #   Upstream: https://github.com/rackerlabs/python-cloudfiles
@@ -76,7 +45,7 @@
 # Upstream: https://github.com/naterh/pyrax.git
 # Notes: 	This is the initial add for the mailgun module.  This should be
 #			integrated into pyrax shortly and can be removed.
--e git://github.com/naterh/pyrax.git@master#egg=pyrax
+-e git://github.com/naterh/pyrax.git@05a50c21ad219153a0a88ed51d15768622579ca0#egg=pyrax
 
 #### Checkmate applications
 
