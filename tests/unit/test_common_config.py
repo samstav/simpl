@@ -117,6 +117,10 @@ class TestArgParser(unittest.TestCase):
         parsed = config.parse_arguments(['/prog', '10.1.1.1:10000'])
         self.assertEqual(parsed.address, '10.1.1.1:10000')
 
+    def test_allow_extras(self):
+        parsed = config.parse_arguments(['/prog', '-e', '--concurrency'])
+        self.assertFalse(hasattr(parsed, 'concurrency'))
+
 
 class TestEnvParser(unittest.TestCase):
     def test_blank(self):
