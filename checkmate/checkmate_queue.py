@@ -17,13 +17,9 @@ import os
 import subprocess
 import sys
 
-from checkmate.common import config
-CONFIG = config.current()
-
 
 def main_func():
     "Called automatically when this module is loaded."""
-    CONFIG.initialize()
     if len(sys.argv) > 1 and sys.argv[1] == 'START':
         params = []
         if '--newrelic' in sys.argv:
