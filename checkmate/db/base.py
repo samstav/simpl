@@ -24,6 +24,7 @@ TODO:
 import logging
 
 from checkmate import utils
+from checkmate.db import db_lock
 
 LOG = logging.getLogger()
 
@@ -156,18 +157,6 @@ class DbBase(object):  # pylint: disable=R0921
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
         raise NotImplementedError()
 
-    def unlock_workflow(self, api_id, key):
-        raise NotImplementedError()
-
-    def lock_workflow(self, api_id, with_secrets=None, key=None):
-        raise NotImplementedError()
-
-    def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        raise NotImplementedError()
-
-    def unlock_object(self, klass, api_id, key):
-        raise NotImplementedError()
-
     #
     # Data conversion helper
     # TODO(zns): remove this when we're done
@@ -225,10 +214,12 @@ class DbBase(object):  # pylint: disable=R0921
                             del resource[key]
 
     def lock(self, key, timeout):
-        raise NotImplementedError()
+        """Attempt to lock with the provided key."""
+        return db_lock.DbLock(self, key, timeout)
 
     def unlock(self, key):
-        raise NotImplementedError()
+        """Release the lock for the provided key."""
+        return self.release_lock(key)
 
     def acquire_lock(self, key, timeout):
         raise NotImplementedError()

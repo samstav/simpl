@@ -11,11 +11,13 @@ LOG = logging.getLogger(__name__)
 
 """Key management module"""
 
+
 def generate_key_pair(bits=2048):
     """Generates a private/public key pair.
 
     returns them as a private, public tuple of dicts. The dicts have key,
-    and PEM values. The public key also has an ssh value in it"""
+    and PEM values. The public key also has an ssh value in it
+    """
     Random.atfork()
     key = RSA.generate(bits)
     private_string = key.exportKey('PEM')
@@ -27,26 +29,26 @@ def generate_key_pair(bits=2048):
 
 
 def get_ssh_public_key(private_key):
-    """Generates an ssh public key from a private key string"""
+    """Generates an ssh public key from a private key string."""
     key = RSA.importKey(private_key)
     return key.publickey().exportKey('OpenSSH')
 
 
 def get_public_key(private_key):
-    """Generates a PEM public key from a private key string"""
+    """Generates a PEM public key from a private key string."""
     key = RSA.importKey(private_key)
     return key.publickey().exportKey('PEM')
 
 
 def hash_SHA512(value, salt=None):
-    """Create random SHA512 hashed value"""
+    """Create random SHA512 hashed value."""
     if not salt:
         return sha512_crypt.encrypt(value)
     return sha512_crypt.encrypt(value, salt=salt)
 
 
 def hash_MD5(value, salt=None):
-    """Create random MD5 hashed value"""
+    """Create random MD5 hashed value."""
     if not salt:
         return md5_crypt.encrypt(value)
     return md5_crypt.encrypt(value, salt=salt)

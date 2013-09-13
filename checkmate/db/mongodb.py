@@ -31,7 +31,6 @@ from SpiffWorkflow import util as swutil
 
 from checkmate import classes
 from checkmate.db import common
-from checkmate.db import db_lock
 from checkmate import exceptions as cmexc
 from checkmate import utils as cmutils
 
@@ -198,14 +197,6 @@ class Driver(common.DbBase):
         response['blueprints'] = self.get_blueprints()
         response['workflows'] = self.get_workflows()
         return response
-
-    def lock(self, key, timeout):
-        """Attempt to lock with the provided key."""
-        return db_lock.DbLock(self, key, timeout)
-
-    def unlock(self, key):
-        """Release the lock for the provided key."""
-        return self.release_lock(key)
 
     def _find_existing_lock(self, key):
         """Look for lock by provided key."""
@@ -565,181 +556,8 @@ class Driver(common.DbBase):
                                  offset=offset, limit=limit)
 
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
-        projection = {'_lock': 1, '_lock_timestamp': 1}
-        current = self._get_object(self._workflow_collection_name, api_id,
-                                   projection=projection)
-        if current and '_lock' in current:
-            body['_lock'] = current['_lock']
-            body['_lock_timestamp'] = current.get('_lock_timestamp')
         return self._save_object(self._workflow_collection_name, api_id, body,
                                  secrets, tenant_id)
-
-    def lock_workflow(self, api_id, with_secrets=None, key=None):
-        """Attempts to lock a workflow
-
-        :param api_id: the object's API id.
-        :param with_secrets: true if secrets should be merged into the results.
-        :param key: if the object has already been locked, the key used must be
-            passed in
-        :returns (locked_object, key): a tuple of the locked_object and the
-            key that should be used to unlock it.
-        """
-        return self.lock_object(self._workflow_collection_name, api_id,
-                                with_secrets=with_secrets, key=key)
-
-    def unlock_workflow(self, api_id, key):
-        """Attempts to unlock a workflow
-
-        :param api_id: the object's API ID.
-        :param key: the key used to lock the object (see lock_object()).
-        """
-        return self.unlock_object(self._workflow_collection_name, api_id,
-                                  key=key)
-
-    def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        """Attempts to lock an object
-
-        :param klass: the class of the object to unlock.
-        :param api_id: the object's API ID.
-        :param with_secrets: true if secrets should be merged into the results.
-        :param key: if the object has already been locked, the key used must be
-            passed in
-        :returns (locked_object, key): a tuple of the locked_object and the
-            key that should be used to unlock it.
-        """
-        if with_secrets:
-            locked_object, key = self._lock_find_object(klass, api_id, key=key)
-            return self.merge_secrets(klass, api_id, locked_object), key
-        return self._lock_find_object(klass, api_id, key=key)
-
-    def unlock_object(self, klass, api_id, key):
-        """Unlocks a locked object if the key is correct.
-
-        :param klass: the class of the object to unlock.
-        :param api_id: the object's API ID.
-        :param key: the key used to lock the object (see lock_object()).
-        :raises InvalidKeyError: If the unlocked object does not exist or the
-            lock key did not match.
-        """
-        unlocked_object = self.database()[klass].find_and_modify(
-            query={
-                '_id': api_id,
-                '_lock': key
-            },
-            update={
-                '$set': {
-                    '_lock': 0,
-                },
-            },
-            fields=self._object_projection
-        )
-        #remove state added to passed in dict
-        if unlocked_object:
-            return unlocked_object
-        else:
-            raise common.InvalidKeyError("The lock was invalid or the object "
-                                         "%s does not exist." % api_id)
-
-    def _lock_find_object(self, klass, api_id, key=None):
-        """Finds, attempts to lock, and returns an object by id.
-
-        :param klass: the class of the object unlock.
-        :param api_id: the object's API ID.
-        :param key: if the object has already been locked, the key used must be
-            passed in
-        :raises ValueError: if the api_id is of a non-existent object
-        :returns (locked_object, key): a tuple of the locked_object and the
-            key that should be used to unlock it.
-        """
-        assert klass, "klass must not be None."
-        assert api_id, "api_id must not be None"
-
-        lock_timestamp = time.time()
-        if key:
-            # The object has already been locked
-            # TODO(Paul): see if we can merge the existing key logic into below
-            locked_object = self.database()[klass].find_and_modify(
-                query={
-                    '_id': api_id,
-                    '_lock': key
-                },
-                update={
-                    '$set': {
-                        '_lock_timestamp': lock_timestamp
-                    }
-                },
-                fields=self._object_projection,
-                new=True
-            )
-            if locked_object:
-                # The passed in key matched
-                return (locked_object, key)
-            else:
-                raise common.InvalidKeyError("The key:%s could not unlock: "
-                                             "%s(%s)" % (key, klass, api_id))
-
-        # A key was not passed in
-        key = str(uuid.uuid4())
-        lock_update = {
-            '$set': {
-                '_lock': key,
-                '_lock_timestamp': lock_timestamp
-            }
-        }
-
-        locked_object = self.database()[klass].find_and_modify(
-            query={
-                '_id': api_id,
-                '$or': [{'_lock': {'$exists': False}}, {'_lock': 0}]
-            },
-            update=lock_update,
-            fields=self._object_projection
-        )
-        if locked_object:
-            # We were able to lock the object
-            return (locked_object, key)
-
-        else:
-            # Could not get the lock
-            object_exists = self.database()[klass].find_one({'_id': api_id})
-            if object_exists:
-                # Object exists but we were not able to get the lock
-                if '_lock' in object_exists:
-                    lock_time_delta = (lock_timestamp -
-                                       object_exists['_lock_timestamp'])
-
-                    if lock_time_delta >= 5:
-                        # Key is stale, force the lock
-                        LOG.warning("%s(%s) had a stale lock of %s seconds!",
-                                    klass, api_id, lock_time_delta)
-                        locked_object = self.database()[klass] \
-                            .find_and_modify(
-                                query={'_id': api_id},
-                                update=lock_update,
-                                fields=self._object_projection
-                            )
-                        return (locked_object, key)
-                    else:
-                        # Lock is not stale
-                        raise common.ObjectLockedError(
-                            "%s(%s) was already locked!" % (klass, api_id))
-
-                else:
-                    # Object has no _lock field
-                    locked_object = self.database()[klass].find_and_modify(
-                        query={'_id': api_id},
-                        update=lock_update,
-                        fields=self._object_projection,
-                        new=True
-                    )
-                    # Delete instead of projection so that we can
-                    # use existing _save_object
-                    return (locked_object, key)
-
-            else:
-                # New object
-                raise ValueError("Cannot get the object:%s that has never "
-                                 "been saved" % api_id)
 
     def _get_object(self, klass, api_id, with_secrets=None, projection=None):
         """Get an object by klass and api_id.

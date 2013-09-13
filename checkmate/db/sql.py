@@ -421,15 +421,6 @@ class Driver(DbBase):
         """Save a workflow to the database."""
         return self._save_object(Workflow, api_id, body, secrets, tenant_id)
 
-    def unlock_workflow(self, api_id, key):
-        """Remove a lock from a workflow."""
-        return self.unlock_object(Workflow, api_id, key)
-
-    def lock_workflow(self, api_id, with_secrets=None, key=None):
-        """Add a lock to a workflow."""
-        return self.lock_object(Workflow, api_id, with_secrets=with_secrets,
-                                key=key)
-
     # GENERIC
     def _get_object(self, klass, api_id, with_secrets=None):
         """Retrieve a record by id from a given table."""
@@ -643,45 +634,6 @@ class Driver(DbBase):
         self.session.add(entry)
         self.session.commit()
         return body
-
-    def lock_object(self, klass, api_id, with_secrets=None, key=None):
-        """Lock an object in the database, returning the object and key.
-
-        :param klass: the class of the object to lock.
-        :param api_id: the object's API ID.
-        :param with_secrets: true if secrets should be merged into the results.
-        :param key: if the object has already been locked, the key used must be
-            passed in
-        :returns (locked_object, key): a tuple of the locked_object and the
-            key that should be used to unlock it.
-        """
-        if with_secrets:
-            locked_object, key = self._lock_find_object(klass, api_id, key=key)
-            return (self.merge_secrets(klass, api_id, locked_object), key)
-        return self._lock_find_object(klass, api_id, key=key)
-
-    def unlock_object(self, klass, api_id, key):
-        """Unlocks a locked object if the key is correct.
-
-        :param klass: the class of the object to unlock.
-        :param api_id: the object's API ID.
-        :param key: the key used to lock the object (see lock_object()).
-        :raises ValueError: If the unlocked object does not exist or the lock
-            was incorrect.
-        """
-        query = self.session.query(klass).filter_by(
-            id=api_id,
-            lock=key
-        )
-        unlocked_object = query.first()
-        results = query.update({'lock': 0})
-        self.session.commit()
-        #remove state added to passed in dict
-        if results > 0:
-            return unlocked_object.body
-        else:
-            raise InvalidKeyError("The lock was invalid or the object %s does "
-                                  "not exist." % api_id)
 
     def _lock_find_object(self, klass, api_id, key=None):
         """Finds, attempts to lock, and returns an object by id.

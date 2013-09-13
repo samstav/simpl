@@ -44,35 +44,16 @@ class Manager(object):
         return db.get_driver(api_id=api_id).get_workflow(
             api_id, with_secrets=with_secrets)
 
-    def safe_workflow_save(self, obj_id, body, secrets=None, tenant_id=None):
-        """Locks, saves, and unlocks a workflow.
-        TODO: should this be moved to the db layer?
+    def workflow_lock(self, workflow_id):
+        """Returns a lock object for locking the workflow and unlocking it
+        :param workflow_id: workflow id
+        :return: a lock object for locking the workflow and unlocking it
         """
-        driver = db.get_driver(api_id=obj_id)
-        try:
-            _, key = self.lock_workflow(obj_id)
-            results = self.save_workflow(obj_id, body, secrets=secrets,
-                                         tenant_id=tenant_id)
-            driver.unlock_workflow(obj_id, key)
-        except ValueError:
-            #the object has never been saved
-            results = self.save_workflow(obj_id, body, secrets=secrets,
-                                         tenant_id=tenant_id)
-        return results
-
-    @staticmethod
-    def lock_workflow(api_id, with_secrets=None, key=None):
-        """Lock the workflow specified by api_id."""
-        return db.get_driver(api_id=api_id).lock_workflow(
-            api_id, with_secrets=with_secrets, key=key)
-
-    @staticmethod
-    def unlock_workflow(api_id, key):
-        """Unlock the workflow specified by api_id."""
-        return db.get_driver(api_id=api_id).unlock_workflow(api_id, key)
+        lock_key = "async_wf_writer:%s" % workflow_id
+        return db.get_lock_db_driver().lock(lock_key, 5)
 
     def save_spiff_workflow(self, d_wf, **kwargs):
-        '''Serializes a spiff worklfow and save it. Worflow status can be
+        """Serializes a spiff worklfow and save it. Worflow status can be
         overriden by providing a custom value for the 'status' parameter.
 
         :param d_wf: De-serialized workflow
@@ -83,7 +64,7 @@ class Manager(object):
             tasks associated with the workflow.
         :param driver: DB driver
         :return:
-        '''
+        """
         serializer = DictionarySerializer()
         updated = d_wf.serialize(serializer)
         body, secrets = utils.extract_sensitive_data(updated)

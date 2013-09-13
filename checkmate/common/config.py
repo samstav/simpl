@@ -91,6 +91,7 @@ class Config(object):
 
     simulator_connection_string = None
     connection_string = None
+    lock_connection_string = None
     cache_connection_string = None
 
     @property

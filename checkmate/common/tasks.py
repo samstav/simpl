@@ -25,8 +25,6 @@ Tasks are wrapped by a base task class we create that will capture exceptions
 and retry the task. That allows the called function to raise exceptions without
 having special logic around celery.
 """
-import os
-
 from celery import task
 
 from checkmate import celeryglobal as celery  # module to be renamed
@@ -36,9 +34,7 @@ from checkmate import deployment
 from checkmate import operations
 
 
-LOCK_DB = db.get_driver(connection_string=os.environ.get(
-    'CHECKMATE_LOCK_CONNECTION_STRING',
-    os.environ.get('CHECKMATE_CONNECTION_STRING')))
+LOCK_DB = db.get_lock_db_driver()
 
 
 @task.task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,

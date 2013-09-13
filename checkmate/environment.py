@@ -1,7 +1,6 @@
 import eventlet
 import logging
 
-from checkmate import utils
 from checkmate.component import Component
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
@@ -9,11 +8,13 @@ from checkmate.exceptions import (
     CheckmateUserException,
 )
 from checkmate.providers import get_provider_class
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 API_POOL = eventlet.GreenPool()
 
 """Environment"""
+
 
 class Environment(object):
     def __init__(self, environment):
@@ -21,7 +22,8 @@ class Environment(object):
         self.providers = None
 
     def select_provider(self, context, resource=None, interface=None):
-        """ Return a provider for a given resource and (optional) interface """
+        """Return a provider for a given resource and (optional) interface
+        """
         providers = self.get_providers(context)
         for provider in providers.values():
             for entry in provider.provides(context, resource_type=resource,
@@ -36,7 +38,7 @@ class Environment(object):
         return None
 
     def get_providers(self, context):
-        """ Returns provider class instances for this environment """
+        """Returns provider class instances for this environment."""
         if not self.providers:
             self.providers = {}
             providers = self.dict.get('providers') or {}
@@ -50,7 +52,7 @@ class Environment(object):
         return self.providers
 
     def get_provider(self, key):
-        """ Returns provider class instance from this environment """
+        """Returns provider class instance from this environment."""
         if self.providers and key in self.providers:
             return self.providers[key]
 
@@ -58,7 +60,7 @@ class Environment(object):
         if not providers:
             error_message = "Environment does not have providers"
             raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException),BLUEPRINT_ERROR, "")
+                CheckmateException), BLUEPRINT_ERROR, "")
         common = providers.get('common', {})
 
         provider = providers[key]
@@ -66,7 +68,7 @@ class Environment(object):
         if not vendor:
             error_message = "No vendor specified for '%s'" % key
             raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException),BLUEPRINT_ERROR, "")
+                CheckmateException), BLUEPRINT_ERROR, "")
         provider_class = get_provider_class(vendor, key)
         return provider_class(provider, key=key)
 

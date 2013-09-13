@@ -1,11 +1,13 @@
-'''The Resource Class is an extensible dict containing all of the details of
+"""The Resource Class is an extensible dict containing all of the details of
 a deployment's resources
-'''
+"""
 import logging
-from morpheus import MorpheusDict as dict
+
 from morpheus import dict as exceptions
-from simplefsm import SimpleFSM
-from simplefsm.exceptions import InvalidStateError
+from morpheus import MorpheusDict as dict
+import simplefsm
+from simplefsm import exceptions as fsmexc
+
 
 from checkmate.common import schema
 from checkmate.exceptions import CheckmateValidationException
@@ -16,7 +18,7 @@ LOG = logging.getLogger(__name__)
 
 
 def _validate(obj, obj_schema, deprecated_schema=[]):
-    '''Validate Schema'''
+    """Validate Schema."""
     # First check includes deprecated keys
     errors = schema.validate(obj, obj_schema + deprecated_schema)
     if errors:
@@ -29,7 +31,7 @@ def _validate(obj, obj_schema, deprecated_schema=[]):
 
 
 class Resource(dict):
-    '''A Checkmate resource: a deployment can have many resources'''
+    """A Checkmate resource: a deployment can have many resources."""
     SCHEMA = [
         'index', 'name', 'provider', 'relations', 'hosted_on',
         'hosts', 'type', 'component', 'dns-name', 'instance',
@@ -52,7 +54,7 @@ class Resource(dict):
 
     def __init__(self, key, obj):
         obj['status'] = obj.get('status', 'PLANNED')
-        self.fsm = SimpleFSM({
+        self.fsm = simplefsm.SimpleFSM({
             'initial': obj['status'],
             'transitions': self.FSM_TRANSITIONS
         })
@@ -75,7 +77,7 @@ class Resource(dict):
                          self.get('id'), self.get('status'), value)
                 try:
                     self.fsm.change_to(value)
-                except InvalidStateError:
+                except fsmexc.InvalidStateError:
                     # This should raise a CheckmateBadState error with message:
                     #
                     # "Cannot transition from %s to %s" %
@@ -90,13 +92,13 @@ class Resource(dict):
 
     @classmethod
     def validate(cls, obj):
-        '''Validate Resource Schema'''
+        """Validate Resource Schema."""
         _validate(obj, Resource.SCHEMA, Resource.SCHEMA_DEPRECATED)
         if 'desired-state' in obj:
             Resource.DesiredState.validate(obj['desired-state'])
 
     class DesiredState(dict):
-        '''The Desired State section of a Resource'''
+        """The Desired State section of a Resource."""
         __schema__ = [
             'region', 'flavor', 'image', 'disk', 'protocol',
             'port', 'status', 'databases', 'os-type', 'os'

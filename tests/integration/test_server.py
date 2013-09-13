@@ -15,6 +15,7 @@
 
 """Tests for server module."""
 import json
+import mock
 import os
 import sys
 import unittest
@@ -23,13 +24,11 @@ import uuid
 import bottle
 import webtest
 
-from checkmate import db
 from checkmate import deployments
 from checkmate import environments
 from checkmate import middleware as cmmid
 from checkmate import server
 from checkmate import workflows
-from checkmate.workflows import router
 
 
 class TestServer(unittest.TestCase):
@@ -62,7 +61,9 @@ class TestServer(unittest.TestCase):
     def test_multitenant_environment(self):
         self.rest_tenant_exercise('environment')
 
-    def test_multitenant_workflow(self):
+    @mock.patch('checkmate.db.db_lock.DbLock')
+    def test_multitenant_workflow(self, mock_db_lock):
+        mock_db_lock()
         self.rest_tenant_exercise('workflow')
 
     def test_crosstenant_deployment(self):
@@ -71,7 +72,9 @@ class TestServer(unittest.TestCase):
     def test_crosstenant_environment(self):
         self.rest_cross_tenant_exercise('environment')
 
-    def test_crosstenant_workflow(self):
+    @mock.patch('checkmate.db.db_lock.DbLock')
+    def test_crosstenant_workflow(self, mock_db_lock):
+        mock_db_lock()
         self.rest_cross_tenant_exercise('workflow')
 
     #
@@ -194,7 +197,9 @@ class TestServer(unittest.TestCase):
         # TODO(any): make tests clean so we can predict if we get a 200 or 201
         self.assertIn(res.status, ['201 Created', '200 OK'])
 
-    def test_save_workflow(self):
+    @mock.patch('checkmate.db.db_lock.DbLock')
+    def test_save_workflow(self, mock_db_lock):
+        mock_db_lock()
         obj_id = uuid.uuid4().hex
         entity = {"id": obj_id, 'tenantId': 'T1000'}
         res = self.app.post_json('/T1000/workflows/' + obj_id, entity)

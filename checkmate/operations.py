@@ -14,7 +14,6 @@
 
 """Common code, utilities, and classes for managing the 'operation' object."""
 import logging
-import os
 import time
 
 from celery import task as celtask
@@ -31,9 +30,7 @@ from checkmate import utils
 from checkmate import workflow
 
 LOG = logging.getLogger(__name__)
-LOCK_DB = db.get_driver(connection_string=os.environ.get(
-    'CHECKMATE_LOCK_CONNECTION_STRING',
-    os.environ.get('CHECKMATE_CONNECTION_STRING')))
+LOCK_DB = db.get_lock_db_driver()
 
 
 @celtask.task(base=celery.SingleTask, default_retry_delay=2, max_retries=20,

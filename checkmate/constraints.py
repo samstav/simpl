@@ -14,18 +14,14 @@ import logging
 import re
 import sys
 
-from checkmate.exceptions import CheckmateValidationException
+from checkmate import exceptions
 
 
 LOG = logging.getLogger(__name__)
 
 
 class Constraint(object):
-    """
-
-    Base Class for all Constraints
-
-    """
+    """Base Class for all Constraints."""
 
     required_keys = []
     allowed_keys = []
@@ -43,17 +39,20 @@ class Constraint(object):
 
     @classmethod
     def from_constraint(cls, constraint):
-        """Instantiate correct constraint class based on constraint"""
+        """Instantiate correct constraint class based on constraint."""
         for klass in CONSTRAINT_CLASSES:
             if klass.is_syntax_valid(constraint):
                 return klass(constraint)
-        raise CheckmateValidationException("Constraint '%s' is not a "
-                                           "valid constraint" % constraint)
+        raise exceptions.CheckmateValidationException("Constraint '%s' is "
+                                                      "not a valid constraint"
+                                                      % constraint)
 
     def __init__(self, constraint):
         if not self.is_syntax_valid(constraint):
-            raise CheckmateValidationException("Constraint '%s' is not a "
-                                               "valid constraint" % constraint)
+            raise exceptions.CheckmateValidationException("Constraint '%s' is "
+                                                          "not a valid "
+                                                          "constraint" %
+                                                          constraint)
         self.constraint = constraint
 
     def test(self, value):
@@ -61,9 +60,7 @@ class Constraint(object):
 
 
 class RegExConstraint(Constraint):
-    """
-
-    RegEx Constraint
+    """RegEx Constraint
 
     Syntax:
 
@@ -102,9 +99,10 @@ class RegExConstraint(Constraint):
         try:
             self.expression = re.compile(constraint['regex'])
         except re.error:
-            raise CheckmateValidationException("Constraint has an invalid "
-                                               "regular expression: %s" %
-                                               constraint['regex'])
+            raise exceptions.CheckmateValidationException("Constraint has an"
+                                                          " invalid regular "
+                                                          "expression: %s" %
+                                                          constraint['regex'])
         if 'message' in constraint:
             self.message = constraint['message']
 
@@ -113,9 +111,7 @@ class RegExConstraint(Constraint):
 
 
 class ProtocolsConstraint(Constraint):
-    """
-
-    URL Protocols Constraint
+    """URL Protocols Constraint
 
     Syntax:
 
@@ -136,9 +132,12 @@ class ProtocolsConstraint(Constraint):
         Constraint.__init__(self, constraint)
         protocols = constraint['protocols']
         if not isinstance(protocols, list):
-            raise CheckmateValidationException("Protocols constraint does not "
-                                               "have a list of protocols "
-                                               "supplied: %s" % protocols)
+            raise exceptions.CheckmateValidationException("Protocols "
+                                                          "constraint does "
+                                                          "not have a list of "
+                                                          "protocols "
+                                                          "supplied: %s" %
+                                                          protocols)
         self.protocols = protocols
         self.message = constraint.get('message') or "invalid protocol"
 
@@ -152,9 +151,7 @@ class ProtocolsConstraint(Constraint):
 
 
 class InConstraint(Constraint):
-    """
-
-    Constraint to limit to a list
+    """Constraint to limit to a list
 
     Syntax:
 
@@ -180,9 +177,11 @@ class InConstraint(Constraint):
         Constraint.__init__(self, constraint)
         allowed = constraint['in']
         if not isinstance(allowed, list):
-            raise CheckmateValidationException("In constraint does not "
-                                               "have a list of values "
-                                               "supplied: %s" % allowed)
+            raise exceptions.CheckmateValidationException("In constraint "
+                                                          "does not have a "
+                                                          "list of values "
+                                                          "supplied: %s" %
+                                                          allowed)
         self.allowed = allowed
         if 'message' in constraint:
             self.message = constraint['message']
@@ -192,9 +191,7 @@ class InConstraint(Constraint):
 
 
 class SimpleComparisonConstraint(Constraint):
-    """
-
-    Constraint to for simple comparisons: >, <, >=, <=
+    """Constraint to for simple comparisons: >, <, >=, <=
 
     Syntax (one or more of the following):
 

@@ -17,7 +17,6 @@ Deployments Asynchronous tasks
 """
 
 import logging
-import os
 
 from celery.task import task
 
@@ -36,9 +35,7 @@ from checkmate import operations
 
 LOG = logging.getLogger(__name__)
 
-LOCK_DB = db.get_driver(connection_string=os.environ.get(
-    'CHECKMATE_LOCK_CONNECTION_STRING',
-    os.environ.get('CHECKMATE_CONNECTION_STRING')))
+LOCK_DB = db.get_lock_db_driver()
 
 MANAGERS = {'deployments': Manager()}
 
