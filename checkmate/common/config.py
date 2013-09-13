@@ -305,7 +305,9 @@ def parse_arguments(args=None):
         args = sys.argv
     if len(args) > 1 and args[1] == 'START':
         args = args[1:]
-    parsed = parser.parse_args(args[1:])
+    parsed, extras = parser.parse_known_args(args[1:])
+    if extras:
+        LOG.warning("Unrecognized arguments ignored: %s", ' ,'.join(extras))
     return parsed
 
 
