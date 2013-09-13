@@ -24,26 +24,16 @@ all as that breaks reloading.
 
 """
 
-# BEGIN: ignore style guide
-# monkey_patch ASAP if we're using eventlet
-import sys
-try:
-    import eventlet
-    if '--eventlet' in sys.argv:
-        eventlet.monkey_patch(socket=True, thread=True, os=True)
-    else:
-        # Only patch socket so that httplib, urllib type libs are green
-        eventlet.monkey_patch(socket=True)
-except ImportError:
-    pass  # OK if running setup.py or not using eventlet somehow
-
 # start tracer - pylint/flakes friendly
+# NOTE: this will load checklmate which wil monkeypatch if eventlet is
+#       requested. We also load this ASAP so we can trace as much code as
+#       possible. So position is important.  KEEP THIS FIRST
 __import__('checkmate.common.tracer')
-# END: ignore style guide
 
 import json
 import logging
 import os
+import sys
 
 import bottle
 import celery
