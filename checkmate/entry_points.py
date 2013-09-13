@@ -13,44 +13,43 @@
 #    under the License.
 
 """Things that should happen first (on app entry) go here."""
-from checkmate import checkmate_client
-from checkmate import checkmate_database
-from checkmate import checkmate_queue
-from checkmate.common import config
-from checkmate.sample import checkmate_simulation
-from checkmate import server as cmserver
-
 
 def preconfigure():
     """Common configuration to be done before everything else."""
+    from checkmate.common import config
     config.current().initialize()
 
 
 def client():
     """Entry point for Checkmate client."""
     preconfigure()
+    from checkmate import checkmate_client
     checkmate_client.main_func()
 
 
 def database():
     """Entry point for Checkmate database."""
     preconfigure()
+    from checkmate import checkmate_database
     checkmate_database.main_func()
 
 
 def queue():
     """Entry point for Checkmate queue."""
     preconfigure()
+    from checkmate import checkmate_queue
     checkmate_queue.main_func()
 
 
 def server():
     """Entry point for Checkmate server."""
     preconfigure()
+    from checkmate import server as cmserver
     cmserver.main()
 
 
 def simulation():
     """Entry point for Checkmate simulation."""
     preconfigure()
+    from checkmate.sample import checkmate_simulation
     checkmate_simulation.main_func()
