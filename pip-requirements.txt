@@ -24,6 +24,14 @@
 ##### Rackspace client packages that have been abandoned because of pyrax. We
 #     have forked and modified these in some way.
 
+# python-clouddb
+#   Upstream: https://github.com/slizadel/python-clouddb
+#   Note:     This project is stale but maintained by a Racker. We had an
+#             internal fork but we've pushed everything back upstream.
+#             python-clouddb would end up being ".01", but that is not valid
+#             (with a leading ".") so we exclude it here.
+-e git://github.com/slizadel/python-clouddb.git@7bee2642abb5d86c3ff943259b703f21fefbcb3a#egg=python-clouddb
+
 # python-cloudfiles
 #   Upstream: https://github.com/rackerlabs/python-cloudfiles
 #   Notes:    python-cloudfiles is deprecated. The upstream README says that
