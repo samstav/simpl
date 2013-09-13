@@ -22,12 +22,12 @@ import uuid
 import bottle
 
 import SpiffWorkflow as spiff
-from SpiffWorkflow import Task
 from SpiffWorkflow.storage import DictionarySerializer
+from SpiffWorkflow import Task
 
 from checkmate.common import tasks as common_tasks
 from checkmate import db
-from checkmate.deployment import Deployment
+from checkmate import deployment as cmdep
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow as cm_wf
@@ -244,7 +244,7 @@ class Router(object):
         dep_id = workflow["attributes"].get("deploymentId") or api_id
         deployment = self.deployment_manager.get_deployment(
             dep_id, tenant_id=tenant_id)
-        deployment = Deployment(deployment)
+        deployment = cmdep.Deployment(deployment)
         operation = deployment.get("operation")
 
         if (operation and operation.get('action') != 'PAUSE' and
@@ -452,7 +452,8 @@ class Router(object):
 
                 if 'internal_attributes' in entity:
                     if not isinstance(entity['internal_attributes'], dict):
-                        bottle.abort(406, "'internal_attribues' must be a dict")
+                        bottle.abort(406, "'internal_attribues' must be a "
+                                          "dict")
                     task.internal_attributes = entity['internal_attributes']
 
                 if 'state' in entity:

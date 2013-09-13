@@ -45,8 +45,7 @@ class Manager(object):
             api_id, with_secrets=with_secrets)
 
     def workflow_lock(self, workflow_id):
-        """
-        Returns a lock object for locking the workflow and unlocking it
+        """Returns a lock object for locking the workflow and unlocking it
         :param workflow_id: workflow id
         :return: a lock object for locking the workflow and unlocking it
         """
@@ -54,7 +53,7 @@ class Manager(object):
         return db.get_lock_db_driver().lock(lock_key, 5)
 
     def save_spiff_workflow(self, d_wf, **kwargs):
-        '''Serializes a spiff worklfow and save it. Worflow status can be
+        """Serializes a spiff worklfow and save it. Worflow status can be
         overriden by providing a custom value for the 'status' parameter.
 
         :param d_wf: De-serialized workflow
@@ -65,7 +64,7 @@ class Manager(object):
             tasks associated with the workflow.
         :param driver: DB driver
         :return:
-        '''
+        """
         serializer = DictionarySerializer()
         updated = d_wf.serialize(serializer)
         body, secrets = utils.extract_sensitive_data(updated)
