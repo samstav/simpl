@@ -25,10 +25,13 @@ import ConfigParser
 import gettext
 import os
 
+from checkmate.common import config
+
 # This installs the _(...) function as a built-in so all other modules
 # don't need to.
 gettext.install('checkmate')
 
+config.CURRENT_CONFIG.initialize()
 
 configfile = os.path.join(os.path.dirname(__file__), 'checkmate.cfg')
 config = ConfigParser.ConfigParser()
