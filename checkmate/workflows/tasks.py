@@ -33,6 +33,7 @@ from checkmate import db
 from checkmate import deployment as cmdep
 from checkmate import middleware as cmmid
 from checkmate import operations as cmops
+from checkmate import task
 from checkmate import utils
 from checkmate import workflow as cmwf
 from checkmate.workflows import exception_handlers as cmexch
@@ -211,6 +212,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
     """Attempt to complete one task.
     returns True/False indicating if task completed
     """
+    driver = db.get_driver(api_id=workflow_id)
     utils.match_celery_logging(LOG)
     workflow = MANAGERS['workflows'].get_workflow(workflow_id,
                                                   with_secrets=True)
@@ -275,6 +277,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
     :param driver: DB driver
     :return:
     """
+    driver = db.get_driver(api_id=w_id)
     number_of_waiting_celery_tasks = 0
     workflow = driver.get_workflow(w_id,  with_secrets=True)
 
@@ -316,7 +319,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
     for final_task in final_tasks:
         if (isinstance(final_task.task_spec, Celery) and
-                not cmwf.is_failed_task(final_task)):
+                not task.is_failed(final_task)):
             final_task.task_spec._update_state(final_task)
             if final_task._has_state(Task.WAITING):
                 number_of_waiting_celery_tasks += 1

@@ -1,3 +1,4 @@
+# pylint: disable=C0302
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -180,6 +181,7 @@ CATALOG = [
 
 
 def register():
+    """Register Providers."""
     register_providers([TestProvider])
 
 
@@ -202,6 +204,7 @@ def run_with_params(args):
 
 
 class StubbedWorkflowBase(unittest.TestCase):
+    """StubbedWorkflowBase."""
     def setUp(self):
         self.mox = mox.Mox()
         self.deployment = None

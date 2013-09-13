@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,R0904,W0212
+# pylint: disable=C0103,C0302,E1101,R0904,W0212
 
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
