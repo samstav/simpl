@@ -107,7 +107,8 @@ def get_lock_db_driver():
     Get the driver for connecting to the lock db
     :return:
     """
-    return get_driver(connection_string=CONFIG.lock_connection_string)
+    return get_driver(connection_string=os.environ.get(
+        'CHECKMATE_LOCK_CONNECTION_STRING'))
 
 
 def any_id_problems(api_id):

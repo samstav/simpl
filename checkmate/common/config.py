@@ -38,7 +38,6 @@ ENV_MAP = {
     'CHECKMATE_SIMULATOR_CONNECTION_STRING': 'simulator_connection_string',
     'CHECKMATE_CACHE_CONNECTION_STRING': 'cache_connection_string',
     'CHECKMATE_BLUEPRINT_CACHE_EXPIRE': 'blueprint_cache_expiration',
-    'CHECKMATE_LOCK_CONNECTION_STRING': 'lock_connection_string',
 
     # Chef Provider Options
     'CHECKMATE_CHEF_LOCAL_PATH': 'deployments_path',
