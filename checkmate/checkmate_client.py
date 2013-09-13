@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 import os
 
-from checkmate.common import config
-CONFIG = config.current()
-
 print """
 *** Checkmate Command-Line Client Utility ***
 
@@ -20,7 +17,6 @@ Settings:
 
 
 def main_func():
-    CONFIG.initialize()
     for key in os.environ:
         if key.startswith('CHECKMATE_CLIENT'):
             print key, '=', os.environ[key]
