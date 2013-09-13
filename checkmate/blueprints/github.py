@@ -432,11 +432,17 @@ class GitHubManager(object):
         # Scary assumptions here...
         return provider['constraints'][0]['source']
 
-    def _sources_match(self, untrusted, trusted):
+    def _same_source(self, untrusted, trusted):
         """If chef-solo's 'source' is the same in both, return True."""
-        untrusted_p = untrusted['environment']['providers']
+        if not untrusted or not trusted:
+            return False
+        if 'environment' not in trusted:
+            return False
+        if 'environment' not in untrusted:
+            return False
+        untrusted_p = untrusted['environment'].get('providers', {})
         try:  # Something in `trusted` can sometimes be a float?!
-            trusted_p = trusted['environment']['providers']
+            trusted_p = trusted['environment'].get('providers', {})
         except TypeError:  # Because float doesn't have a __getitem__
             LOG.info('X-Source-Untrusted: something in cached blueprint '
                      'should be a dict but is not. Blueprint: %s', trusted)
@@ -464,11 +470,12 @@ class GitHubManager(object):
     def blueprint_is_valid(self, untrusted_blueprint):
         """Returns true if passed-in blueprint passes validation."""
         self._blocking_refresh_if_needed()
-        for _, blueprint in self._blueprints.items():
-            if self._sources_match(untrusted_blueprint, blueprint):
-                untrusted_blueprint['blueprint'] = blueprint['blueprint']
+        for _, trusted_blueprint in self._blueprints.items():
+            if self._same_source(untrusted_blueprint, trusted_blueprint):
+                untrusted_blueprint['blueprint'] = \
+                    trusted_blueprint['blueprint']
                 self._clean_env(untrusted_blueprint['environment'],
-                                blueprint['environment'])
+                                trusted_blueprint['environment'])
                 return True
         return False
 
