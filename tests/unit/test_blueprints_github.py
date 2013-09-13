@@ -18,15 +18,12 @@
 import copy
 import unittest
 
-import mox
-
 from checkmate.blueprints import github
 from checkmate.common import config
 
 
 class TestGitHubManager(unittest.TestCase):
     def setUp(self):
-        self.mox = mox.Mox()
         self.config = config.Config({
             'github_api': 'http://localhost',
             'organization': 'Blueprints',
@@ -34,9 +31,6 @@ class TestGitHubManager(unittest.TestCase):
             'cache_dir': '/tmp',
         })
         self.manager = github.GitHubManager(self.config)
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
 
     def test_same_source(self):
         trusted = {
@@ -85,6 +79,20 @@ class TestGitHubManager(unittest.TestCase):
     def test_same_source_unequal_nulls(self):
         self.assertFalse(self.manager._same_source(None, {}))
         self.assertFalse(self.manager._same_source({}, None))
+
+    def test_same_source_untrusted_no_env(self):
+        trusted = {
+            'environment': {
+                'providers': {
+                    'chef-solo': {
+                        'constraints': [
+                            {'source': 'http://good'}
+                        ]
+                    }
+                }
+            }
+        }
+        self.assertFalse(self.manager._same_source({'blueprint': {}}, trusted))
 
 
 if __name__ == '__main__':

@@ -438,6 +438,8 @@ class GitHubManager(object):
             return False
         if 'environment' not in trusted:
             return False
+        if 'environment' not in untrusted:
+            return False
         untrusted_p = untrusted['environment'].get('providers', {})
         try:  # Something in `trusted` can sometimes be a float?!
             trusted_p = trusted['environment'].get('providers', {})
