@@ -442,6 +442,9 @@ class CustomEventletServer(bottle.ServerAdapter):
             # Fallback, if we have old version of eventlet
             wsgi.server(eventlet.listen((self.host, self.port)), handler)
 
+    def __repr__(self):
+        return self.__class__.__name__
+
 
 class EventletLogFilter(object):
     """Receives eventlet log.write() calls and routes them."""
