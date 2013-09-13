@@ -17,8 +17,6 @@
 
 from checkmate.exceptions import CheckmateRetriableException
 
-
-
 def set_exception(exception, task):
     """Sets an exception info in a task. Used to report errors that occurred
     during workflow run

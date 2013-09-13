@@ -539,7 +539,9 @@ class Router(object):
         :param api_id: checkmate workflow id
         :param task_id: checkmate workflow task id
         """
-
+        context = bottle.request.context
+        if utils.is_simulation(api_id):
+            context.simulation = True
         if utils.is_simulation(api_id):
             bottle.request.context.simulation = True
         try:
@@ -549,6 +551,7 @@ class Router(object):
                     bottle.abort(404, 'No workflow with id %s' % api_id)
                 serializer = DictionarySerializer()
                 wflow = spiff.Workflow.deserialize(serializer, workflow)
+
 
                 task = wflow.get_task(task_id)
                 if not task:
@@ -566,11 +569,11 @@ class Router(object):
 
         driver = db.get_driver(api_id=api_id)
         reset_tree_wf = cm_wf.create_reset_failed_task_wf(wflow, api_id,
-                                          bottle.request.context,
-                                          task, driver=driver)
+                                                          context, task,
+                                                          driver=driver)
         w_id = reset_tree_wf.get_attribute("id")
         cm_wf.add_subworkflow(wflow, w_id, task_id)
-        cycle_workflow.apply_async(args=[w_id, bottle.request.context],
+        cycle_workflow.apply_async(args=[w_id, context],
                                    kwargs={'apply_callbacks': False},
                                    task_id=w_id)
 
