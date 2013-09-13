@@ -16,7 +16,7 @@
 Test coverage for mailgun provider module.
 """
 import mock
-import unittest2 as unittest
+import unittest
 
 from checkmate import middleware
 from checkmate.providers import base
