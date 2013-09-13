@@ -14,6 +14,7 @@
 
 """Things that should happen first (on app entry) go here."""
 
+
 def preconfigure():
     """Common configuration to be done before everything else."""
     from checkmate.common import config
