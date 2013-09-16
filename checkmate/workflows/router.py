@@ -567,23 +567,23 @@ class Router(object):
                                       "task is in '%s'" %
                                       task.get_state_name())
 
-        driver = db.get_driver(api_id=api_id)
-        reset_tree_wf = cm_wf.create_reset_failed_task_wf(wflow, api_id,
-                                                          context, task,
-                                                          driver=driver)
-        w_id = reset_tree_wf.get_attribute("id")
-        cm_wf.add_subworkflow(wflow, w_id, task_id)
-        cycle_workflow.apply_async(args=[w_id, context],
-                                   kwargs={'apply_callbacks': False},
-                                   task_id=w_id)
+                driver = db.get_driver(api_id=api_id)
+                reset_tree_wf = cm_wf.create_reset_failed_task_wf(wflow, api_id,
+                                                                  context, task,
+                                                                  driver=driver)
+                w_id = reset_tree_wf.get_attribute("id")
+                cm_wf.add_subworkflow(wflow, w_id, task_id)
+                cycle_workflow.apply_async(args=[w_id, context],
+                                           kwargs={'apply_callbacks': False},
+                                           task_id=w_id)
 
-        serializer = DictionarySerializer()
-        entity = wflow.serialize(serializer)
-        body, secrets = utils.extract_sensitive_data(entity)
-        body['tenantId'] = workflow.get('tenantId', tenant_id)
-        body['id'] = api_id
-        try:
-            updated = self.manager.save_spiff_workflow(wflow)
+                serializer = DictionarySerializer()
+                entity = wflow.serialize(serializer)
+                body, secrets = utils.extract_sensitive_data(entity)
+                body['tenantId'] = workflow.get('tenantId', tenant_id)
+                body['id'] = api_id
+
+                updated = self.manager.save_spiff_workflow(wflow)
         except db.ObjectLockedError:
             bottle.abort(404, "The workflow is already locked, cannot obtain "
                               "lock.")

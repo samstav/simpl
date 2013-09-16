@@ -47,7 +47,7 @@ class AutomaticResetAndRetryHandler(exception_handler.ExceptionHandler):
         auto_retry_count = task_spec.get_property("auto_retry_count")
 
         if auto_retry_count <= 0:
-            LOG.debug("RetryTaskTreeExceptionHandler will not handle task %s"
+            LOG.debug("AutomaticResetAndRetryHandler will not handle task %s"
                       " in workflow %s, as it has crossed the maximum "
                       "retries permissible %s", self.task_id,
                       self.d_wf.get_attribute('id'),
@@ -58,7 +58,7 @@ class AutomaticResetAndRetryHandler(exception_handler.ExceptionHandler):
                                                         self.task_id)
         if reset_workflow_celery_id and not AsyncResult(
                 reset_workflow_celery_id).ready():
-            LOG.debug("RetryTaskTreeExceptionHandler ignoring the handle "
+            LOG.debug("AutomaticResetAndRetryHandler ignoring the handle "
                       "request for task %s in workflow %s as there is a "
                       "existing workflow in progress", self.task_id,
                       self.d_wf.get_attribute('id'))
