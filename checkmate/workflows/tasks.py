@@ -1,4 +1,4 @@
-# pylint: disable=W0212
+# pylint: disable=W0212,R0914,W0223,W0142,W0613
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -13,9 +13,15 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+"""
 
+Workflows Asynchronous tasks.
 
-"""Workflows Asynchronous tasks."""
+TODO:
+- remove extra pylint disables:
+
+"""
+
 import logging
 
 import celery
@@ -37,7 +43,7 @@ from checkmate import task
 from checkmate import utils
 from checkmate import workflow as cmwf
 from checkmate.workflows import exception_handlers as cmexch
-from manager import Manager
+from checkmate.workflows.manager import Manager
 
 
 LOG = logging.getLogger(__name__)
@@ -47,6 +53,7 @@ LOCK_DB = db.get_lock_db_driver()
 MANAGERS = {'workflows': Manager()}
 
 
+#signature defined by celery - pylint: disable=R0904,R0913
 class WorkflowEventHandlerTask(celeryglobal.SingleTask):
     """"Celery Task Event Handlers for Workflows."""
     abstract = True
@@ -69,7 +76,7 @@ class WorkflowEventHandlerTask(celeryglobal.SingleTask):
     def on_success(self, retval, task_id, args, kwargs):
         if kwargs.get('apply_callbacks'):
             update_deployment.delay(args[0])
-
+#pylint: enable=R0904,R0913
 
 @celtask.task(default_retry_delay=10, max_retries=10, ignore_result=True)
 @statsd.collect
@@ -212,7 +219,6 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
     """Attempt to complete one task.
     returns True/False indicating if task completed
     """
-    driver = db.get_driver(api_id=workflow_id)
     utils.match_celery_logging(LOG)
     workflow = MANAGERS['workflows'].get_workflow(workflow_id,
                                                   with_secrets=True)

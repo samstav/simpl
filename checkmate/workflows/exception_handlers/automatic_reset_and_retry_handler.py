@@ -11,9 +11,10 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-# pylint: disable=R0903
 
-"""Automatic Reset and Retry Handler - Used to reset task tree for failed
+"""Automatic Reset and Retry Handler.
+
+Used to reset task tree for failed
 tasks in the workflow, so that they can be automatically retried in a
 subsequent workflow run
 """
