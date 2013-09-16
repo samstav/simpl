@@ -1,0 +1,17 @@
+<div class='entries'>
+  <div class='row-fluid'>
+    <div class='span6' ng-init="load_resources()">
+      <ng-include src="'/partials/resources/_nova_servers.html'"></ng-include>
+
+      <ng-include src="'/partials/resources/_load_balancers.html'"></ng-include>
+
+      <ng-include src="'/partials/resources/_databases.html'"></ng-include>
+    </div>
+
+
+    <div class='span6 well'>
+      <ng-include src="'/partials/resources/_create_deployment.html'"></ng-include>
+    </div>
+  </div>
+</div>
+
