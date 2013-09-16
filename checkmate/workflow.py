@@ -287,6 +287,72 @@ def get_errors(wf_dict, tenant_id):
     return results
 
 
+def get_exceptions(wf_dict):
+    """Traverses through the workflow-tasks, and collects errors information
+    from all the failed tasks
+    :param wf_dict: The workflow to get the tasks from
+    :return: List of exceptions
+    """
+    exceptions = []
+    tasks = wf_dict.get_tasks()
+
+    while tasks:
+        task = tasks.pop(0)
+        if cmtsk.is_failed(task):
+            task_state = task._get_internal_attribute("task_state")
+            info = task_state.get("info")
+            try:
+                exceptions.append(eval(info))
+            except Exception:
+                pass
+    return exceptions
+
+
+def get_status_info(d_wf, workflow_id):
+    """Update and return status_info."""
+    status_info = {}
+    friendly_messages = []
+    tenant_id = d_wf.get_attribute("tenant_id")
+    exceptions = get_exceptions(d_wf)
+    distinct_exceptions = _get_distinct_exceptions(exceptions)
+
+    for exception in distinct_exceptions:
+        if hasattr(exception, 'friendly_message'):
+            friendly_messages.append("%s. %s\n" %
+                                    (len(friendly_messages) + 1,
+                                     exception.friendly_message))
+
+    if distinct_exceptions:
+        status_message = ''.join(friendly_messages) \
+            if len(distinct_exceptions) == len(friendly_messages) \
+            else 'Multiple errors have occurred. Please contact support'
+        status_info.update({'status-message': status_message})
+
+    if any((hasattr(exc, 'retriable') and exc.retriable) for exc in
+           distinct_exceptions):
+        retry_link = "/%s/workflows/%s/+retry-failed-tasks" % (tenant_id,
+                                                               workflow_id)
+        status_info.update({'retry-link': retry_link, 'retriable': True})
+
+    if any((hasattr(exc, 'resumable') and exc.retriable) for exc in
+           distinct_exceptions):
+        resume_link = "/%s/workflows/%s/+resume-failed-tasks" % (tenant_id,
+                                                                 workflow_id)
+        status_info.update({'resume-link': resume_link, 'resumable': True})
+    return status_info
+
+
+def _get_distinct_exceptions(exceptions):
+    """Eliminate duplicate exceptions."""
+    result = []
+    seen = set()
+    for exception in exceptions:
+        if exception.__repr__() not in seen:
+            seen.add(exception.__repr__())
+            result.append(exception)
+    return result
+
+
 def get_spiff_workflow_status(workflow):
     """Returns the subtree as a string for debugging.
 

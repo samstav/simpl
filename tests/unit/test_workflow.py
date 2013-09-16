@@ -496,6 +496,84 @@ class TestWorkflow(unittest.TestCase):
 
         self.assertDictEqual(actual, expected)
 
+
+class TestGetStatusInfo(unittest.TestCase):
+    def setUp(self):
+        self.d_wf = mock.MagicMock()
+
+    def test_no_errors(self):
+        self.d_wf.get_tasks.return_value = []
+        self.assertDictEqual({}, workflow.get_status_info(self.d_wf, 'wfid'))
+
+    def test_friendly_message_in_one_error(self):
+        task = mock.MagicMock()
+        task._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message', 'Hi!')"
+        }
+        self.d_wf.get_tasks.return_value = [task]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': '1. Hi!\n'}, result)
+
+    def test_no_friendly_message_in_one_error(self):
+        task = mock.MagicMock()
+        task._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "Exception('message')"
+        }
+        self.d_wf.get_tasks.return_value = [task]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': 'Multiple errors have occurred. '
+                          'Please contact support'},
+                         result)
+
+    def test_multiple_errors_with_friendly_messages(self):
+        task_one = mock.MagicMock()
+        task_one._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message1', 'Hi!')"
+        }
+        task_two = mock.MagicMock()
+        task_two._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message2', 'Heya!')"
+        }
+        self.d_wf.get_tasks.return_value = [task_one, task_two]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': '1. Hi!\n2. Heya!\n'}, result)
+
+    def test_duplicate_errors_occurred(self):
+        task_one = mock.MagicMock()
+        task_one._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message1', 'Hi!', 1)"
+        }
+        task_two = mock.MagicMock()
+        task_two._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message1', 'Hi!', 1)"
+        }
+        self.d_wf.get_tasks.return_value = [task_one, task_two]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': '1. Hi!\n'}, result)
+
+    def test_errors_with_and_without_friendly_messages(self):
+        task_one = mock.MagicMock()
+        task_one._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message1', 'Hi!')"
+        }
+        task_two = mock.MagicMock()
+        task_two._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "Exception('message2')"
+        }
+        self.d_wf.get_tasks.return_value = [task_one, task_two]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': 'Multiple errors have occurred. '
+                          'Please contact support'}, result)
+
+
 if __name__ == '__main__':
     import sys
 

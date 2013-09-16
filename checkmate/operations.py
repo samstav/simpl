@@ -177,42 +177,6 @@ def get_operation(deployment, workflow_id):
     return (op_type, op_index, op_details)
 
 
-def get_status_info(errors, tenant_id, workflow_id):
-    """Update and return status_info."""
-    status_info = {}
-    friendly_messages = []
-    distinct_errors = _get_distinct_errors(errors)
-    for error in distinct_errors:
-        if 'friendly-message' in error:
-            friendly_messages.append("%s. %s\n" %
-                                    (len(friendly_messages) + 1,
-                                     error['friendly-message']))
-
-    status_message = ''.join(friendly_messages) \
-        if len(distinct_errors) == len(friendly_messages) \
-        else 'Multiple errors have occurred. Please contact support'
-    status_info.update({'status-message': status_message})
-
-    if any(error.get("retriable", False) for error in distinct_errors):
-        retry_link = "/%s/workflows/%s/+retry-failed-tasks" % (tenant_id,
-                                                               workflow_id)
-        status_info.update({'retry-link': retry_link, 'retriable': True})
-
-    if any(error.get("resumable", False) for error in distinct_errors):
-        resume_link = "/%s/workflows/%s/+resume-failed-tasks" % (tenant_id,
-                                                                 workflow_id)
-        status_info.update({'resume-link': resume_link, 'resumable': True})
-    return status_info
-
-
-def _get_distinct_errors(errors):
-    """Eliminate duplicate errors."""
-    seen = set()
-    seen_add = seen.add
-    return [err for err in errors if err.get('error-type') not in seen and not
-            seen_add(err.get('error-type'))]
-
-
 def init_operation(spiffwf, tenant_id=None):
     """Create a new operation dictionary for a given workflow.
 
