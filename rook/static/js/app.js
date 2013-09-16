@@ -3401,7 +3401,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
 
     deployment.resources = {};
     for (i=0; i<$scope.selected_resources.length; i++){
-      deployment.resources[i] = $scope.selected_resources[i].resource
+      deployment.resources[i] = $scope.selected_resources[i].object
     }
     deployment.blueprint = {
       'services': {},
