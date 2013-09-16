@@ -79,7 +79,6 @@ setup(
     entry_points={
         'console_scripts': [
             'checkmate=checkmate.entry_points:client',
-            'checkmate-database=checkmate.entry_points:database',
             'checkmate-queue=checkmate.entry_points:queue',
             'checkmate-server=checkmate.entry_points:server',
             'checkmate-simulation=checkmate.entry_points:simulation',
