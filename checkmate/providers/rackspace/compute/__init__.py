@@ -444,7 +444,8 @@ class Provider(RackspaceComputeProviderBase):
             password=swops.PathAttrib('instance:%s/password' % key),
             private_key=deployment.settings().get('keys', {}).get(
                 'deployment', {}).get('private_key'),
-            properties={'estimated_duration': 10},
+            properties={'estimated_duration': 10,
+                        'auto_retry_count': 3},
             defines=dict(
                 resource=key,
                 provider=self.key,
@@ -1566,7 +1567,7 @@ def verify_ssh_connection(context, server_id, region, server_ip,
     instance_key = 'instance:%s' % context['resource_key']
 
     if context.get('simulation') is True:
-        return
+       return
 
     if api_object is None:
         api_object = Provider.connect(context, region)
@@ -1576,7 +1577,8 @@ def verify_ssh_connection(context, server_id, region, server_ip,
     except (ncexc.NotFound, ncexc.NoUniqueMatch):
         msg = "No server matching id %s" % server_id
         LOG.error(msg, exc_info=True)
-        raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(message=msg,
+                                       friendly_message=cmexc.UNEXPECTED_ERROR)
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
                api_object.client.management_url)
@@ -1601,8 +1603,20 @@ def verify_ssh_connection(context, server_id, region, server_ip,
         is_up = rdp.test_connection(context, server_ip, timeout=timeout)
 
     if not is_up:
-        # try again in half a second but only wait for another 2 minutes
-        cmdeps.resource_postback.delay(deployment_id, {
-            instance_key: {'status-message': msg}
-        })
-        raise verify_ssh_connection.retry(exc=cmexc.CheckmateException(msg))
+        if (verify_ssh_connection.max_retries ==
+                             verify_ssh_connection.request.retries):
+            exception = cmexc.CheckmateException(
+                message="SSH verification task has failed",
+                friendly_message="Could not verify that SSH connectivity is "
+                                 "working",
+                options=cmexc.CAN_RESET)
+            cmdeps.resource_postback.delay(deployment_id, {
+                instance_key: {'status': 'ERROR',
+                               'status-message': 'SSH verification has failed'}
+            })
+            raise exception
+        else:
+            cmdeps.resource_postback.delay(deployment_id, {
+                instance_key: {'status-message': msg}}
+            )
+            verify_ssh_connection.retry()
