@@ -1,3 +1,4 @@
+# pylint: disable=R0903
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -32,13 +33,7 @@ try:
 except ImportError:
     import PAM as pam
 
-from checkmate.middleware.os_auth import identity
-
-from bottle import abort
-from bottle import get
-from bottle import request
-from bottle import response
-
+import bottle
 import webob
 import webob.dec
 import webob.exc as webexc
@@ -48,6 +43,7 @@ from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import BLUEPRINT_ERROR
 from checkmate.exceptions import CheckmateException
 from checkmate.exceptions import CheckmateUserException
+from checkmate.middleware.os_auth import identity
 from checkmate import utils
 
 
@@ -124,7 +120,7 @@ class TenantMiddleware(object):
                 errors = any_tenant_id_problems(tenant)
                 if errors:
                     return webexc.HTTPNotFound(errors)(environ, start_response)
-                context = request.context
+                context = bottle.request.context
                 rewrite = "/%s" % '/'.join(path_parts[2:])
                 LOG.debug("Rewrite for tenant %s from '%s' to '%s'", tenant,
                           environ['PATH_INFO'], rewrite)
@@ -199,7 +195,7 @@ class PAMAuthMiddleware(object):
         # Authenticate basic auth calls to PAM
         # TODO(any): this header is not being returned in a 401
         start_response = self.start_response_callback(start_response)
-        context = request.context
+        context = bottle.request.context
 
         if 'HTTP_AUTHORIZATION' in environ:
             if getattr(context, 'authenticated', False) is True:
@@ -301,7 +297,7 @@ class TokenAuthMiddleware(object):
         start_response = self.start_response_callback(start_response)
 
         if 'HTTP_X_AUTH_TOKEN' in environ:
-            context = request.context
+            context = bottle.request.context
             if context.authenticated is True:
                 #Auth has been handled by some other middleware
                 pass
@@ -412,7 +408,7 @@ class AuthorizationMiddleware(object):
             # Allow anonymous calls
             return self.app(environ, start_response)
 
-        context = request.context
+        context = bottle.request.context
 
         if context.is_admin is True:
             start_response = self.start_response_callback(start_response)
@@ -499,7 +495,7 @@ class DebugMiddleware(object):
         resp = self.print_generator(self.app(environ, start_response))
 
         LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE HEADERS', ('*' * 20))
-        for (key, value) in response.headers.iteritems():
+        for (key, value) in bottle.response.headers.iteritems():
             LOG.debug('%s = %s', key, value)
         LOG.debug('')
 
@@ -509,7 +505,7 @@ class DebugMiddleware(object):
     def print_generator(app_iter):
         """Iterator that prints the contents of a wrapper string."""
         LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE BODY', ('*' * 20))
-        isimage = response.content_type.startswith("image")
+        isimage = bottle.response.content_type.startswith("image")
         if (isimage):
             LOG.debug("(image)")
         for part in app_iter:
@@ -562,12 +558,18 @@ class RequestContext(object):
                  is_admin=False, read_only=False, show_deleted=False,
                  authenticated=False, catalog=None, user_tenants=None,
                  roles=None, domain=None, auth_source=None, simulation=False,
-                 base_url=None, region=None, resource=None, **kwargs):
+                 base_url=None, region=None, resource=None, user_id=None,
+                 **kwargs):
+        """Initialize context.
+
+        :param user_id: for use by clients that need the user id
+        """
         self.authenticated = authenticated
         self.auth_source = auth_source
         self.auth_token = auth_token
         self.catalog = catalog
         self.username = username
+        self.user_id = user_id
         self.user_tenants = user_tenants  # all allowed tenants
         self.tenant = tenant  # current tenant
         self.is_admin = is_admin
@@ -615,6 +617,10 @@ class RequestContext(object):
         self.username = self.get_username(content)
         self.roles = self.get_roles(content)
         self.authenticated = True
+        try:
+            self.user_id = content['access']['user'].get('id')
+        except KeyError:
+            pass
 
     @staticmethod
     def get_service_catalog(content):
@@ -720,8 +726,8 @@ class ContextMiddleware(object):
                         url += ':' + environ['SERVER_PORT']
 
         # Use a default empty context
-        request.context = RequestContext(base_url=url)
-        LOG.debug("BASE URL IS %s", request.context.base_url)
+        bottle.request.context = RequestContext(base_url=url)
+        LOG.debug("BASE URL IS %s", bottle.request.context.base_url)
         return self.app(environ, start_response)
 
 
@@ -932,13 +938,13 @@ class CatchAll404(object):
         # Keep this at end so it picks up any remaining calls after all other
         # routes have been added (and some routes are added in the __main__
         # code)
-        @get('<path:path>')
+        @bottle.get('<path:path>')
         def extensions(path):  # pylint: disable=W0612
             """Catch-all unmatched paths.
 
             We know we got the request, but didn't match it.
             """
-            abort(404, "Path '%s' not recognized" % path)
+            bottle.abort(404, "Path '%s' not recognized" % path)
 
     def __call__(self, environ, start_response):
         return self.app(environ, start_response)
