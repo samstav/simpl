@@ -369,8 +369,8 @@ class Router(object):
         service_name = body['service_name']
         count = int(body['count'])
         victim_list = []
-        if "victim-list" in body:
-            victim_list = body['victim-list']
+        if "victim_list" in body:
+            victim_list = body['victim_list']
 
         if service_name not in deployment['blueprint']['services']:
             bottle.abort(400, "The specified service does not exist for the "
