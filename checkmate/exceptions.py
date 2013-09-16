@@ -31,10 +31,42 @@ BLUEPRINT_ERROR = ("There is a possible problem in the Blueprint provided - "
 UNEXPECTED_ERROR = ("There was an unexpected error executing your deployment "
                     "- Please contact support")
 
+# options
+CAN_RESUME = 1
+CAN_RETRY = 2
+CAN_RESET = 4
+
 
 class CheckmateException(Exception):
     """Checkmate Error."""
-    pass
+
+    def __init__(self, message=None, friendly_message=None, options=0):
+        """Create Checkmate Exception
+
+        :param friendly_message: a message to bubble up to clients (UI, CLI,
+                etc...)
+        :param options: ...
+        """
+        self.message = message
+        self.friendly_message = friendly_message
+        self.options = options
+        super(CheckmateException, self).__init__(message, friendly_message,
+                                                 options)
+
+    @property
+    def resumable(self):
+        """Detect if exception is resumable."""
+        return self.options & CAN_RESUME
+
+    @property
+    def retriable(self):
+        """Detect if exception is retriable."""
+        return self.options & CAN_RETRY
+
+    @property
+    def resetable(self):
+        """Detect if exception can be retried with a task tree reset."""
+        return self.options & CAN_RESET
 
 
 class CheckmateDatabaseConnectionError(CheckmateException):
@@ -111,49 +143,6 @@ class CheckmateCalledProcessError(CheckmateException):
 class CheckmateServerBuildFailed(CheckmateException):
     """Error Building Server."""
     pass
-
-
-class CheckmateUserException(CheckmateException):
-    """Exception with user friendly messages."""
-    def __init__(self, error_message, error_type, friendly_message,
-                 error_help):
-        self.friendly_message = friendly_message
-        self.error_help = error_help
-        self.error_message = error_message
-        self.error_type = error_type
-        super(CheckmateUserException, self).__init__(self.error_message,
-                                                     self.error_type,
-                                                     self.friendly_message,
-                                                     self.error_help)
-
-
-class CheckmateRetriableException(CheckmateUserException):
-    """Retriable Exception."""
-    def __init__(self, error_message, error_type, friendly_message,
-                 error_help):
-        super(CheckmateRetriableException, self).__init__(error_message,
-                                                          error_type,
-                                                          friendly_message,
-                                                          error_help)
-
-
-class CheckmateResumableException(CheckmateUserException):
-    """Resumable Exception."""
-    def __init__(self, error_message, error_type, friendly_message,
-                 error_help):
-        super(CheckmateResumableException, self).__init__(error_message,
-                                                          error_type,
-                                                          friendly_message,
-                                                          error_help)
-
-
-class CheckmateResourceRollbackException(CheckmateException):
-    """Resumable Exception."""
-    def __init__(self, error_message, inner_exception):
-        self.error_message = error_message
-        self.inner_exception = inner_exception
-        super(CheckmateResourceRollbackException, self).__init__(
-            error_message, inner_exception)
 
 
 class CheckmateValidationException(CheckmateException):

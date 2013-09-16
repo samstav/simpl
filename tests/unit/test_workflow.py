@@ -162,32 +162,14 @@ class TestWorkflow(unittest.TestCase):
         self.assertEquals(task2._state, Task.FUTURE)
 
     def test_convert_exc_to_dict_with_retriable_exception(self):
-        info = "CheckmateRetriableException('foo', 'Exception', " \
-               "'exception_message', 'error-help')"
+        info = "CheckmateException('foo', 'exception_message', 2)"
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {
             "error-message": "foo",
-            "error-help": "error-help",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/tasks/task_id/"
                           "+reset-task-tree",
-            "error-type": "Exception",
-            "task-id": "task_id",
-            "error-traceback": "Traceback",
-            "friendly-message": "exception_message"
-        }
-        self.assertDictEqual(expected_error, error)
-
-    def test_convert_exc_to_dict_with_checkmate_user_exception(self):
-        info = "CheckmateUserException('foo', 'Exception', " \
-               "'exception_message', 'error-help')"
-        error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
-                                             "wf_id", "Traceback")
-        expected_error = {
-            "error-message": "foo",
-            "error-help": "error-help",
-            "error-type": "Exception",
             "task-id": "task_id",
             "error-traceback": "Traceback",
             "friendly-message": "exception_message"
@@ -195,21 +177,24 @@ class TestWorkflow(unittest.TestCase):
         self.assertDictEqual(expected_error, error)
 
     def test_convert_exc_to_dict_with_resumable_exception(self):
-        info = "CheckmateResumableException('foo', 'Exception', " \
-               "'friendly_message', 'error-help')"
+        info = "CheckmateException('foo', 'exception_message', 1)"
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {
             "error-message": "foo",
-            "error-help": "error-help",
-            "resumable": True,
-            "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute",
-            "error-type": "Exception",
             "task-id": "task_id",
             "error-traceback": "Traceback",
-            "friendly-message": 'friendly_message'
+            "friendly-message": "exception_message",
+            "resumable": True,
+            "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute"
         }
         self.assertDictEqual(expected_error, error)
+
+    def test_convert_exc_to_dict_with_resetable_exception(self):
+        info = "CheckmateException('foo', 'exception_message', 4)"
+        error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
+                                             "wf_id", "Traceback")
+        self.assertDictEqual(error, {})
 
     def test_convert_exc_to_dict_with_max_retries_exceeded_error(self):
         info = "MaxRetriesExceededError()"
@@ -222,7 +207,6 @@ class TestWorkflow(unittest.TestCase):
             "error-help": "",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/+execute",
-            "error-type": "MaxRetriesExceededError",
             "friendly-message": 'There was a timeout while executing the '
                                 'deployment'
         }
@@ -233,7 +217,6 @@ class TestWorkflow(unittest.TestCase):
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {"error-message": "This is an exception",
-                          "error-type": "Exception",
                           "error-traceback": "Traceback"}
         self.assertDictEqual(expected_error, error)
 
@@ -309,7 +292,6 @@ class TestWorkflow(unittest.TestCase):
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
         expected_error = {"error-message": "This is an exception",
-                          "error-type": "Exception",
                           "error-traceback": "Traceback"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])

@@ -208,48 +208,44 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
     """
     exc_dict = {}
     exception = eval(info)
-    if type(exception) is CheckmateRetriableException:
-        exc_dict = {
-            "error-type": exception.error_type,
-            "error-message": exception.error_message,
-            "error-help": exception.error_help,
-            "retriable": True,
-            "task-id": task_id,
-            "retry-link": "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
-                tenant_id, workflow_id, task_id),
-            "error-traceback": traceback,
-            "friendly-message": str(exception.friendly_message)
-        }
-    elif type(exception) is CheckmateResumableException:
-        exc_dict = {
-            "error-type": exception.error_type,
-            "error-message": exception.error_message,
-            "error-help": exception.error_help,
-            "resumable": True,
-            "task-id": task_id,
-            "resume-link": "/%s/workflows/%s/tasks/%s/+execute" % (
-                tenant_id,
-                workflow_id,
-                task_id),
-            "error-traceback": traceback,
-            "friendly-message": exception.friendly_message
-        }
-    elif type(exception) is CheckmateUserException:
-        exc_dict = {
-            "error-type": exception.error_type,
-            "error-message": exception.error_message,
-            "error-help": exception.error_help,
-            "task-id": task_id,
-            "error-traceback": traceback,
-            "friendly-message": exception.friendly_message
-        }
+    if type(exception) is CheckmateException:
+        if exception.retriable:
+            exc_dict = {
+                "error-message": exception.message,
+                "retriable": True,
+                "task-id": task_id,
+                "retry-link": "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
+                    tenant_id, workflow_id, task_id),
+                "error-traceback": traceback,
+                "friendly-message": exception.friendly_message
+            }
+        elif exception.resumable:
+            exc_dict = {
+                "error-message": exception.message,
+                "resumable": True,
+                "task-id": task_id,
+                "resume-link": "/%s/workflows/%s/tasks/%s/+execute" % (
+                    tenant_id,
+                    workflow_id,
+                    task_id),
+                "error-traceback": traceback,
+                "friendly-message": exception.friendly_message
+            }
+        elif exception.resetable:
+            pass
+        else:
+            exc_dict = {
+                "error-message": exception.message,
+                "task-id": task_id,
+                "error-traceback": traceback,
+                "friendly-message": exception.friendly_message
+            }
     elif type(exception) is MaxRetriesExceededError:
         exc_dict = {
             "error-message": "The maximum amount of permissible retries for "
                              "workflow %s has elapsed. Please re-execute the"
                              " workflow" % workflow_id,
             "error-help": "",
-            "error-type": "MaxRetriesExceededError",
             "retriable": True,
             "retry-link": "/%s/workflows/%s/+execute" % (
                 tenant_id, workflow_id),
@@ -258,7 +254,6 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
         }
     elif isinstance(exception, Exception):
         exc_dict = {
-            "error-type": utils.get_class_name(exception),
             "error-message": str(exception),
             "error-traceback": traceback
         }
