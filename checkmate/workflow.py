@@ -13,9 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-'''
-Workflow Class and Helper Functions
-'''
+"""Workflow Class and Helper Functions"""
 import copy
 import logging
 import uuid
@@ -44,7 +42,7 @@ LOG = logging.getLogger(__name__)
 
 def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
                     wf_type="BUILD"):
-    '''Creates a workflow for the passed in spec and deployment
+    """Creates a workflow for the passed in spec and deployment
 
     :param spec: WorkflowSpec to use for creating the workflow
     :param deployment: deployment to create the workflow for
@@ -53,7 +51,7 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
     :param workflow_id: id of the workflow to be created
     :param wf_type: type of the workflow to be created
     :return:
-    '''
+    """
     if not workflow_id:
         workflow_id = utils.get_id(context["simulation"])
     spiff_wf = init_spiff_workflow(spec, deployment, context, workflow_id,
@@ -68,10 +66,10 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
 
 
 def get_errored_tasks(d_wf):
-    '''Gets the number of tasks in error for a workflow
+    """Gets the number of tasks in error for a workflow
     :param d_wf: spiff workflow to get the errors from
     :return: number of tasks in error
-    '''
+    """
     failed_tasks = []
     tasks = d_wf.get_tasks()
     while tasks:
@@ -82,11 +80,11 @@ def get_errored_tasks(d_wf):
 
 
 def update_workflow_status(workflow):
-    '''Update the status, total, completed and errored tasks in a workflow
+    """Update the status, total, completed and errored tasks in a workflow
 
     :param workflow: workflow to be updated
     :return:
-    '''
+    """
     errored_tasks = get_errored_tasks(workflow)
 
     workflow_state = {
@@ -258,11 +256,11 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
 
 
 def get_errors(wf_dict, tenant_id):
-    '''Traverses through the workflow-tasks, and collects errors information
+    """Traverses through the workflow-tasks, and collects errors information
     from all the failed tasks
     :param wf_dict: The workflow to get the tasks from
     :return: List of error information
-    '''
+    """
     results = []
     tasks = wf_dict.get_tasks()
     workflow_id = wf_dict.get_attribute('id')
