@@ -23,6 +23,7 @@ import shlex
 import signal
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -62,9 +63,9 @@ def execute_script(host, script, remote_filename, username, password,
     path = "temp"
     save_path = "c:\\windows\\%s" % path
     psexec = os.path.join(os.path.dirname(__file__), 'contrib', 'psexec.py')
-    cmd = ("nice python %s -path '%s' '%s':'%s'@'%s' "
+    cmd = ("nice %s %s -path '%s' '%s':'%s'@'%s' "
            "'c:\\windows\\sysnative\\cmd'" %
-           (psexec, save_path, username, password, host))
+           (sys.executable, psexec, save_path, username, password, host))
     if command is None:
         command = ("c:\\windows\\system32\\windowspowershell\\v1.0\\"
                    "powershell.exe -ExecutionPolicy Bypass -Command \"%s\\%s\""
@@ -155,7 +156,8 @@ def run_command(cmd, lines=None, timeout=None):
                             close_fds=True,
                             stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT)
+                            stderr=subprocess.STDOUT,
+                            env=os.environ.copy())
 
     signal.signal(signal.SIGALRM, alarm_handler)
     if timeout:
