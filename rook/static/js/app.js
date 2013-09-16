@@ -117,7 +117,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/404.html'
   }).when('/:tenantId/resources', {
     controller: ResourcesController,
-    templateUrl: '/partials/resources.html'
+    templateUrl: '/partials/resources/index.html'
   }).otherwise({
     controller: StaticController,
     templateUrl: '/partials/404.html'
@@ -3185,40 +3185,41 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   };
 }
 
-function ResourcesController($scope, $resource, $location, Deployment){
+function ResourcesController($scope, $resource, $location, Deployment, $http, $q){
+  $scope.deployment = {};
   $scope.selected_resources = [];
   $scope.resources_by_provider = {};
-  $scope.resources_by_provider.nova = [];
-  $scope.resources_by_provider.database = [];
-  $scope.resources_by_provider['load-balancer'] = [];
-
-  $scope.add_to_deployment = function(resource){
-    $scope.selected_resources.push(resource);
-    $scope.resources_by_provider[resource.provider].splice($scope.resources_by_provider[resource.provider].indexOf(resource), 1);
+  $scope.error_msgs = {};
+  $scope.loading_status = {
+    nova: false,
+    'load-balancer': false,
+    database: false
   };
 
-  $scope.remove_from_deployment = function(resource){
-    $scope.resources_by_provider[resource.provider].push(resource);
-    $scope.selected_resources.splice($scope.selected_resources.indexOf(resource), 1);
+  $scope.add_to_deployment = function(decorated_resource){
+    var resource_list = $scope.resources_by_provider[decorated_resource.object.provider];
+    $scope.selected_resources.push(decorated_resource);
+    resource_list.splice(resource_list.indexOf(decorated_resource), 1);
   };
 
-  $scope.get_load_balancers = function(){
+  $scope.remove_from_deployment = function(decorated_resource){
+    $scope.resources_by_provider[decorated_resource.object.provider].push(decorated_resource);
+    $scope.selected_resources.splice($scope.selected_resources.indexOf(decorated_resource), 1);
+  };
+
+  $scope.get_checkmate_resources = function(instance_ids, provider, type){
     var tenant_id = $scope.auth.context.tenantId;
-    if ($scope.auth.identity.loggedIn && tenant_id){
-      var url = '/:tenantId/providers/rackspace.load-balancer/resources';
-      var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      lb_api.query(function(results) {
-        $scope.resources_by_provider['load-balancer'] = results;
-        if(results.length === 0){
-          $scope.no_lbs = true;
-        }
-        $scope.lbs_loaded = true;
-      },
-      function(response) {
-        $scope.lbs_error = "Error loading load balancer list";
-        $scope.lbs_loaded = true;
-      });
-    }
+    var url = '/'+tenant_id+'/resources';
+    var params = {};
+    if (instance_ids)
+      params.id = instance_ids
+    if (provider)
+      params.provider = provider
+    if (type)
+      params.type = type
+
+    var config = { params: params };
+    return $http.get(url, config);
   };
 
   $scope.get_servers = function(){
@@ -3226,17 +3227,113 @@ function ResourcesController($scope, $resource, $location, Deployment){
     if ($scope.auth.identity.loggedIn && tenant_id){
       var url = '/:tenantId/providers/rackspace.nova/resources';
       var server_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      server_api.query(function(results) {
-        $scope.resources_by_provider.nova = results;
-        if(results.length === 0){
-          $scope.no_servers = true;
+      $scope.loading_status.nova = true;
+      server_api.query(
+        function(response) {
+          $scope.resources_by_provider.nova = [];
+          angular.forEach(response, function(server){
+            $scope.resources_by_provider.nova.push({object: server})
+          });
+          $scope.loading_status.nova = false;
+        },
+        function(response) {
+          $scope.error_msgs.nova = "Error loading server list";
+          $scope.loading_status.nova = false;
         }
-        $scope.servers_loaded = true;
-      },
-      function(response) {
-        $scope.servers_error = "Error loading server list";
-        $scope.servers_loaded = true;
-      });
+      );
+    }
+  };
+
+  var exclude_resources_in_checkmate = function(all_resources, checkmate_resources) {
+    var not_in_checkmate;
+    for (var id in checkmate_resources) {
+      var checkmate_resource = checkmate_resources[id];
+      for (var key in checkmate_resource) {
+        var attr = checkmate_resource[key];
+        if (typeof(attr) == 'string') continue;
+        var existing_id = attr.instance.id;
+        angular.forEach(all_resources, function(resource) {
+          if (resource.instance_id == existing_id)
+            resource.in_checkmate = true;
+        });
+      }
+    }
+  }
+
+  var decorate_resource = function(resource) {
+    return {
+      object: resource,
+      instance_id: resource.instance.id,
+      in_checkmate: false
+    };
+  }
+
+  var exclude_load_balancers_using_metadata = function(all_lbs) {
+    var BATCH_SIZE = 5;
+    var start = 0;
+
+    var get_batch = function(objects) {
+      var batch = [];
+      for (var i=start ; i<objects.length, batch.length < BATCH_SIZE ; i++) {
+        var obj = objects[i];
+        if (!obj.in_checkmate) batch.push(obj);
+      }
+      start += BATCH_SIZE;
+      return batch;
+    }
+
+    var DELAY = 1500;
+    var start_time = 0;
+    var promisses = [];
+
+    while (true) {
+      batch = get_batch(all_lbs);
+      if (batch.length == 0) break;
+      $timeout(function() {
+        // Call server to get load balancers metadata
+        // var promise = $http.get(...).then(
+        //   var checkmate_resources = _____;
+        //   exclude_resources_in_checkmate(all_lbs, checkmate_resources);
+        // );
+        // promisses.push(promise);
+      }, start_time);
+      start_time += DELAY;
+    }
+
+    return $q.all(promises);
+  }
+
+  $scope.get_load_balancers = function(){
+    var tenant_id = $scope.auth.context.tenantId;
+    if ($scope.auth.identity.loggedIn && tenant_id){
+      var url = '/:tenantId/providers/rackspace.load-balancer/resources';
+      var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+      $scope.loading_status['load-balancer'] = true;
+      lb_api.query(
+        function(results) {
+          var resource_ids = [];
+          $scope.resources_by_provider['load-balancer'] = [];
+          angular.forEach(results, function(lb){
+            $scope.resources_by_provider['load-balancer'].push(decorate_resource(lb));
+            resource_ids.push(lb.instance.id);
+          });
+          $scope.get_checkmate_resources(resource_ids, 'load-balancer').then(
+            function(response) {
+              var cm_resources = response.data.results;
+              var all_resources = $scope.resources_by_provider['load-balancer'];
+              exclude_resources_in_checkmate(all_resources, cm_resources);
+              $scope.loading_status['load-balancer'] = false;
+            },
+            function(response) {
+              $scope.loading_status['load-balancer'] = false;
+            }
+          );
+        },
+        function(response) {
+          $scope.loading_status['load-balancer'] = false;
+          $scope.error_msgs['load-balancer'] = "Error loading load balancer list";
+        }
+      );
     }
   };
 
@@ -3245,17 +3342,32 @@ function ResourcesController($scope, $resource, $location, Deployment){
     if ($scope.auth.identity.loggedIn && tenant_id){
       var url = '/:tenantId/providers/rackspace.database/resources';
       var db_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      var results = db_api.query(function() {
-        $scope.resources_by_provider.database = results;
-        if(results.length === 0){
-          $scope.no_dbs = true;
+      $scope.loading_status.database = true;
+      var results = db_api.query(
+        function() {
+          $scope.resources_by_provider.database = [];
+          var resource_ids = [];
+          angular.forEach(results, function(db){
+            $scope.resources_by_provider.database.push(decorate_resource(db));
+            resource_ids.push(db.instance.id);
+          });
+          $scope.get_checkmate_resources(resource_ids, 'database').then(
+            function(response) {
+              var cm_resources = response.data.results;
+              var all_resources = $scope.resources_by_provider.database;
+              exclude_resources_in_checkmate(all_resources, cm_resources);
+              $scope.loading_status.database = false;
+            },
+            function(response) {
+              $scope.loading_status.database = false;
+            }
+          );
+        },
+        function(response) {
+          $scope.error_msgs.database = "Error loading database list";
+          $scope.loading_status.database = false;
         }
-        $scope.dbs_loaded = true;
-      },
-      function(response) {
-        $scope.dbs_error = "Error loading database list";
-        $scope.dbs_loaded = true;
-      });
+      );
     }
   };
 
@@ -3270,8 +3382,6 @@ function ResourcesController($scope, $resource, $location, Deployment){
     DeploymentResource = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id}, {'save': {method:'PUT'}});
     return new DeploymentResource({});
   }
-
-  $scope.deployment = {};
 
   $scope.sync_success = function(returned, getHeaders){
     if (returned !== undefined)
@@ -3291,7 +3401,7 @@ function ResourcesController($scope, $resource, $location, Deployment){
 
     deployment.resources = {};
     for (i=0; i<$scope.selected_resources.length; i++){
-      deployment.resources[i] = $scope.selected_resources[i]
+      deployment.resources[i] = $scope.selected_resources[i].resource
     }
     deployment.blueprint = {
       'services': {},
