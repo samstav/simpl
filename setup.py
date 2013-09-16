@@ -31,14 +31,14 @@ from setuptools.command.test import test as TestCommand
 from checkmate.common import setup as setup_tools
 
 
-requires = setup_tools.parse_requirements()
+REQUIRES = setup_tools.parse_requirements()
 if 'develop' in sys.argv:
     print ("We are assuming that since you're developing you have the\n"
            "dependency repos set up for development as well. If not,\n"
            "run 'pip install -r pip-requirements.txt' to install them")
-    dependency_links = []
+    DEPENDENCYLINKS = []
 else:
-    dependency_links = setup_tools.parse_dependency_links()
+    DEPENDENCYLINKS = setup_tools.parse_dependency_links()
 
 
 class Tox(TestCommand):
@@ -74,12 +74,11 @@ setup(
     version=get_config().get("checkmate", "version"),
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
-    dependency_links=dependency_links,
-    install_requires=requires,
+    dependency_links=DEPENDENCYLINKS,
+    install_requires=REQUIRES,
     entry_points={
         'console_scripts': [
             'checkmate=checkmate.entry_points:client',
-            'checkmate-database=checkmate.entry_points:database',
             'checkmate-queue=checkmate.entry_points:queue',
             'checkmate-server=checkmate.entry_points:server',
             'checkmate-simulation=checkmate.entry_points:simulation',

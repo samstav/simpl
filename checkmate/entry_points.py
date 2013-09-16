@@ -34,13 +34,6 @@ def client():
     checkmate_client.main_func()
 
 
-def database():
-    """Entry point for Checkmate database."""
-    preconfigure()
-    from checkmate import checkmate_database
-    checkmate_database.main_func()
-
-
 def queue():
     """Entry point for Checkmate queue."""
     preconfigure()
