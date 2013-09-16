@@ -173,7 +173,7 @@ INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
 
 RESOURCE_TYPES = [
     'compute', 'database', 'wordpress', 'php5', 'load-balancer',
-    'endpoint', 'host', 'application',
+    'endpoint', 'host', 'application', 'mail-relay',
     'widget', 'gadget',  # last two for testing
 ]
 

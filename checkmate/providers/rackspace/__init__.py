@@ -46,4 +46,5 @@ def register():
     from checkmate.providers.rackspace.files import Provider as files
     from checkmate.providers.rackspace.loadbalancer import (
         Provider as loadbalancer)
-    rps([legacy, nova, loadbalancer, database, dns, files])
+    from checkmate.providers.rackspace.mailgun import Provider as mg
+    rps([legacy, nova, loadbalancer, database, dns, files, mg])
