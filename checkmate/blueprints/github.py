@@ -280,7 +280,7 @@ class GitHubManager(object):
                 cache = REDIS['blueprint_cache']
                 data = json.loads(cache)
                 timestamp = data.pop('timestamp', None)
-                self._blueprints = json.loads(cache)  # make available to calls
+                self._blueprints = data  # make available to calls
                 if timestamp:
                     self.last_refresh = timestamp
                     expire = (timestamp + DEFAULT_CACHE_TIMEOUT) - time.time()
@@ -470,13 +470,18 @@ class GitHubManager(object):
     def blueprint_is_valid(self, untrusted_blueprint):
         """Returns true if passed-in blueprint passes validation."""
         self._blocking_refresh_if_needed()
-        for _, trusted_blueprint in self._blueprints.items():
-            if self._same_source(untrusted_blueprint, trusted_blueprint):
-                untrusted_blueprint['blueprint'] = \
-                    trusted_blueprint['blueprint']
-                self._clean_env(untrusted_blueprint['environment'],
-                                trusted_blueprint['environment'])
-                return True
+        for key, trusted_blueprint in self._blueprints.iteritems():
+            try:
+                if self._same_source(untrusted_blueprint, trusted_blueprint):
+                    untrusted_blueprint['blueprint'] = \
+                        trusted_blueprint['blueprint']
+                    self._clean_env(untrusted_blueprint['environment'],
+                                    trusted_blueprint['environment'])
+                    return True
+            except StandardError:
+                LOG.error("Error processing blueprint: %s", key,
+                          extra={'data': trusted_blueprint})
+                continue
         return False
 
     def _get_repo(self, repo_name):
