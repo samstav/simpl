@@ -354,23 +354,22 @@ class Router(object):
         context = bottle.request.context
         if utils.is_simulation(api_id):
             context.simulation = True
-        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
-                                                 with_secrets=True)
-        if not deployment:
+        deployment_info = self.manager.get_deployment(api_id,
+                                                      tenant_id=tenant_id,
+                                                      with_secrets=True)
+        if not deployment_info:
             raise exceptions.CheckmateDoesNotExist(
                 "No deployment with id %s" % api_id)
-        deployment = cmdeploy.Deployment(deployment)
+        deployment = cmdeploy.Deployment(deployment_info)
         body = utils.read_body(bottle.request)
 
         if not 'service_name' in body or not 'count' in body:
             bottle.abort(400, "Invalid input, service_name and count is not "
                               "provided in the request body")
 
-        service_name = body['service_name']
-        count = int(body['count'])
-        victim_list = []
-        if "victim_list" in body:
-            victim_list = body['victim_list']
+        service_name = body.get('service_name')
+        count = int(body.get('count', 0))
+        victim_list = body.get('victim_list', [])
 
         if service_name not in deployment['blueprint']['services']:
             bottle.abort(400, "The specified service does not exist for the "
