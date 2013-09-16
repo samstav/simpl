@@ -41,9 +41,7 @@ def workspace_root_path():
     root = CONFIG.deployments_path
     if not os.path.exists(root):
         msg = "Invalid workspace root path: %s" % root
-        raise exceptions.CheckmateUserException(
-            msg, utils.get_class_name(exceptions.CheckmateException),
-            exceptions.UNEXPECTED_ERROR, '')
+        raise exceptions.CheckmateException(msg, exceptions.UNEXPECTED_ERROR)
     return root
 
 
@@ -70,11 +68,8 @@ def get_workspace(deployment_id):
                      "%s", fullpath, exc_info=True)
         else:
             msg = "Could not create workspace %s" % fullpath
-            raise exceptions.CheckmateUserException(
-                msg,
-                utils.get_class_name(exceptions.CheckmateException),
-                exceptions.UNEXPECTED_ERROR,
-                '')
+            raise exceptions.CheckmateException(msg,
+                                                exceptions.UNEXPECTED_ERROR)
     return fullpath
 
 
@@ -143,11 +138,8 @@ def cache_blueprint(source_repo):
         except subprocess.CalledProcessError as exc:
             error_message = ("Git repository could not be cloned from '%s'.  "
                              "The error returned was '%s'")
-            raise exceptions.CheckmateUserException(
-                error_message,
-                utils.get_class_name(exc),
-                exceptions.UNEXPECTED_ERROR,
-                '')
+            raise exceptions.CheckmateException(error_message,
+                                                exceptions.UNEXPECTED_ERROR)
         tags = utils.git_tags(repo_cache)
         if branch in tags:
             tag = branch
@@ -175,11 +167,8 @@ def download_blueprint(destination, source_repo):
     repo_cache = get_blueprints_cache_path(source_repo)
     if not os.path.exists(repo_cache):
         message = "No blueprint repository found in %s" % repo_cache
-        raise exceptions.CheckmateUserException(
-            message,
-            utils.get_class_name(exceptions.CheckmateException),
-            exceptions.UNEXPECTED_ERROR,
-            '')
+        raise exceptions.CheckmateException(message,
+                                            exceptions.UNEXPECTED_ERROR)
     LOG.debug("repo_cache: %s", repo_cache)
     LOG.debug("destination: %s", destination)
     if not blueprint_exists(repo_cache, destination):

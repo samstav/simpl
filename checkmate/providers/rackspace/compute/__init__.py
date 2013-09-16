@@ -229,8 +229,7 @@ class Provider(RackspaceComputeProviderBase):
                                         provider_key=self.key)
         if not region:
             message = "Could not identify which region to create servers in"
-            raise cmexc.CheckmateUserException(message, utils.get_class_name(
-                cmexc.CheckmateException), cmexc.BLUEPRINT_ERROR, '')
+            raise cmexc.CheckmateException(message, cmexc.BLUEPRINT_ERROR)
         local_context = copy.deepcopy(context)
         local_context['region'] = region
 
@@ -812,15 +811,12 @@ class AuthPlugin(object):
         """Respond to novaclient authenticate call."""
         if self.done:
             LOG.debug("Called a second time from Nova. Assuming token expired")
-            raise cmexc.CheckmateResumableException(
+            raise cmexc.CheckmateException(
                 "Auth Token expired",
-                "CheckmateResumableException",
                 "Your authentication token expired before work on your "
                 "deployment was completed. To resume that work, you just need "
                 "to 'retry' the operation to supply a fresh token that we can "
-                "use to continue working with",
-                ''
-            )
+                "use to continue working with", cmexc.CAN_RESUME)
         else:
             LOG.debug("Nova client called authenticate from plugin")
             novaclient.auth_token = self.token
@@ -1111,13 +1107,12 @@ def create_server(context, name, region, api_object=None, flavor="2",
                                            meta=meta, files=files,
                                            disk_config='AUTO')
     except ncexc.OverLimit as exc:
-        raise cmexc.CheckmateRetriableException(
+        raise cmexc.CheckmateException(
             str(exc),
-            utils.get_class_name(exc),
             "You have reached the maximum number of servers that can be spun "
             "up using this account. Please delete some servers to continue "
             "or contact your support team to increase your limit",
-            ""
+            cmexc.CAN_RETRY
         )
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
@@ -1448,11 +1443,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     except (ncexc.NotFound, ncexc.NoUniqueMatch):
         msg = "No server matching id %s" % server_id
         LOG.error(msg, exc_info=True)
-        raise cmexc.CheckmateUserException(
-            msg,
-            utils.get_class_name(cmexc.CheckmateException),
-            cmexc.UNEXPECTED_ERROR, ''
-        )
+        raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
                api_object.client.management_url)
@@ -1476,11 +1467,10 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 
         cmdeps.resource_postback.delay(deployment_id, results)
         context["instance_id"] = server_id
-        raise cmexc.CheckmateRetriableException(
+        raise cmexc.CheckmateException(
             results[instance_key]['status-message'],
-            utils.get_class_name(cmexc.CheckmateServerBuildFailed()),
             results[instance_key]['status-message'],
-            '')
+            cmexc.CAN_RESET)
     if server.status == 'BUILD':
         results['progress'] = server.progress
         results['status-message'] = "%s%% Complete" % server.progress
@@ -1586,11 +1576,7 @@ def verify_ssh_connection(context, server_id, region, server_ip,
     except (ncexc.NotFound, ncexc.NoUniqueMatch):
         msg = "No server matching id %s" % server_id
         LOG.error(msg, exc_info=True)
-        raise cmexc.CheckmateUserException(
-            msg,
-            utils.get_class_name(cmexc.CheckmateException),
-            cmexc.UNEXPECTED_ERROR, ''
-        )
+        raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
                api_object.client.management_url)

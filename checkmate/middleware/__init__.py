@@ -42,7 +42,6 @@ from checkmate.common import caching
 from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import BLUEPRINT_ERROR
 from checkmate.exceptions import CheckmateException
-from checkmate.exceptions import CheckmateUserException
 from checkmate.middleware.os_auth import identity
 from checkmate import utils
 
@@ -792,17 +791,13 @@ class AuthTokenRouterMiddleware(object):
                         error_message = ("Required 'middleware' key "
                                          "not specified in endpoint: "
                                          "%s" % endpoint)
-                        raise CheckmateUserException(error_message,
-                                                     utils.get_class_name(
-                                                         CheckmateException),
-                                                     BLUEPRINT_ERROR, '')
+                        raise CheckmateException(error_message,
+                                                 BLUEPRINT_ERROR)
                     if 'uri' not in endpoint:
                         error_message = ("Required 'uri' key not specified in"
                                          "endpoint: %s" % endpoint)
-                        raise CheckmateUserException(error_message,
-                                                     utils.get_class_name(
-                                                         CheckmateException),
-                                                     BLUEPRINT_ERROR, '')
+                        raise CheckmateException(error_message,
+                                                 BLUEPRINT_ERROR)
                     self.endpoints.append(endpoint)
                     if endpoint.get('default') is True:
                         self.default_endpoint = endpoint

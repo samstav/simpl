@@ -47,11 +47,17 @@ class CheckmateException(Exception):
                 etc...)
         :param options: ...
         """
+        args = ()
         self.message = message
         self.friendly_message = friendly_message
         self.options = options
-        super(CheckmateException, self).__init__(message, friendly_message,
-                                                 options)
+        if message:
+            args = args + (message,)
+        if friendly_message:
+            args = args + (friendly_message,)
+        if options and options != 0:
+            args = args + (options,)
+        super(CheckmateException, self).__init__(*args)
 
     @property
     def resumable(self):

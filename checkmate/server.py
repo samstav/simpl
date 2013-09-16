@@ -63,7 +63,6 @@ from checkmate.exceptions import (
     CheckmateInvalidParameterError,
     CheckmateNoData,
     CheckmateNoMapping,
-    CheckmateUserException,
     CheckmateValidationException,
 )
 from checkmate.git import middleware as git_middleware
@@ -149,11 +148,8 @@ def error_formatter(error):
         error.status = 500
         error.output = "Database connection error on server."
         output['message'] = str(error.exception)
-    elif isinstance(error.exception, CheckmateUserException):
-        error.status = 400
-        error.output = error.exception.friendly_message
     elif isinstance(error.exception, CheckmateException):
-        error.output = str(error.exception)
+        error.output = error.exception.friendly_message
         LOG.exception(error.exception)
     elif isinstance(error.exception, AssertionError):
         error.status = 400

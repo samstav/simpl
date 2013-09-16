@@ -259,7 +259,7 @@ class TestDatabaseTasks(unittest.TestCase):
         try:
             database.create_instance(context, 'test_instance', '1', '1',
                                      None, 'DFW', api='invalid')
-        except exceptions.CheckmateUserException as exc:
+        except exceptions.CheckmateException as exc:
             self.assertEqual(exc.error_message, "'str' object has no "
                                                 "attribute 'create'")
             self.assertEqual(exc.error_type, "AttributeError")
@@ -377,9 +377,7 @@ class TestAddUser(unittest.TestCase):
         instance.create_user = mock.MagicMock(side_effect=Exception)
         api.get = mock.Mock(return_value=instance)
 
-        #only CheckmateResumableException calls ProviderTask.retry
-
-        self.assertRaises(exceptions.CheckmateUserException,
+        self.assertRaises(exceptions.CheckmateException,
                           database.add_user, self.context,
                           self.instance_id, self.databases, self.username,
                           self.password, self.region, api=api)
@@ -1284,7 +1282,7 @@ class TestCreateDatabase(unittest.TestCase):
         instance.create_database = mock.MagicMock(side_effect=mock_exception)
         api.get = mock.Mock(return_value=instance)
         mock_connect.return_value = api
-        self.assertRaises(exceptions.CheckmateResumableException,
+        self.assertRaises(exceptions.CheckmateException,
                           database.create_database, self.context, self.name,
                           self.region, instance_id=self.instance_id, api=api)
         mock_logger.assert_called_with(mock_exception)
@@ -1301,7 +1299,7 @@ class TestCreateDatabase(unittest.TestCase):
         instance.create_database = mock.MagicMock(side_effect=mock_exception)
         api.get = mock.Mock(return_value=instance)
         mock_connect.return_value = api
-        self.assertRaises(exceptions.CheckmateUserException,
+        self.assertRaises(exceptions.CheckmateException,
                           database.create_database, self.context, self.name,
                           self.region, instance_id=self.instance_id, api=api)
 
@@ -1314,8 +1312,7 @@ class TestCreateDatabase(unittest.TestCase):
         data = {'status': 'BUILD'}
         mock_create.return_value = data
         mock_logger.side_effect = Exception('testing')
-        mock_wob.side_effect = exceptions.CheckmateResumableException('', '',
-                                                                      '', '')
+        mock_wob.side_effect = exceptions.CheckmateException('', '')
         self.assertRaisesRegexp(Exception, 'testing', database.create_database,
                                 self.context, self.name, self.region,
                                 api='api')

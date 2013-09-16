@@ -34,9 +34,6 @@ from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.deployment import Deployment
 from checkmate.exceptions import CheckmateException
-from checkmate.exceptions import CheckmateResumableException
-from checkmate.exceptions import CheckmateRetriableException
-from checkmate.exceptions import CheckmateUserException
 from checkmate.exceptions import UNEXPECTED_ERROR
 from checkmate import utils
 from checkmate.workflow_spec import WorkflowSpec
@@ -328,10 +325,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
         error_message = '. '.join(results)
         LOG.debug("Errors in Workflow: %s", error_message,
                   extra=dict(data=serialized_spec))
-        raise CheckmateUserException(
-            error_message,
-            utils.get_class_name(CheckmateException),
-            UNEXPECTED_ERROR, '')
+        raise CheckmateException(error_message, UNEXPECTED_ERROR)
 
     workflow = SpiffWorkflow(spiff_wf_spec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)

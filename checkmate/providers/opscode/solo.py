@@ -21,7 +21,6 @@ from checkmate.common import schema
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException,
-    CheckmateUserException,
     UNEXPECTED_ERROR,
 )
 from checkmate.inputs import Input
@@ -1034,10 +1033,7 @@ class ChefMap(object):
                     return chefmap.read()
             else:
                 error_message = "No Chefmap in repository %s" % repo_cache
-                raise CheckmateUserException(error_message,
-                                             utils.get_class_name(
-                                                 CheckmateException),
-                                             UNEXPECTED_ERROR, '')
+                raise CheckmateException(error_message, UNEXPECTED_ERROR)
 
     @property
     def components(self):
@@ -1202,10 +1198,7 @@ class ChefMap(object):
             if url['scheme'] == 'attributes':
                 if 'resource' not in mapping:
                     message = 'Resource hint required in attribute mapping'
-                    raise CheckmateUserException(message,
-                                                 utils.get_class_name(
-                                                     CheckmateException),
-                                                 UNEXPECTED_ERROR, '')
+                    raise CheckmateException(message, UNEXPECTED_ERROR)
 
                 path = '%s:%s' % (url['scheme'], mapping['resource'])
                 if path not in output:
@@ -1286,8 +1279,7 @@ class ChefMap(object):
             value = mapping['value']
         else:
             message = "Mapping has neither 'source' nor 'value'"
-            raise CheckmateUserException(message, utils.get_class_name(
-                CheckmateException), UNEXPECTED_ERROR, '')
+            raise CheckmateException(message, UNEXPECTED_ERROR)
         return value
 
     @staticmethod
@@ -1442,11 +1434,9 @@ class ChefMap(object):
         except StandardError as exc:
             LOG.error(exc, exc_info=True)
             error_message = "Chef template rendering failed: %s" % exc
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException), UNEXPECTED_ERROR, '')
+            raise CheckmateException(error_message, UNEXPECTED_ERROR)
         except TemplateError as exc:
             LOG.error(exc, exc_info=True)
             error_message = "Chef template had an error: %s" % exc
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException), UNEXPECTED_ERROR, '')
+            raise CheckmateException(error_message, UNEXPECTED_ERROR)
         return result

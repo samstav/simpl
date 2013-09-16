@@ -26,16 +26,6 @@ from SpiffWorkflow import specs
 from checkmate import exceptions as cmexc
 from checkmate.common import statsd
 from checkmate.deployments import resource_postback
-from checkmate.exceptions import (
-    BLUEPRINT_ERROR,
-    CheckmateNoTokenError,
-    CheckmateNoMapping,
-    CheckmateException,
-    CheckmateRetriableException,
-    CheckmateServerBuildFailed,
-    CheckmateUserException,
-    UNEXPECTED_ERROR,
-)
 from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
 from checkmate import utils
 
@@ -152,10 +142,8 @@ class Provider(RackspaceComputeProviderBase):
                     error_message = "Legacy set to spin up in '%s'. Cannot "\
                                     "provision servers in '%s'."\
                                     % (legacy_regions.keys()[0], region)
-                    raise cmexc.CheckmateUserException(
-                        error_message, utils.get_class_name(
-                            cmexc.CheckmateException),
-                        cmexc.BLUEPRINT_ERROR, '')
+                    raise cmexc.CheckmateException(error_message,
+                                                   cmexc.BLUEPRINT_ERROR)
                 else:
                     LOG.warning("Region %s specified in deployment, but no "
                                 "regions are specified in the Legacy Compute "
@@ -179,8 +167,8 @@ class Provider(RackspaceComputeProviderBase):
                     image = key
                     break
         if image not in catalog['lists']['types']:
-            raise CheckmateNoMapping("No image mapping for '%s' in '%s'" % (
-                image, self.name))
+            raise cmexc.CheckmateNoMapping("No image mapping for '%s' in "
+                                           "'%s'" % (image, self.name))
 
         # Get setting
         flavor = None
@@ -194,8 +182,8 @@ class Provider(RackspaceComputeProviderBase):
         matches = [e['memory'] for e in catalog['lists']['sizes'].values()
                    if int(e['memory']) >= memory]
         if not matches:
-            raise CheckmateNoMapping("No flavor has at least '%s'memory" %
-                                     memory)
+            raise cmexc.CheckmateNoMapping("No flavor has at least "
+                                           "'%s'memory" % memory)
         match = str(min(matches))
         for key, value in catalog['lists']['sizes'].iteritems():
             if match == str(value['memory']):
@@ -203,9 +191,8 @@ class Provider(RackspaceComputeProviderBase):
                 flavor = key
                 break
         if not flavor:
-            raise CheckmateNoMapping(
-                "No flavor mapping for '%s' in '%s'" % (memory, self.key)
-            )
+            raise cmexc.CheckmateNoMapping("No flavor mapping for '%s' in "
+                                           "'%s'" % (memory, self.key))
         for template in templates:
             template['flavor'] = flavor
             template['image'] = image
@@ -439,7 +426,7 @@ class Provider(RackspaceComputeProviderBase):
             from checkmate.middleware import RequestContext
             context = RequestContext(**context)
         if not context.auth_token:
-            raise CheckmateNoTokenError()
+            raise cmexc.CheckmateNoTokenError()
         api = openstack.compute.Compute()
         api.client.auth_token = context.auth_token
 
@@ -536,11 +523,12 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
         )
         raise
     except OverLimit as exc:
-        raise cmexc.CheckmateRetriableException(
-            str(exc),  utils.get_class_name(exc),
+        raise cmexc.CheckmateException(
+            str(exc),
             "You have reached the maximum number of servers that can be spun"
             " up using this account. Please delete some servers to continue "
-            "or contact your support team to increase your limit", "")
+            "or contact your support team to increase your limit",
+            cmexc.CAN_RETRY)
     except Exception, exc:
         LOG.debug('Error creating server %s (image: %s, flavor: %s) Error: %s',
                   name, image, flavor, str(exc))
@@ -591,8 +579,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         delete_server(context, server_id, api_object)
-        raise cmexc.CheckmateRetriableException(msg, utils.get_class_name(
-            cmexc.CheckmateServerBuildFailed()), msg, '')
+        raise cmexc.CheckmateException(msg, msg, cmexc.CAN_RESET)
 
     server_ip = None
     if server.addresses:
@@ -639,10 +626,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
 
     if not server_ip:
         error_message = "Could not find IP of server %s" % server_id
-        raise cmexc.CheckmateUserException(error_message,
-                                           utils.get_class_name(
-                                               cmexc.CheckmateException),
-                                           cmexc.UNEXPECTED_ERROR, '')
+        raise cmexc.CheckmateException(error_message, cmexc.UNEXPECTED_ERROR)
     else:
         up = test_connection(context, server_ip, username, timeout=timeout,
                              password=password, identity_file=identity_file,
@@ -656,8 +640,8 @@ def wait_on_build(context, server_id, ip_address_type='public',
             resource_postback.delay(context['deployment'],
                                     results)
             return results
-        return wait_on_build.retry(exc=CheckmateException("Server %s not"
-                                   " ready yet" % server_id))
+        return wait_on_build.retry(exc=cmexc.CheckmateException(
+            "Server %s not ready yet" % server_id))
 
 
 def _convert_v1_adresses_to_v2(addresses):

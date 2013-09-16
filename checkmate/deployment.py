@@ -837,11 +837,9 @@ class Deployment(morpheus.MorpheusDict):
                                     "obtaining option '%s' since value is " \
                                     "of type %s" % (attribute, name,
                                                     type(value).__name__)
-                    raise cmexc.CheckmateUserException(
+                    raise cmexc.CheckmateException(
                         error_message,
-                        utils.get_class_name(cmexc.CheckmateException),
                         cmexc.BLUEPRINT_ERROR,
-                        ""
                     )
                 if result is not None:
                     LOG.debug("Found setting '%s' from constraint. %s=%s",
@@ -961,11 +959,9 @@ class Deployment(morpheus.MorpheusDict):
             if not component:
                 error_message = ("Could not resolve component '%s'" %
                                  service_component)
-                raise cmexc.CheckmateUserException(
+                raise cmexc.CheckmateException(
                     error_message,
-                    utils.get_class_name(cmexc.CheckmateException),
                     cmexc.BLUEPRINT_ERROR,
-                    ""
                 )
             LOG.debug("Component '%s' identified as '%s' for service '%s'",
                       service_component, component['id'], service_name)

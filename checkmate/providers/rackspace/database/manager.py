@@ -22,15 +22,8 @@ import logging
 
 from pyrax import exceptions as cdb_errors
 
+from checkmate import exceptions as cmexc
 from checkmate import utils
-from checkmate.exceptions import (
-    CheckmateDoesNotExist,
-    CheckmateException,
-    CheckmateResumableException,
-    CheckmateRetriableException,
-    CheckmateUserException,
-    UNEXPECTED_ERROR,
-)
 
 LOG = logging.getLogger(__name__)
 
@@ -51,8 +44,9 @@ class Manager(object):
             else:
                 data['status'] = api.get(instance_id).status
         except cdb_errors.ClientException as exc:
-            raise CheckmateResumableException(str(exc), utils.get_class_name(
-                exc), "Error occurred in db provider", "")
+            raise cmexc.CheckmateException(str(exc),
+                                           "Error occurred in db provider",
+                                           cmexc.CAN_RESUME)
         except StandardError as exc:
             data['status'] = 'ERROR'
             data['status-message'] = 'Error waiting on resource to build'
@@ -63,10 +57,9 @@ class Manager(object):
         if data['status'] == 'ERROR':
             data['status-message'] = 'Instance went into status ERROR'
             callback(data)
-            exc = CheckmateRetriableException(data['status-message'],
-                                              utils.get_class_name(
-                                                  CheckmateException()),
-                                              data['status-message'], '')
+            exc = cmexc.CheckmateException(data['status-message'],
+                                           data['status-message'],
+                                           cmexc.CAN_RESET)
             raise exc
         elif data['status'] in ['ACTIVE', 'DELETED']:
             data['status-message'] = ''
@@ -74,10 +67,7 @@ class Manager(object):
             callback(data)
             msg = 'DB instance in status %s' % data['status']
             info = 'DB status is not ACTIVE'
-            raise CheckmateResumableException(msg,
-                                              utils.get_class_name(
-                                                  CheckmateException),
-                                              info, '')
+            raise cmexc.CheckmateException(msg, info, cmexc.CAN_RESUME)
 
         return data
 
@@ -91,13 +81,13 @@ class Manager(object):
             instance_id = instance.get("id")
             try:
                 if not instance_id:
-                    raise CheckmateDoesNotExist("Instance is blank or has no "
-                                                "ID.")
+                    raise cmexc.CheckmateDoesNotExist("Instance is blank or "
+                                                      "has no ID.")
                 database = api.get(instance_id)
                 LOG.info("Marking database instance %s as %s", instance_id,
                          database.status)
                 results = {'status': database.status}
-            except (cdb_errors.ClientException, CheckmateDoesNotExist):
+            except (cdb_errors.ClientException, cmexc.CheckmateDoesNotExist):
                 LOG.info("Marking database instance %s as DELETED",
                          instance_id)
                 results = {'status': 'DELETED'}
@@ -132,13 +122,10 @@ class Manager(object):
                 instance = api.create(instance_name, flavor=flavor,
                                       volume=size, databases=databases)
         except cdb_errors.ClientException as exc:
-            raise CheckmateRetriableException(str(exc),
-                                              utils.get_class_name(exc),
-                                              UNEXPECTED_ERROR,
-                                              '')
+            raise cmexc.CheckmateException(str(exc), cmexc.UNEXPECTED_ERROR,
+                                           cmexc.CAN_RETRY)
         except Exception as exc:
-            raise CheckmateUserException(str(exc), utils.get_class_name(exc),
-                                         UNEXPECTED_ERROR, '')
+            raise cmexc.CheckmateException(str(exc), cmexc.UNEXPECTED_ERROR)
         if callable(callback):
             callback({'id': instance.id})
 
@@ -215,9 +202,10 @@ class Manager(object):
                 try:
                     data.update(Manager.wait_on_build(data.get('id'), api,
                                                       callback))
-                except CheckmateResumableException:
-                    LOG.info('DB instance in status %s, waiting on ACTIVE '
-                             'status', data['status'])
+                except cmexc.CheckmateException as exc:
+                    if exc.resumable:
+                        LOG.info('DB instance in status %s, waiting on ACTIVE '
+                                 'status', data['status'])
             results = data.get('databases', {}).get(name)
             results['host_instance'] = data.get('id')
             results['host_region'] = data.get('region')
@@ -229,9 +217,10 @@ class Manager(object):
             callback({'status': instance.status})
 
             if instance.status != "ACTIVE":
-                raise CheckmateResumableException('Database instance is not '
-                                                  'active.', '',
-                                                  UNEXPECTED_ERROR, '')
+                raise cmexc.CheckmateException('Database instance is not '
+                                               'active.',
+                                               cmexc.UNEXPECTED_ERROR,
+                                               cmexc.CAN_RESUME)
             try:
                 instance.create_database(name, character_set, collate)
             except cdb_errors.ClientException as exc:
@@ -239,13 +228,12 @@ class Manager(object):
                 if exc.code == '400':
                     raise
                 else:
-                    raise CheckmateResumableException(str(exc),
-                                                      str(exc.details),
-                                                      UNEXPECTED_ERROR, '')
+                    raise cmexc.CheckmateException(str(exc),
+                                                   cmexc.UNEXPECTED_ERROR,
+                                                   cmexc.CAN_RESUME)
             except Exception as exc:
-                raise CheckmateUserException(str(exc),
-                                             utils.get_class_name(exc),
-                                             UNEXPECTED_ERROR, '')
+                raise cmexc.CheckmateException(str(exc),
+                                               cmexc.UNEXPECTED_ERROR)
 
         results = {
             'host_instance': instance.id,
@@ -281,26 +269,26 @@ class Manager(object):
             try:
                 instance = api.get(instance_id)
             except cdb_errors.ClientException as exc:
-                raise CheckmateResumableException(str(exc),
-                                                  utils.get_class_name(exc),
-                                                  "Error in db provider", "")
+                raise cmexc.CheckmateException(str(exc),
+                                               "Error in db provider",
+                                               cmexc.CAN_RESUME)
 
             callback({'status': instance.status})
 
             if instance.status != "ACTIVE":
-                raise CheckmateResumableException('Database instance is '
-                                                  'not active.', 'help',
-                                                  'status error', '')
+                raise cmexc.CheckmateException('Database instance is '
+                                               'not active.', 'status error',
+                                               cmexc.CAN_RESUME)
             try:
                 instance.create_user(username, password, databases)
             except cdb_errors.ClientException as exc:
-                raise CheckmateResumableException(str(exc),
-                                                  utils.get_class_name(exc),
-                                                  'RS_DB_ClientException', "")
+                raise cmexc.CheckmateException(str(exc),
+                                               'RS_DB_ClientException',
+                                               cmexc.CAN_RESUME)
             except Exception as exc:
-                raise CheckmateUserException(str(exc),
-                                             utils.get_class_name(exc),
-                                             UNEXPECTED_ERROR, '')
+                raise cmexc.CheckmateException(str(exc),
+                                               cmexc.UNEXPECTED_ERROR,
+                                               cmexc.CAN_RESUME)
 
         LOG.info('Added user %s to %s on instance %s', username, databases,
                  instance_id)

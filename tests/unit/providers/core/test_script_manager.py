@@ -60,7 +60,7 @@ class TestCreateReqource(unittest.TestCase):
         self.api.remote_execute.side_effect = Exception("Fail")
         expected = ("('There was an unexpected error executing your "
                     "deployment - Please contact support', '')")
-        self.assertRaisesRegexp(exceptions.CheckmateRetriableException,
+        self.assertRaisesRegexp(exceptions.CheckmateException,
                                 expected,
                                 manager.create_resource, {}, 'D1',
                                 {'desired': {'A': 1}}, 'localhost', 'root',
