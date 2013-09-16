@@ -15,6 +15,7 @@
 
 """Task Class and Helper Functions"""
 
+# pylint: disable=W0611
 from checkmate.exceptions import CheckmateRetriableException
 
 def set_exception(exception, task):

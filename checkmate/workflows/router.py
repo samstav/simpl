@@ -11,13 +11,11 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+"""Workflows Router"""
 
-#pylint: disable=W0212
+#pylint: disable=W0110,W0141,W0212,W0613,R0914
 import logging
 import uuid
-
-#pylint: disable=E0611
-"""Workflows Router"""
 
 import bottle
 
@@ -31,9 +29,9 @@ from checkmate import deployment as cmdep
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow as cm_wf
-from tasks import cycle_workflow
-from tasks import pause_workflow
-from tasks import run_one_task
+from checkmate.workflows.tasks import cycle_workflow
+from checkmate.workflows.tasks import pause_workflow
+from checkmate.workflows.tasks import run_one_task
 
 LOG = logging.getLogger(__name__)
 
@@ -392,7 +390,8 @@ class Router(object):
         :param api_id: checkmate workflow id
         :param task_id: checkmate workflow task id
         """
-        if 'with_secrets' in bottle.request.query:  # TODO: verify admin-ness
+        # TODO(zns): verify admin-ness
+        if 'with_secrets' in bottle.request.query:
             entity = self.manager.get_workflow(api_id, with_secrets=True)
         else:
             entity = self.manager.get_workflow(api_id)
@@ -444,7 +443,7 @@ class Router(object):
                         bottle.abort(406, "'attribues' must be a dict")
                     # Don't do a simple overwrite since incoming may not have
                     # secrets and we don't want to stomp on them
-                    body, secrets = utils.extract_sensitive_data(
+                    _, secrets = utils.extract_sensitive_data(
                         task.attributes)
                     updated = utils.merge_dictionary(secrets or {},
                                                      entity['attributes'])
@@ -527,7 +526,7 @@ class Router(object):
 
         # Return cleaned data (no credentials)
         data = serializer._serialize_task(task, skip_children=True)
-        body, secrets = utils.extract_sensitive_data(data)
+        body, _ = utils.extract_sensitive_data(data)
         body['workflow_id'] = api_id  # so we know which workflow it came from
         return utils.write_body(body, bottle.request, bottle.response)
 
@@ -552,7 +551,6 @@ class Router(object):
                 serializer = DictionarySerializer()
                 wflow = spiff.Workflow.deserialize(serializer, workflow)
 
-
                 task = wflow.get_task(task_id)
                 if not task:
                     bottle.abort(404, 'No task with id %s' % task_id)
@@ -568,9 +566,8 @@ class Router(object):
                                       task.get_state_name())
 
                 driver = db.get_driver(api_id=api_id)
-                reset_tree_wf = cm_wf.create_reset_failed_task_wf(wflow, api_id,
-                                                                  context, task,
-                                                                  driver=driver)
+                reset_tree_wf = cm_wf.create_reset_failed_task_wf(
+                    wflow, api_id, context, task, driver=driver)
                 w_id = reset_tree_wf.get_attribute("id")
                 cm_wf.add_subworkflow(wflow, w_id, task_id)
                 cycle_workflow.apply_async(args=[w_id, context],
@@ -579,7 +576,7 @@ class Router(object):
 
                 serializer = DictionarySerializer()
                 entity = wflow.serialize(serializer)
-                body, secrets = utils.extract_sensitive_data(entity)
+                body, _ = utils.extract_sensitive_data(entity)
                 body['tenantId'] = workflow.get('tenantId', tenant_id)
                 body['id'] = api_id
 
@@ -646,7 +643,7 @@ class Router(object):
 
                 # Return cleaned data (no credentials)
                 data = serializer._serialize_task(task, skip_children=True)
-                body, secrets = utils.extract_sensitive_data(data)
+                body, _ = utils.extract_sensitive_data(data)
                 # so we know which workflow it came from
                 body['workflow_id'] = api_id
         except db.ObjectLockedError:
