@@ -562,12 +562,18 @@ class RequestContext(object):
                  is_admin=False, read_only=False, show_deleted=False,
                  authenticated=False, catalog=None, user_tenants=None,
                  roles=None, domain=None, auth_source=None, simulation=False,
-                 base_url=None, region=None, resource=None, **kwargs):
+                 base_url=None, region=None, resource=None, user_id=None,
+                 **kwargs):
+        """Initialize context.
+
+        :param user_id: for use by clients that need the user id
+        """
         self.authenticated = authenticated
         self.auth_source = auth_source
         self.auth_token = auth_token
         self.catalog = catalog
         self.username = username
+        self.user_id = user_id
         self.user_tenants = user_tenants  # all allowed tenants
         self.tenant = tenant  # current tenant
         self.is_admin = is_admin
@@ -615,6 +621,10 @@ class RequestContext(object):
         self.username = self.get_username(content)
         self.roles = self.get_roles(content)
         self.authenticated = True
+        try:
+            self.user_id = content['access']['user'].get('id')
+        except KeyError:
+            pass
 
     @staticmethod
     def get_service_catalog(content):
