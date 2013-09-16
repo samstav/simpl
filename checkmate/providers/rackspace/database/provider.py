@@ -555,11 +555,10 @@ class Provider(providers.ProviderBase):
         for region in pyrax.regions:
             api = Provider.connect(context, region=region)
             db_hosts += api.list()
-        results = {}
-        for idx, db_host in enumerate(db_hosts):
-            results[idx] = {
+        results = []
+        for db_host in db_hosts:
+            resource = {
                 'status': db_host.status,
-                'index': idx,
                 'region': db_host.manager.api.region_name,
                 'provider': 'database',
                 'dns-name': db_host.name,
@@ -580,6 +579,7 @@ class Provider(providers.ProviderBase):
                 'disk': db_host.volume.size,
                 'type': 'compute'
             }
+            results.append(resource)
         return results
 
     @staticmethod

@@ -698,16 +698,15 @@ class Provider(rsbase.RackspaceProviderBase):
         for region in pyrax.regions:
             api = Provider.connect(context, region=region)
             load_balancers += api.list()
-        results = {}
-        for idx, clb in enumerate(load_balancers):
+        results = []
+        for clb in load_balancers:
             vip = None
             for ip_data in clb.virtual_ips:
                 if ip_data.ip_version == 'IPV4' and ip_data.type == "PUBLIC":
                     vip = ip_data.address
 
-            results[idx] = {
+            resource = {
                 'status': clb.status,
-                'index': idx,
                 'region': clb.manager.api.region_name,
                 'provider': 'load-balancer',
                 'dns-name': clb.name,
@@ -725,6 +724,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 },
                 'type': 'load-balancer'
             }
+            results.append(resource)
         return results
 
     @staticmethod

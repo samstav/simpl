@@ -292,6 +292,11 @@ def to_json(data):
         return data.dumps(indent=4)
     return json.dumps(data, indent=4)
 
+def try_int(string):
+    try:
+        return int(string)
+    except ValueError:
+        return string
 
 HANDLERS = {
     'application/x-yaml': write_yaml,
