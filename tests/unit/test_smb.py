@@ -17,6 +17,8 @@
 
 """Tests for Admin endpoints."""
 
+import os
+import sys
 import unittest
 
 import mock
@@ -39,8 +41,9 @@ class TestPowershell(unittest.TestCase):
         result = smb.execute_script('localhost', 'foo 2', 'install.ps1',
                                     'Admin', 'secret')
         self.assertEqual(result, (0, 'X'))
-        command = ("nice python /path/psexec.py -path 'c:\\windows\\temp' 'Adm"
-                   "in':'secret'@'localhost' 'c:\\windows\\sysnative\\cmd'")
+        command = ("nice %s /path/psexec.py -path 'c:\\windows\\temp' 'Adm"
+                   "in':'secret'@'localhost' 'c:\\windows\\sysnative\\cmd'" %
+                   sys.executable)
         lines = ("put /path/psexec.py temp\nc:\\windows\\system32\\"
                  "windowspowershell\\v1.0\\powershell.exe -ExecutionPolicy "
                  "Bypass -Command \"c:\\windows\\temp\\install.ps1\" ;"
@@ -106,10 +109,10 @@ class TestPowershell(unittest.TestCase):
         subprocess_mock.Popen.assert_called_with(['test', '2'], close_fds=True,
                                                  stdin=None,
                                                  stdout=None,
-                                                 stderr=None)
+                                                 stderr=None,
+                                                 env=os.environ)
 
 
 if __name__ == '__main__':
     from checkmate import test
-    import sys
     test.run_with_params(sys.argv[:])
