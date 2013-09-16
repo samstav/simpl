@@ -1,4 +1,17 @@
-'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""
 Middleware to detect and handle git SmartHTTP traffic
 
 
@@ -93,15 +106,20 @@ to/by gitHttpBackend.
     This is why 'Host', etc. aren't seen.
 
 -----------------------------------------------------------------------
-'''
+"""
+from __future__ import absolute_import
+
 import os
 import re
 
 import bottle
 
+from checkmate.common import caching
+from checkmate.common import config
+from checkmate.contrib import wsgi_git_http_backend
 from checkmate.git import manager
-from checkmate import wsgi_git_http_backend
 
+CONFIG = config.current()
 GIT_SERVER_APP = bottle.Bottle()
 EXPECTED_ENVIRONMENT_LIST = [
     'wsgi.errors',
@@ -121,7 +139,7 @@ EXPECTED_ENVIRONMENT_LIST = [
 
 class GitMiddleware():
 
-    '''Adds support for git http-backend interaction.'''
+    """Adds support for git http-backend interaction."""
 
     def __init__(self, app, root_path):
         self.app = app
@@ -152,23 +170,45 @@ class GitMiddleware():
 #
 # Route utility routines
 #
+@caching.Cache(sensitive_args=[1], timeout=600, cache_exceptions=True)
 def _check_git_auth(user, passwd):
-    '''Basic Auth for git back-end (smart HTTP).'''
-    # TODO: set this up? (ziad?)
-    if user == 'zak':
-        return True
-    else:
+    """Basic Auth for git back-end (smart HTTP).
+
+    :returns: true/false - true means authenticated successfully
+    """
+    endpoints = os.environ.get('CHECKMATE_AUTH_ENDPOINTS')
+    auth_endpoint = None
+    if endpoints:
+        endpoints = json.loads(endpoints)
+        for endpoint in endpoints:
+            if (endpoint.get('middleware') != 
+                    'checkmate.middleware.TokenAuthMiddleware'):
+                middleware = utils.import_class(endpoint['middleware'])
+                instance = middleware(None,
+                                      endpoint)
+                auth_endpoint = instance
+                break
+
+    if not auth_endpoint:
+        return False
+
+    try:
+        access = auth_endpoint._auth_keystone(self, bottle.request.context,
+                                              username=user, password=passwd)
+
+    except StandardError:
         return False
 
 
+
 def _set_git_environ(environ, repo, path):
-    '''Bottle environment tweaking for git kitchen routes
+    """Bottle environment tweaking for git kitchen routes.
 
     :param environ: CGI environment (converted from WSGI)
     :param repo: the git repo to base calls off off (a single path part that
         gets added to GIT_PROJECT_BASE)
     :param path: the path into the repo that is being requested
-    '''
+    """
     cgi_env = dict()
     for env_var in EXPECTED_ENVIRONMENT_LIST:
         if env_var in environ:
@@ -189,7 +229,7 @@ def _set_git_environ(environ, repo, path):
 
 
 def _git_route_callback(dep_id, path):
-    '''Check deployment and verify it is valid before git backend call.'''
+    """Check deployment and verify it is valid before git backend call."""
     environ = _set_git_environ(dict(bottle.request.environ), dep_id, path)
     if not os.path.isdir(environ['GIT_PROJECT_ROOT']):
         # TODO: not sure what to do about this
@@ -208,12 +248,12 @@ def _git_route_callback(dep_id, path):
 # Bottle routes
 #
 @GIT_SERVER_APP.get("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
-#@auth_basic(_check_git_auth) #basic auth
+@bottle.auth_basic(_check_git_auth) #basic auth
 def git_route_get(tenant_id, dep_id, path):
     return _git_route_callback(dep_id, path)
 
 
 @GIT_SERVER_APP.post("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
-#@auth_basic(_check_git_auth) #basic auth
+@bottle.auth_basic(_check_git_auth) #basic auth
 def git_route_post(tenant_id, dep_id, path):
     return _git_route_callback(dep_id, path)

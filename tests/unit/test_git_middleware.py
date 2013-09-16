@@ -19,9 +19,9 @@ import mock
 import os
 import unittest
 
+from checkmate.contrib import wsgi_git_http_backend
 from checkmate.git import manager
 from checkmate.git import middleware
-from checkmate import wsgi_git_http_backend
 
 
 @unittest.skip("Not yet ported to latest refactor")

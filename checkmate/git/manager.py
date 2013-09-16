@@ -1,6 +1,19 @@
-'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""
 All the git things (git calls, repo management, configs, etc...)
-'''
+"""
 import errno
 import os
 import re
@@ -9,19 +22,19 @@ import git
 
 
 def is_git_repo(path):
-    '''Checks if a folder is a git repo.'''
+    """Checks if a folder is a git repo."""
     return os.path.isfile(os.path.join(path, '.git', 'config'))
 
 
 def _find_unregistered_submodules(dep_path):
-    '''Loops through directory and finds unregistered submodules
+    """Loops through directory and finds unregistered submodules
 
     :param path: a path to check
     :returns: dict of paths and submodule urls
 
     Note: will return an empty dict in cases where the directory does not exist
     or is not a valid git repo
-    '''
+    """
     if not os.path.exists(dep_path):
         return {}
 
@@ -51,7 +64,7 @@ def _find_unregistered_submodules(dep_path):
 
 
 def _add_submodules_to_config(dep_path, submodules_to_add):
-    '''Adds list of path/urls to existing repo.'''
+    """Adds list of path/urls to existing repo."""
     with open(os.path.join(dep_path, '.gitmodules'), 'ab+') as sms_f:
         for path, url in submodules_to_add.items():
             sms_f.write(
@@ -63,17 +76,17 @@ def _add_submodules_to_config(dep_path, submodules_to_add):
 
 
 def add_post_receive_hook(dep_path):
-    '''implement a special git repo event hook ('post-receive').
+    """Implement a special git repo event hook ('post-receive').
 
     Whenever there are new updates, the checkout is always automatically reset
     to include those differences and to be current. (aka: HEAD)
-    '''
+    """
     hook_path = os.path.join(dep_path, '.git', 'hooks', 'post-receive')
-    post_recv_hook = '''#!/bin/bash
+    post_recv_hook = """#!/bin/bash
 cd ..
 GIT_DIR=".git"
 git reset --hard HEAD
-'''
+"""
     with open(hook_path, "w") as hook_file_w:
         hook_file_w.write(post_recv_hook)
     os.chmod(hook_path, 0o777)
@@ -86,7 +99,7 @@ git reset --hard HEAD
 
 
 def init_deployment_repo(dep_path):
-    '''Ensure that an existing deployment folder and its sub-directories are
+    """Ensure that an existing deployment folder and its sub-directories are
     git-ready.
 
     IMPORTANT NOTE: Typically, server based repos (ie: github) are 'bare' --
@@ -110,7 +123,7 @@ def init_deployment_repo(dep_path):
     - Unless explicitly directed otherwise, any subsequent pushes/pulls to/from
     this repo, the submodules will sustain their original HEAD sha's
     (stable tags).
-    '''
+    """
     if not os.path.exists(dep_path):
         raise OSError(errno.ENOENT, "No such file or directory")
 

@@ -19,6 +19,8 @@ import sys
 import unittest
 import uuid
 
+import bottle
+import mock
 import webtest
 
 from checkmate.git import manager
@@ -56,7 +58,9 @@ class TestCloneSimple(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.repo_path)
 
-    def test_bad_path(self):
+    @mock.patch.object(middleware, '_check_git_auth')
+    def test_bad_path(self, mock_auth):
+        mock_auth.return_value = mock.MagicMock(return_value=True)
         res = self.app.get(
             '/T1/deployments/DEP01.git/info/refs?service=git-upload-pack',
             expect_errors=True
