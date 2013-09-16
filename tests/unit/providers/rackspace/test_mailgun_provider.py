@@ -128,7 +128,8 @@ class TestAddResourceTask(unittest.TestCase):
                 'resource': None, 'show_deleted': False, 'roles': [],
                 'region': None, 'user_tenants': None, 'base_url': None,
                 'simulation': False, 'kwargs': {}, 'auth_source': None,
-                'deployment_id': '12345'}, 'test.local', 'asdfg'],
+                'deployment_id': '12345', 'user_id': None}, 'test.local',
+                'asdfg'],
             defines={
                 'task_tags': ['create', 'root', 'final'], 'resource': '1',
                 'provider': 'rackspace.mailgun'
@@ -177,7 +178,8 @@ class TestDeleteResourceTask(unittest.TestCase):
                 'resource': None, 'show_deleted': False, 'roles': [],
                 'region': None, 'user_tenants': None, 'base_url': None,
                 'simulation': False, 'kwargs': {}, 'auth_source': None,
-                'deployment_id': '12345'}, 'testing.local', False],
+                'deployment_id': '12345', 'user_id': None}, 'testing.local',
+                False],
             defines={
                 'task_tags': ['delete', 'root', 'final'], 'resource': '1',
                 'provider': 'rackspace.mailgun'
