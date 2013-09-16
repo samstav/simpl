@@ -260,9 +260,8 @@ class TestDatabaseTasks(unittest.TestCase):
             database.create_instance(context, 'test_instance', '1', '1',
                                      None, 'DFW', api='invalid')
         except exceptions.CheckmateException as exc:
-            self.assertEqual(exc.error_message, "'str' object has no "
-                                                "attribute 'create'")
-            self.assertEqual(exc.error_type, "AttributeError")
+            self.assertEqual(exc.message, "'str' object has no attribute "
+                                          "'create'")
 
 
 class TestAddUser(unittest.TestCase):
@@ -1312,7 +1311,8 @@ class TestCreateDatabase(unittest.TestCase):
         data = {'status': 'BUILD'}
         mock_create.return_value = data
         mock_logger.side_effect = Exception('testing')
-        mock_wob.side_effect = exceptions.CheckmateException('', '')
+        mock_wob.side_effect = exceptions.CheckmateException(
+            '', '', exceptions.CAN_RESUME)
         self.assertRaisesRegexp(Exception, 'testing', database.create_database,
                                 self.context, self.name, self.region,
                                 api='api')

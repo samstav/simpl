@@ -100,7 +100,8 @@ class TestProviderTask(unittest.TestCase):
         context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
         do_something.run = mock.Mock()
         do_something.retry = mock.MagicMock()
-        do_something.run.side_effect = cmexc.CheckmateException(1, 2)
+        do_something.run.side_effect = cmexc.CheckmateException(
+            1, 2, cmexc.CAN_RESUME)
 
         do_something(context, 'test', api='test_api')
 

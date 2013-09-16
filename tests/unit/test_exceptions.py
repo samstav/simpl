@@ -46,8 +46,7 @@ class TestCheckmateException(unittest.TestCase):
         self.assertFalse(exc.resumable)
 
     def test_checkmate_exception(self):
-        exc = cmexc.CheckmateException("Techincal Message",
-                                       "Friendly Message")
+        exc = cmexc.CheckmateException("Techincal Message")
         self.assertFalse(exc.resetable)
         self.assertFalse(exc.retriable)
         self.assertFalse(exc.resumable)

@@ -23,7 +23,7 @@ class TestExceptionHandlers(unittest.TestCase):
 
     def test_get_handlers(self):
         task_state = {
-            "info": "CheckmateException('','')",
+            "info": "CheckmateException('','', 4)",
         }
         mock_wf = mock.Mock()
         mock_context = mock.Mock()
