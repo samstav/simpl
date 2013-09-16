@@ -950,11 +950,13 @@ class TestNovaProxy(unittest.TestCase):
         mock_pyrax.connect_to_cloudservers.return_value = servers_response
         mock_pyrax.regions = ["ORD"]
 
-        result = compute.Provider.get_resources(request, 'tenant')[0]
-        self.assertEqual(result['status'], 'server_status')
-        self.assertEqual(result['flavor'], 'server_flavor')
-        self.assertEqual(result['instance']['image'], 'server_image')
-        self.assertEqual(result['instance']['region'], 'region_name')
+        result = compute.Provider.get_resources(request, 'tenant')
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['dns-name'], 'server_name')
+        self.assertEqual(result[0]['status'], 'server_status')
+        self.assertEqual(result[0]['flavor'], 'server_flavor')
+        self.assertEqual(result[0]['image'], 'server_image')
+        self.assertEqual(result[0]['region'], 'region_name')
 
     @mock.patch(
         'checkmate.providers.rackspace.compute.utils.get_ips_from_server')

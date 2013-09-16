@@ -51,6 +51,7 @@ from checkmate.common import eventlet_backdoor
 from checkmate.common import gzip_middleware
 from checkmate import db
 from checkmate import deployments
+from checkmate import resources as deployment_resources
 from checkmate import stacks
 from checkmate import workflows
 from checkmate.exceptions import (
@@ -287,6 +288,13 @@ def main():
         root_app, MANAGERS['stacks']
     )
     resources.append('stacks')
+
+    # Load Resources Handlers
+    MANAGERS['resources'] = deployment_resources.Manager()
+    ROUTERS['resources'] = deployment_resources.Router(
+        root_app, MANAGERS['resources']
+    )
+    resources.append('resources')
 
     # Load admin routes if requested
     if CONFIG.with_admin is True:

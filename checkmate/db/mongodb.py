@@ -20,7 +20,9 @@ TODO:
 - Check indeces; if we fix mapping do we still need an index on workflow.id?
 
 """
+import bson
 import copy
+import json
 import logging
 import pymongo
 import re
@@ -228,6 +230,14 @@ class Driver(common.DbBase):
         if result['n'] != 1:
             raise common.InvalidKeyError("Cannot unlock %s, as key does not "
                                          "exist!" % key)
+
+    def get_resources(self, tenant_id=None, limit=None, offset=None,
+                      query=None):
+        return self._get_objects(self._resource_collection_name,
+                                 tenant_id=tenant_id,
+                                 limit=limit,
+                                 offset=offset,
+                                 query=query)
 
     # TENANTS
     def save_tenant(self, tenant):
@@ -630,7 +640,8 @@ class Driver(common.DbBase):
             limit = 0
         with self._get_client().start_request():
             results = self.database()[klass].find(self._build_filters(
-                klass, tenant_id, with_deleted, status, query), projection)
+                klass, tenant_id, with_deleted,
+                status, query), projection)
             if sort_key:
                 results.sort(sort_key, sort_direction)
             results = results.skip(offset).limit(limit)
@@ -644,7 +655,7 @@ class Driver(common.DbBase):
                         'Cross-Tenant Violation in _get_objects: requested '
                         'tenant %s does not match tenant %s in response.'
                         '\nLocals:\n %s\nGlobals:\n%s',
-                        tenant_id, entry.get('tenandId'), locals(), globals()
+                        tenant_id, entry.get('tenantId'), locals(), globals()
                     )
                     raise cmexc.CheckmateDataIntegrityError(
                         'A Tenant ID in the results does not match %s.',
@@ -657,7 +668,8 @@ class Driver(common.DbBase):
 
             if with_count:
                 response['collection-count'] = self._get_count(
-                    klass, tenant_id, with_deleted, status, query)
+                    klass, tenant_id, with_deleted,
+                    status, query)
         return response
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None,
@@ -726,6 +738,38 @@ class Driver(common.DbBase):
                         else:
                             condition = _parse_comparison(query[key])
                             filters[key] = condition
+
+        if klass == Driver._resource_collection_name:
+            if query:
+                query_condition = ['true']
+                if query.get('provider'):
+                    query_condition.append("provider == %s" %
+                                           json.encoder.encode_basestring(query['provider']))
+                if query.get('resource_type'):
+                    query_condition.append("resource_type == %s" %
+                                           json.encoder.encode_basestring(query['resource_type']))
+                if query.get('resource_ids'):
+                    resource_ids = map(cmutils.try_int, query['resource_ids'])
+                    query_condition.append(
+                        "%s.indexOf(instance_id) > -1" %
+                        json.JSONEncoder().encode(resource_ids)
+                    )
+                search_function = (
+                    "function() {"
+                        "for (var key in this) {"
+                            "if (!this.hasOwnProperty(key)) {continue;}"
+                            "if (!key.match(/^\d+$/)) {continue;}"
+                            "var instance_id = this[key]['instance']['id'];"
+                            "var provider = this[key]['provider'];"
+                            "var resource_type = this[key]['type'];"
+                            "if (%s){"
+                                "return true;"
+                            "}"
+                        "}"
+                    "}")
+                filters['$where'] = bson.code.Code(
+                    search_function % " && ".join(query_condition)
+                )
 
         return filters
 

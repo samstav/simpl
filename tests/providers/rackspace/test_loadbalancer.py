@@ -982,6 +982,9 @@ class TestLoadBalancerGetResources(unittest.TestCase):
         load_balancer = mock.Mock()
         load_balancer.status = 'status'
         load_balancer.name = 'name'
+        load_balancer.protocol = 'protocol'
+        load_balancer.id = 'id'
+        load_balancer.port = 'port'
         load_balancer.virtual_ips = []
         load_balancer.manager.api.region_name = 'region_name'
 
@@ -992,9 +995,15 @@ class TestLoadBalancerGetResources(unittest.TestCase):
 
         result = loadbalancer.Provider.get_resources(request, 'tenant')[0]
 
-        self.assertEqual(result['region'], 'region_name')
+        self.assertEqual(len(result.keys()), 6)
         self.assertEqual(result['status'], 'status')
+        self.assertEqual(result['region'], 'region_name')
+        self.assertEqual(result['provider'], 'load-balancer')
         self.assertEqual(result['dns-name'], 'name')
+        self.assertEqual(result['instance']['protocol'], 'protocol')
+        self.assertEqual(result['instance']['id'], 'id')
+        self.assertEqual(result['instance']['port'], 'port')
+        self.assertEqual(result['type'], 'load-balancer')
 
     @mock.patch.object(loadbalancer.Provider, 'connect')
     @mock.patch('checkmate.providers.rackspace.loadbalancer.provider.pyrax')

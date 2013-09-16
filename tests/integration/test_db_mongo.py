@@ -22,6 +22,7 @@ from tests.integration import base
 LOG = logging.getLogger(__name__)
 try:
     import mongobox as mbox
+    from mongobox.unittest import MongoTestCase
     SKIP = False
     REASON = None
 except ImportError as exc:
@@ -32,7 +33,12 @@ except ImportError as exc:
 
 
 @unittest.skipIf(SKIP, REASON)
-class TestDBMongo(base.DBDriverTests, unittest.TestCase):
+class TestDBMongo(base.DBDriverTests, MongoTestCase):
+    COLLECTIONS_TO_CLEAN = ['tenants',
+                            'deployments',
+                            'blueprints',
+                            'resource_secrets',
+                            'resources']
     _connection_string = None
 
     @property
@@ -45,7 +51,7 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         """Fire up a sandboxed mongodb instance."""
         super(TestDBMongo, cls).setUpClass()
         try:
-            cls.box = mbox.MongoBox()
+            cls.box = mbox.MongoBox(scripting=True)
             cls.box.start()
             cls._connection_string = ("mongodb://localhost:%s/test" %
                                       cls.box.port)
@@ -71,15 +77,10 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
         if SKIP is True:
             self.skipTest(REASON)
         base.DBDriverTests.setUp(self)
-        # HACK until we get proper test data management; don't drop collections
-        # as there is a risk of deleting everything out of a remote database
-        # as per line 50 above
-        self.driver.database()['tenants'].remove({'id': '1234'})
-        self.driver.database()['tenants'].remove({'id': '111111'})
-        self.driver.database()['deployments'].remove({'tenantId': 'T3'})
-        self.driver.database()['deployments'].remove({'tenantId': 'TOTHER'})
-        self.driver.database()['blueprints'].remove({})
-        self.driver.database()['resource_secrets'].remove({'id': '12345'})
+
+    def tearDown(self):
+        for collection_name in TestDBMongo.COLLECTIONS_TO_CLEAN:
+            self.driver.database()[collection_name].drop()
 
     def test_merge_secrets(self):
         self.driver.database()["resources_secrets"].insert({
@@ -100,6 +101,177 @@ class TestDBMongo(base.DBDriverTests, unittest.TestCase):
             }
         }
         self.assertDictEqual(body, expected)
+
+    def test_get_deployments_does_not_return__id(self):
+        self.driver.database()['deployments'].insert({
+            '_id': 'abc',
+            'id': '123'
+        })
+        result = self.driver.get_deployments()
+        expected = {'123': {'id': '123'}}
+        self.assertDictEqual(result['results'], expected)
+
+    def test_get_deployments_with_offset(self):
+        self.driver.database()['deployments'].insert([
+            {'id': '123'},
+            {'id': '777'}
+        ])
+        result = self.driver.get_deployments(offset=1)
+        self.assertNotIn('123', result['results'])
+        self.assertIn('777', result['results'])
+
+    def test_get_resources_does_not_return__id(self):
+        self.driver.database()['resources'].insert({
+            '_id': 'abc',
+            'id': '123'
+        })
+        result = self.driver.get_resources()
+        expected = {'123': {'id': '123'}}
+        self.assertDictEqual(result['results'], expected)
+
+    def test_get_resources_with_tenant_id(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123', 'tenantId': '321'},
+            {'id': '777', 'tenantId': '888'}
+        ])
+        result = self.driver.get_resources(tenant_id='888')
+        self.assertNotIn('123', result['results'])
+        self.assertIn('777', result['results'])
+
+    def test_get_resources_with_limit(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123'},
+            {'id': '777'}
+        ])
+        result = self.driver.get_resources(limit=1)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
+
+    def test_get_resources_with_offset(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123'},
+            {'id': '777'}
+        ])
+        result = self.driver.get_resources(offset=1)
+        self.assertNotIn('123', result['results'])
+        self.assertIn('777', result['results'])
+
+    def test_get_resources_with_resource_ids(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+                '4': {'instance': {'id': 'id1'}}},
+            {'id': '777',
+                '4': {'instance': {'id': 'id2'}}},
+            {'id': '999',
+                '4': {'instance': {'id': 'id3'}}}
+        ])
+        query = {'resource_ids': ['id1', 'id3']}
+        result = self.driver.get_resources(query=query)
+        self.assertEqual(len(result['results']), 2)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
+        self.assertIn('999', result['results'])
+
+    def test_get_resources_accepts_instance_ids_with_dashes(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+                '4': {'instance': {'id': 'id-1'}}},
+            {'id': '777',
+                '4': {'instance': {'id': 'id-2'}}},
+            {'id': '999',
+                '4': {'instance': {'id': 'id-3'}}}
+        ])
+        query = {'resource_ids': ['id-1', 'id-3']}
+        result = self.driver.get_resources(query=query)
+        self.assertEqual(len(result['results']), 2)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
+        self.assertIn('999', result['results'])
+
+    def test_get_resources_accepts_integer_instance_ids(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+                '4': {'instance': {'id': 1}}},
+            {'id': '777',
+                '4': {'instance': {'id': 2}}}
+        ])
+        query = {'resource_ids': ['1']}
+        result = self.driver.get_resources(query=query)
+        self.assertEqual(len(result['results']), 1)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
+
+    def test_get_resources_with_provider(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+             '6': {'provider': 'nova', 'instance': {}}},
+            {'id': '777',
+             '6': {'provider': 'foobar', 'instance': {}}}
+        ])
+        query = {'provider': 'nova'}
+        result = self.driver.get_resources(query=query)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
+
+    def test_get_resources_with_resource_type(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+             '6': {'type': 'compute', 'instance': {}}},
+            {'id': '777',
+             '6': {'type': 'foobar', 'instance': {}}}
+        ])
+        query = {'resource_type': 'compute'}
+        result = self.driver.get_resources(query=query)
+        self.assertNotIn('777', result['results'])
+        self.assertIn('123', result['results'])
+
+    def test_get_resources_with_type_and_provider_and_ids(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+             '6': {'type': 'compute',
+                   'provider': 'nova',
+                   'instance': {'id': '1234-4321'}}},
+            {'id': '999',
+             '6': {'type': 'load-balancer',
+                   'provider': 'nova',
+                   'instance': {'id': '1234-4321'}}},
+            {'id': '888',
+             '6': {'type': 'compute',
+                   'provider': 'nova',
+                   'instance': {'id': 'foo'}}},
+            {'id': '777',
+             '6': {'type': 'compute',
+                   'provider': 'legacy',
+                   'instance': {'id': '1234-4321'}}}
+        ])
+        query = {'resource_type': 'compute',
+                 'provider': 'nova',
+                 'resource_ids': ['1234-4321', 'doesntexist']}
+        result = self.driver.get_resources(query=query)
+        self.assertNotIn('777', result['results'])
+        self.assertNotIn('888', result['results'])
+        self.assertIn('123', result['results'])
+
+    def test_get_resources_checks_numbered_keys_only(self):
+        self.driver.database()['resources'].insert([
+            {'id': '123',
+             'deployment-keys': {'type': 'compute', 'instance': {}}},
+            {'id': '321',
+             '2': {'type': 'compute', 'instance': {}}},
+        ])
+        query = {'resource_type': 'compute'}
+        result = self.driver.get_resources(query=query)
+        self.assertNotIn('123', result['results'])
+        self.assertIn('321', result['results'])
+
+    def test_dont_arbitrarily_execute_mongo_commands(self):
+        self.driver.database()['resources'].insert({
+            'id': '123', '1': {'instance': {}}
+        })
+        query = {'provider': "hahahah'){a = 1;}else {return true}; if(a == '1"}
+        self.driver.get_resources(query=query)
+        result = self.driver.get_resources(query=query)
+        self.assertNotIn('123', result['results'])
 
 
 @unittest.skipIf(SKIP, REASON)
