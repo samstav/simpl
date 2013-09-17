@@ -24,6 +24,7 @@ class CheckmateCustomException(Exception):
 This is important to allow exceptions to flow back from the message queue
 tasks.
 """
+import logging
 
 #Error message constants
 BLUEPRINT_ERROR = ("There is a possible problem in the Blueprint provided - "
@@ -35,6 +36,8 @@ UNEXPECTED_ERROR = ("Unable to automtically recover from error - Please "
 CAN_RESUME = 1
 CAN_RETRY = 2
 CAN_RESET = 4
+
+LOG = logging.getLogger(__name__)
 
 
 class CheckmateException(Exception):
@@ -82,6 +85,7 @@ class CheckmateException(Exception):
     def resetable(self):
         """Detect if exception can be retried with a task tree reset."""
         return self.options & CAN_RESET
+
 
 
 class CheckmateDatabaseConnectionError(CheckmateException):
@@ -175,3 +179,28 @@ class CheckmateHOTTemplateException(CheckmateException):
     expected.
     """
     pass
+
+
+# TODO(zns): deprecate when all workflows and celery tasks have been purged
+class CheckmateUserException(CheckmateException):
+    """DEPRECATED: use CheckmateException with friendly_message kwarg."""
+    def __init__(self, *args):
+        LOG.error("DEPRECATED call to CheckmateUserException: %s", args)
+        super(CheckmateUserException, self).__init__(
+            args[0], friendly_message=args[2])
+
+
+class CheckmateRetriableException(CheckmateException):
+    """DEPRECATED: use CheckmateException with options=CAN_RETRY."""
+    def __init__(self, *args):
+        LOG.error("DEPRECATED call to CheckmateRetriableException: %s", args)
+        super(CheckmateRetriableException, self).__init__(
+            args[0], friendly_message=args[2])
+
+
+class CheckmateResumableException(CheckmateException):
+    """DEPRECATED: use CheckmateException with option CAN_RESUME."""
+    def __init__(self, *args):
+        LOG.error("DEPRECATED call to CheckmateResumableException: %s", args)
+        super(CheckmateResumableException, self).__init__(
+            args[0], friendly_message=args[2])
