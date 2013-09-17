@@ -129,8 +129,8 @@ class ProviderBaseWorkflowMixIn(object):
         service_name = resource['service']
         if not service_name:
             error_message = "Service not found for resource %s" % key
-            raise exceptions.CheckmateException(error_message,
-                                                exceptions.BLUEPRINT_ERROR)
+            raise exceptions.CheckmateException(
+                error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
         return wait_on, service_name, component
 
     def add_delete_connection_tasks(self, wf_spec, context,

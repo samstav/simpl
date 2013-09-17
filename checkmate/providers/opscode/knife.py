@@ -70,7 +70,7 @@ def _get_root_environments_path(dep_id, path=None):
     root = path or CONFIG.deployments_path
     if not os.path.exists(root):
         msg = "Invalid root path: %s" % root
-        raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(msg)
     return root
 
 
@@ -107,8 +107,7 @@ def _run_ruby_command(dep_id, path, command, params, lock=True):
                 if not output:
                     msg = ("'%s' is not installed or not accessible on the "
                            "server" % command)
-                    raise cmexc.CheckmateException(msg,
-                                                   cmexc.UNEXPECTED_ERROR)
+                    raise cmexc.CheckmateException(msg)
             raise exc
         except subprocess.CalledProcessError as exc:
             #retry and pass ex
@@ -188,7 +187,7 @@ def _create_environment_keys(dep_id, environment_path, private_key=None,
             if data != private_key:
                 msg = ("A private key already exists in environment %s and "
                        "does not match the value provided" % environment_path)
-                raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+                raise cmexc.CheckmateException(msg)
     else:
         if private_key:
             with file(private_key_path, 'w') as pk_file:
@@ -317,8 +316,7 @@ def _cache_blueprint(source_repo):
         except subprocess.CalledProcessError as exc:
             error_message = ("Git repository could not be cloned from '%s'.  "
                              "The error returned was '%s'")
-            raise cmexc.CheckmateException(error_message,
-                                           cmexc.UNEXPECTED_ERROR,)
+            raise cmexc.CheckmateException(error_message)
         tags = utils.git_tags(repo_cache)
         if branch in tags:
             tag = branch
@@ -347,7 +345,7 @@ def _ensure_kitchen_blueprint(dest, source_repo):
     repo_cache = _get_blueprints_cache_path(source_repo)
     if not os.path.exists(repo_cache):
         message = "No blueprint repository found in %s" % repo_cache
-        raise cmexc.CheckmateException(message, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(message)
     LOG.debug("repo_cache: %s", repo_cache)
     LOG.debug("dest: %s", dest)
     if not _blueprint_exists(repo_cache, dest):
@@ -370,7 +368,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
     utils.match_celery_logging(LOG)
     if not os.path.exists(path):
         error_message = "Invalid path: %s" % path
-        raise cmexc.CheckmateException(error_message, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(error_message)
 
     kitchen_path = os.path.join(path, service_name)
 
@@ -417,7 +415,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
             if data != secret_key:
                 msg = ("Kitchen secrets key file '%s' already exists and does "
                        "not match the provided value" % secret_key_path)
-                raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+                raise cmexc.CheckmateException(msg)
         LOG.debug("Stored secrets file exists: %s", secret_key_path)
     else:
         if not secret_key:
@@ -515,7 +513,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
     databags_root = os.path.join(kitchen_path, 'data_bags')
     if not os.path.exists(databags_root):
         msg = ("Data bags path does not exist: %s" % databags_root)
-        raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(msg)
     # Check if the bag already exists (create it if not)
     config_file = os.path.join(kitchen_path, 'solo.rb')
     params = ['knife', 'solo', 'data', 'bag', 'list', '-F', 'json',
@@ -583,8 +581,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
                            "item name. The ID was '%s' and the "
                            "databag item name was '%s'" % (contents['id'],
                                                            itemname))
-                raise cmexc.CheckmateException(message,
-                                               cmexc.UNEXPECTED_ERROR)
+                raise cmexc.CheckmateException(message)
             if isinstance(contents, dict):
                 contents_str = json.dumps(contents)
             params = ['knife', 'solo', 'data', 'bag', 'create', bagname,
@@ -695,7 +692,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     kitchen_path = os.path.join(root, environment, kitchen_name)
     if not os.path.exists(kitchen_path):
         message = "Environment kitchen does not exist: %s" % kitchen_path
-        raise cmexc.CheckmateException(message, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(message)
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
     if not os.path.exists(node_path):
         cook.retry(exc=cmexc.CheckmateException(
@@ -817,7 +814,7 @@ def delete_environment(name, path=None):
         else:
             msg = ("Could not delete environment %s. Reason '%s'. Error "
                    "Number %s" % (full_path, ose.strerror, ose.errno))
-            raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+            raise cmexc.CheckmateException(msg)
 
 
 @celtask.task
@@ -843,8 +840,7 @@ def delete_cookbooks(name, service_name, path=None):
                     msg = ("Could not delete cookbooks directory %s. Reason "
                            "'%s'. Error Number %s" % (path, ose.strerror,
                                                       ose.errno))
-                    raise cmexc.CheckmateException(msg,
-                                                   cmexc.UNEXPECTED_ERROR)
+                    raise cmexc.CheckmateException(msg)
     else:
         LOG.warn("Berksfile or Cheffile not found. Cookbooks were not "
                  "deleted")
@@ -906,7 +902,7 @@ def create_environment(name, service_name, path=None, private_key=None,
                      exc_info=True)
         else:
             msg = "Could not create environment %s" % fullpath
-            raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+            raise cmexc.CheckmateException(msg)
 
     results = {"environment": fullpath}
 
@@ -944,7 +940,8 @@ def create_environment(name, service_name, path=None, private_key=None,
             LOG.debug("Ran 'librarian-chef install' in: %s", kitchen_path)
     else:
         error_message = "Source repo not supplied and is required"
-        raise cmexc.CheckmateException(error_message, cmexc.BLUEPRINT_ERROR)
+        raise cmexc.CheckmateException(
+            error_message, friendly_message=cmexc.BLUEPRINT_ERROR)
 
     results.update(kitchen_data)
     results.update(key_data)
@@ -1056,7 +1053,7 @@ def register_node(host, environment, resource, path=None, password=None,
     kitchen_path = os.path.join(root, environment, kitchen_name)
     if not os.path.exists(kitchen_path):
         message = "Kitchen path %s does not exist!" % kitchen_path
-        raise cmexc.CheckmateException(message, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(message)
 
     # Rsync problem with creating path (missing -p so adding it ourselves) and
     # doing this before the complex prepare work
@@ -1066,7 +1063,7 @@ def register_node(host, environment, resource, path=None, password=None,
     except celexc.SoftTimeLimitExceeded:
         msg = "Timeout trying to ssh to %s" % host
         LOG.info("%s in deployment %s", msg, environment)
-        raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(msg)
 
     # Calculate node path and check for prexistance
     node_path = os.path.join(kitchen_path, 'nodes', '%s.json' % host)
@@ -1088,7 +1085,7 @@ def register_node(host, environment, resource, path=None, password=None,
         except celexc.SoftTimeLimitExceeded:
             msg = "Timeout trying to ssh to %s" % host
             LOG.info("%s in deployment %s", msg, environment)
-            raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+            raise cmexc.CheckmateException(msg)
         except (subprocess.CalledProcessError,
                 cmexc.CheckmateCalledProcessError) as exc:
             LOG.warn("Knife prepare failed for %s. Retrying.", host)
@@ -1107,7 +1104,7 @@ def register_node(host, environment, resource, path=None, password=None,
     except celexc.SoftTimeLimitExceeded as exc:
         msg = "Timeout verifying chef install on %s" % host
         LOG.info("%s in deployment %s", msg, environment)
-        user_exc = cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+        user_exc = cmexc.CheckmateException(msg)
         raise register_node.retry(exc=user_exc)
     except StandardError as exc:
         LOG.error("Chef install failed on %s: %s", host, exc)
@@ -1180,7 +1177,7 @@ def manage_role(name, environment, resource, path=None, desc=None,
         instance_key = 'instance:%s' % resource['index']
         results = {instance_key: results}
         cmdeps.resource_postback.delay(environment, results)
-        raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(msg)
 
     role_path = os.path.join(kitchen_path, 'roles', '%s.json' % name)
 

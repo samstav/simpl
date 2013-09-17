@@ -50,7 +50,7 @@ def get_handlers(d_wf, failed_tasks_ids, context, driver):
                 handler = AutomaticResetAndRetryHandler(d_wf, failed_task_id,
                                                         context, driver)
                 exception = exceptions.CheckmateException(
-                    message=exception.message,
+                    exception.message,
                     friendly_message=handler.friendly_message([failed_task.id,
                                               auto_retry_count]))
                 task.set_exception(exception, failed_task)

@@ -55,7 +55,7 @@ def workspace_root_path():
     root = CONFIG.deployments_path
     if not os.path.exists(root):
         msg = "Invalid workspace root path: %s" % root
-        raise exceptions.CheckmateException(msg, exceptions.UNEXPECTED_ERROR)
+        raise exceptions.CheckmateException(msg)
     return root
 
 
@@ -82,8 +82,7 @@ def get_workspace(deployment_id):
                      "%s", fullpath, exc_info=True)
         else:
             msg = "Could not create workspace %s" % fullpath
-            raise exceptions.CheckmateException(msg,
-                                                exceptions.UNEXPECTED_ERROR)
+            raise exceptions.CheckmateException(msg)
     return fullpath
 
 
@@ -152,8 +151,7 @@ def cache_blueprint(source_repo):
         except subprocess.CalledProcessError:
             error_message = ("Git repository could not be cloned from '%s'.  "
                              "The error returned was '%s'")
-            raise exceptions.CheckmateException(error_message,
-                                                exceptions.UNEXPECTED_ERROR)
+            raise exceptions.CheckmateException(error_message)
         tags = utils.git_tags(repo_cache)
         if branch in tags:
             tag = branch
@@ -181,8 +179,7 @@ def download_blueprint(destination, source_repo):
     repo_cache = get_blueprints_cache_path(source_repo)
     if not os.path.exists(repo_cache):
         message = "No blueprint repository found in %s" % repo_cache
-        raise exceptions.CheckmateException(message,
-                                            exceptions.UNEXPECTED_ERROR)
+        raise exceptions.CheckmateException(messag)
     LOG.debug("repo_cache: %s", repo_cache)
     LOG.debug("destination: %s", destination)
     if not blueprint_exists(repo_cache, destination):

@@ -35,7 +35,6 @@ from checkmate import utils
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException,
-    UNEXPECTED_ERROR,
 )
 from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
@@ -1047,7 +1046,7 @@ class ChefMap(object):
                     return chefmap.read()
             else:
                 error_message = "No Chefmap in repository %s" % repo_cache
-                raise CheckmateException(error_message, UNEXPECTED_ERROR)
+                raise CheckmateException(error_message)
 
     @property
     def components(self):
@@ -1212,7 +1211,7 @@ class ChefMap(object):
             if url['scheme'] == 'attributes':
                 if 'resource' not in mapping:
                     message = 'Resource hint required in attribute mapping'
-                    raise CheckmateException(message, UNEXPECTED_ERROR)
+                    raise CheckmateException(message)
 
                 path = '%s:%s' % (url['scheme'], mapping['resource'])
                 if path not in output:
@@ -1293,7 +1292,7 @@ class ChefMap(object):
             value = mapping['value']
         else:
             message = "Mapping has neither 'source' nor 'value'"
-            raise CheckmateException(message, UNEXPECTED_ERROR)
+            raise CheckmateException(message)
         return value
 
     @staticmethod
@@ -1448,9 +1447,9 @@ class ChefMap(object):
         except StandardError as exc:
             LOG.error(exc, exc_info=True)
             error_message = "Chef template rendering failed: %s" % exc
-            raise CheckmateException(error_message, UNEXPECTED_ERROR)
+            raise CheckmateException(error_message)
         except TemplateError as exc:
             LOG.error(exc, exc_info=True)
             error_message = "Chef template had an error: %s" % exc
-            raise CheckmateException(error_message, UNEXPECTED_ERROR)
+            raise CheckmateException(error_message)
         return result

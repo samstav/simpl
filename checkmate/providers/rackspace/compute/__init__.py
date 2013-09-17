@@ -229,7 +229,8 @@ class Provider(RackspaceComputeProviderBase):
                                         provider_key=self.key)
         if not region:
             message = "Could not identify which region to create servers in"
-            raise cmexc.CheckmateException(message, cmexc.BLUEPRINT_ERROR)
+            raise cmexc.CheckmateException(
+                message, friendly_message=cmexc.BLUEPRINT_ERROR)
         local_context = copy.deepcopy(context)
         local_context['region'] = region
 
@@ -1444,7 +1445,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     except (ncexc.NotFound, ncexc.NoUniqueMatch):
         msg = "No server matching id %s" % server_id
         LOG.error(msg, exc_info=True)
-        raise cmexc.CheckmateException(msg, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(msg)
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
                api_object.client.management_url)
@@ -1577,8 +1578,7 @@ def verify_ssh_connection(context, server_id, region, server_ip,
     except (ncexc.NotFound, ncexc.NoUniqueMatch):
         msg = "No server matching id %s" % server_id
         LOG.error(msg, exc_info=True)
-        raise cmexc.CheckmateException(message=msg,
-                                       friendly_message=cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(msg)
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
                api_object.client.management_url)
@@ -1606,7 +1606,7 @@ def verify_ssh_connection(context, server_id, region, server_ip,
         if (verify_ssh_connection.max_retries ==
                 verify_ssh_connection.request.retries):
             exception = cmexc.CheckmateException(
-                message="SSH verification task has failed",
+                "SSH verification task has failed",
                 friendly_message="Could not verify that SSH connectivity is "
                                  "working",
                 options=cmexc.CAN_RESET)

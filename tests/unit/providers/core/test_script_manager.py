@@ -58,10 +58,8 @@ class TestCreateReqource(unittest.TestCase):
         """Verifies CheckmateException raised when caught SSH Exception."""
         manager = Manager(api=self.api, callback=self.callback)
         self.api.remote_execute.side_effect = Exception("Fail")
-        expected = ("('Fail', 'There was an unexpected error executing your "
-                    "deployment - Please contact support', 2)")
         self.assertRaisesRegexp(exceptions.CheckmateException,
-                                expected,
+                                "Fail",
                                 manager.create_resource, {}, 'D1',
                                 {'desired': {'A': 1}}, 'localhost', 'root',
                                 install_script="apt get update")

@@ -81,8 +81,7 @@ class Manager(object):
                 instance = copy.deepcopy(desired)
             except Exception as exc:
                 raise exceptions.CheckmateException(
-                    str(exc), exceptions.UNEXPECTED_ERROR,
-                    exceptions.CAN_RETRY)
+                    exc, options=exceptions.CAN_RETRY)
 
         instance['status'] = 'ACTIVE'
 

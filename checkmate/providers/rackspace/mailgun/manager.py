@@ -51,10 +51,9 @@ class Manager(object):
                     raise
                 else:
                     raise cex.CheckmateException(str(exc),
-                                                 cex.UNEXPECTED_ERROR,
-                                                 cex.CAN_RESUME)
+                                                 options=-cex.CAN_RESUME)
             except StandardError as exc:
-                raise cex.CheckmateException(str(exc), cex.UNEXPECTED_ERROR)
+                raise cex.CheckmateException(str(exc))
 
         results = {
             'id': domain.id,
@@ -89,10 +88,9 @@ class Manager(object):
                     raise
                 else:
                     raise cex.CheckmateException(str(exc),
-                                                 cex.UNEXPECTED_ERROR,
-                                                 cex.CAN_RESUME)
+                                                 options=cex.CAN_RESUME)
             except StandardError as exc:
-                raise cex.CheckmateException(str(exc), cex.UNEXPECTED_ERROR)
+                raise cex.CheckmateException(str(exc))
         results = {
             'id': domain_name,
             'name': domain_name,

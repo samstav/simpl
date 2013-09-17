@@ -142,8 +142,8 @@ class Provider(RackspaceComputeProviderBase):
                     error_message = "Legacy set to spin up in '%s'. Cannot "\
                                     "provision servers in '%s'."\
                                     % (legacy_regions.keys()[0], region)
-                    raise cmexc.CheckmateException(error_message,
-                                                   cmexc.BLUEPRINT_ERROR)
+                    raise cmexc.CheckmateException(
+                        error_message, friendly_message=cmexc.BLUEPRINT_ERROR)
                 else:
                     LOG.warning("Region %s specified in deployment, but no "
                                 "regions are specified in the Legacy Compute "
@@ -627,7 +627,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
 
     if not server_ip:
         error_message = "Could not find IP of server %s" % server_id
-        raise cmexc.CheckmateException(error_message, cmexc.UNEXPECTED_ERROR)
+        raise cmexc.CheckmateException(error_message)
     else:
         up = test_connection(context, server_ip, username, timeout=timeout,
                              password=password, identity_file=identity_file,
