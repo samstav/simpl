@@ -3268,41 +3268,6 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
     };
   }
 
-  var exclude_load_balancers_using_metadata = function(all_lbs) {
-    var BATCH_SIZE = 5;
-    var start = 0;
-
-    var get_batch = function(objects) {
-      var batch = [];
-      for (var i=start ; i<objects.length, batch.length < BATCH_SIZE ; i++) {
-        var obj = objects[i];
-        if (!obj.in_checkmate) batch.push(obj);
-      }
-      start += BATCH_SIZE;
-      return batch;
-    }
-
-    var DELAY = 1500;
-    var start_time = 0;
-    var promisses = [];
-
-    while (true) {
-      batch = get_batch(all_lbs);
-      if (batch.length == 0) break;
-      $timeout(function() {
-        // Call server to get load balancers metadata
-        // var promise = $http.get(...).then(
-        //   var checkmate_resources = _____;
-        //   exclude_resources_in_checkmate(all_lbs, checkmate_resources);
-        // );
-        // promisses.push(promise);
-      }, start_time);
-      start_time += DELAY;
-    }
-
-    return $q.all(promises);
-  }
-
   $scope.get_load_balancers = function(){
     var tenant_id = $scope.auth.context.tenantId;
     if ($scope.auth.identity.loggedIn && tenant_id){
@@ -3311,23 +3276,11 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
       $scope.loading_status['load-balancer'] = true;
       lb_api.query(
         function(results) {
-          var resource_ids = [];
           $scope.resources_by_provider['load-balancer'] = [];
           angular.forEach(results, function(lb){
             $scope.resources_by_provider['load-balancer'].push(decorate_resource(lb));
-            resource_ids.push(lb.instance.id);
           });
-          $scope.get_checkmate_resources(resource_ids, 'load-balancer').then(
-            function(response) {
-              var cm_resources = response.data.results;
-              var all_resources = $scope.resources_by_provider['load-balancer'];
-              exclude_resources_in_checkmate(all_resources, cm_resources);
-              $scope.loading_status['load-balancer'] = false;
-            },
-            function(response) {
-              $scope.loading_status['load-balancer'] = false;
-            }
-          );
+          $scope.loading_status['load-balancer'] = false;
         },
         function(response) {
           $scope.loading_status['load-balancer'] = false;
