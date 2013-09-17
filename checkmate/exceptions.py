@@ -28,8 +28,8 @@ tasks.
 #Error message constants
 BLUEPRINT_ERROR = ("There is a possible problem in the Blueprint provided - "
                    "Please contact support")
-UNEXPECTED_ERROR = ("There was an unexpected error executing your deployment "
-                    "- Please contact support")
+UNEXPECTED_ERROR = ("Unable to automtically recover from error - Please "
+                    "contact support")
 
 # options
 CAN_RESUME = 1
