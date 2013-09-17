@@ -346,28 +346,29 @@ class Router(object):
     def _validate_delete_node_request(self, deployment_info, deployment,
                                       service_name, count, victim_list):
         if not service_name or not count:
-            bottle.abort(400, "Invalid input, service_name and count"
-                              "are required in the request body")
+            raise exceptions.CheckmateValidationException(
+                "Invalid input: service_name and count"
+                "are required in the request body")
+
         victim_list_size = len(victim_list)
         if victim_list_size < 0 or victim_list_size > count:
-            bottle.abort(400, "The victim list has more elements then the "
-                              "count")
+            raise exceptions.CheckmateValidationException(
+                "The victim list has more elements than the count")
 
         if not deployment_info:
             raise exceptions.CheckmateDoesNotExist(
                 "No deployment with id %s" % api_id)
 
         if service_name not in deployment['blueprint']['services']:
-            bottle.abort(400, "The specified service does not exist for the "
-                              "deployment")
-        resource_keys_for_service = deployment.get_resources_for_service(
-            service_name).keys()
+            raise exceptions.CheckmateValidationException(
+                "The specified service does not exist for the deployment")
 
+        resources = deployment.get_resources_for_service(service_name)
+        service_resources = resources.keys()
         for resource_key in victim_list:
-            if resource_key not in resource_keys_for_service:
-                bottle.abort(400, "The resource specified in the victim list "
-                                  "is not valid")
-
+            if resource_key not in service_resources:
+                raise exceptions.CheckmateValidationException(
+                    "The resource specified in the victim list is not valid")
 
     @utils.with_tenant
     def delete_nodes(self, api_id, tenant_id=None):
