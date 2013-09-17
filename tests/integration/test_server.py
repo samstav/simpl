@@ -24,18 +24,75 @@ import uuid
 import bottle
 import webtest
 
+from checkmate import db
 from checkmate import deployments
 from checkmate import environments
 from checkmate import middleware as cmmid
 from checkmate import server
 from checkmate import workflows
 
+try:
+    import mongobox as mbox
+    from mongobox.unittest import MongoTestCase
+    SKIP = False
+    REASON = None
+except ImportError as exc:
+    LOG.warn("Unable to import MongoBox. MongoDB tests will not run: %s", exc)
+    SKIP = True
+    REASON = "'mongobox' not installed: %s" % exc
+    mbox.MongoBox = object
 
+
+@unittest.skipIf(SKIP, REASON)
 class TestServer(unittest.TestCase):
     """Test Basic Server code."""
+    COLLECTIONS_TO_CLEAN = ['tenants',
+                            'deployments',
+                            'blueprints',
+                            'resource_secrets',
+                            'resources']
+    _connection_string = None
+
+    @property
+    def connection_string(self):
+        return TestServer._connection_string
+
+
+    #pylint: disable=W0603
+    @classmethod
+    def setUpClass(cls):
+        """Fire up a sandboxed mongodb instance."""
+        super(TestServer, cls).setUpClass()
+        try:
+            cls.box = mbox.MongoBox(scripting=True)
+            cls.box.start()
+            cls._connection_string = ("mongodb://localhost:%s/test" %
+                                      cls.box.port)
+        except StandardError as exc:
+            LOG.exception(exc)
+            if hasattr(cls, 'box'):
+                del cls.box
+            global SKIP
+            global REASON
+            SKIP = True
+            REASON = str(exc)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Stop the sanboxed mongodb instance."""
+        if hasattr(cls, 'box') and isinstance(cls.box, mbox.MongoBox):
+            if cls.box.running() is True:
+                cls.box.stop()
+                cls.box = None
+        super(TestServer, cls).tearDownClass()
+
 
     def setUp(self):
-        os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
+        if SKIP is True:
+            self.skipTest(REASON)
+        if self.connection_string:
+            self.driver = db.get_driver(
+                connection_string=self.connection_string, reset=True)
         bottle.default_app.push()
         reload(environments)
         self.root_app = bottle.default_app.pop()
@@ -54,6 +111,10 @@ class TestServer(unittest.TestCase):
         context = cmmid.ContextMiddleware(tenant)
         extension = cmmid.ExtensionsMiddleware(context)
         self.app = webtest.TestApp(extension)
+
+    def tearDown(self):
+        for collection_name in TestServer.COLLECTIONS_TO_CLEAN:
+            self.driver.database()[collection_name].drop()
 
     def test_multitenant_deployment(self):
         self.rest_tenant_exercise('deployment')
