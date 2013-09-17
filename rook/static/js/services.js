@@ -2054,7 +2054,7 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
 
     var resource_ids = get_valid_resource_ids(deployment, resources);
 
-    var data = { service_name: service_name, count: num_nodes, victim_list: resource_ids.join(',') };
+    var data = { service_name: service_name, count: num_nodes, victim_list: resource_ids };
     var url = get_deployment_url(deployment, '+delete-nodes');
     return $http.post(url, data);
   }
