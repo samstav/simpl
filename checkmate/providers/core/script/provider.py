@@ -74,6 +74,8 @@ class Provider(providers.ProviderBase):
         if not script_object:
             return dict(root=None, final=None)
 
+        timeout = deployment.get_setting('timeout', provider_key=self.key,
+                                         default=300)
         host_id = resource['hosted_on']
         task_name = 'Execute Script %s (%s)' % (key, host_id)
         host_ip_path = "instance:%s/public_ip" % host_id
@@ -97,7 +99,7 @@ class Provider(providers.ProviderBase):
             private_key=private_key,
             install_script=script_object,
             host_os=operators.PathAttrib(type_path),
-            timeout=300,
+            timeout=timeout,
             properties={
                 'estimated_duration': 300,
                 'task_tags': ['final'],
