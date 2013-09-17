@@ -1,4 +1,4 @@
-# pylint: disable=C0103
+# pylint: disable=C0103,E1101
 
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -15,8 +15,8 @@
 
 """Tests for server module."""
 import json
+import logging
 import mock
-import os
 import sys
 import unittest
 import uuid
@@ -31,9 +31,10 @@ from checkmate import middleware as cmmid
 from checkmate import server
 from checkmate import workflows
 
+LOG = logging.getLogger(__name__)
+
 try:
     import mongobox as mbox
-    from mongobox.unittest import MongoTestCase
     SKIP = False
     REASON = None
 except ImportError as exc:
@@ -55,8 +56,8 @@ class TestServer(unittest.TestCase):
 
     @property
     def connection_string(self):
+        """Property to return the db connection string."""
         return TestServer._connection_string
-
 
     #pylint: disable=W0603
     @classmethod
@@ -85,7 +86,6 @@ class TestServer(unittest.TestCase):
                 cls.box.stop()
                 cls.box = None
         super(TestServer, cls).tearDownClass()
-
 
     def setUp(self):
         if SKIP is True:
