@@ -343,11 +343,12 @@ class Router(object):
                     'Location', "/deployments/%s" % api_id)
         return utils.write_body(results, bottle.request, bottle.response)
 
-    def _validate_delete_node_request(self, deployment_info, deployment,
-                                      service_name, count, victim_list):
+    def _validate_delete_node_request(self, api_id, deployment_info,
+                                      deployment, service_name, count,
+                                      victim_list):
         if not service_name or not count:
             raise exceptions.CheckmateValidationException(
-                "Invalid input: service_name and count"
+                "Invalid input: service_name and count "
                 "are required in the request body")
 
         victim_list_size = len(victim_list)
@@ -370,6 +371,8 @@ class Router(object):
                 raise exceptions.CheckmateValidationException(
                     "The resource specified in the victim list is not valid")
 
+        return True
+
     @utils.with_tenant
     def delete_nodes(self, api_id, tenant_id=None):
         """Deletes nodes from a  deployment, based on the resource ids that
@@ -390,7 +393,7 @@ class Router(object):
                                                       tenant_id=tenant_id,
                                                       with_secrets=True)
         deployment = cmdeploy.Deployment(deployment_info)
-        self._validate_delete_node_request(deployment_info, deployment,
+        self._validate_delete_node_request(api_id, deployment_info, deployment,
                                            service_name, count, victim_list)
 
         LOG.debug("Received request to delete %s nodes for service %s for "
@@ -399,7 +402,8 @@ class Router(object):
         self.manager.delete_nodes(deployment, context,
                                   service_name, count, victim_list, tenant_id)
 
-        deployment = self.manager.save_deployment(deployment, api_id=api_id,
+        deployment = self.manager.save_deployment(deployment=deployment,
+                                                  api_id=api_id,
                                                   tenant_id=tenant_id)
         delete_nodes_wf_id = deployment['operation']['workflow-id']
         wf_tasks.cycle_workflow.delay(delete_nodes_wf_id,

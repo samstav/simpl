@@ -24,6 +24,8 @@ import bottle
 import webtest
 
 from checkmate import deployments
+from checkmate import exceptions
+from checkmate import workflows
 from checkmate import test
 from checkmate import utils
 
@@ -260,6 +262,216 @@ class TestGetDeployments(TestDeploymentRouter):
         with mock.patch.object(self.router, 'param_whitelist', 'fake white'):
             self.router.get_deployments()
             parse.assert_called_with({}, 'fake white')
+
+
+class TestDeleteNodes(TestDeploymentRouter):
+
+    def setUp(self):
+        super(TestDeleteNodes, self).setUp()
+        deployment_info = {'id': '99', 'operation': {'workflow-id': 'w999'}}
+        self.manager.get_deployment.return_value = deployment_info
+        saved_deployment = {'operation': {'workflow-id': 'w99'}, 'id': 'faked'}
+        self.manager.save_deployment.return_value = saved_deployment
+        mock_context = self.filters.context
+        mock_context.get_queued_task_dict = mock.Mock()
+        mock_context.get_queued_task_dict.return_value = {'fake_dict': True}
+
+    """ setUp: Simulation Context """
+    @mock.patch.object(utils, 'is_simulation')
+    @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
+    def setUpSimulation(self, _delay, _is_simulation):
+        _is_simulation.return_value = True
+        self.router._validate_delete_node_request = mock.Mock()
+        url = '/123/deployments/999/+delete-nodes'
+        data = {'service_name': 'service', 'count': 2}
+        self.app.post(url, json.dumps(data), content_type='application/json')
+
+    def test_sets_simulation_context(self):
+        self.setUpSimulation()
+        call_args, _ = self.manager.delete_nodes.call_args
+        context = call_args[1]
+        self.assertEquals(context.simulation, True)
+
+    """ setUp: No Victim List """
+    @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
+    def setUpNoVictimList(self, _delay):
+        self.router._validate_delete_node_request = mock.Mock()
+        url = '/123/deployments/999/+delete-nodes'
+        data = {'service_name': 'service', 'count': 2}
+        self.app.post(url, json.dumps(data), content_type='application/json')
+
+    def test_accept_empty_victim_list(self):
+        self.setUpNoVictimList()
+        call_args, _ = self.manager.delete_nodes.call_args
+        self.assertEquals(call_args[4], [])
+
+    """ setUp: Victim List """
+    @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
+    def setUpVictimList(self, _delay):
+        self._delay = _delay
+        self.router._validate_delete_node_request = mock.Mock()
+        url = '/123/deployments/999/+delete-nodes'
+        data = {'service_name': 'faked', 'count': 2, 'victim_list': ['1', '2']}
+        self.app.post(url, json.dumps(data), content_type='application/json')
+
+    def test_manager_deletes_nodes(self):
+        self.setUpVictimList()
+        call_args, _ = self.manager.delete_nodes.call_args
+        self.assertEquals(call_args[0]['id'], '99')
+        self.assertEquals(call_args[1], {})
+        self.assertEquals(call_args[2], 'faked')
+        self.assertEquals(call_args[3], 2)
+        self.assertEquals(call_args[4], ['1', '2'])
+        self.assertEquals(call_args[5], '123')
+
+    def test_manager_saves_deployment(self):
+        self.setUpVictimList()
+        _, kwargs = self.manager.save_deployment.call_args
+        self.assertEquals(kwargs['deployment']['id'], '99')
+        self.assertEquals(kwargs['api_id'], '999')
+        self.assertEquals(kwargs['tenant_id'], '123')
+
+    def test_workflow_cycles_through_tasks(self):
+        self.setUpVictimList()
+        call_args, _ = self._delay.call_args
+        self.assertEquals(call_args[0], 'w99')
+        self.assertEquals(call_args[1], {'fake_dict': True})
+
+    """ setUp: Victim List """
+    @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
+    def setUpFinalResponse(self, _delay):
+        self._delay = _delay
+        self.router._validate_delete_node_request = mock.Mock()
+        url = '/123/deployments/999/+delete-nodes'
+        data = {'service_name': 'faked', 'count': 2, 'victim_list': ['1', '2']}
+        jdata = json.dumps(data)
+        response = self.app.post(url, jdata, content_type='application/json')
+        self.final_response = response
+
+    def test_server_responds_correctly(self):
+        self.setUpFinalResponse()
+        response = self.final_response
+        deployment = json.loads(response.body)
+        self.assertEquals(response.status, '202 Accepted')
+        self.assertEquals(deployment['id'], 'faked')
+
+
+class TestValidateDeleteNodeRequest(TestDeploymentRouter):
+
+    def setUp(self):
+        super(TestValidateDeleteNodeRequest, self).setUp()
+        self.validate_fn = self.router._validate_delete_node_request
+
+    def test_presence_of_service_name(self):
+        api_id = None
+        deployment_info = None
+        deployment = None
+        service_name = None
+        count = None
+        victim_list = None
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          self.validate_fn,
+                          api_id, deployment_info, deployment,
+                          service_name, count, victim_list)
+
+    def test_presence_of_count(self):
+        api_id = None
+        deployment_info = None
+        deployment = None
+        service_name = 'service_name'
+        count = None
+        victim_list = None
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          self.validate_fn,
+                          api_id, deployment_info, deployment,
+                          service_name, count, victim_list)
+
+    def test_victim_list_greater_than_zero(self):
+        api_id = None
+        deployment_info = None
+        deployment = None
+        service_name = 'service_name'
+        count = -5
+        victim_list = []
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          self.validate_fn,
+                          api_id, deployment_info, deployment,
+                          service_name, count, victim_list)
+
+    def test_victim_list_size_less_or_equal_to_count(self):
+        api_id = None
+        deployment_info = None
+        deployment = None
+        service_name = 'service_name'
+        count = 3
+        victim_list = [1, 2, 3, 4]
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          self.validate_fn,
+                          api_id, deployment_info, deployment,
+                          service_name, count, victim_list)
+
+    def test_presence_of_deployment_info(self):
+        api_id = None
+        deployment_info = None
+        deployment = None
+        service_name = 'service_name'
+        count = 3
+        victim_list = [1, 2, 3]
+        self.assertRaises(exceptions.CheckmateDoesNotExist,
+                          self.validate_fn,
+                          api_id, deployment_info, deployment,
+                          service_name, count, victim_list)
+
+    def test_deployment_blueprint_contains_service_name(self):
+        api_id = '999'
+        deployment_info = {'id': '999'}
+        deployment = {'blueprint': {'services': {'real_service': {}}}}
+        service_name = 'fake_service'
+        count = 3
+        victim_list = [1, 2, 3]
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          self.validate_fn,
+                          api_id, deployment_info, deployment,
+                          service_name, count, victim_list)
+
+    def test_victim_list_only_contains_deployment_resources(self):
+        deployment_dict = {'blueprint': {'services': {'fake_service': {}}}}
+
+        def get_item(key1):
+            return deployment_dict[key1]
+
+        api_id = '999'
+        deployment_info = {'id': '999'}
+        available_resources = {'r1': {}, 'r2': {}, 'r3': {}}
+        deployment = mock.MagicMock()
+        deployment.__getitem__ = mock.Mock(side_effect=get_item)
+        deployment.get_resources_for_service.return_value = available_resources
+        service_name = 'fake_service'
+        count = 4
+        victim_list = ['r1', 'r2', 'r3', 'r4']
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          self.validate_fn,
+                          api_id, deployment_info, deployment,
+                          service_name, count, victim_list)
+
+    def test_passes_all_validations(self):
+        deployment_dict = {'blueprint': {'services': {'fake_service': {}}}}
+
+        def get_item(key1):
+            return deployment_dict[key1]
+
+        api_id = '999'
+        deployment_info = {'id': '999'}
+        available_resources = {'r1': {}, 'r2': {}, 'r3': {}}
+        deployment = mock.MagicMock()
+        deployment.__getitem__ = mock.Mock(side_effect=get_item)
+        deployment.get_resources_for_service.return_value = available_resources
+        service_name = 'fake_service'
+        count = 3
+        victim_list = ['r1', 'r2', 'r3']
+        result = self.validate_fn(api_id, deployment_info, deployment,
+                                  service_name, count, victim_list)
+        self.assertEquals(result, True)
 
 
 if __name__ == '__main__':
