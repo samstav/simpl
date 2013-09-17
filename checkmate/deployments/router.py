@@ -1,3 +1,4 @@
+# pylint: disable=R0913,W0212,W0613
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -34,7 +35,6 @@ from checkmate import stacks
 from checkmate import utils
 from checkmate import workflow
 from checkmate import workflow_spec
-from checkmate import workflows
 from checkmate.workflows import tasks as wf_tasks
 
 LOG = logging.getLogger(__name__)
@@ -279,7 +279,7 @@ class Router(object):
         """Parse and preview a deployment and its workflow."""
         deployment = _content_to_deployment(tenant_id=tenant_id)
         results = self.manager.plan(deployment, bottle.request.context)
-        spec = workflows.WorkflowSpec.create_workflow_spec_deploy(
+        spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
             results, bottle.request.context)
         serializer = DictionarySerializer()
         serialized_spec = spec.serialize(serializer)
@@ -316,7 +316,7 @@ class Router(object):
 
     @utils.with_tenant
     def update_deployment(self, api_id=None, tenant_id=None):
-        """Store a deployment on this server"""
+        """Store a deployment on this server."""
         deployment = _content_to_deployment(
             deployment_id=api_id, tenant_id=tenant_id)
         if api_id is None:
@@ -343,10 +343,45 @@ class Router(object):
                     'Location', "/deployments/%s" % api_id)
         return utils.write_body(results, bottle.request, bottle.response)
 
+    @staticmethod
+    def _validate_delete_node_request(api_id, deployment_info,
+                                      deployment, service_name, count,
+                                      victim_list):
+        """Check that a delete node request is valid."""
+        if not service_name or not count:
+            raise exceptions.CheckmateValidationException(
+                "'service_name' and 'count' are required in the request body")
+
+        victim_list_size = len(victim_list)
+        if victim_list_size < 0 or victim_list_size > count:
+            raise exceptions.CheckmateValidationException(
+                "The victim list has more elements than the count")
+
+        if not deployment_info:
+            raise exceptions.CheckmateDoesNotExist(
+                "No deployment with id %s" % api_id)
+
+        try:
+            if service_name not in deployment['blueprint']['services']:
+                raise exceptions.CheckmateValidationException(
+                    "The specified service does not exist for the deployment")
+        except KeyError:
+            raise exceptions.CheckmateValidationException(
+                "The specified service does not exist for the deployment")
+
+        resources = deployment.get_resources_for_service(service_name)
+        service_resources = resources.keys()
+        for resource_key in victim_list:
+            if resource_key not in service_resources:
+                raise exceptions.CheckmateValidationException(
+                    "The resource specified in the victim list is not valid")
+
+        return True
+
     @utils.with_tenant
     def delete_nodes(self, api_id, tenant_id=None):
         """Deletes nodes from a  deployment, based on the resource ids that
-        are to be provided in the request body
+        are to be provided in the request body.
         :param api_id:
         :param tenant_id:
         :return:
@@ -354,37 +389,17 @@ class Router(object):
         context = bottle.request.context
         if utils.is_simulation(api_id):
             context.simulation = True
-        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
-                                                 with_secrets=True)
-        if not deployment:
-            raise exceptions.CheckmateDoesNotExist(
-                "No deployment with id %s" % api_id)
-        deployment = cmdeploy.Deployment(deployment)
+
         body = utils.read_body(bottle.request)
-
-        if not 'service_name' in body or not 'count' in body:
-            bottle.abort(400, "Invalid input, service_name and count is not "
-                              "provided in the request body")
-
-        service_name = body['service_name']
-        count = int(body['count'])
-        victim_list = []
-        if "victim-list" in body:
-            victim_list = body['victim-list']
-
-        if service_name not in deployment['blueprint']['services']:
-            bottle.abort(400, "The specified service does not exist for the "
-                              "deployment")
-        if len(victim_list) > count:
-            bottle.abort(400, "The victim list has more elements then the "
-                              "count")
-        resource_keys_for_service = deployment.get_resources_for_service(
-            service_name).keys()
-
-        for resource_key in victim_list:
-            if resource_key not in resource_keys_for_service:
-                bottle.abort(400, "The resource specified in the victim list "
-                                  "is not valid")
+        service_name = body.get('service_name')
+        count = int(body.get('count', 0))
+        victim_list = body.get('victim_list', [])
+        deployment_info = self.manager.get_deployment(api_id,
+                                                      tenant_id=tenant_id,
+                                                      with_secrets=True)
+        deployment = cmdeploy.Deployment(deployment_info)
+        self._validate_delete_node_request(api_id, deployment_info, deployment,
+                                           service_name, count, victim_list)
 
         LOG.debug("Received request to delete %s nodes for service %s for "
                   "deployment %s", count, service_name, deployment['id'])
@@ -392,7 +407,8 @@ class Router(object):
         self.manager.delete_nodes(deployment, context,
                                   service_name, count, victim_list, tenant_id)
 
-        deployment = self.manager.save_deployment(deployment, api_id=api_id,
+        deployment = self.manager.save_deployment(deployment=deployment,
+                                                  api_id=api_id,
                                                   tenant_id=tenant_id)
         delete_nodes_wf_id = deployment['operation']['workflow-id']
         wf_tasks.cycle_workflow.delay(delete_nodes_wf_id,

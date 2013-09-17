@@ -695,6 +695,17 @@ class Provider(rsbase.RackspaceProviderBase):
             load_balancers += api.list()
         results = []
         for clb in load_balancers:
+            in_checkmate = False
+            if hasattr(clb, 'metadata'):
+                all_metadata = clb.metadata
+                for data in all_metadata:
+                    if data['key'] == 'RAX-CHECKMATE':
+                        in_checkmate = True
+                        break
+
+            if in_checkmate:
+                continue
+
             vip = None
             for ip_data in clb.virtual_ips:
                 if ip_data.ip_version == 'IPV4' and ip_data.type == "PUBLIC":

@@ -986,6 +986,7 @@ class TestLoadBalancerGetResources(unittest.TestCase):
         load_balancer.id = 'id'
         load_balancer.port = 'port'
         load_balancer.virtual_ips = []
+        load_balancer.metadata = []
         load_balancer.manager.api.region_name = 'region_name'
 
         lb_api = mock.Mock()
@@ -1015,6 +1016,7 @@ class TestLoadBalancerGetResources(unittest.TestCase):
         vip.ip_version = 'IPV4'
         vip.address = '1.1.1.1'
         load_balancer.virtual_ips = [vip]
+        load_balancer.metadata = []
 
         lb_api = mock.Mock()
         lb_api.list.return_value = [load_balancer]
@@ -1024,6 +1026,23 @@ class TestLoadBalancerGetResources(unittest.TestCase):
         result = loadbalancer.Provider.get_resources(context, 'tenant')
         instance = result[0]['instance']
         self.assertEqual(instance['public_ip'], '1.1.1.1')
+
+    @mock.patch.object(loadbalancer.Provider, 'connect')
+    @mock.patch('checkmate.providers.rackspace.loadbalancer.provider.pyrax')
+    def test_get_resources_dont_return_cm_resources(self, mock_pyrax,
+                                                    mock_connect):
+        context = mock.Mock()
+        load_balancer = mock.Mock()
+        load_balancer.virtual_ips = []
+        load_balancer.metadata = [{'key': 'RAX-CHECKMATE'}]
+
+        lb_api = mock.Mock()
+        lb_api.list.return_value = [load_balancer]
+        mock_connect.return_value = lb_api
+        mock_pyrax.regions = ['DFW']
+
+        result = loadbalancer.Provider.get_resources(context, 'tenant')
+        self.assertEqual(result, [])
 
 
 if __name__ == '__main__':
