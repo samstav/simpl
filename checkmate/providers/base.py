@@ -129,10 +129,8 @@ class ProviderBaseWorkflowMixIn(object):
         service_name = resource['service']
         if not service_name:
             error_message = "Service not found for resource %s" % key
-            raise exceptions.CheckmateUserException(
-                error_message, utils.get_class_name(
-                    exceptions.CheckmateException), exceptions.BLUEPRINT_ERROR,
-                '')
+            raise exceptions.CheckmateException(
+                error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
         return wait_on, service_name, component
 
     def add_delete_connection_tasks(self, wf_spec, context,
@@ -170,7 +168,6 @@ class ProviderBaseWorkflowMixIn(object):
         """
         LOG.debug("%s.%s.add_connection_tasks called, "
                   "but was not implemented", self.vendor, self.name)
-
 
     @staticmethod
     def get_host_ready_tasks(resource, wfspec, deployment):
@@ -605,7 +602,7 @@ class ProviderTask(celery.Task):
             raise exceptions.CheckmateException(
                 'Context passed into ProviderTask is an unsupported type %s.'
                 % type(context))
-        # TODO (zns): remove region - this is specific to Rackspace provider
+        # TODO(zns): remove region - this is specific to Rackspace provider
         if context.region is None and 'region' in kwargs:
             context.region = kwargs.get('region')
 
@@ -624,8 +621,11 @@ class ProviderTask(celery.Task):
             data = self.run(context, *args, **kwargs)
         except celery_exceptions.RetryTaskError as exc:
             return self.retry(exc=exc)
-        except exceptions.CheckmateResumableException as exc:
-            return self.retry(exc=exc)
+        except exceptions.CheckmateException as exc:
+            if exc.resumable:
+                return self.retry(exc=exc)
+            else:
+                raise exc
         self.callback(context, data)
         return {'instance:%s' % context["resource_key"]: data}
 

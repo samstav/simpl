@@ -113,7 +113,7 @@ def update_deployment(w_id, error=None):
             wf_errors.append(cmwf.convert_exc_to_dict(error, None, tenant_id,
                                                       w_id, None))
         if wf_errors:
-            status_info = cmops.get_status_info(wf_errors, tenant_id, w_id)
+            status_info = cmwf.get_status_info(d_wf, w_id)
             dep_status = "FAILED"
 
         operation_kwargs = {'status': status,

@@ -19,7 +19,7 @@
 import mock
 import unittest
 
-from checkmate.exceptions import CheckmateRetriableException
+from checkmate.exceptions import CheckmateException
 from checkmate import task as cmtsk
 
 
@@ -45,20 +45,18 @@ class TestTask(unittest.TestCase):
         task = mock.MagicMock()
         task._get_internal_attribute = mock.MagicMock()
         task._get_internal_attribute.return_value = {
-            "info": ("CheckmateRetriableException(u\'\',"
-                     " \'CheckmateServerBuildFailed\', "
-                     "u\'Server build failed\', \'\')")}
+            "info": "CheckmateException('', 'Server build failed')"
+        }
         exception = cmtsk.get_exception(task)
         task._get_internal_attribute.assert_called_once_with("task_state")
-        self.assertTrue(isinstance(exception, CheckmateRetriableException))
+        self.assertTrue(isinstance(exception, CheckmateException))
 
     def test_set_exception_on_task(self):
         task = mock.MagicMock()
         task._get_internal_attribute = mock.MagicMock()
         task._get_internal_attribute.return_value = {
-            "info": ("CheckmateRetriableException(u\'\',"
-                     " \'CheckmateServerBuildFailed\', "
-                     "u\'Server build failed\', \'\')")}
+            "info": "CheckmateException('','')"
+        }
         new_exception = Exception("This replaces the old exception")
         cmtsk.set_exception(new_exception, task)
         exception = cmtsk.get_exception(task)

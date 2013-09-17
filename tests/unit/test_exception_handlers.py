@@ -23,7 +23,7 @@ class TestExceptionHandlers(unittest.TestCase):
 
     def test_get_handlers(self):
         task_state = {
-            "info": "CheckmateRetriableException('','','','')",
+            "info": "CheckmateException('','', 4)",
         }
         mock_wf = mock.Mock()
         mock_context = mock.Mock()
@@ -42,7 +42,7 @@ class TestExceptionHandlers(unittest.TestCase):
 
     def test_should_not_get_handler_when_property_is_not_set(self):
         task_state = {
-            "info": "CheckmateRetriableException('','','','')",
+            "info": "CheckmateException('','')",
         }
         mock_wf = mock.Mock()
         mock_context = mock.Mock()

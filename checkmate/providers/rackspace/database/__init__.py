@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 '''
 Rackspace Cloud Databases Provider
 '''
@@ -18,10 +32,7 @@ from .tasks import (
 
 from checkmate.common import statsd
 from checkmate.deployments import resource_postback
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateResumableException,
-)
+from checkmate import exceptions
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -42,8 +53,9 @@ def wait_on_build(context, instance_id, region=None, api=None):
     '''Celery task registration for backwards comp.'''
     try:
         return _wait_on_build(context, instance_id, region=region, api=api)
-    except CheckmateResumableException as exc:
-        return wait_on_build.retry(exc=exc)
+    except exceptions.CheckmateException as exc:
+        if exc.resumable:
+            return wait_on_build.retry(exc=exc)
 
 
 @task
@@ -313,7 +325,7 @@ def wait_on_del_instance(context, api=None):
             }
         }
         resource_postback.delay(context['deployment_id'], res)
-        wait_on_del_instance.retry(exc=CheckmateException(msg))
+        wait_on_del_instance.retry(exc=exceptions.CheckmateException(msg))
 
     resource_postback.delay(context['deployment_id'], res)
     return res
@@ -400,8 +412,8 @@ def delete_database(context, api=None):
             }
         }
     elif instance.status == 'BUILD':  # can't delete when instance in BUILD
-        delete_database.retry(exc=CheckmateException("Waiting on instance to "
-                                                     "be out of BUILD status"))
+        delete_database.retry(exc=exceptions.CheckmateException(
+            "Waiting on instance to be out of BUILD status"))
     try:
         instance.delete_database(db_name)
     except pyexc.ClientException as respe:
@@ -427,6 +439,6 @@ def delete_user(context, instance_id, username, region, api=None):
 
 
 #Database provider specific exceptions
-class CheckmateDatabaseBuildFailed(CheckmateException):
+class CheckmateDatabaseBuildFailed(exceptions.CheckmateException):
     """Error building database."""
     pass

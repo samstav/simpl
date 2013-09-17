@@ -13,10 +13,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-'''
-Workflow Class and Helper Functions
-'''
+"""Workflow Class and Helper Functions"""
 import copy
+import inspect
 import logging
 import uuid
 
@@ -33,21 +32,25 @@ from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.deployment import Deployment
-from checkmate.exceptions import CheckmateException
-from checkmate.exceptions import CheckmateResumableException
-from checkmate.exceptions import CheckmateRetriableException
-from checkmate.exceptions import CheckmateUserException
-from checkmate.exceptions import UNEXPECTED_ERROR
+from checkmate import exceptions
 from checkmate import utils
 from checkmate.workflow_spec import WorkflowSpec
 
 DB = get_driver()
 LOG = logging.getLogger(__name__)
 
+EVAL_LOCALS = dict(inspect.getmembers(exceptions, inspect.isclass))
+EVAL_LOCALS['CAN_RETRY'] = exceptions.CAN_RETRY
+EVAL_LOCALS['CAN_RESUME'] = exceptions.CAN_RESUME
+EVAL_LOCALS['CAN_RESET'] = exceptions.CAN_RESET
+EVAL_LOCALS['MaxRetriesExceededError'] = MaxRetriesExceededError
+EVAL_LOCALS['Exception'] = Exception
+EVAL_GLOBALS = {'nothing': None}
+
 
 def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
                     wf_type="BUILD"):
-    '''Creates a workflow for the passed in spec and deployment
+    """Creates a workflow for the passed in spec and deployment
 
     :param spec: WorkflowSpec to use for creating the workflow
     :param deployment: deployment to create the workflow for
@@ -56,7 +59,7 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
     :param workflow_id: id of the workflow to be created
     :param wf_type: type of the workflow to be created
     :return:
-    '''
+    """
     if not workflow_id:
         workflow_id = utils.get_id(context["simulation"])
     spiff_wf = init_spiff_workflow(spec, deployment, context, workflow_id,
@@ -71,10 +74,10 @@ def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
 
 
 def get_errored_tasks(d_wf):
-    '''Gets the number of tasks in error for a workflow
+    """Gets the number of tasks in error for a workflow
     :param d_wf: spiff workflow to get the errors from
     :return: number of tasks in error
-    '''
+    """
     failed_tasks = []
     tasks = d_wf.get_tasks()
     while tasks:
@@ -85,11 +88,11 @@ def get_errored_tasks(d_wf):
 
 
 def update_workflow_status(workflow):
-    '''Update the status, total, completed and errored tasks in a workflow
+    """Update the status, total, completed and errored tasks in a workflow
 
     :param workflow: workflow to be updated
     :return:
-    '''
+    """
     errored_tasks = get_errored_tasks(workflow)
 
     workflow_state = {
@@ -198,79 +201,78 @@ def create_reset_failed_task_wf(d_wf, deployment_id, context,
 
 
 def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
-    """Converts a exception to a dictionary
+    """Converts a exception to a dictionary.
+
     :param info: exception to convert
     :param task_id: spiff task_id
     :param tenant_id: tenant_id
     :param workflow_id: workflow id
     :param traceback: traceback of the exception
     :return: the dictionary of the exception
+
+            error-message is what is displayed by client tools, so we only show
+                friendly strings or preformatted messages.
+            error-traceback is saved as a secret and only available
+                with_secrets
+            error is the exception string saved as a secret and only available
+                with_secrets
     """
     exc_dict = {}
-    exception = eval(info)
-    if type(exception) is CheckmateRetriableException:
-        exc_dict = {
-            "error-type": exception.error_type,
-            "error-message": exception.error_message,
-            "error-help": exception.error_help,
-            "retriable": True,
-            "task-id": task_id,
-            "retry-link": "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
-                tenant_id, workflow_id, task_id),
-            "error-traceback": traceback,
-            "friendly-message": str(exception.friendly_message)
-        }
-    elif type(exception) is CheckmateResumableException:
-        exc_dict = {
-            "error-type": exception.error_type,
-            "error-message": exception.error_message,
-            "error-help": exception.error_help,
-            "resumable": True,
-            "task-id": task_id,
-            "resume-link": "/%s/workflows/%s/tasks/%s/+execute" % (
-                tenant_id,
-                workflow_id,
-                task_id),
-            "error-traceback": traceback,
-            "friendly-message": exception.friendly_message
-        }
-    elif type(exception) is CheckmateUserException:
-        exc_dict = {
-            "error-type": exception.error_type,
-            "error-message": exception.error_message,
-            "error-help": exception.error_help,
-            "task-id": task_id,
-            "error-traceback": traceback,
-            "friendly-message": exception.friendly_message
-        }
+    exception = eval(info, EVAL_GLOBALS, EVAL_LOCALS)
+    if isinstance(exception, exceptions.CheckmateException):
+        if exception.retriable or exception.resetable:
+            exc_dict = {
+                "error-message": exception.friendly_message,
+                "retriable": True,
+                "task-id": task_id,
+                "retry-link": "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
+                    tenant_id, workflow_id, task_id),
+                "error-traceback": traceback,
+                "error-string": str(exception),
+            }
+        elif exception.resumable:
+            exc_dict = {
+                "error-message": exception.friendly_message,
+                "resumable": True,
+                "task-id": task_id,
+                "resume-link": "/%s/workflows/%s/tasks/%s/+execute" % (
+                    tenant_id,
+                    workflow_id,
+                    task_id),
+                "error-traceback": traceback,
+                "error-string": str(exception),
+            }
+        else:
+            exc_dict = {
+                "error-message": exception.friendly_message,
+                "task-id": task_id,
+                "error-traceback": traceback,
+                "error-string": str(exception),
+            }
     elif type(exception) is MaxRetriesExceededError:
         exc_dict = {
-            "error-message": "The maximum amount of permissible retries for "
-                             "workflow %s has elapsed. Please re-execute the"
-                             " workflow" % workflow_id,
-            "error-help": "",
-            "error-type": "MaxRetriesExceededError",
+            "error-message": "There was a timeout while executing the "
+                             "deployment",
             "retriable": True,
             "retry-link": "/%s/workflows/%s/+execute" % (
                 tenant_id, workflow_id),
-            "friendly-message": "There was a timeout while executing the "
-                                "deployment"
+            "error-string": str(exception),
         }
     elif isinstance(exception, Exception):
         exc_dict = {
-            "error-type": utils.get_class_name(exception),
-            "error-message": str(exception),
-            "error-traceback": traceback
+            "error-message": exceptions.UNEXPECTED_ERROR,
+            "error-traceback": traceback,
+            "error-string": str(exception),
         }
     return exc_dict
 
 
 def get_errors(wf_dict, tenant_id):
-    '''Traverses through the workflow-tasks, and collects errors information
+    """Traverses through the workflow-tasks, and collects errors information
     from all the failed tasks
     :param wf_dict: The workflow to get the tasks from
     :return: List of error information
-    '''
+    """
     results = []
     tasks = wf_dict.get_tasks()
     workflow_id = wf_dict.get_attribute('id')
@@ -293,6 +295,74 @@ def get_errors(wf_dict, tenant_id):
                     "error-traceback": traceback
                 })
     return results
+
+
+def get_exceptions(wf_dict):
+    """Traverses through the workflow-tasks, and collects errors information
+    from all the failed tasks
+    :param wf_dict: The workflow to get the tasks from
+    :return: List of exceptions
+    """
+    exc_list = []
+    tasks = wf_dict.get_tasks()
+
+    while tasks:
+        task = tasks.pop(0)
+        if cmtsk.is_failed(task):
+            task_state = task._get_internal_attribute("task_state")
+            info = task_state.get("info")
+            try:
+                exc_list.append(eval(info, EVAL_GLOBALS, EVAL_LOCALS))
+            except Exception:
+                pass
+    return exc_list
+
+
+def get_status_info(d_wf, workflow_id):
+    """Update and return status_info."""
+    status_info = {}
+    friendly_messages = []
+    tenant_id = d_wf.get_attribute("tenant_id")
+    exc_list = get_exceptions(d_wf)
+    distinct_exceptions = _get_distinct_exceptions(exc_list)
+
+    for exception in distinct_exceptions:
+        if hasattr(exception, 'friendly_message'):
+            friendly_messages.append("%s. %s\n" %
+                                    (len(friendly_messages) + 1,
+                                     exception.friendly_message))
+
+    if distinct_exceptions:
+        if len(distinct_exceptions) == len(friendly_messages):
+            status_message = ''.join(friendly_messages)
+        else:
+            status_message = ('Multiple errors have occurred. Please contact '
+                              'support')
+        status_info.update({'status-message': status_message})
+
+    if any((hasattr(exc, 'retriable') and exc.retriable) for exc in
+           distinct_exceptions):
+        retry_link = "/%s/workflows/%s/+retry-failed-tasks" % (tenant_id,
+                                                               workflow_id)
+        status_info.update({'retry-link': retry_link, 'retriable': True})
+
+    if any((hasattr(exc, 'resumable') and exc.retriable) for exc in
+           distinct_exceptions):
+        resume_link = "/%s/workflows/%s/+resume-failed-tasks" % (tenant_id,
+                                                                 workflow_id)
+        status_info.update({'resume-link': resume_link, 'resumable': True})
+    return status_info
+
+
+def _get_distinct_exceptions(exceptions):
+    """Eliminate duplicate exceptions."""
+    result = []
+    seen = set()
+    for exception in exceptions:
+        if exception.__repr__() not in seen:
+            seen.add(exception.__repr__())
+            result.append(exception)
+    return result
 
 
 def get_spiff_workflow_status(workflow):
@@ -333,10 +403,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
         error_message = '. '.join(results)
         LOG.debug("Errors in Workflow: %s", error_message,
                   extra=dict(data=serialized_spec))
-        raise CheckmateUserException(
-            error_message,
-            utils.get_class_name(CheckmateException),
-            UNEXPECTED_ERROR, '')
+        raise exceptions.CheckmateException(error_message)
 
     workflow = SpiffWorkflow(spiff_wf_spec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)

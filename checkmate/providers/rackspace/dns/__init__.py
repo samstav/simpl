@@ -132,8 +132,7 @@ def create_record(context, domain, name, dnstype, data,
                 dnstype, name, data, domain)
             )
             LOG.error(msg)
-            raise exceptions.CheckmateUserException(msg, utils.get_class_name(
-                Exception), exceptions.UNEXPECTED_ERROR, '')
+            raise exceptions.CheckmateException(msg)
     record = {
         'name': name,
         'type': dnstype,
@@ -176,8 +175,7 @@ def delete_record_task(context, domain_id, record_id):
         msg = ('Error finding domain %s. Cannot delete record %s.'
                % (domain_id, record_id))
         LOG.error(msg, exc_info=True)
-        raise exceptions.CheckmateUserException(msg, utils.get_class_name(
-            exceptions.CheckmateException), exceptions.UNEXPECTED_ERROR, '')
+        raise exceptions.CheckmateException(msg)
     try:
         domain.delete_record(record=record_id)
         LOG.debug('Deleted DNS record %s.', record_id)

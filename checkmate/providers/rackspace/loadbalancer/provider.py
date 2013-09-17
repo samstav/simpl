@@ -35,7 +35,6 @@ from checkmate.providers import base
 from checkmate.providers.rackspace import base as rsbase
 from checkmate.providers.rackspace import dns
 from checkmate.providers.rackspace.dns import provider
-from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -108,10 +107,8 @@ class Provider(rsbase.RackspaceProviderBase):
         if not region:
             error_message = ("Could not identify which region to "
                              "create load-balancer in")
-            raise exceptions.CheckmateUserException(
-                error_message,
-                utils.get_class_name(exceptions.CheckmateUserException),
-                exceptions.BLUEPRINT_ERROR, '')
+            raise exceptions.CheckmateException(
+                error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
         number_of_resources = 1
         interface = \
             deployment.get('blueprint')['services'][service]['component'][
@@ -529,10 +526,9 @@ class Provider(rsbase.RackspaceProviderBase):
         comp = self.find_components(context, id="rsCloudLB")
         if not comp:
             error_message = "Could not locate component for id 'rsCloudLB'"
-            raise exceptions.CheckmateUserException(
+            raise exceptions.CheckmateException(
                 error_message,
-                utils.get_class_name(exceptions.CheckmateException),
-                exceptions.BLUEPRINT_ERROR, '')
+                friendly_message=exceptions.BLUEPRINT_ERROR)
         else:
             comp = comp[0]  # there should be only one
             options = comp.get('options', {})
@@ -542,10 +538,9 @@ class Provider(rsbase.RackspaceProviderBase):
                 error_message = ("'%s' is an invalid relation interface for "
                                  "provider '%s'. Valid options are: %s"
                                  % (interface, self.key, protocols))
-                raise exceptions.CheckmateUserException(
+                raise exceptions.CheckmateException(
                     error_message,
-                    utils.get_class_name(exceptions.CheckmateException),
-                    exceptions.BLUEPRINT_ERROR, '')
+                    friendly_message=exceptions.BLUEPRINT_ERROR)
 
         # Get all tasks we need to precede the LB Add Node task
         finals = wfspec.find_task_specs(resource=relation['target'],

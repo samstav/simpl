@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """
 Workspace: a directory where file operations can be performed for a deployment.
 
@@ -41,9 +55,7 @@ def workspace_root_path():
     root = CONFIG.deployments_path
     if not os.path.exists(root):
         msg = "Invalid workspace root path: %s" % root
-        raise exceptions.CheckmateUserException(
-            msg, utils.get_class_name(exceptions.CheckmateException),
-            exceptions.UNEXPECTED_ERROR, '')
+        raise exceptions.CheckmateException(msg)
     return root
 
 
@@ -70,11 +82,7 @@ def get_workspace(deployment_id):
                      "%s", fullpath, exc_info=True)
         else:
             msg = "Could not create workspace %s" % fullpath
-            raise exceptions.CheckmateUserException(
-                msg,
-                utils.get_class_name(exceptions.CheckmateException),
-                exceptions.UNEXPECTED_ERROR,
-                '')
+            raise exceptions.CheckmateException(msg)
     return fullpath
 
 
@@ -123,16 +131,16 @@ def cache_blueprint(source_repo):
                 try:
                     utils.git_fetch(repo_cache, refspec)
                     utils.git_checkout(repo_cache, tag)
-                except subprocess.CalledProcessError:
+                except subprocess.CalledProcessError as exc:
                     LOG.info("Unable to update git tags from the git "
-                             "repository at %s.  Using the cached repository",
-                             url)
+                             "repository at %s.  Using the cached repository: "
+                             "%s", url, exc)
             else:
                 try:
                     utils.git_pull(repo_cache, branch)
                 except subprocess.CalledProcessError as exc:
                     LOG.info("Unable to pull from git repository at %s.  "
-                             "Using the cached repository", url)
+                             "Using the cached repository: %s", url, exc)
         else:  # Cache hit
             LOG.debug("(cache) Using cached repo: %s", repo_cache)
     else:  # Cache does not exist
@@ -140,14 +148,10 @@ def cache_blueprint(source_repo):
         os.makedirs(repo_cache)
         try:
             utils.git_clone(repo_cache, url, branch=branch)
-        except subprocess.CalledProcessError as exc:
+        except subprocess.CalledProcessError:
             error_message = ("Git repository could not be cloned from '%s'.  "
                              "The error returned was '%s'")
-            raise exceptions.CheckmateUserException(
-                error_message,
-                utils.get_class_name(exc),
-                exceptions.UNEXPECTED_ERROR,
-                '')
+            raise exceptions.CheckmateException(error_message)
         tags = utils.git_tags(repo_cache)
         if branch in tags:
             tag = branch
@@ -175,11 +179,7 @@ def download_blueprint(destination, source_repo):
     repo_cache = get_blueprints_cache_path(source_repo)
     if not os.path.exists(repo_cache):
         message = "No blueprint repository found in %s" % repo_cache
-        raise exceptions.CheckmateUserException(
-            message,
-            utils.get_class_name(exceptions.CheckmateException),
-            exceptions.UNEXPECTED_ERROR,
-            '')
+        raise exceptions.CheckmateException(message)
     LOG.debug("repo_cache: %s", repo_cache)
     LOG.debug("destination: %s", destination)
     if not blueprint_exists(repo_cache, destination):
@@ -203,7 +203,7 @@ def create_workspace(context, name, source_repo=None):
     """
     utils.match_celery_logging(LOG)
 
-    #TODO: add context
+    #TODO(zns): add context
     if context['simulation'] is True:
         return {
             'workspace': '/var/tmp/%s/' % name

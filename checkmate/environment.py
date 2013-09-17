@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import eventlet
 import logging
 
@@ -5,10 +19,8 @@ from checkmate.component import Component
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,
-    CheckmateUserException,
 )
 from checkmate.providers import get_provider_class
-from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 API_POOL = eventlet.GreenPool()
@@ -33,8 +45,8 @@ class Environment(object):
                         return provider
                 if not resource and interface in entry.values():
                     return provider
-        LOG.debug("No '%s:%s' providers found in: %s" % (resource or '*',
-                  interface or '*', self.dict))
+        LOG.debug("No '%s:%s' providers found in: %s", resource or '*',
+                  interface or '*', self.dict)
         return None
 
     def get_providers(self, context):
@@ -59,16 +71,16 @@ class Environment(object):
         providers = self.dict.get('providers', None)
         if not providers:
             error_message = "Environment does not have providers"
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException), BLUEPRINT_ERROR, "")
+            raise CheckmateException(error_message,
+                                     friendly_message=BLUEPRINT_ERROR)
         common = providers.get('common', {})
 
         provider = providers[key]
         vendor = provider.get('vendor', common.get('vendor', None))
         if not vendor:
             error_message = "No vendor specified for '%s'" % key
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException), BLUEPRINT_ERROR, "")
+            raise CheckmateException(error_message,
+                                     friendly_message=BLUEPRINT_ERROR)
         provider_class = get_provider_class(vendor, key)
         return provider_class(provider, key=key)
 

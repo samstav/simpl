@@ -258,10 +258,10 @@ class WorkflowSpec(specs.WorkflowSpec):
                                                  "resources between %s and "
                                                  "%s" % (resource_key,
                                                  relation['target']))
-                                raise exceptions.CheckmateUserException(
-                                    error_message, utils.get_class_name(
-                                        exceptions.CheckmateException),
-                                    exceptions.BLUEPRINT_ERROR, '')
+                                raise exceptions.CheckmateException(
+                                    error_message,
+                                    friendly_message=exceptions.BLUEPRINT_ERROR
+                                )
                             stack.append(resource_key)
                             recursive_add_host(sorted_resources,
                                                relation['target'], resources,
@@ -298,10 +298,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                     if len(relations) > 1:
                         error_message = ("Multiple 'host' relations for "
                                          "resource '%s'" % key)
-                        raise exceptions.CheckmateUserException(
-                            error_message, utils.get_class_name(
-                                exceptions.CheckmateException),
-                            exceptions.UNEXPECTED_ERROR, '')
+                        raise exceptions.CheckmateException(error_message)
                     relation = relations[0]
                     provider = providers[hosted_resource['provider']]
                     provider_result = provider.add_connection_tasks(

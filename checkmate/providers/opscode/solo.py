@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """Chef Solo configuration management provider."""
 import copy
 import json
@@ -16,18 +30,16 @@ from yaml.composer import ComposerError
 from yaml.parser import ParserError
 from yaml.scanner import ScannerError
 
-from checkmate import utils
 from checkmate.common import schema
+from checkmate import utils
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException,
-    CheckmateUserException,
-    UNEXPECTED_ERROR,
 )
 from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
-from checkmate.providers import ProviderBase
 from checkmate.providers.opscode import knife
+from checkmate.providers import ProviderBase
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
@@ -1034,10 +1046,7 @@ class ChefMap(object):
                     return chefmap.read()
             else:
                 error_message = "No Chefmap in repository %s" % repo_cache
-                raise CheckmateUserException(error_message,
-                                             utils.get_class_name(
-                                                 CheckmateException),
-                                             UNEXPECTED_ERROR, '')
+                raise CheckmateException(error_message)
 
     @property
     def components(self):
@@ -1202,10 +1211,7 @@ class ChefMap(object):
             if url['scheme'] == 'attributes':
                 if 'resource' not in mapping:
                     message = 'Resource hint required in attribute mapping'
-                    raise CheckmateUserException(message,
-                                                 utils.get_class_name(
-                                                     CheckmateException),
-                                                 UNEXPECTED_ERROR, '')
+                    raise CheckmateException(message)
 
                 path = '%s:%s' % (url['scheme'], mapping['resource'])
                 if path not in output:
@@ -1286,8 +1292,7 @@ class ChefMap(object):
             value = mapping['value']
         else:
             message = "Mapping has neither 'source' nor 'value'"
-            raise CheckmateUserException(message, utils.get_class_name(
-                CheckmateException), UNEXPECTED_ERROR, '')
+            raise CheckmateException(message)
         return value
 
     @staticmethod
@@ -1442,11 +1447,9 @@ class ChefMap(object):
         except StandardError as exc:
             LOG.error(exc, exc_info=True)
             error_message = "Chef template rendering failed: %s" % exc
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException), UNEXPECTED_ERROR, '')
+            raise CheckmateException(error_message)
         except TemplateError as exc:
             LOG.error(exc, exc_info=True)
             error_message = "Chef template had an error: %s" % exc
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException), UNEXPECTED_ERROR, '')
+            raise CheckmateException(error_message)
         return result

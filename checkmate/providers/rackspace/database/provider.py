@@ -32,8 +32,6 @@ from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,
     CheckmateNoMapping,
-    CheckmateUserException,
-    UNEXPECTED_ERROR,
 )
 from checkmate import middleware
 from checkmate import providers
@@ -123,8 +121,8 @@ class Provider(providers.ProviderBase):
             if not region:
                 message = ("Could not identify which region to create "
                            "database in")
-                raise CheckmateUserException(message, utils.get_class_name(
-                    CheckmateException), BLUEPRINT_ERROR, '')
+                raise CheckmateException(message,
+                                         friendly_message=BLUEPRINT_ERROR)
 
             for template in templates:
                 template['flavor'] = flavor
@@ -244,10 +242,7 @@ class Provider(providers.ProviderBase):
                 if password[0] not in start_with:
                     error_message = ("Database password must start with one "
                                      "of '%s'" % start_with)
-                    raise CheckmateUserException(error_message,
-                                                 utils.get_class_name(
-                                                     CheckmateUserException),
-                                                 UNEXPECTED_ERROR, '')
+                    raise CheckmateException(error_message)
 
             # Create resource tasks
             create_database_task = specs.Celery(
@@ -360,8 +355,7 @@ class Provider(providers.ProviderBase):
         else:
             error_message = ("Unsupported component type '%s' for  provider "
                              "%s" % (component['is'], self.key))
-            raise CheckmateUserException(error_message, utils.get_class_name(
-                CheckmateException), UNEXPECTED_ERROR, '')
+            raise CheckmateException(error_message)
 
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
@@ -405,8 +399,7 @@ class Provider(providers.ProviderBase):
             return self._delete_db_res_tasks(wf_spec, context, key)
         message = ("Cannot provide delete tasks for resource %s: Invalid "
                    "resource type '%s'" % (key, resource.get('type')))
-        raise CheckmateUserException(message, utils.get_class_name(
-            CheckmateException), UNEXPECTED_ERROR, '')
+        raise CheckmateException(message)
 
     @staticmethod
     def _delete_comp_res_tasks(wf_spec, context, key):

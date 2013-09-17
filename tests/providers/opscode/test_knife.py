@@ -86,9 +86,9 @@ class TestKnife(unittest.TestCase):
     def test_delete_environment_exception_handling(self):
         self.mox.StubOutWithMock(shutil, "rmtree")
         shutil.rmtree("/tmp/foo/%s" % self.deploymentId).AndRaise(
-            cmexc.CheckmateUserException("", "", "", ""))
+            cmexc.CheckmateException("", ""))
         self.mox.ReplayAll()
-        self.assertRaises(cmexc.CheckmateUserException,
+        self.assertRaises(cmexc.CheckmateException,
                           knife.delete_environment,
                           self.deploymentId, path="/tmp/foo")
 

@@ -164,17 +164,16 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
             LOG.info("A limit 'may' have been reached creating a load "
                      "balancer for deployment %s", deployment_id)
             error_message = "API limit reached"
-            class_name = utils.get_class_name(exc)
-            raise exceptions.CheckmateRetriableException(error_message,
-                                                         class_name,
-                                                         error_message, '')
+            raise exceptions.CheckmateException(error_message,
+                                                friendly_message=error_message,
+                                                options=exceptions.CAN_RETRY)
         raise
     except pyrax.exceptions.OverLimit as exc:
         LOG.info("API Limit reached creating a load balancer for deployment "
                  "%s", deployment_id)
-        raise exceptions.CheckmateRetriableException(exc.message,
-                                                     utils.get_class_name(exc),
-                                                     exc.message, '')
+        raise exceptions.CheckmateException(exc.message,
+                                            friendly_message=exc.message,
+                                            options=exceptions.CAN_RETRY)
 
     # Put the instance_id in the db as soon as it's available
     instance_id = {
@@ -222,15 +221,10 @@ def collect_record_data(deployment_id, resource_key, record):
 
     if "id" not in record:
         message = "Missing record id in %s" % record
-        raise exceptions.CheckmateUserException(
-            message, utils.get_class_name(exceptions.CheckmateException),
-            exceptions.UNEXPECTED_ERROR, '')
+        raise exceptions.CheckmateException(message)
     if "domain" not in record:
         message = "No domain specified for record %s" % record.get("id")
-        raise exceptions.CheckmateUserException(
-            message,
-            utils.get_class_name(exceptions.CheckmateException),
-            exceptions.UNEXPECTED_ERROR, '')
+        raise exceptions.CheckmateException(message)
     contents = {
         "instance:%s" % resource_key: {
             "domain_id": record.get("domain"),
@@ -262,11 +256,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
     try:
         if not instance_id:
             error_message = "No instance id supplied for resource %s" % key
-            raise exceptions.CheckmateUserException(
-                error_message,
-                utils.get_class_name(exceptions.CheckmateException),
-                exceptions.UNEXPECTED_ERROR,
-                '')
+            raise exceptions.CheckmateException(error_message)
         clb = api.get(instance_id)
 
         try:
@@ -462,11 +452,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 
     if ipaddr == PLACEHOLDER_IP:
         message = "IP %s is reserved as a placeholder IP by checkmate" % ipaddr
-        raise exceptions.CheckmateUserException(
-            message,
-            utils.get_class_name(exceptions.CheckmateException),
-            exceptions.UNEXPECTED_ERROR,
-            '')
+        raise exceptions.CheckmateException(message)
 
     loadbalancer = api.get(lbid)
 
@@ -681,9 +667,8 @@ def wait_on_build(context, lbid, region, api=None):
             }
         }
         deployments.resource_postback.delay(context['deployment'], results)
-        raise exceptions.CheckmateRetriableException(
-            msg, utils.get_class_name(CheckmateLoadbalancerBuildFailed()),
-            msg, '')
+        raise exceptions.CheckmateException(msg, friendly_message=msg,
+                                            options=exceptions.CAN_RESET)
     elif loadbalancer.status == "ACTIVE":
         results = {
             instance_key: {

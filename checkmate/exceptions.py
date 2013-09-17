@@ -24,17 +24,68 @@ class CheckmateCustomException(Exception):
 This is important to allow exceptions to flow back from the message queue
 tasks.
 """
+import logging
 
 #Error message constants
 BLUEPRINT_ERROR = ("There is a possible problem in the Blueprint provided - "
                    "Please contact support")
-UNEXPECTED_ERROR = ("There was an unexpected error executing your deployment "
-                    "- Please contact support")
+UNEXPECTED_ERROR = ("Unable to automtically recover from error - Please "
+                    "contact support")
+
+# options
+CAN_RESUME = 1  # just run the workflow again (ex. to get new token)
+CAN_RETRY = 2   # try the task again (ex. external API was down)
+CAN_RESET = 4   # clean up and try again (ex. delete ERROR'ed server and retry)
+
+LOG = logging.getLogger(__name__)
 
 
 class CheckmateException(Exception):
     """Checkmate Error."""
-    pass
+
+    def __init__(self, message=None, friendly_message=None, options=0):
+        """Create Checkmate Exception.
+
+        :param friendly_message: a message to bubble up to clients (UI, CLI,
+                etc...). This defaults to UNEXPECTED_ERROR
+        :param options: receives flags from the code raising the error about
+                how the error can be handled. ALlowed flags are:
+                exceptions.CAN_RESUME
+                exceptions.CAN_RETRY
+                exceptions.CAN_RESET
+        """
+        args = ()
+        self.message = message or self.__doc__
+        self._friendly_message = friendly_message
+        self.options = options
+        if message:
+            args = args + (message,)
+        if friendly_message:
+            args = args + (friendly_message,)
+        if options and options != 0:
+            args = args + (options,)
+        super(CheckmateException, self).__init__(*args)
+
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or UNEXPECTED_ERROR
+
+    @property
+    def resumable(self):
+        """Detect if exception is resumable."""
+        return self.options & CAN_RESUME
+
+    @property
+    def retriable(self):
+        """Detect if exception is retriable."""
+        return self.options & CAN_RETRY
+
+    @property
+    def resetable(self):
+        """Detect if exception can be retried with a task tree reset."""
+        return self.options & CAN_RESET
+
 
 
 class CheckmateDatabaseConnectionError(CheckmateException):
@@ -113,49 +164,6 @@ class CheckmateServerBuildFailed(CheckmateException):
     pass
 
 
-class CheckmateUserException(CheckmateException):
-    """Exception with user friendly messages."""
-    def __init__(self, error_message, error_type, friendly_message,
-                 error_help):
-        self.friendly_message = friendly_message
-        self.error_help = error_help
-        self.error_message = error_message
-        self.error_type = error_type
-        super(CheckmateUserException, self).__init__(self.error_message,
-                                                     self.error_type,
-                                                     self.friendly_message,
-                                                     self.error_help)
-
-
-class CheckmateRetriableException(CheckmateUserException):
-    """Retriable Exception."""
-    def __init__(self, error_message, error_type, friendly_message,
-                 error_help):
-        super(CheckmateRetriableException, self).__init__(error_message,
-                                                          error_type,
-                                                          friendly_message,
-                                                          error_help)
-
-
-class CheckmateResumableException(CheckmateUserException):
-    """Resumable Exception."""
-    def __init__(self, error_message, error_type, friendly_message,
-                 error_help):
-        super(CheckmateResumableException, self).__init__(error_message,
-                                                          error_type,
-                                                          friendly_message,
-                                                          error_help)
-
-
-class CheckmateResourceRollbackException(CheckmateException):
-    """Resumable Exception."""
-    def __init__(self, error_message, inner_exception):
-        self.error_message = error_message
-        self.inner_exception = inner_exception
-        super(CheckmateResourceRollbackException, self).__init__(
-            error_message, inner_exception)
-
-
 class CheckmateValidationException(CheckmateException):
     """Validation Error."""
     pass
@@ -171,3 +179,28 @@ class CheckmateHOTTemplateException(CheckmateException):
     expected.
     """
     pass
+
+
+# TODO(zns): deprecate when all workflows and celery tasks have been purged
+class CheckmateUserException(CheckmateException):
+    """DEPRECATED: use CheckmateException with friendly_message kwarg."""
+    def __init__(self, *args):
+        LOG.error("DEPRECATED call to CheckmateUserException: %s", args)
+        super(CheckmateUserException, self).__init__(
+            args[0], friendly_message=args[2])
+
+
+class CheckmateRetriableException(CheckmateException):
+    """DEPRECATED: use CheckmateException with options=CAN_RETRY."""
+    def __init__(self, *args):
+        LOG.error("DEPRECATED call to CheckmateRetriableException: %s", args)
+        super(CheckmateRetriableException, self).__init__(
+            args[0], friendly_message=args[2])
+
+
+class CheckmateResumableException(CheckmateException):
+    """DEPRECATED: use CheckmateException with option CAN_RESUME."""
+    def __init__(self, *args):
+        LOG.error("DEPRECATED call to CheckmateResumableException: %s", args)
+        super(CheckmateResumableException, self).__init__(
+            args[0], friendly_message=args[2])

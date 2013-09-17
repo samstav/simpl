@@ -27,6 +27,7 @@ from SpiffWorkflow.Workflow import Workflow
 
 from checkmate import deployment as cmdep
 from checkmate import deployments
+from checkmate import exceptions
 from checkmate import middleware as cmmid
 from checkmate import providers as cmprov
 from checkmate.providers import base
@@ -162,69 +163,59 @@ class TestWorkflow(unittest.TestCase):
         self.assertEquals(task2._state, Task.FUTURE)
 
     def test_convert_exc_to_dict_with_retriable_exception(self):
-        info = "CheckmateRetriableException('foo', 'Exception', " \
-               "'exception_message', 'error-help')"
+        info = "CheckmateException('foo', 'exception_message', 2)"
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {
-            "error-message": "foo",
-            "error-help": "error-help",
+            "error-message": "exception_message",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/tasks/task_id/"
                           "+reset-task-tree",
-            "error-type": "Exception",
             "task-id": "task_id",
             "error-traceback": "Traceback",
-            "friendly-message": "exception_message"
-        }
-        self.assertDictEqual(expected_error, error)
-
-    def test_convert_exc_to_dict_with_checkmate_user_exception(self):
-        info = "CheckmateUserException('foo', 'Exception', " \
-               "'exception_message', 'error-help')"
-        error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
-                                             "wf_id", "Traceback")
-        expected_error = {
-            "error-message": "foo",
-            "error-help": "error-help",
-            "error-type": "Exception",
-            "task-id": "task_id",
-            "error-traceback": "Traceback",
-            "friendly-message": "exception_message"
+            "error-string": "('foo', 'exception_message', 2)"
         }
         self.assertDictEqual(expected_error, error)
 
     def test_convert_exc_to_dict_with_resumable_exception(self):
-        info = "CheckmateResumableException('foo', 'Exception', " \
-               "'friendly_message', 'error-help')"
+        info = "CheckmateException('foo', 'exception_message', 1)"
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {
-            "error-message": "foo",
-            "error-help": "error-help",
-            "resumable": True,
-            "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute",
-            "error-type": "Exception",
+            "error-message": "exception_message",
             "task-id": "task_id",
             "error-traceback": "Traceback",
-            "friendly-message": 'friendly_message'
+            "error-string": "('foo', 'exception_message', 1)",
+            "resumable": True,
+            "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute"
         }
         self.assertDictEqual(expected_error, error)
+
+    def test_convert_exc_to_dict_with_resetable_exception(self):
+        info = "CheckmateException('foo', 'exception_message', 4)"
+        error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
+                                             "wf_id", "Traceback")
+        expected_error = {
+            "error-message": "exception_message",
+            "retriable": True,
+            "retry-link": "/tenant_id/workflows/wf_id/tasks/task_id/"
+                          "+reset-task-tree",
+            "task-id": "task_id",
+            "error-traceback": "Traceback",
+            "error-string": "('foo', 'exception_message', 4)",
+        }
+        self.assertDictEqual(error, expected_error)
 
     def test_convert_exc_to_dict_with_max_retries_exceeded_error(self):
         info = "MaxRetriesExceededError()"
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {
-            "error-message": "The maximum amount of permissible retries for "
-                             "workflow wf_id has elapsed. Please re-execute "
-                             "the workflow",
-            "error-help": "",
+            "error-message": "There was a timeout while executing the "
+                             "deployment",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/+execute",
-            "error-type": "MaxRetriesExceededError",
-            "friendly-message": 'There was a timeout while executing the '
-                                'deployment'
+            'error-string': '',
         }
         self.assertDictEqual(expected_error, error)
 
@@ -232,8 +223,8 @@ class TestWorkflow(unittest.TestCase):
         info = "Exception('This is an exception')"
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
-        expected_error = {"error-message": "This is an exception",
-                          "error-type": "Exception",
+        expected_error = {"error-message": exceptions.UNEXPECTED_ERROR,
+                          "error-string": "This is an exception",
                           "error-traceback": "Traceback"}
         self.assertDictEqual(expected_error, error)
 
@@ -308,9 +299,9 @@ class TestWorkflow(unittest.TestCase):
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
-        expected_error = {"error-message": "This is an exception",
-                          "error-type": "Exception",
-                          "error-traceback": "Traceback"}
+        expected_error = {"error-message": exceptions.UNEXPECTED_ERROR,
+                          "error-traceback": "Traceback",
+                          "error-string": "This is an exception"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
@@ -514,7 +505,84 @@ class TestWorkflow(unittest.TestCase):
 
         self.assertDictEqual(actual, expected)
 
+
+class TestGetStatusInfo(unittest.TestCase):
+    def setUp(self):
+        self.d_wf = mock.MagicMock()
+
+    def test_no_errors(self):
+        self.d_wf.get_tasks.return_value = []
+        self.assertDictEqual({}, workflow.get_status_info(self.d_wf, 'wfid'))
+
+    def test_friendly_message_in_one_error(self):
+        task = mock.MagicMock()
+        task._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message', 'Hi!')"
+        }
+        self.d_wf.get_tasks.return_value = [task]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': '1. Hi!\n'}, result)
+
+    def test_no_friendly_message_in_one_error(self):
+        task = mock.MagicMock()
+        task._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "Exception('message')"
+        }
+        self.d_wf.get_tasks.return_value = [task]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': 'Multiple errors have occurred. '
+                          'Please contact support'},
+                         result)
+
+    def test_multiple_errors_with_friendly_messages(self):
+        task_one = mock.MagicMock()
+        task_one._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message1', 'Hi!')"
+        }
+        task_two = mock.MagicMock()
+        task_two._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message2', 'Heya!')"
+        }
+        self.d_wf.get_tasks.return_value = [task_one, task_two]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': '1. Hi!\n2. Heya!\n'}, result)
+
+    def test_duplicate_errors_occurred(self):
+        task_one = mock.MagicMock()
+        task_one._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message1', 'Hi!', 1)"
+        }
+        task_two = mock.MagicMock()
+        task_two._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message1', 'Hi!', 1)"
+        }
+        self.d_wf.get_tasks.return_value = [task_one, task_two]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': '1. Hi!\n'}, result)
+
+    def test_errors_with_and_without_friendly_messages(self):
+        task_one = mock.MagicMock()
+        task_one._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "CheckmateException('message1', 'Hi!')"
+        }
+        task_two = mock.MagicMock()
+        task_two._get_internal_attribute.return_value = {
+            "state": "FAILURE",
+            "info": "Exception('message2')"
+        }
+        self.d_wf.get_tasks.return_value = [task_one, task_two]
+        result = workflow.get_status_info(self.d_wf, 'wfid')
+        self.assertEqual({'status-message': 'Multiple errors have occurred. '
+                          'Please contact support'}, result)
+
+
 if __name__ == '__main__':
     import sys
-
     test.run_with_params(sys.argv[:])
