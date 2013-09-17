@@ -179,7 +179,7 @@ def download_blueprint(destination, source_repo):
     repo_cache = get_blueprints_cache_path(source_repo)
     if not os.path.exists(repo_cache):
         message = "No blueprint repository found in %s" % repo_cache
-        raise exceptions.CheckmateException(messag)
+        raise exceptions.CheckmateException(message)
     LOG.debug("repo_cache: %s", repo_cache)
     LOG.debug("destination: %s", destination)
     if not blueprint_exists(repo_cache, destination):

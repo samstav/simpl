@@ -800,7 +800,8 @@ class Planner(classes.ExtensibleDict):
                 if not component:
                     error_message = (
                         "Could not resolve component '%s'" % definition)
-                    raise CheckmateException(error_message, friendly_message=BLUEPRINT_ERROR)
+                    raise CheckmateException(error_message,
+                                             friendly_message=BLUEPRINT_ERROR)
                 LOG.debug("Component '%s' identified as '%s'  to satisfy "
                           "requirement '%s' for service '%s'", definition,
                           component['id'], key, service_name)
@@ -875,7 +876,8 @@ class Planner(classes.ExtensibleDict):
             found = self.identify_component(definition, context)
             if not found:
                 error_message = "Could not resolve component '%s'" % definition
-                raise CheckmateException(error_message, friendly_message=BLUEPRINT_ERROR)
+                raise CheckmateException(error_message,
+                                         friendly_message=BLUEPRINT_ERROR)
             LOG.debug("Component '%s' identified as '%s'  to satisfy "
                       "requirement '%s' for service '%s' for extra component "
                       "'%s'", definition, found['id'], requirement_key,
@@ -971,7 +973,8 @@ class Planner(classes.ExtensibleDict):
         found = self.environment.find_component(definition, context)
         if not found:
             error_message = "Could not resolve component '%s'" % definition
-            raise CheckmateException(error_message, friendly_message=BLUEPRINT_ERROR)
+            raise CheckmateException(error_message,
+                                     friendly_message=BLUEPRINT_ERROR)
         component = {}
         component['id'] = found['id']
         provider = found.provider
@@ -1033,7 +1036,8 @@ class Planner(classes.ExtensibleDict):
         if 'service' not in final_map:  # post v0.2, let's raise this
             error_message = (
                 "No service specified for relation '%s'" % final_key)
-            raise CheckmateException(error_message, friendly_message=BLUEPRINT_ERROR)
+            raise CheckmateException(error_message,
+                                     friendly_message=BLUEPRINT_ERROR)
         return final_key, final_map
 
     @staticmethod
