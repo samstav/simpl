@@ -1,3 +1,4 @@
+# pylint: disable=R0903
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -122,7 +123,6 @@ from checkmate.common import caching
 from checkmate.common import config
 from checkmate.contrib import wsgi_git_http_backend
 from checkmate.git import manager
-from checkmate import utils
 
 CONFIG = config.current()
 GIT_SERVER_APP = bottle.Bottle()
@@ -144,33 +144,32 @@ LOG = logging.getLogger(__name__)
 
 
 class GitMiddleware():
-
     """Adds support for git http-backend interaction."""
 
     def __init__(self, app, root_path):
         self.app = app
         self.root = root_path
 
-    def __call__(self, e, h):
-        if e.get('CONTENT_TYPE') in [
+    def __call__(self, env, handler):
+        if env.get('CONTENT_TYPE') in [
             'application/x-git-upload-pack-request',
             'application/x-git-receive-pack-request'
         ]:
             pass
-        elif e['QUERY_STRING'] in [
+        elif env['QUERY_STRING'] in [
             'service=git-upload-pack',
             'service=git-receive-pack'
         ]:
             pass
         else:
-            return self.app(e, h)
+            return self.app(env, handler)
         try:
-            GIT_SERVER_APP.match(e)
-            e['GIT_PROJECT_BASE'] = self.root
-            return GIT_SERVER_APP(e, h)
+            GIT_SERVER_APP.match(env)
+            env['GIT_PROJECT_BASE'] = self.root
+            return GIT_SERVER_APP(env, handler)
         except bottle.HTTPError:
             pass
-        return self.app(e, h)
+        return self.app(env, handler)
 
 
 #
@@ -221,9 +220,9 @@ def _auth_racker(endpoint_uri, username, password):
     else:
         port = url.port or 80
     if use_https:
-        http_class = httplib.HTTPSConnection
+        http_class = httplib.HTTPSConnection  # pylint: disable=E1101
     else:
-        http_class = httplib.HTTPConnection
+        http_class = httplib.HTTPConnection  # pylint: disable=E1101
     http = http_class(url.hostname, port, timeout=10)
     body = {
         "auth": {
@@ -289,7 +288,6 @@ def _set_git_environ(environ, repo, path):
         cgi_env['REQUEST_METHOD'] == 'GET'
     ):
         cgi_env['CONTENT_TYPE'] = ''
-    # TODO: (REMOTE_USER) where some authorization could go
     return cgi_env
 
 
@@ -297,7 +295,6 @@ def _git_route_callback(dep_id, path):
     """Check deployment and verify it is valid before git backend call."""
     environ = _set_git_environ(dict(bottle.request.environ), dep_id, path)
     if not os.path.isdir(environ['GIT_PROJECT_ROOT']):
-        # TODO: not sure what to do about this
         raise bottle.HTTPError(code=404, output="%s not found" %
                                environ['PATH_INFO'])
     manager.init_deployment_repo(environ['GIT_PROJECT_ROOT'])
@@ -312,13 +309,16 @@ def _git_route_callback(dep_id, path):
 #
 # Bottle routes
 #
+# pylint: disable=W0613
 @GIT_SERVER_APP.get("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
 @bottle.auth_basic(_check_git_auth)
 def git_route_get(tenant_id, dep_id, path):
+    """Calls git-http-server callback for GET."""
     return _git_route_callback(dep_id, path)
 
 
 @GIT_SERVER_APP.post("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
 @bottle.auth_basic(_check_git_auth)
 def git_route_post(tenant_id, dep_id, path):
+    """Calls git-http-server callback for POST."""
     return _git_route_callback(dep_id, path)

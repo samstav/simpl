@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E0602,R0201,R0904,W0212,W0612,W0613
+# pylint: disable=C0103,E0602,R0201,R0904,W0212,W0612,W0613,R0913
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -20,7 +20,7 @@ import unittest
 
 from eventlet.green import threading
 
-from checkmate import wsgi_git_http_backend
+from checkmate.contrib import wsgi_git_http_backend
 
 #TODO(any): [need help] _comm_with_git, _input_data_pump,
 #           _response_body_generator
@@ -92,10 +92,8 @@ class TestWsgiGitHttpBackendCommWithGit(unittest.TestCase):
     @mock.patch.object(wsgi_git_http_backend, '_separate_header')
     @mock.patch.object(wsgi_git_http_backend, 'response_body_generator')
     @unittest.skip("Temp skip")
-    def test_mocked_up(
-        self, mock_gen, mock_sep,
-        mock_find, mock_enverr, mock_sum, mock_thread
-    ):
+    def test_mocked_up(self, mock_gen, mock_sep, mock_find, mock_enverr,
+                       mock_sum, mock_thread):
         mock_subproc = mock.Mock()
         mock_subproc.Popen.return_value = True
         mock_subproc.PIPE = mock.Mock()
@@ -138,7 +136,5 @@ class TestWsgiGitHttpBackendSearchForHeaderEnd(unittest.TestCase):
 
 if __name__ == '__main__':
     import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params(sys.argv[:])
