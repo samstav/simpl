@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for knife (Chef)."""
+import errno
 import json
 import logging
 import os
@@ -23,6 +24,8 @@ import subprocess
 import unittest
 import uuid
 
+from celery import exceptions as celexc
+import mock
 import mox
 
 from checkmate import deployments as cmdeps
@@ -91,6 +94,35 @@ class TestKnife(unittest.TestCase):
         self.assertRaises(cmexc.CheckmateException,
                           knife.delete_environment,
                           self.deploymentId, path="/tmp/foo")
+
+    @mock.patch.object(knife, 'LOG')
+    @mock.patch.object(knife, '_get_root_environments_path')
+    def test_delete_environment_skip_retry(self, path_mock, log_mock):
+        """Don't retry if already deleted."""
+        path_mock.return_value = "/tmp/foo"
+        log_mock.warn.return_value = None
+        self.mox.StubOutWithMock(shutil, "rmtree")
+        shutil.rmtree("/tmp/foo/%s" % self.deploymentId).AndRaise(
+            OSError(errno.ENOENT, "Does not exist"))
+        self.mox.ReplayAll()
+        knife.delete_environment(self.deploymentId, path="/tmp/foo")
+        log_mock.warn.assert_called_with(
+            "Environment directory %s does not exist",
+            "/tmp/foo/%s" % self.deploymentId,
+            exc_info=True)
+        self.mox.VerifyAll()
+
+    @mock.patch.object(knife, '_get_root_environments_path')
+    def test_delete_environment_retry(self, path_mock):
+        path_mock.return_value = "/tmp/foo"
+        self.mox.StubOutWithMock(shutil, "rmtree")
+        shutil.rmtree("/tmp/foo/%s" % self.deploymentId).AndRaise(
+            cmexc.CheckmateException("boom!"))
+        self.mox.ReplayAll()
+        self.assertRaises(cmexc.CheckmateException,
+                          knife.delete_environment,
+                          self.deploymentId, path="/tmp/foo")
+        self.mox.VerifyAll()
 
     def test_delete_cookbooks(self):
         self.mox.StubOutWithMock(shutil, "rmtree")
