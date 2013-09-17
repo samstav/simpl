@@ -204,7 +204,7 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
     exc_dict = {}
     exception = eval(info)
     if type(exception) is CheckmateException:
-        if exception.retriable:
+        if exception.retriable or exception.resetable:
             exc_dict = {
                 "error-message": exception.message,
                 "retriable": True,
@@ -226,8 +226,6 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
                 "error-traceback": traceback,
                 "friendly-message": exception.friendly_message
             }
-        elif exception.resetable:
-            pass
         else:
             exc_dict = {
                 "error-message": exception.message,

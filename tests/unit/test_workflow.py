@@ -194,7 +194,16 @@ class TestWorkflow(unittest.TestCase):
         info = "CheckmateException('foo', 'exception_message', 4)"
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
-        self.assertDictEqual(error, {})
+        expected_error = {
+            "error-message": "foo",
+            "retriable": True,
+            "retry-link": "/tenant_id/workflows/wf_id/tasks/task_id/"
+                          "+reset-task-tree",
+            "task-id": "task_id",
+            "error-traceback": "Traceback",
+            "friendly-message": "exception_message"
+        }
+        self.assertDictEqual(error, expected_error)
 
     def test_convert_exc_to_dict_with_max_retries_exceeded_error(self):
         info = "MaxRetriesExceededError()"
