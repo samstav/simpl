@@ -109,15 +109,20 @@ to/by gitHttpBackend.
 """
 from __future__ import absolute_import
 
+import json
+import logging
 import os
 import re
+import urlparse
 
 import bottle
+from eventlet.green import httplib
 
 from checkmate.common import caching
 from checkmate.common import config
 from checkmate.contrib import wsgi_git_http_backend
 from checkmate.git import manager
+from checkmate import utils
 
 CONFIG = config.current()
 GIT_SERVER_APP = bottle.Bottle()
@@ -135,6 +140,7 @@ EXPECTED_ENVIRONMENT_LIST = [
     'QUERY_STRING',
     'REQUEST_METHOD'
 ]
+LOG = logging.getLogger(__name__)
 
 
 class GitMiddleware():
@@ -171,34 +177,93 @@ class GitMiddleware():
 # Route utility routines
 #
 @caching.Cache(sensitive_args=[1], timeout=600, cache_exceptions=True)
-def _check_git_auth(user, passwd):
+def _check_git_auth(user, password):
     """Basic Auth for git back-end (smart HTTP).
 
     :returns: true/false - true means authenticated successfully
     """
-    endpoints = os.environ.get('CHECKMATE_AUTH_ENDPOINTS')
-    auth_endpoint = None
-    if endpoints:
-        endpoints = json.loads(endpoints)
-        for endpoint in endpoints:
-            if (endpoint.get('middleware') != 
-                    'checkmate.middleware.TokenAuthMiddleware'):
-                middleware = utils.import_class(endpoint['middleware'])
-                instance = middleware(None,
-                                      endpoint)
-                auth_endpoint = instance
-                break
+    LOG.debug("Authenticating %s for git access", user)
+    endpoint_uri = None
+    try:
+        endpoints = os.environ.get('CHECKMATE_AUTH_ENDPOINTS')
+        if endpoints:
+            endpoints = json.loads(endpoints)
+            for endpoint in endpoints:
+                if 'identity-internal' in endpoint['uri']:
+                    endpoint_uri = endpoint['uri']
+                    break
+    except StandardError as exc:
+        LOG.info("Error authenticating %s: %s", user, exc)
+        return False
 
-    if not auth_endpoint:
+    if not endpoint_uri:
+        LOG.info("No auth endpoint to authenticate %s", user)
         return False
 
     try:
-        access = auth_endpoint._auth_keystone(self, bottle.request.context,
-                                              username=user, password=passwd)
+        access = _auth_racker(endpoint_uri, user, password)
+        if 'access' in access:
+            return True
+    except StandardError as exc:
+        LOG.warning("Rejecting authenticatation for %s: %s", user, exc)
+    return False
 
-    except StandardError:
-        return False
 
+def _auth_racker(endpoint_uri, username, password):
+    """Authenticates to keystone."""
+    if not username:
+        LOG.info("Username not supplied")
+        return None
+    url = urlparse.urlparse(endpoint_uri)
+    use_https = url.scheme == 'https'
+    if use_https:
+        port = url.port or 443
+    else:
+        port = url.port or 80
+    if use_https:
+        http_class = httplib.HTTPSConnection
+    else:
+        http_class = httplib.HTTPConnection
+    http = http_class(url.hostname, port, timeout=10)
+    body = {
+        "auth": {
+            "RAX-AUTH:domain": {
+              "name": "Rackspace"
+            },
+            "passwordCredentials": {
+                "username": username,
+                'password': password,
+            }
+        }
+    }
+
+    headers = {
+        'Content-type': 'application/json',
+        'Accept': 'application/json',
+    }
+    try:
+        LOG.debug('Authenticating to %s', endpoint_uri)
+        http.request('POST', url.path, body=json.dumps(body),
+                     headers=headers)
+        resp = http.getresponse()
+        body = resp.read()
+    except Exception as exc:
+        LOG.error('HTTP connection exception: %s', exc)
+        return None
+    finally:
+        http.close()
+
+    if resp.status != 200:
+        LOG.debug('Authentication failed: %s', resp.reason)
+        return None
+
+    try:
+        content = json.loads(body)
+    except ValueError:
+        msg = 'Keystone did not return json-encoded body'
+        LOG.debug(msg)
+        return None
+    return content
 
 
 def _set_git_environ(environ, repo, path):
@@ -248,12 +313,12 @@ def _git_route_callback(dep_id, path):
 # Bottle routes
 #
 @GIT_SERVER_APP.get("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
-@bottle.auth_basic(_check_git_auth) #basic auth
+@bottle.auth_basic(_check_git_auth)
 def git_route_get(tenant_id, dep_id, path):
     return _git_route_callback(dep_id, path)
 
 
 @GIT_SERVER_APP.post("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
-@bottle.auth_basic(_check_git_auth) #basic auth
+@bottle.auth_basic(_check_git_auth)
 def git_route_post(tenant_id, dep_id, path):
     return _git_route_callback(dep_id, path)
