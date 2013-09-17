@@ -50,14 +50,11 @@ class Manager(object):
                 if exc.code == '400':
                     raise
                 else:
-                    raise cex.CheckmateResumableException(str(exc),
-                                                          str(exc.details),
-                                                          cex.UNEXPECTED_ERROR,
-                                                          '')
+                    raise cex.CheckmateException(str(exc),
+                                                 cex.UNEXPECTED_ERROR,
+                                                 cex.CAN_RESUME)
             except StandardError as exc:
-                raise cex.CheckmateUserException(str(exc),
-                                                 utils.get_class_name(exc),
-                                                 cex.UNEXPECTED_ERROR, '')
+                raise cex.CheckmateException(str(exc), cex.UNEXPECTED_ERROR)
 
         results = {
             'id': domain.id,
@@ -91,14 +88,11 @@ class Manager(object):
                 if hasattr(exc, 'code') and exc.code == '500':
                     raise
                 else:
-                    raise cex.CheckmateResumableException(str(exc),
-                                                          'Deletion Failed',
-                                                          cex.UNEXPECTED_ERROR,
-                                                          '')
+                    raise cex.CheckmateException(str(exc),
+                                                 cex.UNEXPECTED_ERROR,
+                                                 cex.CAN_RESUME)
             except StandardError as exc:
-                raise cex.CheckmateUserException(str(exc),
-                                                 utils.get_class_name(exc),
-                                                 cex.UNEXPECTED_ERROR, '')
+                raise cex.CheckmateException(str(exc), cex.UNEXPECTED_ERROR)
         results = {
             'id': domain_name,
             'name': domain_name,

@@ -143,13 +143,13 @@ class TestAddDomain(unittest.TestCase):
         """
         self.api.create.side_effect = pyrax.exceptions.ClientException(
             code='500', message='Testing')
-        self.assertRaises(exceptions.CheckmateResumableException,
+        self.assertRaises(exceptions.CheckmateException,
                           tasks.create_domain, self.context, self.domain_name,
                           self.password, api=self.api)
 
     def test_user_exc_raised(self):
         self.api.create.side_effect = StandardError('Testing')
-        self.assertRaises(exceptions.CheckmateUserException,
+        self.assertRaises(exceptions.CheckmateException,
                           tasks.create_domain, self.context, self.domain_name,
                           self.password, api=self.api)
 
@@ -227,12 +227,12 @@ class TestDeleteDomain(unittest.TestCase):
         """
         self.api.delete.side_effect = pyrax.exceptions.ClientException(
             code='400', message='Testing')
-        self.assertRaises(exceptions.CheckmateResumableException,
+        self.assertRaises(exceptions.CheckmateException,
                           tasks.delete_domain, self.context, self.domain_name,
                           False, api=self.api)
 
     def test_user_exc_raised(self):
         self.api.delete.side_effect = StandardError('Testing')
-        self.assertRaises(exceptions.CheckmateUserException,
+        self.assertRaises(exceptions.CheckmateException,
                           tasks.delete_domain, self.context, self.domain_name,
                           False, api=self.api)
