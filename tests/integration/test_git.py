@@ -1,3 +1,4 @@
+# pylint: disable=R0903,R0904
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -12,6 +13,8 @@
 #    under the License.
 
 """Tests for git integration (general)."""
+import base64
+import json
 import os
 import shutil
 import subprocess
@@ -19,6 +22,7 @@ import sys
 import unittest
 import uuid
 
+import mock
 import webtest
 
 from checkmate.git import manager
@@ -48,6 +52,9 @@ class TestCloneSimple(unittest.TestCase):
         self.repo_path = os.path.join(TEST_PATH, self.repo_id)
         os.makedirs(self.repo_path)
         manager.init_deployment_repo(self.repo_path)
+        self.fake_auth = 'https://identity-internal/path'
+        os.environ['CHECKMATE_AUTH_ENDPOINTS'] = json.dumps([
+            {'uri': self.fake_auth}])
 
         self.root_app = MockWsgiApp()
         self.middleware = middleware.GitMiddleware(self.root_app, TEST_PATH)
@@ -56,11 +63,35 @@ class TestCloneSimple(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.repo_path)
 
-    def test_bad_path(self):
+    def test_no_auth(self):
         res = self.app.get(
             '/T1/deployments/DEP01.git/info/refs?service=git-upload-pack',
             expect_errors=True
         )
+        self.assertEqual(res.status, '401 Unauthorized')
+
+    @mock.patch.object(middleware, '_auth_racker')
+    def test_bad_auth(self, mock_auth):
+        mock_auth.return_value = None
+        encoded_auth = base64.b64encode('%s:%s' % ("john", "wrong"))
+        res = self.app.get(
+            '/T1/deployments/DEP01.git/info/refs?service=git-upload-pack',
+            headers={'Authorization': 'Basic %s' % encoded_auth},
+            expect_errors=True
+        )
+        mock_auth.assert_called_with(self.fake_auth, "john", "wrong")
+        self.assertEqual(res.status, '401 Unauthorized')
+
+    @mock.patch.object(middleware, '_auth_racker')
+    def test_bad_path(self, mock_auth):
+        mock_auth.return_value = {'access': True}
+        encoded_auth = base64.b64encode('%s:%s' % ("john", "secret"))
+        res = self.app.get(
+            '/T1/deployments/DEP01.git/info/refs?service=git-upload-pack',
+            headers={'Authorization': 'Basic %s' % encoded_auth},
+            expect_errors=True
+        )
+        mock_auth.assert_called_with(self.fake_auth, "john", "secret")
         self.assertEqual(res.status, '404 Not Found')
 
     def test_backend_clone_first_call(self):
@@ -87,5 +118,4 @@ class TestCloneSimple(unittest.TestCase):
 
 if __name__ == '__main__':
     from checkmate import test as cmtest
-
     cmtest.run_with_params(sys.argv[:])

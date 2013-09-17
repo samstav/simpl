@@ -1,4 +1,18 @@
-'''
+# pylint: disable=R0903
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""
 Middleware to detect and handle git SmartHTTP traffic
 
 
@@ -93,21 +107,25 @@ to/by gitHttpBackend.
     This is why 'Host', etc. aren't seen.
 
 -----------------------------------------------------------------------
-'''
+"""
+from __future__ import absolute_import
+
+import json
+import logging
 import os
 import re
+import urlparse
 
-from bottle import (
-    response,
-    Bottle,
-    request,
-    HTTPError
-)
+import bottle
+from eventlet.green import httplib
 
+from checkmate.common import caching
+from checkmate.common import config
+from checkmate.contrib import wsgi_git_http_backend
 from checkmate.git import manager
-from checkmate import wsgi_git_http_backend
 
-GIT_SERVER_APP = Bottle()
+CONFIG = config.current()
+GIT_SERVER_APP = bottle.Bottle()
 EXPECTED_ENVIRONMENT_LIST = [
     'wsgi.errors',
     'wsgi.input',
@@ -122,58 +140,139 @@ EXPECTED_ENVIRONMENT_LIST = [
     'QUERY_STRING',
     'REQUEST_METHOD'
 ]
+LOG = logging.getLogger(__name__)
 
 
 class GitMiddleware():
-
-    '''Adds support for git http-backend interaction.'''
+    """Adds support for git http-backend interaction."""
 
     def __init__(self, app, root_path):
         self.app = app
         self.root = root_path
 
-    def __call__(self, e, h):
-        if e.get('CONTENT_TYPE') in [
+    def __call__(self, env, handler):
+        if env.get('CONTENT_TYPE') in [
             'application/x-git-upload-pack-request',
             'application/x-git-receive-pack-request'
         ]:
             pass
-        elif e['QUERY_STRING'] in [
+        elif env['QUERY_STRING'] in [
             'service=git-upload-pack',
             'service=git-receive-pack'
         ]:
             pass
         else:
-            return self.app(e, h)
+            return self.app(env, handler)
         try:
-            GIT_SERVER_APP.match(e)
-            e['GIT_PROJECT_BASE'] = self.root
-            return GIT_SERVER_APP(e, h)
-        except HTTPError:
+            GIT_SERVER_APP.match(env)
+            env['GIT_PROJECT_BASE'] = self.root
+            return GIT_SERVER_APP(env, handler)
+        except bottle.HTTPError:
             pass
-        return self.app(e, h)
+        return self.app(env, handler)
 
 
 #
 # Route utility routines
 #
-def _check_git_auth(user, passwd):
-    '''Basic Auth for git back-end (smart HTTP).'''
-    # TODO: set this up? (ziad?)
-    if user == 'zak':
-        return True
-    else:
+@caching.Cache(sensitive_args=[1], timeout=600, cache_exceptions=True)
+def _check_git_auth(user, password):
+    """Basic Auth for git back-end (smart HTTP).
+
+    :returns: true/false - true means authenticated successfully
+    """
+    LOG.debug("Authenticating %s for git access", user)
+    endpoint_uri = None
+    try:
+        endpoints = os.environ.get('CHECKMATE_AUTH_ENDPOINTS')
+        if endpoints:
+            endpoints = json.loads(endpoints)
+            for endpoint in endpoints:
+                if 'identity-internal' in endpoint['uri']:
+                    endpoint_uri = endpoint['uri']
+                    break
+    except StandardError as exc:
+        LOG.info("Error authenticating %s: %s", user, exc)
         return False
+
+    if not endpoint_uri:
+        LOG.info("No auth endpoint to authenticate %s", user)
+        return False
+
+    try:
+        access = _auth_racker(endpoint_uri, user, password)
+        if 'access' in access:
+            return True
+    except StandardError as exc:
+        LOG.warning("Rejecting authenticatation for %s: %s", user, exc)
+    return False
+
+
+def _auth_racker(endpoint_uri, username, password):
+    """Authenticates to keystone."""
+    if not username:
+        LOG.info("Username not supplied")
+        return None
+    url = urlparse.urlparse(endpoint_uri)
+    use_https = url.scheme == 'https'
+    if use_https:
+        port = url.port or 443
+    else:
+        port = url.port or 80
+    if use_https:
+        http_class = httplib.HTTPSConnection  # pylint: disable=E1101
+    else:
+        http_class = httplib.HTTPConnection  # pylint: disable=E1101
+    http = http_class(url.hostname, port, timeout=10)
+    body = {
+        "auth": {
+            "RAX-AUTH:domain": {
+              "name": "Rackspace"
+            },
+            "passwordCredentials": {
+                "username": username,
+                'password': password,
+            }
+        }
+    }
+
+    headers = {
+        'Content-type': 'application/json',
+        'Accept': 'application/json',
+    }
+    try:
+        LOG.debug('Authenticating to %s', endpoint_uri)
+        http.request('POST', url.path, body=json.dumps(body),
+                     headers=headers)
+        resp = http.getresponse()
+        body = resp.read()
+    except Exception as exc:
+        LOG.error('HTTP connection exception: %s', exc)
+        return None
+    finally:
+        http.close()
+
+    if resp.status != 200:
+        LOG.debug('Authentication failed: %s', resp.reason)
+        return None
+
+    try:
+        content = json.loads(body)
+    except ValueError:
+        msg = 'Keystone did not return json-encoded body'
+        LOG.debug(msg)
+        return None
+    return content
 
 
 def _set_git_environ(environ, repo, path):
-    '''Bottle environment tweaking for git kitchen routes
+    """Bottle environment tweaking for git kitchen routes.
 
     :param environ: CGI environment (converted from WSGI)
     :param repo: the git repo to base calls off off (a single path part that
         gets added to GIT_PROJECT_BASE)
     :param path: the path into the repo that is being requested
-    '''
+    """
     cgi_env = dict()
     for env_var in EXPECTED_ENVIRONMENT_LIST:
         if env_var in environ:
@@ -189,35 +288,37 @@ def _set_git_environ(environ, repo, path):
         cgi_env['REQUEST_METHOD'] == 'GET'
     ):
         cgi_env['CONTENT_TYPE'] = ''
-    # TODO: (REMOTE_USER) where some authorization could go
     return cgi_env
 
 
 def _git_route_callback(dep_id, path):
-    '''Check deployment and verify it is valid before git backend call.'''
-    environ = _set_git_environ(dict(request.environ), dep_id, path)
+    """Check deployment and verify it is valid before git backend call."""
+    environ = _set_git_environ(dict(bottle.request.environ), dep_id, path)
     if not os.path.isdir(environ['GIT_PROJECT_ROOT']):
-        # TODO: not sure what to do about this
-        raise HTTPError(code=404, output="%s not found" % environ['PATH_INFO'])
+        raise bottle.HTTPError(code=404, output="%s not found" %
+                               environ['PATH_INFO'])
     manager.init_deployment_repo(environ['GIT_PROJECT_ROOT'])
     (status_line, headers, response_body_generator
      ) = wsgi_git_http_backend.wsgi_to_git_http_backend(environ)
     for header, value in headers:
-        response.set_header(header, value)
-    response.status = status_line
+        bottle.response.set_header(header, value)
+    bottle.response.status = status_line
     return response_body_generator
 
 
 #
 # Bottle routes
 #
+# pylint: disable=W0613
 @GIT_SERVER_APP.get("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
-#@auth_basic(_check_git_auth) #basic auth
+@bottle.auth_basic(_check_git_auth)
 def git_route_get(tenant_id, dep_id, path):
+    """Calls git-http-server callback for GET."""
     return _git_route_callback(dep_id, path)
 
 
 @GIT_SERVER_APP.post("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
-#@auth_basic(_check_git_auth) #basic auth
+@bottle.auth_basic(_check_git_auth)
 def git_route_post(tenant_id, dep_id, path):
+    """Calls git-http-server callback for POST."""
     return _git_route_callback(dep_id, path)

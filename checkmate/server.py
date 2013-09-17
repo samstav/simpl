@@ -344,10 +344,6 @@ def main():
 
     # Load Git if requested
     if CONFIG.with_git is True:
-        #TODO(zak): auth
-        if True:
-            print "Git middleware lacks authentication and is not ready yet"
-            sys.exit(1)
         root_path = os.environ.get("CHECKMATE_CHEF_LOCAL_PATH",
                                    "/var/local/checkmate/deployments")
         next_app = git_middleware.GitMiddleware(next_app, root_path)
