@@ -181,6 +181,17 @@ class TestUtils(unittest.TestCase):
         merged = utils.merge_dictionary(innocuous, secret)
         self.assertDictEqual(original, merged)
 
+    def test_default_secrets_detected(self):
+        data = {
+            'apikey': 'secret',
+            'error-string': 'secret',
+            'error-traceback': 'secret',
+            'password': 'secret',
+        }
+        body, hidden = utils.extract_sensitive_data(data)
+        self.assertIsNone(body)
+        self.assertEquals(hidden, data)
+
     def test_extract_and_merge(self):
         fxn = utils.extract_sensitive_data
         data = {

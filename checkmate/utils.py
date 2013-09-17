@@ -51,6 +51,8 @@ LOG = logging.getLogger(__name__)
 DEFAULT_SENSITIVE_KEYS = [
     'credentials',
     'apikey',
+    'error-traceback',
+    'error-string',
     re.compile("(?:(?:auth)|(?:api))?[-_ ]?token$"),
     re.compile("priv(?:ate)?[-_ ]?key$"),
     re.compile('password$'),
