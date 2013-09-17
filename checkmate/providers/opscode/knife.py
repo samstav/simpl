@@ -799,7 +799,7 @@ def _ensure_berkshelf_environment():
         LOG.info("Created berkshelf_path: %s", berkshelf_path)
 
 
-@celtask.task
+@celtask.task(default_retry_delay=2, max_retries=60)
 def delete_environment(name, path=None):
     """Remove the chef environment from the file system."""
     root = _get_root_environments_path(name, path)
@@ -812,9 +812,9 @@ def delete_environment(name, path=None):
             LOG.warn("Environment directory %s does not exist", full_path,
                      exc_info=True)
         else:
-            msg = ("Could not delete environment %s. Reason '%s'. Error "
+            msg = ("Unable to delete environment %s. Reason '%s'. Error "
                    "Number %s" % (full_path, ose.strerror, ose.errno))
-            raise cmexc.CheckmateException(msg)
+            raise delete_environment.retry(exc=cmexc.CheckmateException(msg))
 
 
 @celtask.task
