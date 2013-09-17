@@ -35,7 +35,7 @@ import time
 import urlparse
 
 from celery import exceptions as celexc
-from celery import task as celtask
+from celery.task import task
 from Crypto.PublicKey import RSA
 from Crypto import Random
 from eventlet.green import threading
@@ -315,7 +315,7 @@ def _cache_blueprint(source_repo):
             utils.git_clone(repo_cache, url, branch=branch)
         except subprocess.CalledProcessError as exc:
             error_message = ("Git repository could not be cloned from '%s'.  "
-                             "The error returned was '%s'")
+                             "The error returned was '%s'" % (url, exc))
             raise cmexc.CheckmateException(error_message)
         tags = utils.git_tags(repo_cache)
         if branch in tags:
@@ -447,7 +447,7 @@ def _create_kitchen(dep_id, service_name, path, secret_key=None,
     return {"kitchen": kitchen_path}
 
 
-@celtask.task
+@task
 @statsd.collect
 def write_databag(environment, bagname, itemname, contents, resource,
                   path=None, secret_file=None, merge=True,
@@ -607,7 +607,7 @@ def write_databag(environment, bagname, itemname, contents, resource,
         cmdeps.resource_postback.delay(environment, results)
 
 
-@celtask.task(countdown=20, max_retries=3)
+@task(countdown=20, max_retries=3)
 @statsd.collect
 def cook(host, environment, resource, recipes=None, roles=None, path=None,
          username='root', password=None, identity_file=None, port=22,
@@ -799,7 +799,8 @@ def _ensure_berkshelf_environment():
         LOG.info("Created berkshelf_path: %s", berkshelf_path)
 
 
-@celtask.task(default_retry_delay=2, max_retries=60)
+@task(default_retry_delay=10, max_retries=6)
+@statsd.collect
 def delete_environment(name, path=None):
     """Remove the chef environment from the file system."""
     root = _get_root_environments_path(name, path)
@@ -817,7 +818,8 @@ def delete_environment(name, path=None):
             raise delete_environment.retry(exc=cmexc.CheckmateException(msg))
 
 
-@celtask.task
+@task
+@statsd.collect
 def delete_cookbooks(name, service_name, path=None):
     """Remove cookbooks directory and contents from the file system."""
     root = _get_root_environments_path(name, path)
@@ -847,7 +849,7 @@ def delete_cookbooks(name, service_name, path=None):
 
 
 #TODO(any): full search, fix module reference all below here!!
-@celtask.task
+@task
 @statsd.collect
 def create_environment(name, service_name, path=None, private_key=None,
                        public_key_ssh=None, secret_key=None, source_repo=None,
@@ -949,7 +951,7 @@ def create_environment(name, service_name, path=None, private_key=None,
     return results
 
 
-@celtask.task(max_retries=3, soft_time_limit=600)
+@task(max_retries=3, soft_time_limit=600)
 @statsd.collect
 def register_node(host, environment, resource, path=None, password=None,
                   omnibus_version=None, attributes=None, identity_file=None,
@@ -1147,7 +1149,7 @@ def _write_node_attributes(node_path, attributes):
             lock.release()
 
 
-@celtask.task(countdown=20, max_retries=3)
+@task(countdown=20, max_retries=3)
 @statsd.collect
 def manage_role(name, environment, resource, path=None, desc=None,
                 run_list=None, default_attributes=None,
