@@ -41,15 +41,19 @@ class CheckmateException(Exception):
     """Checkmate Error."""
 
     def __init__(self, message=None, friendly_message=None, options=0):
-        """Create Checkmate Exception
+        """Create Checkmate Exception.
 
         :param friendly_message: a message to bubble up to clients (UI, CLI,
-                etc...)
-        :param options: ...
+                etc...). This defaults to UNEXPECTED_ERROR
+        :param options: receives flags from the code raising the error about
+                how the error can be handled. ALlowed flags are:
+                exceptions.CAN_RESUME
+                exceptions.CAN_RETRY
+                exceptions.CAN_RESET
         """
         args = ()
-        self.message = message
-        self.friendly_message = friendly_message
+        self.message = message or self.__doc__
+        self._friendly_message = friendly_message
         self.options = options
         if message:
             args = args + (message,)
@@ -58,6 +62,11 @@ class CheckmateException(Exception):
         if options and options != 0:
             args = args + (options,)
         super(CheckmateException, self).__init__(*args)
+
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or UNEXPECTED_ERROR
 
     @property
     def resumable(self):
