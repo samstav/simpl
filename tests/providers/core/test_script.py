@@ -16,7 +16,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-'''Tests for script provider'''
+"""Tests for script provider"""
 
 import logging
 import unittest
@@ -43,8 +43,7 @@ class TestResources(unittest.TestCase):
     def setUp(self):
         providers.base.PROVIDER_CLASSES = {}
         providers.register_providers([script.Provider, test.TestProvider])
-        self.deployment = \
-            deployment.Deployment(utils.yaml_to_dict('''
+        self.deployment = deployment.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 tenantId: T1000
                 environment:
@@ -86,7 +85,7 @@ class TestResources(unittest.TestCase):
                       - setting: memory
                         resource_type: compute
                         value: 2048
-            '''))
+            """))
 
     def test_resource_creation(self):
         planner = deployments.Planner(self.deployment, parse_only=True)
@@ -110,9 +109,7 @@ class TestScriptTasks(unittest.TestCase):
         providers.base.PROVIDER_CLASSES = {}
         providers.register_providers([script.Provider, test.TestProvider])
 
-    def test_install_script(self):
-        '''Verify workflow includes the supplied install script run.'''
-        test_dep = deployment.Deployment(utils.yaml_to_dict('''
+        self.deployment = deployment.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 tenantId: T1000
                 environment:
@@ -120,6 +117,8 @@ class TestScriptTasks(unittest.TestCase):
                   providers:
                     script:
                       vendor: core
+                      constraints:
+                      - timeout: 600
                       catalog:
                         application:
                           openstack:
@@ -163,26 +162,36 @@ devstack.git
                       - setting: memory
                         resource_type: compute
                         value: 2048
-            '''))
+            """))
 
-        deployments.Manager.plan(test_dep, self.context)
+    def test_install_script(self):
+        """Verify workflow includes the supplied install script run."""
+        deployments.Manager.plan(self.deployment, self.context)
         workflow_spec = cmwfspec.WorkflowSpec\
-            .create_workflow_spec_deploy(test_dep, self.context)
+            .create_workflow_spec_deploy(self.deployment, self.context)
         spec = workflow_spec.task_specs['Execute Script 0 (1)']
-        provider = test_dep['environment']['providers']['script']
+        provider = self.deployment['environment']['providers']['script']
         component = provider['catalog']['application']['openstack']
         script_body = component['properties']['scripts']['install']
         self.assertEqual(spec.kwargs['install_script'], script_body)
 
+    def test_timeout_constraint(self):
+        """Verify workflow PICKED UP TIMEOUT CONSTRAINT."""
+        deployments.Manager.plan(self.deployment, self.context)
+        workflow_spec = cmwfspec.WorkflowSpec\
+            .create_workflow_spec_deploy(self.deployment, self.context)
+        spec = workflow_spec.task_specs['Execute Script 0 (1)']
+        self.assertEqual(spec.kwargs['timeout'], 600)
+
 
 class TestSingleWorkflow(test.StubbedWorkflowBase):
-    '''Test workflow for a single service works.'''
+    """Test workflow for a single service works."""
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         providers.base.PROVIDER_CLASSES = {}
         providers.register_providers([script.Provider, test.TestProvider])
         self.deployment = \
-            deployment.Deployment(utils.yaml_to_dict('''
+            deployment.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 environment:
                   name: Rackspace Open Cloud
@@ -232,11 +241,11 @@ devstack.git
                       - setting: memory
                         resource_type: compute
                         value: 2048
-            '''))
+            """))
         self.deployment['tenantId'] = 'tenantId'
 
     def test_workflow_task_creation(self):
-        '''Verify workflow sequence and data flow.'''
+        """Verify workflow sequence and data flow."""
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
