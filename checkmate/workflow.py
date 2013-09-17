@@ -15,6 +15,7 @@
 
 """Workflow Class and Helper Functions"""
 import copy
+import inspect
 import logging
 import uuid
 
@@ -31,13 +32,20 @@ from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.deployment import Deployment
-from checkmate.exceptions import CheckmateException
-from checkmate.exceptions import UNEXPECTED_ERROR
+from checkmate import exceptions
 from checkmate import utils
 from checkmate.workflow_spec import WorkflowSpec
 
 DB = get_driver()
 LOG = logging.getLogger(__name__)
+
+EVAL_LOCALS = dict(inspect.getmembers(exceptions, inspect.isclass))
+EVAL_LOCALS['CAN_RETRY'] = exceptions.CAN_RETRY
+EVAL_LOCALS['CAN_RESUME'] = exceptions.CAN_RESUME
+EVAL_LOCALS['CAN_RESET'] = exceptions.CAN_RESET
+EVAL_LOCALS['MaxRetriesExceededError'] = MaxRetriesExceededError
+EVAL_LOCALS['Exception'] = Exception
+EVAL_GLOBALS = {'nothing': None}
 
 
 def create_workflow(spec, deployment, context, driver=DB, workflow_id=None,
@@ -202,8 +210,8 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
     :return: the dictionary of the exception
     """
     exc_dict = {}
-    exception = eval(info)
-    if type(exception) is CheckmateException:
+    exception = eval(info, EVAL_GLOBALS, EVAL_LOCALS)
+    if isinstance(exception, exceptions.CheckmateException):
         if exception.retriable or exception.resetable:
             exc_dict = {
                 "error-message": exception.friendly_message,
@@ -287,7 +295,7 @@ def get_exceptions(wf_dict):
     :param wf_dict: The workflow to get the tasks from
     :return: List of exceptions
     """
-    exceptions = []
+    exc_list = []
     tasks = wf_dict.get_tasks()
 
     while tasks:
@@ -296,10 +304,10 @@ def get_exceptions(wf_dict):
             task_state = task._get_internal_attribute("task_state")
             info = task_state.get("info")
             try:
-                exceptions.append(eval(info))
+                exc_list.append(eval(info, EVAL_GLOBALS, EVAL_LOCALS))
             except Exception:
                 pass
-    return exceptions
+    return exc_list
 
 
 def get_status_info(d_wf, workflow_id):
@@ -385,7 +393,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
         error_message = '. '.join(results)
         LOG.debug("Errors in Workflow: %s", error_message,
                   extra=dict(data=serialized_spec))
-        raise CheckmateException(error_message, UNEXPECTED_ERROR)
+        raise exceptions.CheckmateException(error_message)
 
     workflow = SpiffWorkflow(spiff_wf_spec)
     #Pass in the initial deployemnt dict (task 2 is the Start task)
