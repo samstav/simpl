@@ -1,3 +1,17 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 """
 Workspace: a directory where file operations can be performed for a deployment.
 
@@ -125,7 +139,7 @@ def cache_blueprint(source_repo):
             else:
                 try:
                     utils.git_pull(repo_cache, branch)
-                except subprocess.CalledProcessError as exc:
+                except subprocess.CalledProcessError:
                     LOG.info("Unable to pull from git repository at %s.  "
                              "Using the cached repository", url)
         else:  # Cache hit
@@ -135,7 +149,7 @@ def cache_blueprint(source_repo):
         os.makedirs(repo_cache)
         try:
             utils.git_clone(repo_cache, url, branch=branch)
-        except subprocess.CalledProcessError as exc:
+        except subprocess.CalledProcessError:
             error_message = ("Git repository could not be cloned from '%s'.  "
                              "The error returned was '%s'")
             raise exceptions.CheckmateException(error_message,

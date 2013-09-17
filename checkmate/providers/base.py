@@ -169,7 +169,6 @@ class ProviderBaseWorkflowMixIn(object):
         LOG.debug("%s.%s.add_connection_tasks called, "
                   "but was not implemented", self.vendor, self.name)
 
-
     @staticmethod
     def get_host_ready_tasks(resource, wfspec, deployment):
         """Get tasks to wait on host if this is hosted on another resource
@@ -603,7 +602,7 @@ class ProviderTask(celery.Task):
             raise exceptions.CheckmateException(
                 'Context passed into ProviderTask is an unsupported type %s.'
                 % type(context))
-        # TODO (zns): remove region - this is specific to Rackspace provider
+        # TODO(zns): remove region - this is specific to Rackspace provider
         if context.region is None and 'region' in kwargs:
             context.region = kwargs.get('region')
 

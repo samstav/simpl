@@ -1,4 +1,4 @@
-# pylint: disable=E1103
+# pylint: disable=E1103, C0302
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -1567,7 +1567,7 @@ def verify_ssh_connection(context, server_id, region, server_ip,
     instance_key = 'instance:%s' % context['resource_key']
 
     if context.get('simulation') is True:
-       return
+        return
 
     if api_object is None:
         api_object = Provider.connect(context, region)
@@ -1604,7 +1604,7 @@ def verify_ssh_connection(context, server_id, region, server_ip,
 
     if not is_up:
         if (verify_ssh_connection.max_retries ==
-                             verify_ssh_connection.request.retries):
+                verify_ssh_connection.request.retries):
             exception = cmexc.CheckmateException(
                 message="SSH verification task has failed",
                 friendly_message="Could not verify that SSH connectivity is "

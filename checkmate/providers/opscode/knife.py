@@ -1,3 +1,5 @@
+# pylint: disable= C0302
+
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -316,7 +318,7 @@ def _cache_blueprint(source_repo):
             error_message = ("Git repository could not be cloned from '%s'.  "
                              "The error returned was '%s'")
             raise cmexc.CheckmateException(error_message,
-                                               cmexc.UNEXPECTED_ERROR,)
+                                           cmexc.UNEXPECTED_ERROR,)
         tags = utils.git_tags(repo_cache)
         if branch in tags:
             tag = branch

@@ -555,9 +555,10 @@ def wait_on_build(context, server_id, ip_address_type='public',
                   private_key=None):
     """Checks build is complete and. optionally, that SSH is working.
 
-    :param ip_adress_type: the type of IP addresss to return as 'server_ip' in the
-        response
-    :returns: False when build not ready. Dict with server_ip addresses when done.
+    :param ip_adress_type: the type of IP addresss to return as 'server_ip'
+    in the response
+    :returns: False when build not ready. Dict with server_ip addresses when
+    done.
     """
     utils.match_celery_logging(LOG)
     if api_object is None:
