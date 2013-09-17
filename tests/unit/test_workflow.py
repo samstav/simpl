@@ -27,6 +27,7 @@ from SpiffWorkflow.Workflow import Workflow
 
 from checkmate import deployment as cmdep
 from checkmate import deployments
+from checkmate import exceptions
 from checkmate import middleware as cmmid
 from checkmate import providers as cmprov
 from checkmate.providers import base
@@ -166,13 +167,13 @@ class TestWorkflow(unittest.TestCase):
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {
-            "error-message": "foo",
+            "error-message": "exception_message",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/tasks/task_id/"
                           "+reset-task-tree",
             "task-id": "task_id",
             "error-traceback": "Traceback",
-            "friendly-message": "exception_message"
+            "error-string": "('foo', 'exception_message', 2)"
         }
         self.assertDictEqual(expected_error, error)
 
@@ -181,10 +182,10 @@ class TestWorkflow(unittest.TestCase):
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {
-            "error-message": "foo",
+            "error-message": "exception_message",
             "task-id": "task_id",
             "error-traceback": "Traceback",
-            "friendly-message": "exception_message",
+            "error-string": "('foo', 'exception_message', 1)",
             "resumable": True,
             "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute"
         }
@@ -195,13 +196,13 @@ class TestWorkflow(unittest.TestCase):
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {
-            "error-message": "foo",
+            "error-message": "exception_message",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/tasks/task_id/"
                           "+reset-task-tree",
             "task-id": "task_id",
             "error-traceback": "Traceback",
-            "friendly-message": "exception_message"
+            "error-string": "('foo', 'exception_message', 4)",
         }
         self.assertDictEqual(error, expected_error)
 
@@ -210,14 +211,11 @@ class TestWorkflow(unittest.TestCase):
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {
-            "error-message": "The maximum amount of permissible retries for "
-                             "workflow wf_id has elapsed. Please re-execute "
-                             "the workflow",
-            "error-help": "",
+            "error-message": "There was a timeout while executing the "
+                             "deployment",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/+execute",
-            "friendly-message": 'There was a timeout while executing the '
-                                'deployment'
+            'error-string': '',
         }
         self.assertDictEqual(expected_error, error)
 
@@ -225,7 +223,8 @@ class TestWorkflow(unittest.TestCase):
         info = "Exception('This is an exception')"
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
-        expected_error = {"error-message": "This is an exception",
+        expected_error = {"error-message": exceptions.UNEXPECTED_ERROR,
+                          "error-string": "This is an exception",
                           "error-traceback": "Traceback"}
         self.assertDictEqual(expected_error, error)
 
@@ -300,8 +299,9 @@ class TestWorkflow(unittest.TestCase):
 
         self.mox.VerifyAll()
         self.assertEqual(1, len(failed_tasks))
-        expected_error = {"error-message": "This is an exception",
-                          "error-traceback": "Traceback"}
+        expected_error = {"error-message": exceptions.UNEXPECTED_ERROR,
+                          "error-traceback": "Traceback",
+                          "error-string": "This is an exception"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
@@ -585,5 +585,4 @@ class TestGetStatusInfo(unittest.TestCase):
 
 if __name__ == '__main__':
     import sys
-
     test.run_with_params(sys.argv[:])

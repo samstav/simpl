@@ -206,17 +206,17 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
     if type(exception) is CheckmateException:
         if exception.retriable or exception.resetable:
             exc_dict = {
-                "error-message": exception.message,
+                "error-message": exception.friendly_message,
                 "retriable": True,
                 "task-id": task_id,
                 "retry-link": "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
                     tenant_id, workflow_id, task_id),
                 "error-traceback": traceback,
-                "friendly-message": exception.friendly_message
+                "error-string": str(exception),
             }
         elif exception.resumable:
             exc_dict = {
-                "error-message": exception.message,
+                "error-message": exception.friendly_message,
                 "resumable": True,
                 "task-id": task_id,
                 "resume-link": "/%s/workflows/%s/tasks/%s/+execute" % (
@@ -224,31 +224,29 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
                     workflow_id,
                     task_id),
                 "error-traceback": traceback,
-                "friendly-message": exception.friendly_message
+                "error-string": str(exception),
             }
         else:
             exc_dict = {
-                "error-message": exception.message,
+                "error-message": exception.friendly_message,
                 "task-id": task_id,
                 "error-traceback": traceback,
-                "friendly-message": exception.friendly_message
+                "error-string": str(exception),
             }
     elif type(exception) is MaxRetriesExceededError:
         exc_dict = {
-            "error-message": "The maximum amount of permissible retries for "
-                             "workflow %s has elapsed. Please re-execute the"
-                             " workflow" % workflow_id,
-            "error-help": "",
+            "error-message": "There was a timeout while executing the "
+                             "deployment",
             "retriable": True,
             "retry-link": "/%s/workflows/%s/+execute" % (
                 tenant_id, workflow_id),
-            "friendly-message": "There was a timeout while executing the "
-                                "deployment"
+            "error-string": str(exception),
         }
     elif isinstance(exception, Exception):
         exc_dict = {
-            "error-message": str(exception),
-            "error-traceback": traceback
+            "error-message": exceptions.UNEXPECTED_ERROR,
+            "error-traceback": traceback,
+            "error-string": str(exception),
         }
     return exc_dict
 
