@@ -1,4 +1,4 @@
-# pylint: disable=C0103,R0904,W0212
+# pylint: disable=C0103,R0904,W0212,W0613,W0201,C0111
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -25,9 +25,9 @@ import webtest
 
 from checkmate import deployments
 from checkmate import exceptions
-from checkmate import workflows
 from checkmate import test
 from checkmate import utils
+from checkmate import workflows
 
 os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
@@ -276,10 +276,10 @@ class TestDeleteNodes(TestDeploymentRouter):
         mock_context.get_queued_task_dict = mock.Mock()
         mock_context.get_queued_task_dict.return_value = {'fake_dict': True}
 
-    """ setUp: Simulation Context """
     @mock.patch.object(utils, 'is_simulation')
     @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
     def setUpSimulation(self, _delay, _is_simulation):
+        """setUp: Simulation Context."""
         _is_simulation.return_value = True
         self.router._validate_delete_node_request = mock.Mock()
         url = '/123/deployments/999/+delete-nodes'
@@ -292,9 +292,9 @@ class TestDeleteNodes(TestDeploymentRouter):
         context = call_args[1]
         self.assertEquals(context.simulation, True)
 
-    """ setUp: No Victim List """
     @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
     def setUpNoVictimList(self, _delay):
+        """setUp: No Victim List."""
         self.router._validate_delete_node_request = mock.Mock()
         url = '/123/deployments/999/+delete-nodes'
         data = {'service_name': 'service', 'count': 2}
@@ -305,9 +305,9 @@ class TestDeleteNodes(TestDeploymentRouter):
         call_args, _ = self.manager.delete_nodes.call_args
         self.assertEquals(call_args[4], [])
 
-    """ setUp: Victim List """
     @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
     def setUpVictimList(self, _delay):
+        """setUp: Victim List."""
         self._delay = _delay
         self.router._validate_delete_node_request = mock.Mock()
         url = '/123/deployments/999/+delete-nodes'
@@ -337,9 +337,9 @@ class TestDeleteNodes(TestDeploymentRouter):
         self.assertEquals(call_args[0], 'w99')
         self.assertEquals(call_args[1], {'fake_dict': True})
 
-    """ setUp: Victim List """
     @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
     def setUpFinalResponse(self, _delay):
+        """setUp: Victim List."""
         self._delay = _delay
         self.router._validate_delete_node_request = mock.Mock()
         url = '/123/deployments/999/+delete-nodes'
@@ -476,5 +476,4 @@ class TestValidateDeleteNodeRequest(TestDeploymentRouter):
 
 if __name__ == '__main__':
     import sys
-
     test.run_with_params(sys.argv[:])
