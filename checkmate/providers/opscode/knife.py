@@ -1016,25 +1016,10 @@ def register_node(host, environment, resource, path=None, password=None,
         if attributes:
             node = {'run_list': []}  # default
             node.update(attributes)
-            results = {
-                instance_key: {
-                    'node-attributes': node
-                }
-            }
+            results.update({'node-attributes': node})
         results = {instance_key: results}
         res.update(results)
         cmdeps.resource_postback.delay(environment, res)
-
-        if attributes:
-            node = {'run_list': []}  # default
-            node.update(attributes)
-            results = {
-                instance_key: {
-                    'node-attributes': node
-                }
-            }
-            cmdeps.resource_postback.delay(environment, results)
-
         return
 
     def on_failure(exc, task_id, args, kwargs, einfo):
