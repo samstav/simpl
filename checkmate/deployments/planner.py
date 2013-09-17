@@ -1,4 +1,4 @@
-# pylint: disable= C0302
+# pylint: disable=C0302
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -570,7 +570,7 @@ class Planner(classes.ExtensibleDict):
                 return
             else:
                 LOG.debug("Conflicting relation named '%s' exists in service "
-                          "'%s'" % (write_key, target['service']))
+                          "'%s'", write_key, target['service'])
                 return
 
         # Write relation
@@ -930,7 +930,7 @@ class Planner(classes.ExtensibleDict):
         :return:
         '''
         count = 0
-        for key, resource in self.resources.iteritems():
+        for _, resource in self.resources.iteritems():
             if (resource.get("service") == service_name and resource.get(
                     "provider") == provider_key):
                 count += 1

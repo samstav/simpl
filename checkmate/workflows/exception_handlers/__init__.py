@@ -55,6 +55,6 @@ def get_handlers(d_wf, failed_tasks_ids, context, driver):
                                               auto_retry_count]))
                 task.set_exception(exception, failed_task)
                 handlers.append(handler)
-        except Exception as exp:
-            LOG.debug("ExceptionHandlerBase raised exception %s", str(exp))
+        except Exception as exc:
+            LOG.debug("ExceptionHandlerBase raised exception %s", exc)
     return handlers

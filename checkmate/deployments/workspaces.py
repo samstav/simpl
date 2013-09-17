@@ -131,16 +131,16 @@ def cache_blueprint(source_repo):
                 try:
                     utils.git_fetch(repo_cache, refspec)
                     utils.git_checkout(repo_cache, tag)
-                except subprocess.CalledProcessError:
+                except subprocess.CalledProcessError as exc:
                     LOG.info("Unable to update git tags from the git "
-                             "repository at %s.  Using the cached repository",
-                             url)
+                             "repository at %s.  Using the cached repository: "
+                             "%s", url, exc)
             else:
                 try:
                     utils.git_pull(repo_cache, branch)
-                except subprocess.CalledProcessError:
+                except subprocess.CalledProcessError as exc:
                     LOG.info("Unable to pull from git repository at %s.  "
-                             "Using the cached repository", url)
+                             "Using the cached repository: %s", url, exc)
         else:  # Cache hit
             LOG.debug("(cache) Using cached repo: %s", repo_cache)
     else:  # Cache does not exist
@@ -203,7 +203,7 @@ def create_workspace(context, name, source_repo=None):
     """
     utils.match_celery_logging(LOG)
 
-    #TODO: add context
+    #TODO(zns): add context
     if context['simulation'] is True:
         return {
             'workspace': '/var/tmp/%s/' % name

@@ -33,9 +33,9 @@ UNEXPECTED_ERROR = ("Unable to automtically recover from error - Please "
                     "contact support")
 
 # options
-CAN_RESUME = 1
-CAN_RETRY = 2
-CAN_RESET = 4
+CAN_RESUME = 1  # just run the workflow again (ex. to get new token)
+CAN_RETRY = 2   # try the task again (ex. external API was down)
+CAN_RESET = 4   # clean up and try again (ex. delete ERROR'ed server and retry)
 
 LOG = logging.getLogger(__name__)
 

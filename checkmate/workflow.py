@@ -201,13 +201,21 @@ def create_reset_failed_task_wf(d_wf, deployment_id, context,
 
 
 def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
-    """Converts a exception to a dictionary
+    """Converts a exception to a dictionary.
+
     :param info: exception to convert
     :param task_id: spiff task_id
     :param tenant_id: tenant_id
     :param workflow_id: workflow id
     :param traceback: traceback of the exception
     :return: the dictionary of the exception
+
+            error-message is what is displayed by client tools, so we only show
+                friendly strings or preformatted messages.
+            error-traceback is saved as a secret and only available
+                with_secrets
+            error is the exception string saved as a secret and only available
+                with_secrets
     """
     exc_dict = {}
     exception = eval(info, EVAL_GLOBALS, EVAL_LOCALS)
@@ -315,8 +323,8 @@ def get_status_info(d_wf, workflow_id):
     status_info = {}
     friendly_messages = []
     tenant_id = d_wf.get_attribute("tenant_id")
-    exceptions = get_exceptions(d_wf)
-    distinct_exceptions = _get_distinct_exceptions(exceptions)
+    exc_list = get_exceptions(d_wf)
+    distinct_exceptions = _get_distinct_exceptions(exc_list)
 
     for exception in distinct_exceptions:
         if hasattr(exception, 'friendly_message'):
@@ -325,9 +333,11 @@ def get_status_info(d_wf, workflow_id):
                                      exception.friendly_message))
 
     if distinct_exceptions:
-        status_message = ''.join(friendly_messages) \
-            if len(distinct_exceptions) == len(friendly_messages) \
-            else 'Multiple errors have occurred. Please contact support'
+        if len(distinct_exceptions) == len(friendly_messages):
+            status_message = ''.join(friendly_messages)
+        else:
+            status_message = ('Multiple errors have occurred. Please contact '
+                              'support')
         status_info.update({'status-message': status_message})
 
     if any((hasattr(exc, 'retriable') and exc.retriable) for exc in

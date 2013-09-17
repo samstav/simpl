@@ -19,7 +19,7 @@ import logging
 
 import pyrax
 
-from checkmate import exceptions as cex
+from checkmate import exceptions as exceptions
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -50,10 +50,10 @@ class Manager(object):
                 if exc.code == '400':
                     raise
                 else:
-                    raise cex.CheckmateException(str(exc),
-                                                 options=-cex.CAN_RESUME)
+                    raise exceptions.CheckmateException(
+                        str(exc), options=exceptions.CAN_RESUME)
             except StandardError as exc:
-                raise cex.CheckmateException(str(exc))
+                raise exceptions.CheckmateException(str(exc))
 
         results = {
             'id': domain.id,
@@ -87,10 +87,10 @@ class Manager(object):
                 if hasattr(exc, 'code') and exc.code == '500':
                     raise
                 else:
-                    raise cex.CheckmateException(str(exc),
-                                                 options=cex.CAN_RESUME)
+                    raise exceptions.CheckmateException(
+                        str(exc), options=exceptions.CAN_RESUME)
             except StandardError as exc:
-                raise cex.CheckmateException(str(exc))
+                raise exceptions.CheckmateException(str(exc))
         results = {
             'id': domain_name,
             'name': domain_name,
