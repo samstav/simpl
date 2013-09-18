@@ -119,8 +119,8 @@ from eventlet.green import httplib
 
 from checkmate.common import caching
 from checkmate.common import config
-from checkmate.contrib import wsgi_git_http_backend
 from checkmate.common.git import manager
+from checkmate.contrib import wsgi_git_http_backend
 
 CONFIG = config.current()
 GIT_SERVER_APP = bottle.Bottle()
@@ -225,11 +225,11 @@ def _auth_racker(endpoint_uri, username, password):
     body = {
         "auth": {
             "RAX-AUTH:domain": {
-              "name": "Rackspace"
+                "name": "Rackspace"
             },
             "passwordCredentials": {
                 "username": username,
-                'password': password,
+                "password": password,
             }
         }
     }
