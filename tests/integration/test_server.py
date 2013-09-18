@@ -23,7 +23,6 @@ import uuid
 import bottle
 import webtest
 
-from checkmate import db
 from checkmate import deployments
 from checkmate import environments
 from checkmate import middleware as cmmid

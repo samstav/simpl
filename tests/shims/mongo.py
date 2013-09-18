@@ -52,10 +52,12 @@ class Shim(object):
         self.box = None
 
     def start(self):
+        """Get the DB driver, passing in connection_string to set it up."""
         if self.connection_string:
             self.driver = db.get_driver(
                 connection_string=self.connection_string, reset=True)
 
     def clean(self):
+        """Drop all collections listed in CLEECTIONS_TO_CLEAN."""
         for collection_name in COLLECTIONS_TO_CLEAN:
             self.driver.database()[collection_name].drop()
