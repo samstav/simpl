@@ -43,13 +43,13 @@ MANAGERS = {'deployments': Manager()}
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=10,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
 def reset_failed_resource_task(deployment_id, resource_id):
-    '''Creates a copy of a failed resource and appends it at the end of
+    """Creates a copy of a failed resource and appends it at the end of
         the resources collection.
 
     :param deployment_id:
     :param resource_id:
     :return:
-    '''
+    """
     MANAGERS['deployments'].reset_failed_resource(deployment_id, resource_id)
 
 
@@ -71,8 +71,8 @@ def wait_for_resource_status(deployment_id, resource_id, expected_status):
 
 @task
 @statsd.collect
-def process_post_deployment(deployment, request_context, driver=None):
-    '''Assess deployment, then create and trigger a workflow.'''
+def process_post_deployment(deployment, context, driver=None):
+    """Assess deployment, then create and trigger a workflow."""
     utils.match_celery_logging(LOG)
 
     if driver is not None:
@@ -82,22 +82,21 @@ def process_post_deployment(deployment, request_context, driver=None):
     deployment = Deployment(deployment)
 
     #Assess work to be done & resources to be created
-    parsed_deployment = MANAGERS['deployments'].plan(deployment,
-                                                     request_context)
+    parsed_deployment = MANAGERS['deployments'].plan(deployment, context)
 
     # Create a 'new deployment' workflow
-    MANAGERS['deployments'].deploy(parsed_deployment, request_context)
+    operation = MANAGERS['deployments'].deploy(parsed_deployment, context)
 
     #Trigger the workflow in the queuing service
-    async_task = MANAGERS['deployments'].execute(deployment['id'],
-                                                 request_context)
+    async_task = MANAGERS['deployments'].execute(
+        deployment['id'], context, timeout=operation.get('estimated-duration'))
     LOG.debug("Triggered workflow (task='%s')", async_task)
 
 
 @task
 @statsd.collect
 def update_operation(deployment_id, workflow_id, driver=None, **kwargs):
-    '''Wrapper for common_tasks.update_operation.'''
+    """Wrapper for common_tasks.update_operation."""
     # TODO(any): Deprecate this
     driver = db.get_driver()
     return common_tasks.update_operation(deployment_id, workflow_id,
@@ -146,9 +145,9 @@ def delete_deployment_task(dep_id, driver=None):
 @task(default_retry_delay=0.25, max_retries=4)
 @statsd.collect
 def alt_resource_postback(contents, deployment_id, driver=None):
-    '''This is just an argument shuffle to make it easier
+    """This is just an argument shuffle to make it easier
     to chain this with other tasks.
-    '''
+    """
     utils.match_celery_logging(LOG)
     driver = db.get_driver(api_id=deployment_id)
     resource_postback.delay(deployment_id, contents, driver=driver)
@@ -158,9 +157,9 @@ def alt_resource_postback(contents, deployment_id, driver=None):
 @statsd.collect
 def update_all_provider_resources(provider, deployment_id, status,
                                   message=None, trace=None, driver=None):
-    '''Given a deployment, update all resources
+    """Given a deployment, update all resources
     associated with a given provider
-    '''
+    """
     utils.match_celery_logging(LOG)
     driver = db.get_driver(api_id=deployment_id)
     dep = driver.get_deployment(deployment_id)
@@ -181,7 +180,7 @@ def update_all_provider_resources(provider, deployment_id, status,
 @task(default_retry_delay=0.5, max_retries=6)
 @statsd.collect
 def postback(deployment_id, contents):
-    '''Exposes DeploymentsManager.postback as a task.'''
+    """Exposes DeploymentsManager.postback as a task."""
     utils.match_celery_logging(LOG)
     MANAGERS['deployments'].postback(deployment_id, contents)
 

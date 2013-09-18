@@ -24,6 +24,7 @@ import unittest
 from checkmate import deployment as cmdep
 from checkmate import deployments
 from checkmate import workflow_spec
+from checkmate.workflows import tasks as workflow_tasks
 
 
 class TestManager(unittest.TestCase):
@@ -200,6 +201,77 @@ class TestManager(unittest.TestCase):
         self.controller.reset_failed_resource(deployment_id, "0")
         self.driver.get_deployment.assert_called_with(deployment_id,
                                                       with_secrets=False)
+
+    @mock.patch.object(workflow_tasks.cycle_workflow, 'apply_async')
+    @mock.patch.object(deployments.Manager, 'get_deployment')
+    def test_execute(self, mock_get_dep, mock_apply_async):
+        api_id = "DEP_ID"
+        mock_context = mock.Mock()
+        mock_context.get_queued_task_dict.return_value = "context"
+        deployment = {"id": "DEP_ID"}
+        mock_get_dep.return_value = deployment
+        mock_apply_async.return_value = "result"
+
+        result = self.controller.execute(api_id, mock_context)
+        self.assertEqual(result, "result")
+        mock_apply_async.assert_called_with(args=["DEP_ID", "context"])
+
+    @mock.patch.object(workflow_tasks.cycle_workflow, 'apply_async')
+    @mock.patch.object(deployments.Manager, 'get_deployment')
+    def test_execute_with_timeout(self, mock_get_dep, mock_apply_async):
+        """Check that timeout is used."""
+        api_id = "DEP_ID"
+        mock_context = mock.Mock()
+        mock_context.get_queued_task_dict.return_value = "context"
+        deployment = {"id": "DEP_ID"}
+        mock_get_dep.return_value = deployment
+        mock_apply_async.return_value = "result"
+
+        result = self.controller.execute(api_id, mock_context, timeout=2400)
+        self.assertEqual(result, "result")
+        mock_apply_async.assert_called_with(
+            args=["DEP_ID", "context"],
+            time_limit=2400,  # supplied timeout
+            max_retries=480   # double estimate from default delay
+        )
+
+    @mock.patch.object(workflow_tasks.cycle_workflow, 'apply_async')
+    @mock.patch.object(deployments.Manager, 'get_deployment')
+    def test_execute_min_timeout(self, mock_get_dep, mock_apply_async):
+        """Check that timeout does not reduce task settings."""
+        api_id = "DEP_ID"
+        mock_context = mock.Mock()
+        mock_context.get_queued_task_dict.return_value = "context"
+        deployment = {"id": "DEP_ID"}
+        mock_get_dep.return_value = deployment
+        mock_apply_async.return_value = "result"
+
+        result = self.controller.execute(api_id, mock_context, timeout=10)
+        self.assertEqual(result, "result")
+        mock_apply_async.assert_called_with(
+            args=["DEP_ID", "context"],
+            time_limit=600,   # minimum is 10 minutes
+            max_retries=120   # double estimate default from delay
+        )
+
+    @mock.patch.object(workflow_tasks.cycle_workflow, 'apply_async')
+    @mock.patch.object(deployments.Manager, 'get_deployment')
+    def test_execute_max_timeout(self, mock_get_dep, mock_apply_async):
+        """Check that timeout does not go over maximum (one hour)."""
+        api_id = "DEP_ID"
+        mock_context = mock.Mock()
+        mock_context.get_queued_task_dict.return_value = "context"
+        deployment = {"id": "DEP_ID"}
+        mock_get_dep.return_value = deployment
+        mock_apply_async.return_value = "result"
+
+        result = self.controller.execute(api_id, mock_context, timeout=3600)
+        self.assertEqual(result, "result")
+        mock_apply_async.assert_called_with(
+            args=["DEP_ID", "context"],
+            time_limit=3600,  # remains at default
+            max_retries=720   # double estimate default from delay
+        )
 
 
 class TestCount(unittest.TestCase):

@@ -136,7 +136,10 @@ class Manager(object):
                                                             partial=partial)
 
     def deploy(self, deployment, context):
-        """Deploys a deployment and returns the operation."""
+        """Saves a new deployment and creates a deployment operation.
+
+        :returns: the operation
+        """
         if deployment.get('status') != 'PLANNED':
             raise CheckmateBadState("Deployment '%s' is in '%s' status and "
                                     "must be in 'PLANNED' status to be "
@@ -152,9 +155,10 @@ class Manager(object):
                 api_id=deployment['id']), workflow_id=deployment['id'],
             wf_type="BUILD")
         deployment['workflow'] = spiff_wf.attributes['id']
-        operations.add(deployment, spiff_wf, "BUILD",
-                       tenant_id=deployment['tenantId'])
+        operation = operations.add(deployment, spiff_wf, "BUILD",
+                                   tenant_id=deployment['tenantId'])
         self.save_deployment(deployment)
+        return operation
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
         """Get a single deployment by id.
@@ -251,7 +255,7 @@ class Manager(object):
             return resources.get(rid)
         raise ValueError("No resource %s in deployment %s" % (rid, api_id))
 
-    def execute(self, api_id, context):
+    def execute(self, api_id, context, timeout=None):
         """Process a checkmate deployment workflow
 
         Executes and moves the workflow forward.
@@ -259,6 +263,7 @@ class Manager(object):
         deployment.
 
         :param id: checkmate deployment id
+        :param timeout: sets timeout for the execution (max 1 hr, min 10 mins)
         :returns: the async task
         """
         if db.any_id_problems(api_id):
@@ -268,8 +273,18 @@ class Manager(object):
         if not deployment:
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 
-        result = workflows.tasks.cycle_workflow.delay(
-            api_id, context.get_queued_task_dict())
+        args = [api_id, context.get_queued_task_dict()]
+        cycle = workflows.tasks.cycle_workflow
+        if isinstance(timeout, int):
+            time_limit = min(3600, max(600, timeout))
+            max_retries = int(time_limit / cycle.default_retry_delay) * 2
+            LOG.debug("Cycling workflow with custom timeout of %s yielding a "
+                      "time limit of %s and a max retry count of %s", timeout,
+                      time_limit, max_retries)
+            result = cycle.apply_async(args=args, time_limit=time_limit,
+                                       max_retries=max_retries)
+        else:
+            result = cycle.apply_async(args=args)
         return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):

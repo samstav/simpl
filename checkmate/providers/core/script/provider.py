@@ -101,7 +101,7 @@ class Provider(providers.ProviderBase):
             host_os=operators.PathAttrib(type_path),
             timeout=timeout,
             properties={
-                'estimated_duration': 300,
+                'estimated_duration': timeout,
                 'task_tags': ['final'],
             },
             defines={'resource': key, 'provider': self.key}
