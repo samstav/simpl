@@ -474,23 +474,24 @@ class Planner(classes.ExtensibleDict):
 
     def add_resource(self, resource, definition, service_name=None):
         '''Add a resource to the list of resources to be created.'''
-        resource['index'] = self._get_next_resource_index()
+        index = self._get_next_resource_index()
+        resource['index'] = index
 
         LOG.debug("  Adding a '%s' resource with resource key '%s'",
-                  resource.get('type'), resource['index'])
-        self.resources[resource['index']] = resource
+                  resource.get('type'), index)
+        self.resources[index] = resource
         if 'instances' not in definition:
             definition['instances'] = []
-        definition['instances'].append(resource['index'])
+        definition['instances'].append(index)
 
-        #TODO(any): Refactor this
         if service_name:
-            interface = self.blueprint["services"][service_name][
-                "component"].get("interface")
+            service = self.blueprint["services"][service_name]
+            interface = service["component"].get("interface")
             if interface == 'vip':
                 connections = definition["connections"]
-                connections[connections.keys()[int(resource['index'])]][
-                    "outbound-from"] = resource['index']
+                connection_indices = connections.keys()
+                current_connection = connection_indices[int(index)]
+                connections[current_connection]["outbound-from"] = index
 
     def connect_resource(self, resource, definition):
         '''Add 'relations' key to resource based on the definition.
