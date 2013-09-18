@@ -285,10 +285,11 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
     """
     driver = db.get_driver(api_id=w_id)
     number_of_waiting_celery_tasks = 0
-    workflow = driver.get_workflow(w_id,  with_secrets=True)
+    workflow = driver.get_workflow(w_id, with_secrets=True)
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(deployment_id)
+    current_operation = deployment.get('operation')
     _, _, operation = cmops.get_operation(cmdep.Deployment(deployment), w_id)
 
     action = operation.get("action")
@@ -321,13 +322,18 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
-    final_tasks = cmwf.find_tasks(d_wf, state=Task.WAITING, tag='final')
+    waiting_tasks = cmwf.find_tasks(d_wf, state=Task.WAITING)
+    celery_tasks = [waiting_task for waiting_task in waiting_tasks
+                    if (isinstance(waiting_task.task_spec, Celery) and
+                        not task.is_failed(waiting_task))]
 
-    for final_task in final_tasks:
-        if (isinstance(final_task.task_spec, Celery) and
-                not task.is_failed(final_task)):
-            final_task.task_spec._update_state(final_task)
-            if final_task._has_state(Task.WAITING):
+    for celery_task in celery_tasks:
+        if current_operation.get('type') == "DELETE":
+            revoke_task(celery_task._get_internal_attribute('task_id'),
+                        terminate=True)
+        else:
+            celery_task.task_spec._update_state(celery_task)
+            if celery_task._has_state(Task.WAITING):
                 number_of_waiting_celery_tasks += 1
 
     LOG.debug("Workflow %s has %s waiting celery tasks", w_id,
@@ -356,13 +362,13 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
 
 @celtask.task
-def revoke_task(task_id):
+def revoke_task(task_id, terminate=False):
     """Revoke a celery task
     :param task_id: Task Id of the task to revoke
     :return:
     """
     if task_id:
-        celery.current_app.control.revoke(task_id)
+        celery.current_app.control.revoke(task_id, terminate=terminate)
         LOG.debug("Revoked task %s", task_id)
     else:
         LOG.error("No task id passed to revoke_task")
