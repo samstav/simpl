@@ -156,7 +156,7 @@ class GitMiddleware():
             'application/x-git-receive-pack-request'
         ]:
             pass
-        elif env['QUERY_STRING'] in [
+        elif env.get('QUERY_STRING') in [
             'service=git-upload-pack',
             'service=git-receive-pack'
         ]:
