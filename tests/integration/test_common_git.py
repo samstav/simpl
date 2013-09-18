@@ -25,8 +25,8 @@ import uuid
 import mock
 import webtest
 
-from checkmate.git import manager
-from checkmate.git import middleware
+from checkmate.common.git import manager
+from checkmate.common.git import middleware
 
 
 class MockWsgiApp(object):

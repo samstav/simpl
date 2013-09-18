@@ -22,7 +22,7 @@ import uuid
 import git
 import mock
 
-from checkmate.git import manager
+from checkmate.common.git import manager
 
 TEST_PATH = '/tmp/checkmate/test'
 

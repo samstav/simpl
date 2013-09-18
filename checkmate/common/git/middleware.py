@@ -108,8 +108,6 @@ to/by gitHttpBackend.
 
 -----------------------------------------------------------------------
 """
-from __future__ import absolute_import
-
 import json
 import logging
 import os
@@ -122,7 +120,7 @@ from eventlet.green import httplib
 from checkmate.common import caching
 from checkmate.common import config
 from checkmate.contrib import wsgi_git_http_backend
-from checkmate.git import manager
+from checkmate.common.git import manager
 
 CONFIG = config.current()
 GIT_SERVER_APP = bottle.Bottle()
