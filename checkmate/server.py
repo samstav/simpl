@@ -65,7 +65,7 @@ from checkmate.exceptions import (
     CheckmateNoMapping,
     CheckmateValidationException,
 )
-from checkmate.git import middleware as git_middleware
+from checkmate.common.git import middleware as git_middleware
 from checkmate import middleware
 from checkmate import utils
 

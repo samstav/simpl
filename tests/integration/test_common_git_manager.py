@@ -22,7 +22,7 @@ import uuid
 import git
 import mock
 
-from checkmate.git import manager
+from checkmate.common.git import manager
 
 TEST_PATH = '/tmp/checkmate/test'
 
@@ -253,10 +253,8 @@ class TestGitMiddlewareInitDeployment(unittest.TestCase):
     @mock.patch.object(os, 'path')
     @mock.patch.object(git.Repo, 'init')
     @mock.patch.object(manager, 'is_git_repo')
-    def test_no_git_repo_no_content(
-        self, mock_is_git_repo,
-        mock_init, mock_listdir, mock_path, mock_chmod
-    ):
+    def test_no_git_repo_no_content(self, mock_is_git_repo, mock_init,
+                                    mock_listdir, mock_path, mock_chmod):
         with mock.patch.object(
             manager,
             'open',
@@ -293,10 +291,8 @@ class TestGitMiddlewareInitDeployment(unittest.TestCase):
     @mock.patch.object(os, 'path')
     @mock.patch.object(git.Repo, 'init')
     @mock.patch.object(manager, 'is_git_repo')
-    def test_no_git_repo_with_file(
-            self, mock_is_git_repo,
-            mock_init, mock_path, mock_listdir, mock_chmod
-    ):
+    def test_no_git_repo_with_file(self, mock_is_git_repo, mock_init,
+                                   mock_path, mock_listdir, mock_chmod):
         with mock.patch.object(
             manager,
             'open',
@@ -328,10 +324,8 @@ class TestGitMiddlewareInitDeployment(unittest.TestCase):
     @mock.patch.object(os, 'path')
     @mock.patch.object(git.Repo, 'init')
     @mock.patch.object(manager, 'is_git_repo')
-    def test_no_git_repo_with_folder(
-            self, mock_is_git_repo,
-            mock_init, mock_path, mock_listdir, mock_chmod
-    ):
+    def test_no_git_repo_with_folder(self, mock_is_git_repo, mock_init,
+                                     mock_path, mock_listdir, mock_chmod):
         with mock.patch.object(
             manager,
             'open',
@@ -363,10 +357,8 @@ class TestGitMiddlewareInitDeployment(unittest.TestCase):
     @mock.patch.object(os, 'path')
     @mock.patch.object(git.Repo, 'init')
     @mock.patch.object(manager, 'is_git_repo')
-    def test_no_git_repo_with_submodule(
-            self, mock_is_git_repo,
-            mock_init, mock_path, mock_listdir, mock_chmod
-    ):
+    def test_no_git_repo_with_submodule(self, mock_is_git_repo, mock_init,
+                                        mock_path, mock_listdir, mock_chmod):
         with mock.patch.object(
             manager,
             'open',
@@ -396,8 +388,6 @@ class TestGitMiddlewareInitDeployment(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    from checkmate import test
     import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    test.run_with_params(sys.argv[:])
