@@ -15,7 +15,6 @@
 
 """Tests for server module."""
 import json
-import logging
 import mock
 import sys
 import unittest
@@ -31,48 +30,28 @@ from checkmate import middleware as cmmid
 from checkmate import server
 from checkmate import workflows
 
-LOG = logging.getLogger(__name__)
-
 try:
-    import mongobox as mbox
+    from tests.shims import mongo
     SKIP = False
     REASON = None
 except ImportError as exc:
-    LOG.warn("Unable to import MongoBox. MongoDB tests will not run: %s", exc)
     SKIP = True
-    REASON = "'mongobox' not installed: %s" % exc
-    mbox.MongoBox = object
+    REASON = "Mongo Shim import failed: %s" % exc
+    mongo.Shim = object
 
 
 @unittest.skipIf(SKIP, REASON)
 class TestServer(unittest.TestCase):
     """Test Basic Server code."""
-    COLLECTIONS_TO_CLEAN = ['tenants',
-                            'deployments',
-                            'blueprints',
-                            'resource_secrets',
-                            'resources']
-    _connection_string = None
-
-    @property
-    def connection_string(self):
-        """Property to return the db connection string."""
-        return TestServer._connection_string
-
     #pylint: disable=W0603
     @classmethod
     def setUpClass(cls):
-        """Fire up a sandboxed mongodb instance."""
-        super(TestServer, cls).setUpClass()
+        """See if we can setup a Mongo Shim."""
         try:
-            cls.box = mbox.MongoBox(scripting=True)
-            cls.box.start()
-            cls._connection_string = ("mongodb://localhost:%s/test" %
-                                      cls.box.port)
+            cls.testdb = mongo.Shim()
         except StandardError as exc:
-            LOG.exception(exc)
-            if hasattr(cls, 'box'):
-                del cls.box
+            if hasattr(cls, 'testdb'):
+                del cls.testdb
             global SKIP
             global REASON
             SKIP = True
@@ -80,19 +59,14 @@ class TestServer(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        """Stop the sanboxed mongodb instance."""
-        if hasattr(cls, 'box') and isinstance(cls.box, mbox.MongoBox):
-            if cls.box.running() is True:
-                cls.box.stop()
-                cls.box = None
-        super(TestServer, cls).tearDownClass()
+        """Stop the Mongo Shim if it exists."""
+        if hasattr(cls, 'testdb') and isinstance(cls.testdb, mongo.Shim):
+            cls.testdb.stop()
 
     def setUp(self):
         if SKIP is True:
             self.skipTest(REASON)
-        if self.connection_string:
-            self.driver = db.get_driver(
-                connection_string=self.connection_string, reset=True)
+        TestServer.testdb.start()
         bottle.default_app.push()
         reload(environments)
         self.root_app = bottle.default_app.pop()
@@ -113,8 +87,7 @@ class TestServer(unittest.TestCase):
         self.app = webtest.TestApp(extension)
 
     def tearDown(self):
-        for collection_name in TestServer.COLLECTIONS_TO_CLEAN:
-            self.driver.database()[collection_name].drop()
+        TestServer.testdb.clean()
 
     def test_multitenant_deployment(self):
         self.rest_tenant_exercise('deployment')
