@@ -141,7 +141,7 @@ EXPECTED_ENVIRONMENT_LIST = [
 LOG = logging.getLogger(__name__)
 
 
-class GitMiddleware():
+class GitMiddleware(object):
     """Adds support for git http-backend interaction."""
 
     def __init__(self, app, root_path):
