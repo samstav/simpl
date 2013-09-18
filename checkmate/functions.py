@@ -27,16 +27,16 @@ def evaluate(obj, **kwargs):
     if isinstance(obj, dict):
         for key, value in obj.iteritems():
             if key == 'if':
-                return evaluate(value)
+                return evaluate(value, **kwargs) not in [False, None]
             elif key == 'or':
-                return any(evaluate(o) for o in value)
+                return any(evaluate(o, **kwargs) for o in value)
             elif key == 'and':
-                return all(evaluate(o) for o in value)
+                return all(evaluate(o, **kwargs) for o in value)
             elif key == 'value':
                 return get_from_path(value, **kwargs)
-
+        return object
     elif isinstance(obj, list):
-        return [evaluate(o) for o in obj]
+        return [evaluate(o, **kwargs) for o in obj]
     else:
         return obj
 
