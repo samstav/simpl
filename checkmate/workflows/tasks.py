@@ -127,7 +127,7 @@ def update_deployment(w_id, error=None):
 
 
 @celtask.task(base=WorkflowEventHandlerTask, default_retry_delay=10,
-              max_retries=300, time_limit=3600, lock_db=LOCK_DB,
+              max_retries=300, time_limit=1800, lock_db=LOCK_DB,
               lock_key="async_wf_writer:{args[0]}",
               lock_timeout=2)
 @statsd.collect

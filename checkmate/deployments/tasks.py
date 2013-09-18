@@ -89,8 +89,8 @@ def process_post_deployment(deployment, request_context, driver=None):
     MANAGERS['deployments'].deploy(parsed_deployment, request_context)
 
     #Trigger the workflow in the queuing service
-    async_task = MANAGERS['deployments'].execute(deployment['id'],
-                                                 request_context)
+    async_task = MANAGERS['deployments'].execute(
+        deployment['id'], context, timeout=operation.get('estimated-duration'))
     LOG.debug("Triggered workflow (task='%s')", async_task)
 
 

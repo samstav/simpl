@@ -209,7 +209,7 @@ class TestDeploymentDeployer(unittest.TestCase):
         self._mox.ReplayAll()
         dep_class = cmdep.Deployment(deployment)
         parsed = manager.plan(dep_class, cmmid.RequestContext())
-        manager.deploy(parsed, cmmid.RequestContext())
+        operation = manager.deploy(parsed, cmmid.RequestContext())
         self._mox.VerifyAll()
         expected = {
             'status': 'IN PROGRESS',
@@ -221,7 +221,6 @@ class TestDeploymentDeployer(unittest.TestCase):
             'type': 'BUILD',
             'workflow-id': 'test'
         }
-        operation = dep_class["operation"]
         operation['last-change'] = None  # skip comparing/mocking times
 
         self.assertDictEqual(expected, operation)
