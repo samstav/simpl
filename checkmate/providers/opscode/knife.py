@@ -40,6 +40,7 @@ from Crypto.PublicKey import RSA
 from Crypto import Random
 from eventlet.green import threading
 
+from checkmate import celeryglobal
 from checkmate.common import config
 from checkmate.common import statsd
 from checkmate import deployments as cmdeps
@@ -799,7 +800,7 @@ def _ensure_berkshelf_environment():
         LOG.info("Created berkshelf_path: %s", berkshelf_path)
 
 
-@task(default_retry_delay=10, max_retries=6)
+@task(base=celeryglobal.RetryTask, default_retry_delay=10, max_retries=6)
 @statsd.collect
 def delete_environment(name, path=None):
     """Remove the chef environment from the file system."""
