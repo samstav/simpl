@@ -191,6 +191,23 @@ class TestOperationsUpdateOperation(unittest.TestCase):
             partial=True
         )
 
+    @mock.patch.object(operations, 'get_operation',
+                       side_effect=cmexc.CheckmateInvalidParameterError)
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_no_workflow_but_has_deployment_status(self, mock_get_driver,
+                                                   mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
+        mock_db.get_deployment.return_value = {}
+        mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
+        operations.update_operation('depid', None,
+                                    deployment_status='test_status',
+                                    test_kwarg='test')
+        mock_db.save_deployment.assert_called_once_with(
+            'depid',
+            {'status': 'test_status'},
+            partial=True
+        )
+
     @mock.patch.object(operations, 'get_operation')
     @mock.patch('checkmate.operations.db.get_driver')
     def test_op_status_matches_kwarg_status(self, mock_get_driver, mock_getop):
@@ -265,6 +282,12 @@ class TestOperationsGetOperation(unittest.TestCase):
         with self.assertRaises(
                 cmexc.CheckmateInvalidParameterError) as expected:
             operations.get_operation({'operation': {}}, 'wfid')
+        self.assertEqual('Invalid workflow ID.', str(expected.exception))
+
+    def test_get_operation_deployment_has_no_operation(self):
+        with self.assertRaises(
+                cmexc.CheckmateInvalidParameterError) as expected:
+            operations.get_operation({}, None)
         self.assertEqual('Invalid workflow ID.', str(expected.exception))
 
     def test_wf_id_is_current_operation(self):

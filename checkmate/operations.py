@@ -94,41 +94,41 @@ def update_operation(deployment_id, workflow_id, driver=None,
     :param kwargs: the key/value pairs to write into the operation
 
     """
-    if not kwargs:
+    if not kwargs and not deployment_status:
         return  # Nothing to do!
 
-    if not driver:
-        driver = db.get_driver(api_id=deployment_id)
-
-    dep = driver.get_deployment(deployment_id, with_secrets=True)
-    dep = cmdep.Deployment(dep)
-
-    try:
-        op_type, op_index, op_details = get_operation(dep, workflow_id)
-    except cmexc.CheckmateInvalidParameterError:
-        return  # No workflow found
-
-    op_status = op_details.get('status')
-    if op_status == "COMPLETE":
-        LOG.warn("Ignoring the update operation call as the "
-                 "operation is already COMPLETE")
-        return
-
-    if op_index == -1:  # Current operation from 'operation'
-        operation = dict(kwargs)
-    else:  # Pad a list so we can put it back in the right spot
-        operation = [{}] * op_index + [dict(kwargs)]
-
-    delta = {op_type: operation}
+    delta = {}
     if deployment_status:
         delta['status'] = deployment_status
+    driver = driver or db.get_driver(api_id=deployment_id)
+    deployment_info = driver.get_deployment(deployment_id, with_secrets=True)
+    deployment = cmdep.Deployment(deployment_info)
+
     try:
-        if 'status' in kwargs:
-            if kwargs['status'] != op_status:
-                delta['display-outputs'] = dep.calculate_outputs()
-    except KeyError:
-        LOG.warn("Cannot update deployment outputs: %s", deployment_id)
-    driver.save_deployment(deployment_id, delta, partial=True)
+        op_type, op_index, op_details = get_operation(deployment, workflow_id)
+        op_status = op_details.get('status')
+        if op_status == "COMPLETE":
+            LOG.warn("Ignoring the update operation call as the "
+                     "operation is already COMPLETE")
+        else:
+            if op_index == -1:  # Current operation from 'operation'
+                operation = dict(kwargs)
+            else:  # Pad a list so we can put it back in the right spot
+                operation = [{}] * op_index + [dict(kwargs)]
+
+            delta[op_type] = operation
+            try:
+                if 'status' in kwargs:
+                    if kwargs['status'] != op_status:
+                        delta['display-outputs'] = \
+                            deployment.calculate_outputs()
+            except KeyError:
+                LOG.warn("Cannot update deployment outputs: %s", deployment_id)
+    except cmexc.CheckmateInvalidParameterError:
+        LOG.debug("Could not find the operation with id %s" % workflow_id)
+
+    if delta:
+        driver.save_deployment(deployment_id, delta, partial=True)
 
 
 def current_workflow_id(deployment):
@@ -148,13 +148,14 @@ def get_operation(deployment, workflow_id):
       - the index of the operation (mainly for 'operations-history')
       - the operation details as a dict
 
-    If the worfklow_id is not found, raises a KeyError
+    If the workflow_id is not found, raises a KeyError
 
     :param workflow_id: the workflow ID on which to search
     :return: a Tuple containing op_type, op_index, and op_details
     """
     op_type, op_index, op_details = None, -1, {}
-    if current_workflow_id(deployment) == workflow_id:
+    if workflow_id is not None and \
+            current_workflow_id(deployment) == workflow_id:
         op_type = 'operation'
         op_index = -1
         op_details = deployment.get('operation')
