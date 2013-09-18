@@ -703,7 +703,6 @@ class Provider(RackspaceComputeProviderBase):
 
             resource = {
                 'status': server.status,
-                'index': idx,
                 'image': server.image['id'],
                 'provider': 'nova',
                 'dns-name': server.name,
