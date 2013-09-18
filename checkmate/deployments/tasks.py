@@ -98,7 +98,7 @@ def process_post_deployment(deployment, context, driver=None):
 def update_operation(deployment_id, workflow_id, driver=None, **kwargs):
     """Wrapper for common_tasks.update_operation."""
     # TODO(any): Deprecate this
-    driver = db.get_driver()
+    driver = db.get_driver(api_id=deployment_id)
     return common_tasks.update_operation(deployment_id, workflow_id,
                                          driver=driver, **kwargs)
 
