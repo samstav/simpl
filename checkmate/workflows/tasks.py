@@ -285,7 +285,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
     """
     driver = db.get_driver(api_id=w_id)
     number_of_waiting_celery_tasks = 0
-    workflow = driver.get_workflow(w_id,  with_secrets=True)
+    workflow = driver.get_workflow(w_id, with_secrets=True)
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(deployment_id)
