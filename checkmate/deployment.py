@@ -33,6 +33,7 @@ from checkmate import constraints as cm_constraints
 from checkmate import db
 from checkmate import environment as cm_env
 from checkmate import exceptions as cmexc
+from checkmate import functions
 from checkmate import inputs as cm_inputs
 from checkmate import keys
 from checkmate import resource as cm_res
@@ -60,8 +61,20 @@ def validate_blueprint_options(deployment):
         inputs = deployment.get('inputs', {})
         bp_inputs = inputs.get('blueprint', {})
         for key, option in blueprint['options'].iteritems():
-            if (not 'default' in option) and \
-                    option.get('required') in ['true', True]:
+            if 'default' in option:
+                continue
+            if not 'required' in option:
+                continue
+            required = option['required']
+            if isinstance(required, dict):
+                required = functions.evaluate(
+                    required,
+                    options=deployment.get('blueprint', {}).get('options'),
+                    services=deployment.get('blueprint', {}).get('services'),
+                    resources=deployment.get('resources'),
+                    inputs=inputs
+                )
+            if required:
                 if key not in bp_inputs:
                     raise cmexc.CheckmateValidationException(
                         "Required blueprint input '%s' not supplied" % key)
