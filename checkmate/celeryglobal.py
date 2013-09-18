@@ -104,3 +104,25 @@ class SingleTask(celery.Task):
             raise
         except Exception as exc:
             return self.retry(exc=exc)
+
+
+class RetryTask(celery.Task):
+    """Base of tasks for throwing a custom exception when the max retry
+    limit is hit"""
+    abstract = True
+
+    def retry(self, args=None, kwargs=None, exc=None, throw=True,
+              eta=None, countdown=None, max_retries=None, **options):
+        """Retries a celery task."""
+        request = self.request
+        retries = request.retries + 1
+        max_retries = self.max_retries if max_retries is None else max_retries
+
+        if (exc and not request.called_directly and
+                max_retries is not None and retries > max_retries):
+                raise exc
+        else:
+            super(RetryTask, self).retry(args=args, kwargs=kwargs, exc=exc,
+                                         throw=throw, eta=eta,
+                                         countdown=countdown,
+                                         max_retries=max_retries, **options)

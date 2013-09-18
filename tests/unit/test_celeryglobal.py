@@ -19,7 +19,8 @@ import logging
 import mock
 import unittest
 
-from celery import task as cel_t
+from celery import exceptions
+from celery import task
 
 from checkmate import celeryglobal as celery  # module to be renamed
 from checkmate.db import common
@@ -114,9 +115,41 @@ class TestSingleTask(unittest.TestCase):
         do_nothing("DEP_10")
 
 
-@cel_t.task(base=celery.SingleTask, default_retry_delay=1, max_retries=4,
-            lock_db=None, lock_key="async_dep_writer:{args[0]}",
-            lock_timeout=50)
+class TestRetryTask(unittest.TestCase):
+    def test_retry_with_custom_exception(self):
+        retry_task = celery.RetryTask()
+        retry_task.request_stack = mock.Mock()
+        request_mock = retry_task.request_stack.top
+        request_mock.retries = 2
+        request_mock.called_directly = False
+        self.assertRaises(Exception, retry_task.retry, max_retries=1,
+                          exc=Exception('test'))
+
+    def test_retry_with_no_custom_exception(self):
+        retry_task = celery.RetryTask()
+        retry_task.subtask_from_request = mock.Mock()
+        retry_task.request_stack = mock.Mock()
+        request_mock = retry_task.request_stack.top
+        request_mock.retries = 2
+        request_mock.called_directly = False
+        self.assertRaises(exceptions.MaxRetriesExceededError,
+                          retry_task.retry,
+                          max_retries=1)
+
+    def test_retry_raises_retry_task_error(self):
+        retry_task = celery.RetryTask()
+        retry_task.subtask_from_request = mock.Mock()
+        retry_task.request_stack = mock.Mock()
+        request_mock = retry_task.request_stack.top
+        request_mock.retries = 2
+        request_mock.called_directly = False
+        self.assertRaises(exceptions.RetryTaskError, retry_task.retry,
+                          max_retries=3)
+
+
+@task.task(base=celery.SingleTask, default_retry_delay=1, max_retries=4,
+           lock_db=None, lock_key="async_dep_writer:{args[0]}",
+           lock_timeout=50)
 def do_nothing(key):
     """Placeholder method for the task decorator."""
     return key
