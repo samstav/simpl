@@ -30,7 +30,7 @@ from SpiffWorkflow import Workflow
 from checkmate.common import tasks as common_tasks
 from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps
-from checkmate import exceptions as cmexc
+from checkmate import exceptions
 from checkmate import inputs as cminp
 from checkmate import keys
 from checkmate import middleware as cmmid
@@ -975,15 +975,15 @@ class TestDeploymentSettings(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
         parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         # TODO(any): last case broken without env providers
-        for test in cases[:-1]:
-            value = parsed.get_setting(test['name'],
-                                       service_name=test.get('service'),
-                                       provider_key=test.get('provider'),
-                                       resource_type=test.get('type'),
-                                       relation=test.get('relation'))
-            self.assertEquals(value, test['expected'], msg=test['case'])
-            LOG.debug("Test '%s' success=%s", test['case'],
-                      value == test['expected'])
+        for case in cases[:-1]:
+            value = parsed.get_setting(case['name'],
+                                       service_name=case.get('service'),
+                                       provider_key=case.get('provider'),
+                                       resource_type=case.get('type'),
+                                       relation=case.get('relation'))
+            self.assertEquals(value, case['expected'], msg=case['case'])
+            LOG.debug("Test '%s' success=%s", case['case'],
+                      value == case['expected'])
 
     def test_get_input_provider_option(self):
         deployment = cmdep.Deployment(utils.yaml_to_dict("""
@@ -1020,7 +1020,8 @@ class TestDeploymentSettings(unittest.TestCase):
         self.assertEqual(fxn('os', 'base', resource_type='compute'), 'X')
 
     def test_get_bad_options(self):
-        self.assertRaises(cmexc.CheckmateValidationException, cmdep.Deployment,
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          cmdep.Deployment,
                           utils.yaml_to_dict("""
             environment:
               providers:
@@ -1118,7 +1119,7 @@ class TestDeploymentSettings(unittest.TestCase):
                 inputs: {}
             """))
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
-        self.assertRaises(cmexc.CheckmateValidationException,
+        self.assertRaises(exceptions.CheckmateValidationException,
                           cmdeps.Manager.plan, deployment,
                           cmmid.RequestContext())
 
@@ -1151,7 +1152,7 @@ class TestDeploymentSettings(unittest.TestCase):
         deployment = cmdep.Deployment(deployment)
         option = deployment['blueprint']['options']['my_option']
         constraint = option['constrains'][0]
-        self.assertRaises(cmexc.CheckmateException,
+        self.assertRaises(exceptions.CheckmateException,
                           deployment._apply_constraint,
                           "my_option", constraint, option=option,
                           option_key="my_option")
@@ -1164,10 +1165,73 @@ class TestDeploymentSettings(unittest.TestCase):
                 blueprint: {}
                 inputs: {}
             """))
-        self.assertRaises(cmexc.CheckmateValidationException,
+        self.assertRaises(exceptions.CheckmateValidationException,
                           deployment.get_setting, None)
-        self.assertRaises(cmexc.CheckmateValidationException,
+        self.assertRaises(exceptions.CheckmateValidationException,
                           deployment.get_setting, '')
+
+
+class TestDynamicOptions(unittest.TestCase):
+
+    def test_options_static(self):
+        """Make syure simple, static check works."""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+                id: test
+                environment:
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          bar: {}
+                blueprint:
+                  services:
+                    web:
+                      component:
+                        id: bar
+                  options:
+                    foo:
+                      required: true
+                    bar:
+                      type: string
+            """))
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        with self.assertRaises(exceptions.CheckmateException):
+            cmdep.validate_blueprint_options(deployment)
+
+        deployment['blueprint']['options']['foo']['required'] = False
+        cmdep.validate_blueprint_options(deployment)
+
+    def test_options_required(self):
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+                id: test
+                environment:
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          bar: {}
+                blueprint:
+                  services:
+                    web:
+                      component:
+                        id: bar
+                  options:
+                    foo:
+                      required:
+                        if:
+                          value: inputs://blueprint/bar
+                inputs:
+                  blueprint:
+                    bar: 1
+            """))
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        with self.assertRaises(exceptions.CheckmateException):
+            cmdep.validate_blueprint_options(deployment)
+
+        deployment['inputs']['blueprint']['bar'] = False
+        cmdep.validate_blueprint_options(deployment)
 
 
 class TestDeploymentScenarios(unittest.TestCase):
@@ -1181,7 +1245,7 @@ class TestDeploymentScenarios(unittest.TestCase):
         path = os.path.join(data_dir, "deployment - none objects.yaml")
         with file(path, 'r') as the_file:
             content = the_file.read()
-        self.assertRaisesRegexp(cmexc.CheckmateValidationException,
+        self.assertRaisesRegexp(exceptions.CheckmateValidationException,
                                 "Blueprint not found. Nothing to do.",
                                 self.plan_deployment, content)
 
@@ -1219,7 +1283,7 @@ class TestCloneDeployments(unittest.TestCase):
         try:
             manager.clone('1234', {}, tenant_id='T1000')
             self.fail("Expected exception not raised.")
-        except cmexc.CheckmateBadState:
+        except exceptions.CheckmateBadState:
             pass
 
     def test_clone_deployment_happy_path(self):
@@ -1311,7 +1375,7 @@ class TestDeleteDeployments(unittest.TestCase):
             router.delete_deployment('1234')
             self.fail("Delete deployment with not found did not raise "
                       "exception")
-        except cmexc.CheckmateDoesNotExist as exc:
+        except exceptions.CheckmateDoesNotExist as exc:
             self.assertEqual("No deployment with id 1234", str(exc))
 
     @mock.patch('checkmate.deployments.manager.db.get_driver')
@@ -1439,7 +1503,7 @@ class TestGetResourceStuff(unittest.TestCase):
         router = cmdeps.Router(bottle.default_app(), manager)
 
         self._mox.ReplayAll()
-        self.assertRaisesRegexp(cmexc.CheckmateDoesNotExist,
+        self.assertRaisesRegexp(exceptions.CheckmateDoesNotExist,
                                 "No resources found "
                                 "for deployment 1234",
                                 router.get_deployment_resources, '1234')
@@ -1455,7 +1519,7 @@ class TestGetResourceStuff(unittest.TestCase):
         manager = cmdeps.Manager()
         router = cmdeps.Router(bottle.default_app(), manager)
         self._mox.ReplayAll()
-        self.assertRaisesRegexp(cmexc.CheckmateDoesNotExist,
+        self.assertRaisesRegexp(exceptions.CheckmateDoesNotExist,
                                 "No resources found "
                                 "for deployment 1234",
                                 router.get_resources_statuses, '1234')
@@ -1473,7 +1537,7 @@ class TestGetResourceStuff(unittest.TestCase):
             router.get_deployment_resources('1234')
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
-        except cmexc.CheckmateDoesNotExist as exc:
+        except exceptions.CheckmateDoesNotExist as exc:
             self.assertIn("No deployment with id 1234", str(exc))
 
     @mock.patch('checkmate.deployments.manager.db.get_driver')
@@ -1489,7 +1553,7 @@ class TestGetResourceStuff(unittest.TestCase):
             router.get_resources_statuses('1234')
             self.fail("get_deployment_resources with not found did not raise"
                       " exception")
-        except cmexc.CheckmateDoesNotExist as exc:
+        except exceptions.CheckmateDoesNotExist as exc:
             self.assertIn("No deployment with id 1234", str(exc))
 
 
@@ -1720,8 +1784,6 @@ class TestCeleryTasks(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    from checkmate import test
     import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    test.run_with_params(sys.argv[:])

@@ -1,4 +1,4 @@
-# pylint: disable= C0302
+# pylint: disable=C0302
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -33,6 +33,7 @@ from checkmate import constraints as cm_constraints
 from checkmate import db
 from checkmate import environment as cm_env
 from checkmate import exceptions as cmexc
+from checkmate import functions
 from checkmate import inputs as cm_inputs
 from checkmate import keys
 from checkmate import resource as cm_res
@@ -60,8 +61,20 @@ def validate_blueprint_options(deployment):
         inputs = deployment.get('inputs', {})
         bp_inputs = inputs.get('blueprint', {})
         for key, option in blueprint['options'].iteritems():
-            if (not 'default' in option) and \
-                    option.get('required') in ['true', True]:
+            if 'default' in option:
+                continue
+            if 'required' not in option:
+                continue
+            required = option['required']
+            if isinstance(required, dict):
+                required = functions.evaluate(
+                    required,
+                    options=deployment.get('blueprint', {}).get('options'),
+                    services=deployment.get('blueprint', {}).get('services'),
+                    resources=deployment.get('resources'),
+                    inputs=inputs
+                )
+            if required:
                 if key not in bp_inputs:
                     raise cmexc.CheckmateValidationException(
                         "Required blueprint input '%s' not supplied" % key)
@@ -234,6 +247,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def __init__(self, *args, **kwargs):
         super(Deployment, self).__init__(*args, **kwargs)
+        self._settings = None
         self._environment = None
         self.fsm = fsm.SimpleFSM({
             'initial': None,
@@ -374,8 +388,11 @@ class Deployment(morpheus.MorpheusDict):
 
         Note: this is to be used instead of the old context object
         """
-        if hasattr(self, '_settings'):
-            return getattr(self, '_settings')
+        try:
+            if self._settings is not None:
+                return self._settings
+        except AttributeError:
+            pass
 
         results = {}
 
@@ -394,7 +411,7 @@ class Deployment(morpheus.MorpheusDict):
             else:
                 LOG.debug("No credentials supplied in environment/common/"
                           "credentials")
-        except Exception:
+        except StandardError:
             LOG.debug("No credentials supplied in environment/common/"
                       "credentials")
 
@@ -838,8 +855,8 @@ class Deployment(morpheus.MorpheusDict):
                                     "obtaining option '%s' since value is " \
                                     "of type %s" % (attribute, name,
                                                     type(value).__name__)
-                    raise cmexc.CheckmateException(error_message,
-                        friendly_message=cmexc.BLUEPRINT_ERROR)
+                    raise cmexc.CheckmateException(
+                        error_message, friendly_message=cmexc.BLUEPRINT_ERROR)
                 if result is not None:
                     LOG.debug("Found setting '%s' from constraint. %s=%s",
                               name, option_key or name, result)
@@ -958,8 +975,8 @@ class Deployment(morpheus.MorpheusDict):
             if not component:
                 error_message = ("Could not resolve component '%s'" %
                                  service_component)
-                raise cmexc.CheckmateException(error_message,
-                    friendly_message=cmexc.BLUEPRINT_ERROR)
+                raise cmexc.CheckmateException(
+                    error_message, friendly_message=cmexc.BLUEPRINT_ERROR)
             LOG.debug("Component '%s' identified as '%s' for service '%s'",
                       service_component, component['id'], service_name)
             results[service_name] = component
