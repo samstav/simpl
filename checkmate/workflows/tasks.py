@@ -184,8 +184,8 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
         LOG.debug("Workflow '%s' did not make any progress. Deprioritizing "
                   "it and waiting %s seconds to retry.", w_id, wait)
 
-    LOG.debug("Finished run of workflow '%s'. Waiting %i seconds to next run"
-              ". Retries done: %s", w_id, wait, cycle_workflow.request.retries)
+    LOG.debug("Finished run of workflow '%s'. Waiting %i seconds to next run. "
+              "Retries done: %s", w_id, wait, cycle_workflow.request.retries)
     cycle_workflow.retry([w_id, context],
                          kwargs={
                              'wait': wait,
