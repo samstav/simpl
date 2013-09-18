@@ -975,15 +975,15 @@ class TestDeploymentSettings(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
         parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         # TODO(any): last case broken without env providers
-        for test in cases[:-1]:
-            value = parsed.get_setting(test['name'],
-                                       service_name=test.get('service'),
-                                       provider_key=test.get('provider'),
-                                       resource_type=test.get('type'),
-                                       relation=test.get('relation'))
-            self.assertEquals(value, test['expected'], msg=test['case'])
-            LOG.debug("Test '%s' success=%s", test['case'],
-                      value == test['expected'])
+        for case in cases[:-1]:
+            value = parsed.get_setting(case['name'],
+                                       service_name=case.get('service'),
+                                       provider_key=case.get('provider'),
+                                       resource_type=case.get('type'),
+                                       relation=case.get('relation'))
+            self.assertEquals(value, case['expected'], msg=case['case'])
+            LOG.debug("Test '%s' success=%s", case['case'],
+                      value == case['expected'])
 
     def test_get_input_provider_option(self):
         deployment = cmdep.Deployment(utils.yaml_to_dict("""

@@ -34,7 +34,7 @@ def evaluate(obj, **kwargs):
                 return all(evaluate(o, **kwargs) for o in value)
             elif key == 'value':
                 return get_from_path(value, **kwargs)
-        return object
+        return obj
     elif isinstance(obj, list):
         return [evaluate(o, **kwargs) for o in obj]
     else:
