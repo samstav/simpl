@@ -599,21 +599,25 @@ class GitHubManager(object):
                 'required': True
             }
         blueprint['meta-data'] = {
+            "schema-version": "v0.7",
+            "application-name": "Heat Template",
+            "blueprint-type": "Application",
+            "flavor": "Example Heat Template",
             "flavor-weight": 2,
-            "application-version": 5.3,
+            "application-version": "Preview",
             "reach-info": {
                 "tattoo": "http://7555e8905adb704bd73e-744765205721eed93c384da\
 e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
                 "icon-20x20": "http://7555e8905adb704bd73e-744765205721eed93c3\
 84dae790e86aa.r66.cf2.rackcdn.com/heat-20x20.png",
             },
-            "application-name": "Heat",
-            "blueprint-type": "Application",
-            "schema-version": "v0.7",
-            "flavor": "Example Heat Template"
-        },
+        }
         blueprint["documentation"] = {
-            "abstract": "HOT template converted for Checkmate compatibility"
+            "abstract": "HOT template converted for Rackspace Deployements "
+            "compatibility",
+            "instructions": "This is a demo conversion from HOT (OpenStack's "
+            "Heat Orchestration Template) syntax to Rackspace Deployments "
+            "Service format."
         }
         content['blueprint'] = blueprint
         return content
