@@ -271,16 +271,17 @@ def _set_git_environ(environ, repo, path):
         gets added to GIT_PROJECT_BASE)
     :param path: the path into the repo that is being requested
     """
-    cgi_env = dict()
+    cgi_env = {}
     for env_var in EXPECTED_ENVIRONMENT_LIST:
         if env_var in environ:
             cgi_env[env_var] = environ[env_var]
     if 'PATH_INFO' not in cgi_env:
         cgi_env['PATH_INFO'] = ''
     cgi_env['GIT_HTTP_EXPORT_ALL'] = '1'
-    cgi_env['GIT_PROJECT_ROOT'] = os.path.join(environ['GIT_PROJECT_BASE'],
-                                               repo)
-    cgi_env['PATH_INFO'] = '/%s' % path
+    if 'GIT_PROJECT_BASE' in environ:
+        cgi_env['GIT_PROJECT_ROOT'] = os.path.join(environ['GIT_PROJECT_BASE'],
+                                                   repo)
+    cgi_env['PATH_INFO'] = '/%s' % (path or '')
     if (
         re.search('/info/refs', cgi_env['PATH_INFO']) and
         cgi_env['REQUEST_METHOD'] == 'GET'
@@ -295,7 +296,7 @@ def _git_route_callback(dep_id, path):
     if not os.path.isdir(environ['GIT_PROJECT_ROOT']):
         raise bottle.HTTPError(code=404, output="%s not found" %
                                environ['PATH_INFO'])
-    manager.init_deployment_repo(environ['GIT_PROJECT_ROOT'])
+    manager.init_deployment_repo(environ.get('GIT_PROJECT_ROOT'))
     (status_line, headers, response_body_generator
      ) = wsgi_git_http_backend.wsgi_to_git_http_backend(environ)
     for header, value in headers:
