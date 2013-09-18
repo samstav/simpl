@@ -1,4 +1,4 @@
-# pylint: disable=E1101,W0613
+# pylint: disable=E1101,W0613,R0904,R0913
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -120,7 +120,7 @@ class RetryTask(celery.Task):
 
         if (exc and not request.called_directly and
                 max_retries is not None and retries > max_retries):
-                raise exc
+            raise exc
         else:
             super(RetryTask, self).retry(args=args, kwargs=kwargs, exc=exc,
                                          throw=throw, eta=eta,
