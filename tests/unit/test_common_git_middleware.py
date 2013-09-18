@@ -15,14 +15,14 @@
 #    under the License.
 
 """Tests for git middleware."""
-import mock
 import os
 import unittest
 
-from checkmate.contrib import wsgi_git_http_backend
+import mock
+
 from checkmate.common.git import manager
 from checkmate.common.git import middleware
-
+from checkmate.contrib import wsgi_git_http_backend
 
 
 class TestGitMiddlewareSetGitEnviron(unittest.TestCase):
@@ -52,7 +52,7 @@ class TestGitMiddlewareSetGitEnviron(unittest.TestCase):
             'GIT_PROJECT_BASE': '/blah',
         }
         environ = middleware._set_git_environ(environ_dict, "repo", ".git")
-        self.assertEqual( '/blah/repo', environ['GIT_PROJECT_ROOT'])
+        self.assertEqual('/blah/repo', environ['GIT_PROJECT_ROOT'])
         self.assertEqual('/.git', environ['PATH_INFO'])
 
 
@@ -76,6 +76,6 @@ class TestGitMiddlewareGitRouteCallback(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import sys
     from checkmate import test
+    import sys
     test.run_with_params(sys.argv[:])
