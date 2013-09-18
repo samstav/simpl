@@ -87,7 +87,6 @@ class CheckmateException(Exception):
         return self.options & CAN_RESET
 
 
-
 class CheckmateDatabaseConnectionError(CheckmateException):
     """Error connecting to backend database."""
     pass
