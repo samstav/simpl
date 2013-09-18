@@ -392,43 +392,54 @@ class TestCeleryTasks(unittest.TestCase):
         self.assertDictEqual(results, expected)
         lb_api_mock.get.assert_called_with(mocklb.id)
 
-    def test_lb_sync_resource_task_adds_metadata(self):
-        mocklb = mock.Mock()
-        mocklb.id = 'fake_lb_id'
-        mocklb.name = 'fake_lb'
-        mocklb.status = 'ERROR'
-        mocklb.get_metadata.return_value = {}
+    def setUpSyncResourceTask(self):
+        self.resource_key = "1"
 
-        resource_key = "1"
+        self.context = {'deployment': 'DEP',
+                        'resource': '1',
+                        'base_url': 'blah.com',
+                        'tenant': '123'}
 
-        context = {'deployment': 'DEP',
-                   'resource': '1',
-                   'base_url': 'blah.com',
-                   'tenant': '123'}
-
-        resource = {
+        self.resource = {
             'index': '0',
-            'name': 'fake_lb',
-            'provider': 'load-balancers',
-            'status': 'ERROR',
             'instance': {
                 'id': 'fake_lb_id'
             }
         }
 
-        lb_api_mock = mock.Mock()
+        self.mocklb = mock.Mock()
+        self.mocklb.id = 'fake_lb_id'
+        self.mocklb.name = 'fake_lb'
+        self.mocklb.status = 'ERROR'
 
-        lb_api_mock.get.return_value = mocklb
+        self.lb_api_mock = mock.Mock()
+        self.lb_api_mock.get.return_value = self.mocklb
 
-        with mock.patch.object(loadbalancer.Provider,
-                               'generate_resource_tag',
-                               return_value={"test": "me"}):
-            loadbalancer.sync_resource_task(
-                context, resource, resource_key, lb_api_mock
-            )
+    @mock.patch.object(loadbalancer.Provider, 'generate_resource_tag')
+    def test_sync_resource_task_adds_metadata(self,
+                                              mock_generate_resource_tag):
+        self.setUpSyncResourceTask()
+        mock_generate_resource_tag.return_value = {"test": "me"}
+        self.mocklb.metadata = []
+        loadbalancer.sync_resource_task(self.context, self.resource,
+                                        self.resource_key, self.lb_api_mock)
 
-        lb_api_mock.get.assert_called_once_with(mocklb.id)
-        mocklb.set_metadata.assert_called_once_with({"test": "me"})
+        self.lb_api_mock.get.assert_called_once_with(self.mocklb.id)
+        self.mocklb.set_metadata.assert_called_once_with({"test": "me"})
+
+    @mock.patch.object(loadbalancer.Provider, 'generate_resource_tag')
+    def test_sync_resource_task_without_metadata(self,
+                                                 mock_generate_resource_tag):
+        """Test sync_resource_task adds metadata even if the loadbalancer's
+           metadata attribute doesn't even exist"""
+        self.setUpSyncResourceTask()
+        del self.mocklb.metadata
+        mock_generate_resource_tag.return_value = {"test": "me"}
+        loadbalancer.sync_resource_task(self.context, self.resource,
+                                        self.resource_key, self.lb_api_mock)
+
+        self.lb_api_mock.get.assert_called_once_with(self.mocklb.id)
+        self.mocklb.set_metadata.assert_called_once_with({"test": "me"})
 
 
 class TestGetAlgorithms(unittest.TestCase):
