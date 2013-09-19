@@ -8,12 +8,11 @@ var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.ser
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider) {
   // Static Paths
-  $routeProvider.
-  when('/', {
+  $routeProvider.when('/', {
     templateUrl: '/partials/home.html',
     controller: StaticController
-  }).
-  when('/index.html', {
+  })
+  .when('/index.html', {
     templateUrl: '/partials/home.html',
     controller: StaticController
   }).
@@ -23,102 +22,104 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   });
 
   // New UI - static pages
-  $routeProvider.
-  when('/deployments/new/wordpress', {
+  $routeProvider.when('/deployments/new/wordpress', {
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: DeploymentManagedCloudController
-  }).when('/deployments/default', {  // for legacy compat for a while
+  })
+  .when('/deployments/default', {  // for legacy compat for a while
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: DeploymentManagedCloudController
-  }).when('/deployments/new', {
+  })
+  .when('/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: DeploymentNewRemoteController
-  }).when('/:tenantId/deployments/new', {
+  })
+  .when('/:tenantId/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: DeploymentNewRemoteController,
     reloadOnSearch: false
-  }).
-  when('/deployments/wordpress-stacks', {
+  })
+  .when('/deployments/wordpress-stacks', {
     templateUrl: '/partials/wordpress-stacks.html',
     controller: StaticController
   });
 
   // Admin pages
-  $routeProvider.
-  when('/admin/status/celery', {
+  $routeProvider.when('/admin/status/celery', {
     templateUrl: '/partials/raw.html',
     controller: RawController
-  }).
-  when('/admin/status/libraries', {
+  })
+  .when('/admin/status/libraries', {
     templateUrl: '/partials/raw.html',
     controller: RawController
-  }).
-  when('/admin/feedback', {
+  })
+  .when('/admin/feedback', {
     templateUrl: '/partials/admin-feedback.html',
     controller: FeedbackListController
-  }).
-  when('/admin/deployments', {
+  })
+  .when('/admin/deployments', {
     templateUrl: '/partials/deployments.html',
     controller: DeploymentListController
   });
 
   // Auto Login
-  $routeProvider.
-  when('/autologin', {
+  $routeProvider.when('/autologin', {
     templateUrl: '/partials/autologin.html',
     controller: AutoLoginController
   });
 
   // New UI - dynamic, tenant pages
-  $routeProvider.
-  when('/:tenantId/workflows/:id/status', {
+  $routeProvider.when('/:tenantId/workflows/:id/status', {
     templateUrl: '/partials/workflow_status.html',
     controller: WorkflowController
-  }).
-  when('/:tenantId/workflows/:id', {
+  })
+  .when('/:tenantId/workflows/:id', {
     templateUrl: '/partials/workflow.html',
     controller: WorkflowController,
     reloadOnSearch: false
-  }).
-  when('/:tenantId/workflows-new/:id', {
+  })
+  .when('/:tenantId/workflows-new/:id', {
     templateUrl: '/partials/workflow-new.html',
     controller: WorkflowController,
     reloadOnSearch: false
-  }).
-  when('/:tenantId/workflows', {
+  })
+  .when('/:tenantId/workflows', {
     templateUrl: '/partials/workflows.html',
     controller: WorkflowListController
-  }).
-  when('/blueprints', {
+  })
+  .when('/blueprints', {
     templateUrl: '/partials/blueprints-remote.html',
     controller: BlueprintRemoteListController
-  }).
-  when('/:tenantId/blueprints', {
+  })
+  .when('/:tenantId/blueprints', {
     templateUrl: '/partials/blueprints-remote.html',
     controller: BlueprintRemoteListController
-  }).
-  when('/:tenantId/deployments', {
+  })
+  .when('/:tenantId/deployments', {
     templateUrl: '/partials/deployments.html',
     controller: DeploymentListController
-  }).
-  when('/:tenantId/deployments/:id', {
+  })
+  .when('/:tenantId/deployments/:id', {
     controller: DeploymentController,
     templateUrl: '/partials/deployment.html'
-  }).
-  when('/:tenantId/providers', {
+  })
+  .when('/:tenantId/providers', {
     controller: ProviderListController,
     templateUrl: '/partials/providers.html'
-  }).
-  when('/:tenantId/environments', {
+  })
+  .when('/:tenantId/environments', {
     controller: EnvironmentListController,
     templateUrl: '/partials/environments.html'
-  }).when('/404', {
+  })
+  .when('/404', {
     controller: StaticController,
     templateUrl: '/partials/404.html'
-  }).when('/:tenantId/resources', {
+  })
+  .when('/:tenantId/resources', {
     controller: ResourcesController,
     templateUrl: '/partials/resources/index.html'
-  }).otherwise({
+  })
+  .otherwise({
     controller: StaticController,
     templateUrl: '/partials/404.html'
   });
