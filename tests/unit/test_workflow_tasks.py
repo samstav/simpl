@@ -225,7 +225,7 @@ class TestWorkflowTasks(unittest.TestCase):
 
         driver.assert_called_once_with(api_id=1001)
         get_workflow.assert_called_once_with(1001)
-        mock_d_wf.is_completed.assert_any_call()
+        self.assertTrue(mock_d_wf.is_completed.called)
         mock_update_operation.delay.assert_any_call("deploymentId", 1001,
                                                     driver=mock_driver,
                                                     deployment_status="UP",
@@ -260,7 +260,7 @@ class TestWorkflowTasks(unittest.TestCase):
 
         driver.assert_called_once_with(api_id=1001)
         get_workflow.assert_called_once_with(1001)
-        mock_d_wf.is_completed.assert_any_call()
+        self.assertTrue(mock_d_wf.is_completed.called)
         mock_update_operation.delay.assert_called_once_with(
             "deploymentId", 1001, driver=mock_driver,
             deployment_status="DELETED", status="status", tasks="total",
@@ -297,7 +297,7 @@ class TestWorkflowTasks(unittest.TestCase):
 
         driver.assert_called_with(api_id=1001)
         get_workflow.assert_called_once_with(1001)
-        mock_d_wf.is_completed.assert_any_call()
+        self.assertTrue(mock_d_wf.is_completed.called)
         mock_update_operation.delay.assert_called_once_with(
             "deploymentId",
             1001,
@@ -374,6 +374,7 @@ class TestWorkflowTasks(unittest.TestCase):
             [1001, None],
             kwargs={'wait': 1, 'apply_callbacks': True},
             countdown=1)
+        self.assertTrue(save_spiffworkflow.called)
         save_spiffworkflow.assert_called_once_with(mock_d_wf,
                                                    celery_task_id="1234")
 
@@ -414,6 +415,7 @@ class TestWorkflowTasks(unittest.TestCase):
                                                        'apply_callbacks':
                                                        apply_callbacks},
                                                countdown=1)
+        self.assertTrue(save_spiffworkflow.called)
         save_spiffworkflow.assert_called_once_with(mock_d_wf,
                                                    celery_task_id="1234")
 
