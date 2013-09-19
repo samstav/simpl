@@ -224,7 +224,7 @@ class Router(object):
         Triggers workflow execution.
         """
         try:
-            deployment = _content_to_deployment(tenant_id=tenant_id)
+            deployment = _content_to_deployment(bottle.request, tenant_id=tenant_id)
         except exceptions.CheckmateHOTTemplateException:
             return self.stack_router.post_stack_compat(tenant_id=tenant_id)
 

@@ -196,6 +196,7 @@ class Planner(classes.ExtensibleDict):
         self.resolve_remaining_requirements(context)
         self.resolve_recursive_requirements(context, history=[])
         self.add_resources(context)
+        self.add_custom_resources()
         self.connect_resources()
         self.add_static_resources(self.deployment, context)
 
@@ -261,6 +262,14 @@ class Planner(classes.ExtensibleDict):
                 if (isinstance(default, basestring,) and
                         default.startswith('=generate')):
                     option['default'] = utils.evaluate(default[1:])
+
+    def add_custom_resources(self):
+        deployment_inputs = self.deployment.inputs()
+        custom_resources = deployment_inputs.get('custom_resources', [])
+        for resource in custom_resources:
+            index = self._get_next_resource_index()
+            resource['index'] = index
+            self.resources[index] = resource
 
     def add_resources(self, context):
         '''Container for the original plan() function.
