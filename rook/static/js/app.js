@@ -3332,7 +3332,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
 
   $scope.get_new_deployment = function(tenant_id){
     var url = '/:tenantId/deployments';
-    DeploymentResource = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id}, {'save': {method:'PUT'}});
+    DeploymentResource = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id});
     return new DeploymentResource({});
   }
 
@@ -3352,9 +3352,9 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
         tenant_id = $scope.auth.context.tenantId,
         deployment = $scope.get_new_deployment(tenant_id);
 
-    deployment.resources = {};
+    deployment.inputs = {custom_resources: []};
     for (i=0; i<$scope.selected_resources.length; i++){
-      deployment.resources[i] = $scope.selected_resources[i].object
+      deployment.inputs.custom_resources.push($scope.selected_resources[i].object)
     }
     deployment.blueprint = {
       'services': {},
@@ -3375,7 +3375,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
             }
         }
     };
-    deployment.status = 'UP';
+    deployment.status = 'NEW';
     deployment.name = $scope.deployment.name;
     deployment.$save(function(result, getHeaders){
       console.log("Posted deployment");
