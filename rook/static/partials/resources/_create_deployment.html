@@ -20,10 +20,15 @@
         <td>{{decorated_resource.object['region']}}</td>
         <td>{{decorated_resource.object['status']}}</td>
       </tr>
+      <tr class="messages">
+        <td ng-hide="selected_resources.length" colspan="5">
+          Select one or more resources from the boxes on the left
+        </td>
+      </tr>
     </tbody>
   </table>
 
-  <input type="submit" class='btn' value='Add to Checkmate' />
+  <input type="submit" class='btn' value='Add to Checkmate' ng-disabled="selected_resources.length == 0"/>
   <!-- custom_deployment_warning -->
   <div modal="modal_window.custom_deployment_warning" close="close_modal('custom_deployment_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="custom_deployment_warning" aria-hidden="true">
     <div class="modal-header">
