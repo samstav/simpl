@@ -319,28 +319,29 @@ class Router(object):
         """Store a deployment on this server."""
         deployment = _content_to_deployment(
             deployment_id=api_id, tenant_id=tenant_id)
-        if api_id is None:
-            entity = None
-        else:
+
+        existing_deployment = None
+        if api_id:
             try:
-                entity = self.manager.get_deployment(api_id)
+                existing_deployment = self.manager.get_deployment(api_id)
             except exceptions.CheckmateDoesNotExist:
-                entity = None
+                LOG.debug("Deployment not found: %s", api_id)
 
         results = self.manager.save_deployment(deployment,
                                                api_id=api_id,
                                                tenant_id=tenant_id)
+
         # Return response (with new resource location in header)
-        if entity:
+        if existing_deployment:
             bottle.response.status = 200  # OK - updated
         else:
             bottle.response.status = 201  # Created
+            location = []
             if tenant_id:
-                bottle.response.add_header('Location', "/%s/deployments/%s" %
-                                           (tenant_id, api_id))
-            else:
-                bottle.response.add_header(
-                    'Location', "/deployments/%s" % api_id)
+                location.append('/%s' % tenant_id)
+            location.append('/deployments/%s' % results['id'])
+            bottle.response.add_header('Location', "".join(location))
+
         return utils.write_body(results, bottle.request, bottle.response)
 
     @staticmethod
