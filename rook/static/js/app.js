@@ -99,6 +99,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/deployments.html',
     controller: DeploymentListController
   })
+  .when('/:tenantId/deployments/custom', {
+    controller: ResourcesController,
+    templateUrl: '/partials/resources/index.html'
+  })
   .when('/:tenantId/deployments/:id', {
     controller: DeploymentController,
     templateUrl: '/partials/deployment.html'
@@ -114,10 +118,6 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   .when('/404', {
     controller: StaticController,
     templateUrl: '/partials/404.html'
-  })
-  .when('/:tenantId/resources', {
-    controller: ResourcesController,
-    templateUrl: '/partials/resources/index.html'
   })
   .otherwise({
     controller: StaticController,
