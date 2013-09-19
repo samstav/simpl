@@ -6,7 +6,7 @@ describe('ResourcesController', function(){
 
   beforeEach(function(){
     $scope = {};
-    $resource = sinon.stub().returns(emptyFunction);
+    $resource = sinon.stub().returns({query: emptyFunction});
     $location = {path: sinon.spy()};
     Deployment = {sync: emptyFunction}
     controller = new ResourcesController($scope, $resource, $location, Deployment);
@@ -118,6 +118,31 @@ describe('ResourcesController', function(){
         expect(mock_deployment.environment.providers.database).toEqual({})
         expect(mock_deployment.environment.providers['load-balancer']).toEqual({})
         expect(mock_deployment.environment.providers.common).toEqual({vendor: 'rackspace'})
+      });
+    });
+  });
+
+
+  describe('getting rackspace api resources', function(){
+    beforeEach(function(){
+      var auth = {
+        context: { tenantId: '123' },
+        identity: {loggedIn: true}
+      }
+      $scope.auth = auth
+    });
+
+    describe('#get_resources', function(){
+      it('should clear any resource error messages', function(){
+        $scope.error_msgs.foobar = "This error shouldnt exist!!!";
+        $scope.get_resources('foobar');
+        expect($scope.error_msgs.foobar).toBeUndefined();
+      });
+
+      it('should set loading status to true', function(){
+        $scope.loading_status.foobar = false;
+        $scope.get_resources('foobar');
+        expect($scope.loading_status.foobar).toBe(true);
       });
     });
   });
