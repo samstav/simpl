@@ -300,8 +300,11 @@ def main():
     if CONFIG.with_admin is True:
         LOG.info("Loading Admin API")
         MANAGERS['tenants'] = admin.TenantManager()
+        if 'github' not in MANAGERS:
+            MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
         ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'],
-                                        MANAGERS['tenants'])
+                                        MANAGERS['tenants'],
+                                        blueprints_manager=MANAGERS['github'])
         resources.append('admin')
 
     next_app = middleware.AuthorizationMiddleware(

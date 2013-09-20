@@ -44,12 +44,15 @@ LOG = logging.getLogger(__name__)
 class Router(object):
     """Route /admin/ calls."""
 
-    def __init__(self, app, deployments_manager, tenants_manager):
+    def __init__(self, app, deployments_manager, tenants_manager,
+                 blueprints_manager=None):
         """Takes a bottle app and routes traffic for it.
 
         :param app: bottle application to route to
         :param deployments_manager: for /admin/deployments calls
         :param tenants_manager: for /admin/tenants calls
+
+        :param blueprints_manager: for /admin/blueprints calls
         """
         self.app = app
         self.deployments_manager = deployments_manager
@@ -71,6 +74,7 @@ class Router(object):
 
         app.route('/admin/cache/blueprints', 'GET',
                   partial(self.not_loaded, "blueprints"))
+        self.blueprints_manager = blueprints_manager
 
     @staticmethod
     @utils.only_admins
