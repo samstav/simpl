@@ -43,7 +43,8 @@ LOG = logging.getLogger(__name__)
 class CheckmateException(Exception):
     """Checkmate Error."""
 
-    def __init__(self, message=None, friendly_message=None, options=0):
+    def __init__(self, message=None, friendly_message=None, options=0,
+                 http_status=None):
         """Create Checkmate Exception.
 
         :param friendly_message: a message to bubble up to clients (UI, CLI,
@@ -53,17 +54,24 @@ class CheckmateException(Exception):
                 exceptions.CAN_RESUME
                 exceptions.CAN_RETRY
                 exceptions.CAN_RESET
+        :param http_status: supplied if a specific HTTP status should be used
+                for this exception. The format is code + title.
+
+                    Ex.  '404 Not Found'
         """
         args = ()
         self.message = message or self.__doc__
         self._friendly_message = friendly_message
         self.options = options
+        self.http_status = http_status
         if message:
             args = args + (message,)
         if friendly_message:
             args = args + (friendly_message,)
         if options and options != 0:
             args = args + (options,)
+        if http_status:
+            args = args + (http_status,)
         super(CheckmateException, self).__init__(*args)
 
     @property
