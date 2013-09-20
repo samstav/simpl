@@ -1,4 +1,4 @@
-# pylint: disable=C0103,W0212,R0913
+# pylint: disable=C0103,W0212,R0913,C0111
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -24,7 +24,6 @@ from SpiffWorkflow import Workflow
 
 from checkmate.common import tasks as cmtasks
 from checkmate.workflows import tasks
-from checkmate.workflows.tasks import cycle_workflow, update_deployment
 
 
 class TestWorkflowTasks(unittest.TestCase):
@@ -199,13 +198,13 @@ class TestWorkflowTasks(unittest.TestCase):
             'retry_counter': 1, 'driver': driver
         })
 
+    @mock.patch('checkmate.db.get_driver')
     @mock.patch('checkmate.workflows.manager.Manager.get_workflow')
     @mock.patch('SpiffWorkflow.Workflow.deserialize')
     @mock.patch('checkmate.common.tasks.update_operation')
     def test_update_deployment_set_deployment_status_when_wf_complete(
             self, mock_update_operation, deserializer, get_workflow,
             driver):
-
         mock_driver = mock.MagicMock()
         driver.return_value = mock_driver
         get_workflow.return_value = {'id': 1001}
@@ -221,7 +220,7 @@ class TestWorkflowTasks(unittest.TestCase):
         mock_d_wf.is_completed = mock.MagicMock(return_value=True)
         deserializer.return_value = mock_d_wf
         mock_update_operation.delay = mock.MagicMock(return_value=None)
-        update_deployment(1001)
+        tasks.update_deployment(1001)
 
         driver.assert_called_once_with(api_id=1001)
         get_workflow.assert_called_once_with(1001)
@@ -240,7 +239,6 @@ class TestWorkflowTasks(unittest.TestCase):
     def test_update_deployment_set_deployment_status_when_delete_wf_complete(
             self, mock_update_operation, deserializer, get_workflow,
             driver):
-
         mock_driver = mock.MagicMock()
         driver.return_value = mock_driver
         get_workflow.return_value = {'id': 1001}
@@ -256,7 +254,7 @@ class TestWorkflowTasks(unittest.TestCase):
         mock_d_wf.is_completed = mock.MagicMock(return_value=True)
         deserializer.return_value = mock_d_wf
         mock_update_operation.delay = mock.MagicMock(return_value=None)
-        update_deployment(1001)
+        tasks.update_deployment(1001)
 
         driver.assert_called_once_with(api_id=1001)
         get_workflow.assert_called_once_with(1001)
@@ -276,7 +274,6 @@ class TestWorkflowTasks(unittest.TestCase):
             self, get_status_info, get_errors, mock_update_operation,
             deserializer, get_workflow,
             driver):
-
         mock_driver = mock.MagicMock()
         driver.return_value = mock_driver
 
@@ -293,7 +290,7 @@ class TestWorkflowTasks(unittest.TestCase):
         mock_update_operation.delay = mock.MagicMock(return_value=None)
         get_errors.return_value = ["error1", "error2"]
         get_status_info.return_value = {'friendly_message': 'status-info'}
-        update_deployment(1001)
+        tasks.update_deployment(1001)
 
         driver.assert_called_with(api_id=1001)
         get_workflow.assert_called_once_with(1001)
@@ -309,36 +306,34 @@ class TestWorkflowTasks(unittest.TestCase):
             friendly_message='status-info',
             errors=["error1", "error2"])
 
-    @mock.patch('checkmate.utils.match_celery_logging')
     @mock.patch('checkmate.db.get_driver')
     @mock.patch('checkmate.workflows.manager.Manager.get_workflow')
     @mock.patch('SpiffWorkflow.Workflow.deserialize')
     @mock.patch('checkmate.workflow.update_workflow_status')
     @mock.patch('checkmate.workflows.manager.Manager.save_spiff_workflow')
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.update_state')
+    @mock.patch('checkmate.workflow.get_dump')
     def test_cycle_workflow_when_workflow_complete(
-            self, update_state, save_spiffworkflow, update_workflow_status,
-            deserializer, get_workflow, get_driver, logging):
-
-        mock_driver = mock.MagicMock()
-        get_driver.return_value = mock_driver
+            self, get_dump, update_state, save_spiffworkflow,
+            update_workflow_status, deserializer, get_workflow, get_driver):
         get_workflow.return_value = {'id': 1001}
+        get_dump.side_effect = [{'inital_wf_dump': 1}, {'final_wf_dump': 1}]
 
         mock_d_wf = mock.MagicMock()
         deserializer.return_value = mock_d_wf
-        update_workflow_status.side_effect = [
-            {'completed': 5, 'errored': 0, 'total': 6},
-            {'completed': 5, 'errored': 1, 'total': 6}]
+        update_workflow_status.return_value = {'completed': 5, 'errored': 1,
+                                               'total': 6}
 
         mock_d_wf.is_completed.return_value = True
 
-        cycle_workflow.request.id = "1234"
-        cycle_workflow.run(1001, None)
+        tasks.cycle_workflow.request.id = "1234"
+        tasks.cycle_workflow.run(1001, None)
+        
         self.assertFalse(update_state.called)
         save_spiffworkflow.assert_called_once_with(mock_d_wf,
                                                    celery_task_id="1234")
+        get_driver.assert_called_once_with(api_id=1001)
 
-    @mock.patch('checkmate.utils.match_celery_logging')
     @mock.patch('checkmate.db.get_driver')
     @mock.patch('checkmate.workflows.manager.Manager.get_workflow')
     @mock.patch('SpiffWorkflow.Workflow.deserialize')
@@ -346,25 +341,25 @@ class TestWorkflowTasks(unittest.TestCase):
     @mock.patch('checkmate.workflows.manager.Manager.save_spiff_workflow')
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.update_state')
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.retry')
+    @mock.patch('checkmate.workflow.get_dump')
     def test_cycle_workflow_when_workflow_is_not_complete(
-            self, workflow_retry, update_state, save_spiffworkflow,
+            self, get_dump, workflow_retry, update_state, save_spiffworkflow,
             update_workflow_status, deserializer, get_workflow,
-            get_driver, logging):
+            get_driver):
 
         mock_driver = mock.MagicMock()
         get_driver.return_value = mock_driver
         get_workflow.return_value = {'id': 1001}
-
+        get_dump.side_effect = [{'inital_wf_dump': 1}, {'final_wf_dump': 1}]
         mock_d_wf = mock.MagicMock()
         deserializer.return_value = mock_d_wf
-        update_workflow_status.side_effect = [
-            {'completed': 5, 'errored': 0, 'total': 6},
-            {'completed': 5, 'errored': 1, 'total': 6}]
+        update_workflow_status.return_value = {'completed': 5, 'errored': 1,
+                                               'total': 6}
 
         mock_d_wf.is_completed.return_value = False
 
-        cycle_workflow.request.id = "1234"
-        cycle_workflow.run(1001, None)
+        tasks.cycle_workflow.request.id = "1234"
+        tasks.cycle_workflow.run(1001, None)
         update_state.assert_called_once_with(
             state="PROGRESS",
             meta={'complete': 5, 'total': 6})
@@ -378,7 +373,6 @@ class TestWorkflowTasks(unittest.TestCase):
         save_spiffworkflow.assert_called_once_with(mock_d_wf,
                                                    celery_task_id="1234")
 
-    @mock.patch('checkmate.utils.match_celery_logging')
     @mock.patch('checkmate.db.get_driver')
     @mock.patch('checkmate.workflows.manager.Manager.get_workflow')
     @mock.patch('SpiffWorkflow.Workflow.deserialize')
@@ -386,27 +380,32 @@ class TestWorkflowTasks(unittest.TestCase):
     @mock.patch('checkmate.workflows.manager.Manager.save_spiff_workflow')
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.update_state')
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.retry')
-    def test_workflow_run_without_callbacks(
-            self, workflow_retry, update_state, save_spiffworkflow,
-            update_workflow_status, deserializer, get_workflow,
-            get_driver, logging):
-
+    @mock.patch('checkmate.workflow.get_dump')
+    def test_workflow_run_without_callbacks(self, get_dump, workflow_retry,
+                                            update_state,
+                                            save_spiffworkflow,
+                                            update_workflow_status,
+                                            deserializer, get_workflow,
+                                            get_driver):
         apply_callbacks = False
 
         mock_driver = mock.MagicMock()
         get_driver.return_value = mock_driver
         get_workflow.return_value = {'id': 1001}
+        get_dump.side_effect = [{'inital_wf_dump': 1}, {'final_wf_dump': 1}]
 
         mock_d_wf = mock.MagicMock()
         deserializer.return_value = mock_d_wf
-        update_workflow_status.side_effect = [
-            {'completed': 5, 'errored': 0, 'total': 6},
-            {'completed': 5, 'errored': 1, 'total': 6}]
+        update_workflow_status.return_value = {
+            'completed': 5,
+            'errored': 0,
+            'total': 6
+        }
 
         mock_d_wf.is_completed.return_value = False
 
-        cycle_workflow.request.id = "1234"
-        cycle_workflow.run(1001, None, apply_callbacks=apply_callbacks)
+        tasks.cycle_workflow.request.id = "1234"
+        tasks.cycle_workflow.run(1001, None, apply_callbacks=apply_callbacks)
         update_state.assert_called_once_with(
             state="PROGRESS",
             meta={'complete': 5, 'total': 6})
@@ -419,7 +418,6 @@ class TestWorkflowTasks(unittest.TestCase):
         save_spiffworkflow.assert_called_once_with(mock_d_wf,
                                                    celery_task_id="1234")
 
-    @mock.patch('checkmate.utils.match_celery_logging')
     @mock.patch('checkmate.db.get_driver')
     @mock.patch('checkmate.workflows.manager.Manager.get_workflow')
     @mock.patch('SpiffWorkflow.Workflow.deserialize')
@@ -430,8 +428,7 @@ class TestWorkflowTasks(unittest.TestCase):
     def test_workflow_when_it_makes_no_progress(
             self, workflow_retry, update_state, save_spiffworkflow,
             update_workflow_status, deserializer,
-            get_workflow, get_driver, logging):
-
+            get_workflow, get_driver):
         initial_wait = 5
 
         mock_driver = mock.MagicMock()
@@ -447,7 +444,7 @@ class TestWorkflowTasks(unittest.TestCase):
 
         mock_d_wf.is_completed.return_value = False
 
-        cycle_workflow.run(1001, None, wait=initial_wait)
+        tasks.cycle_workflow.run(1001, None, wait=initial_wait)
         self.assertFalse(update_state.called)
         workflow_retry.assert_called_once_with([1001, None],
                                                kwargs={
@@ -457,7 +454,6 @@ class TestWorkflowTasks(unittest.TestCase):
                                                countdown=(initial_wait + 1))
         self.assertFalse(save_spiffworkflow.called)
 
-    @mock.patch('checkmate.utils.match_celery_logging')
     @mock.patch('checkmate.db.get_driver')
     @mock.patch('checkmate.workflows.manager.Manager.get_workflow')
     @mock.patch('SpiffWorkflow.Workflow.deserialize')
@@ -467,28 +463,31 @@ class TestWorkflowTasks(unittest.TestCase):
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.update_state')
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.retry')
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.apply_async')
-    def test_run_of_subworkflows(
-            self, apply_async, workflow_retry, update_state,
-            save_spiffworkflow, get_handlers, update_workflow_status,
-            deserializer, get_workflow, get_driver, logging):
-
-        mock_driver = mock.MagicMock()
-        get_driver.return_value = mock_driver
+    @mock.patch('checkmate.workflow.get_dump')
+    def test_run_of_subworkflows(self, get_dump, apply_async, workflow_retry,
+                                 update_state, save_spiffworkflow,
+                                 get_handlers, update_workflow_status,
+                                 deserializer, get_workflow, get_driver):
         get_workflow.return_value = {'id': 1001}
+        get_dump.side_effect = [{'inital_wf_dump': 1}, {'final_wf_dump': 1}]
 
         mock_d_wf = mock.MagicMock()
         deserializer.return_value = mock_d_wf
-        update_workflow_status.side_effect = [
-            {'completed': 5, 'errored': 0, 'total': 6},
-            {'completed': 5, 'errored': 0, 'total': 6, 'errored_tasks': [1]}]
+        update_workflow_status.return_value = {
+            'completed': 5,
+            'errored': 0,
+            'total': 6,
+            'errored_tasks': [1]
+        }
 
         get_handlers.return_value = [mock.MagicMock(handle=mock.MagicMock(
             return_value=[2743]))]
 
         mock_d_wf.is_completed.return_value = True
 
-        cycle_workflow.request.id = "1234"
-        cycle_workflow.run(1001, None)
+        tasks.cycle_workflow.request.id = "1234"
+        tasks.cycle_workflow.run(1001, None)
+
         self.assertFalse(update_state.called)
         self.assertFalse(workflow_retry.called)
         apply_async.assert_call_once_with(args=[2743, None],
@@ -496,3 +495,4 @@ class TestWorkflowTasks(unittest.TestCase):
                                           task_id=2743)
         save_spiffworkflow.assert_called_once_with(mock_d_wf,
                                                    celery_task_id="1234")
+        get_driver.assert_called_once_with(api_id=1001)
