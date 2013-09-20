@@ -34,7 +34,7 @@ class TestGitHubManager(unittest.TestCase):
             'organization': "Blueprints",
             'ref': 'v0.5',
         })
-        self._gm = github.GitHubManager({}, self.config)
+        self._gm = github.GitHubManager(self.config)
 
     def test_get_blueprints(self):
         blueprints = self._gm.get_blueprints("v0.5")
@@ -121,8 +121,5 @@ class TestWebhookRouter(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

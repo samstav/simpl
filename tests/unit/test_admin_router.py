@@ -22,25 +22,32 @@ import webtest
 import bottle
 
 from checkmate import admin
+from checkmate import exceptions
 from checkmate import test
 
 
 class TestAdminRouter(unittest.TestCase):
 
+    deployments_manager = mock.Mock()
+    tenant_manager = mock.Mock()
+    blueprints_manager = mock.Mock()
+
     def setUp(self):
+        """Sets up mocked router and webtest apps.
+
+        Override class variables with custom managers if needed.
+        """
         self.root_app = bottle.Bottle()
         self.root_app.catchall = False
         self.filters = test.MockWsgiFilters(self.root_app)
         self.filters.context.is_admin = True
         self.app = webtest.TestApp(self.filters)
-
-        self.manager = mock.Mock()
-        self.tenant_manager = mock.Mock()
-        self.router = admin.Router(self.root_app, self.manager,
-                                   self.tenant_manager)
+        self.router = admin.Router(self.root_app, self.deployments_manager,
+                                   self.tenant_manager,
+                                   blueprints_manager=self.blueprints_manager)
 
         results = {'_links': {}, 'results': {}, 'collection-count': 0}
-        self.manager.get_deployments.return_value = results
+        self.deployments_manager.get_deployments.return_value = results
 
 
 class TestParamWhitelist(TestAdminRouter):
@@ -90,35 +97,35 @@ class TestGetDeployments(TestAdminRouter):
     def test_pass_query_params_to_manager(self, __parse):
         __parse.return_value = 'fake query'
         self.app.get('/admin/deployments')
-        args = self.manager.get_deployments.call_args[1]
+        args = self.deployments_manager.get_deployments.call_args[1]
         query = args['query']
         self.assertEqual(query, 'fake query')
 
     def test_parse_tenant_tag_before_sending_params_to_manager(self):
         self.tenant_manager.list_tenants.return_value = {'123': {}}
         self.app.get('/admin/deployments?tenant_tag=FOOBAR')
-        args = self.manager.get_deployments.call_args[1]
+        args = self.deployments_manager.get_deployments.call_args[1]
         query = args['query']
         self.assertEqual(query['tenantId'], '123')
 
     def test_parse_tenant_tag_and_send_notenantsfound_query_to_manager(self):
         self.tenant_manager.list_tenants.return_value = {}
         self.app.get('/admin/deployments?tenant_tag=FOOBAR')
-        args = self.manager.get_deployments.call_args[1]
+        args = self.deployments_manager.get_deployments.call_args[1]
         query = args['query']
         self.assertEqual(query['tenantId'], 'no-tenants-found')
 
     def test_remove_tenant_tag_before_sending_params_to_manager(self):
         self.tenant_manager.list_tenants.return_value = {'123': {}}
         self.app.get('/admin/deployments?tenant_tag=FOOBAR')
-        args = self.manager.get_deployments.call_args[1]
+        args = self.deployments_manager.get_deployments.call_args[1]
         query = args['query']
         self.assertTrue('tenant_tag' not in query)
 
     def test_parse_blueprint_branch_before_sending_params_to_manager(self):
         self.tenant_manager.list_tenants.return_value = {'123': {}}
         self.app.get('/admin/deployments?blueprint_branch=FOOBAR')
-        args = self.manager.get_deployments.call_args[1]
+        args = self.deployments_manager.get_deployments.call_args[1]
         query = args['query']
         alias = 'environment.providers.chef-solo.constraints.source'
         self.assertTrue(alias in query)
@@ -129,17 +136,35 @@ class TestGetDeploymentCount(TestAdminRouter):
 
     @mock.patch.object(admin.router.utils.QueryParams, 'parse')
     def test_pass_query_params_to_manager(self, parse):
-        self.manager.count.return_value = 99
+        self.deployments_manager.count.return_value = 99
         parse.return_value = 'fake query'
         self.app.get('/admin/deployments/count')
-        self.manager.count.assert_called_with(
+        self.deployments_manager.count.assert_called_with(
             tenant_id=mock.ANY,
             status=mock.ANY,
             query='fake query',
         )
 
 
-if __name__ == '__main__':
-    import sys
+class TestNotLoaded(TestAdminRouter):
 
-    test.run_with_params(sys.argv[:])
+    blueprints_manager = None
+
+    def test_returns404(self):
+        with self.assertRaises(exceptions.CheckmateException) as exc:
+            self.app.get('/admin/cache/blueprints', expect_errors=True)
+            self.assertEqual(exc.friendly_message, "Module not loaded")
+
+
+class TestBlueprints(TestAdminRouter):
+    """Test blueprint admin calls."""
+
+    def test_returns_cache(self):
+        """Admin call returns cached blueprints frm manager."""
+        self.blueprints_manager.list_cache.return_value = {'results': {}}
+        response = self.app.get('/admin/cache/blueprints')
+        self.assertEqual(response.json, {'results': {}})
+
+
+if __name__ == '__main__':
+    test.run_with_params()

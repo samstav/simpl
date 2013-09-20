@@ -365,6 +365,7 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     PUT /admin/tenants
     GET /admin/tenants[/:tid]
     GET /admin/tenants?tag=foo&tag=bar
+    GET /admin/cache/blueprints
 
     # If the server is started with --with-simulator, the following calls are available:
 

@@ -123,41 +123,43 @@ def error_formatter(error):
         error.apply(bottle.response)
 
     if isinstance(error.exception, CheckmateNoMapping):
-        error.status = 406
+        error.status = error.exception.http_status or 406
         error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateInvalidParameterError):
-        error.status = 406
+        error.status = error.exception.http_status or 406
         error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateHOTTemplateException):
-        error.status = 406
+        error.status = error.exception.http_status or 406
         error.output = str(error.exception) or ("Operation not support with "
                                                 "HOT template")
     elif isinstance(error.exception, CheckmateDoesNotExist):
-        error.status = 404
+        error.status = error.exception.http_status or 404
         error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateValidationException):
-        error.status = 400
+        error.status = error.exception.http_status or 400
         error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateNoData):
-        error.status = 400
+        error.status = error.exception.http_status or 400
         error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateBadState):
-        error.status = 409
+        error.status = error.exception.http_status or 409
         error.output = str(error.exception)
     elif isinstance(error.exception, CheckmateDatabaseConnectionError):
-        error.status = 500
+        error.status = error.exception.http_status or 500
         error.output = "Database connection error on server."
         output['message'] = str(error.exception)
     elif isinstance(error.exception, CheckmateException):
+        error.status = error.exception.http_status or 500
         error.output = error.exception.friendly_message
         LOG.exception(error.exception)
     elif isinstance(error.exception, AssertionError):
-        error.status = 400
+        error.status = error.exception.http_status or 400
         error.output = str(error.exception)
         LOG.exception(error.exception)
     else:
         # For other 500's, provide underlying cause
         if error.exception:
+            error.status = error.exception.http_status or 400
             output['message'] = str(error.exception)
             LOG.exception(error.exception)
 
@@ -166,6 +168,8 @@ def error_formatter(error):
             LOG.warning('HTTPError: %s', error.exception.args)
 
     output['description'] = error.output
+    if 'reason' not in output:
+        output['reason'] = output['description']
     output['code'] = error.status
     bottle.response.status = error.status
     return utils.write_body(
@@ -296,8 +300,11 @@ def main():
     if CONFIG.with_admin is True:
         LOG.info("Loading Admin API")
         MANAGERS['tenants'] = admin.TenantManager()
+        if 'github' not in MANAGERS:
+            MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
         ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'],
-                                        MANAGERS['tenants'])
+                                        MANAGERS['tenants'],
+                                        blueprints_manager=MANAGERS['github'])
         resources.append('admin')
 
     next_app = middleware.AuthorizationMiddleware(

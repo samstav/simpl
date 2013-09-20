@@ -145,25 +145,17 @@ class GitHubManager(object):
         """
         return self._repo_org
 
-    def _blocking_refresh_if_needed(self):
-        """If _blueprints is None, perform a refresh of all blueprints."""
-        if not self._blueprints:
-            # Wait for refresh to complete (block)
-            if self.background is None:
-                self.start_background_refresh()
-            try:
-                LOG.warning("Call to GET /blueprints blocking on refresh")
-                self.refresh_lock.acquire()
-            finally:
-                self.refresh_lock.release()
-
-    def get_blueprints(self, tenant_id=None, offset=0, limit=100, details=0):
+    #
+    # blueprint calls
+    #
+    def get_blueprints(self, tenant_id=None, offset=0, limit=100, details=0,
+                       roles=None):
         """Return an abbreviated list of known deployment blueprints.
 
         :param offset: pagination start
         :param limit: pagination length
         """
-        tag = self.get_tenant_tag(tenant_id, bottle.request.context.roles)
+        tag = self.get_tenant_tag(tenant_id, roles)
         self._blocking_refresh_if_needed()
 
         if not tag:
@@ -200,6 +192,33 @@ class GitHubManager(object):
 
         self.check_cache_freshess()
 
+        return {
+            'collection-count': len(results),
+            '_links': {},
+            'results': results,
+        }
+
+    def list_cache(self):
+        """List cached blueprints."""
+        results = {}
+        for key, blueprint in self._blueprints.iteritems():
+            try:
+                source = blueprint['blueprint'].get('source') or {}
+                sha = source.get('sha') or key  # to not break on old format
+                results[sha] = {
+                    'id': blueprint['blueprint'].get('id') or key,
+                    'name': blueprint['blueprint']['name'],
+                    'version': blueprint['blueprint'].get('version'),
+                    'repo-url': source.get('repo-url'),
+                    'sha': sha,
+                }
+            except KeyError as exc:
+                LOG.info("Error parsing blueprint '%s': missing key %s", key,
+                         exc)
+                continue
+            except StandardError as exc:
+                LOG.info("Error parsing blueprint '%s': %s", key, exc)
+                continue
         return {
             'collection-count': len(results),
             '_links': {},
@@ -253,65 +272,20 @@ class GitHubManager(object):
 
         return self._blueprints.get(str(blueprint_id))
 
-    def refresh(self, repo_name):
-        """Get updated deployment blueprint information from the specified
-        github repository.
-
-        :param repo_name: the name of the github repository containing the
-                          the blueprint
-        """
-        self._refresh_from_repo(self._get_repo(repo_name))
-        self._update_cache()
-
-    def check_cache_freshess(self):
-        """Check if cache is up to date and trigger refresh if not."""
-        if (self.background is None and
-                time.time() - self.last_refresh > DEFAULT_CACHE_TIMEOUT):
-            if not self._load_redis_cache():
+    #
+    # refresh
+    #
+    def _blocking_refresh_if_needed(self):
+        """If _blueprints is None, perform a refresh of all blueprints."""
+        if not self._blueprints:
+            # Wait for refresh to complete (block)
+            if self.background is None:
                 self.start_background_refresh()
-
-    def _load_redis_cache(self):
-        """Load blueprints from Redis.
-
-        :returns: True if loaded valid blueprints
-        """
-        if REDIS:
             try:
-                cache = REDIS['blueprint_cache']
-                data = json.loads(cache)
-                timestamp = data.pop('timestamp', None)
-                self._blueprints = data  # make available to calls
-                if timestamp:
-                    self.last_refresh = timestamp
-                    expire = (timestamp + DEFAULT_CACHE_TIMEOUT) - time.time()
-                    if expire > 0:
-                        LOG.info("Retrieved blueprints from Redis with %ss "
-                                 "left until they expire", int(expire))
-                        return True
-                    else:
-                        LOG.debug("Retrieved expired blueprints.")
-            except redisexc.ConnectionError as exc:
-                LOG.warn("Error connecting to Redis: %s", exc)
-            except KeyError:
-                pass  # expired or not there
-            except StandardError as exc:
-                LOG.debug("Error retrieving blueprints from Redis: %s", exc)
-        return False
-
-    def load_cache(self):
-        """pre-seed with existing cache if any in case we can't connect to the
-        repo.
-        """
-        if not self._load_redis_cache():
-            if os.path.exists(self._cache_file):
-                try:
-                    with open(self._cache_file, 'r') as cache:
-                        self._blueprints = json.load(cache)
-                        LOG.info("Retrieved blueprints from cache file")
-                except IOError:
-                    LOG.warn("Could not load cache file", exc_info=True)
-                except ValueError:
-                    LOG.warn("Cache file contains invalid data", exc_info=True)
+                LOG.warning("Call to GET /blueprints blocking on refresh")
+                self.refresh_lock.acquire()
+            finally:
+                self.refresh_lock.release()
 
     def background_refresh(self):
         """Called by background thread to start a refresh."""
@@ -340,45 +314,6 @@ class GitHubManager(object):
                 self.start_refresh_lock.release()
         else:
             LOG.debug("Already refreshing")
-
-    def refresh_all(self):
-        """Get all deployment blueprints from the repositories owned by
-        :self.repo_org:.
-        """
-        org = self._get_repo_owner()
-        if not org:
-            LOG.error("No user or group matching %s", self._repo_org)
-            return
-        refs = [self._ref, self._preview_ref] + self._group_refs.values()
-        refs = list(set([ref for ref in refs if ref]))
-        repos = org.get_repos()
-
-        pool = greenpool.GreenPile()
-        for ref in refs:
-            for repo in repos:
-                pool.spawn(self._get_blueprint, repo, ref)
-
-        fresh = {}
-        for ref in refs:
-            for repo, result in zip(repos, pool):
-                self._store(result, ref, fresh)
-
-        self._blueprints = fresh
-        self.last_refresh = time.time()
-        self._update_cache()
-
-    def _get_repo_owner(self):
-        """Return the user or organization owning the repo."""
-        if self._repo_org:
-            try:
-                return self._github.get_organization(self._repo_org)
-            except GithubException:
-                LOG.debug("Could not retrieve org information for %s; trying "
-                          "users", self._repo_org, exc_info=True)
-                try:
-                    return self._github.get_user(self._repo_org)
-                except GithubException:
-                    LOG.warn("Could not find user or org %s.", self._repo_org)
 
     def _update_cache(self):
         """Write the current blueprint map to local disk and Redis."""
@@ -426,43 +361,95 @@ class GitHubManager(object):
             del self._blueprints[rid]
         self._store(blueprint, self._ref, self._blueprints)
 
-    @staticmethod
-    def _get_source(provider):
-        """Given a dict of providers, return the 'source' from 'chef-solo'."""
-        # Scary assumptions here...
-        return provider['constraints'][0]['source']
+    def refresh(self, repo_name):
+        """Get updated deployment blueprint information from the specified
+        github repository.
 
-    def _same_source(self, untrusted, trusted):
-        """If chef-solo's 'source' is the same in both, return True."""
-        if not untrusted or not trusted:
-            return False
-        if 'environment' not in trusted:
-            return False
-        if 'environment' not in untrusted:
-            return False
-        untrusted_p = untrusted['environment'].get('providers', {})
-        try:  # Something in `trusted` can sometimes be a float?!
-            trusted_p = trusted['environment'].get('providers', {})
-        except TypeError:  # Because float doesn't have a __getitem__
-            LOG.info('X-Source-Untrusted: something in cached blueprint '
-                     'should be a dict but is not. Blueprint: %s', trusted)
-            return False
-        if not untrusted_p.get('chef-solo') or not trusted_p.get('chef-solo'):
-            return False
-        return (self._get_source(untrusted_p['chef-solo']) ==
-                self._get_source(trusted_p['chef-solo']))
+        :param repo_name: the name of the github repository containing the
+                          the blueprint
+        """
+        self._refresh_from_repo(self._get_repo(repo_name))
+        self._update_cache()
 
-    @staticmethod
-    def _clean_env(untrusted_env, trusted_env):
-        """Update all values in untrusted_env with thsoe from trusted_env."""
-        delta = set(untrusted_env.keys()) - set(trusted_env.keys())
-        if delta:
-            LOG.info('X-Source-Untrusted: invalid environment options found.')
-            raise exceptions.CheckmateValidationException(
-                'POST deployment: environment not valid.')
-        for key in untrusted_env.keys():
-            untrusted_env[key] = trusted_env[key]
+    def refresh_all(self):
+        """Get all deployment blueprints from the repositories owned by
+        :self.repo_org:.
+        """
+        org = self._get_repo_owner()
+        if not org:
+            LOG.error("No user or group matching %s", self._repo_org)
+            return
+        refs = [self._ref, self._preview_ref] + self._group_refs.values()
+        refs = list(set([ref for ref in refs if ref]))
+        repos = org.get_repos()
 
+        pool = greenpool.GreenPile()
+        for ref in refs:
+            for repo in repos:
+                pool.spawn(self._get_blueprint, repo, ref)
+
+        fresh = {}
+        for ref in refs:
+            for repo, result in zip(repos, pool):
+                self._store(result, ref, fresh)
+
+        self._blueprints = fresh
+        self.last_refresh = time.time()
+        self._update_cache()
+
+    def check_cache_freshess(self):
+        """Check if cache is up to date and trigger refresh if not."""
+        if (self.background is None and
+                time.time() - self.last_refresh > DEFAULT_CACHE_TIMEOUT):
+            if not self._load_redis_cache():
+                self.start_background_refresh()
+
+    def _load_redis_cache(self):
+        """Load blueprints from Redis.
+
+        :returns: True if loaded valid blueprints
+        """
+        if REDIS:
+            try:
+                cache = REDIS['blueprint_cache']
+                data = json.loads(cache)
+                timestamp = data.pop('timestamp', None)
+                self._blueprints = data  # make available to calls
+                if timestamp:
+                    self.last_refresh = timestamp
+                    expire = (timestamp + DEFAULT_CACHE_TIMEOUT) - time.time()
+                    if expire > 0:
+                        LOG.info("Retrieved blueprints from Redis with %ss "
+                                 "left until they expire", int(expire))
+                        return True
+                    else:
+                        LOG.debug("Retrieved expired blueprints.")
+            except redisexc.ConnectionError as exc:
+                LOG.warn("Error connecting to Redis: %s", exc)
+            except KeyError:
+                pass  # expired or not there
+            except StandardError as exc:
+                LOG.debug("Error retrieving blueprints from Redis: %s", exc)
+        return False
+
+    def load_cache(self):
+        """Pre-seed with existing cache if any in case we can't connect to the
+        repo.
+        """
+        if not self._load_redis_cache():
+            if os.path.exists(self._cache_file):
+                try:
+                    with open(self._cache_file, 'r') as cache:
+                        self._blueprints = json.load(cache)
+                        LOG.info("Retrieved blueprints from cache file")
+                except IOError:
+                    LOG.warn("Could not load cache file", exc_info=True)
+                except ValueError:
+                    LOG.warn("Cache file contains invalid data", exc_info=True)
+
+    #
+    # blueprint parsing
+    #
     def blueprint_is_invalid(self, untrusted_blueprint):
         """Returns true if passed-in blueprint does NOT pass validation."""
         return not self.blueprint_is_valid(untrusted_blueprint)
@@ -472,7 +459,8 @@ class GitHubManager(object):
         self._blocking_refresh_if_needed()
         for key, trusted_blueprint in self._blueprints.iteritems():
             try:
-                if self._same_source(untrusted_blueprint, trusted_blueprint):
+                if self._same_source_new(untrusted_blueprint,
+                                         trusted_blueprint):
                     untrusted_blueprint['blueprint'] = \
                         trusted_blueprint['blueprint']
                     self._clean_env(untrusted_blueprint['environment'],
@@ -483,79 +471,6 @@ class GitHubManager(object):
                           extra={'data': trusted_blueprint})
                 continue
         return False
-
-    def _get_repo(self, repo_name):
-        """Return the specified github repo.
-
-        :param repo_name: the repo to get; must belong to :self.repo_org:
-        """
-        if repo_name:
-            owner = self._get_repo_owner()
-            if owner:
-                try:
-                    return owner.get_repo(repo_name)
-                except GithubException as ghe:
-                    _handle_ghe(ghe,
-                                msg="Unexpected error getting repository %s"
-                                % repo_name)
-
-    @staticmethod
-    def _repo_contains_ref(repo, ref_name):
-        """Check if a repo contains a tag or reference."""
-        if '/' in ref_name:
-            return ref_name in repo.get_git_refs()
-        else:
-            return any(ref for ref in repo.get_git_refs()
-                       if ('/pull/' not in ref.ref and
-                           ref.ref.endswith('/%s' % ref_name)))
-
-        return False
-
-    def _get_blueprint(self, repo, tag):
-        """Get the deployment blueprint from the specified repo if any; format
-        and correct as needed.
-
-        :param repo: the repo containing the blueprint
-        """
-        if repo and isinstance(repo, github.Repository.Repository) and tag:
-            dep_file = None
-            try:
-                if not self._repo_contains_ref(repo, tag):
-                    return None
-
-                dep_file = repo.get_file_contents("checkmate.yaml",
-                                                  ref=tag)
-            except GithubException as ghe:
-                _handle_ghe(ghe,
-                            msg="Unexpected error getting blueprint from repo "
-                            "%s" % repo.clone_url)
-            if dep_file and dep_file.content:
-                dep_content = base64.b64decode(dep_file.content)
-                dep_content = dep_content.replace("%repo_url%",
-                                                  "%s#%s" %
-                                                  (str(repo.clone_url), tag))
-                try:
-                    ret = yaml.safe_load(dep_content)
-                except (yaml.scanner.ScannerError, yaml.parser.ParserError):
-                    LOG.warn("Blueprint '%s' has invalid YAML", repo.clone_url)
-                    return None
-
-                if "inputs" in ret:
-                    del ret['inputs']
-
-                if 'heat_template_version' in ret:
-                    parsed = self.parse_hot(ret)
-                elif 'blueprint' in ret:
-                    parsed = self.parse_blueprint(repo, ret)
-                else:
-                    LOG.warn("Blueprint '%s' is not in a recognized format",
-                             repo.clone_url)
-                    return None
-
-                parsed['repo_id'] = repo.id
-                LOG.info("Retrieved blueprint: %s#%s", repo.url, tag)
-                return parsed
-        return None
 
     def parse_blueprint(self, repo, content):
         '''Parse dict as a checkmate blueprint.'''
@@ -651,6 +566,150 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
             file_content = self._get_repo_file_contents(repo, file_name)
             if file_content:
                 blueprint['documentation'][doc_field] = file_content
+
+    #
+    # github repo
+    #
+    def _get_repo_owner(self):
+        """Return the user or organization owning the repo."""
+        if self._repo_org:
+            try:
+                return self._github.get_organization(self._repo_org)
+            except GithubException:
+                LOG.debug("Could not retrieve org information for %s; trying "
+                          "users", self._repo_org, exc_info=True)
+                try:
+                    return self._github.get_user(self._repo_org)
+                except GithubException:
+                    LOG.warn("Could not find user or org %s.", self._repo_org)
+
+    @staticmethod
+    def _get_source(provider):
+        """Given a dict of providers, return the 'source' from 'chef-solo'."""
+        # Scary assumptions here...
+        return provider['constraints'][0]['source']
+
+    def _same_source_new(self, untrusted, trusted):
+        """Checks source in blueprints. Falls back to chef-solo for now.
+
+        TODO(zns): remove chef-solo logic once all is rolled out (pawn, etc...)
+        """
+        try:
+            return (trusted['blueprint']['source'] ==
+                    untrusted['blueprint']['source'])
+        except StandardError:
+            LOG.info('X-Source-Untrusted: source did not match: %s', untrusted)
+            return self._same_source(untrusted, trusted)  # fall back
+
+    def _same_source(self, untrusted, trusted):
+        """If chef-solo's 'source' is the same in both, return True."""
+        if not untrusted or not trusted:
+            return False
+        if 'environment' not in trusted:
+            return False
+        if 'environment' not in untrusted:
+            return False
+        untrusted_p = untrusted['environment'].get('providers', {})
+        try:  # Something in `trusted` can sometimes be a float?!
+            trusted_p = trusted['environment'].get('providers', {})
+        except TypeError:  # Because float doesn't have a __getitem__
+            LOG.info('X-Source-Untrusted: something in cached blueprint '
+                     'should be a dict but is not. Blueprint: %s', trusted)
+            return False
+        if not untrusted_p.get('chef-solo') or not trusted_p.get('chef-solo'):
+            return False
+        return (self._get_source(untrusted_p['chef-solo']) ==
+                self._get_source(trusted_p['chef-solo']))
+
+    @staticmethod
+    def _clean_env(untrusted_env, trusted_env):
+        """Update all values in untrusted_env with thsoe from trusted_env."""
+        delta = set(untrusted_env.keys()) - set(trusted_env.keys())
+        if delta:
+            LOG.info('X-Source-Untrusted: invalid environment options found.')
+            raise exceptions.CheckmateValidationException(
+                'POST deployment: environment not valid.')
+        for key in untrusted_env.keys():
+            untrusted_env[key] = trusted_env[key]
+
+    def _get_repo(self, repo_name):
+        """Return the specified github repo.
+
+        :param repo_name: the repo to get; must belong to :self.repo_org:
+        """
+        if repo_name:
+            owner = self._get_repo_owner()
+            if owner:
+                try:
+                    return owner.get_repo(repo_name)
+                except GithubException as ghe:
+                    _handle_ghe(ghe,
+                                msg="Unexpected error getting repository %s"
+                                % repo_name)
+
+    @staticmethod
+    def _repo_find_ref(repo, ref_name):
+        """Returns a reference or tag if the repo contains it."""
+        refs = repo.get_git_refs()
+        if '/' in ref_name:
+            return refs.get(ref_name)
+        else:
+            ref_ending = '/%s' % ref_name
+            for ref in refs:
+                if ('/pull/' not in ref.ref and ref.ref.endswith(ref_ending)):
+                    return ref
+
+    def _get_blueprint(self, repo, tag):
+        """Get the deployment blueprint from the specified repo if any; format
+        and correct as needed.
+
+        :param repo: the repo containing the blueprint
+        """
+        if repo and isinstance(repo, github.Repository.Repository) and tag:
+            dep_file = None
+            try:
+                github_ref = self._repo_find_ref(repo, tag)
+                if not github_ref:
+                    return None
+
+                dep_file = repo.get_file_contents("checkmate.yaml",
+                                                  ref=tag)
+            except GithubException as ghe:
+                _handle_ghe(ghe,
+                            msg="Unexpected error getting blueprint from repo "
+                            "%s" % repo.clone_url)
+            if dep_file and dep_file.content:
+                dep_content = base64.b64decode(dep_file.content)
+                dep_content = dep_content.replace("%repo_url%",
+                                                  "%s#%s" %
+                                                  (str(repo.clone_url), tag))
+                try:
+                    ret = yaml.safe_load(dep_content)
+                except (yaml.scanner.ScannerError, yaml.parser.ParserError):
+                    LOG.warn("Blueprint '%s' has invalid YAML", repo.clone_url)
+                    return None
+
+                if "inputs" in ret:
+                    del ret['inputs']
+
+                if 'heat_template_version' in ret:
+                    parsed = self.parse_hot(ret)
+                elif 'blueprint' in ret:
+                    parsed = self.parse_blueprint(repo, ret)
+                else:
+                    LOG.warn("Blueprint '%s' is not in a recognized format",
+                             repo.clone_url)
+                    return None
+
+                parsed['repo_id'] = repo.id
+                parsed['blueprint']['source'] = {
+                    'repo-url': repo.clone_url,
+                    'sha': github_ref.object.sha,
+                    'ref': github_ref.ref,
+                }
+                LOG.info("Retrieved blueprint: %s#%s", repo.url, tag)
+                return parsed
+        return None
 
     @staticmethod
     def _get_repo_file_contents(repo, filename):

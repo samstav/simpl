@@ -179,7 +179,7 @@ RESOURCE_TYPES = [
 
 BLUEPRINT_SCHEMA = [
     'id', 'name', 'services', 'options', 'resources', 'meta-data',
-    'description', 'display-outputs', 'documentation', 'version',
+    'description', 'display-outputs', 'documentation', 'version', 'source',
 ]
 
 COMPONENT_SCHEMA = [
