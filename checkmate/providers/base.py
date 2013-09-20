@@ -647,4 +647,5 @@ class ProviderTask(celery.Task):
             if status == "ERROR":
                 results['status'] = "FAILED"
 
-        deployment_tasks.postback(context['deployment_id'], results)
+        deployment_tasks.postback(context.get('deployment_id') or
+                                  context['deployment'], results)
