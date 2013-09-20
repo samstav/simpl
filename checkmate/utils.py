@@ -457,6 +457,8 @@ def extract_sensitive_data(data, sensitive_keys=None):
         """Determines whether or not key is in sensitive_keys."""
         if key in sensitive_keys:
             return True
+        if key is None:
+            return False
         for reg_expr in [pattern for pattern in sensitive_keys
                          if hasattr(pattern, "search")
                          and callable(getattr(pattern, "search"))]:
