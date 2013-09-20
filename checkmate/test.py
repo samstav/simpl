@@ -1,4 +1,4 @@
-# pylint: disable=C0302
+# pylint: disable=C0302,R0904,C0103,R0903
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -22,14 +22,12 @@ import unittest
 import uuid
 
 import bottle
-from celery.app import default_app  # @UnresolvedImport
-from celery.result import AsyncResult  # @UnresolvedImport
+from celery.app import default_app
+from celery.result import AsyncResult
 import mox
 from mox import (IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains,
                  Not)
 from SpiffWorkflow.specs import Celery, Transform
-
-LOG = logging.getLogger(__name__)
 
 from checkmate.deployment import Deployment
 from checkmate import deployments
@@ -178,10 +176,13 @@ CATALOG = [
         "type": "rax:object-cdn"
     }
 ]
+LOG = logging.getLogger(__name__)
 
 
 def register():
-    """Register Providers."""
+    """Register TestProviders.
+
+    This makes this module behave like a real provider package."""
     register_providers([TestProvider])
 
 
@@ -193,7 +194,6 @@ def run_with_params(args):
     this logic so it can be used in any test.
 
     """
-    import unittest
 
     # Our --debug means --verbose for unitest
     if '--debug' in args:
@@ -204,19 +204,22 @@ def run_with_params(args):
 
 
 class StubbedWorkflowBase(unittest.TestCase):
-    """StubbedWorkflowBase."""
+    """Base class that stubbs out a workflow so it does not call live APIs."""
     def setUp(self):
         self.mox = mox.Mox()
         self.deployment = None
         self.outcome = {}  # store results and end state as simulation runs
+        self.expected_calls = None
+        self.mock_tasks = None
 
     def tearDown(self):
         self.mox.UnsetStubs()
 
     def result_postback(self, *args, **kwargs):
-        """Simulates a postback from the called resource which updates the
-        deployment data. The results will be appended to the simulated
-        deployment results
+        """Simulates a postback from the called resource.
+
+        This updates the deployment data. The results will be appended to the
+        simulated deployment results.
         """
         # If we need to get the calling task, use inspect. The call stack is
         # self->mock->method->class (so 3 in a zero-based index)
@@ -314,13 +317,13 @@ class StubbedWorkflowBase(unittest.TestCase):
         return workflow
 
     def _get_expected_calls(self):
+        """Prepare expected call names, args, and returns for mocking."""
 
-        # Prepare expected call names, args, and returns for mocking
         def is_good_context(context):
             """Checks that call has all necessary context data."""
             for key in ['auth_token', 'username', 'catalog']:
                 if key not in context:
-                    LOG.warn("Context does not have a '%s'" % key)
+                    LOG.warn("Context does not have a '%s'", key)
                     return False
             return True
 
@@ -336,7 +339,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             entries = files[path].strip().split('\n')
             if len(entries) < 2:
                 LOG.warn(
-                    "Create server files has %s keys, which is less than 2" %
+                    "Create server files has %s keys, which is less than 2",
                     len(entries)
                 )
                 return False
@@ -406,13 +409,13 @@ class StubbedWorkflowBase(unittest.TestCase):
         for key, resource in self.deployment.get('resources', {}).iteritems():
             if resource.get('type') == 'compute' and 'image' in resource:
                 if 'master' in resource['dns-name']:
-                    id = 10000 + int(key)  # legacy format
+                    fake_id = 10000 + int(key)  # legacy format
                     role = 'master'
-                    ip = 100
+                    fake_ip = 100
                 else:
-                    id = "10-uuid-00%s" % key  # Nova format
+                    fake_id = "10-uuid-00%s" % key  # Nova format
                     role = 'web'
-                    ip = int(key) + 1
+                    fake_ip = int(key) + 1
                 name = resource['dns-name']
                 flavor = resource['flavor']
                 index = key
@@ -436,7 +439,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         ),
                         'result': {
                             'instance:%s' % key: {
-                                'id': id,
+                                'id': fake_id,
                                 'password': "shecret",
                             }
                         },
@@ -448,7 +451,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'call': 'checkmate.providers.rackspace.compute'
                                 '.wait_on_build',
                         'args': [
-                            Func(is_good_context), id,
+                            Func(is_good_context), fake_id,
                             self.deployment.get_setting(
                                 'region', default='testonia')
                         ],
@@ -456,13 +459,13 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'result': {
                             'instance:%s' % key: {
                                 'status': "ACTIVE",
-                                'ip': '4.4.4.%s' % ip,
-                                'private_ip': '10.1.2.%s' % ip,
+                                'ip': '4.4.4.%s' % fake_ip,
+                                'private_ip': '10.1.2.%s' % fake_ip,
                                 'addresses': {
                                     'public': [
                                         {
                                             "version": 4,
-                                            "addr": "4.4.4.%s" % ip,
+                                            "addr": "4.4.4.%s" % fake_ip,
                                         },
                                         {
                                             "version": 6,
@@ -473,7 +476,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     'private': [
                                         {
                                             "version": 4,
-                                            "addr": "10.1.2.%s" % ip,
+                                            "addr": "10.1.2.%s" % fake_ip,
                                         }
                                     ]
                                 }
@@ -494,9 +497,9 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 ContainsKeyValue('ip_address_type', 'public')),
                         'result': {
                                 'instance:%s' % key: {
-                                    'id': id,
-                                    'ip': "4.4.4.%s" % ip,
-                                    'private_ip': "10.1.1.%s" % ip,
+                                    'id': fake_id,
+                                    'ip': "4.4.4.%s" % fake_ip,
+                                    'private_ip': "10.1.1.%s" % fake_ip,
                                     'password': "shecret",
                                 }
                         },
@@ -507,18 +510,18 @@ class StubbedWorkflowBase(unittest.TestCase):
                         # Wait for Server Build
                         'call': 'checkmate.providers.rackspace.compute_legacy'
                                 '.wait_on_build',
-                        'args': [Func(is_good_context), id],
+                        'args': [Func(is_good_context), fake_id],
                         'kwargs': And(In('password')),
                         'result': {
                             'instance:%s' % key: {
                                 'status': "ACTIVE",
-                                'ip': '4.4.4.%s' % ip,
-                                'private_ip': '10.1.2.%s' % ip,
+                                'ip': '4.4.4.%s' % fake_ip,
+                                'private_ip': '10.1.2.%s' % fake_ip,
                                 'addresses': {
                                     'public': [
                                         {
                                             "version": 4,
-                                            "addr": "4.4.4.%s" % ip,
+                                            "addr": "4.4.4.%s" % fake_ip,
                                         },
                                         {
                                             "version": 6,
@@ -529,7 +532,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     'private': [
                                         {
                                             "version": 4,
-                                            "addr": "10.1.2.%s" % ip,
+                                            "addr": "10.1.2.%s" % fake_ip,
                                         }
                                     ]
                                 }
@@ -542,7 +545,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 expected_calls.append({
                     'call': 'checkmate.providers.opscode.local.'
                             'register_node',
-                    'args': ["4.4.4.%s" % ip, self.deployment['id']],
+                    'args': ["4.4.4.%s" % fake_ip, self.deployment['id']],
                     'kwargs': In('password'),
                     'result': None,
                     'resource': key,
@@ -551,7 +554,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 # build-essential (now just cook with bootstrap.json)
                 expected_calls.append({
                     'call': 'checkmate.providers.opscode.knife.cook',
-                    'args': ["4.4.4.%s" % ip, self.deployment['id']],
+                    'args': ["4.4.4.%s" % fake_ip, self.deployment['id']],
                     'kwargs': And(
                         In('password'), Not(In('recipes')),
                         Not(In('roles')),
@@ -568,7 +571,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 expected_calls.append(
                     {
                         'call': 'checkmate.providers.opscode.knife.cook',
-                        'args': ["4.4.4.%s" % ip, self.deployment['id']],
+                        'args': ["4.4.4.%s" % fake_ip, self.deployment['id']],
                         'kwargs': And(In('password'), ContainsKeyValue(
                             'roles',
                             ["wordpress-%s" % role]),
@@ -598,7 +601,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                     expected_calls.append(
                         {
                             'call': 'checkmate.providers.opscode.knife.cook',
-                            'args': ["4.4.4.%s" % ip, self.deployment['id']],
+                            'args': ["4.4.4.%s" % fake_ip,
+                                     self.deployment['id']],
                             'kwargs': And(
                                 In('password'),
                                 ContainsKeyValue(
@@ -619,7 +623,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                     expected_calls.append(
                         {
                             'call': 'checkmate.providers.opscode.knife.cook',
-                            'args': ["4.4.4.%s" % ip, self.deployment['id']],
+                            'args': ["4.4.4.%s" % fake_ip,
+                                     self.deployment['id']],
                             'kwargs': And(
                                 In('password'),
                                 ContainsKeyValue(
@@ -642,7 +647,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     [
                         Func(is_good_context),
                         20001,
-                        "10.1.2.%s" % ip,
+                        "10.1.2.%s" % fake_ip,
                         80,
                         self.deployment.get_setting(
                             'region',
@@ -825,7 +830,7 @@ class TestProvider(base.ProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec,
                            deployment, context, wait_on=None):
-        wait_on, service_name, component = self._add_resource_tasks_helper(
+        wait_on, _, _ = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
 
         create_instance_task = Celery(
@@ -874,8 +879,7 @@ class TestProvider(base.ProviderBase):
         if not fields:
             LOG.debug(
                 "No fields defined for interface '%s', so nothing "
-                "to do for connection '%s'" % (interface, relation_key)
-            )
+                "to do for connection '%s'", interface, relation_key)
             return  # nothing to do
 
         # Build full path to 'instance:id/interfaces/:interface/:field_name'
@@ -900,8 +904,8 @@ class TestProvider(base.ProviderBase):
             )
         target_final = target_final[0]
 
-        # Write the task to get the values
         def get_fields_code(my_task):  # Holds code for the task
+            """Write the task to get the values."""
             fields = my_task.get_property('fields', [])
             data = {}
             # Get fields by navigating path
@@ -916,10 +920,8 @@ class TestProvider(base.ProviderBase):
                 if current:
                     data[field.split('/')[-1]] = current
                 else:
-                    LOG.warn(
-                        "Field %s not found" % field,
-                        extra=dict(data=my_task.attributes)
-                    )
+                    LOG.warn("Field %s not found", field,
+                             extra=dict(data=my_task.attributes))
             utils.merge_dictionary(my_task.attributes, data)
 
         compile_override = Transform(
