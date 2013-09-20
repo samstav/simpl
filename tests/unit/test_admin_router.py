@@ -22,6 +22,7 @@ import webtest
 import bottle
 
 from checkmate import admin
+from checkmate import exceptions
 from checkmate import test
 
 
@@ -139,7 +140,13 @@ class TestGetDeploymentCount(TestAdminRouter):
         )
 
 
-if __name__ == '__main__':
-    import sys
+class TestNotLoaded(TestAdminRouter):
 
-    test.run_with_params(sys.argv[:])
+    def test_returns404(self):
+        with self.assertRaises(exceptions.CheckmateException) as exc:
+            self.app.get('/admin/cache/blueprints', expect_errors=True)
+            self.assertEqual(exc.friendly_message, "Module not loaded")
+
+
+if __name__ == '__main__':
+    test.run_with_params()

@@ -27,6 +27,7 @@ GET /admin/tenants?tag=foo&tag=bar
 
 import copy
 import errno
+from functools import partial
 import logging
 import subprocess
 import sys
@@ -34,6 +35,7 @@ import urlparse
 
 import bottle
 
+from checkmate import exceptions
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -67,7 +69,16 @@ class Router(object):
         app.route('/admin/tenants/<tenant_id>', 'PUT', self.put_tenant)
         app.route('/admin/tenants/<tenant_id>', 'POST', self.add_tenant_tags)
 
-        #app.route('/admin/cache/blueprints', 'GET', self.get_cached_blueprints)
+        app.route('/admin/cache/blueprints', 'GET',
+                  partial(self.not_loaded, "blueprints"))
+
+    @staticmethod
+    @utils.only_admins
+    def not_loaded(module_name):
+        """Return a 404 indicating a module is not loaded."""
+        raise exceptions.CheckmateException(
+            "Module %s not loaded" % module_name,
+            friendly_message="Module not loaded", http_status=404)
 
     #
     # Status and System Information
