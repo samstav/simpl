@@ -264,6 +264,11 @@ class Planner(classes.ExtensibleDict):
                     option['default'] = utils.evaluate(default[1:])
 
     def add_custom_resources(self):
+        """Adds custom resources to the deployment.
+
+        Looks for an array of custom_resources in deployment[inputs]
+        and adds them to deployment[resources]
+        """
         deployment_inputs = self.deployment.inputs()
         custom_resources = deployment_inputs.get('custom_resources', [])
         for resource in custom_resources:

@@ -1138,7 +1138,7 @@ class Deployment(morpheus.MorpheusDict):
         for key, _ in service_definitions.iteritems():
             services[key] = {}
             # Write resource list for each service
-            resources = self.get('resources', {})
+            resources = self.get('resources') or {}
             resource_list = [index for index, r in resources.items()
                              if 'service' in r and r['service'] == key]
             services[key]['resources'] = resource_list
@@ -1156,7 +1156,7 @@ class Deployment(morpheus.MorpheusDict):
                 primary = None
             # Write interfaces for each service
             if primary:
-                instance = primary.get('instance', {})
+                instance = primary.get('instance') or {}
                 interfaces = instance.get('interfaces')
                 if interfaces:
                     utils.write_path(services[key], 'interfaces', interfaces)
