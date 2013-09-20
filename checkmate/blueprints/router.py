@@ -1,6 +1,6 @@
-'''
+"""
 Blueprints Router
-'''
+"""
 import logging
 
 import bottle
@@ -11,13 +11,13 @@ LOG = logging.getLogger(__name__)
 
 
 class Router(object):
-    '''Route /blueprints/ calls'''
+    """Route /blueprints/ calls"""
 
     def __init__(self, app, manager):
-        '''Takes a bottle app and routes traffic for it
+        """Takes a bottle app and routes traffic for it.
 
         :param manager: could be default manager or CacheManager
-        '''
+        """
         self.app = app
         self.manager = manager
 
@@ -27,7 +27,7 @@ class Router(object):
     @utils.with_tenant
     @utils.formatted_response('blueprints', with_pagination=True)
     def get_blueprints(self, tenant_id=None, offset=None, limit=None):
-        ''' Get existing blueprints '''
+        """Get existing blueprints."""
         details = bottle.request.query.get('details')
         return self.manager.get_blueprints(
             tenant_id=tenant_id,

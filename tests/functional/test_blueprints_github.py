@@ -78,7 +78,7 @@ class TestGitHubManager(unittest.TestCase):
 
     def test_get_blueprint_bad_escape(self):
         yaml = ('- regex: "[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+ Za-z0-9!#$%&''*+/='
-                '?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+')
+                '?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+')
         tag = self.config.ref
         repo = self.mox.CreateMock(gh.Repository.Repository)
         repo.clone_url = "https://clone"
@@ -121,7 +121,7 @@ class TestGitHubManagerV1Cache(unittest.TestCase):
             'organization': 'Blueprints',
             'ref': 'master',
             'cache_dir': os.path.join(os.path.dirname(__file__),
-                                      os.path.pardir, # tests
+                                      os.path.pardir,  # tests
                                       'data', 'blueprint_cache', 'v1'),
             'eventlet': False
         })
@@ -135,7 +135,6 @@ class TestGitHubManagerV1Cache(unittest.TestCase):
         self.assertIn('9564:master', results)
         self.assertEqual('nodejs_app_blueprint',
                          results['9564:master']['blueprint']['name'])
-
 
     def test_list_cache(self):
         """List current cache in paginable format."""
