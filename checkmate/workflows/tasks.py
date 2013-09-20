@@ -291,7 +291,6 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
     deployment_id = workflow["attributes"].get("deploymentId") or w_id
     deployment = driver.get_deployment(deployment_id)
-    current_operation = deployment.get('operation')
     _, _, operation = cmops.get_operation(cmdep.Deployment(deployment), w_id)
 
     action = operation.get("action")
@@ -300,7 +299,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
         if operation.get("action-response") != "ACK":
             kwargs = {"action-response": "ACK"}
             if 'celery_task_id' in workflow:
-                revoke_task.delay(workflow['celery_task_id'])
+                revoke_task(workflow['celery_task_id'])
             cmtasks.update_operation.delay(deployment_id, w_id,
                                            driver=driver, **kwargs)
     elif operation.get("status") == "COMPLETE":
@@ -322,21 +321,30 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
             'driver': driver
         })
 
+    #Reloading the workflow here as the state might have changed since we
+    # loaded it earlier
+    workflow = driver.get_workflow(w_id, with_secrets=True)
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
-    waiting_tasks = cmwf.find_tasks(d_wf, state=Task.WAITING)
-    celery_tasks = [waiting_task for waiting_task in waiting_tasks
-                    if (isinstance(waiting_task.task_spec, Celery) and
-                        not task.is_failed(waiting_task))]
+    create_tasks = cmwf.find_tasks(d_wf, state=Task.WAITING, tag="create")
+    create_celery_tasks = [create_task for create_task in create_tasks
+                           if (isinstance(create_task.task_spec, Celery) and
+                               not task.is_failed(create_task))]
+    if create_celery_tasks:
+        for create_celery_task in create_celery_tasks:
+            create_celery_task.task_spec._update_state(create_celery_task)
+            if create_celery_task._has_state(Task.WAITING):
+                number_of_waiting_celery_tasks += 1
+    else:
+        waiting_tasks = cmwf.find_tasks(d_wf, state=Task.WAITING)
+        celery_tasks = [waiting_task for waiting_task in waiting_tasks
+                        if (isinstance(waiting_task.task_spec, Celery) and
+                            not task.is_failed(waiting_task))]
 
-    for celery_task in celery_tasks:
-        if current_operation.get('type') == "DELETE":
+        for celery_task in celery_tasks:
             revoke_task(celery_task._get_internal_attribute('task_id'),
                         terminate=True)
-        else:
-            celery_task.task_spec._update_state(celery_task)
-            if celery_task._has_state(Task.WAITING):
-                number_of_waiting_celery_tasks += 1
+            celery_task.task_spec._clear_celery_task_data(celery_task)
 
     LOG.debug("Workflow %s has %s waiting celery tasks", w_id,
               number_of_waiting_celery_tasks)
