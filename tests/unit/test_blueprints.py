@@ -42,6 +42,11 @@ class TestBlueprints(unittest.TestCase):
             'resources': {},
             'display-outputs': {},
             'documentation': {},
+            'source': {
+                'sha': '24438A93485762345',
+                'repo-url': 'http://github.com/checkmate/wordpress',
+                'ref': 'refs/branch/master',
+            }
         }
         valid = blueprints.Blueprint(blueprint)
         self.assertDictEqual(valid._data, blueprint)
