@@ -196,6 +196,7 @@ class TestAPICalls(unittest.TestCase):
         '''Test that update does not make an unnecessary database call
         when no api_id is given.
         '''
+        self.manager.save_deployment.return_value = {'id': 'test'}
         self.router.update_deployment(None)
         mock_write.assert_called_once_with(mock.ANY, mock.ANY, mock.ANY)
         assert not self.manager.get_deployment.called, \
