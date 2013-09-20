@@ -20,6 +20,7 @@ import os
 import unittest
 
 import github as gh
+import mock
 import mox
 
 from checkmate.blueprints import github
@@ -46,8 +47,8 @@ class TestGitHubManager(unittest.TestCase):
         repo = self.mox.CreateMock(gh.Repository.Repository)
         repo.clone_url = "https://clone"
 
-        self.mox.StubOutWithMock(self.manager, '_repo_contains_ref')
-        self.manager._repo_contains_ref(repo, tag).AndReturn(True)
+        self.mox.StubOutWithMock(self.manager, '_repo_find_ref')
+        self.manager._repo_find_ref(repo, tag).AndReturn(mock.Mock())
 
         dep_file = self.mox.CreateMockAnything()
         dep_file.content = base64.b64encode(yaml)
@@ -64,8 +65,8 @@ class TestGitHubManager(unittest.TestCase):
         repo = self.mox.CreateMock(gh.Repository.Repository)
         repo.clone_url = "https://clone"
 
-        self.mox.StubOutWithMock(self.manager, '_repo_contains_ref')
-        self.manager._repo_contains_ref(repo, tag).AndReturn(True)
+        self.mox.StubOutWithMock(self.manager, '_repo_find_ref')
+        self.manager._repo_find_ref(repo, tag).AndReturn(mock.Mock())
 
         dep_file = self.mox.CreateMockAnything()
         dep_file.content = base64.b64encode(yaml)
@@ -83,8 +84,8 @@ class TestGitHubManager(unittest.TestCase):
         repo = self.mox.CreateMock(gh.Repository.Repository)
         repo.clone_url = "https://clone"
 
-        self.mox.StubOutWithMock(self.manager, '_repo_contains_ref')
-        self.manager._repo_contains_ref(repo, tag).AndReturn(True)
+        self.mox.StubOutWithMock(self.manager, '_repo_find_ref')
+        self.manager._repo_find_ref(repo, tag).AndReturn(mock.Mock())
 
         dep_file = self.mox.CreateMockAnything()
         dep_file.content = base64.b64encode(yaml)

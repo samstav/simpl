@@ -203,11 +203,19 @@ class GitHubManager(object):
         results = {}
         for key, blueprint in self._blueprints.iteritems():
             try:
-                results[key] = {
+                source = blueprint['blueprint'].get('source') or {}
+                sha = source.get('sha') or key  # to not break on old format
+                results[sha] = {
                     'id': blueprint['blueprint'].get('id') or key,
                     'name': blueprint['blueprint']['name'],
                     'version': blueprint['blueprint'].get('version'),
+                    'repo': source.get('repo'),
+                    'sha': sha,
                 }
+            except KeyError as exc:
+                LOG.info("Error parsing blueprint '%s': missing key %s", key,
+                         exc)
+                continue
             except StandardError as exc:
                 LOG.info("Error parsing blueprint '%s': %s", key, exc)
                 continue
@@ -627,16 +635,16 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
                                 % repo_name)
 
     @staticmethod
-    def _repo_contains_ref(repo, ref_name):
-        """Check if a repo contains a tag or reference."""
+    def _repo_find_ref(repo, ref_name):
+        """Returns a reference or tag if the repo contains it."""
+        refs = repo.get_git_refs()
         if '/' in ref_name:
-            return ref_name in repo.get_git_refs()
+            return refs.get(ref_name)
         else:
-            return any(ref for ref in repo.get_git_refs()
-                       if ('/pull/' not in ref.ref and
-                           ref.ref.endswith('/%s' % ref_name)))
-
-        return False
+            ref_ending = '/%s' % ref_name
+            for ref in refs:
+                if ('/pull/' not in ref.ref and ref.ref.endswith(ref_ending)):
+                    return ref
 
     def _get_blueprint(self, repo, tag):
         """Get the deployment blueprint from the specified repo if any; format
@@ -647,7 +655,8 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
         if repo and isinstance(repo, github.Repository.Repository) and tag:
             dep_file = None
             try:
-                if not self._repo_contains_ref(repo, tag):
+                github_ref = self._repo_find_ref(repo, tag)
+                if not github_ref:
                     return None
 
                 dep_file = repo.get_file_contents("checkmate.yaml",
@@ -680,6 +689,11 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
                     return None
 
                 parsed['repo_id'] = repo.id
+                parsed['blueprint']['source'] = {
+                    'repo': repo.clone_url,
+                    'sha': github_ref.object.sha,
+                    'ref': github_ref.ref,
+                }
                 LOG.info("Retrieved blueprint: %s#%s", repo.url, tag)
                 return parsed
         return None
