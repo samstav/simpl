@@ -207,6 +207,26 @@ class GitHubManager(object):
             'results': results,
         }
 
+    def list_cache(self):
+        """List cached blueprints."""
+        results = {}
+        for key, blueprint in self._blueprints.iteritems():
+            try:
+                results[key] = {
+                    'id': blueprint['blueprint'].get('id') or key,
+                    'name': blueprint['blueprint']['name'],
+                    'version': blueprint['blueprint'].get('version'),
+                }
+            except StandardError as exc:
+                print "Error parsing blueprint '%s': %s" %(key, exc)
+                LOG.info("Error parsing blueprint '%s': %s", key, exc)
+                continue
+        return {
+                'collection-count': len(results),
+                '_links': {},
+                'results': results,
+            }
+
     @caching.CacheMethod(store=BLUEPRINT_CACHE, timeout=60,
                          backing_store=REDIS)
     def _get_blueprint_list_by_tag(self, tag, include_preview=False):

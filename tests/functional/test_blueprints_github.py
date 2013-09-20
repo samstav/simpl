@@ -23,13 +23,13 @@ import github as gh
 import mox
 
 from checkmate.blueprints import github
-from checkmate.common import config as cmconf
+from checkmate.common import config
 
 
 class TestGitHubManager(unittest.TestCase):
     def setUp(self):
         self.mox = mox.Mox()
-        self.config = cmconf.Config({
+        self.config = config.Config({
             'github_api': 'http://localhost',
             'organization': 'Blueprints',
             'ref': 'master',
@@ -112,9 +112,39 @@ class TestGitHubManager(unittest.TestCase):
         self.mox.VerifyAll()
 
 
+class TestGitHubManagerV1Cache(unittest.TestCase):
+    """Test local cache code."""
+    def setUp(self):
+        os.environ['BOTTLE_CHILD'] = '1'
+        self.config = config.Config({
+            'github_api': 'http://localhost',
+            'organization': 'Blueprints',
+            'ref': 'master',
+            'cache_dir': os.path.join(os.path.dirname(__file__),
+                                      os.path.pardir, # tests
+                                      'data', 'blueprint_cache', 'v1'),
+            'eventlet': False
+        })
+        self.manager = github.GitHubManager(self.config)
+
+    def test_v1_cache_format(self):
+        """Make sure we support v1 cache format for a while."""
+        self.manager.load_cache()
+        results = self.manager._get_blueprint_list_by_tag("master")
+        self.assertEqual(len(results), 35)
+        self.assertIn('9564:master', results)
+        self.assertEqual('nodejs_app_blueprint',
+                         results['9564:master']['blueprint']['name'])
+
+
+    def test_list_cache(self):
+        """List current cache in paginable format."""
+        self.manager.load_cache()
+        results = self.manager.list_cache()
+        self.assertIn('results', results)
+        self.assertEqual(len(results['results']), 53)
+
+
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()
