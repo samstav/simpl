@@ -108,7 +108,8 @@ class SingleTask(celery.Task):
 
 class RetryTask(celery.Task):
     """Base of tasks for throwing a custom exception when the max retry
-    limit is hit"""
+    limit is hit
+    """
     abstract = True
 
     def retry(self, args=None, kwargs=None, exc=None, throw=True,

@@ -370,11 +370,11 @@ def get_status_info(d_wf, workflow_id):
     return status_info
 
 
-def _get_distinct_exceptions(exceptions):
+def _get_distinct_exceptions(wf_exceptions):
     """Eliminate duplicate exceptions."""
     result = []
     seen = set()
-    for exception in exceptions:
+    for exception in wf_exceptions:
         if exception.__repr__() not in seen:
             seen.add(exception.__repr__())
             result.append(exception)
