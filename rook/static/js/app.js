@@ -8,12 +8,11 @@ var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.ser
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider) {
   // Static Paths
-  $routeProvider.
-  when('/', {
+  $routeProvider.when('/', {
     templateUrl: '/partials/home.html',
     controller: StaticController
-  }).
-  when('/index.html', {
+  })
+  .when('/index.html', {
     templateUrl: '/partials/home.html',
     controller: StaticController
   }).
@@ -23,102 +22,104 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   });
 
   // New UI - static pages
-  $routeProvider.
-  when('/deployments/new/wordpress', {
+  $routeProvider.when('/deployments/new/wordpress', {
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: DeploymentManagedCloudController
-  }).when('/deployments/default', {  // for legacy compat for a while
+  })
+  .when('/deployments/default', {  // for legacy compat for a while
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: DeploymentManagedCloudController
-  }).when('/deployments/new', {
+  })
+  .when('/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: DeploymentNewRemoteController
-  }).when('/:tenantId/deployments/new', {
+  })
+  .when('/:tenantId/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: DeploymentNewRemoteController,
     reloadOnSearch: false
-  }).
-  when('/deployments/wordpress-stacks', {
+  })
+  .when('/deployments/wordpress-stacks', {
     templateUrl: '/partials/wordpress-stacks.html',
     controller: StaticController
   });
 
   // Admin pages
-  $routeProvider.
-  when('/admin/status/celery', {
+  $routeProvider.when('/admin/status/celery', {
     templateUrl: '/partials/raw.html',
     controller: RawController
-  }).
-  when('/admin/status/libraries', {
+  })
+  .when('/admin/status/libraries', {
     templateUrl: '/partials/raw.html',
     controller: RawController
-  }).
-  when('/admin/feedback', {
+  })
+  .when('/admin/feedback', {
     templateUrl: '/partials/admin-feedback.html',
     controller: FeedbackListController
-  }).
-  when('/admin/deployments', {
+  })
+  .when('/admin/deployments', {
     templateUrl: '/partials/deployments.html',
     controller: DeploymentListController
   });
 
   // Auto Login
-  $routeProvider.
-  when('/autologin', {
+  $routeProvider.when('/autologin', {
     templateUrl: '/partials/autologin.html',
     controller: AutoLoginController
   });
 
   // New UI - dynamic, tenant pages
-  $routeProvider.
-  when('/:tenantId/workflows/:id/status', {
+  $routeProvider.when('/:tenantId/workflows/:id/status', {
     templateUrl: '/partials/workflow_status.html',
     controller: WorkflowController
-  }).
-  when('/:tenantId/workflows/:id', {
+  })
+  .when('/:tenantId/workflows/:id', {
     templateUrl: '/partials/workflow.html',
     controller: WorkflowController,
     reloadOnSearch: false
-  }).
-  when('/:tenantId/workflows-new/:id', {
+  })
+  .when('/:tenantId/workflows-new/:id', {
     templateUrl: '/partials/workflow-new.html',
     controller: WorkflowController,
     reloadOnSearch: false
-  }).
-  when('/:tenantId/workflows', {
+  })
+  .when('/:tenantId/workflows', {
     templateUrl: '/partials/workflows.html',
     controller: WorkflowListController
-  }).
-  when('/blueprints', {
+  })
+  .when('/blueprints', {
     templateUrl: '/partials/blueprints-remote.html',
     controller: BlueprintRemoteListController
-  }).
-  when('/:tenantId/blueprints', {
+  })
+  .when('/:tenantId/blueprints', {
     templateUrl: '/partials/blueprints-remote.html',
     controller: BlueprintRemoteListController
-  }).
-  when('/:tenantId/deployments', {
+  })
+  .when('/:tenantId/deployments', {
     templateUrl: '/partials/deployments.html',
     controller: DeploymentListController
-  }).
-  when('/:tenantId/deployments/:id', {
-    controller: DeploymentController,
-    templateUrl: '/partials/deployment.html'
-  }).
-  when('/:tenantId/providers', {
-    controller: ProviderListController,
-    templateUrl: '/partials/providers.html'
-  }).
-  when('/:tenantId/environments', {
-    controller: EnvironmentListController,
-    templateUrl: '/partials/environments.html'
-  }).when('/404', {
-    controller: StaticController,
-    templateUrl: '/partials/404.html'
-  }).when('/:tenantId/resources', {
+  })
+  .when('/:tenantId/deployments/custom', {
     controller: ResourcesController,
     templateUrl: '/partials/resources/index.html'
-  }).otherwise({
+  })
+  .when('/:tenantId/deployments/:id', {
+    controller: DeploymentController,
+    templateUrl: '/partials/deployment.html'
+  })
+  .when('/:tenantId/providers', {
+    controller: ProviderListController,
+    templateUrl: '/partials/providers.html'
+  })
+  .when('/:tenantId/environments', {
+    controller: EnvironmentListController,
+    templateUrl: '/partials/environments.html'
+  })
+  .when('/404', {
+    controller: StaticController,
+    templateUrl: '/partials/404.html'
+  })
+  .otherwise({
     controller: StaticController,
     templateUrl: '/partials/404.html'
   });
@@ -3222,23 +3223,52 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
     return $http.get(url, config);
   };
 
-  $scope.get_servers = function(){
+  var filter_local_resources = function(resource_ids, resource_type) {
+    return $scope.get_checkmate_resources(resource_ids, resource_type).then(
+      function(response) {
+        var cm_resources = response.data.results;
+        var all_resources = $scope.resources_by_provider[resource_type];
+        exclude_resources_in_checkmate(all_resources, cm_resources);
+      }
+    );
+  }
+
+  var wrap_and_filter_resources = function(resources, resource_type, filter_local_resources) {
+    var deferred = $q.defer();
+    var promise = deferred.promise;
+    var resource_ids = [];
+
+    $scope.resources_by_provider[resource_type] = [];
+    angular.forEach(resources, function(resource){
+      $scope.resources_by_provider[resource_type].push(decorate_resource(resource))
+      resource_ids.push(resource.instance.id);
+    });
+    if (filter_local_resources) {
+      promise = filter_local_resources(resource_ids, resource_type);
+    } else {
+      deferred.resolve();
+    }
+
+    return promise;
+  }
+
+  $scope.get_resources = function(resource_type, filter_local_resources){
+    delete $scope.error_msgs[resource_type];
     var tenant_id = $scope.auth.context.tenantId;
     if ($scope.auth.identity.loggedIn && tenant_id){
-      var url = '/:tenantId/providers/rackspace.nova/resources';
+      var url = '/:tenantId/providers/rackspace.'+resource_type+'/resources';
       var server_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      $scope.loading_status.nova = true;
+      $scope.loading_status[resource_type] = true;
       server_api.query(
         function(response) {
-          $scope.resources_by_provider.nova = [];
-          angular.forEach(response, function(server){
-            $scope.resources_by_provider.nova.push({object: server})
+          var resources = response;
+          wrap_and_filter_resources(resources, resource_type, filter_local_resources).then(function() {
+            $scope.loading_status[resource_type] = false;
           });
-          $scope.loading_status.nova = false;
         },
         function(response) {
-          $scope.error_msgs.nova = "Error loading server list";
-          $scope.loading_status.nova = false;
+          $scope.error_msgs[resource_type] = "Error loading "+resource_type+" list";
+          $scope.loading_status[resource_type] = false;
         }
       );
     }
@@ -3268,71 +3298,15 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
     };
   }
 
-  $scope.get_load_balancers = function(){
-    var tenant_id = $scope.auth.context.tenantId;
-    if ($scope.auth.identity.loggedIn && tenant_id){
-      var url = '/:tenantId/providers/rackspace.load-balancer/resources';
-      var lb_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      $scope.loading_status['load-balancer'] = true;
-      lb_api.query(
-        function(results) {
-          $scope.resources_by_provider['load-balancer'] = [];
-          angular.forEach(results, function(lb){
-            $scope.resources_by_provider['load-balancer'].push(decorate_resource(lb));
-          });
-          $scope.loading_status['load-balancer'] = false;
-        },
-        function(response) {
-          $scope.loading_status['load-balancer'] = false;
-          $scope.error_msgs['load-balancer'] = "Error loading load balancer list";
-        }
-      );
-    }
-  };
-
-  $scope.get_databases = function(){
-    var tenant_id = $scope.auth.context.tenantId;
-    if ($scope.auth.identity.loggedIn && tenant_id){
-      var url = '/:tenantId/providers/rackspace.database/resources';
-      var db_api = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      $scope.loading_status.database = true;
-      var results = db_api.query(
-        function() {
-          $scope.resources_by_provider.database = [];
-          var resource_ids = [];
-          angular.forEach(results, function(db){
-            $scope.resources_by_provider.database.push(decorate_resource(db));
-            resource_ids.push(db.instance.id);
-          });
-          $scope.get_checkmate_resources(resource_ids, 'database').then(
-            function(response) {
-              var cm_resources = response.data.results;
-              var all_resources = $scope.resources_by_provider.database;
-              exclude_resources_in_checkmate(all_resources, cm_resources);
-              $scope.loading_status.database = false;
-            },
-            function(response) {
-              $scope.loading_status.database = false;
-            }
-          );
-        },
-        function(response) {
-          $scope.error_msgs.database = "Error loading database list";
-          $scope.loading_status.database = false;
-        }
-      );
-    }
-  };
-
   $scope.load_resources = function(){
-    $scope.get_load_balancers();
-    $scope.get_servers();
-    $scope.get_databases();
+    $scope.get_resources('nova');
+    $scope.get_resources('load-balancer');
+    $scope.get_resources('database');
   }
 
   $scope.get_new_deployment = function(tenant_id){
     var url = '/:tenantId/deployments';
-    DeploymentResource = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id}, {'save': {method:'PUT'}});
+    DeploymentResource = $resource((checkmate_server_base || '') + url, {tenantId: tenant_id});
     return new DeploymentResource({});
   }
 
@@ -3352,9 +3326,9 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
         tenant_id = $scope.auth.context.tenantId,
         deployment = $scope.get_new_deployment(tenant_id);
 
-    deployment.resources = {};
+    deployment.inputs = {custom_resources: []};
     for (i=0; i<$scope.selected_resources.length; i++){
-      deployment.resources[i] = $scope.selected_resources[i].object
+      deployment.inputs.custom_resources.push($scope.selected_resources[i].object)
     }
     deployment.blueprint = {
       'services': {},
@@ -3375,7 +3349,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
             }
         }
     };
-    deployment.status = 'UP';
+    deployment.status = 'NEW';
     deployment.name = $scope.deployment.name;
     deployment.$save(function(result, getHeaders){
       console.log("Posted deployment");

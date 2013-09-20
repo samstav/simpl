@@ -1,11 +1,11 @@
 <div class='well'>
   <h4>
     Load Balancers
-    <button ng-click="get_load_balancers()" class="btn btn-small pull-right">
+    <button ng-click="get_resources('load-balancer')" class="btn btn-small pull-right">
       <i class="icon-refresh"></i>
     </button>
   </h4>
-  <div class='alert-info'>Displaying only load balancers that are not already part of a deployment</div>
+  <div class='alert alert-info'>Displaying only load balancers that are not already part of a deployment</div>
   <table class="table table-striped">
     <thead>
       <tr>
@@ -16,7 +16,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr ng-repeat="decorated_lb in resources_by_provider['load-balancer'] | orderBy:'object.instance.id' | filter: {in_checkmate: false}">
+      <tr ng-repeat="decorated_lb in resources_by_provider['load-balancer'] | orderBy:'object.instance.id'">
         <td>{{decorated_lb.object['dns-name']}}</td>
         <td>{{decorated_lb.object['instance']['id']}}</td>
         <td>{{decorated_lb.object['region']}}</td>
