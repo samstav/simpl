@@ -1,4 +1,4 @@
-# pylint: disable=C0103,W0212,R0913,C0111
+# pylint: disable=C0103,W0212,R0913,C0111,R0904
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -26,7 +26,7 @@ from checkmate.common import tasks as cmtasks
 from checkmate.workflows import tasks
 
 
-class TestWorkflowTasks(unittest.TestCase):
+class TestPauseWorkflow(unittest.TestCase):
     @mock.patch('checkmate.workflow.update_workflow')
     @mock.patch('checkmate.workflows.tasks.revoke_task')
     @mock.patch('checkmate.workflow.find_tasks')
@@ -232,6 +232,8 @@ class TestWorkflowTasks(unittest.TestCase):
                                                     tasks="total",
                                                     complete="completed")
 
+
+class TestUpdateDeployment(unittest.TestCase):
     @mock.patch('checkmate.db.get_driver')
     @mock.patch('checkmate.workflows.manager.Manager.get_workflow')
     @mock.patch('SpiffWorkflow.Workflow.deserialize')
@@ -306,6 +308,8 @@ class TestWorkflowTasks(unittest.TestCase):
             friendly_message='status-info',
             errors=["error1", "error2"])
 
+
+class TestCycleWorkflow(unittest.TestCase):
     @mock.patch('checkmate.db.get_driver')
     @mock.patch('checkmate.workflows.manager.Manager.get_workflow')
     @mock.patch('SpiffWorkflow.Workflow.deserialize')
@@ -328,7 +332,7 @@ class TestWorkflowTasks(unittest.TestCase):
 
         tasks.cycle_workflow.request.id = "1234"
         tasks.cycle_workflow.run(1001, None)
-        
+
         self.assertFalse(update_state.called)
         save_spiffworkflow.assert_called_once_with(mock_d_wf,
                                                    celery_task_id="1234")
