@@ -209,7 +209,7 @@ class GitHubManager(object):
                     'id': blueprint['blueprint'].get('id') or key,
                     'name': blueprint['blueprint']['name'],
                     'version': blueprint['blueprint'].get('version'),
-                    'repo': source.get('repo'),
+                    'repo-url': source.get('repo-url'),
                     'sha': sha,
                 }
             except KeyError as exc:
@@ -459,7 +459,8 @@ class GitHubManager(object):
         self._blocking_refresh_if_needed()
         for key, trusted_blueprint in self._blueprints.iteritems():
             try:
-                if self._same_source(untrusted_blueprint, trusted_blueprint):
+                if self._same_source_new(untrusted_blueprint,
+                                         trusted_blueprint):
                     untrusted_blueprint['blueprint'] = \
                         trusted_blueprint['blueprint']
                     self._clean_env(untrusted_blueprint['environment'],
@@ -588,6 +589,18 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
         # Scary assumptions here...
         return provider['constraints'][0]['source']
 
+    def _same_source_new(self, untrusted, trusted):
+        """Checks source in blueprints. Falls back to chef-solo for now.
+
+        TODO(zns): remove chef-solo logic once all is rolled out (pawn, etc...)
+        """
+        try:
+            return (trusted['blueprint']['source'] ==
+                    untrusted['blueprint']['source'])
+        except StandardError:
+            LOG.info('X-Source-Untrusted: source did not match: %s', untrusted)
+            return self._same_source(untrusted, trusted)  # fall back
+
     def _same_source(self, untrusted, trusted):
         """If chef-solo's 'source' is the same in both, return True."""
         if not untrusted or not trusted:
@@ -690,7 +703,7 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
 
                 parsed['repo_id'] = repo.id
                 parsed['blueprint']['source'] = {
-                    'repo': repo.clone_url,
+                    'repo-url': repo.clone_url,
                     'sha': github_ref.object.sha,
                     'ref': github_ref.ref,
                 }
