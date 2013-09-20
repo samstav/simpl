@@ -18,6 +18,7 @@
 import json
 import logging
 import os
+import sys
 import unittest
 import uuid
 
@@ -186,14 +187,17 @@ def register():
     register_providers([TestProvider])
 
 
-def run_with_params(args):
+def run_with_params(args=None):
     """Helper method that handles command line arguments:
 
     Having command line parameters passed on to checkmate is handy
     for troubleshooting issues. This helper method encapsulates
     this logic so it can be used in any test.
 
+    :param args: will use sys.argv[:] if not passed in
     """
+    if args is None:
+        args = sys.argv[:]
 
     # Our --debug means --verbose for unitest
     if '--debug' in args:
