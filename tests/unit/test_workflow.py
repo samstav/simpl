@@ -53,6 +53,26 @@ class TestWorkflow(unittest.TestCase):
         self.mox.VerifyAll()
         self.mox.UnsetStubs()
 
+    def test_get_dump(self):
+        mock_workflow = mock.Mock()
+        mock_task_one = mock.Mock()
+        mock_task_two = mock.Mock()
+        mock_task_one.id = "1"
+        mock_task_two.id = "2"
+        mock_workflow.get_tasks.return_value = [mock_task_one, mock_task_two]
+        mock_task_one.internal_attributes = {}
+        mock_task_two.internal_attributes = {
+            'task_id': 'celery_task_id',
+        }
+        expected_dump = {
+            "1": {},
+            "2": {'task_id': 'celery_task_id'}
+        }
+        self.assertDictEqual(workflow.get_dump(mock_workflow,
+                                               state=Task.WAITING),
+                             expected_dump)
+        mock_workflow.get_tasks.assert_called_with(state=Task.WAITING)
+
     def test_get_errored_tasks(self):
         failed_task_state = {
             'state': 'FAILURE',
