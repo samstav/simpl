@@ -45,6 +45,13 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(fxn(combined, ['password']), (innocuous, secret))
         self.assertDictEqual(combined, original)
 
+    def test_extract_sensitive_data_works_with_None_keys(self):
+        sensitive_keys = [re.compile('quux')]
+        data = {None: 'foobar'}
+        expected = (data, None)
+        self.assertEqual(expected,
+                         utils.extract_sensitive_data(data, sensitive_keys))
+
     def test_flatten(self):
         list_of_dict = [{'foo': 'bar'}, {'a': 'b'}, {'foo': 'bar1'}]
         self.assertDictEqual(utils.flatten(list_of_dict),

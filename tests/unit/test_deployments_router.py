@@ -193,16 +193,6 @@ class TestAPICalls(unittest.TestCase):
                 tenant_id='T1000'
             )
 
-    @mock.patch.object(utils, 'write_body')
-    def test_update_deployment_wont_get_deployment_if_no_api_id(self,
-                                                                mock_write):
-        '''Test that update does not make an unnecessary database call
-        when no api_id is given.
-        '''
-        self.router.update_deployment(None)
-        assert not self.manager.get_deployment.called, \
-            'get_deploment should not be called'
-
 
 class TestDeploymentRouter(unittest.TestCase):
 
@@ -472,6 +462,58 @@ class TestValidateDeleteNodeRequest(TestDeploymentRouter):
         result = self.validate_fn(api_id, deployment_info, deployment,
                                   service_name, count, victim_list)
         self.assertEquals(result, True)
+
+
+class TestUpdateDeployment(TestDeploymentRouter):
+
+    def setUp(self):
+        super(TestUpdateDeployment, self).setUp()
+        self.put_body = {
+            'api_id': 'fake_id'
+        }
+        self.tenant_id = 'T333'
+
+        self.fake_deployment = {'fake_deployment': 'fake_info'}
+        content_patcher = mock.patch(
+            'checkmate.deployments.router._content_to_deployment')
+        self.mock_content_to_deployment = content_patcher.start()
+        self.mock_content_to_deployment.return_value = self.fake_deployment
+        self.addCleanup(content_patcher.stop)
+
+    def test_manager_saves_deployment(self):
+        mock_save = self.manager.save_deployment
+        mock_save.return_value = {'id': 'fake_id'}
+        self.app.put('/%s/deployments' % self.tenant_id,
+                     json.dumps(self.put_body),
+                     content_type='application/json')
+        api_id = None
+        mock_save.assert_called_once_with(self.fake_deployment,
+                                          api_id=api_id,
+                                          tenant_id=self.tenant_id)
+
+    def test_200_if_update_existing_deployment(self):
+        self.manager.save_deployment.return_value = {}
+        response = self.app.put('/%s/deployments/123' % self.tenant_id,
+                                json.dumps(self.put_body),
+                                content_type='application/json')
+        self.manager.get_deployment.assert_called_once_with('123')
+        self.assertEqual(response.status_code, 200)
+
+    def test_201_if_create_new_deployment(self):
+        self.manager.save_deployment.return_value = {'id': 'fake_id'}
+        response = self.app.put('/%s/deployments/' % self.tenant_id,
+                                json.dumps(self.put_body),
+                                content_type='application/json')
+        self.assertFalse(self.manager.get_deployment.called)
+        self.assertEqual(response.status_code, 201)
+
+    def test_set_location_header_on_new_deployment(self):
+        self.manager.save_deployment.return_value = {'id': 'fake_id'}
+        response = self.app.put('/%s/deployments/' % self.tenant_id,
+                                json.dumps(self.put_body),
+                                content_type='application/json')
+        self.assertEqual(response.headers.get('Location'),
+                         '/%s/deployments/fake_id' % self.tenant_id)
 
 
 if __name__ == '__main__':

@@ -260,13 +260,18 @@ def sync_resource_task(context, resource, resource_key, api=None):
         clb = api.get(instance_id)
 
         try:
-            meta = clb.get_metadata()
-            if "RAX-CHECKMATE" not in meta.keys():
+            metadata = {}
+            cloud_metadata = []
+            if hasattr(clb, 'metadata'):
+                cloud_metadata = clb.metadata
+            for data in cloud_metadata:
+                metadata[data['key']] = data['value']
+            if "RAX-CHECKMATE" not in metadata:
                 checkmate_tag = Provider.generate_resource_tag(
                     context['base_url'], context['tenant'],
                     context['deployment'], resource['index']
                 )
-                new_meta = utils.merge_dictionary(meta, checkmate_tag)
+                new_meta = utils.merge_dictionary(metadata, checkmate_tag)
                 clb.set_metadata(new_meta)
         except StandardError as exc:
             LOG.info("Could not set metadata tag "
