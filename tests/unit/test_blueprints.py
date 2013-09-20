@@ -20,11 +20,12 @@ import unittest
 
 import mock
 
-from checkmate import blueprints as cmbps
-from checkmate import exceptions as cmexc
+from checkmate import blueprints
+from checkmate import exceptions
 
 
 class TestBlueprints(unittest.TestCase):
+    """Tests for main blueprints module."""
 
     def test_schema(self):
         """Test the schema validates a blueprint with all possible fields."""
@@ -33,6 +34,7 @@ class TestBlueprints(unittest.TestCase):
             'version': '1.1.0',
             'meta-data': {
                 'schema-version': 'v0.7',
+                'my-random-metadata': 'woohoooo!!!!',
             },
             'name': 'test',
             'services': {},
@@ -41,10 +43,11 @@ class TestBlueprints(unittest.TestCase):
             'display-outputs': {},
             'documentation': {},
         }
-        valid = cmbps.Blueprint(blueprint)
+        valid = blueprints.Blueprint(blueprint)
         self.assertDictEqual(valid._data, blueprint)
 
     def test_schema_with_options(self):
+        """Test schema for blueprint options."""
         blueprint = {
             'id': 'test',
             'name': 'test',
@@ -81,17 +84,19 @@ class TestBlueprints(unittest.TestCase):
         }
         expected = copy.deepcopy(blueprint)
         expected['meta-data'] = {'schema-version': 'v0.7'}
-        valid = cmbps.Blueprint(blueprint)
+        valid = blueprints.Blueprint(blueprint)
         self.assertDictEqual(valid._data, expected)
 
     def test_schema_negative(self):
+        """Test schema failsd on bad blueprint."""
         blueprint = {
             'nope': None
         }
-        self.assertRaises(
-            cmexc.CheckmateValidationException, cmbps.Blueprint, blueprint)
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          blueprints.Blueprint, blueprint)
 
     def test_conversion_from_pre_v0_dot_7(self):
+        """Test schema conversion."""
         blueprint = {
             'id': 'test',
             'name': 'test',
@@ -157,22 +162,25 @@ class TestBlueprints(unittest.TestCase):
             },
             'resources': {},
         }
-        converted = cmbps.Blueprint(blueprint)
+        converted = blueprints.Blueprint(blueprint)
         self.assertDictEqual(converted._data, expected)
 
     def test_future_blueprint_version(self):
+        """Test future schema is rejected by this version of the server."""
         blueprint = {
             'meta-data': {
                 'schema-version': 'unrecognized',
             },
         }
-        self.assertRaisesRegexp(cmexc.CheckmateValidationException,
+        self.assertRaisesRegexp(exceptions.CheckmateValidationException,
                                 "This server does not support version "
                                 "'unrecognized' blueprints",
-                                cmbps.Blueprint, blueprint)
+                                blueprints.Blueprint, blueprint)
 
 
 class TestGitHubManagerTenantTag(unittest.TestCase):
+    """Test github manager filtering by tenants."""
+
     def setUp(self):
         self.config = mock.Mock()
         self.config.github_api = 'http://localhost'
@@ -180,52 +188,61 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.config.cache_dir = 'blah'
         self.config.group_refs = {}
         self.config.preview_tenants = []
-        self._manager = cmbps.GitHubManager(self.config)
+        self._manager = blueprints.GitHubManager(self.config)
 
     def test_no_api(self):
+        """Verify exception raised if no API object supplied."""
         conf = self.config
         conf.github_api = None
         with self.assertRaises(AssertionError):
-            cmbps.GitHubManager(conf)
+            blueprints.GitHubManager(conf)
 
     def test_no_org(self):
+        """"Verify exception raised if no gihub org supplied."""
         conf = self.config
         conf.organization = None
         with self.assertRaises(AssertionError):
-            cmbps.GitHubManager(conf)
+            blueprints.GitHubManager(conf)
 
     def test_no_group_refs(self):
+        """"Verify exception raised if no group refs supplied."""
         conf = self.config
         conf.group_refs = None
         self.assertIsInstance(
-            cmbps.GitHubManager(conf), cmbps.GitHubManager)
+            blueprints.GitHubManager(conf), blueprints.GitHubManager)
 
     def test_failsafe_returns_master(self):
+        """Verify default behaviour is to return master branch."""
         self._manager._ref = None
         self.assertEqual(self._manager.get_tenant_tag('A', []), 'master')
 
     def test_default_returns_ref(self):
+        """Verify default ref is returned when no previews exist."""
         self._manager._ref = 'blah'
         self.assertEqual(self._manager.get_tenant_tag('A', []), 'blah')
 
     def test_preview_falls_back_to_ref(self):
+        """Verify default ref is returned when previews don't have refs."""
         self._manager._ref = 'safe'
         self._manager._preview_ref = None
         self._manager._preview_tenants = ['X']
         self.assertEqual(self._manager.get_tenant_tag('X', []), 'safe')
 
     def test_preview_returns_preview_ref(self):
+        """Verify matching preview tenant returns matching ref."""
         self._manager._preview_ref = 'coming-soon'
         self._manager._preview_tenants = ['X']
         self.assertEqual(self._manager.get_tenant_tag('X', []), 'coming-soon')
 
     def test_preview_negative(self):
+        """Verify default returned with previews and no match."""
         self._manager._ref = 'plain'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
         self.assertEqual(self._manager.get_tenant_tag('Y', []), 'plain')
 
     def test_groups_no_match(self):
+        """Verify default returned if group does not match any groups."""
         self._manager._ref = 'ref'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
@@ -234,6 +251,7 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.assertEqual(self._manager.get_tenant_tag('Y', ['Hacks']), 'ref')
 
     def test_groups_single_match(self):
+        """Verify group ref returned if group matches one group."""
         self._manager._ref = 'ref'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
@@ -242,6 +260,7 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.assertEqual(self._manager.get_tenant_tag('Y', ['Hacks']), 'new')
 
     def test_groups_multiple_match(self):
+        """Verify all group refs returned if multiple groups match."""
         self._manager._ref = 'ref'
         self._manager._preview_ref = 'preview'
         self._manager._preview_tenants = ['X']
@@ -252,8 +271,5 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

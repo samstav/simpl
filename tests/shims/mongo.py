@@ -58,6 +58,6 @@ class Shim(object):
                 connection_string=self.connection_string, reset=True)
 
     def clean(self):
-        """Drop all collections listed in CLEECTIONS_TO_CLEAN."""
+        """Drop all collections listed in COLLECTIONS_TO_CLEAN."""
         for collection_name in COLLECTIONS_TO_CLEAN:
             self.driver.database()[collection_name].drop()
