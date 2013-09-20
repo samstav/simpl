@@ -42,11 +42,16 @@ LOG = logging.getLogger(__name__)
 class Router(object):
     """Route /admin/ calls."""
 
-    def __init__(self, app, manager, tenant_manager):
-        """Takes a bottle app and routes traffic for it."""
+    def __init__(self, app, deployments_manager, tenants_manager):
+        """Takes a bottle app and routes traffic for it.
+
+        :param app: bottle application to route to
+        :param deployments_manager: for /admin/deployments calls
+        :param tenants_manager: for /admin/tenants calls
+        """
         self.app = app
-        self.manager = manager
-        self.tenant_manager = tenant_manager
+        self.deployments_manager = deployments_manager
+        self.tenants_manager = tenants_manager
 
         app.route('/admin/status/celery', 'GET', self.get_celery_worker_status)
         app.route('/admin/status/libraries', 'GET',
@@ -61,6 +66,8 @@ class Router(object):
         app.route('/admin/tenants/<tenant_id>', 'GET', self.get_tenant)
         app.route('/admin/tenants/<tenant_id>', 'PUT', self.put_tenant)
         app.route('/admin/tenants/<tenant_id>', 'POST', self.add_tenant_tags)
+
+        #app.route('/admin/cache/blueprints', 'GET', self.get_cached_blueprints)
 
     #
     # Status and System Information
@@ -185,7 +192,7 @@ class Router(object):
 
         if 'tenant_tag' in params:
             tags = params['tenant_tag']
-            tenants = self.tenant_manager.list_tenants(*tags)
+            tenants = self.tenants_manager.list_tenants(*tags)
             if len(tenants) == 0:
                 tenants['no-tenants-found'] = True
             params['tenantId'] = tenants.keys()
@@ -197,7 +204,7 @@ class Router(object):
 
         query = utils.QueryParams.parse(params, self.param_whitelist)
 
-        return self.manager.get_deployments(
+        return self.deployments_manager.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
@@ -219,10 +226,10 @@ class Router(object):
         status = bottle.request.query.get('status')
         params = bottle.request.query.dict
         query = utils.QueryParams.parse(params, self.param_whitelist)
-        count = self.manager.count(tenant_id=tenant_id,
-                                   status=status,
-                                   query=query
-                                   )
+        count = self.deployments_manager.count(tenant_id=tenant_id,
+                                               status=status,
+                                               query=query
+                                               )
         result = {'count': count}
         return utils.write_body(result, bottle.request, bottle.response)
 
@@ -235,8 +242,8 @@ class Router(object):
         :param:tenant_id: the (optional) tenant
         """
         tenant_id = bottle.request.query.get('tenant_id')
-        count = self.manager.count(tenant_id=tenant_id,
-                                   blueprint_id=blueprint_id)
+        count = self.deployments_manager.count(tenant_id=tenant_id,
+                                               blueprint_id=blueprint_id)
         result = {'count': count}
         return utils.write_body(result, bottle.request, bottle.response)
 
@@ -247,7 +254,7 @@ class Router(object):
     @utils.formatted_response('tenants', with_pagination=False)
     def get_tenants(self):
         """Return the list of tenants."""
-        return self.tenant_manager.list_tenants(
+        return self.tenants_manager.list_tenants(
             *bottle.request.query.getall('tag'))
 
     @utils.only_admins
@@ -256,14 +263,14 @@ class Router(object):
         ten = {}
         if bottle.request.content_length > 0:
             ten = utils.read_body(bottle.request)
-        self.tenant_manager.save_tenant(tenant_id, ten)
+        self.tenants_manager.save_tenant(tenant_id, ten)
         bottle.response.status = 201
 
     @utils.only_admins
     def get_tenant(self, tenant_id):
         """Return a requested tenant by id."""
         if tenant_id:
-            tenant = self.tenant_manager.get_tenant(tenant_id)
+            tenant = self.tenants_manager.get_tenant(tenant_id)
             return utils.write_body(tenant, bottle.request, bottle.response)
 
     @utils.only_admins
@@ -274,5 +281,5 @@ class Router(object):
             new = body.get('tags')
             if new and not isinstance(new, (list, tuple)):
                 new = [new]
-            self.tenant_manager.add_tenant_tags(tenant_id, *new)
+            self.tenants_manager.add_tenant_tags(tenant_id, *new)
             bottle.response.status = 204
