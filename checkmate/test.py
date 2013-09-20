@@ -183,7 +183,8 @@ LOG = logging.getLogger(__name__)
 def register():
     """Register TestProviders.
 
-    This makes this module behave like a real provider package."""
+    This makes this module behave like a real provider package.
+    """
     register_providers([TestProvider])
 
 
@@ -328,28 +329,6 @@ class StubbedWorkflowBase(unittest.TestCase):
             for key in ['auth_token', 'username', 'catalog']:
                 if key not in context:
                     LOG.warn("Context does not have a '%s'", key)
-                    return False
-            return True
-
-        def server_got_keys(files):
-            """Checks that server_create call has all needed keys."""
-            path = '/root/.ssh/authorized_keys'
-            if not files:
-                LOG.warn("Create server call got blank files")
-                return False
-            if path not in files:
-                LOG.warn("Create server files don't have keys")
-                return False
-            entries = files[path].strip().split('\n')
-            if len(entries) < 2:
-                LOG.warn(
-                    "Create server files has %s keys, which is less than 2",
-                    len(entries)
-                )
-                return False
-            for entry in entries:
-                if not (entry == 'ssh-rsa AAAAB3NzaC1...'
-                        or utils.is_ssh_key(entry)):
                     return False
             return True
 
