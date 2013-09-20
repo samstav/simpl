@@ -145,12 +145,14 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
     workflow = MANAGERS['workflows'].get_workflow(w_id, with_secrets=True)
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
-    initial_wf_state = cmwf.update_workflow_status(d_wf)
+    initial_wf_dump = cmwf.get_dump(d_wf, state=Task.WAITING)
     d_wf.complete_all()
-    final_workflow_state = cmwf.update_workflow_status(d_wf)
-    errored_tasks_ids = final_workflow_state.get('errored_tasks')
+    final_wf_dump = cmwf.get_dump(d_wf, state=Task.WAITING)
 
-    if initial_wf_state != final_workflow_state:
+    if initial_wf_dump != final_wf_dump:
+        workflow_state = cmwf.update_workflow_status(d_wf)
+        errored_tasks_ids = workflow_state.get('errored_tasks')
+
         if errored_tasks_ids:
             handlers = cmexch.get_handlers(d_wf, errored_tasks_ids, context,
                                            driver)
@@ -166,8 +168,8 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
         MANAGERS['workflows'].save_spiff_workflow(
             d_wf, celery_task_id=cycle_workflow.request.id)
         wait = 1
-        completed_tasks = final_workflow_state['completed']
-        total_tasks = final_workflow_state['total']
+        completed_tasks = workflow_state['completed']
+        total_tasks = workflow_state['total']
         LOG.debug("Workflow status: %s/%s (state=%s)", completed_tasks,
                   total_tasks, d_wf.get_attribute('status'))
         if d_wf.is_completed():

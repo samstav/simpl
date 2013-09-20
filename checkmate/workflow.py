@@ -87,6 +87,22 @@ def get_errored_tasks(d_wf):
     return failed_tasks
 
 
+def get_dump(workflow, state=Task.ANY_MASK):
+    """Gets a dict representation of the internal attributes of all the
+    tasks in the given state in a spiff workflow
+    :param workflow: spiff workflow
+    :param state: state of the tasks
+    :return:
+    """
+    result = {}
+    tasks = workflow.get_tasks(state=state)
+    for task in tasks:
+        result.update({
+            task.id: copy.deepcopy(task.internal_attributes)
+        })
+    return result
+
+
 def update_workflow_status(workflow):
     """Update the status, total, completed and errored tasks in a workflow
 
