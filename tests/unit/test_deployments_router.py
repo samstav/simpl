@@ -463,6 +463,7 @@ class TestValidateDeleteNodeRequest(TestDeploymentRouter):
                                   service_name, count, victim_list)
         self.assertEquals(result, True)
 
+
 class TestUpdateDeployment(TestDeploymentRouter):
 
     def setUp(self):
@@ -472,7 +473,7 @@ class TestUpdateDeployment(TestDeploymentRouter):
         }
         self.tenant_id = 'T333'
 
-        self.fake_deployment = { 'fake_deployment': 'fake_info' }
+        self.fake_deployment = {'fake_deployment': 'fake_info'}
         content_patcher = mock.patch(
             'checkmate.deployments.router._content_to_deployment')
         self.mock_content_to_deployment = content_patcher.start()
@@ -499,7 +500,7 @@ class TestUpdateDeployment(TestDeploymentRouter):
         self.assertEqual(response.status_code, 200)
 
     def test_201_if_create_new_deployment(self):
-        self.manager.save_deployment.return_value = {'id' :'fake_id'}
+        self.manager.save_deployment.return_value = {'id': 'fake_id'}
         response = self.app.put('/%s/deployments/' % self.tenant_id,
                                 json.dumps(self.put_body),
                                 content_type='application/json')
@@ -507,7 +508,7 @@ class TestUpdateDeployment(TestDeploymentRouter):
         self.assertEqual(response.status_code, 201)
 
     def test_set_location_header_on_new_deployment(self):
-        self.manager.save_deployment.return_value = {'id' :'fake_id'}
+        self.manager.save_deployment.return_value = {'id': 'fake_id'}
         response = self.app.put('/%s/deployments/' % self.tenant_id,
                                 json.dumps(self.put_body),
                                 content_type='application/json')

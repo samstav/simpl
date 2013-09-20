@@ -1,4 +1,4 @@
-# pylint: disable=C0103,R0201,R0904,W0212
+# pylint: disable=C0103,R0201,R0904,W0212,W0201
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -431,7 +431,8 @@ class TestCeleryTasks(unittest.TestCase):
     def test_sync_resource_task_without_metadata(self,
                                                  mock_generate_resource_tag):
         """Test sync_resource_task adds metadata even if the loadbalancer's
-           metadata attribute doesn't even exist"""
+        metadata attribute doesn't even exist
+        """
         self.setUpSyncResourceTask()
         del self.mocklb.metadata
         mock_generate_resource_tag.return_value = {"test": "me"}
