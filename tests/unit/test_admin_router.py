@@ -156,5 +156,15 @@ class TestNotLoaded(TestAdminRouter):
             self.assertEqual(exc.friendly_message, "Module not loaded")
 
 
+class TestBlueprints(TestAdminRouter):
+    """Test blueprint admin calls."""
+
+    def test_returns_cache(self):
+        """Admin call returns cached blueprints frm manager."""
+        self.blueprints_manager.list_cache.return_value = {'results': {}}
+        response = self.app.get('/admin/cache/blueprints')
+        self.assertEqual(response.json, {'results': {}})
+
+
 if __name__ == '__main__':
     test.run_with_params()

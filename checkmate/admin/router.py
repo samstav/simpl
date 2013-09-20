@@ -72,9 +72,13 @@ class Router(object):
         app.route('/admin/tenants/<tenant_id>', 'PUT', self.put_tenant)
         app.route('/admin/tenants/<tenant_id>', 'POST', self.add_tenant_tags)
 
-        app.route('/admin/cache/blueprints', 'GET',
-                  partial(self.not_loaded, "blueprints"))
         self.blueprints_manager = blueprints_manager
+        if blueprints_manager:
+            app.route('/admin/cache/blueprints', 'GET',
+                      self.list_blueprints_cache)
+        else:
+            app.route('/admin/cache/blueprints', 'GET',
+                      partial(self.not_loaded, "blueprints"))
 
     @staticmethod
     @utils.only_admins
@@ -298,3 +302,12 @@ class Router(object):
                 new = [new]
             self.tenants_manager.add_tenant_tags(tenant_id, *new)
             bottle.response.status = 204
+
+    #
+    # Blueprints
+    #
+    @utils.only_admins
+    @utils.formatted_response('blueprints', with_pagination=False)
+    def list_blueprints_cache(self):
+        """Return the list of cached blueprints."""
+        return self.blueprints_manager.list_cache()
