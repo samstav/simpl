@@ -157,13 +157,14 @@ class GitHubManager(object):
             finally:
                 self.refresh_lock.release()
 
-    def get_blueprints(self, tenant_id=None, offset=0, limit=100, details=0):
+    def get_blueprints(self, tenant_id=None, offset=0, limit=100, details=0,
+                       roles=None):
         """Return an abbreviated list of known deployment blueprints.
 
         :param offset: pagination start
         :param limit: pagination length
         """
-        tag = self.get_tenant_tag(tenant_id, bottle.request.context.roles)
+        tag = self.get_tenant_tag(tenant_id, roles)
         self._blocking_refresh_if_needed()
 
         if not tag:

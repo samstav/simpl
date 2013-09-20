@@ -3,8 +3,7 @@ Blueprints Router
 '''
 import logging
 
-#pylint: disable=E0611
-from bottle import request
+import bottle
 
 from checkmate import utils
 
@@ -29,10 +28,11 @@ class Router(object):
     @utils.formatted_response('blueprints', with_pagination=True)
     def get_blueprints(self, tenant_id=None, offset=None, limit=None):
         ''' Get existing blueprints '''
-        details = request.query.get('details')
+        details = bottle.request.query.get('details')
         return self.manager.get_blueprints(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
-            details=details == '1'
+            details=details == '1',
+            roles=bottle.request.context.roles
         )
