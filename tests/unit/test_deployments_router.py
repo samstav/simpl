@@ -1,4 +1,4 @@
-# pylint: disable=C0103,R0904,W0212,W0613,W0201,C0111
+# pylint: disable=C0103,E1101,R0904,W0201,W0212
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -17,7 +17,6 @@
 """Tests for Deployments Router."""
 import json
 import mock
-import os
 import unittest
 
 import bottle
@@ -28,8 +27,6 @@ from checkmate import exceptions
 from checkmate import test
 from checkmate import utils
 from checkmate import workflows
-
-os.environ['CHECKMATE_CONNECTION_STRING'] = 'sqlite://'
 
 
 class TestAPICalls(unittest.TestCase):
@@ -192,6 +189,18 @@ class TestAPICalls(unittest.TestCase):
                 '1234',
                 tenant_id='T1000'
             )
+
+    @mock.patch.object(utils, 'write_body')
+    def test_update_deployment_wont_get_deployment_if_no_api_id(self,
+                                                                mock_write):
+        '''Test that update does not make an unnecessary database call
+        when no api_id is given.
+        '''
+        self.manager.save_deployment.return_value = {'id': 'test'}
+        self.router.update_deployment(None)
+        mock_write.assert_called_once_with(mock.ANY, mock.ANY, mock.ANY)
+        assert not self.manager.get_deployment.called, \
+            'get_deploment should not be called'
 
 
 class TestDeploymentRouter(unittest.TestCase):
@@ -428,6 +437,7 @@ class TestValidateDeleteNodeRequest(TestDeploymentRouter):
         deployment_dict = {'blueprint': {'services': {'fake_service': {}}}}
 
         def get_item(key1):
+            """Helper function."""
             return deployment_dict[key1]
 
         api_id = '999'
@@ -448,6 +458,7 @@ class TestValidateDeleteNodeRequest(TestDeploymentRouter):
         deployment_dict = {'blueprint': {'services': {'fake_service': {}}}}
 
         def get_item(key1):
+            """Helper function."""
             return deployment_dict[key1]
 
         api_id = '999'
