@@ -18,6 +18,7 @@
 import copy
 import logging
 
+from checkmate.common import schema
 from checkmate.common import templating
 from checkmate import exceptions
 from checkmate import utils
@@ -108,11 +109,19 @@ class Script(object):
         if isinstance(script, basestring):
             self._body = script
             script = {}
-        else:
+        elif isinstance(script, dict):
+            extras = [key for key in script.iterkeys()
+                      if key not in schema.SCRIPT_SCHEMA]
+            if extras:
+                raise exceptions.CheckmateValidationException(
+                    "Script does not allow %s" % ', '.join(extras))
             if 'body' in script:
                 self._body = script['body']
             elif 'template' in script:
                 self.template = script['template']
+        else:
+            raise exceptions.CheckmateValidationException(
+                "Script requires a string or dict argument")
         self.name = script.get('name')
         self.type = script.get('type') or self.detect_type()
 

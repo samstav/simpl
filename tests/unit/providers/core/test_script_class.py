@@ -16,6 +16,7 @@
 """Unit Tests for Script class."""
 import unittest
 
+from checkmate import exceptions
 from checkmate.providers.core.script import manager
 
 
@@ -41,11 +42,29 @@ class TestScriptClass(unittest.TestCase):
             'body': "#!/bin/python",
             'name': 'install.sh',
             'type': 'sh',
+            'parameters': {},
         }
         script = manager.Script(data)
         self.assertEqual(script.body, data['body'])
         self.assertEqual(script.name, data['name'])
+        self.assertEqual(script.parameters, data['parameters'])
         self.assertTrue(hasattr(script, "type"))
+
+    def test_bad_param(self):
+        """Script() rejects unsupported params."""
+        data = {
+            'body': "#!/bin/python",
+            'name': 'install.sh',
+            'type': 'sh',
+            'foo': "Don't foo",
+        }
+        with self.assertRaises(exceptions.CheckmateValidationException):
+            manager.Script(data)
+
+    def test_bad_type(self):
+        """Script() rejects unsupported type."""
+        with self.assertRaises(exceptions.CheckmateValidationException):
+            manager.Script(1)
 
 
 class TestScriptFileTypeDetection(unittest.TestCase):
