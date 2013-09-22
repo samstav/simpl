@@ -18,6 +18,7 @@
 import copy
 import logging
 
+from checkmate.common import templating
 from checkmate import exceptions
 from checkmate import utils
 
@@ -103,13 +104,22 @@ class Script(object):
 
     def __init__(self, script):
         """Accepts a script dict or string."""
+        self._body = None
         if isinstance(script, basestring):
-            self.body = script
+            self._body = script
             script = {}
         else:
-            self.body = script.get('body')
+            if 'body' in script:
+                self._body = script['body']
+            elif 'template' in script:
+                self.template = script['template']
         self.name = script.get('name')
         self.type = script.get('type') or self.detect_type()
+
+    @property
+    def body(self):
+        """Return body (evaluates it if it is a template."""
+        return self._body or templating.parse(self.template)
 
     def detect_type(self):
         """Detect script type based on properties such as the name or body."""
