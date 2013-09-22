@@ -21,7 +21,6 @@ import logging
 from checkmate.common import schema
 from checkmate.common import templating
 from checkmate import exceptions
-from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -62,8 +61,10 @@ class Manager(object):
             script = Script(install_script)
             try:
                 if host_os == 'windows':
+                    #TODO(zns): replace this username hack with a real design
                     if username == 'root':
                         username = 'Administrator'
+
                     (status, results) = self.api.ps_execute(
                         host, script.body, script.name or 'install.ps1',
                         username, password, timeout=timeout)

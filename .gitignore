@@ -24,6 +24,8 @@ checkmate/openstack
 /checkmate/providers/opscode/chef-stockton
 tmp
 checkmate/blueprints/.blueprint_cache
+.testrepository/
+profiling/
 
 # possible locations of chef-stockton repo
 checkmate/providers/opscode/chef-stockton

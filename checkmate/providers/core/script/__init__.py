@@ -89,5 +89,5 @@ Syntax options for script:
 """
 
 # flake8: noqa
-from .provider import Provider
-from .manager import Manager
+from checkmate.providers.core.script.provider import Provider
+from checkmate.providers.core.script.manager import Manager

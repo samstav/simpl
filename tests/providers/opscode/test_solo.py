@@ -1911,6 +1911,7 @@ class TestChefMapResolver(unittest.TestCase):
 
 
 class TestCatalog(unittest.TestCase):
+    """Test catalog functionality (remote)."""
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -1936,6 +1937,15 @@ class TestCatalog(unittest.TestCase):
         self.assertListEqual(response['application'].keys(), ['webapp'])
         self.assertListEqual(response['database'].keys(), ['mysql'])
         self.mox.VerifyAll()
+
+
+class TestMapTemplating(unittest.TestCase):
+    """Chef maps with templating work correctly."""
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
 
     def test_parsing_scalar(self):
         chef_map = solo.ChefMap('')

@@ -95,6 +95,7 @@ class TestTemplating(unittest.TestCase):
     """Test Jinja manager of scripts."""
 
     def test_simple_template(self):
+        """Basic Jinja template works."""
         data = {
             'template': '#!/bin/python\nprint "{{"hello"}}"',
             'type': 'sh',
