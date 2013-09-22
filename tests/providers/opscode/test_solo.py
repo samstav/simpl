@@ -24,11 +24,12 @@ import shutil
 import unittest
 import urlparse
 import uuid
-import yaml
 
 import mox
 from SpiffWorkflow import specs
+import yaml
 
+from checkmate.common import templating
 from checkmate import deployment as cm_dep
 from checkmate import deployments
 from checkmate import middleware
@@ -181,11 +182,9 @@ class TestChefSoloProvider(test.ProviderTester):
         provider.map_file = chefmap
         component = chefmap.components[0]
 
-        self.mox.StubOutWithMock(provider, 'evaluate')
-        provider.evaluate('generate_password()').AndReturn("RandomPass")
-
-        self.mox.StubOutWithMock(solo.ProviderBase, 'evaluate')
-        solo.ProviderBase.evaluate('generate_password()').AndReturn("randp2")
+        self.mox.StubOutWithMock(utils, 'evaluate')
+        utils.evaluate('generate_password()').AndReturn("RandomPass")
+        utils.evaluate('generate_password()').AndReturn("randp2")
 
         resource = {
             'type': 'application',
@@ -1562,8 +1561,8 @@ class TestChefMap(unittest.TestCase):
 
         self.assertEqual(map_file, TEMPLATE)
 
-    def test_map_URI_parser(self):
-        fxn = solo.ChefMap.parse_map_URI
+    def test_map_uri_parser(self):
+        fxn = solo.ChefMap.parse_map_uri
         cases = [
             {
                 'name': 'requirement from short form',
@@ -1641,17 +1640,17 @@ class TestChefMap(unittest.TestCase):
                 self.assertEqual(value, case.get(key, ''), msg="'%s' got '%s' "
                                  "wrong in %s" % (case['name'], key, uri))
 
-    def test_map_URI_parser_netloc(self):
-        result = solo.ChefMap.parse_map_URI("attributes://only/path")
+    def test_map_uri_parser_netloc(self):
+        result = solo.ChefMap.parse_map_uri("attributes://only/path")
         self.assertEqual(result['path'], 'only/path')
 
-        result = solo.ChefMap.parse_map_URI("attributes://only")
+        result = solo.ChefMap.parse_map_uri("attributes://only")
         self.assertEqual(result['path'], 'only')
 
-        result = solo.ChefMap.parse_map_URI("outputs://only/path")
+        result = solo.ChefMap.parse_map_uri("outputs://only/path")
         self.assertEqual(result['path'], 'only/path')
 
-        result = solo.ChefMap.parse_map_URI("outputs://only")
+        result = solo.ChefMap.parse_map_uri("outputs://only")
         self.assertEqual(result['path'], 'only')
 
     def test_has_mapping_positive(self):
@@ -1911,7 +1910,7 @@ class TestChefMapResolver(unittest.TestCase):
         self.assertListEqual(unresolved, [maps[2]])
 
 
-class TestTemplating(unittest.TestCase):
+class TestCatalog(unittest.TestCase):
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -2005,7 +2004,6 @@ class TestTemplating(unittest.TestCase):
               targets:
               - attributes://protocol_target/scheme
         '''
-        chef_map.parse(chef_map.raw)
         result = chef_map.get_attributes('bar', None)
         expected = {
             'protocol_target': {
@@ -2058,7 +2056,7 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
               targets:
               - attributes://protocol_target/scheme
         '''
-        result = chef_map.parse(chef_map.raw, deployment=deployment)
+        result = templating.parse(chef_map.raw, deployment=deployment)
         data = yaml.safe_load(result)
         self.assertEqual(data['maps'][0]['value'], cert)
 
@@ -2080,36 +2078,6 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
                 'tJWqoY/'
             }
         )
-
-    def test_yaml_escaping_simple(self):
-        chef_map = solo.ChefMap('')
-        template = "id: {{ setting('password') }}"
-        deployment = cm_dep.Deployment({
-            'inputs': {
-                'password': "Password1",
-            },
-            'blueprint': {},
-        })
-
-        result = chef_map.parse(template, deployment=deployment)
-        self.assertEqual(result, "id: Password1")
-        data = yaml.safe_load(result)
-        self.assertEqual(data, {'id': 'Password1'})
-
-    def test_yaml_escaping_at(self):
-        chef_map = solo.ChefMap('')
-        template = "id: {{ setting('password') }}"
-        deployment = cm_dep.Deployment({
-            'inputs': {
-                'password': "@W#$%$^D%F^UGY",
-            },
-            'blueprint': {},
-        })
-
-        result = chef_map.parse(template, deployment=deployment)
-        self.assertEqual(result, "id: '@W#$%$^D%F^UGY'")
-        data = yaml.safe_load(result)
-        self.assertEqual(data, {'id': '@W#$%$^D%F^UGY'})
 
 
 TEMPLATE = \

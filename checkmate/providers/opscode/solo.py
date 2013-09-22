@@ -14,15 +14,10 @@
 
 """Chef Solo configuration management provider."""
 import copy
-import json
 import logging
 import os
 import urlparse
 
-from jinja2 import BytecodeCache
-from jinja2 import DictLoader
-from jinja2.sandbox import ImmutableSandboxedEnvironment
-from jinja2 import TemplateError
 from SpiffWorkflow.operators import Attrib, PathAttrib
 from SpiffWorkflow.specs import Celery, SafeTransMerge
 import yaml
@@ -31,12 +26,12 @@ from yaml.parser import ParserError
 from yaml.scanner import ScannerError
 
 from checkmate.common import schema
+from checkmate.common import templating
 from checkmate import utils
 from checkmate.exceptions import (
     CheckmateException,
     CheckmateValidationException,
 )
-from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
 from checkmate.providers.opscode import knife
 from checkmate.providers import ProviderBase
@@ -44,25 +39,13 @@ from checkmate.providers import ProviderBase
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
                                  "10.24.0")
-CODE_CACHE = {}
-
-
-class CompilerCache(BytecodeCache):
-    """Cache for compiled template code."""
-
-    def load_bytecode(self, bucket):
-        if bucket.key in CODE_CACHE:
-            bucket.bytecode_from_string(CODE_CACHE[bucket.key])
-
-    def dump_bytecode(self, bucket):
-        CODE_CACHE[bucket.key] = bucket.bytecode_to_string()
 
 
 def register_scheme(scheme):
     """Use this to register a new scheme with urlparse and have it be
     parsed in the same way as http is parsed
     """
-    for method in filter(lambda s: s.startswith('uses_'), dir(urlparse)):
+    for method in [s for s in dir(urlparse) if s.startswith('uses_')]:
         getattr(urlparse, method).append(scheme)
 
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
@@ -364,7 +347,7 @@ class Provider(ProviderBase):
         databags = {}
         for mapping in databag_maps:
             for target in mapping.get('targets', []):
-                uri = ChefMap.parse_map_URI(target)
+                uri = ChefMap.parse_map_uri(target)
                 scheme = uri['scheme']
                 if scheme not in ['databags', 'encrypted-databags']:
                     continue
@@ -391,8 +374,8 @@ class Provider(ProviderBase):
                 raise NotImplementedError("Chef-solo provider does not "
                                           "currently support more than one "
                                           "databag item per component. '%s' "
-                                          "has multiple items: %s" % (bag_name,
-                                          items))
+                                          "has multiple items: %s" %
+                                          (bag_name, items))
             item_name = items[0]
             if databags[bag_name]['encrypted'] is True:
                 secret_file = 'certificates/chef.pem'
@@ -446,7 +429,7 @@ class Provider(ProviderBase):
 
                 for mapping in mcomponent.get('maps', []):
                     for target in mapping.get('targets', []):
-                        uri = map_with_context.parse_map_URI(target)
+                        uri = map_with_context.parse_map_uri(target)
                         scheme = uri['scheme']
                         if scheme != 'roles':
                             continue
@@ -535,7 +518,7 @@ class Provider(ProviderBase):
                         pass  # default probably not a string type
                     defaults[key] = default
             kwargs['defaults'] = defaults
-        parsed = self.map_file.parse(self.map_file.raw, **kwargs)
+        parsed = templating.parse(self.map_file.raw, **kwargs)
         return ChefMap(parsed=parsed)
 
     def get_resource_prepared_maps(self, resource, deployment, map_file=None):
@@ -558,7 +541,7 @@ class Provider(ProviderBase):
             # find paths for sources
 
             if 'source' in mapping:
-                url = ChefMap.parse_map_URI(mapping['source'])
+                url = ChefMap.parse_map_uri(mapping['source'])
                 if url['scheme'] == 'requirements':
                     key = url['netloc']
                     relations = [
@@ -615,7 +598,7 @@ class Provider(ProviderBase):
         """
         LOG.debug("Adding connection task for resource '%s' for relation '%s'",
                   key, relation_key, extra={'data': {'resource': resource,
-                  'relation': relation}})
+                                                     'relation': relation}})
 
         environment = deployment.environment()
         provider = environment.get_provider(resource['provider'])
@@ -987,8 +970,8 @@ class Transforms(object):
             import sys
             import traceback
             LOG.error("Error in transform: %s", exc)
-            tb = sys.exc_info()[2]
-            tb_info = traceback.extract_tb(tb)
+            tback = sys.exc_info()[2]
+            tb_info = traceback.extract_tb(tback)
             mod, line = tb_info[-1][-2:]
             raise Exception("%s %s in %s executing: %s" % (type(exc).__name__,
                                                            exc, mod, line))
@@ -1028,7 +1011,7 @@ class ChefMap(object):
     def parsed(self):
         """Returns the parsed file contents."""
         if self._parsed is None:
-            self._parsed = self.parse(self.raw)
+            self._parsed = templating.parse(self.raw)
         return self._parsed
 
     def get_map_file(self):
@@ -1078,7 +1061,7 @@ class ChefMap(object):
         for component in self.components:
             if component_id == component['id']:
                 for _map in component.get('maps', []):
-                    url = self.parse_map_URI(_map.get('source'))
+                    url = self.parse_map_uri(_map.get('source'))
                     if url['scheme'] == 'requirements':
                         if url['netloc'] == requirement_key:
                             return True
@@ -1091,7 +1074,7 @@ class ChefMap(object):
         for component in self.components:
             if component_id == component['id']:
                 for _map in component.get('maps', []):
-                    url = self.parse_map_URI(_map.get('source'))
+                    url = self.parse_map_uri(_map.get('source'))
                     if url['scheme'] == 'clients':
                         if url['netloc'] == provides_key:
                             return True
@@ -1110,7 +1093,7 @@ class ChefMap(object):
             if component_id == component['id']:
                 maps = (m for m in component.get('maps', [])
                         if any(target for target in m.get('targets', [])
-                               if (self.parse_map_URI(target)['scheme'] ==
+                               if (self.parse_map_uri(target)['scheme'] ==
                                    'attributes')))
                 if maps:
                     result = {}
@@ -1124,7 +1107,7 @@ class ChefMap(object):
                             continue
                         if ChefMap.is_writable_val(value):
                             for target in _map.get('targets', []):
-                                url = self.parse_map_URI(target)
+                                url = self.parse_map_uri(target)
                                 if url['scheme'] == 'attributes':
                                     utils.write_path(result, url['path'],
                                                      value)
@@ -1159,7 +1142,7 @@ class ChefMap(object):
         for component in self.components:
             if component_id == component['id']:
                 maps = (m for m in component.get('maps', [])
-                        if (self.parse_map_URI(
+                        if (self.parse_map_uri(
                             m.get('source'))['scheme'] in ['requirements']))
                 if any(maps):
                     return True
@@ -1173,7 +1156,7 @@ class ChefMap(object):
         result = []
         for mapping in maps:
             for target in mapping.get('targets', []):
-                url = ChefMap.parse_map_URI(target)
+                url = ChefMap.parse_map_uri(target)
                 if url['scheme'] in target_schemes:
                     result.append(mapping)
                     break
@@ -1202,12 +1185,12 @@ class ChefMap(object):
             return
         write_array = False
         if 'source' in mapping:
-            url = ChefMap.parse_map_URI(mapping['source'])
+            url = ChefMap.parse_map_uri(mapping['source'])
             if url['scheme'] == 'clients':
                 write_array = True
 
         for target in mapping.get('targets', []):
-            url = ChefMap.parse_map_URI(target)
+            url = ChefMap.parse_map_uri(target)
             if url['scheme'] == 'attributes':
                 if 'resource' not in mapping:
                     message = 'Resource hint required in attribute mapping'
@@ -1271,7 +1254,7 @@ class ChefMap(object):
         """
         value = None
         if 'source' in mapping:
-            url = ChefMap.parse_map_URI(mapping['source'])
+            url = ChefMap.parse_map_uri(mapping['source'])
             if url['scheme'] in ['requirements', 'clients']:
                 path = mapping.get('path', url['netloc'])
                 try:
@@ -1287,7 +1270,7 @@ class ChefMap(object):
             else:
                 raise NotImplementedError("Unsupported url scheme '%s' in url "
                                           "'%s'" % (url['scheme'],
-                                          mapping['source']))
+                                                    mapping['source']))
         elif 'value' in mapping:
             value = mapping['value']
         else:
@@ -1319,7 +1302,7 @@ class ChefMap(object):
         return unresolved
 
     @staticmethod
-    def parse_map_URI(uri):
+    def parse_map_uri(uri):
         """Parses the URI format of a map.
 
         :param uri: string uri based on map file supported sources and targets
@@ -1341,115 +1324,4 @@ class ChefMap(object):
         if parts.scheme in ['attributes', 'outputs']:
             result['path'] = os.path.join(parts.netloc.strip('/'),
                                           parts.path.strip('/')).strip('/')
-        return result
-
-    @staticmethod
-    def parse(template, **kwargs):
-        """Parse template.
-
-        :param template: the template contents as a string
-        :param kwargs: extra arguments are passed to the renderer
-        """
-        template_map = {'template': template}
-        env = ImmutableSandboxedEnvironment(loader=DictLoader(template_map),
-                                            bytecode_cache=CompilerCache())
-
-        def do_prepend(value, param='/'):
-            """Prepend a string if the passed in string exists.
-
-            Example:
-            The template '{{ root|prepend('/')}}/path';
-            Called with root undefined renders:
-                /path
-            Called with root defined as 'root' renders:
-                /root/path
-            """
-            if value:
-                return '%s%s' % (param, value)
-            else:
-                return ''
-        env.filters['prepend'] = do_prepend
-
-        env.json = json
-
-        def evaluate(value):
-            """Handle defaults with functions."""
-            if isinstance(value, basestring):
-                if value.startswith('=generate'):
-                    # TODO(zns): Optimize. Maybe have Deployment class handle
-                    # it
-                    value = ProviderBase({}).evaluate(value[1:])
-            return value
-
-        def parse_url(value):
-            """Parse a url into its components.
-
-            :returns: Input parsed as url to support full option parsing
-
-            returns a blank URL if none provided to make this a safe function
-            to call from within a Jinja template which will generally not cause
-            exceptions and will always return a url object
-            """
-            result = Input(value or '')
-            result.parse_url()
-            for attribute in ['certificate', 'private_key',
-                              'intermediate_key']:
-                if getattr(result, attribute) is None:
-                    setattr(result, attribute, '')
-            return result
-        env.globals['parse_url'] = parse_url
-        deployment = kwargs.get('deployment')
-        resource = kwargs.get('resource')
-        defaults = kwargs.get('defaults', {})
-        if deployment:
-            if resource:
-                fxn = lambda setting_name: evaluate(
-                    utils.escape_yaml_simple_string(
-                        deployment.get_setting(
-                            setting_name,
-                            resource_type=resource['type'],
-                            provider_key=resource['provider'],
-                            service_name=resource['service'],
-                            default=defaults.get(setting_name, '')
-                        )
-                    )
-                )
-            else:
-                fxn = lambda setting_name: evaluate(
-                    utils.escape_yaml_simple_string(
-                        deployment.get_setting(
-                            setting_name, default=defaults.get(setting_name,
-                                                               '')
-                        )
-                    )
-                )
-        else:
-            # noop
-            fxn = lambda setting_name: evaluate(
-                utils.escape_yaml_simple_string(
-                    defaults.get(setting_name, '')))
-        env.globals['setting'] = fxn
-        env.globals['hash'] = hash_SHA512
-
-        template = env.get_template('template')
-        minimum_kwargs = {
-            'deployment': {'id': ''},
-            'resource': {},
-            'component': {},
-            'clients': [],
-        }
-        minimum_kwargs.update(kwargs)
-
-        try:
-            result = template.render(**minimum_kwargs)
-            #TODO(zns): exceptions in Jinja template sometimes missing
-            #traceback
-        except StandardError as exc:
-            LOG.error(exc, exc_info=True)
-            error_message = "Chef template rendering failed: %s" % exc
-            raise CheckmateException(error_message)
-        except TemplateError as exc:
-            LOG.error(exc, exc_info=True)
-            error_message = "Chef template had an error: %s" % exc
-            raise CheckmateException(error_message)
         return result

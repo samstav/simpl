@@ -1,0 +1,153 @@
+"""
+Script file templating and management module.
+"""
+import json
+import logging
+import urlparse
+
+from jinja2 import BytecodeCache
+from jinja2 import DictLoader
+from jinja2.sandbox import ImmutableSandboxedEnvironment
+from jinja2 import TemplateError
+
+from checkmate import exceptions
+from checkmate.inputs import Input
+from checkmate.keys import hash_SHA512
+from checkmate import utils
+
+CODE_CACHE = {}
+LOG = logging.getLogger(__name__)
+
+
+def register_scheme(scheme):
+    """Use this to register a new scheme with urlparse and have it be
+    parsed in the same way as http is parsed
+    """
+    for method in [s for s in dir(urlparse) if s.startswith('uses_')]:
+        getattr(urlparse, method).append(scheme)
+
+register_scheme('git')  # without this, urlparse won't handle git:// correctly
+
+
+class CompilerCache(BytecodeCache):
+    """Cache for compiled template code."""
+
+    def load_bytecode(self, bucket):
+        if bucket.key in CODE_CACHE:
+            bucket.bytecode_from_string(CODE_CACHE[bucket.key])
+
+    def dump_bytecode(self, bucket):
+        CODE_CACHE[bucket.key] = bucket.bytecode_to_string()
+
+
+def do_prepend(value, param='/'):
+    """Prepend a string if the passed in string exists.
+
+    Example:
+    The template '{{ root|prepend('/')}}/path';
+    Called with root undefined renders:
+        /path
+    Called with root defined as 'root' renders:
+        /root/path
+    """
+    if value:
+        return '%s%s' % (param, value)
+    else:
+        return ''
+
+
+def evaluate(value):
+    """Handle defaults with functions."""
+    if isinstance(value, basestring):
+        if value.startswith('=generate'):
+            # TODO(zns): Optimize. Maybe have Deployment class handle
+            # it
+            value = utils.evaluate(value[1:])
+    return value
+
+
+def parse_url(value):
+    """Parse a url into its components.
+
+    :returns: Input parsed as url to support full option parsing
+
+    returns a blank URL if none provided to make this a safe function
+    to call from within a Jinja template which will generally not cause
+    exceptions and will always return a url object
+    """
+    result = Input(value or '')
+    result.parse_url()
+    for attribute in ['certificate', 'private_key',
+                      'intermediate_key']:
+        if getattr(result, attribute) is None:
+            setattr(result, attribute, '')
+    return result
+
+
+def parse(template, **kwargs):
+    """Parse template.
+
+    :param template: the template contents as a string
+    :param kwargs: extra arguments are passed to the renderer
+    """
+    template_map = {'template': template}
+    env = ImmutableSandboxedEnvironment(loader=DictLoader(template_map),
+                                        bytecode_cache=CompilerCache())
+    env.filters['prepend'] = do_prepend
+    env.json = json
+    env.globals['parse_url'] = parse_url
+    deployment = kwargs.get('deployment')
+    resource = kwargs.get('resource')
+    defaults = kwargs.get('defaults', {})
+    if deployment:
+        if resource:
+            fxn = lambda setting_name: evaluate(
+                utils.escape_yaml_simple_string(
+                    deployment.get_setting(
+                        setting_name,
+                        resource_type=resource['type'],
+                        provider_key=resource['provider'],
+                        service_name=resource['service'],
+                        default=defaults.get(setting_name, '')
+                    )
+                )
+            )
+        else:
+            fxn = lambda setting_name: evaluate(
+                utils.escape_yaml_simple_string(
+                    deployment.get_setting(
+                        setting_name, default=defaults.get(setting_name,
+                                                           '')
+                    )
+                )
+            )
+    else:
+        # noop
+        fxn = lambda setting_name: evaluate(
+            utils.escape_yaml_simple_string(
+                defaults.get(setting_name, '')))
+    env.globals['setting'] = fxn
+    env.globals['hash'] = hash_SHA512
+
+    template = env.get_template('template')
+    minimum_kwargs = {
+        'deployment': {'id': ''},
+        'resource': {},
+        'component': {},
+        'clients': [],
+    }
+    minimum_kwargs.update(kwargs)
+
+    try:
+        result = template.render(**minimum_kwargs)
+        #TODO(zns): exceptions in Jinja template sometimes missing
+        #traceback
+    except StandardError as exc:
+        LOG.error(exc, exc_info=True)
+        error_message = "Chef template rendering failed: %s" % exc
+        raise exceptions.CheckmateException(error_message)
+    except TemplateError as exc:
+        LOG.error(exc, exc_info=True)
+        error_message = "Chef template had an error: %s" % exc
+        raise exceptions.CheckmateException(error_message)
+    return result
