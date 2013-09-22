@@ -104,6 +104,17 @@ class TestTemplating(unittest.TestCase):
         self.assertTrue(hasattr(script, "template"))
         self.assertEqual(script.body, '#!/bin/python\nprint "hello"')
 
+    def test_simple_parameter(self):
+        """Static parameters gets passed to template."""
+        data = {
+            'template': '#!/bin/python\nprint "{{test}}"',
+            'type': 'sh',
+            'parameters': {'test': 1}
+        }
+        script = manager.Script(data)
+        self.assertTrue(hasattr(script, "template"))
+        self.assertEqual(script.body, '#!/bin/python\nprint "1"')
+
 
 if __name__ == '__main__':
     from checkmate import test

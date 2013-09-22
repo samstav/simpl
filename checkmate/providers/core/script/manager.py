@@ -125,11 +125,12 @@ class Script(object):
                 "Script requires a string or dict argument")
         self.name = script.get('name')
         self.type = script.get('type') or self.detect_type()
+        self.parameters = script.get('parameters') or {}
 
     @property
     def body(self):
         """Return body (evaluates it if it is a template."""
-        return self._body or templating.parse(self.template)
+        return self._body or templating.parse(self.template, **self.parameters)
 
     def detect_type(self):
         """Detect script type based on properties such as the name or body."""
