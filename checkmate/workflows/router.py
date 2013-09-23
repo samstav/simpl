@@ -216,16 +216,22 @@ class Router(object):
 
         :param api_id: checkmate workflow id
         """
-        entity = self.manager.get_workflow(api_id)
-        if not entity:
+        workflow = self.manager.get_workflow(api_id)
+        if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
         context = bottle.request.context
-        async_call = cycle_workflow.delay(api_id,
-                                          context.get_queued_task_dict())
-        LOG.debug("Executed a task to run workflow '%s'", async_call)
-        entity = self.manager.get_workflow(api_id)
-        return utils.write_body(entity, bottle.request, bottle.response)
+        celery_task_id = workflow.get('celery_task_id')
+
+        if celery_task_id:
+            async_result = cycle_workflow.AsyncResult(celery_task_id)
+            if not async_result.ready():
+                bottle.abort(406, 'Workflow %s is already in progress with '
+                                  'state %s' % (api_id, async_result.state))
+        cycle_workflow.delay(api_id, context.get_queued_task_dict())
+        LOG.debug("Executed a task to run workflow '%s'", api_id)
+        workflow = self.manager.get_workflow(api_id)
+        return utils.write_body(workflow, bottle.request, bottle.response)
 
     @utils.with_tenant
     def pause_workflow(self, api_id, tenant_id=None):
