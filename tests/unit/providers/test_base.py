@@ -152,6 +152,32 @@ class TestProviderTask(unittest.TestCase):
 
         mocked_lib.postback.assert_called_with('DEP_ID', expected_postback)
 
+    @mock.patch('checkmate.deployments.tasks')
+    def test_callback_finds_resource_index_under_resource(self, mock_tasks):
+        context = {
+            'region': 'ORD',
+            'resource': 1,
+            'deployment_id': 'DEP_ID'}
+
+        expected_postback = {
+            'resources': {
+                1: {
+                    'status': 'ERROR',
+                    'instance': {
+                        'status': 'BLOCKED',
+                        'api1': 'test_api',
+                        'api2': 'test_api',
+                        'name': 'test'
+                    }
+                }
+            }
+        }
+        mock_tasks.postback = mock.MagicMock()
+
+        do_something(context, 'test', api='test_api')
+
+        mock_tasks.postback.assert_called_with('DEP_ID', expected_postback)
+
 
 @celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
 def do_something(context, name, api, region=None):
