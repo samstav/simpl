@@ -18,8 +18,8 @@
 import copy
 import logging
 
+from checkmate.common import templating
 from checkmate import exceptions
-from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -60,8 +60,10 @@ class Manager(object):
             script = Script(install_script)
             try:
                 if host_os == 'windows':
+                    #TODO(zns): replace this username hack with a real design
                     if username == 'root':
                         username = 'Administrator'
+
                     (status, results) = self.api.ps_execute(
                         host, script.body, script.name or 'install.ps1',
                         username, password, timeout=timeout)
@@ -96,6 +98,8 @@ class Manager(object):
 class Script(object):
     """Handles script files."""
 
+    __schema__ = ['body', 'template', 'parameters', 'type', 'name']
+
     extension_map = {
         'ps1': 'powershell',
         'sh': 'bash',
@@ -103,13 +107,31 @@ class Script(object):
 
     def __init__(self, script):
         """Accepts a script dict or string."""
+        self._body = None
         if isinstance(script, basestring):
-            self.body = script
+            self._body = script
             script = {}
+        elif isinstance(script, dict):
+            extras = [key for key in script.iterkeys()
+                      if key not in self.__schema__]
+            if extras:
+                raise exceptions.CheckmateValidationException(
+                    "Script does not allow %s" % ', '.join(extras))
+            if 'body' in script:
+                self._body = script['body']
+            elif 'template' in script:
+                self.template = script['template']
         else:
-            self.body = script.get('body')
+            raise exceptions.CheckmateValidationException(
+                "Script requires a string or dict argument")
         self.name = script.get('name')
         self.type = script.get('type') or self.detect_type()
+        self.parameters = script.get('parameters') or {}
+
+    @property
+    def body(self):
+        """Return body (evaluates it if it is a template."""
+        return self._body or templating.parse(self.template, **self.parameters)
 
     def detect_type(self):
         """Detect script type based on properties such as the name or body."""

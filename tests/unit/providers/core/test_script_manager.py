@@ -23,7 +23,7 @@ from checkmate import exceptions
 from checkmate.providers.core.script import Manager
 
 
-class TestCreateReqource(unittest.TestCase):
+class TestCreateResource(unittest.TestCase):
     """Class for testing Script.Manager."""
 
     def setUp(self):
@@ -66,7 +66,5 @@ class TestCreateReqource(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     from checkmate import test
-    import sys
-    test.run_with_params(sys.argv[:])
+    test.run_with_params()

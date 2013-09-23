@@ -21,7 +21,6 @@ import logging
 import mock
 import unittest
 
-
 from checkmate import middleware
 from checkmate.providers.core.script import tasks
 
@@ -49,7 +48,5 @@ class TestScriptTasks(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # Any change here should be made in all test files
     from checkmate import test
-    import sys
-    test.run_with_params(sys.argv[:])
+    test.run_with_params()

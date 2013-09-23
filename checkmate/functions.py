@@ -15,6 +15,10 @@
 Blueprint functions
 
 Functions that can be used in blueprints:
+- if
+- or
+- and
+- value: accepts URI-type values (ex. resoures://0/instance/ip)
 
 """
 import urlparse
