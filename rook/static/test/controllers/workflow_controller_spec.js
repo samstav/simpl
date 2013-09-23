@@ -100,13 +100,22 @@ describe('WorkflowController', function(){
   });
 
   describe('#workflow_action_error', function() {
-    it('should track action with mixpanel', function() {
-      var response = { config: { url: '/fakeurl/+fakeaction' } };
+    var response;
+    beforeEach(function() {
+      response = { config: { url: '/fakeurl/+fakeaction' } };
       $location.path = sinon.stub().returns('/fakeurl');
       $scope.notify = sinon.stub();
       spyOn(mixpanel, 'track');
+      $scope.show_error = sinon.spy();
       $scope.workflow_action_error(response);
+    });
+
+    it('should track action with mixpanel', function() {
       expect(mixpanel.track).toHaveBeenCalledWith("Workflow Action Failed", {'action': 'fakeaction'});
+    });
+
+    it('should display the error modal dialog', function() {
+      expect($scope.show_error).toHaveBeenCalledWith(response);
     });
   });
 

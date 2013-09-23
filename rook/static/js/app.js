@@ -1311,6 +1311,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   }
 
   $scope.workflow_action_error = function(response) {
+    $scope.show_error(response);
     var action = response.config.url.replace($location.path() + '/+', '');
     mixpanel.track("Workflow Action Failed", {'action': action});
   }
