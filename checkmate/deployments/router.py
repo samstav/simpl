@@ -500,7 +500,7 @@ class Router(object):
                     "Deployment %s cannot be deleted while in status %s." % (
                         api_id, deployment.get('status', 'UNKNOWN')))
         operation = deployment.get('operation')
-        if (operation.get("type") == "DELETE"
+        if (operation and operation.get("type") == "DELETE"
                 and operation.get("status") != "COMPLETE"):
             bottle.abort(400, "This deployment is already in the process of "
                          "being deleted.")
