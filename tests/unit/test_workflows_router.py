@@ -21,8 +21,8 @@ import unittest
 import bottle
 import webtest
 
-from checkmate import workflows
 from checkmate import test
+from checkmate import workflows
 
 
 class TestWorkflowsRouter(unittest.TestCase):
