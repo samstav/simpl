@@ -17,6 +17,7 @@
 """File with testing primitives for use in tests and external providers."""
 import json
 import logging
+import mock
 import os
 import sys
 import unittest
@@ -178,6 +179,13 @@ CATALOG = [
     }
 ]
 LOG = logging.getLogger(__name__)
+
+
+def mock_object(receiver, target, method_name):
+    patcher = mock.patch.object(target, method_name)
+    mock_object = patcher.start()
+    receiver.addCleanup(mock_object.stop)
+    return mock_object
 
 
 def register():
