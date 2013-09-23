@@ -97,10 +97,10 @@ def update_deployment(w_id, error=None):
     total = d_wf.get_attribute('total')
     completed = d_wf.get_attribute('completed')
     wf_type = d_wf.get_attribute('type')
-    dep_status = None
+    dep_statuses = cmdep.OPERATION_DEPLOYMENT_STATUS_MAP.get(wf_type)
 
     if d_wf.is_completed():
-        dep_status = cmdep.OPERATION_DEPLOYMENT_STATUS_MAP.get(wf_type, None)
+        dep_status = dep_statuses.get('final')
         cmtasks.update_operation.delay(
             dep_id, w_id, driver=driver, deployment_status=dep_status,
             status=status,
@@ -108,13 +108,14 @@ def update_deployment(w_id, error=None):
             complete=completed)
     else:
         status_info = {}
+        dep_status = dep_statuses.get('initial')
         wf_errors = cmwf.get_errors(d_wf, tenant_id)
         if error:
             wf_errors.append(cmwf.convert_exc_to_dict(error, None, tenant_id,
                                                       w_id, None))
         if wf_errors:
             status_info = cmwf.get_status_info(d_wf, w_id)
-            dep_status = "FAILED"
+            dep_status = dep_statuses.get('error')
 
         operation_kwargs = {'status': status,
                             'tasks': total,

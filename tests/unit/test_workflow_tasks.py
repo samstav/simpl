@@ -272,7 +272,7 @@ class TestUpdateDeployment(unittest.TestCase):
     @mock.patch('checkmate.common.tasks.update_operation')
     @mock.patch('checkmate.workflow.get_errors')
     @mock.patch('checkmate.workflow.get_status_info')
-    def test_update_deployment_set_deployment_status_when_wf_incomplete(
+    def test_update_deployment_when_wf_incomplete_with_errors(
             self, get_status_info, get_errors, mock_update_operation,
             deserializer, get_workflow,
             driver):
@@ -307,6 +307,47 @@ class TestUpdateDeployment(unittest.TestCase):
             complete='completed',
             friendly_message='status-info',
             errors=["error1", "error2"])
+
+    @mock.patch('checkmate.db.get_driver')
+    @mock.patch('checkmate.workflows.manager.Manager.get_workflow')
+    @mock.patch('SpiffWorkflow.Workflow.deserialize')
+    @mock.patch('checkmate.common.tasks.update_operation')
+    @mock.patch('checkmate.workflow.get_errors')
+    @mock.patch('checkmate.workflow.get_status_info')
+    def test_update_deployment_when_wf_incomplete_without_errors(
+            self, get_status_info, get_errors, mock_update_operation,
+            deserializer, get_workflow,
+            driver):
+        mock_driver = mock.MagicMock()
+        driver.return_value = mock_driver
+
+        mock_d_wf = mock.MagicMock()
+
+        def attributes(*args):
+            if args[0] == 'type':
+                return "BUILD"
+            return args[0]
+
+        mock_d_wf.get_attribute.side_effect = attributes
+        mock_d_wf.is_completed = mock.MagicMock(return_value=False)
+        deserializer.return_value = mock_d_wf
+        mock_update_operation.delay = mock.MagicMock(return_value=None)
+        get_errors.return_value = []
+        get_status_info.return_value = {'friendly_message': 'status-info'}
+        tasks.update_deployment(1001)
+
+        driver.assert_called_with(api_id=1001)
+        get_workflow.assert_called_once_with(1001)
+        self.assertTrue(mock_d_wf.is_completed.called)
+        mock_update_operation.delay.assert_called_once_with(
+            "deploymentId",
+            1001,
+            driver=mock_driver,
+            deployment_status="PLANNED",
+            status='status',
+            tasks='total',
+            complete='completed',
+            errors=[])
 
 
 class TestCycleWorkflow(unittest.TestCase):
