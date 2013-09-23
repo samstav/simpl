@@ -689,6 +689,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     cmdeps.resource_postback.delay(environment, res)
 
     root = _get_root_environments_path(environment, path)
+    node = {}
 
     kitchen_path = os.path.join(root, environment, kitchen_name)
     if not os.path.exists(kitchen_path):
@@ -764,15 +765,15 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     # hosted_on resource itself to ACTIVE
     pb_res = {}
     # Update status of host resource to ACTIVE
-    host_results = {}
-    host_results['status'] = "ACTIVE"
+    host_results = {'status': "ACTIVE"}
     host_key = 'instance:%s' % resource['hosted_on']
     host_results = {host_key: host_results}
     pb_res.update(host_results)
 
     # Update status of current resource to ACTIVE
-    results = {}
-    results['status'] = "ACTIVE"
+    results = {'status': "ACTIVE"}
+    if node:
+        results['node-attributes'] = node
     instance_key = 'instance:%s' % resource['index']
     results = {instance_key: results}
     pb_res.update(results)
