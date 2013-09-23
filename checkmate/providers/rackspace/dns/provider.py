@@ -208,7 +208,7 @@ class Provider(rsbase.RackspaceProviderBase):
     def get_resources(context, tenant_id=None):
         """Proxy request through to provider"""
         api = Provider.connect(context)
-        return api.list() or []
+        return [domain._list for domain in api.list()]
 
     @staticmethod
     def _find_url(catalog):
