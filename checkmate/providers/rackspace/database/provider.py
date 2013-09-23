@@ -360,6 +360,10 @@ class Provider(providers.ProviderBase):
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
         from checkmate.providers.rackspace.database import sync_resource_task
+        if api is None and 'instance' in resource and \
+                'region' in resource['instance']:
+            region = resource['instance']['region']
+            api = Provider.connect(context, region=region)
         sync_resource_task(context, resource, key, api=api)
 
     @staticmethod
