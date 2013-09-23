@@ -243,10 +243,6 @@ WORKFLOW_SCHEMA = [
     'wf_spec', 'tenantId',
 ]
 
-SCRIPT_SCHEMA = [
-    'body', 'template', 'parameters', 'type', 'name'
-]
-
 
 def validate_catalog(obj):
     '''Validates provider catalog.'''

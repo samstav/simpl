@@ -18,7 +18,6 @@
 import copy
 import logging
 
-from checkmate.common import schema
 from checkmate.common import templating
 from checkmate import exceptions
 
@@ -99,6 +98,8 @@ class Manager(object):
 class Script(object):
     """Handles script files."""
 
+    __schema__ = ['body', 'template', 'parameters', 'type', 'name']
+
     extension_map = {
         'ps1': 'powershell',
         'sh': 'bash',
@@ -112,7 +113,7 @@ class Script(object):
             script = {}
         elif isinstance(script, dict):
             extras = [key for key in script.iterkeys()
-                      if key not in schema.SCRIPT_SCHEMA]
+                      if key not in self.__schema__]
             if extras:
                 raise exceptions.CheckmateValidationException(
                     "Script does not allow %s" % ', '.join(extras))
