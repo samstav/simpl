@@ -18,8 +18,6 @@ import logging
 import os
 import string
 
-import clouddb
-
 from celery import canvas
 
 import pyrax
@@ -524,7 +522,7 @@ class Provider(providers.ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'size':
-            flavors = _get_flavors(api_endpoint, context.auth_token)
+            flavors = _get_flavors(context, api_endpoint, context.auth_token)
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['sizes'] = {
@@ -601,15 +599,13 @@ class Provider(providers.ProviderBase):
                        Provider.method)
 
 
-@caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE,
-               backing_store=REDIS, backing_store_key='rax.database.flavors')
-def _get_flavors(api_endpoint, auth_token):
+@caching.Cache(timeout=3600, sensitive_args=[2], store=API_FLAVOR_CACHE,
+               backing_store=REDIS, backing_store_key='rax.database.flavors',
+               ignore_args=[0])
+def _get_flavors(context, api_endpoint, auth_token):
     """Ask DBaaS for Flavors (RAM, CPU, HDD) options."""
     # the region must be supplied but is not used
-    api = clouddb.CloudDB('ignore', 'ignore', 'DFW')
-    api.client.auth_token = auth_token
-    api.client.region_account_url = api_endpoint
-
+    api = Provider.connect(context)
     LOG.info("Calling Cloud Databases to get flavors for %s",
-             api.client.region_account_url)
-    return api.flavors.list_flavors()
+             api.management_url)
+    return [flavor._info for flavor in api.list_flavors()]
