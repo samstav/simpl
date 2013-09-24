@@ -467,12 +467,23 @@ def write_databag(environment, bagname, itemname, contents, resource,
     :param kitchen_name: Optional name of kitchen to write to.  default=kitchen
     """
     utils.match_celery_logging(LOG)
+    instance_key = "instance:%s" % resource.get('index')
+    host_key = "instance:%s" % resource.get('hosted_on')
 
     #TODO(any): add context
     if utils.is_simulation(environment):
-        return
-    instance_key = "instance:%s" % resource.get('index')
-    host_key = "instance:%s" % resource.get('hosted_on')
+        if contents:
+            results = {
+                instance_key: {
+                    'data-bags': {
+                        bagname: {
+                            itemname: contents
+                        }
+                    }
+                }
+            }
+            cmdeps.resource_postback.delay(environment, results)
+        return results
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
@@ -553,9 +564,12 @@ def write_databag(environment, bagname, itemname, contents, resource,
                 existing = json.loads(data)
                 contents = utils.merge_dictionary(existing, contents)
             if isinstance(contents, dict):
-                contents = json.dumps(contents)
+                contents_str = json.dumps(contents)
+            else:
+                contents_str = contents
             params = ['knife', 'solo', 'data', 'bag', 'create', bagname,
-                      itemname, '-c', config_file, '-d', '--json', contents]
+                      itemname, '-c', config_file, '-d', '--json',
+                      contents_str]
             if secret_file:
                 params.extend(['--secret-file', secret_file])
             result = _run_kitchen_command(environment, kitchen_path, params,
@@ -585,6 +599,8 @@ def write_databag(environment, bagname, itemname, contents, resource,
                 raise cmexc.CheckmateException(message)
             if isinstance(contents, dict):
                 contents_str = json.dumps(contents)
+            else:
+                contents_str = contents
             params = ['knife', 'solo', 'data', 'bag', 'create', bagname,
                       itemname, '-d', '-c', config_file, '--json',
                       contents_str]
