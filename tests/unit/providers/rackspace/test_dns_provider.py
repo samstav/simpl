@@ -29,9 +29,9 @@ class TestGetResources(unittest.TestCase):
         """Verifies returned results."""
         api = mock.Mock()
         dom1 = mock.Mock()
-        dom1._list = {'name': 'test1'}
+        dom1._info = {'name': 'test1'}
         dom2 = mock.Mock()
-        dom2._list = {'name': 'test2'}
+        dom2._info = {'name': 'test2'}
         api.list.return_value = [dom1, dom2]
         mock_connect.return_value = api
         expected = [{'name': 'test1'}, {'name': 'test2'}]
