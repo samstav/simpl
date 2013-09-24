@@ -30,7 +30,32 @@ class WorkflowSpec(specs.WorkflowSpec):
     """Workflow Spec related methods."""
     @staticmethod
     def create_resource_offline_spec(deployment, resource_id, context):
-        pass
+        """Creates the workflow spec for taking a resource offline
+        :param deployment:
+        :param resource_id:
+        :param context:
+        :return:
+        """
+        environment = deployment.environment()
+        resources = deployment.get_non_deleted_resources()
+        resource = deployment['resources'].get(resource_id)
+        wf_spec = WorkflowSpec(name="Take resource offline %s(%s)" % (
+            deployment["id"], resource_id))
+        for key, relation in resource.get('relations', {}).iteritems():
+            if relation.get('source'):
+                source_resource = resources[relation.get('source')]
+                provider = environment.get_provider(
+                    source_resource['provider'])
+                tasks = provider.disable_connection_tasks(wf_spec, context,
+                                                          source_resource,
+                                                          resource)
+                if tasks:
+                    wf_spec.start.connect(tasks.get('root'))
+
+        if not wf_spec.start.outputs:
+            noop = specs.Simple(wf_spec, "end")
+            wf_spec.start.connect(noop)
+        return wf_spec
 
     @staticmethod
     def create_delete_dep_wf_spec(deployment, context):
