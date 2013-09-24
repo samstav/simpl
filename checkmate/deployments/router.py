@@ -75,8 +75,9 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
         del entity['includes']
     if 'tenantId' in entity and tenant_id:
         if entity['tenantId'] != tenant_id:
+            msg = "tenantId must match with current tenant ID"
             raise exceptions.CheckmateValidationException(
-                "tenantId must match with current tenant ID")
+                msg, friendly_message=msg)
     else:
         assert tenant_id, "Tenant ID must be specified in deployment."
         entity['tenantId'] = tenant_id
