@@ -105,7 +105,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   })
   .when('/:tenantId/deployments/:id', {
     controller: DeploymentController,
-    templateUrl: '/partials/deployment.html'
+    templateUrl: '/partials/deployments/deployment.html'
   })
   .when('/:tenantId/providers', {
     controller: ProviderListController,
