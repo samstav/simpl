@@ -32,12 +32,19 @@ def evaluate(obj, **kwargs):
         for key, value in obj.iteritems():
             if key == 'if':
                 return evaluate(value, **kwargs) not in [False, None]
+            elif key == 'if-not':
+                return evaluate(value, **kwargs) in [False, None]
             elif key == 'or':
                 return any(evaluate(o, **kwargs) for o in value)
             elif key == 'and':
                 return all(evaluate(o, **kwargs) for o in value)
             elif key == 'value':
                 return get_from_path(value, **kwargs)
+            elif key == 'exists':
+                return path_exists(value, **kwargs)
+            elif key == 'not-exists':
+                return not path_exists(value, **kwargs)
+
         return obj
     elif isinstance(obj, list):
         return [evaluate(o, **kwargs) for o in obj]
@@ -60,3 +67,20 @@ def get_from_path(path, **kwargs):
             return focus
     except AttributeError:
         return path
+
+
+def path_exists(path, **kwargs):
+    """Check value exists using URL syntax."""
+    if not path:
+        return False
+    try:
+        parsed = urlparse.urlparse(path)
+        focus = kwargs[parsed.scheme]
+        if parsed.netloc or parsed.path:
+            combined = '%s/%s' % (parsed.netloc, parsed.path)
+            combined = combined.replace('//', '/').strip('/')
+            return utils.path_exists(focus, combined)
+        else:
+            return False
+    except AttributeError:
+        return False

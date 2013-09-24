@@ -411,6 +411,54 @@ class TestUtils(unittest.TestCase):
             result = utils.read_path(case['start'], case['path'])
             self.assertEqual(result, case['expected'], msg=case['name'])
 
+    def test_path_exists(self):
+        cases = [
+            {
+                'name': 'simple value',
+                'start': {'root': 1},
+                'path': 'root',
+                'expected': True
+            }, {
+                'name': 'simple path',
+                'start': {'root': {'folder': 2}},
+                'path': 'root/folder',
+                'expected': True
+            }, {
+                'name': 'blank path',
+                'start': {'root': 1},
+                'path': '',
+                'expected': False
+            }, {
+                'name': '/ only',
+                'start': {'root': 1},
+                'path': '/',
+                'expected': True
+            }, {
+                'name': 'extra /',
+                'start': {'root': 1},
+                'path': '/root/',
+                'expected': True
+            }, {
+                'name': 'nonexistent root',
+                'start': {'root': 1},
+                'path': 'not-there',
+                'expected': False
+            }, {
+                'name': 'nonexistent path',
+                'start': {'root': 1},
+                'path': 'root/not-there',
+                'expected': False
+            }, {
+                'name': 'empty source',
+                'start': {},
+                'path': 'root',
+                'expected': False
+            },
+        ]
+        for case in cases:
+            result = utils.path_exists(case['start'], case['path'])
+            self.assertEqual(result, case['expected'], msg=case['name'])
+
     def test_is_evaluable(self):
         self.assertTrue(utils.is_evaluable('=generate_password()'))
         self.assertTrue(utils.is_evaluable('=generate_uuid()'))

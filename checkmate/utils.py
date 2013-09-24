@@ -294,6 +294,7 @@ def to_json(data):
         return data.dumps(indent=4)
     return json.dumps(data, indent=4)
 
+
 def try_int(string):
     try:
         return int(string)
@@ -779,6 +780,23 @@ def read_path(source, path):
     return current.get(parts[-1])
 
 
+def path_exists(source, path):
+    """Checks a dict for the existence of a path as a key."""
+    if path == '/' and isinstance(source, dict):
+        return True
+    parts = path.strip('/').split('/')
+    if not parts:
+        return False
+    current = source
+    for part in parts:
+        if not isinstance(current, dict):
+            return False
+        if part not in current:
+            return False
+        current = current[part]
+    return True
+
+
 def is_evaluable(value):
     """Check if value is a function that can be passed to evaluate()."""
     try:
@@ -916,7 +934,7 @@ def check_all_output(params, find="ERROR"):
         raise subprc.CalledProcessError(retcode, ' '.join(params),
                                         output='\n'.join(stdout),
                                         error_info='%s%s' % ('\n'.join(stderr),
-                                        '\n'.join(found)))
+                                                             '\n'.join(found)))
 
 
 def is_simulation(api_id):
