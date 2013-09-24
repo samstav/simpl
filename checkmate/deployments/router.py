@@ -197,6 +197,8 @@ class Router(object):
                   self.get_resources_statuses)
         app.route('/deployments/<api_id>/resources/<rid>', 'GET',
                   self.get_resource)
+        app.route('/deployments/<api_id>/resources/<r_id>/+take-offline',
+                  'POST', self.take_resource_offline)
         self.stack_router = stacks.Router(self.app, stacks.Manager())
 
     param_whitelist = ['search', 'name', 'blueprint.name', 'status',
@@ -763,3 +765,21 @@ class Router(object):
             return utils.write_body(result, bottle.request, bottle.response)
         except ValueError as not_found:
             bottle.abort(404, not_found.value)
+
+    @utils.with_tenant
+    def take_resource_offline(self, api_id, r_id, tenant_id=None):
+        """Creates and executes the workflow for taking the passed in
+        resource offline.
+        """
+        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
+        if not deployment.get('resources').get(r_id):
+            bottle.abort(404, "No resource %s in deployment %s" %
+                              (r_id, api_id))
+        context = bottle.request.context
+        operation = self.manager.deploy_take_resource_offline(deployment,
+                                                              r_id,
+                                                              context,
+                                                              tenant_id)
+        wf_tasks.cycle_workflow.delay(operation['workflow-id'],
+                                      context.get_queued_task_dict())
+        return utils.write_body(deployment, bottle.request, bottle.response)

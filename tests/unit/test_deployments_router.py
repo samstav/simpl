@@ -47,6 +47,35 @@ class TestAPICalls(unittest.TestCase):
         self.assertEqual(expected_count, ret.get("count", -1),
                          "Wrong count returned")
 
+    @mock.patch('checkmate.workflows.tasks.cycle_workflow.delay')
+    def test_take_resource_offline(self, mock_delay):
+        deployment = {'resources': {'RES_ID': {'instance': {}}}}
+        self.manager.get_deployment.return_value = deployment
+        self.manager.deploy_take_resource_offline.return_value = {
+            'workflow-id': "W_ID"
+        }
+        self.filters.context.get_queued_task_dict = mock.Mock()
+        self.filters.context.get_queued_task_dict.return_value = {}
+        res = self.app.post('/T1000/deployments/DEP_ID/resources/RES_ID'
+                            '/+take-offline', content_type='application/json')
+        self.assertEqual(res.status, "200 OK")
+        self.manager.get_deployment.assert_was_called_with("DEP_ID",
+                                                           tenant_id="T1000")
+        self.manager.deploy_take_resource_offline.assert_called_once_with(
+            deployment, "RES_ID", self.filters.context, "T1000")
+        mock_delay.assert_called_once_with('W_ID', self.filters.context)
+
+    def test_take_resource_offline_for_non_existing_resource(self):
+        deployment = {'resources': {}}
+        self.manager.get_deployment.return_value = deployment
+        res = self.app.post('/T1000/deployments/DEP_ID/resources/RES_ID'
+                            '/+take-offline',
+                            content_type='application/json',
+                            expect_errors=True)
+        self.assertEqual(res.status, "404 Not Found")
+        self.manager.get_deployment.assert_was_called_with("DEP_ID",
+                                                           tenant_id="T1000")
+
     @mock.patch.object(utils, 'read_body')
     def test_created_by_assigned(self, mock_read):
         req = mock.Mock()

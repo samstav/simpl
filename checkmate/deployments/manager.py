@@ -516,3 +516,7 @@ class Manager(object):
                                                      driver=driver,
                                                      wf_type="SCALE UP")
         operations.add(deployment, add_node_workflow, "SCALE UP", tenant_id)
+
+    def deploy_take_resource_offline(self, deployment, r_id, context,
+                                     tenant_id):
+        pass
