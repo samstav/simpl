@@ -228,6 +228,25 @@ When launching a deployment, the values selected for options are stored as an *i
         'compute':
           'operating-system': Ubuntu 12.04 LTS
 
+- Custom Resources inputs. These can be applied under `custom_resources` to describe an array of existing resources (e.g. when importing existing servers into Checkmate):
+
+  inputs:
+    custom_resources:
+      - example_resource1:
+        type: server
+        provider: nova
+        status: ACTIVE
+        instance:
+          id: 2098383
+          private_ip: 10.10.1.1
+          public_ip: 2.2.2.18
+          flavor: 1
+          image: 119
+        dns-name: srv1.stabletransit.com
+      - example_resource2:
+        type: database
+        # ... 
+
 
 Options can be associated with one or more options using *constraints*. Example:
 
@@ -308,7 +327,7 @@ Some commands can be issued with a '+command' URL. Example:
 
 All calls are supported flat off of the root or under a tenant ID. Calls off of the root require administrative privileges and will return all objects from all tenants (ex. /environments vs /T1000/environments)
 
-All calls to GET /deployments and GET /workflows may be optionally paginated by offset and limit.
+All calls to GET /deployments and GET /workflows may be optionally paginated by `offset` and `limit`. `limit` will be capped at 100 if a higher value is passed.
 
 
 ### List of all calls
