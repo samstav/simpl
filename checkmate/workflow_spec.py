@@ -29,6 +29,10 @@ LOG = logging.getLogger(__name__)
 class WorkflowSpec(specs.WorkflowSpec):
     """Workflow Spec related methods."""
     @staticmethod
+    def create_resource_offline_spec(deployment, resource_id, context):
+        pass
+
+    @staticmethod
     def create_delete_dep_wf_spec(deployment, context):
         """Creates a SpiffWorkflow spec for deleting a deployment
         :param deployment:

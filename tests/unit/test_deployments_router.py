@@ -220,7 +220,9 @@ class TestAPICalls(unittest.TestCase):
             )
 
     @mock.patch.object(utils, 'write_body')
+    @mock.patch('checkmate.deployments.router._content_to_deployment')
     def test_update_deployment_wont_get_deployment_if_no_api_id(self,
+                                                                mock_content,
                                                                 mock_write):
         '''Test that update does not make an unnecessary database call
         when no api_id is given.
@@ -228,6 +230,7 @@ class TestAPICalls(unittest.TestCase):
         self.manager.save_deployment.return_value = {'id': 'test'}
         self.router.update_deployment(None)
         mock_write.assert_called_once_with(mock.ANY, mock.ANY, mock.ANY)
+        self.assertTrue(mock_content.called)
         assert not self.manager.get_deployment.called, \
             'get_deploment should not be called'
 
