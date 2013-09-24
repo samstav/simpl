@@ -17,7 +17,6 @@
 """File with testing primitives for use in tests and external providers."""
 import json
 import logging
-import mock
 import os
 import sys
 import unittest
@@ -26,6 +25,7 @@ import uuid
 import bottle
 from celery.app import default_app
 from celery.result import AsyncResult
+import mock
 import mox
 from mox import (IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains,
                  Not)

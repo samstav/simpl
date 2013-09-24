@@ -1,5 +1,20 @@
-import mock
+# pylint: disable=C0111,C0103,R0904
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import unittest
+
 
 from checkmate.providers.rackspace import database
 from checkmate.providers.rackspace.database import provider
@@ -8,11 +23,13 @@ from checkmate import test
 
 class TestDatabaseProvider(unittest.TestCase):
     def setUp(self):
-        pass
+        self.provider_base = {}
+        self.db_provider = provider.Provider(self.provider_base)
 
 
 class TestGetResourceStatus(TestDatabaseProvider):
     def setUp(self):
+        super(TestGetResourceStatus, self).setUp()
         self.context = {}
         self.dep_id = '123'
         self.resource = {}
@@ -22,7 +39,6 @@ class TestGetResourceStatus(TestDatabaseProvider):
                                                         'sync_resource_task')
         self.mock_connect = test.mock_object(self, provider.Provider,
                                              'connect')
-        self.db_provider = provider.Provider({})
 
     def test_dont_create_api_if_it_exists(self):
         self.api = {'something': True}

@@ -1,4 +1,19 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 import celery
 import mock
 import unittest
@@ -151,32 +166,6 @@ class TestProviderTask(unittest.TestCase):
         do_something(context, 'test', api='test_api')
 
         mocked_lib.postback.assert_called_with('DEP_ID', expected_postback)
-
-    @mock.patch('checkmate.deployments.tasks')
-    def test_callback_finds_resource_index_under_resource(self, mock_tasks):
-        context = {
-            'region': 'ORD',
-            'resource': 1,
-            'deployment_id': 'DEP_ID'}
-
-        expected_postback = {
-            'resources': {
-                1: {
-                    'status': 'ERROR',
-                    'instance': {
-                        'status': 'BLOCKED',
-                        'api1': 'test_api',
-                        'api2': 'test_api',
-                        'name': 'test'
-                    }
-                }
-            }
-        }
-        mock_tasks.postback = mock.MagicMock()
-
-        do_something(context, 'test', api='test_api')
-
-        mock_tasks.postback.assert_called_with('DEP_ID', expected_postback)
 
 
 @celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)

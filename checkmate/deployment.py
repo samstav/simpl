@@ -328,7 +328,7 @@ class Deployment(morpheus.MorpheusDict):
         for key, resource in self.get('resources', {}).items():
             if key.isdigit() and 'provider' in resource:
                 provider = env.get_provider(resource['provider'])
-                context['resource'] = key
+                context['resource_key'] = key
                 result = provider.get_resource_status(context, self.get('id'),
                                                       resource, key)
                 if result:
