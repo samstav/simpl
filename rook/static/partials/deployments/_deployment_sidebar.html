@@ -31,7 +31,7 @@
       </div>
       <div class="modal-body" ng-init="selected_resources = {}">
         Select the nodes you want to delete:
-        <label class="checkbox" ng-repeat="resource in resources" ng-show="is_scalable_service(data, resource) && resource.status != 'DELETED'">
+        <label class="checkbox" ng-repeat="resource in resources" ng-show="is_scalable_service(resource, data) && resource.status != 'DELETED'">
           <input type="checkbox" ng-model="selected_resources[resource.index]">
           {{resource['dns-name']}}
         </label>

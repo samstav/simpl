@@ -393,23 +393,23 @@ describe('DeploymentController', function(){
     });
 
     it('should return true if service is scalable and resource index is in deployment plan', function() {
-      expect($scope.is_scalable_service(deployment, resource)).toBe(true);
+      expect($scope.is_scalable_service(resource, deployment)).toBe(true);
     });
 
     describe('should return false when', function() {
       it('resource has no service', function() {
         resource = {};
-        expect($scope.is_scalable_service('deployment', resource)).toBe(false);
+        expect($scope.is_scalable_service(resource, 'deployment')).toBe(false);
       });
 
       it('service is not in available_services', function() {
         $scope.available_services.andReturn([]);
-        expect($scope.is_scalable_service(deployment, resource)).toBe(false);
+        expect($scope.is_scalable_service(resource, deployment)).toBe(false);
       });
 
       it('resource index not in deployment plan', function() {
         deployment.plan.services.web.component.instances = [];
-        expect($scope.is_scalable_service(deployment, resource)).toBe(false);
+        expect($scope.is_scalable_service(resource, deployment)).toBe(false);
       });
     });
   });

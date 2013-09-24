@@ -156,7 +156,8 @@ directives.directive('validateOption', function () {
 directives.directive('cmTreeView', function() {
   var DEFAULTS = {
     HIGHLIGHT_NODE: 'highlight',
-    HIGHLIGHT_RADIUS: 15
+    HIGHLIGHT_RADIUS: 15,
+    NOT_SCALABLE_MSG: 'This service cannot be scaled'
   }
   var create_svg = function(scope, element, attrs) {
     scope.width = attrs.width || 256;
@@ -275,13 +276,15 @@ directives.directive('cmTreeView', function() {
     return icon;
   }
 
-  var _add_tooltips = function(element) {
-    console.log(element)
+  var _add_tooltips = function(node, scope, element) {
+    var is_scalable_service = scope.clickableNode(node);
+    if (is_scalable_service) return;
+
     angular.element(element).tipsy({
       gravity: 'e',
       html: true,
       title: function() {
-        return "No Stahp!";
+        return DEFAULTS.NOT_SCALABLE_MSG;
       }
     });
   }
@@ -309,9 +312,7 @@ directives.directive('cmTreeView', function() {
       .attr('class', 'vertex')
       .on('click', function(d) { select_node(d, scope, this); })
       .style('cursor', 'pointer')
-      .each(function(d){
-        _add_tooltips(this)
-      })
+      .each(function(d) { _add_tooltips(d, scope, this); })
       .attr('transform', function(d) {
         return ['translate(', d.x, ',', d.y, ')'].join('');
       });
@@ -365,7 +366,8 @@ directives.directive('cmTreeView', function() {
     replace: true,
     scope: {
       data: '=',
-      selectNode: '='
+      selectNode: '=',
+      clickableNode: '='
     },
     link: function(scope, element, attrs) {
       create_svg(scope, element, attrs);
@@ -554,7 +556,6 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     _avoid_node_collision(streams, positions);
     var sorted_streams = _sort_streams(streams);
     _interpolate_streams(sorted_streams);
-    console.log(streams);
   }
 
   var _draw_highlight = function(d, scope, element) {

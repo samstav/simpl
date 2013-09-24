@@ -2865,7 +2865,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     return Deployment.available_services(deployment);
   }
 
-  $scope.is_scalable_service = function(deployment, resource) {
+  $scope.is_scalable_service = function(resource, deployment) {
+    if (!deployment)
+      deployment = $scope.data;
+
     var service = resource.service;
     if (!service) return false;
 
@@ -3046,7 +3049,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       component: resource.component,
       name: name,
       status: resource.status,
-      host: {}
+      host: {},
+      service: resource.service,
+      index: resource.index
     };
     if (host) {
       vertex.host = {
