@@ -492,7 +492,8 @@ class TestCatalog(unittest.TestCase):
         }
 
         self.mox.StubOutWithMock(db_provider, '_get_flavors')
-        db_provider._get_flavors('https://north.databases.com/v1/55BB',
+        db_provider._get_flavors(context,
+                                 'https://north.databases.com/v1/55BB',
                                  'DUMMY_TOKEN').AndReturn([flavor1])
 
         self.mox.ReplayAll()
