@@ -76,20 +76,22 @@ def check_option_url(key, option, deployment):
         value = bp_inputs.get(key)
         if isinstance(value, dict):
             if 'private_key' in value and 'certificate' not in value:
+                msg = ("If a private key is supplied for '%s', then a "
+                       "certificate is also required" % key)
                 raise exceptions.CheckmateValidationException(
-                    "If a private key is supplied for '%s', then a "
-                    "certificate is also required" % key)
+                    msg, friendly_message=msg)
             if 'certificate' in value and 'private_key' not in value:
+                msg = ("If a certificate is supplied for '%s', then a private "
+                       "key is also required" % key)
                 raise exceptions.CheckmateValidationException(
-                    "If a certificate is supplied for '%s', then a "
-                    "private key is also required" % key)
+                    msg, friendly_message=msg)
             if 'intermediate_key' in value and (
                     'private_key' not in value or
                     'certificate' not in value):
+                msg = ("If an intermediate key is supplied for '%s', then a "
+                       "certificate and private key are also required" % key)
                 raise exceptions.CheckmateValidationException(
-                    "If an intermediate key is supplied for '%s', "
-                    "then a certificate and private key are also "
-                    "required" % key)
+                    msg, friendly_message=msg)
 
 
 def check_option_required(key, option, deployment):
