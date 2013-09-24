@@ -1,3 +1,18 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+#
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""Deployment Inputs parser"""
 import urlparse
 
 
@@ -5,7 +20,7 @@ def register_scheme(scheme):
     """Use this to register a new scheme with urlparse and have it be parsed
     in the same way as http is parsed
     """
-    for method in filter(lambda s: s.startswith('uses_'), dir(urlparse)):
+    for method in [s for s in dir(urlparse) if s.startswith('uses_')]:
         getattr(urlparse, method).append(scheme)
 
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
@@ -31,17 +46,17 @@ class Input(str):
         elif isinstance(string, dict):
             # Make the default string value that of the url
             value = string.get('url') or ''
-            ob = super(Input, cls).__new__(cls, value)
+            obj = super(Input, cls).__new__(cls, value)
 
             # Set provided values as attributes
-            for k, v in string.items():
-                setattr(ob, k, v)
+            for key, value in string.items():
+                setattr(obj, key, value)
 
             # Parse the url
-            ob.parse_url()
+            obj.parse_url()
         else:
-            ob = super(Input, cls).__new__(cls, string)
-        return ob
+            obj = super(Input, cls).__new__(cls, string)
+        return obj
 
     def parse_url(self):
         """Parse the url and set attributes.

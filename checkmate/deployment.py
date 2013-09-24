@@ -32,7 +32,7 @@ from checkmate.common import schema
 from checkmate import constraints as cm_constraints
 from checkmate import db
 from checkmate import environment as cm_env
-from checkmate import exceptions as cmexc
+from checkmate import exceptions
 from checkmate import functions
 from checkmate import inputs as cm_inputs
 from checkmate import keys
@@ -52,32 +52,69 @@ OPERATION_DEPLOYMENT_STATUS_MAP = {
 
 
 def validate_blueprint_options(deployment):
-    """Check that blueprint options marked 'required' are supplied.
+    """Validate blueprints options.
+
+    - Check that blueprint options marked 'required' are supplied.
+    - Check that url-type options are valid
 
     Raise error if not
     """
     blueprint = deployment['blueprint']
     if 'options' in blueprint:
-        inputs = deployment.get('inputs', {})
-        bp_inputs = inputs.get('blueprint', {})
         for key, option in blueprint['options'].iteritems():
-            if 'default' in option:
-                continue
-            if 'required' not in option:
-                continue
-            required = option['required']
-            if isinstance(required, dict):
-                required = functions.evaluate(
-                    required,
-                    options=deployment.get('blueprint', {}).get('options'),
-                    services=deployment.get('blueprint', {}).get('services'),
-                    resources=deployment.get('resources'),
-                    inputs=inputs
-                )
-            if required:
-                if key not in bp_inputs:
-                    raise cmexc.CheckmateValidationException(
-                        "Required blueprint input '%s' not supplied" % key)
+            check_option_required(key, option, deployment)
+            check_option_url(key, option, deployment)
+
+
+def check_option_url(key, option, deployment):
+    """Check that if an option is a URL, then its cert info is consistent."""
+
+    inputs = deployment.get('inputs', {})
+    bp_inputs = inputs.get('blueprint', {})
+
+    if option.get('type') == 'url':
+        value = bp_inputs.get(key)
+        if isinstance(value, dict):
+            if 'private_key' in value and 'certificate' not in value:
+                msg = ("If a private key is supplied for '%s', then a "
+                       "certificate is also required" % key)
+                raise exceptions.CheckmateValidationException(
+                    msg, friendly_message=msg)
+            if 'certificate' in value and 'private_key' not in value:
+                msg = ("If a certificate is supplied for '%s', then a private "
+                       "key is also required" % key)
+                raise exceptions.CheckmateValidationException(
+                    msg, friendly_message=msg)
+            if 'intermediate_key' in value and (
+                    'private_key' not in value or
+                    'certificate' not in value):
+                msg = ("If an intermediate key is supplied for '%s', then a "
+                       "certificate and private key are also required" % key)
+                raise exceptions.CheckmateValidationException(
+                    msg, friendly_message=msg)
+
+
+def check_option_required(key, option, deployment):
+    """Check that if an option is required, then it has a value."""
+    inputs = deployment.get('inputs', {})
+    bp_inputs = inputs.get('blueprint', {})
+    if 'default' in option:
+        return True
+    if 'required' not in option:
+        return True
+    required = option['required']
+    if isinstance(required, dict):
+        required = functions.evaluate(
+            required,
+            options=deployment.get('blueprint', {}).get('options'),
+            services=deployment.get('blueprint', {}).get('services'),
+            resources=deployment.get('resources'),
+            inputs=inputs
+        )
+    if required:
+        if key not in bp_inputs:
+            raise exceptions.CheckmateValidationException(
+                "Required blueprint input '%s' not supplied" % key)
 
 
 def validate_input_constraints(deployment):
@@ -111,7 +148,7 @@ def validate_input_constraints(deployment):
                                 value if option.get('type') != 'password'
                                 else '*******',
                                 constraint.message))
-                        raise cmexc.CheckmateValidationException(msg)
+                        raise exceptions.CheckmateValidationException(msg)
 
 
 def get_os_env_keys():
@@ -130,7 +167,7 @@ def get_os_env_keys():
             else:
                 dkeys['checkmate'] = {'public_key': key,
                                       'public_key_path': path}
-        except IOError as(errno, strerror):
+        except IOError as (errno, strerror):
             LOG.error("I/O error reading public key from CHECKMATE_PUBLIC_KEY="
                       "'%s' environment variable (%s): %s",
                       os.environ['CHECKMATE_PUBLIC_KEY'], errno, strerror)
@@ -262,7 +299,7 @@ class Deployment(morpheus.MorpheusDict):
             try:
                 self.fsm.change_to(self['status'])
             except fsmexc.InvalidStateError as error:
-                raise cmexc.CheckmateValidationException(str(error))
+                raise exceptions.CheckmateValidationException(str(error))
 
         if 'created' not in self:
             self['created'] = utils.get_time_string()
@@ -278,7 +315,7 @@ class Deployment(morpheus.MorpheusDict):
                              self.get('status'), value)
                     self.fsm.change_to(value)
                 except fsmexc.InvalidStateError as error:
-                    raise cmexc.CheckmateBadState(str(error))
+                    raise exceptions.CheckmateBadState(str(error))
         super(Deployment, self).__setitem__(key, value)
 
     @classmethod
@@ -462,7 +499,7 @@ class Deployment(morpheus.MorpheusDict):
         :param default: value to return if no match found
         """
         if not name:
-            raise cmexc.CheckmateValidationException(
+            raise exceptions.CheckmateValidationException(
                 "setting() was called with a blank value. Check your map "
                 "file for bad calls to 'setting'"
             )
@@ -855,8 +892,9 @@ class Deployment(morpheus.MorpheusDict):
                                     "obtaining option '%s' since value is " \
                                     "of type %s" % (attribute, name,
                                                     type(value).__name__)
-                    raise cmexc.CheckmateException(
-                        error_message, friendly_message=cmexc.BLUEPRINT_ERROR)
+                    raise exceptions.CheckmateException(
+                        error_message,
+                        friendly_message=exceptions.BLUEPRINT_ERROR)
                 if result is not None:
                     LOG.debug("Found setting '%s' from constraint. %s=%s",
                               name, option_key or name, result)
@@ -975,8 +1013,8 @@ class Deployment(morpheus.MorpheusDict):
             if not component:
                 error_message = ("Could not resolve component '%s'" %
                                  service_component)
-                raise cmexc.CheckmateException(
-                    error_message, friendly_message=cmexc.BLUEPRINT_ERROR)
+                raise exceptions.CheckmateException(
+                    error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
             LOG.debug("Component '%s' identified as '%s' for service '%s'",
                       service_component, component['id'], service_name)
             results[service_name] = component
@@ -1039,7 +1077,7 @@ class Deployment(morpheus.MorpheusDict):
         elif parsed_url['scheme'] == 'services':
             return utils.read_path(kwargs['services'], parsed_url['path'])
         else:
-            raise cmexc.CheckmateValidationException(
+            raise exceptions.CheckmateValidationException(
                 "display-output scheme not supported: %s" %
                 parsed_url['scheme']
             )
@@ -1073,7 +1111,7 @@ class Deployment(morpheus.MorpheusDict):
                     continue
                 for do_key, output in service['display-outputs'].items():
                     if 'source' not in output:
-                        raise cmexc.CheckmateValidationException(
+                        raise exceptions.CheckmateValidationException(
                             "display-output without a source: %s" % do_key)
                     definition = copy.deepcopy(output)
                     # Target output to this service
@@ -1210,7 +1248,7 @@ class Deployment(morpheus.MorpheusDict):
         target = target or self
 
         if not isinstance(contents, dict):
-            raise cmexc.CheckmateException(
+            raise exceptions.CheckmateException(
                 "Postback value was not a dictionary")
         status = contents.get('status')
         if status and not target.fsm.permitted(status):
@@ -1238,7 +1276,7 @@ class Deployment(morpheus.MorpheusDict):
         """
         if contents:
             if not isinstance(contents, dict):
-                raise cmexc.CheckmateException(
+                raise exceptions.CheckmateException(
                     "Postback value was not a dictionary")
 
             if target is None:
@@ -1253,9 +1291,9 @@ class Deployment(morpheus.MorpheusDict):
                         raise IndexError("Resource %s not found" % resource_id)
                     # Check the value
                     if not isinstance(value, dict):
-                        raise (cmexc.CheckmateException("Postback value for "
-                               "instance '%s' was not a dictionary"
-                               % resource_id))
+                        raise exceptions.CheckmateException(
+                            "Postback value for instance '%s' was not a "
+                            "dictionary" % resource_id)
                     if not value:
                         LOG.warn("Deployment %s resource postback for resource"
                                  " %s was empty!", self.get('id'), resource_id)
@@ -1297,9 +1335,9 @@ class Deployment(morpheus.MorpheusDict):
                                          connection_id)
                     # Check the value
                     if not isinstance(value, dict):
-                        raise (cmexc.CheckmateException("Postback value for "
-                               "connection '%s' was not a dictionary" %
-                               connection_id))
+                        raise exceptions.CheckmateException(
+                            "Postback value for connection '%s' was not a "
+                            "dictionary" % connection_id)
                     # Canonicalize it
                     value = schema.translate_dict(value)
                     # Merge it in

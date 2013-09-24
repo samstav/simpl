@@ -64,6 +64,7 @@ from checkmate.exceptions import (
     CheckmateNoData,
     CheckmateNoMapping,
     CheckmateValidationException,
+    UNEXPECTED_ERROR,
 )
 from checkmate.common.git import middleware as git_middleware
 from checkmate import middleware
@@ -124,43 +125,43 @@ def error_formatter(error):
 
     if isinstance(error.exception, CheckmateNoMapping):
         error.status = error.exception.http_status or 406
-        error.output = str(error.exception)
+        error.output = error.exception.friendly_message
     elif isinstance(error.exception, CheckmateInvalidParameterError):
         error.status = error.exception.http_status or 406
-        error.output = str(error.exception)
+        error.output = error.exception.friendly_message
     elif isinstance(error.exception, CheckmateHOTTemplateException):
         error.status = error.exception.http_status or 406
-        error.output = str(error.exception) or ("Operation not support with "
-                                                "HOT template")
+        error.output = error.exception.friendly_message or (
+            "Operation not support with HOT template")
     elif isinstance(error.exception, CheckmateDoesNotExist):
         error.status = error.exception.http_status or 404
-        error.output = str(error.exception)
+        error.output = error.exception.friendly_message
     elif isinstance(error.exception, CheckmateValidationException):
         error.status = error.exception.http_status or 400
-        error.output = str(error.exception)
+        error.output = error.exception.friendly_message
     elif isinstance(error.exception, CheckmateNoData):
         error.status = error.exception.http_status or 400
-        error.output = str(error.exception)
+        error.output = error.exception.friendly_message
     elif isinstance(error.exception, CheckmateBadState):
         error.status = error.exception.http_status or 409
-        error.output = str(error.exception)
+        error.output = error.exception.friendly_message
     elif isinstance(error.exception, CheckmateDatabaseConnectionError):
         error.status = error.exception.http_status or 500
         error.output = "Database connection error on server."
-        output['message'] = str(error.exception)
     elif isinstance(error.exception, CheckmateException):
         error.status = error.exception.http_status or 500
         error.output = error.exception.friendly_message
         LOG.exception(error.exception)
+
     elif isinstance(error.exception, AssertionError):
-        error.status = error.exception.http_status or 400
+        error.status = 400
         error.output = str(error.exception)
         LOG.exception(error.exception)
     else:
-        # For other 500's, provide underlying cause
+        # For other errors, log underlying cause
         if error.exception:
-            error.status = error.exception.http_status or 400
-            output['message'] = str(error.exception)
+            error.status = 500
+            error.output = UNEXPECTED_ERROR
             LOG.exception(error.exception)
 
     if hasattr(error.exception, 'args'):

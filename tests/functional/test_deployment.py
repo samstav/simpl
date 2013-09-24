@@ -1,5 +1,6 @@
+# pylint: disable=R0904,C0103
 # Copyright (c) 2011-2013 Rackspace Hosting
-
+#
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -18,8 +19,8 @@ import unittest
 
 from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps
-from checkmate import exceptions as cmexc
-from checkmate import middleware as cmmid
+from checkmate import exceptions
+from checkmate import middleware
 from checkmate.providers import base
 from checkmate import utils
 
@@ -76,7 +77,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         base.PROVIDER_CLASSES['test.gbase'] = base.ProviderBase
 
         planner = cmdeps.Planner(deployment)
-        planner.plan(cmmid.RequestContext())
+        planner.plan(middleware.RequestContext())
 
         services = planner['services']
         self.assertIn('by_id', services)
@@ -131,8 +132,8 @@ class TestDeploymentPlanning(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
         planner = cmdeps.Planner(deployment)
-        self.assertRaises(
-            cmexc.CheckmateException, planner.plan, cmmid.RequestContext())
+        self.assertRaises(exceptions.CheckmateException, planner.plan,
+                          middleware.RequestContext())
 
     def test_find_components_mismatch(self):
         """Test the Plan() class skips mismatched components."""
@@ -162,8 +163,8 @@ class TestDeploymentPlanning(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
         planner = cmdeps.Planner(deployment)
-        self.assertRaises(
-            cmexc.CheckmateException, planner.plan, cmmid.RequestContext())
+        self.assertRaises(exceptions.CheckmateException, planner.plan,
+                          middleware.RequestContext())
 
     def test_resolve_relations(self):
         """Test the Plan() class can parse relations."""
@@ -200,7 +201,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
         planner = cmdeps.Planner(deployment)
-        planner.plan(cmmid.RequestContext())
+        planner.plan(middleware.RequestContext())
         services = planner['services']
         component = services['main']['component']
         widget_foo = component['requires']['widget:foo']
@@ -259,8 +260,8 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
         planner = cmdeps.Planner(deployment)
-        self.assertRaises(cmexc.CheckmateValidationException, planner.plan,
-                          cmmid.RequestContext())
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          planner.plan, middleware.RequestContext())
 
     def test_resolve_relations_multiple(self):
         """Test that all relations are generated."""
@@ -326,7 +327,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
         planner = cmdeps.Planner(deployment)
-        planner.plan(cmmid.RequestContext())
+        planner.plan(middleware.RequestContext())
 
         resources = {key: [] for key in planner['services'].keys()}
         for key, resource in planner.resources.iteritems():
@@ -411,7 +412,7 @@ class TestDeploymentPlanning(unittest.TestCase):
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
         planner = cmdeps.Planner(deployment)
-        planner.plan(cmmid.RequestContext())
+        planner.plan(middleware.RequestContext())
         services = planner['services']
 
         component = services['main']['component']
@@ -519,7 +520,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
 
-        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+        cmdeps.Manager.plan(deployment, middleware.RequestContext())
         resources = deployment['resources']
 
         expected = utils.yaml_to_dict("""
@@ -549,7 +550,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                         id: bar
             """))
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
-        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+        cmdeps.Manager.plan(deployment, middleware.RequestContext())
         assigned_name = deployment['resources']['0']['dns-name']
         expected_name = "web01.checkmate.local"
         self.assertEqual(assigned_name, expected_name)
@@ -575,7 +576,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                 inputs: {}
             """))
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
-        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+        cmdeps.Manager.plan(deployment, middleware.RequestContext())
         assigned_name = deployment['resources']['0']['dns-name']
         expected_name = "web.checkmate.local"
         self.assertEqual(assigned_name, expected_name)
@@ -607,9 +608,95 @@ class TestDeploymentPlanning(unittest.TestCase):
         self.assertEqual(defuuid, options['defuuid']['default'])
 
 
+class TestDeploymentValidation(unittest.TestCase):
+    """Deployment validation works as expected."""
+
+    def test_url_type_validation(self):
+        """URL simple type validates."""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+            id: test
+            blueprint:
+              services: {}
+              options:
+                url:
+                  type: url
+            environment:
+              providers: {}
+            inputs:
+              blueprint:
+                url: http://localhost
+        """))
+
+        planner = cmdeps.Planner(deployment)
+        self.assertEqual(planner.plan(middleware.RequestContext()), {})
+
+    def test_url_type_validation_private_key(self):
+        """URL type has requirements around subfields."""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+            id: test
+            blueprint:
+              services: {}
+              options:
+                url:
+                  type: url
+            environment:
+              providers: {}
+            inputs:
+              blueprint:
+                url:
+                    url: http://localhost
+                    private_key: A
+        """))
+
+        planner = cmdeps.Planner(deployment)
+        with self.assertRaises(exceptions.CheckmateValidationException):
+            planner.plan(middleware.RequestContext())
+
+    def test_url_type_validation_certificate(self):
+        """URL type has requirements around subfields."""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+            id: test
+            blueprint:
+              services: {}
+              options:
+                url:
+                  type: url
+            environment:
+              providers: {}
+            inputs:
+              blueprint:
+                url:
+                    url: http://localhost
+                    certificate: A
+        """))
+
+        planner = cmdeps.Planner(deployment)
+        with self.assertRaises(exceptions.CheckmateValidationException):
+            planner.plan(middleware.RequestContext())
+
+    def test_url_type_validation_intermediate_key(self):
+        """URL type has requirements around subfields."""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+            id: test
+            blueprint:
+              services: {}
+              options:
+                url:
+                  type: url
+            environment:
+              providers: {}
+            inputs:
+              blueprint:
+                url:
+                    url: http://localhost
+                    intermediate_key: A
+        """))
+
+        planner = cmdeps.Planner(deployment)
+        with self.assertRaises(exceptions.CheckmateValidationException):
+            planner.plan(middleware.RequestContext())
+
+
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

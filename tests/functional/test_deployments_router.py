@@ -133,7 +133,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             router._content_to_deployment(
                 request=request, deployment_id='Dtest', tenant_id='Ttest')
         self.assertEqual('tenantId must match with current tenant ID',
-                         str(expected.exception))
+                         expected.exception.friendly_message)
 
     @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
