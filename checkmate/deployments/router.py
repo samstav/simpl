@@ -1,4 +1,4 @@
-# pylint: disable=R0913,W0212,W0613
+# pylint: disable=E1101,R0913,W0212,W0613
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -168,6 +168,8 @@ class Router(object):
         app.route('/deployments/<api_id>', 'DELETE', self.delete_deployment)
 
         # Actions
+        app.route('/deployments/<api_id>/+check', ['POST', 'GET'],
+                  self.check_deployment)
         app.route('/deployments/<api_id>/+clone', 'POST',
                   self.clone_deployment)
         app.route('/deployments/<api_id>/+plan', ['POST', 'GET'],
@@ -537,6 +539,25 @@ class Router(object):
 
         bottle.response.status = 202  # Accepted (i.e. not done yet)
         return utils.write_body(deployment, bottle.request, bottle.response)
+
+    @utils.with_tenant
+    def check_deployment(self, api_id, tenant_id=None):
+        """Check instance statuses."""
+        if db.any_id_problems(api_id):
+            bottle.abort(406, db.any_id_problems(api_id))
+        entity = self.manager.get_deployment(api_id)
+        if not entity:
+            raise exceptions.CheckmateDoesNotExist(
+                'No deployment with id %s' % api_id)
+        deployment = cmdeploy.Deployment(entity)
+        if utils.is_simulation(api_id):
+            bottle.request.context.simulation = True
+        context = bottle.request.context
+        context['deployment'] = api_id
+        # TODO(Paul): This call should be broken into specific calls <<<<<
+        statuses = deployment.get_statuses(bottle.request.context)
+        return utils.write_body(
+            statuses.get('resources'), bottle.request, bottle.response)
 
     @utils.with_tenant
     def clone_deployment(self, api_id, tenant_id=None):
