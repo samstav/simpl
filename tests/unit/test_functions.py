@@ -54,6 +54,18 @@ class TestScalarFunctions(unittest.TestCase):
         }
         self.assertTrue(functions.evaluate(data))
 
+    def test_if_not_false(self):
+        data = {
+            'if-not': True
+        }
+        self.assertFalse(functions.evaluate(data))
+
+    def test_if_not_true(self):
+        data = {
+            'if-not': True
+        }
+        self.assertFalse(functions.evaluate(data))
+
     def test_or(self):
         data = {
             'or': [True, False]
@@ -122,7 +134,13 @@ class TestObjectFunctions(unittest.TestCase):
                     'service': 'S2',
                     'instance': {'id': 'S2id'},
                 },
-            }
+            },
+            'inputs': {
+                'region': 'North',
+                'blueprint': {
+                    'size': 'big'
+                }
+            },
         }
 
     def test_value_none(self):
@@ -139,6 +157,45 @@ class TestObjectFunctions(unittest.TestCase):
         function = {'value': 'resources://0/instance/id'}
         self.assertEqual(functions.evaluate(function, **self.data),
                          'S1id')
+
+    def test_resources(self):
+        function = {'value': 'resources://1'}
+        self.assertEqual(functions.evaluate(function, **self.data),
+                         {'service': 'S2', 'instance': {'id': 'S2id'}})
+
+    def test_inputs_scalar(self):
+        function = {'value': 'inputs://region'}
+        self.assertEqual(functions.evaluate(function, **self.data), "North")
+
+    def test_inputs_scalar_negative(self):
+        """Blueprint input does not pick up global input."""
+        function = {'value': 'inputs://size'}
+        self.assertIsNone(functions.evaluate(function, **self.data))
+
+    def test_inputs_blueprint(self):
+        function = {'value': 'inputs://region'}
+        self.assertEqual(functions.evaluate(function, **self.data), "North")
+
+    def test_inputs_blueprint_negative(self):
+        """Global input does not pick up blueprint input."""
+        function = {'value': 'inputs://size'}
+        self.assertIsNone(functions.evaluate(function, **self.data))
+
+    def test_exists(self):
+        function = {'exists': 'inputs://region'}
+        self.assertTrue(functions.evaluate(function, **self.data))
+
+    def test_exists_negative(self):
+        function = {'exists': 'inputs://nope'}
+        self.assertFalse(functions.evaluate(function, **self.data))
+
+    def test_not_exists(self):
+        function = {'not-exists': 'inputs://region'}
+        self.assertFalse(functions.evaluate(function, **self.data))
+
+    def test_not_exists_negative(self):
+        function = {'not-exists': 'inputs://nope'}
+        self.assertTrue(functions.evaluate(function, **self.data))
 
 
 class TestSafety(unittest.TestCase):
