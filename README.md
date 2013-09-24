@@ -328,6 +328,7 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     POST /:tid/deployments
     POST /:tid/deployments/+parse[?check_limits=1&check_access=1]
     POST /:tid/deployments/+preview
+    POST/GET /:tid/deployments/:id/+check
     POST/GET /:tid/deployments/:id/+plan
     POST/GET /:tid/deployments/:id/+deploy
     POST/GET /:tid/deployments/:id/+clone
