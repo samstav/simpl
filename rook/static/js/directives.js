@@ -157,6 +157,8 @@ directives.directive('cmTreeView', function() {
   var create_svg = function(scope, element, attrs) {
     scope.width = attrs.width || 256;
     scope.height = attrs.height || 256;
+    element.css('max-height', scope.height + 'px');
+    element.css('max-width', scope.width + 'px');
 
     if (!scope.svg) {
       scope.svg = d3.select(element[0])

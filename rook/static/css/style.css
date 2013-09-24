@@ -507,11 +507,6 @@ text.nodetext {
 }
 
 /* Tree View */
-#deployment_tree {
-  width: 256px;
-  height: 256px;
-}
-
 #deployment_tree .edge {
   stroke-dasharray: 2, 5;
   stroke-width: 2px;
@@ -628,3 +623,7 @@ tr:hover .off-table-left {
 }
 .cm-workflow .stream.even rect { fill: #EEE; }
 .cm-workflow .stream.odd rect { fill: #FFF; }
+
+.cm-tips {
+  color: #999;
+}

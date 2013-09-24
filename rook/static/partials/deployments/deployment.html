@@ -23,120 +23,47 @@ Priv Key: {{formatted_data.private_key}}
 
       <div class="span10 deployment_container" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{data.blueprint['meta-data']['reach-info'].tattoo}})">
         <div class="page-header">
-          <p>CLOUD DEPLOYMENT</p>
-          <h3 style="display: inline">{{data.name || data.blueprint.name}}  </h3>
+          <h3 style="display: inline">
+            {{data.name || data.blueprint.name}}
+          </h3>
+          <p>
+            {{data.blueprint.name}}
+            by
+            <a ng-href="/{{data.tenantId}}/deployments">
+              {{data['created-by']}}
+            </a>
+            <br />
+            {{data.environment.name}}
+            <br />
+            <span class="cm-tips" tooltip="{{data.created | formattedFullDate}}" tooltip-placement="bottom">
+              {{data.created | formattedDate}}
+            </span>
+          </p>
         </div>
 
-        <div class="pull-right">
-          <cm-tree-view data="tree_data" id="deployment_tree" width="256" height="256"></cm-tree-view>
-          <ng-include src="'/partials/deployments/_add_nodes.html'"></ng-include>
+        <div class="row-fluid">
+          <div class="span6">
+            <ng-include src="'/partials/deployments/_details.html'"></ng-include>
+          </div>
+          <div class="span6">
+            <cm-tree-view data="tree_data" id="deployment_tree" width="640" height="640"></cm-tree-view>
+            <ng-include src="'/partials/deployments/_add_nodes.html'"></ng-include>
+          </div>
+
         </div>
 
-        <div>
-          <div class="lead pull-left">{{data.blueprint['meta-data']['application']}} Details</div>
-        </div>
-        <form class="form-horizontal">
-          <fieldset>
-            <div class="control-group">
-              <label class="control-label" for="status">Status</label>
-              <div class="controls">
-                <span id="status" class="label" ng-class="{
-                  'label-info': data.status == 'PLANNED',
-                  'label-success': data.status == 'UP' || data.status == 'LAUNCHED' || data.status == 'ACTIVE',
-                  'label-warning': data.status == 'ALERT' || data.status == 'DELETING' || data.status == 'BUILD',
-                  'label-important': data.status == 'FAILED' || data.status == 'UNREACHABLE' || data.status == 'DOWN',
-                  'label-inverse': data.status == 'DELETED'
-                }">
-                  {{data.display_status}}
-                </span>
-
-                <span ng-show="is_resumable()"><a href="#" ng-click="resume()">Resume</a></span>
-                <span ng-show="is_resumable() && is_retriable()"> &#8226; </span>
-                <span ng-show="is_retriable()"><a href="#" ng-click="retry()">Retry</a></span>
-              </div>
-            </div>
-
-            <div ng-show="shouldDisplayWorkflowStatus()">
-              <div class="control-group" ng-show="timeRemaining">
-                <label class="control-label">Progress:</label>
-                <div class="controls progress">
-                  <div class="bar" style="width: {{percentComplete}}%;"></div>
-                </div>
-                <div class="controls">
-                  <p><span class="label label-info">{{count}}</span> tasks total:</p>
-                  <p>&nbsp; &nbsp; &nbsp;<span class="label label-success">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>
-                  <p>&nbsp; &nbsp; &nbsp;<span class="label label-warning">{{taskStates['waiting']}}</span> in progress</p>
-                  <p>&nbsp; &nbsp; &nbsp;<span class="label label-important">{{taskStates['error']}}</span> errored out</p>
-                  <p>&nbsp; &nbsp; &nbsp;<span class="label">{{taskStates['future'] + taskStates['likely'] +
-                  taskStates['maybe']}}</span> tasks waiting on other tasks to finish.</p>
-                </div>
-                &nbsp;
-                <a style="margin-bottom: 15px;" class="btn" ng-show="data.id == 'simulate'" href="./status?complete">Complete the Simulation Now</a>
-                <div class="alert controls">You can access an <a ng-href="{{data.operation.link}}">advanced</a> view of
-                the workflow to manage any errors or hack at the workflow.</div>
-              </div>
-            </div>
-
-
-            <div class="control-group">
-              <label class="control-label" for="secrets">Secrets:</label>
-              <div class="controls" ng-switch="data.secrets">
-                <div ng-switch-when="AVAILABLE"><a href="#" ng-click="showSecrets()">Secrets available</a></div>
-                <div ng-switch-when="LOCKED"><i class="icon-lock"></i> dismissed</div>
-                <div ng-switch-when="GENERATING">available soon</div>
-                <div ng-switch-default>No secrets</div>
-              </div>
-            </div>
-
-            <div class="control-group" ng-repeat="(name, output) in data['display-outputs']" ng-hide="output['is-secret']">
-              <label class="control-label" for="{{'output' + $index}}">{{name}}</label>
-              <div class="controls">
-                <input type="text" readonly id="{{'output' + $index}}" value="{{output.value.url ||output.value}}">
-              </div>
-            </div>
-
-            <hr>
-
-            <div class="control-group">
-              <label class="control-label" for="environment">Environment:</label>
-              <div class="controls">
-                <span class='deploy-value'>{{data.environment.name}}</span>
-              </div>
-            </div>
-
-            <div class="control-group">
-              <label class="control-label" for="environment">Blueprint:</label>
-              <div class="controls">
-                <span class='deploy-value'>{{data.blueprint.name}}</span>
-              </div>
-            </div>
-
-            <div class="control-group">
-              <label class="control-label" for="created">Created:</label>
-              <div class="controls">
-                <span class='deploy-value'>{{data.created | formattedFullDate}}</span>
-              </div>
-            </div>
-
-            <div class="control-group">
-              <label class="control-label" for="created-by">Created By:</label>
-              <div class="controls">
-                <div class='deploy-value' ng-show="auth.is_admin()">
-                    <a ng-click="impersonate(data['created-by'])" tooltip="Impersonate this user" tooltip-placement="right">{{data['created-by']}}</a>
-                </div>
-                <span class='deploy-value' ng-hide="auth.is_admin()">{{data['created-by']}}</span>
-              </div>
-            </div>
-          </fieldset>
-        </form>
 
         <hr>
 
-        <ng-include src="'/partials/deployments/_infrastructure.html'"></ng-include>
+        <div class="row">
+          <ng-include src="'/partials/deployments/_infrastructure.html'"></ng-include>
+        </div>
 
         <hr>
 
-        <ng-include src="'/partials/deployments/_raw_source.html'"></ng-include>
+        <div class="row">
+          <ng-include src="'/partials/deployments/_raw_source.html'"></ng-include>
+        </div>
 
       </div>
     </div>
