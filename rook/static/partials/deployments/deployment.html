@@ -46,7 +46,7 @@ Priv Key: {{formatted_data.private_key}}
             <ng-include src="'/partials/deployments/_details.html'"></ng-include>
           </div>
           <div class="span6">
-            <cm-tree-view data="tree_data" id="deployment_tree" width="640" height="640"></cm-tree-view>
+            <cm-tree-view data="tree_data" select-node="toggle_selected_node" id="deployment_tree" width="640" height="640"></cm-tree-view>
             <ng-include src="'/partials/deployments/_add_nodes.html'"></ng-include>
           </div>
 

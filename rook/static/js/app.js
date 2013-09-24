@@ -2763,6 +2763,21 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   $scope.data = {};
   $scope.data_json = "";
 
+  $scope.tree = { selected_nodes: {} };
+  $scope.toggle_selected_node = function(node) {
+    var services = $scope.available_services($scope.data);
+    if (services.indexOf(node.component) == -1)
+      return false;
+
+    if (node.id in $scope.tree.selected_nodes) {
+      delete $scope.tree.selected_nodes[node.id];
+    } else {
+      $scope.tree.selected_nodes[node.id] = node;
+    }
+
+    return true;
+  }
+
   $scope.showSecrets = function() {
     $scope.secretsDialog = $dialog.dialog({
         resolve: {

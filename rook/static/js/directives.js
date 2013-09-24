@@ -154,6 +154,10 @@ directives.directive('validateOption', function () {
 });
 
 directives.directive('cmTreeView', function() {
+  var DEFAULTS = {
+    HIGHLIGHT_NODE: 'highlight',
+    HIGHLIGHT_RADIUS: 15
+  }
   var create_svg = function(scope, element, attrs) {
     scope.width = attrs.width || 256;
     scope.height = attrs.height || 256;
@@ -168,6 +172,29 @@ directives.directive('cmTreeView', function() {
 
       scope.svg.append('svg:g').attr('class', 'edges');
       scope.svg.append('svg:g').attr('class', 'vertices');
+    }
+  }
+
+  var select_node = function(node, scope, element) {
+    var toggled = scope.selectNode(node);
+    if (toggled) {
+      toggle_highlight(node, element);
+    }
+  }
+
+  var toggle_highlight = function(node, element) {
+    var d3_element = d3.select(element);
+    var highlight_node = d3_element.select('.' + DEFAULTS.HIGHLIGHT_NODE);
+    var has_highlight = highlight_node[0][0];
+    if (has_highlight) {
+      highlight_node.remove();
+    } else {
+      d3_element
+        .insert('circle', ':first-child')
+        .attr('class', DEFAULTS.HIGHLIGHT_NODE)
+        .attr('r', DEFAULTS.HIGHLIGHT_RADIUS)
+        //.attr("transform", function() { return "translate(" + x + "," + y + ")"; })
+        ;
     }
   }
 
@@ -248,6 +275,17 @@ directives.directive('cmTreeView', function() {
     return icon;
   }
 
+  var _add_tooltips = function(element) {
+    console.log(element)
+    angular.element(element).tipsy({
+      gravity: 'e',
+      html: true,
+      title: function() {
+        return "No Stahp!";
+      }
+    });
+  }
+
   var update_svg = function(new_data, old_data, scope) {
     if (!new_data) new_data = {};
     var vertex_data = get_vertex_data(new_data.vertex_groups, scope);
@@ -269,6 +307,11 @@ directives.directive('cmTreeView', function() {
     var vertex = vertices.enter()
       .append('svg:g')
       .attr('class', 'vertex')
+      .on('click', function(d) { select_node(d, scope, this); })
+      .style('cursor', 'pointer')
+      .each(function(d){
+        _add_tooltips(this)
+      })
       .attr('transform', function(d) {
         return ['translate(', d.x, ',', d.y, ')'].join('');
       });
@@ -320,7 +363,10 @@ directives.directive('cmTreeView', function() {
     restrict: 'E',
     template: '<div></div>',
     replace: true,
-    scope: { data: '=' },
+    scope: {
+      data: '=',
+      selectNode: '='
+    },
     link: function(scope, element, attrs) {
       create_svg(scope, element, attrs);
       scope.$watch('data', update_svg);
@@ -511,9 +557,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     console.log(streams);
   }
 
-  var _draw_highlight = function(d, streams, scope, element) {
-    var num_streams = streams.all.length;
-    var stream_height = DEFAULTS.TOTAL_HEIGHT / num_streams;
+  var _draw_highlight = function(d, scope, element) {
     var x = d.interpolated_position.x;
     var y = d.interpolated_position.y;
 
@@ -575,6 +619,16 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     elements.exit().remove();
   }
 
+  var _add_tooltips = function(collection) {
+      angular.element(collection[0]).tipsy({
+      gravity: 'e',
+      html: true,
+      title: function() {
+        return this.__data__.name;
+      }
+    });
+  }
+
   var _draw_nodes = function(elements, streams, scope) {
     // Enter
     elements.enter()
@@ -583,19 +637,13 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       .attr('name', function(d) { return d.name })
       .attr('cursor', 'pointer')
       .attr('r', DEFAULTS.NODE_RADIUS)
+      .call(_add_tooltips)
       .attr("transform", function(d) {
         return "translate(" + d.interpolated_position.x + "," + d.interpolated_position.y + ")";
       })
-      .on('click', function(d) { return _draw_highlight(d, streams, scope, this); });
+      .on('click', function(d) { return _draw_highlight(d, scope, this); });
     // Update
     elements.style('fill', function(d) { return _node_color(d, scope); });
-    $('svg circle').tipsy({
-      gravity: 'e',
-      html: true,
-      title: function() {
-        return this.__data__.name;
-      }
-    })
   }
 
   var create_svg = function(element, attrs) {
