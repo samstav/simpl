@@ -608,4 +608,4 @@ def _get_flavors(context, api_endpoint, auth_token):
     api = Provider.connect(context)
     LOG.info("Calling Cloud Databases to get flavors for %s",
              api.management_url)
-    return [flavor._info for flavor in api.list_flavors()]
+    return api.list_flavors()
