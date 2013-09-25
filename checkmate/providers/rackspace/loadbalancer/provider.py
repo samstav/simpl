@@ -23,7 +23,6 @@ import sys
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
-import cloudlb
 import pyrax
 import redis
 
