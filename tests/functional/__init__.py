@@ -1,1 +1,3 @@
-"""Tests that use extensive mocking but no external resources go here."""
+"""Tests that go beyond function/class boundaries but perform no I/O belong
+   here.
+"""
