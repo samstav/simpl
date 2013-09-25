@@ -558,6 +558,58 @@ class TestSetupDeployment(unittest.TestCase):
         self.assertTrue(mock_bottle.request.context.simulation)
 
 
+class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
+    def setUp(self):
+        self.statuses = {
+            "deployment_status": "DELETED",
+            "operation_status": "COMPLETE",
+            "resources": {
+                "instance:1": {"instance": {"status-message": ""}},
+                "instance:3": {"instance": {"status-message": ""}},
+            }
+        }
+        mock_dep = mock.Mock()
+        mock_dep.get_statuses.return_value = self.statuses
+
+        setup_deployment_patcher = mock.patch.object(deployments.router.Router,
+                                                     '_setup_deployment')
+        mock_setup_dep = setup_deployment_patcher.start()
+        mock_setup_dep.return_value = mock_dep
+        self.addCleanup(setup_deployment_patcher.stop)
+
+        update_operation_patcher = mock.patch.object(
+            deployments.router.common_tasks, 'update_operation')
+        mock_update_op = update_operation_patcher.start()
+        mock_update_op.return_value = {}
+        self.addCleanup(update_operation_patcher.stop)
+
+        write_body_patcher = mock.patch.object(deployments.router.utils,
+                                               'write_body')
+        self.mock_write_body = write_body_patcher.start()
+        self.addCleanup(write_body_patcher.stop)
+
+    @mock.patch.object(deployments.router.tasks.resource_postback, 'delay')
+    def test_sync_deployment(self, mock_postback):
+        router = deployments.Router(mock.Mock(), mock.Mock())
+        router.sync_deployment('dep_id')
+        self.mock_write_body.assert_called_once_with(
+            self.statuses['resources'], mock.ANY, mock.ANY)
+        self.assertEqual(2, mock_postback.call_count)
+
+    @mock.patch.object(deployments.router.tasks, 'resource_postback')
+    def test_check_deployment(self, mock_postback):
+        expected = {
+            'current': self.statuses,
+            'updates': {'instance:1': {}, 'instance:3': {}},
+            'operations-delta': {}
+        }
+        mock_postback.return_value = {}
+        router = deployments.Router(mock.Mock(), mock.Mock())
+        router.check_deployment('dep_id')
+        self.mock_write_body.assert_called_once_with(
+            expected, mock.ANY, mock.ANY)
+
+
 if __name__ == '__main__':
     import sys
     test.run_with_params(sys.argv[:])
