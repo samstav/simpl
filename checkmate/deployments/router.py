@@ -574,9 +574,8 @@ class Router(object):
                                                tenant_id=tenant_id)
         return utils.write_body(results, bottle.request, bottle.response)
 
-    @utils.with_tenant
-    def check_deployment(self, api_id, tenant_id=None):
-        """Check instance statuses."""
+    def _setup_deployment(self, api_id, tenant_id):
+        """Basic deployment setup for plan_deployment and check_deployment."""
         if db.any_id_problems(api_id):
             bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id)
@@ -587,6 +586,26 @@ class Router(object):
         if utils.is_simulation(api_id):
             bottle.request.context.simulation = True
         bottle.request.context['deployment'] = api_id
+        return deployment
+
+    @utils.with_tenant
+    def sync_deployment(self, api_id, tenant_id=None):
+        """Sync existing deployment objects with current cloud status."""
+        deployment = self._setup_deployment(api_id, tenant_id)
+        statuses = deployment.get_statuses(bottle.request.context)
+        for key, value in statuses.get('resources').iteritems():
+            tasks.resource_postback.delay(api_id, {key: value})
+        common_tasks.update_operation(
+            api_id, operations.current_workflow_id(deployment),
+            deployment_status=statuses['deployment_status'],
+            status=statuses['operation_status'])
+        return utils.write_body(
+            statuses.get('resources'), bottle.request, bottle.response)
+
+    @utils.with_tenant
+    def check_deployment(self, api_id, tenant_id=None):
+        """Check instance statuses."""
+        deployment = self._setup_deployment(api_id, tenant_id)
         statuses = deployment.get_statuses(bottle.request.context)
         check_results = {
             'current': statuses,
@@ -604,29 +623,6 @@ class Router(object):
         )
         return utils.write_body(
             check_results, bottle.request, bottle.response)
-
-    @utils.with_tenant
-    def sync_deployment(self, api_id, tenant_id=None):
-        """Sync existing deployment objects with current cloud status."""
-        if db.any_id_problems(api_id):
-            bottle.abort(406, db.any_id_problems(api_id))
-        entity = self.manager.get_deployment(api_id)
-        if not entity:
-            raise exceptions.CheckmateDoesNotExist(
-                'No deployment with id %s' % api_id)
-        deployment = cmdeploy.Deployment(entity)
-        if utils.is_simulation(api_id):
-            bottle.request.context.simulation = True
-        bottle.request.context['deployment'] = api_id
-        statuses = deployment.get_statuses(bottle.request.context)
-        for key, value in statuses.get('resources').iteritems():
-            tasks.resource_postback.delay(api_id, {key: value})
-        common_tasks.update_operation(
-            api_id, operations.current_workflow_id(deployment),
-            deployment_status=statuses['deployment_status'],
-            status=statuses['operation_status'])
-        return utils.write_body(
-            statuses.get('resources'), bottle.request, bottle.response)
 
     @utils.with_tenant
     def deploy_deployment(self, api_id, tenant_id=None):

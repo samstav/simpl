@@ -527,45 +527,35 @@ class TestUpdateDeployment(TestDeploymentRouter):
                          '/%s/deployments/fake_id' % self.tenant_id)
 
 
-class TestSyncDeployment(unittest.TestCase):
+class TestSetupDeployment(unittest.TestCase):
     def setUp(self):
         self.manager = mock.Mock()
         self.router = deployments.Router(mock.Mock(), self.manager)
+        any_id_problems_patcher = mock.patch.object(deployments.router.db,
+                                                    'any_id_problems')
+        self.mock_any_id_problems = any_id_problems_patcher.start()
+        self.addCleanup(any_id_problems_patcher.stop)
 
-    @mock.patch.object(deployments.router.db, 'any_id_problems',
-                       return_value=True)
-    def test_with_id_problem(self, any_id_problems):
+    def test_with_id_problem(self):
+        self.mock_any_id_problems.return_value = True
         with self.assertRaises(bottle.HTTPError) as expected:
-            self.router.sync_deployment('bad_id')
+            self.router._setup_deployment('bad_id', None)
         self.assertEqual('HTTP Response 406', str(expected.exception))
-        any_id_problems.assert_called_twice_with('bad_id')
 
-    @mock.patch.object(deployments.router.db, 'any_id_problems',
-                       return_value=False)
-    def test_no_deployment(self, any_id_problems):
+    def test_no_deployment(self):
+        self.mock_any_id_problems.return_value = False
         self.manager.get_deployment.return_value = None
         with self.assertRaises(exceptions.CheckmateDoesNotExist) as expected:
-            self.router.sync_deployment('dep_id')
+            self.router._setup_deployment('dep_id', None)
         self.assertEqual('No deployment with id dep_id',
                          str(expected.exception))
-        any_id_problems.assert_called_once_with('dep_id')
 
-    @mock.patch.object(deployments.router.db, 'any_id_problems',
-                       return_value=False)
     @mock.patch.object(deployments.router, 'bottle')
-    @mock.patch.object(deployments.router.common_tasks, 'update_operation')
-    @mock.patch.object(deployments.router.utils, 'write_body')
-    def test_is_simulation(self, write_body, update_operation, mock_bottle,
-                           any_id_problems):
+    def test_is_simulation(self, mock_bottle):
+        self.mock_any_id_problems.return_value = False
         self.manager.get_deployment.return_value = {'id': 'simulate_dep'}
-        self.router.sync_deployment('simulate_dep')
-        any_id_problems.assert_called_with('simulate_dep')
-        print mock_bottle.request.context.simulation
+        self.router._setup_deployment('simulate_dep', None)
         self.assertTrue(mock_bottle.request.context.simulation)
-        write_body.assert_called_once_with({}, mock.ANY, mock.ANY)
-        update_operation.assert_called_once_with('simulate_dep', None,
-                                                 status=None,
-                                                 deployment_status='NEW')
 
 
 if __name__ == '__main__':
