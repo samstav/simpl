@@ -3051,7 +3051,8 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       status: resource.status,
       host: {},
       service: resource.service,
-      index: resource.index
+      index: resource.index,
+      'dns-name': resource['dns-name']
     };
     if (host) {
       vertex.host = {

@@ -15,34 +15,6 @@
     Sync
   </a>
 
-  <li ng-show="available_services(data).length > 0">
-    <a ng-show="data.status == 'UP'" ng-click="open_modal('delete_nodes_warning')" tooltip="Delete Nodes from current deployment" tooltip-placement="right">
-      <i class="icon-arrow-down"></i>
-      Scale Down
-    </a>
-    <a ng-hide="data.status == 'UP'" class="muted" tooltip="Please wait until deployment status is UP" tooltip-placement="right">
-      <i class="icon-arrow-down"></i>
-      Scale Down
-    </a>
-    <!-- delete_nodes_warning -->
-    <div modal="modal_window.delete_nodes_warning" close="close_modal('delete_nodes_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="warning_title" aria-hidden="true">
-      <div class="modal-header">
-        <h3 id="warning_title" class="alert alert-danger">Warning! Data Destructive Task</h3>
-      </div>
-      <div class="modal-body" ng-init="selected_resources = {}">
-        Select the nodes you want to delete:
-        <label class="checkbox" ng-repeat="resource in resources" ng-show="is_scalable_service(resource, data) && resource.status != 'DELETED'">
-          <input type="checkbox" ng-model="selected_resources[resource.index]">
-          {{resource['dns-name']}}
-        </label>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" ng-click="delete_nodes(data, selected_resources); close_modal('delete_nodes_warning');">Go ahead and Delete these nodes</button>
-        <button class="btn" ng-click="close_modal('delete_nodes_warning')">Cancel</button>
-      </div>
-    </div>
-  </li>
-
   <li>
     <a ng-click="open_modal('delete_warning')" tooltip="Delete Resources and Deployment" tooltip-placement="right">
       <i class="icon-remove"></i>
