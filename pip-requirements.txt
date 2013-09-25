@@ -49,7 +49,7 @@
 # Upstream: https://github.com/naterh/pyrax.git
 # Notes: 	This is the initial add for the mailgun module.  This should be
 #			integrated into pyrax shortly and can be removed.
--e git://github.com/naterh/pyrax.git@05a50c21ad219153a0a88ed51d15768622579ca0#egg=pyrax
+-e git://github.com/naterh/pyrax.git@e32c454afca5afef30c3e3aa5127a4e2c38eb5a1#egg=pyrax
 
 #### Checkmate applications
 
