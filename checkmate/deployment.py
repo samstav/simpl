@@ -349,9 +349,6 @@ class Deployment(morpheus.MorpheusDict):
                     {resource_key: resources[resource_key]})
         return non_deleted_resources
 
-    # TODO(Paul): This should only return resources' statuses <<<<<
-    # Then deployment status can be pulled directly from the deployment,
-    # and operations status can be moved to the operations module
     def get_statuses(self, context):
         """Get all statuses from a given context.
 
@@ -376,7 +373,6 @@ class Deployment(morpheus.MorpheusDict):
         statuses.update({'resources': resources})
         return statuses
 
-    # TODO(Paul): See comment on get_statuses <<<<<
     def _calc_dep_and_op_statuses(self, resources):
         """Determine deployment and operation status from resources statuses
 

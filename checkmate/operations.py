@@ -161,9 +161,6 @@ def get_operation(deployment, workflow_id):
         op_details = deployment.get('operation')
     else:
         for index, oper in enumerate(deployment.get('operations-history', [])):
-            # TODO(Paul): Default to Deployment ID? Should we fix this
-            # using convert_data when the deployment is retrieved from
-            # storage, rather than here?
             if oper.get('workflow-id', deployment.get('id')) == workflow_id:
                 op_type = 'operations-history'
                 op_index = index

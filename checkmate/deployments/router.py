@@ -542,25 +542,6 @@ class Router(object):
         return utils.write_body(deployment, bottle.request, bottle.response)
 
     @utils.with_tenant
-    def check_deployment(self, api_id, tenant_id=None):
-        """Check instance statuses."""
-        if db.any_id_problems(api_id):
-            bottle.abort(406, db.any_id_problems(api_id))
-        entity = self.manager.get_deployment(api_id)
-        if not entity:
-            raise exceptions.CheckmateDoesNotExist(
-                'No deployment with id %s' % api_id)
-        deployment = cmdeploy.Deployment(entity)
-        if utils.is_simulation(api_id):
-            bottle.request.context.simulation = True
-        context = bottle.request.context
-        context['deployment'] = api_id
-        # TODO(Paul): This call should be broken into specific calls <<<<<
-        statuses = deployment.get_statuses(bottle.request.context)
-        return utils.write_body(
-            statuses.get('resources'), bottle.request, bottle.response)
-
-    @utils.with_tenant
     def clone_deployment(self, api_id, tenant_id=None):
         """Creates deployment and wokflow from a deleted deployment."""
         assert api_id, "Deployment ID cannot be empty"
@@ -594,6 +575,22 @@ class Router(object):
         return utils.write_body(results, bottle.request, bottle.response)
 
     @utils.with_tenant
+    def check_deployment(self, api_id, tenant_id=None):
+        """Check instance statuses."""
+        if db.any_id_problems(api_id):
+            bottle.abort(406, db.any_id_problems(api_id))
+        entity = self.manager.get_deployment(api_id)
+        if not entity:
+            raise exceptions.CheckmateDoesNotExist(
+                'No deployment with id %s' % api_id)
+        deployment = cmdeploy.Deployment(entity)
+        if utils.is_simulation(api_id):
+            bottle.request.context.simulation = True
+        bottle.request.context['deployment'] = api_id
+        return utils.write_body(
+            entity['resources'], bottle.request, bottle.response)
+
+    @utils.with_tenant
     def sync_deployment(self, api_id, tenant_id=None):
         """Sync existing deployment objects with current cloud status."""
         if db.any_id_problems(api_id):
@@ -607,7 +604,6 @@ class Router(object):
             bottle.request.context.simulation = True
         context = bottle.request.context
         context['deployment'] = api_id
-        # TODO(Paul): This call should be broken into specific calls <<<<<
         statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})
