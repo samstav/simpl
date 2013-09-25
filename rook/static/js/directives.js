@@ -157,8 +157,7 @@ directives.directive('cmTreeView', function() {
   var DEFAULTS = {
     HIGHLIGHT_NODE: 'highlight',
     HIGHLIGHT_GRAD_ID: 'highlight_gradient',
-    HIGHLIGHT_GRAD_START: '#0E90D2',
-    HIGHLIGHT_GRAD_END: '#F5F5F5',
+    HIGHLIGHT_GRAD_COLOR: '#0E90D2',
     HIGHLIGHT_RADIUS: 30,
     NOT_SCALABLE_MSG: 'This service cannot be scaled'
   }
@@ -183,13 +182,13 @@ directives.directive('cmTreeView', function() {
 
       gradient.append("svg:stop")
       .attr("offset", "0%")
-      .attr("stop-color", DEFAULTS.HIGHLIGHT_GRAD_START)
+      .attr("stop-color", DEFAULTS.HIGHLIGHT_GRAD_COLOR)
       .attr("stop-opacity", 1);
 
       gradient.append("svg:stop")
       .attr("offset", "100%")
-      .attr("stop-color", DEFAULTS.HIGHLIGHT_GRAD_END)
-      .attr("stop-opacity", 1);
+      .attr("stop-color", DEFAULTS.HIGHLIGHT_GRAD_COLOR)
+      .attr("stop-opacity", 0);
     }
   }
 
@@ -691,8 +690,8 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
 
     gradient.append("svg:stop")
     .attr("offset", "100%")
-    .attr("stop-color", "#F5F5F5")
-    .attr("stop-opacity", 1);
+    .attr("stop-color", "#0E90D2")
+    .attr("stop-opacity", 0);
 
 
     return svg;
