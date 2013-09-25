@@ -70,6 +70,33 @@ class TestManager(unittest.TestCase):
                                                    "TAKE OFFLINE",
                                                    "tenant_id")
 
+    @mock.patch('checkmate.operations.add')
+    @mock.patch('checkmate.workflow.create_workflow')
+    @mock.patch(
+        'checkmate.workflow_spec.WorkflowSpec.create_resource_online_spec')
+    @mock.patch('checkmate.db.get_driver')
+    def test_deploy_get_resource_online(self, mock_driver, mock_spec,
+                                        mock_workflow, mock_add_operation):
+        deployment = {'id': "DEP_ID"}
+        context = mock.Mock()
+        driver = mock_driver.return_value
+        spec = mock_spec.return_value
+        workflow = mock_workflow.return_value
+        operation = mock_add_operation.return_value
+        self.controller.save_deployment = mock.Mock()
+        actual = self.controller.deploy_get_resource_online(deployment,
+                                                            "res_id",
+                                                            context,
+                                                            "tenant_id")
+        self.assertEqual(operation, actual)
+        mock_spec.assert_called_once_with(deployment, "res_id", context)
+        mock_workflow.assert_called_once_with(spec, deployment, context,
+                                              driver=driver,
+                                              wf_type="GET ONLINE")
+        mock_add_operation.assert_called_once_with(deployment, workflow,
+                                                   "GET ONLINE",
+                                                   "tenant_id")
+
     @mock.patch('checkmate.workflow.create_workflow')
     @mock.patch('checkmate.operations.add')
     @mock.patch.object(workflow_spec.WorkflowSpec, 'create_delete_node_spec')

@@ -59,6 +59,16 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     @staticmethod
+    def create_resource_online_spec(deployment, resource_id, context):
+        """Creates the workflow spec for getting a resource online
+        :param deployment:
+        :param resource_id:
+        :param context:
+        :return:
+        """
+        pass
+
+    @staticmethod
     def create_delete_dep_wf_spec(deployment, context):
         """Creates a SpiffWorkflow spec for deleting a deployment
         :param deployment:
