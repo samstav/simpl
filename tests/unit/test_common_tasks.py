@@ -1,4 +1,4 @@
-# pylint: disable=E1101,W0603,W0613
+# pylint: disable=C0103,E1101,W0603,W0613
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.

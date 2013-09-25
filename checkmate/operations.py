@@ -125,7 +125,7 @@ def update_operation(deployment_id, workflow_id, driver=None,
             except KeyError:
                 LOG.warn("Cannot update deployment outputs: %s", deployment_id)
     except cmexc.CheckmateInvalidParameterError:
-        LOG.debug("Could not find the operation with id %s" % workflow_id)
+        LOG.debug("Could not find the operation with id %s", workflow_id)
 
     if delta:
         if check_results is None:

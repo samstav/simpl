@@ -187,6 +187,7 @@ def get_client_keys(inputs):
     specify a command to generate the keys.
     """
     results = {}
+    # pylint: disable=E1101
     if 'client_public_key' in inputs:
         if utils.is_ssh_key(inputs['client_public_key']):
             bottle.abort(406, "ssh public key must be in "
@@ -200,6 +201,7 @@ def get_client_keys(inputs):
                          "ssh public key string: %s"
                          % inputs['client_public_key_ssh'])
         results['client'] = {'public_key_ssh': inputs['client_public_key_ssh']}
+    # pylint: enable=E1101
     return results
 
 
