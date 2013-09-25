@@ -299,7 +299,8 @@ class TestCeleryTasks(unittest.TestCase):
         mock_lb.nodes = [mock_node]
         exception = exceptions.ClientException("422", message="exception")
         mock_node.update.side_effect = exception
-        loadbalancer.disable_node.retry = mock.Mock(side_effect=Exception(""))
+        loadbalancer.disable_node.retry = mock.Mock(
+            side_effect=StandardError(""))
         self.assertRaises(Exception, loadbalancer.disable_node, context,
                           lb_id, ip, region)
         loadbalancer.disable_node.retry.assert_called_once_with(exc=exception)
@@ -325,7 +326,8 @@ class TestCeleryTasks(unittest.TestCase):
         mock_lb.nodes = [mock_node]
         exception = exceptions.ClientException("404", message="exception")
         mock_node.update.side_effect = exception
-        loadbalancer.disable_node.retry = mock.Mock(side_effect=Exception(""))
+        loadbalancer.disable_node.retry = mock.Mock(
+            side_effect=StandardError(""))
         self.assertRaises(Exception, loadbalancer.disable_node, context,
                           lb_id, ip, region)
         loadbalancer.disable_node.retry.assert_called_once_with(exc=exception)
@@ -351,7 +353,8 @@ class TestCeleryTasks(unittest.TestCase):
         mock_lb.nodes = [mock_node]
         exception = StandardError("exception")
         mock_node.update.side_effect = exception
-        loadbalancer.disable_node.retry = mock.Mock(side_effect=Exception(""))
+        loadbalancer.disable_node.retry = mock.Mock(
+            side_effect=StandardError(""))
         self.assertRaises(Exception, loadbalancer.disable_node, context,
                           lb_id, ip, region)
 
