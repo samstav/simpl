@@ -132,7 +132,7 @@ class TestLoadBalancer(test.ProviderTester):
         context = middleware.RequestContext()
         self.mox.StubOutWithMock(loadbalancer.Provider, 'find_a_region')
         self.mox.StubOutWithMock(loadbalancer.Provider, 'find_url')
-        self.mox.StubOutWithMock(loadbalancer.Provider, '_get_abs_limits')
+        self.mox.StubOutWithMock(loadbalancer.provider, '_get_abs_limits')
         limits = {
             "NODE_LIMIT": max_nodes,
             "LOADBALANCER_LIMIT": max_lbs
@@ -140,9 +140,8 @@ class TestLoadBalancer(test.ProviderTester):
         loadbalancer.Provider.find_a_region(mox.IgnoreArg()).AndReturn("DFW")
         loadbalancer.Provider.find_url(mox.IgnoreArg(),
                                        mox.IgnoreArg()).AndReturn("fake url")
-        (loadbalancer.Provider
+        (loadbalancer.provider
          ._get_abs_limits(mox.IgnoreArg(),
-                          mox.IgnoreArg(),
                           mox.IgnoreArg(),
                           mox.IgnoreArg())
          .AndReturn(limits))

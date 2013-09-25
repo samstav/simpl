@@ -747,6 +747,8 @@ class Provider(rsbase.RackspaceProviderBase):
                        Provider.method)
 
 
+# Disabling unused args pylint warnings as their used for caching
+# pylint: disable=W0613
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE,
                backing_store=REDIS, backing_store_key='rax.lb.algorithms',
                ignore_args=[0])
@@ -794,3 +796,4 @@ def _get_abs_limits(context, auth_token, url):
     """Get LB absolute limits."""
     api = Provider.connect(context)
     return api.get_limits()
+# pylint: enable=W0613
