@@ -123,6 +123,42 @@ class TestWorkflowSpec(unittest.TestCase):
             mock.ANY, deployment, context, source_resource, dest_resource,
             'lb-web')
 
+    def test_create_resource_online_spec(self):
+        context = mock.Mock()
+        source_resource = {'provider': 'load-balancer'}
+        dest_resource = {
+            'relations': {
+                'lb-web-0': {
+                    'source': '0',
+                    'name': 'lb-web',
+                }
+            }
+        }
+        deployment = cmdep.Deployment({
+            'id': 'TEST',
+            'blueprint': {
+                'name': 'Deployment for test',
+            },
+            'resources': {
+                '0': source_resource,
+                '1': dest_resource,
+            },
+        })
+        mock_task_spec = mock.Mock()
+        deployment.environment = mock.Mock()
+        mock_environment = deployment.environment.return_value
+        mock_provider = mock_environment.get_provider.return_value
+        mock_provider.enable_connection_tasks.return_value = {
+            'root': mock_task_spec}
+
+        wf_spec = workflow_spec.WorkflowSpec.create_resource_online_spec(
+            deployment, "1", context)
+        self.assertListEqual(wf_spec.start.outputs, [mock_task_spec])
+        mock_environment.get_provider.assert_called_once_with('load-balancer')
+        mock_provider.enable_connection_tasks.assert_called_once_with(
+            mock.ANY, deployment, context, source_resource, dest_resource,
+            'lb-web')
+
 
 if __name__ == '__main__':
     import sys

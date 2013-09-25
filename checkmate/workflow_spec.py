@@ -66,7 +66,29 @@ class WorkflowSpec(specs.WorkflowSpec):
         :param context:
         :return:
         """
-        pass
+        environment = deployment.environment()
+        resources = deployment.get_non_deleted_resources()
+        resource = deployment['resources'].get(resource_id)
+        wf_spec = WorkflowSpec(name="Get resource %s in deployment %s online"
+                                    % (resource_id, deployment["id"]))
+        for key, relation in resource.get('relations', {}).iteritems():
+            if relation.get('source'):
+                source_resource = resources[relation.get('source')]
+                provider = environment.get_provider(
+                    source_resource['provider'])
+                tasks = provider.enable_connection_tasks(wf_spec,
+                                                         deployment,
+                                                         context,
+                                                         source_resource,
+                                                         resource,
+                                                         relation.get('name'))
+                if tasks:
+                    wf_spec.start.connect(tasks.get('root'))
+
+        if not wf_spec.start.outputs:
+            noop = specs.Simple(wf_spec, "end")
+            wf_spec.start.connect(noop)
+        return wf_spec
 
     @staticmethod
     def create_delete_dep_wf_spec(deployment, context):
