@@ -199,6 +199,8 @@ class Router(object):
                   self.get_resource)
         app.route('/deployments/<api_id>/resources/<r_id>/+take-offline',
                   'POST', self.take_resource_offline)
+        app.route('/deployments/<api_id>/resources/<r_id>/+get-online',
+                  'POST', self.get_resource_online)
         self.stack_router = stacks.Router(self.app, stacks.Manager())
 
     param_whitelist = ['search', 'name', 'blueprint.name', 'status',
@@ -781,6 +783,24 @@ class Router(object):
                                                               r_id,
                                                               context,
                                                               tenant_id)
+        wf_tasks.cycle_workflow.delay(operation['workflow-id'],
+                                      context.get_queued_task_dict())
+        return utils.write_body(deployment, bottle.request, bottle.response)
+
+    @utils.with_tenant
+    def get_resource_online(self, api_id, r_id, tenant_id=None):
+        """Creates and executes the workflow for getting the passed in
+        resource online.
+        """
+        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
+        if not deployment.get('resources').get(r_id):
+            bottle.abort(404, "No resource %s in deployment %s" %
+                              (r_id, api_id))
+        deployment = cmdeploy.Deployment(deployment)
+        context = bottle.request.context
+        operation = self.manager.deploy_get_resource_online(deployment, r_id,
+                                                            context,
+                                                            tenant_id)
         wf_tasks.cycle_workflow.delay(operation['workflow-id'],
                                       context.get_queued_task_dict())
         return utils.write_body(deployment, bottle.request, bottle.response)

@@ -536,3 +536,7 @@ class Manager(object):
                                    tenant_id)
         self.save_deployment(deployment, tenant_id=tenant_id)
         return operation
+
+    def deploy_get_resource_offline(self, deployment, r_id, context,
+                                    tenant_id):
+        pass
