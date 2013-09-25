@@ -2781,6 +2781,8 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   }
 
   $scope.showSecrets = function() {
+    if ($scope.data.secrets != 'AVAILABLE') return;
+
     $scope.secretsDialog = $dialog.dialog({
         resolve: {
             dialog: function() {return $scope.secretsDialog;}

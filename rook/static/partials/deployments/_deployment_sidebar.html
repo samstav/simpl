@@ -1,4 +1,31 @@
 <ul class="nav nav-list">
+  <!-- INFO -->
+  <li class="nav-header">
+    Info
+  </li>
+
+  <li class="progress">
+    <div class="bar" style="width: {{percentComplete}}%;"></div>
+  </li>
+
+  <li ng-show="is_resumable()">
+    <a ng-click="resume()">Resume</a>
+  </li>
+
+  <li ng-show="is_retriable()">
+    <a ng-click="retry()">Retry</a>
+  </li>
+
+  <li>
+  <a class="controls" ng-switch="data.secrets" ng-class="{muted: data.secrets != 'AVAILABLE'}" ng-click="showSecrets()">
+      <i class="icon-lock"></i>
+      <span ng-switch-when="AVAILABLE" style="display: inline-block">Secrets available</span>
+      <span ng-switch-when="LOCKED">Secrets Dismissed</span>
+      <span ng-switch-when="GENERATING">available soon</span>
+      <span ng-switch-default>No secrets</span>
+    </a>
+  </li>
+
   <!-- COMMANDS -->
   <li class="nav-header">
     Commands
@@ -10,10 +37,12 @@
     </a>
   </li>
 
-  <a ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
-    <i class="icon-retweet"></i>
-    Sync
-  </a>
+  <li>
+    <a ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
+      <i class="icon-retweet"></i>
+      Sync
+    </a>
+  </li>
 
   <li>
     <a ng-click="open_modal('delete_warning')" tooltip="Delete Resources and Deployment" tooltip-placement="right">

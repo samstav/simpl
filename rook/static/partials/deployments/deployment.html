@@ -31,10 +31,23 @@ Priv Key: {{formatted_data.private_key}}
             by
             <a ng-href="/{{data.tenantId}}/deployments">
               {{data['created-by']}}
-            </a>
+            </a>:
+            <span id="status" class="label" ng-class="{
+              'label-info': data.status == 'PLANNED',
+              'label-success': data.status == 'UP' || data.status == 'LAUNCHED' || data.status == 'ACTIVE',
+              'label-warning': data.status == 'ALERT' || data.status == 'DELETING' || data.status == 'BUILD',
+              'label-important': data.status == 'FAILED' || data.status == 'UNREACHABLE' || data.status == 'DOWN',
+              'label-inverse': data.status == 'DELETED'
+            }">
+              {{data.display_status}}
+            </span>
+
             <br />
+
             {{data.environment.name}}
+
             <br />
+
             <span class="cm-tips" tooltip="{{data.created | formattedFullDate}}" tooltip-placement="bottom">
               {{data.created | formattedDate}}
             </span>
