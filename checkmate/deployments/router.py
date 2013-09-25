@@ -775,6 +775,7 @@ class Router(object):
         if not deployment.get('resources').get(r_id):
             bottle.abort(404, "No resource %s in deployment %s" %
                               (r_id, api_id))
+        deployment = cmdeploy.Deployment(deployment)
         context = bottle.request.context
         operation = self.manager.deploy_take_resource_offline(deployment,
                                                               r_id,

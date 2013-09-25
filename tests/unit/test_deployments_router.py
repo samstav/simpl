@@ -49,7 +49,13 @@ class TestAPICalls(unittest.TestCase):
 
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.delay')
     def test_take_resource_offline(self, mock_delay):
-        deployment = {'resources': {'RES_ID': {'instance': {}}}}
+        deployment = {
+            'resources': {
+                'RES_ID': {'instance': {}}
+            },
+            'created': 'time',
+            'status': 'UP'
+        }
         self.manager.get_deployment.return_value = deployment
         self.manager.deploy_take_resource_offline.return_value = {
             'workflow-id': "W_ID"

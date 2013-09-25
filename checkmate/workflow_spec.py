@@ -21,7 +21,6 @@ import logging
 from SpiffWorkflow import specs
 
 from checkmate import exceptions
-from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -46,9 +45,11 @@ class WorkflowSpec(specs.WorkflowSpec):
                 source_resource = resources[relation.get('source')]
                 provider = environment.get_provider(
                     source_resource['provider'])
-                tasks = provider.disable_connection_tasks(wf_spec, context,
+                tasks = provider.disable_connection_tasks(wf_spec,
+                                                          deployment, context,
                                                           source_resource,
-                                                          resource)
+                                                          resource,
+                                                          relation.get('name'))
                 if tasks:
                     wf_spec.start.connect(tasks.get('root'))
 

@@ -93,7 +93,8 @@ class TestWorkflowSpec(unittest.TestCase):
         dest_resource = {
             'relations': {
                 'lb-web-0': {
-                    'source': '0'
+                    'source': '0',
+                    'name': 'lb-web',
                 }
             }
         }
@@ -119,7 +120,8 @@ class TestWorkflowSpec(unittest.TestCase):
         self.assertListEqual(wf_spec.start.outputs, [mock_task_spec])
         mock_environment.get_provider.assert_called_once_with('load-balancer')
         mock_provider.disable_connection_tasks.assert_called_once_with(
-            mock.ANY, context, source_resource, dest_resource)
+            mock.ANY, deployment, context, source_resource, dest_resource,
+            'lb-web')
 
 
 if __name__ == '__main__':

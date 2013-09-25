@@ -552,6 +552,79 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
+def disable_node(context, lb_id, ip_address, region, api=None):
+    """Celery task to disable a load balancer node
+    :param context: request context
+    :param lb_id: load balancer id
+    :param ip_address: ip address of the node
+    :param region: region of the load balancer
+    :param api: api to call
+    :return:
+    """
+    utils.match_celery_logging(LOG)
+    source_key = context['source_resource']
+    target_key = context['target_resource']
+    source_instance_key = "instance:%s" % source_key
+    target_instance_key = "instance:%s" % target_key
+    relation_name = context['relation_name']
+    results = {
+        source_instance_key: {
+            "relations": {
+                "%s-%s" % (relation_name, target_key): {
+                    'state': 'DISABLED'
+                }
+            }
+        },
+        target_instance_key: {
+            "status": "OFFLINE",
+            "relations": {
+                "%s-%s" % (relation_name, source_key): {
+                    'state': 'DISABLED'
+                }
+            }
+        }
+    }
+
+    if context.get('simulation') is True:
+        deployments.resource_postback.delay(context['deployment'], results)
+        return results
+
+    if api is None:
+        api = Provider.connect(context, region)
+
+    loadbalancer = api.get(lb_id)
+    node_to_disable = None
+    for node in loadbalancer.nodes:
+        if node.address == ip_address:
+            node_to_disable = node
+    if node_to_disable:
+        try:
+            node_to_disable.condition = "DISABLED"
+            node_to_disable.update()
+            LOG.info('Update %s to DISABLED for load balancer %s', ip_address,
+                     lb_id)
+        except pyrax.exceptions.ClientException as exc:
+            if exc.code == '422':
+                LOG.debug("Cannot modify load balancer %d. Will retry "
+                          "deleting %s (%s %s)", lb_id, ip_address, exc.code,
+                          exc.message)
+                disable_node.retry(exc=exc)
+            LOG.debug('Response error from load balancer %d. Will retry '
+                      'deleting %s (%s %s)', lb_id, ip_address, exc.code,
+                      exc.message)
+            disable_node.retry(exc=exc)
+        except StandardError as exc:
+            LOG.debug("Error updating node %s for load balancer %s. Error: %s"
+                      ". Retrying", ip_address, lb_id, str(exc))
+            disable_node.retry(exc=exc)
+        deployments.resource_postback.delay(context['deployment'], results)
+        return results
+    else:
+        LOG.debug('No node matching %s on LB %s', ip_address, lb_id)
+
+
+@task(default_retry_delay=10, max_retries=10)
+@statsd.collect
 def delete_node(context, lbid, ipaddr, region, api=None):
     '''Celery task to delete a node from a Cloud Load Balancer'''
     utils.match_celery_logging(LOG)
