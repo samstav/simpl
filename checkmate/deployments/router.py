@@ -588,20 +588,20 @@ class Router(object):
             bottle.request.context.simulation = True
         bottle.request.context['deployment'] = api_id
         statuses = deployment.get_statuses(bottle.request.context)
-        check_results = {'current': statuses, 'updates': {}}
+        check_results = {
+            'current': statuses,
+            'updates': {},
+            'operations-delta': {}
+        }
         for key, value in statuses.get('resources').iteritems():
-            result = {}
-            tasks.resource_postback.delay(
-                api_id, {key: value}, check_results=result)
-            check_results['updates'][key] = result
-        ops_delta = {}
-        common_tasks.update_operation(
+            check_results['updates'][key] = tasks.resource_postback(
+                api_id, {key: value}, check_only=True)
+        check_results['operations-delta'] = common_tasks.update_operation(
             api_id, operations.current_workflow_id(deployment),
             deployment_status=statuses['deployment_status'],
             status=statuses['operation_status'],
-            check_results=ops_delta
+            check_only=True
         )
-        check_results['operations-delta'] = ops_delta
         return utils.write_body(
             check_results, bottle.request, bottle.response)
 
@@ -617,8 +617,7 @@ class Router(object):
         deployment = cmdeploy.Deployment(entity)
         if utils.is_simulation(api_id):
             bottle.request.context.simulation = True
-        context = bottle.request.context
-        context['deployment'] = api_id
+        bottle.request.context['deployment'] = api_id
         statuses = deployment.get_statuses(bottle.request.context)
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})

@@ -83,7 +83,7 @@ def add_operation(deployment, op_type, **kwargs):
 
 
 def update_operation(deployment_id, workflow_id, driver=None,
-                     deployment_status=None, check_results=None,
+                     deployment_status=None, check_only=False,
                      **kwargs):
     """Update the the operation in the deployment
 
@@ -128,10 +128,10 @@ def update_operation(deployment_id, workflow_id, driver=None,
         LOG.debug("Could not find the operation with id %s", workflow_id)
 
     if delta:
-        if check_results is None:
+        if not check_only:
             driver.save_deployment(deployment_id, delta, partial=True)
-        else:
-            check_results = delta
+
+    return delta
 
 
 def current_workflow_id(deployment):

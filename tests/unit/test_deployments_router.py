@@ -527,6 +527,47 @@ class TestUpdateDeployment(TestDeploymentRouter):
                          '/%s/deployments/fake_id' % self.tenant_id)
 
 
+class TestSyncDeployment(unittest.TestCase):
+    def setUp(self):
+        self.manager = mock.Mock()
+        self.router = deployments.Router(mock.Mock(), self.manager)
+
+    @mock.patch.object(deployments.router.db, 'any_id_problems',
+                       return_value=True)
+    def test_with_id_problem(self, any_id_problems):
+        with self.assertRaises(bottle.HTTPError) as expected:
+            self.router.sync_deployment('bad_id')
+        self.assertEqual('HTTP Response 406', str(expected.exception))
+        any_id_problems.assert_called_twice_with('bad_id')
+
+    @mock.patch.object(deployments.router.db, 'any_id_problems',
+                       return_value=False)
+    def test_no_deployment(self, any_id_problems):
+        self.manager.get_deployment.return_value = None
+        with self.assertRaises(exceptions.CheckmateDoesNotExist) as expected:
+            self.router.sync_deployment('dep_id')
+        self.assertEqual('No deployment with id dep_id',
+                         str(expected.exception))
+        any_id_problems.assert_called_once_with('dep_id')
+
+    @mock.patch.object(deployments.router.db, 'any_id_problems',
+                       return_value=False)
+    @mock.patch.object(deployments.router, 'bottle')
+    @mock.patch.object(deployments.router.common_tasks, 'update_operation')
+    @mock.patch.object(deployments.router.utils, 'write_body')
+    def test_is_simulation(self, write_body, update_operation, mock_bottle,
+                           any_id_problems):
+        self.manager.get_deployment.return_value = {'id': 'simulate_dep'}
+        self.router.sync_deployment('simulate_dep')
+        any_id_problems.assert_called_with('simulate_dep')
+        print mock_bottle.request.context.simulation
+        self.assertTrue(mock_bottle.request.context.simulation)
+        write_body.assert_called_once_with({}, mock.ANY, mock.ANY)
+        update_operation.assert_called_once_with('simulate_dep', None,
+                                                 status=None,
+                                                 deployment_status='NEW')
+
+
 if __name__ == '__main__':
     import sys
     test.run_with_params(sys.argv[:])

@@ -72,7 +72,7 @@ class TestCommonTasks(unittest.TestCase):
         tasks.update_operation('DEP1', "WID", driver=self, x=1)
         tasks.operations.update_operation.assert_called_once_with(
             'DEP1', 'WID', driver=self, deployment_status=None,
-            check_results=None, x=1
+            check_only=False, x=1
         )
 
     @mock.patch.object(tasks.operations, 'update_operation')
@@ -85,7 +85,7 @@ class TestCommonTasks(unittest.TestCase):
                                x=1)
         tasks.operations.update_operation.assert_called_once_with(
             'DEP1', 'WID', driver=self, deployment_status='UP',
-            check_results=None, x=1
+            check_only=False, x=1
         )
 
 
