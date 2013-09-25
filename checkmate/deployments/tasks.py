@@ -187,7 +187,7 @@ def postback(deployment_id, contents):
 
 @task(default_retry_delay=0.5, max_retries=6)
 @statsd.collect
-def resource_postback(deployment_id, contents, driver=None):
+def resource_postback(deployment_id, contents, driver=None, check_results=None):
     #FIXME: we need to receive a context and check access
     """Accepts back results from a remote call and updates the deployment with
     the result data for a specific resource.
@@ -252,15 +252,18 @@ def resource_postback(deployment_id, contents, driver=None):
     if new_contents:
         deployment.on_resource_postback(new_contents, target=updates)
 
-    if updates:
-        body, secrets = utils.extract_sensitive_data(updates)
-        try:
-            driver.save_deployment(deployment_id, body, secrets, partial=True,
-                                   tenant_id=deployment['tenantId'])
+    if updates and check_results is None:
+        if check_results is None:
+            body, secrets = utils.extract_sensitive_data(updates)
+            try:
+                driver.save_deployment(deployment_id, body, secrets, partial=True,
+                                       tenant_id=deployment['tenantId'])
 
-            LOG.debug("Updated deployment %s with post-back", deployment_id,
-                      extra=dict(data=contents))
-        except ObjectLockedError:
-            LOG.warn("Object lock collision in resource_postback on "
-                     "Deployment %s", deployment_id)
-            resource_postback.retry()
+                LOG.debug("Updated deployment %s with post-back", deployment_id,
+                          extra=dict(data=contents))
+            except ObjectLockedError:
+                LOG.warn("Object lock collision in resource_postback on "
+                         "Deployment %s", deployment_id)
+                resource_postback.retry()
+        else:
+            check_results = updates

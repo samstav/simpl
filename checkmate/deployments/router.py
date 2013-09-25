@@ -587,8 +587,23 @@ class Router(object):
         if utils.is_simulation(api_id):
             bottle.request.context.simulation = True
         bottle.request.context['deployment'] = api_id
+        statuses = deployment.get_statuses(bottle.request.context)
+        check_results = {'current': statuses, 'updates': {}}
+        for key, value in statuses.get('resources').iteritems():
+            result = {}
+            tasks.resource_postback.delay(
+                api_id, {key: value}, check_results=result)
+            check_results['updates'][key] = result
+        ops_delta = {}
+        common_tasks.update_operation(
+            api_id, operations.current_workflow_id(deployment),
+            deployment_status=statuses['deployment_status'],
+            status=statuses['operation_status'],
+            check_results=ops_delta
+        )
+        check_results['operations-delta'] = ops_delta
         return utils.write_body(
-            entity['resources'], bottle.request, bottle.response)
+            check_results, bottle.request, bottle.response)
 
     @utils.with_tenant
     def sync_deployment(self, api_id, tenant_id=None):
