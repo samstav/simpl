@@ -92,8 +92,12 @@ describe('ResourcesController', function(){
       });
 
       it('should add information for Reach to display in the deployment', function() {
+        var metadata = mock_deployment.blueprint['meta-data']
+        var reach_info = metadata['reach-info']
         expect(mock_deployment.blueprint.name).toEqual('deadpool');
-        expect(mock_deployment.blueprint['meta-data']).toEqual({'application-name': 'Custom'})
+        expect(metadata['application-name']).toEqual('Custom')
+        expect(reach_info['tattoo']).toEqual('http://7555e8905adb704bd73e-744765205721eed93c384dae790e86aa.r66.cf2.rackcdn.com/custom-tattoo.png')
+        expect(reach_info['icon-20x20']).toEqual('http://7555e8905adb704bd73e-744765205721eed93c384dae790e86aa.r66.cf2.rackcdn.com/custom-20x20.png')
       });
     });
 
