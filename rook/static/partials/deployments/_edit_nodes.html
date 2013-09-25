@@ -1,4 +1,4 @@
-<div class="input-append input-prepend dropdown offset3" ng-show="available_services(data).length > 0">
+<div class='dropdown pull-left'>
   <button class="dropdown-toggle btn" ng-show="data.status == 'UP'">
     <i class="icon-plus-sign action action-add"></i>
     Add Nodes
@@ -8,7 +8,9 @@
     <li class="nav-header" cm-stop-click-propagation>
       Service: <br />
       <div ng-repeat="service in available_services(data)">
-        <input ng-model="$parent.selected_service" name="service" value="{{service}}" type="radio" /> {{service | capitalize}}<br />
+        <input ng-model="$parent.selected_service" name="service" value="{{service}}" type="radio" />
+        {{service | capitalize}}
+        <br />
       <div>
     </li>
 
@@ -22,9 +24,12 @@
     </li>
   </ul>
 
-  <button class="dropdown-toggle btn" ng-click="open_modal('delete_nodes_warning')" ng-show="data.status == 'UP'">
-    <i class="icon-minus-sign action action-delete"></i>
-    Delete Nodes
+</div>
+<div ng-show="data.status == 'UP'" class='pull-right'>
+  <i class="icon-question-sign muted" ng-hide="tree.count" tooltip="Select some nodes first"></i>
+  <button class="dropdown-toggle btn" ng-click="open_modal('delete_nodes_warning')" ng-disabled="tree.count == 0">
+      <i class="icon-minus-sign action action-delete"></i>
+      Delete Selected Nodes
   </button>
 
   <!-- delete_nodes_warning -->
@@ -39,7 +44,9 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-primary" ng-click="delete_nodes(data, tree.selected_nodes); close_modal('delete_nodes_warning');">Go ahead and Delete these nodes</button>
+      <button class="btn btn-primary" ng-click="delete_nodes(data, tree.selected_nodes); close_modal('delete_nodes_warning');">
+        Go ahead and Delete these nodes
+      </button>
       <button class="btn" ng-click="close_modal('delete_nodes_warning')">Cancel</button>
     </div>
   </div>

@@ -2763,15 +2763,17 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   $scope.data = {};
   $scope.data_json = "";
 
-  $scope.tree = { selected_nodes: {} };
+  $scope.tree = { selected_nodes: {}, count: 0 };
   $scope.toggle_selected_node = function(node) {
     var services = $scope.available_services($scope.data);
     if (services.indexOf(node.component) == -1)
       return false;
 
     if (node.id in $scope.tree.selected_nodes) {
+      $scope.tree.count--;
       delete $scope.tree.selected_nodes[node.id];
     } else {
+      $scope.tree.count++;
       $scope.tree.selected_nodes[node.id] = node;
     }
 

@@ -156,7 +156,10 @@ directives.directive('validateOption', function () {
 directives.directive('cmTreeView', function() {
   var DEFAULTS = {
     HIGHLIGHT_NODE: 'highlight',
-    HIGHLIGHT_RADIUS: 15,
+    HIGHLIGHT_GRAD_ID: 'highlight_gradient',
+    HIGHLIGHT_GRAD_START: '#0E90D2',
+    HIGHLIGHT_GRAD_END: '#F5F5F5',
+    HIGHLIGHT_RADIUS: 30,
     NOT_SCALABLE_MSG: 'This service cannot be scaled'
   }
   var create_svg = function(scope, element, attrs) {
@@ -173,11 +176,25 @@ directives.directive('cmTreeView', function() {
 
       scope.svg.append('svg:g').attr('class', 'edges');
       scope.svg.append('svg:g').attr('class', 'vertices');
+
+      var gradient = scope.svg.append("svg:defs")
+      .append("svg:radialGradient")
+      .attr("id", DEFAULTS.HIGHLIGHT_GRAD_ID)
+
+      gradient.append("svg:stop")
+      .attr("offset", "0%")
+      .attr("stop-color", DEFAULTS.HIGHLIGHT_GRAD_START)
+      .attr("stop-opacity", 1);
+
+      gradient.append("svg:stop")
+      .attr("offset", "100%")
+      .attr("stop-color", DEFAULTS.HIGHLIGHT_GRAD_END)
+      .attr("stop-opacity", 1);
     }
   }
 
   var select_node = function(node, scope, element) {
-    var toggled = scope.selectNode(node);
+    var toggled = scope.$apply(function() { return scope.selectNode(node); });
     if (toggled) {
       toggle_highlight(node, element);
     }
@@ -194,6 +211,7 @@ directives.directive('cmTreeView', function() {
         .insert('circle', ':first-child')
         .attr('class', DEFAULTS.HIGHLIGHT_NODE)
         .attr('r', DEFAULTS.HIGHLIGHT_RADIUS)
+        .style('fill', 'url(#'+DEFAULTS.HIGHLIGHT_GRAD_ID+')')
         //.attr("transform", function() { return "translate(" + x + "," + y + ")"; })
         ;
     }
