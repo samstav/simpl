@@ -46,8 +46,10 @@ SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_SIMULATOR_CONNECTION_STRING',
     os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
 OPERATION_DEPLOYMENT_STATUS_MAP = {
-    'BUILD': 'UP',
-    'DELETE': 'DELETED',
+    'BUILD': {'initial': 'PLANNED', 'final': 'UP', 'error': 'FAILED'},
+    'DELETE': {'final': 'DELETED', 'error': 'FAILED'},
+    'SCALE UP': {'initial': 'UP', 'final': 'UP', 'error': 'ALERT'},
+    'SCALE DOWN': {'initial': 'UP', 'final': 'UP', 'error': 'ALERT'},
 }
 
 
