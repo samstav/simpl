@@ -549,15 +549,17 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
 
     return results
 
-
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
-def disable_node(context, lb_id, ip_address, region, api=None):
+def update_node_status(context, lb_id, ip_address, region, node_status,
+                       resource_status, api=None):
     """Celery task to disable a load balancer node
     :param context: request context
     :param lb_id: load balancer id
     :param ip_address: ip address of the node
     :param region: region of the load balancer
+    :param node_status: status to be updated on the node
+    :param resource_status: status to be updated on the resource
     :param api: api to call
     :return:
     """
@@ -571,15 +573,15 @@ def disable_node(context, lb_id, ip_address, region, api=None):
         source_instance_key: {
             "relations": {
                 "%s-%s" % (relation_name, target_key): {
-                    'state': 'DISABLED'
+                    'state': node_status
                 }
             }
         },
         target_instance_key: {
-            "status": "OFFLINE",
+            "status": resource_status,
             "relations": {
                 "%s-%s" % (relation_name, source_key): {
-                    'state': 'DISABLED'
+                    'state': node_status
                 }
             }
         }
@@ -593,30 +595,31 @@ def disable_node(context, lb_id, ip_address, region, api=None):
         api = Provider.connect(context, region)
 
     loadbalancer = api.get(lb_id)
-    node_to_disable = None
+    node_to_update = None
     for node in loadbalancer.nodes:
         if node.address == ip_address:
-            node_to_disable = node
-    if node_to_disable:
+            node_to_update = node
+    if node_to_update:
         try:
-            node_to_disable.condition = "DISABLED"
-            node_to_disable.update()
-            LOG.info('Update %s to DISABLED for load balancer %s', ip_address,
-                     lb_id)
+            node_to_update.condition = node_status
+            node_to_update.update()
+            LOG.info('Update %s to %s for load balancer %s', ip_address,
+                     node_status, lb_id)
         except pyrax.exceptions.ClientException as exc:
             if exc.code == '422':
                 LOG.debug("Cannot modify load balancer %d. Will retry "
                           "deleting %s (%s %s)", lb_id, ip_address, exc.code,
                           exc.message)
-                disable_node.retry(exc=exc)
+                update_node_status.retry(exc=exc)
             LOG.debug('Response error from load balancer %d. Will retry '
-                      'deleting %s (%s %s)', lb_id, ip_address, exc.code,
+                      'updating node %s (%s %s)', lb_id, ip_address,
+                      exc.code,
                       exc.message)
-            disable_node.retry(exc=exc)
+            update_node_status.retry(exc=exc)
         except StandardError as exc:
             LOG.debug("Error updating node %s for load balancer %s. Error: %s"
                       ". Retrying", ip_address, lb_id, str(exc))
-            disable_node.retry(exc=exc)
+            update_node_status.retry(exc=exc)
         deployments.resource_postback.delay(context['deployment'], results)
         return results
     else:

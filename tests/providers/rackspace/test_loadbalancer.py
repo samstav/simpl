@@ -287,7 +287,7 @@ class TestCeleryTasks(unittest.TestCase):
     @mock.patch('checkmate.deployments.resource_postback.delay')
     @mock.patch(
         'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
-    def test_disable_node(self, mock_connect, mock_delay):
+    def test_update_node_status(self, mock_connect, mock_delay):
         context = {
             'source_resource': '0',
             'target_resource': '1',
@@ -320,7 +320,9 @@ class TestCeleryTasks(unittest.TestCase):
         mock_connect.return_value = mock_api
         mock_lb = mock_api.get.return_value
         mock_lb.nodes = [mock_node]
-        results = loadbalancer.disable_node(context, lb_id, ip, region)
+        results = loadbalancer.update_node_status(context, lb_id, ip,
+                                                  region, "DISABLED",
+                                                  "OFFLINE")
         self.assertTrue(mock_node.update.called)
         self.assertEqual(mock_node.condition, "DISABLED")
         self.assertDictEqual(results, expected_results)
@@ -328,7 +330,7 @@ class TestCeleryTasks(unittest.TestCase):
 
     @mock.patch(
         'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
-    def test_disable_node_with_422_client_exception(self, mock_connect):
+    def test_update_node_status_with_422_client_exception(self, mock_connect):
         context = {
             'source_resource': '0',
             'target_resource': '1',
@@ -347,15 +349,16 @@ class TestCeleryTasks(unittest.TestCase):
         mock_lb.nodes = [mock_node]
         exception = exceptions.ClientException("422", message="exception")
         mock_node.update.side_effect = exception
-        loadbalancer.disable_node.retry = mock.Mock(
+        loadbalancer.update_node_status.retry = mock.Mock(
             side_effect=StandardError(""))
-        self.assertRaises(Exception, loadbalancer.disable_node, context,
-                          lb_id, ip, region)
-        loadbalancer.disable_node.retry.assert_called_once_with(exc=exception)
+        self.assertRaises(StandardError, loadbalancer.update_node_status,
+                          context, lb_id, ip, region, "ENABLED", "ACTIVE")
+        loadbalancer.update_node_status.retry.assert_called_once_with(
+            exc=exception)
 
     @mock.patch(
         'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
-    def test_disable_node_with_client_exception(self, mock_connect):
+    def test_update_node_status_with_client_exception(self, mock_connect):
         context = {
             'source_resource': '0',
             'target_resource': '1',
@@ -374,15 +377,16 @@ class TestCeleryTasks(unittest.TestCase):
         mock_lb.nodes = [mock_node]
         exception = exceptions.ClientException("404", message="exception")
         mock_node.update.side_effect = exception
-        loadbalancer.disable_node.retry = mock.Mock(
+        loadbalancer.update_node_status.retry = mock.Mock(
             side_effect=StandardError(""))
-        self.assertRaises(Exception, loadbalancer.disable_node, context,
-                          lb_id, ip, region)
-        loadbalancer.disable_node.retry.assert_called_once_with(exc=exception)
+        self.assertRaises(StandardError, loadbalancer.update_node_status,
+                          context, lb_id, ip, region, "ENABLED", "ACTIVE")
+        loadbalancer.update_node_status.retry.assert_called_once_with(
+            exc=exception)
 
     @mock.patch(
         'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
-    def test_disable_node_with_standard_error(self, mock_connect):
+    def test_update_node_status_with_standard_error(self, mock_connect):
         context = {
             'source_resource': '0',
             'target_resource': '1',
@@ -401,15 +405,16 @@ class TestCeleryTasks(unittest.TestCase):
         mock_lb.nodes = [mock_node]
         exception = StandardError("exception")
         mock_node.update.side_effect = exception
-        loadbalancer.disable_node.retry = mock.Mock(
+        loadbalancer.update_node_status.retry = mock.Mock(
             side_effect=StandardError(""))
-        self.assertRaises(Exception, loadbalancer.disable_node, context,
-                          lb_id, ip, region)
+        self.assertRaises(StandardError, loadbalancer.update_node_status,
+                          context, lb_id, ip, region, "ENABLED", "ACTIVE")
 
-        loadbalancer.disable_node.retry.assert_called_once_with(exc=exception)
+        loadbalancer.update_node_status.retry.assert_called_once_with(
+            exc=exception)
 
     @mock.patch('checkmate.deployments.resource_postback.delay')
-    def test_disable_node_for_simulation(self, mock_delay):
+    def test_update_node_status_for_simulation(self, mock_delay):
         context = {
             'source_resource': '0',
             'target_resource': '1',
@@ -438,7 +443,9 @@ class TestCeleryTasks(unittest.TestCase):
         ip = "IP"
         region = "ORD"
 
-        results = loadbalancer.disable_node(context, lb_id, ip, region)
+        results = loadbalancer.update_node_status(context, lb_id, ip,
+                                                  region, "DISABLED",
+                                                  "OFFLINE")
         self.assertDictEqual(results, expected_results)
         mock_delay.assert_called_once_with("dep_id", expected_results)
 
