@@ -490,6 +490,9 @@ class DebugMiddleware(object):
         LOG.debug('')
         LOG.debug('%s %s %s', ('*' * 20), 'REQUEST BODY', ('*' * 20))
         LOG.debug('')
+        req = webob.Request(environ)
+        LOG.debug(req.body)
+        LOG.debug('')
 
         resp = self.print_generator(self.app(environ, start_response))
 
