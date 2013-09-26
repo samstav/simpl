@@ -61,19 +61,35 @@ Priv Key: {{formatted_data.private_key}}
         </div>
 
         <div class="row-fluid">
-          <div class="span6">
+
+          <div class="span7">
+            <ng-include src="'/partials/deployments/_details.html'"></ng-include>
+
+            <ng-include src="'/partials/deployments/_infrastructure.html'"></ng-include>
+          </div>
+
+          <div class="span5" style="position: relative;">
             <ng-include src="'/partials/deployments/_edit_nodes.html'"
                         ng-show="available_services(data).length > 0"></ng-include>
+
             <cm-tree-view id="deployment_tree" data="tree_data"
                           select-node="toggle_selected_node"
                           clickable-node="is_scalable_service"
                           width="640" height="480"></cm-tree-view>
-          </div>
 
-          <div class="span6">
-            <ng-include src="'/partials/deployments/_details.html'"></ng-include>
+            <div style="position: absolute; right: 10px; bottom: 90px;">
+              <span class="label label-info">{{count}}</span> tasks total<br />
+              <span class="label label-success">{{taskStates['completed'] + taskStates['ready']}}</span> completed<br />
+              <span class="label label-warning">{{taskStates['waiting']}}</span> in progress<br />
+              <span class="label label-important">{{taskStates['error']}}</span> errored out<br />
+              <span class="label">{{taskStates['future'] + taskStates['likely'] + taskStates['maybe']}}</span> waiting<br />
+            </div>
 
-            <ng-include src="'/partials/deployments/_infrastructure.html'"></ng-include>
+            <div class="alert controls">
+              You can access an <a ng-href="{{data.operation.link}}">advanced</a>
+              view of the workflow to manage any errors or hack at the workflow.
+            </div>
+
           </div>
         </div>
 
