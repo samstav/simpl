@@ -66,6 +66,7 @@ class Manager(object):
         :return:
         """
         serializer = DictionarySerializer()
+        d_wf.attributes["updated"] = utils.get_time_string()
         updated = d_wf.serialize(serializer)
         body, secrets = utils.extract_sensitive_data(updated)
         workflow_id = d_wf.get_attribute('id')

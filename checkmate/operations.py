@@ -76,7 +76,8 @@ def add_operation(deployment, op_type, **kwargs):
             deployment['operations-history'] = []
         history = deployment.get('operations-history')
         history.insert(0, deployment.pop('operation'))
-    operation = {'type': op_type}
+    operation = {'type': op_type,
+                 'created': utils.get_time_string()}
     operation.update(**kwargs)
     deployment['operation'] = operation
     return operation
@@ -111,10 +112,12 @@ def update_operation(deployment_id, workflow_id, driver=None,
             LOG.warn("Ignoring the update operation call as the "
                      "operation is already COMPLETE")
         else:
+            to_update = dict(kwargs)
+            to_update['updated'] = utils.get_time_string()
             if op_index == -1:  # Current operation from 'operation'
-                operation = dict(kwargs)
+                operation = to_update
             else:  # Pad a list so we can put it back in the right spot
-                operation = [{}] * op_index + [dict(kwargs)]
+                operation = [{}] * op_index + [to_update]
 
             delta[op_type] = operation
             try:

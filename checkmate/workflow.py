@@ -450,6 +450,8 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
     workflow.attributes['id'] = workflow_id
     workflow.attributes['tenant_id'] = deployment['tenantId']
     workflow.attributes['type'] = wf_type
+    workflow.attributes['created'] = utils.get_time_string()
+    workflow.attributes['updated'] = utils.get_time_string()
     update_workflow_status(workflow)
 
     return workflow

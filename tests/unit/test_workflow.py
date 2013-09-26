@@ -370,6 +370,71 @@ class TestWorkflow(unittest.TestCase):
         workflow.update_workflow(d_wf, tenant_id=tenant_id, status="PAUSED",
                                  driver=mock_driver, workflow_id=w_id)
 
+    @mock.patch.object(utils, 'get_time_string')
+    def test_init_spiff_workflow_puts_created_and_updated_timestamps(
+            self, mock_get_time_string):
+        context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
+                                       username='MOCK_USER')
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
+        deployment_with_lb_provider = cmdep.Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                tenantId: '1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: http
+                        constraints:
+                          - region: North
+                      relations:
+                        server: http
+                    server:
+                      component:
+                        resource_type: compute
+                operation:
+                  status: IN PROGRESS
+                  type: BUILD
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: http
+                            requires:
+                            - application: http
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            provides:
+                            - application: http
+                            - compute: linux
+            """))
+        deployments.Manager.plan(deployment_with_lb_provider, context)
+        deployment_with_lb_provider['resources']['0']['instance'] = {
+            'id': 'lbid'}
+        wf_spec = workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
+            deployment_with_lb_provider, context)
+        test_workflow = workflow.init_spiff_workflow(
+            wf_spec, deployment_with_lb_provider, context, "w_id",
+            "DELETE")
+        self.assertEquals(test_workflow.attributes["created"],
+                          '2013-03-31 17:49:51 +0000')
+        self.assertEquals(test_workflow.attributes["updated"],
+                          '2013-03-31 17:49:51 +0000')
+
+
     def test_create_delete_workflow_with_incomplete_operation(self):
         context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
                                        username='MOCK_USER')

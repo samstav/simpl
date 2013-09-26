@@ -20,7 +20,7 @@ import unittest
 
 from SpiffWorkflow import Task
 
-from checkmate import exceptions as cmexc
+from checkmate import exceptions as cmexc, utils
 from checkmate import operations
 
 
@@ -57,10 +57,13 @@ class TestOperations(unittest.TestCase):
 
 
 class TestOperationsAddOperation(unittest.TestCase):
-    def test_op_type_is_added_to_operation(self):
+    @mock.patch.object(utils, 'get_time_string')
+    def test_op_type_is_added_to_operation(self, mock_get_time_string):
         deployment = {}
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
         result = operations.add_operation(deployment, 'op_type')
-        self.assertEqual({'type': 'op_type'}, result)
+        self.assertEqual({'type': 'op_type',
+                          'created': '2013-03-31 17:49:51 +0000'}, result)
 
     def test_no_previous_operations_history(self):
         """Test the deployment gets an operations history."""
@@ -135,59 +138,79 @@ class TestOperationsUpdateOperation(unittest.TestCase):
                                             "COMPLETE")
 
     @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(utils, 'get_time_string')
     @mock.patch('checkmate.operations.db.get_driver')
-    def test_curr_operation_from_operation(self, mock_get_driver, mock_getop):
+    def test_curr_operation_from_operation(self, mock_get_driver,
+                                           mock_get_time_string, mock_getop):
         mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
         operations.update_operation('depid', 'wfid', test_kwarg='test')
         mock_db.save_deployment.assert_called_once_with(
-            'depid', {'operation': {'test_kwarg': 'test'}}, partial=True)
+            'depid', {'operation': {'test_kwarg': 'test',
+                                    'updated': '2013-03-31 17:49:51 +0000'}},
+            partial=True)
 
     @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(utils, 'get_time_string')
     @mock.patch('checkmate.operations.db.get_driver')
-    def test_curr_operation_from_history(self, mock_get_driver, mock_getop):
+    def test_curr_operation_from_history(self, mock_get_driver,
+                                         mock_get_time_string,
+                                         mock_getop):
         mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
+        mock_get_time_string.return_value = "2013-03-31 17:49:51 +0000"
         mock_getop.return_value = (
             'operations-history', 0, {'status': 'BUILD'})
         operations.update_operation('depid', 'wfid', test_kwarg='test')
         mock_db.save_deployment.assert_called_once_with(
             'depid',
-            {'operations-history': [{'test_kwarg': 'test'}]},
+            {'operations-history': [{'test_kwarg': 'test',
+                                     'updated': '2013-03-31 17:49:51 +0000'}]},
             partial=True
         )
 
+    @mock.patch.object(utils, 'get_time_string')
     @mock.patch('checkmate.operations.db.get_driver')
-    def test_update_operation(self, mock_get_driver):
+    def test_update_operation(self, mock_get_driver, mock_get_time_string):
         mock_db = mock.Mock()
 
         mock_db.get_deployment.return_value = {
             'id': '1234', 'operation': {'status': 'NEW'}
         }
         mock_db.save_deployment.return_value = None
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
         mock_get_driver.return_value = mock_db
         operations.update_operation('1234', '1234', status='NEW',
                                     driver=mock_db)
         mock_db.get_deployment.assert_called_with('1234', with_secrets=True)
         mock_db.save_deployment.assert_called_with(
             '1234',
-            {'operation': {'status': 'NEW'}},
+            {'operation': {'status': 'NEW',
+                           "updated": "2013-03-31 17:49:51 +0000"}},
             partial=True
         )
 
     @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(utils, 'get_time_string')
     @mock.patch('checkmate.operations.db.get_driver')
-    def test_include_deployment_status(self, mock_get_driver, mock_getop):
+    def test_include_deployment_status(self, mock_get_driver,
+                                       mock_get_time_string,
+                                       mock_getop):
         mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
         operations.update_operation('depid', 'wfid',
                                     deployment_status='test_status',
                                     test_kwarg='test')
         mock_db.save_deployment.assert_called_once_with(
             'depid',
-            {'operation': {'test_kwarg': 'test'}, 'status': 'test_status'},
+            {'operation': {'test_kwarg': 'test',
+                           'updated': '2013-03-31 17:49:51 +0000'},
+             'status': 'test_status',
+             },
             partial=True
         )
 
@@ -209,37 +232,53 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         )
 
     @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(utils, 'get_time_string')
     @mock.patch('checkmate.operations.db.get_driver')
-    def test_op_status_matches_kwarg_status(self, mock_get_driver, mock_getop):
+    def test_op_status_matches_kwarg_status(self, mock_get_driver,
+                                            mock_get_time_string,
+                                            mock_getop):
         mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
+
         operations.update_operation('depid', 'wfid',
                                     status='BUILD')
         mock_db.save_deployment.assert_called_once_with(
-            'depid', {'operation': {'status': 'BUILD'}}, partial=True)
+            'depid', {'operation': {'status': 'BUILD',
+                                    'updated': '2013-03-31 17:49:51 +0000'}},
+            partial=True)
 
     @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(utils, 'get_time_string')
     @mock.patch('checkmate.operations.db.get_driver')
     def test_op_status_does_not_match_kwarg_status(self,
                                                    mock_get_driver,
+                                                   mock_get_time_string,
                                                    mock_getop):
         mock_get_driver.return_value = mock_db = mock.Mock()
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'UP'})
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
         operations.update_operation('depid', 'wfid',
                                     status='BUILD')
         mock_db.save_deployment.assert_called_once_with(
-            'depid',
-            {'operation': {'status': 'BUILD'}, 'display-outputs': {}},
+            'depid', {
+                'operation': {
+                'status': 'BUILD',
+                'updated': '2013-03-31 17:49:51 +0000'},
+                'display-outputs': {}
+            },
             partial=True
         )
 
     @mock.patch.object(operations, 'cmdep')
     @mock.patch.object(operations.LOG, 'warn')
     @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(utils, 'get_time_string')
     @mock.patch('checkmate.operations.db.get_driver')
     def test_calculate_outputs_throws_key_error(self, mock_get_driver,
+                                                mock_get_time_string,
                                                 mock_getop,
                                                 mock_logger,
                                                 mock_cmdep):
@@ -249,11 +288,13 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         mock_dep.calculate_outputs.side_effect = KeyError
         mock_cmdep.Deployment.return_value = mock_dep
         mock_getop.return_value = ('operation', -1, {'status': 'UP'})
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
         operations.update_operation('depid', 'wfid',
                                     status='BUILD')
         mock_db.save_deployment.assert_called_once_with(
             'depid',
-            {'operation': {'status': 'BUILD'}},
+            {'operation': {'status': 'BUILD',
+                           'updated': '2013-03-31 17:49:51 +0000'}},
             partial=True
         )
         mock_logger.assert_called_once_with(
