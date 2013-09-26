@@ -2785,9 +2785,18 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       return "";
 
     var all_providers = deployment.environment.providers;
-    var providers = _.find(all_providers, function(p) { return p.constraints; });
-    var constraint = _.find(providers.constraints, function(c) { return c.source; });
-    var url = constraint.source.replace("git://", "http://").replace(".git", "")
+    var providers = _.find(all_providers, function(p) { return p.constraints; }) || {};
+    var constraint = _.find(providers.constraints, function(c) { return c.source; }) || {};
+    var original_url = constraint.source;
+    if (!original_url)
+      return "";
+
+    var last_hash = original_url.lastIndexOf('#')
+    if (last_hash == -1) last_hash = original_url.length;
+    var repo_url = original_url.substring(0,last_hash);
+    var branch_url = original_url.substring(last_hash, original_url.length);
+    var url = repo_url.replace("git://", "http://").replace(/\.git$/, "") + branch_url;
+
     return url;
   }
 

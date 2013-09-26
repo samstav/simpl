@@ -49,6 +49,76 @@ describe('DeploymentController', function(){
     expect($scope.name).toEqual('Deployment');
   });
 
+  describe('#get_blueprint_url', function() {
+    var deployment, constraint;
+    beforeEach(function() {
+      constraint = { source: "" };
+      deployment = { environment: { providers: { example: { constraints: [ constraint ] } } } };
+    });
+
+    it("should return empty string if deployment is not ready or doesn't have URL", function() {
+      deployment = undefined;
+      expect($scope.get_blueprint_url(deployment)).toEqual("");
+      deployment = {};
+      expect($scope.get_blueprint_url(deployment)).toEqual("");
+      deployment.environment = {};
+      expect($scope.get_blueprint_url(deployment)).toEqual("");
+      deployment.environment.providers = {};
+      expect($scope.get_blueprint_url(deployment)).toEqual("");
+      deployment.environment.providers.example = {};
+      expect($scope.get_blueprint_url(deployment)).toEqual("");
+      deployment.environment.providers.example.constraints = [];
+      expect($scope.get_blueprint_url(deployment)).toEqual("");
+    });
+
+    it("should replace git:// protocol with http://", function() {
+      constraint.source = "git://asdf.com/repo";
+      expect($scope.get_blueprint_url(deployment)).toEqual("http://asdf.com/repo");
+    });
+
+    it("should replace .git repo format at the end with an empty string", function() {
+      constraint.source = "git://asdf.com/repo.git";
+      expect($scope.get_blueprint_url(deployment)).toEqual("http://asdf.com/repo");
+    });
+
+    it("should replace protocol and repo format even with branches", function() {
+      constraint.source = "git://asdf.com/repo.git#stable";
+      expect($scope.get_blueprint_url(deployment)).toEqual("http://asdf.com/repo#stable");
+    });
+
+    it("should not replace random .git in the middle of the url", function() {
+      constraint.source = "git://asdf.github.com/repo.git#stable";
+      expect($scope.get_blueprint_url(deployment)).toEqual("http://asdf.github.com/repo#stable");
+    });
+  });
+
+  describe('#display_details', function() {
+    it("should return true if there are details to be displayed", function() {
+      var details = { d1: { info: 'valuable!' } };
+      expect($scope.display_details(details)).toBe(true);
+    });
+
+    it("should return true if it is not secret", function() {
+      var details = { d2: { 'is-secret': false }  }
+      expect($scope.display_details(details)).toBe(true);
+    });
+
+    it("should return true even if there are secrets", function() {
+      var details = { d1: { info: 'valuable!' }, d2: { 'is-secret': true }  }
+      expect($scope.display_details(details)).toBe(true);
+    });
+
+    it("should return false if there are only secrets", function() {
+      var details = { d2: { 'is-secret': true }  }
+      expect($scope.display_details(details)).toBe(false);
+    });
+
+    it("should return false if there is nothing to show", function() {
+      var details = {}
+      expect($scope.display_details(details)).toBe(false);
+    });
+  });
+
   describe('#load', function() {
     it('should get the resource', function() {
       var resource_result = { get: sinon.spy() };
