@@ -41,6 +41,31 @@
   </li>
 
   <li>
+    <a ng-click="open_modal('check_warning'); check(data)" tooltip="Check the currect deployment for common errors" tooltip-placement="right">
+      <i class="icon-check"></i>
+      Check for errors
+    </a>
+    <!-- check_warning -->
+    <div modal="modal_window.check_warning" close="close_modal('check_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="warning_title" aria-hidden="true">
+      <div class="modal-header">
+        <h3 id="warning_title" class="alert">Deployment Check Results</h3>
+      </div>
+      <div class="modal-body">
+        <div ng-show="loading.check">
+          <img class="loading" src="/img/ajax-loader.gif" />
+          Please wait while we check your deployment for errors...
+        </div>
+        <div ng-hide="loading.check">
+          <ng-include src="'/partials/deployments/_check_results.html'"></ng-incude>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" ng-click="close_modal('check_warning')">OK</button>
+      </div>
+    </div>
+  </li>
+
+  <li>
     <a ng-click="open_modal('delete_warning')" tooltip="Delete Resources and Deployment" tooltip-placement="right">
       <i class="icon-remove"></i>
       Delete

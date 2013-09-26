@@ -2049,6 +2049,11 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
     return (deployment.operation.complete / deployment.operation.tasks) * 100;
   }
 
+  scope.check = function(deployment) {
+    var url = get_deployment_url(deployment, '+check');
+    return $http.get(url);
+  }
+
   scope.add_nodes = function(deployment, service_name, num_nodes) {
     var data = { service_name: service_name, count: num_nodes };
     var url = get_deployment_url(deployment, '+add-nodes');
