@@ -23,7 +23,6 @@ import sys
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
-import cloudlb
 import pyrax
 import redis
 
@@ -188,24 +187,13 @@ class Provider(rsbase.RackspaceProviderBase):
                                           default="false"))
         return _dns.lower() in ['true', '1', 'yes']
 
-    @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=LB_API_CACHE,
-                         backing_store=REDIS,
-                         backing_store_key='rax.lb.limits')
-    def _get_abs_limits(self, username, auth_token, api_endpoint, region):
-        """Get LB absolute limits."""
-        api = cloudlb.CloudLoadBalancer(username, 'ignore', region)
-        api.client.auth_token = auth_token
-        api.client.region_account_url = api_endpoint
-        return api.loadbalancers.get_absolute_limits()
-
     def verify_limits(self, context, resources):
         messages = []
         region = getattr(context, 'region', None)
         if not region:
             region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
-        abs_limits = self._get_abs_limits(context.username, context.auth_token,
-                                          url, region)
+        abs_limits = _get_abs_limits(context, context.auth_token, url)
         max_nodes = abs_limits.get("NODE_LIMIT", sys.maxint)
         max_lbs = abs_limits.get("LOADBALANCER_LIMIT", sys.maxint)
         clb = self.connect(context, region=region)
@@ -759,6 +747,8 @@ class Provider(rsbase.RackspaceProviderBase):
                        Provider.method)
 
 
+# Disabling unused args pylint warnings as their used for caching
+# pylint: disable=W0613
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_ALGORTIHM_CACHE,
                backing_store=REDIS, backing_store_key='rax.lb.algorithms',
                ignore_args=[0])
@@ -797,3 +787,13 @@ def _get_protocols(context, auth_token, api_endpoint):
                   context['region'], exc)
         raise
     return results
+
+
+@caching.Cache(timeout=3600, sensitive_args=[1], store=LB_API_CACHE,
+               backing_store=REDIS, backing_store_key='rax.lb.limits',
+               ignore_args=[0])
+def _get_abs_limits(context, auth_token, url):
+    """Get LB absolute limits."""
+    api = Provider.connect(context)
+    return api.get_limits()
+# pylint: enable=W0613

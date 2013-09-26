@@ -32,10 +32,6 @@
 #             fork has this feature merged in with upstream.
 -e git://github.com/calebgroom/python-cloudfiles.git@d2ce52ed803a871d5cbe1d5faff208b4f467e5e0#egg=python-cloudfiles
 
-# python-cloudlb
-#   Upstream: https://github.com/rackerlabs/python-cloudlb
--e git://github.com/rackerlabs/python-cloudlb.git@641e6728d049ad6b823895b2034d9bef6d5416de#egg=python-cloudlb
-
 # openstack.compute
 #   Upstream: https://github.com/jacobian/openstack.compute
 #   Notes:    This project is stale. The last commit is over two years old.
@@ -49,7 +45,7 @@
 # Upstream: https://github.com/naterh/pyrax.git
 # Notes: 	This is the initial add for the mailgun module.  This should be
 #			integrated into pyrax shortly and can be removed.
--e git://github.com/naterh/pyrax.git@05a50c21ad219153a0a88ed51d15768622579ca0#egg=pyrax
+-e git://github.com/naterh/pyrax.git@e32c454afca5afef30c3e3aa5127a4e2c38eb5a1#egg=pyrax
 
 #### Checkmate applications
 
