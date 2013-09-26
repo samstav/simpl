@@ -1,1 +1,1 @@
-"""Pure Unit Tests (minimal to no mocking) go here"""
+"""Pure Unit Tests (testing functions/classes in isolation) go here."""

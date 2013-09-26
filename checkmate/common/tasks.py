@@ -42,7 +42,7 @@ LOCK_DB = db.get_lock_db_driver()
            lock_timeout=2)
 @statsd.collect
 def update_operation(deployment_id, workflow_id, driver=None,
-                     deployment_status=None,
+                     deployment_status=None, check_only=False,
                      **kwargs):
     """Exposes operations.update_operation as a task.
 
@@ -55,8 +55,10 @@ def update_operation(deployment_id, workflow_id, driver=None,
     Notes: has a high retry rate to make sure the status gets updated.
     Otherwise the deployment will appear to never complete.
     """
-    operations.update_operation(deployment_id, workflow_id, driver=driver,
-                                deployment_status=deployment_status, **kwargs)
+    return operations.update_operation(deployment_id, workflow_id,
+                                       driver=driver,
+                                       deployment_status=deployment_status,
+                                       check_only=check_only, **kwargs)
 
 
 @task.task(base=celery.SingleTask, default_retry_delay=3, max_retries=10,
