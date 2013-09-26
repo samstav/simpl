@@ -7,9 +7,6 @@
     <div ng-show="shouldDisplayWorkflowStatus()">
       <div class="control-group" ng-show="timeRemaining">
         <label class="control-label">Progress:</label>
-        <div class="controls progress">
-          <div class="bar" style="width: {{percentComplete}}%;"></div>
-        </div>
         <div class="controls">
           <p><span class="label label-info">{{count}}</span> tasks total:</p>
           <p>&nbsp; &nbsp; &nbsp;<span class="label label-success">{{taskStates['completed'] + taskStates['ready']}}</span> completed</p>

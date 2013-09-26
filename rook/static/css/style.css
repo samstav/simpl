@@ -362,6 +362,12 @@ body {
     }
 }
 
+.deployment_container {
+  background-position: right top;
+  background-repeat: no-repeat;
+  background-size: auto 100px;
+}
+
 /* code mirror fixes - ZNS */
 .deployment_container .CodeMirror { height: 600px }
 .CodeMirror { height: inherit; }
