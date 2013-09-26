@@ -63,6 +63,7 @@ def register_scheme(scheme):
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
+@statsd.collect
 def _get_root_environments_path(dep_id, path=None):
     """Build the path using provided inputs.
 
@@ -75,6 +76,7 @@ def _get_root_environments_path(dep_id, path=None):
     return root
 
 
+@statsd.collect
 def _run_ruby_command(dep_id, path, command, params, lock=True):
     """Runs a knife-like command (ex. librarian-chef).
 
@@ -128,6 +130,7 @@ def _run_ruby_command(dep_id, path, command, params, lock=True):
     return result
 
 
+@statsd.collect
 def _run_kitchen_command(dep_id, kitchen_path, params, lock=True):
     """Runs the 'knife xxx' command.
 
@@ -172,6 +175,7 @@ def _run_kitchen_command(dep_id, kitchen_path, params, lock=True):
     return result
 
 
+@statsd.collect
 def _create_environment_keys(dep_id, environment_path, private_key=None,
                              public_key_ssh=None):
     """Put keys in an existing environment
@@ -224,6 +228,7 @@ def _create_environment_keys(dep_id, environment_path, private_key=None,
                 private_key_path=private_key_path)
 
 
+@statsd.collect
 def _write_knife_config_file(kitchen_path):
     """Writes a solo.rb config file and links a knife.rb file too."""
     secret_key_path = os.path.join(kitchen_path, 'certificates', 'chef.pem')
@@ -252,6 +257,7 @@ encrypted_data_bag_secret "%s"
     return (solo_file, secret_key_path)
 
 
+@statsd.collect
 def _get_blueprints_cache_path(source_repo):
     """Return the path of the blueprint cache directory."""
     utils.match_celery_logging(LOG)
@@ -261,6 +267,7 @@ def _get_blueprints_cache_path(source_repo):
     return os.path.join(prefix, "cache", "blueprints", suffix)
 
 
+@statsd.collect
 def _cache_blueprint(source_repo):
     """Cache a blueprint repo or update an existing cache, if necessary."""
     LOG.debug("(cache) Running providers.opscode.knife._cache_blueprint()...")
@@ -324,6 +331,7 @@ def _cache_blueprint(source_repo):
             utils.git_checkout(repo_cache, tag)
 
 
+@statsd.collect
 def _blueprint_exists(source, dest):
     """Check that all files in the source blueprint exist in the destination.
     """
@@ -334,6 +342,7 @@ def _blueprint_exists(source, dest):
     return True
 
 
+@statsd.collect
 def _ensure_kitchen_blueprint(dest, source_repo):
     """Update the blueprint cache and copy the blueprint to the kitchen.
 
@@ -356,6 +365,7 @@ def _ensure_kitchen_blueprint(dest, source_repo):
                             with_overwrite=True)
 
 
+@statsd.collect
 def _create_kitchen(dep_id, service_name, path, secret_key=None,
                     source_repo=None):
     """Creates a new knife-solo kitchen in path
@@ -797,6 +807,7 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
     cmdeps.resource_postback.delay(environment, pb_res)
 
 
+@statsd.collect
 def _ensure_berkshelf_environment():
     """Checks the Berkshelf environment and sets it up if necessary."""
     berkshelf_path = CONFIG.berkshelf_path
@@ -1145,6 +1156,7 @@ def register_node(host, environment, resource, path=None, password=None,
         cmdeps.resource_postback.delay(environment, results)
 
 
+@statsd.collect
 def _write_node_attributes(node_path, attributes):
     '''Merge node attributes into existing ones in node file.'''
     if attributes:
