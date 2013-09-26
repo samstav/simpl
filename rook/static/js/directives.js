@@ -506,7 +506,6 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     _avoid_node_collision(streams, positions);
     var sorted_streams = _sort_streams(streams);
     _interpolate_streams(sorted_streams);
-    console.log(streams);
   }
 
   var _draw_highlight = function(d, streams, scope, element) {
