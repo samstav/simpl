@@ -85,9 +85,13 @@
     Workflows
   </li>
   <li ng-repeat="operation in operations_history | filter:{ link: '!canvas' }">
+    <i class="icon-list"></i>
     <a href="{{operation.link}}">{{operation.type | capitalize}}</a>
   </li>
   <li>
-    <a ng-show="data.operation.link" href="{{data.operation.link}}">{{data.operation.type | capitalize}}</a>
+    <a ng-show="data.operation.link" href="{{data.operation.link}}">
+      <i class="icon-tasks"></i>
+      {{data.operation.type | capitalize}}
+    </a>
   </li>
 </ul>
