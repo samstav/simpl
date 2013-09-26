@@ -273,6 +273,13 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+  $scope.codemirrorLoaded = function(_editor){
+    _editor.eachLine(function(line){
+      if(line.text.substring(0,3) == '  "') {
+        $scope.foldFunc(_editor, _editor.getLineNumber(line))
+      }
+    })
+  }
 
   $scope.is_admin = function(strict) {
     return auth.is_admin(strict);
