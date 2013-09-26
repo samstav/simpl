@@ -284,10 +284,10 @@ class TestCeleryTasks(unittest.TestCase):
     def tearDown(self):
         self.mox.UnsetStubs()
 
-    @mock.patch('checkmate.deployments.resource_postback.delay')
+    @mock.patch('checkmate.deployments.tasks.postback')
     @mock.patch(
         'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
-    def test_update_node_status(self, mock_connect, mock_delay):
+    def test_update_node_status(self, mock_connect, mock_postback):
         context = {
             'source_resource': '0',
             'target_resource': '1',
@@ -298,18 +298,20 @@ class TestCeleryTasks(unittest.TestCase):
         ip = "IP"
         region = "ORD"
         expected_results = {
-            'instance:0': {
-                "relations": {
-                    "lb-web-1": {
-                        'state': 'DISABLED'
+            'resources': {
+                '0': {
+                    "relations": {
+                        "lb-web-1": {
+                            'state': 'DISABLED'
+                        }
                     }
-                }
-            },
-            'instance:1': {
-                "status": "OFFLINE",
-                "relations": {
-                    "lb-web-0": {
-                        'state': 'DISABLED'
+                },
+                '1': {
+                    "status": "OFFLINE",
+                    "relations": {
+                        "lb-web-0": {
+                            'state': 'DISABLED'
+                        }
                     }
                 }
             }
@@ -326,7 +328,7 @@ class TestCeleryTasks(unittest.TestCase):
         self.assertTrue(mock_node.update.called)
         self.assertEqual(mock_node.condition, "DISABLED")
         self.assertDictEqual(results, expected_results)
-        mock_delay.assert_called_once_with("dep_id", expected_results)
+        mock_postback.assert_called_once_with("dep_id", expected_results)
 
     @mock.patch(
         'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
@@ -413,8 +415,8 @@ class TestCeleryTasks(unittest.TestCase):
         loadbalancer.update_node_status.retry.assert_called_once_with(
             exc=exception)
 
-    @mock.patch('checkmate.deployments.resource_postback.delay')
-    def test_update_node_status_for_simulation(self, mock_delay):
+    @mock.patch('checkmate.deployments.tasks.postback')
+    def test_update_node_status_for_simulation(self, mock_postback):
         context = {
             'source_resource': '0',
             'target_resource': '1',
@@ -423,18 +425,20 @@ class TestCeleryTasks(unittest.TestCase):
             'simulation': True
         }
         expected_results = {
-            'instance:0': {
-                "relations": {
-                    "lb-web-1": {
-                        'state': 'DISABLED'
+            'resources': {
+                '0': {
+                    "relations": {
+                        "lb-web-1": {
+                            'state': 'DISABLED'
+                        }
                     }
-                }
-            },
-            'instance:1': {
-                "status": "OFFLINE",
-                "relations": {
-                    "lb-web-0": {
-                        'state': 'DISABLED'
+                },
+                '1': {
+                    "status": "OFFLINE",
+                    "relations": {
+                        "lb-web-0": {
+                            'state': 'DISABLED'
+                        }
                     }
                 }
             }
@@ -447,7 +451,7 @@ class TestCeleryTasks(unittest.TestCase):
                                                   region, "DISABLED",
                                                   "OFFLINE")
         self.assertDictEqual(results, expected_results)
-        mock_delay.assert_called_once_with("dep_id", expected_results)
+        mock_postback.assert_called_once_with("dep_id", expected_results)
 
     @mock.patch.object(deployments.tasks.reset_failed_resource_task, 'delay')
     @mock.patch.object(deployments.resource_postback, 'delay')

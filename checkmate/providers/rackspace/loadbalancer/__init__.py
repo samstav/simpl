@@ -23,6 +23,7 @@ import redis
 
 from checkmate.common import statsd
 from checkmate import deployments
+from checkmate.deployments import tasks as deployment_tasks
 from checkmate import exceptions
 from checkmate.providers.rackspace.loadbalancer.manager import Manager
 from checkmate.providers.rackspace.loadbalancer.provider import Provider
@@ -564,29 +565,29 @@ def update_node_status(context, lb_id, ip_address, region, node_status,
     utils.match_celery_logging(LOG)
     source_key = context['source_resource']
     target_key = context['target_resource']
-    source_instance_key = "instance:%s" % source_key
-    target_instance_key = "instance:%s" % target_key
     relation_name = context['relation_name']
     results = {
-        source_instance_key: {
-            "relations": {
-                "%s-%s" % (relation_name, target_key): {
-                    'state': node_status
+        'resources': {
+            source_key: {
+                "relations": {
+                    "%s-%s" % (relation_name, target_key): {
+                        'state': node_status
+                    }
                 }
-            }
-        },
-        target_instance_key: {
-            "status": resource_status,
-            "relations": {
-                "%s-%s" % (relation_name, source_key): {
-                    'state': node_status
+            },
+            target_key: {
+                "status": resource_status,
+                "relations": {
+                    "%s-%s" % (relation_name, source_key): {
+                        'state': node_status
+                    }
                 }
             }
         }
     }
 
     if context.get('simulation') is True:
-        deployments.resource_postback.delay(context['deployment'], results)
+        deployment_tasks.postback(context['deployment'], results)
         return results
 
     if api is None:
@@ -618,7 +619,7 @@ def update_node_status(context, lb_id, ip_address, region, node_status,
             LOG.debug("Error updating node %s for load balancer %s. Error: %s"
                       ". Retrying", ip_address, lb_id, str(exc))
             update_node_status.retry(exc=exc)
-        deployments.resource_postback.delay(context['deployment'], results)
+        deployment_tasks.postback(context['deployment'], results)
         return results
     else:
         LOG.debug('No node matching %s on LB %s', ip_address, lb_id)
