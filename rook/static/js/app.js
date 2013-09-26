@@ -2791,6 +2791,16 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     return url;
   }
 
+  $scope.display_details = function(details) {
+    var available_details = false;
+    angular.forEach(details, function(detail) {
+      if (!detail['is-secret']) {
+        available_details = true;
+      }
+    });
+    return available_details;
+  }
+
   $scope.showSecrets = function() {
     if ($scope.data.secrets != 'AVAILABLE') return;
 
