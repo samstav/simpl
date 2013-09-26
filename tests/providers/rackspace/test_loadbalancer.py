@@ -95,6 +95,8 @@ class TestLoadBalancer(test.ProviderTester):
         relation_name = 'lb-web'
         wf_spec = specs.WorkflowSpec()
         context.get_queued_task_dict.return_value = {}
+        exp_call = "checkmate.providers.rackspace.loadbalancer" \
+                   ".update_node_status"
         result = provider.disable_connection_tasks(wf_spec, deployment,
                                                    context, source_resource,
                                                    target_resource,
@@ -103,7 +105,53 @@ class TestLoadBalancer(test.ProviderTester):
         self.assertEqual(len(result), 2)
         self.assertListEqual(result.keys(), ['root', 'final'])
         self.assertIsInstance(root_task, specs.Celery)
-        self.assertEqual(root_task.args, [{}, "LB_ID", "IP", "ORD"])
+        self.assertEqual(root_task.call, exp_call)
+        self.assertEqual(root_task.args, [{}, "LB_ID", "IP", "ORD",
+                                              "DISABLED", "OFFLINE"])
+        self.assertEqual(root_task.properties, {
+            'provider': provider.key,
+            'resource': '1',
+            'estimated_duration': 5
+        })
+        context.get_queued_task_dict.assert_called_once_with(
+            deployment="DEP_ID", source_resource="0", target_resource="1",
+            relation_name=relation_name)
+
+    def test_enable_connection_tasks(self):
+        provider = loadbalancer.Provider({})
+        deployment = {'id': "DEP_ID"}
+        context = mock.Mock()
+        source_resource = {
+            'index': '0',
+            'service': 'lb',
+            'instance': {
+                'id': "LB_ID",
+            },
+            'region': 'ORD',
+        }
+        target_resource = {
+            'index': '1',
+            'service': 'web',
+            'instance': {
+                'private_ip': 'IP',
+            },
+        }
+        relation_name = 'lb-web'
+        wf_spec = specs.WorkflowSpec()
+        context.get_queued_task_dict.return_value = {}
+        exp_call = "checkmate.providers.rackspace.loadbalancer" \
+                   ".update_node_status"
+        result = provider.enable_connection_tasks(wf_spec, deployment,
+                                                  context, source_resource,
+                                                  target_resource,
+                                                  relation_name)
+        root_task = result['root']
+        self.assertEqual(len(result), 2)
+        self.assertListEqual(result.keys(), ['root', 'final'])
+        self.assertIsInstance(root_task, specs.Celery)
+        self.assertEqual(root_task.call, exp_call)
+        self.assertEqual(root_task.args, [{}, "LB_ID", "IP", "ORD",
+                                              "ENABLED", "ACTIVE"])
         self.assertEqual(root_task.properties, {
             'provider': provider.key,
             'resource': '1',

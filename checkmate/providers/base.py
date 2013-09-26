@@ -50,22 +50,40 @@ class ProviderBaseWorkflowMixIn(object):
     """
 
     # pylint: disable=W0613,R0913
-    def disable_connection_tasks(self, wfspec, deployment, context,
+    def disable_connection_tasks(self, wf_spec, deployment, context,
                                  source_resource, target_resource,
                                  relation_name):
         """Add any tasks that are needed for disabling the connection from
         source to destination resource
-        :param wfspec: the SpiffWorkflow WorkflowSpec we are building
+        :param wf_spec: the SpiffWorkflow WorkflowSpec we are building
         :param deployment: deployment
         :param context: request context
         :param source_resource: connection source resource
-        :param destination_resource: connection destination resource
-        :param relation: relation between source and destination resource
+        :param target_resource: connection destination resource
+        :param relation_name: relation between source and destination resource
         :returns: a hash (dict) of relevant tasks. The hash keys are:
                 'root': the root task in the sequence
                 'final': the task that signifies readiness (work is done)
         """
         LOG.debug("%s.%s.disable_connection_tasks called, but was not "
+                  "implemented", self.vendor, self.name)
+
+    def enable_connection_tasks(self, wf_spec, deployment, context,
+                                source_resource, target_resource,
+                                relation_name):
+        """Add any tasks that are needed for disabling the connection from
+        source to destination resource
+        :param wf_spec: the SpiffWorkflow WorkflowSpec we are building
+        :param deployment: deployment
+        :param context: request context
+        :param source_resource: connection source resource
+        :param target_resource: connection destination resource
+        :param relation_name: relation between source and destination resource
+        :returns: a hash (dict) of relevant tasks. The hash keys are:
+                'root': the root task in the sequence
+                'final': the task that signifies readiness (work is done)
+        """
+        LOG.debug("%s.%s.enable_connection_tasks called, but was not "
                   "implemented", self.vendor, self.name)
 
     def prep_environment(self, wfspec, deployment, context):
