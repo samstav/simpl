@@ -235,6 +235,28 @@ def collect_record_data(deployment_id, resource_key, record):
     return contents
 
 
+def _update_metadata(context, resource, clb):
+    """Updates metadata on cloud loadbalancer."""
+    try:
+        metadata = {}
+        cloud_metadata = []
+        if hasattr(clb, 'metadata'):
+            cloud_metadata = clb.metadata
+        for data in cloud_metadata:
+            metadata[data['key']] = data['value']
+        if "RAX-CHECKMATE" not in metadata:
+            checkmate_tag = Provider.generate_resource_tag(
+                context['base_url'], context['tenant'],
+                context['deployment'], resource['index']
+            )
+            new_meta = utils.merge_dictionary(metadata, checkmate_tag)
+            clb.set_metadata(new_meta)
+    except StandardError as exc:
+        LOG.info("Could not set metadata tag "
+                 "on checkmate managed compute resource")
+        LOG.info(exc)
+
+
 @task
 @statsd.collect
 def sync_resource_task(context, resource, resource_key, api=None):
@@ -251,47 +273,29 @@ def sync_resource_task(context, resource, resource_key, api=None):
     if api is None:
         api = Provider.connect(context, resource.get("region"))
 
-    instance = resource.get("instance") or {}
-    instance_id = instance.get("id")
+    instance_id = resource.get("instance", {}).get('id')
+
     try:
         if not instance_id:
             error_message = "No instance id supplied for resource %s" % key
             raise exceptions.CheckmateException(error_message)
         clb = api.get(instance_id)
 
-        try:
-            metadata = {}
-            cloud_metadata = []
-            if hasattr(clb, 'metadata'):
-                cloud_metadata = clb.metadata
-            for data in cloud_metadata:
-                metadata[data['key']] = data['value']
-            if "RAX-CHECKMATE" not in metadata:
-                checkmate_tag = Provider.generate_resource_tag(
-                    context['base_url'], context['tenant'],
-                    context['deployment'], resource['index']
-                )
-                new_meta = utils.merge_dictionary(metadata, checkmate_tag)
-                clb.set_metadata(new_meta)
-        except StandardError as exc:
-            LOG.info("Could not set metadata tag "
-                     "on checkmate managed compute resource")
-            LOG.info(exc)
+        # TODO(any): Dont think this is a good place for this.
+        _update_metadata(context, resource, clb)
 
+        status = {'status': clb.status}
+    except pyrax.exceptions.ClientException as exc:
+        if exc.code not in ['404', '422']:
+            return
+        status = {'status': 'DELETED'}
+    except exceptions.CheckmateException:
+        status = {'status': 'DELETED'}
+
+    if status.get('status'):
         LOG.info("Marking load balancer instance %s as %s", instance_id,
-                 clb.status)
-        return {
-            key: {
-                'status': clb.status
-            }
-        }
-    except (pyrax.exceptions.NotFound, exceptions.CheckmateException):
-        LOG.info("Marking load balancer instance %s as DELETED", instance_id)
-        return {
-            key: {
-                'status': 'DELETED'
-            }
-        }
+                 status['status'])
+    return {key: status}
 
 
 @task

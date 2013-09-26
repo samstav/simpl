@@ -22,6 +22,7 @@ import unittest
 import pyrax
 
 from checkmate import exceptions
+from checkmate.providers.rackspace import loadbalancer
 from checkmate.providers.rackspace.loadbalancer import manager
 
 
@@ -65,3 +66,66 @@ class TestEnableContentCaching(unittest.TestCase):
         self.assertRaisesRegexp(exceptions.CheckmateException, expected,
                                 manager.Manager.enable_content_caching,
                                 self.lbid, self.api)
+
+
+class TestLoadBalancerSyncTask(unittest.TestCase):
+    """Class to test sync_resource_task."""
+
+    def setUp(self):
+        """Re-use test vars."""
+        self.context = {}
+        self.resource = {'instance': {'id': '1234'}}
+        self.resource_key = 1
+        self.api = mock.MagicMock()
+
+    @mock.patch.object(loadbalancer.LOG, 'info')
+    def test_sync_success(self, mock_logger):
+        """Verifies methods and return results on sync_resource_task."""
+        clb = mock.MagicMock()
+        clb.status = 'RESIZING'
+        clb.metadata.side_effect = StandardError('testing')
+        self.api.get.return_value = clb
+        expected = {'instance:1': {'status': 'RESIZING'}}
+
+        results = loadbalancer.sync_resource_task(self.context, self.resource,
+                                                  self.resource_key, self.api)
+        self.assertEqual(expected, results)
+        mock_logger.assert_called_with('Marking load balancer instance %s as '
+                                       '%s', '1234', 'RESIZING')
+
+    def test_sync_ClientException_return(self):
+        """Verifies methods and results on sync_resource_task with
+        ClientException raised not 404 or 422.
+        """
+        self.api.get.side_effect = pyrax.exceptions.ClientException(code='500')
+        expected = None
+
+        results = loadbalancer.sync_resource_task(self.context, self.resource,
+                                                  self.resource_key, self.api)
+        self.assertEqual(expected, results)
+
+    @mock.patch.object(loadbalancer.LOG, 'info')
+    def test_sync_ClientException(self, mock_logger):
+        """Verifies methods and results on sync_resource_task with
+        ClientException raised with 404 or 422.
+        """
+        self.api.get.side_effect = pyrax.exceptions.ClientException(code='422')
+        expected = {'instance:1': {'status': 'DELETED'}}
+
+        results = loadbalancer.sync_resource_task(self.context, self.resource,
+                                                  self.resource_key, self.api)
+        self.assertEqual(expected, results)
+        mock_logger.assert_called_with('Marking load balancer instance %s as '
+                                       '%s', '1234', 'DELETED')
+
+    @mock.patch.object(loadbalancer.LOG, 'info')
+    def test_CheckmateException(self, mock_logger):
+        """Verifies method calls and results when no instance id found."""
+        del self.resource['instance']
+        expected = {'instance:1': {'status': 'DELETED'}}
+
+        results = loadbalancer.sync_resource_task(self.context, self.resource,
+                                                  self.resource_key, self.api)
+        self.assertEqual(expected, results)
+        mock_logger.assert_called_with('Marking load balancer instance %s as '
+                                       '%s', None, 'DELETED')
