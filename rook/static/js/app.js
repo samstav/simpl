@@ -3,7 +3,7 @@ var is_chrome_extension = navigator.userAgent.toLowerCase().indexOf('chrome') > 
 var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
-var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui', 'ngLocale', 'ui.bootstrap']);
+var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ui.utils', 'ui.bootstrap', 'ui.codemirror']);
 
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider) {
