@@ -2780,6 +2780,17 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     return true;
   }
 
+  $scope.get_blueprint_url = function(deployment) {
+    if (!(deployment && deployment.environment && deployment.environment.providers))
+      return "";
+
+    var all_providers = deployment.environment.providers;
+    var providers = _.find(all_providers, function(p) { return p.constraints; });
+    var constraint = _.find(providers.constraints, function(c) { return c.source; });
+    var url = constraint.source.replace("git://", "http://").replace(".git", "")
+    return url;
+  }
+
   $scope.showSecrets = function() {
     if ($scope.data.secrets != 'AVAILABLE') return;
 

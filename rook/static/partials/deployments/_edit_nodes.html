@@ -1,5 +1,5 @@
 <div class='dropdown pull-left'>
-  <button class="dropdown-toggle btn" ng-show="data.status == 'UP'">
+  <button class="dropdown-toggle btn" ng-disabled="data.status != 'UP'">
     <i class="icon-plus-sign action action-add"></i>
     Add Nodes
   </button>
@@ -23,9 +23,9 @@
       <button class="btn btn-primary" ng-click="add_nodes(data, selected_service, num_nodes)">Add resources</button>
     </li>
   </ul>
-
 </div>
-<div ng-show="data.status == 'UP'" class='pull-right'>
+
+<div ng-disabled="data.status != 'UP'" class='pull-right'>
   <i class="icon-question-sign muted" ng-hide="tree.count" tooltip="Select some nodes first"></i>
   <button class="dropdown-toggle btn" ng-click="open_modal('delete_nodes_warning')" ng-disabled="tree.count == 0">
       <i class="icon-minus-sign action action-delete"></i>
@@ -50,6 +50,5 @@
       <button class="btn" ng-click="close_modal('delete_nodes_warning')">Cancel</button>
     </div>
   </div>
-
 </div>
 

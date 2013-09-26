@@ -27,11 +27,14 @@ Priv Key: {{formatted_data.private_key}}
             {{data.name || data.blueprint.name}}
           </h3>
           <p>
-            {{data.blueprint.name}}
+            <a ng-href="/deployments/new?blueprint={{get_blueprint_url(data)}}">
+              {{data.blueprint.name}}
+            </a>
             by
-            <a ng-href="/{{data.tenantId}}/deployments">
-              {{data['created-by']}}
-            </a>:
+            <span>
+              <a ng-href="/{{data.tenantId}}/deployments" ng-hide="is_admin()">{{data['created-by']}}</a>
+              <a ng-href="/admin/deployments?tenant_id={{data.tenantId}}" ng-show="is_admin()">{{data['created-by']}}</a>
+            </span>:
             <span id="status" class="label" ng-class="{
               'label-info': data.status == 'PLANNED',
               'label-success': data.status == 'UP' || data.status == 'LAUNCHED' || data.status == 'ACTIVE',
@@ -64,7 +67,7 @@ Priv Key: {{formatted_data.private_key}}
             <ng-include src="'/partials/deployments/_details.html'"></ng-include>
           </div>
           <div class="span6">
-            <ng-include src="'/partials/deployments/_edit_nodes.html'"></ng-include>
+            <ng-include src="'/partials/deployments/_edit_nodes.html'" ng-show="available_services(data).length > 0"></ng-include>
             <cm-tree-view data="tree_data" select-node="toggle_selected_node" clickable-node="is_scalable_service" id="deployment_tree" width="640" height="480"></cm-tree-view>
           </div>
         </div>
