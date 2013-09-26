@@ -1,9 +1,9 @@
-'''
+"""
 
 Middleware that loads Rook routes and serves static files and necessary proxies
 for auth and github (to avoid CORS limitations)
 
-'''
+"""
 
 import base64
 import json
@@ -50,7 +50,7 @@ ROOK_API = Bottle()
 
 
 def init_db():
-    '''Initialize the Feedback Database.'''
+    """Initialize the Feedback Database."""
     connection_string = os.environ.get('CHECKMATE_CONNECTION_STRING',
                                        'sqlite://')
     if connection_string.startswith('mongodb://'):
@@ -66,7 +66,7 @@ CATALOG_CACHE = {}  # mainly for iNova
 
 
 class BrowserMiddleware(object):
-    '''Adds support for browser interaction and HTML content.
+    """Adds support for browser interaction and HTML content.
 
     Adds these paths:
         /favicon.ico - returns Checkmate icon
@@ -78,7 +78,7 @@ class BrowserMiddleware(object):
         - authenticated: render using bottle routes and text/html HANDLER
         - unauthenticated to anonymous route: use normal bottle route
         - unauthenticated to resource route: render root UI so client can auth
-    '''
+    """
 
     def __init__(self, nextapp, proxy_endpoints=None,
                  with_simulator=False, with_admin=False):
@@ -94,17 +94,17 @@ class BrowserMiddleware(object):
         self.with_admin = with_admin
 
     def __call__(self, environ, handler):
-        '''Detect unauthenticated HTML calls and redirect them to root.
+        """Detect unauthenticated HTML calls and redirect them to root.
 
         This gets processed before the bottle routes
-        '''
+        """
         handler = self.start_response_callback(handler)
         try:
             token = environ.get('HTTP_X_AUTH_TOKEN')
             if token and token in CATALOG_CACHE:
                 cached_response = CATALOG_CACHE[token]
                 request.context.set_context(cached_response)
-        except StandardError as exc:
+        except StandardError:
             pass
         try:
             ROOK_API.match(environ)
@@ -134,8 +134,8 @@ class BrowserMiddleware(object):
 
         accept = environ.get('HTTP_ACCEPT')
         if (accept and
-            'application/json' not in accept and
-            'application/x-yaml' not in accept):
+                'application/json' not in accept and
+                'application/x-yaml' not in accept):
             LOG.debug("Rook handling %s %s with accept header %s",
                       environ['REQUEST_METHOD'], path, accept)
             return ROOK_STATIC(environ, handler)
@@ -143,9 +143,9 @@ class BrowserMiddleware(object):
         return self.nextapp(environ, handler)
 
     def start_response_callback(self, start_response):
-        '''Intercepts upstream start_response and adds our headers.'''
+        """Intercepts upstream start_response and adds our headers."""
         def callback(status, headers, exc_info=None):
-            '''Add our headers to response'''
+            """Add our headers to response"""
             if self.with_simulator:
                 headers.append(("X-Simulator-Enabled", "True"))
             # Call upstream start_response
@@ -157,7 +157,7 @@ class BrowserMiddleware(object):
 @ROOK_STATIC.get('/marketing/<path:path>')
 @support_only(['text/html', 'text/css', 'text/javascript'])
 def marketing(path):
-    '''Returns files from the marketing path which have absolute links.'''
+    """Returns files from the marketing path which have absolute links."""
     return static_file(path,
                        root=os.path.join(os.path.dirname(__file__),
                                          'static', 'marketing'))
@@ -165,7 +165,7 @@ def marketing(path):
 
 @ROOK_STATIC.post('/autologin')
 def autologin():
-    '''This handles automatic login from other systems.'''
+    """This handles automatic login from other systems."""
     fields = ['tenantId', 'token', 'username', 'api_key']
     for field in fields:
         value = request.forms.get(field) or ""
@@ -182,7 +182,7 @@ def autologin():
 @ROOK_STATIC.get('/')
 @ROOK_STATIC.get('/<path:path>')
 def static(path=None):
-    '''Expose UI.'''
+    """Expose UI."""
     root = os.path.join(os.path.dirname(__file__), 'static')
     # Ensure correct mimetype (bottle does not handle css)
     mimetype = 'auto'
@@ -210,7 +210,7 @@ def static(path=None):
 #
 @ROOK_API.get('/rookversion')
 def get_rook_version():
-    '''Return api version information.'''
+    """Return api version information."""
     global __version_string__
     if not __version_string__:
         __version_string__ = rook.version()
@@ -222,11 +222,11 @@ def get_rook_version():
 @ROOK_API.route('/authproxy/<path:path>', method=['POST', 'GET'])
 @support_only(['application/json'])
 def authproxy(path=None):
-    '''Proxy Auth Requests.
+    """Proxy Auth Requests.
 
     The Ajax client cannot talk to auth because of CORS. This function
     allows it to authenticate through this server.
-    '''
+    """
     # Check for source
     source = request.get_header('X-Auth-Source')
     if not source:
@@ -266,8 +266,9 @@ def authproxy(path=None):
     token = request.get_header('X-Auth-Token')
     if token:
         headers['X-Auth-Token'] = token
-    headers['Content-type'] = 'application/json'
-    headers['Accept'] = 'application/json'
+    headers['Content-Type'] = request.get_header('Content-Type',
+                                                 'application/json')
+    headers['Accept'] = request.get_header('Accept', 'application/json')
 
     # TODO: implement some caching to not overload auth
     LOG.debug('Proxy call to auth to %s', source)
@@ -280,7 +281,7 @@ def authproxy(path=None):
                      headers=headers)
         resp = http.getresponse()
         body = resp.read()
-    except Exception, e:
+    except Exception as e:
         LOG.error('HTTP connection exception: %s', e)
         raise HTTPError(401, output='Unable to communicate with '
                         'keystone server')
@@ -324,14 +325,14 @@ def authproxy(path=None):
 @support_only(['application/json',
                'application/vnd.github.v3.raw'])
 def githubproxy(path=None):
-    '''Proxy Github Requests.
+    """Proxy Github Requests.
 
     The Ajax client cannot talk to remote github servers because of
     CORS. This function proxies these calls through this server.
 
     The target server URL should be passed in through the
     X-Target-Url header.
-    '''
+    """
     source = request.get_header('X-Target-Url')
     if not source:
         abort(406, "X-Target-Url header not supplied. The header is "
@@ -351,6 +352,7 @@ def githubproxy(path=None):
 
     headers = {
         'Accept': request.get_header('Accept', ['application/json']),
+        'Content-Type': request.get_header('Content-Type', 'application/json'),
     }
     body = None
     data = None
@@ -398,7 +400,7 @@ def githubproxy(path=None):
 @ROOK_API.route('/feedback', method=['POST', 'OPTIONS'])
 @support_only(['application/json'])
 def feedback():
-    '''Accepts feedback from UI.'''
+    """Accepts feedback from UI."""
     if request.method == 'OPTIONS':
         origin = request.get_header('origin', 'http://noaccess')
         url = urlparse(origin)
@@ -431,7 +433,7 @@ def feedback():
 @get('/admin/feedback/.json')
 @support_only(['application/json'])
 def get_admin():
-    '''Read feedback.'''
+    """Read feedback."""
     if request.path in ['/admin/feedback', '/admin/feedback/.json']:
         if request.context.is_admin is True:
             LOG.info("Administrator accessing feedback: %s",
@@ -466,10 +468,10 @@ class RackspaceSSOAuthMiddleware(object):
         if ('kwargs' in endpoint and 'realm' in endpoint['kwargs'] and
                 'priority' in endpoint['kwargs']):
             self.auth_header = str('GlobalAuth uri="%s" realm="%s" '
-                                   'priority="%s"' % (
-                                   endpoint['uri'],
-                                   endpoint['kwargs'].get('realm'),
-                                   endpoint['kwargs'].get('priority')))
+                                   'priority="%s"' %
+                                   (endpoint['uri'],
+                                    endpoint['kwargs'].get('realm'),
+                                    endpoint['kwargs'].get('priority')))
         elif 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
             self.auth_header = str('GlobalAuth uri="%s" realm="%s"' % (
                                    endpoint['uri'],
@@ -492,7 +494,7 @@ class RackspaceSSOAuthMiddleware(object):
         LOG.info("Listening for SSO auth for %s", self.endpoint_uri)
 
     def _get_service_token(self):
-        '''Retrieve service token from auth to use for validation.'''
+        """Retrieve service token from auth to use for validation."""
         LOG.info("Obtaining new service token from %s", self.endpoint_uri)
         try:
             result = self._auth_keystone(RequestContext(),
@@ -508,7 +510,7 @@ class RackspaceSSOAuthMiddleware(object):
                       get('realm'))
 
     def __call__(self, environ, start_response):
-        '''Authenticate calls with X-Auth-Token to the source auth service.'''
+        """Authenticate calls with X-Auth-Token to the source auth service."""
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
         if root in self.anonymous_paths:
@@ -535,7 +537,7 @@ class RackspaceSSOAuthMiddleware(object):
 
     def _validate_keystone(self, context, token=None, username=None,
                            apikey=None, password=None):
-        '''Validates a Keystone Auth Token.'''
+        """Validates a Keystone Auth Token."""
         if self.use_https:
             http_class = httplib.HTTPSConnection
         else:
@@ -592,7 +594,7 @@ class RackspaceSSOAuthMiddleware(object):
 
     def _auth_keystone(self, context, token=None, username=None, apikey=None,
                        password=None):
-        '''Authenticates to keystone.'''
+        """Authenticates to keystone."""
         if self.use_https:
             http_class = httplib.HTTPSConnection
         else:
@@ -646,9 +648,9 @@ class RackspaceSSOAuthMiddleware(object):
         return content
 
     def start_response_callback(self, start_response):
-        '''Intercepts upstream start_response and adds our headers.'''
+        """Intercepts upstream start_response and adds our headers."""
         def callback(status, headers, exc_info=None):
-            '''Intercepts upstream start_response and adds our headers.'''
+            """Intercepts upstream start_response and adds our headers."""
             # Add our headers to response
             header = ('WWW-Authenticate', self.auth_header)
             if header not in headers:
@@ -659,7 +661,7 @@ class RackspaceSSOAuthMiddleware(object):
 
 
 class BasicAuthMultiCloudMiddleware(object):
-    '''Implements basic auth to multiple cloud endpoints.
+    """Implements basic auth to multiple cloud endpoints.
 
     - Authenticates any basic auth to PAM
         - 401 if fails
@@ -683,15 +685,15 @@ class BasicAuthMultiCloudMiddleware(object):
             }
         next = middleware.BasicAuthMultiCloudMiddleware(next, domains=domains)
 
-    '''
+    """
     def __init__(self, app, domains=None):
-        '''Initialize Multi-Cloud Router Middleware.
+        """Initialize Multi-Cloud Router Middleware.
 
         :param domains: the hash of domains to authenticate against. Each key
                 is a realm that points to a different cloud. The hash contains
                 endpoint and protocol, which is one of:
                     keystone: using keystone protocol
-        '''
+        """
         self.domains = domains
         self.app = app
         self.cache = {}
@@ -703,7 +705,7 @@ class BasicAuthMultiCloudMiddleware(object):
                                        endpoint=value['endpoint']))
 
     def __call__(self, environ, start_response):
-        '''Authenticate basic auth calls to endpoints.'''
+        """Authenticate basic auth calls to endpoints."""
         start_response = self.start_response_callback(start_response)
 
         if 'HTTP_AUTHORIZATION' in environ:
@@ -735,7 +737,7 @@ class BasicAuthMultiCloudMiddleware(object):
         return self.app(environ, start_response)
 
     def _auth_cloud_basic(self, context, uname, passwd, middleware):
-        '''Authenticates to Cloud.'''
+        """Authenticates to Cloud."""
         cred_hash = MD5.new('%s%s%s' % (uname, passwd, middleware.endpoint)) \
             .hexdigest()
         if cred_hash in self.cache:
@@ -754,9 +756,9 @@ class BasicAuthMultiCloudMiddleware(object):
         return content
 
     def start_response_callback(self, start_response):
-        '''Intercepts upstream start_response and adds our headers.'''
+        """Intercepts upstream start_response and adds our headers."""
         def callback(status, headers, exc_info=None):
-            '''Intercepts upstream start_response and adds our headers.'''
+            """Intercepts upstream start_response and adds our headers."""
             # Add our headers to response
             if self.domains:
                 for key, value in self.domains.iteritems():
@@ -774,6 +776,6 @@ class BasicAuthMultiCloudMiddleware(object):
 
 
 def write_raw(data, request, response):
-    '''Write output in raw format.'''
+    """Write output in raw format."""
     response.set_header('Content-type', 'application/vnd.github.v3.raw')
     return data
