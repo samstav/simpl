@@ -2126,12 +2126,14 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     WIDTH: 0
   };
 
-  var _is_invalid = function(spec) {
+  var _is_invalid = function(spec, specs) {
+    var is_custom_deployment = specs['end'];
+
     return (
          !spec
       || !spec.properties
-      || !spec.inputs
-      || spec.inputs.length == 0
+      || spec.inputs.length == 0 && !is_custom_deployment
+      || spec.inputs.length == 0 && spec.outputs.length == 0
     );
   }
 
@@ -2320,7 +2322,7 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
     for (var idx in sorted_keys) {
       var key = sorted_keys[idx]
       var spec = specs[key];
-      if (_is_invalid(spec)) continue;
+      if (_is_invalid(spec, specs)) continue;
 
       var resource_id = _get_top_resource_id(spec, specs, deployment);
       var stream = streams[resource_id];
