@@ -266,8 +266,9 @@ def authproxy(path=None):
     token = request.get_header('X-Auth-Token')
     if token:
         headers['X-Auth-Token'] = token
-    headers['Content-type'] = 'application/json'
-    headers['Accept'] = 'application/json'
+    headers['Content-Type'] = request.get_header('Content-Type',
+                                                 'application/json')
+    headers['Accept'] = request.get_header('Accept', 'application/json')
 
     # TODO: implement some caching to not overload auth
     LOG.debug('Proxy call to auth to %s', source)
@@ -351,6 +352,7 @@ def githubproxy(path=None):
 
     headers = {
         'Accept': request.get_header('Accept', ['application/json']),
+        'Content-Type': request.get_header('Content-Type', 'application/json'),
     }
     body = None
     data = None
