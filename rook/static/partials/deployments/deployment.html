@@ -44,11 +44,9 @@ Priv Key: {{formatted_data.private_key}}
             }">
               {{data.display_status}}
             </span>
-
             <br />
 
             {{data.environment.name}}
-
             <br />
 
             <span class="cm-tips" tooltip="{{data.created | formattedFullDate}}" tooltip-placement="bottom">
@@ -64,23 +62,24 @@ Priv Key: {{formatted_data.private_key}}
 
         <div class="row-fluid">
           <div class="span6">
-            <ng-include src="'/partials/deployments/_details.html'"></ng-include>
+            <ng-include src="'/partials/deployments/_edit_nodes.html'"
+                        ng-show="available_services(data).length > 0"></ng-include>
+            <cm-tree-view id="deployment_tree" data="tree_data"
+                          select-node="toggle_selected_node"
+                          clickable-node="is_scalable_service"
+                          width="640" height="480"></cm-tree-view>
           </div>
+
           <div class="span6">
-            <ng-include src="'/partials/deployments/_edit_nodes.html'" ng-show="available_services(data).length > 0"></ng-include>
-            <cm-tree-view data="tree_data" select-node="toggle_selected_node" clickable-node="is_scalable_service" id="deployment_tree" width="640" height="480"></cm-tree-view>
+            <ng-include src="'/partials/deployments/_details.html'"></ng-include>
+
+            <ng-include src="'/partials/deployments/_infrastructure.html'"></ng-include>
           </div>
         </div>
 
         <hr>
 
-        <div class="row">
-          <ng-include src="'/partials/deployments/_infrastructure.html'"></ng-include>
-        </div>
-
-        <hr>
-
-        <div class="row">
+        <div class="row-fluid">
           <ng-include src="'/partials/deployments/_raw_source.html'"></ng-include>
         </div>
 
