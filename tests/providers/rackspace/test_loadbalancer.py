@@ -1172,7 +1172,6 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'North',
                     ],
                     'kwargs': {
-                        'dns': False,
                         'algorithm': 'ROUND_ROBIN',
                         'port': None,
                         'tags': {

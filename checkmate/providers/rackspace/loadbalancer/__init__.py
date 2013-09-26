@@ -12,9 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-'''
-Rackspace Cloud Load Balancer provider and specs.Celery tasks
-'''
+# pylint: disable=R0913,E1102
+"""Rackspace Cloud Load Balancer provider and specs.Celery tasks."""
 import logging
 import os
 
@@ -74,9 +73,7 @@ PLACEHOLDER_IP = '1.2.3.4'
 def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                         dns=False, port=None, algorithm='ROUND_ROBIN',
                         tags=None,
-                        monitor_path='/', monitor_delay=10, monitor_timeout=10,
-                        monitor_attempts=3, monitor_body='(.*)',
-                        monitor_status='^[234][0-9][0-9]$', parent_lb=None):
+                        parent_lb=None):
     '''Celery task to create Cloud Load Balancer.'''
     assert 'deployment' in context, "Deployment not supplied in context"
     utils.match_celery_logging(LOG)
@@ -445,7 +442,7 @@ def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def add_node(context, lbid, ipaddr, region, resource, api=None):
-    '''Celery task to add a node to a Cloud Load Balancer'''
+    """Celery task to add a node to a Cloud Load Balancer."""
     utils.match_celery_logging(LOG)
 
     if context.get('simulation') is True:
@@ -465,11 +462,11 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
         exc = exceptions.CheckmateException(
             "Loadbalancer %s cannot be modified while status is %s" %
             (lbid, loadbalancer.status))
-        return add_node.retry(exc=exc)
+        add_node.retry(exc=exc)
     if not (loadbalancer and loadbalancer.port):
         exc = exceptions.CheckmateBadState("Could not retrieve data for load"
                                            " balancer %s" % lbid)
-        return add_node.retry(exc=exc)
+        add_node.retry(exc=exc)
     results = None
     port = loadbalancer.port
 
@@ -520,21 +517,21 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                 # Try again!
                 exc = exceptions.CheckmateException("Validation failed - "
                                                     "Node was not added")
-                return add_node.retry(exc=exc)
+                add_node.retry(exc=exc)
         except pyrax.exceptions.ClientException as exc:
             if exc.code == '422':
                 LOG.debug("Cannot modify load balancer %d. Will retry "
                           "adding %s (%d %s)", lbid, ipaddr, exc.code,
                           exc.message)
-                return add_node.retry(exc=exc)
+                add_node.retry(exc=exc)
             LOG.debug("Response error from load balancer %d. Will retry "
                       "adding %s (%d %s)", lbid, ipaddr, exc.code,
                       exc.message)
-            return add_node.retry(exc=exc)
+            add_node.retry(exc=exc)
         except StandardError as exc:
             LOG.debug("Error adding %s behind load balancer %d. Error: "
                       "%s. Retrying", ipaddr, lbid, str(exc))
-            return add_node.retry(exc=exc)
+            add_node.retry(exc=exc)
 
     # Delete placeholder
     if placeholder:
@@ -545,9 +542,10 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
         # The lb client exceptions extend Exception and are missed
         # by the generic handler
         except (pyrax.exceptions.ClientException, StandardError) as exc:
-            return add_node.retry(exc=exc)
+            add_node.retry(exc=exc)
 
     return results
+
 
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
@@ -629,7 +627,7 @@ def update_node_status(context, lb_id, ip_address, region, node_status,
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def delete_node(context, lbid, ipaddr, region, api=None):
-    '''Celery task to delete a node from a Cloud Load Balancer'''
+    """Celery task to delete a node from a Cloud Load Balancer."""
     utils.match_celery_logging(LOG)
 
     if context.get('simulation') is True:
@@ -713,9 +711,9 @@ def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 @statsd.collect
 def wait_on_build(context, lbid, region, api=None):
-    '''Checks to see if a lb's status is ACTIVE, so we can change resource
+    """Checks to see if a lb's status is ACTIVE, so we can change resource
     status in deployment
-    '''
+    """
 
     utils.match_celery_logging(LOG)
     assert lbid, "ID must be provided"

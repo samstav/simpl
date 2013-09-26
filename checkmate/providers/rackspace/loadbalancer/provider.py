@@ -310,7 +310,6 @@ class Provider(rsbase.RackspaceProviderBase):
                 'estimated_duration': 30,
                 'task_tags': create_lb_task_tags
             },
-            dns=cdns,
             algorithm=algorithm,
             tags=self.generate_resource_tag(
                 context.base_url,

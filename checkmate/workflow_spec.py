@@ -40,7 +40,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         resource = deployment['resources'].get(resource_id)
         wf_spec = WorkflowSpec(name="Take resource offline %s(%s)" % (
             deployment["id"], resource_id))
-        for key, relation in resource.get('relations', {}).iteritems():
+        for _, relation in resource.get('relations', {}).iteritems():
             if relation.get('source'):
                 source_resource = resources[relation.get('source')]
                 provider = environment.get_provider(
@@ -71,7 +71,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         resource = deployment['resources'].get(resource_id)
         wf_spec = WorkflowSpec(name="Get resource %s in deployment %s online"
                                     % (resource_id, deployment["id"]))
-        for key, relation in resource.get('relations', {}).iteritems():
+        for _, relation in resource.get('relations', {}).iteritems():
             if relation.get('source'):
                 source_resource = resources[relation.get('source')]
                 provider = environment.get_provider(
