@@ -730,9 +730,6 @@ class ContextMiddleware(object):
         # Use a default empty context
         context = RequestContext(base_url=url)
         environ['context'] = context
-        # TODO: Don't set as an attribute, use environ. Keeping temporarily to
-        # not break existing code
-        bottle.request.context = context
         LOG.debug("BASE URL IS %s", context.base_url)
         return self.app(environ, start_response)
 
