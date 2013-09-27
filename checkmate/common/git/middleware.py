@@ -207,7 +207,7 @@ def _check_git_auth(user, password):
 
 
 def _auth_racker(endpoint_uri, username, password):
-    """Authenticates to keystone."""
+    """Authenticates to Global Auth."""
     if not username:
         LOG.info("Username not supplied")
         return None

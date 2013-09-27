@@ -4,7 +4,7 @@ REST API for Checkmate server
 import logging
 
 # pylint: disable=W0611,W0402
-from bottle import get, request, response
+import bottle
 
 import checkmate
 from checkmate import environments  # loads /providers too
@@ -19,7 +19,7 @@ __version_string__ = None
 #
 # Status and System Information
 #
-@get('/version')
+@bottle.get('/version')
 def get_api_version():
     """ Return api version information """
     global __version_string__
@@ -27,4 +27,5 @@ def get_api_version():
         __version_string__ = checkmate.version()
     LOG.debug('GET /version called and reported version %s',
               __version_string__)
-    return utils.write_body({"version": __version_string__}, request, response)
+    return utils.write_body({"version": __version_string__}, bottle.request,
+                            bottle.response)

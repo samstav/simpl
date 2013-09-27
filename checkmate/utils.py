@@ -281,7 +281,7 @@ def escape_yaml_simple_string(text):
 
 def write_json(data, request, response):
     """Write output in json."""
-    response.set_header('content-type', 'application/json')
+    response.set_header('Content-Type', 'application/json')
     return to_json(data)
 
 

@@ -36,7 +36,7 @@ try:
 except ImportError as exc:
     SKIP = True
     REASON = "Mongo Shim import failed: %s" % exc
-    mongo.Shim = object
+    mongo = mock.Mock()
 
 
 @unittest.skipIf(SKIP, REASON)
