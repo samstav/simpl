@@ -3325,7 +3325,9 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   $scope.submit = function(){
     var url = '/:tenantId/deployments',
         tenant_id = $scope.auth.context.tenantId,
-        deployment = $scope.get_new_deployment(tenant_id);
+        deployment = $scope.get_new_deployment(tenant_id),
+        DEFAULT_TATTOO = 'http://7555e8905adb704bd73e-744765205721eed93c384dae790e86aa.r66.cf2.rackcdn.com/custom-tattoo.png',
+        DEFAULT_20_BY_20 = 'http://7555e8905adb704bd73e-744765205721eed93c384dae790e86aa.r66.cf2.rackcdn.com/custom-20x20.png';
 
     deployment.inputs = {custom_resources: []};
     for (i=0; i<$scope.selected_resources.length; i++){
@@ -3335,7 +3337,11 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
       'services': {},
       'name': $scope.deployment.name,
       'meta-data': {
-        'application-name': 'Custom'
+        'application-name': 'Custom',
+        'reach-info': {
+          'tattoo': DEFAULT_TATTOO,
+          'icon-20x20': DEFAULT_20_BY_20
+        }
       }
     };
     deployment.environment = { //TODO Make providers list dynamic based on resources
