@@ -178,6 +178,7 @@ body {
   margin: 0px;
   padding: 10px;
   color: #222;
+  word-wrap: break-word;
 }
 
 .summaryHeader .well {
@@ -362,6 +363,12 @@ body {
     }
 }
 
+.deployment_container {
+  background-position: right top;
+  background-repeat: no-repeat;
+  background-size: auto 100px;
+}
+
 /* code mirror fixes - ZNS */
 .deployment_container .CodeMirror { height: 600px }
 .CodeMirror { height: inherit; }
@@ -507,11 +514,6 @@ text.nodetext {
 }
 
 /* Tree View */
-#deployment_tree {
-  width: 256px;
-  height: 256px;
-}
-
 #deployment_tree .edge {
   stroke-dasharray: 2, 5;
   stroke-width: 2px;
@@ -607,7 +609,7 @@ tr.messages td {
 }
 .action-delete,
 .action-delete:hover {
-  color: #F00;
+  color: #b94a48;
 }
 .off-table-left {
   width: 25px;
@@ -628,3 +630,7 @@ tr:hover .off-table-left {
 }
 .cm-workflow .stream.even rect { fill: #EEE; }
 .cm-workflow .stream.odd rect { fill: #FFF; }
+
+.cm-tips {
+  color: #999;
+}

@@ -3,7 +3,7 @@ var is_chrome_extension = navigator.userAgent.toLowerCase().indexOf('chrome') > 
 var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
-var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui', 'ngLocale', 'ui.bootstrap']);
+var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ui.utils', 'ui.bootstrap', 'ui.codemirror']);
 
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider) {
@@ -58,7 +58,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: FeedbackListController
   })
   .when('/admin/deployments', {
-    templateUrl: '/partials/deployments.html',
+    templateUrl: '/partials/deployments/index.html',
     controller: DeploymentListController
   });
 
@@ -88,15 +88,15 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: WorkflowListController
   })
   .when('/blueprints', {
-    templateUrl: '/partials/blueprints-remote.html',
+    templateUrl: '/partials/blueprints/blueprints-remote.html',
     controller: BlueprintRemoteListController
   })
   .when('/:tenantId/blueprints', {
-    templateUrl: '/partials/blueprints-remote.html',
+    templateUrl: '/partials/blueprints/blueprints-remote.html',
     controller: BlueprintRemoteListController
   })
   .when('/:tenantId/deployments', {
-    templateUrl: '/partials/deployments.html',
+    templateUrl: '/partials/deployments/index.html',
     controller: DeploymentListController
   })
   .when('/:tenantId/deployments/custom', {
@@ -105,7 +105,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   })
   .when('/:tenantId/deployments/:id', {
     controller: DeploymentController,
-    templateUrl: '/partials/deployment.html'
+    templateUrl: '/partials/deployments/deployment.html'
   })
   .when('/:tenantId/providers', {
     controller: ProviderListController,
@@ -272,7 +272,14 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.init_webengage = webengage.init;
   $scope.showHeader = true;
   $scope.showStatus = false;
-  $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+  $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
+  $scope.codemirrorLoaded = function(_editor){
+    _editor.eachLine(function(line){
+      if(line.text.substring(0,3) == '  "') {
+        $scope.foldFunc(_editor, _editor.getLineNumber(line))
+      }
+    })
+  }
 
   $scope.is_admin = function(strict) {
     return auth.is_admin(strict);
@@ -2724,22 +2731,29 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 
   $scope.load = function() {
     console.log("Starting load");
+    $scope.loading = { secrets: true };
     this.klass = $resource((checkmate_server_base || '') + $location.path() + '/secrets.json');
-    $scope.secrets = this.klass.get($routeParams, function(data, getResponseHeaders){
-      $scope.data = data;
+    $scope.secrets_info = this.klass.get($routeParams, function(data, getResponseHeaders){
+      $scope.loading.secrets = false;
+      angular.forEach(data.secrets, function(s) {
+        if (s.status == 'LOCKED')
+          $scope.secrets_dismissed = true;
+      });
     });
   };
 
+  $scope.secrests_dismissed = false;
   $scope.dismissSecrets = function() {
-    _.each($scope.secrets.secrets, function(element) {
+    $scope.secrets_dismissed = true;
+    angular.forEach($scope.secrets_info.secrets, function(element) {
       element.status = 'LOCKED';
     });
-    $scope.secrets.$save();
+    $scope.secrets_info.$save();
   };
 
   $scope.allAvailableSecrets = function() {
     var result = '';
-    _.each($scope.secrets.secrets, function(element, key) {
+    _.each($scope.secrets_info.secrets, function(element, key) {
       if (element.status == 'AVAILABLE')
         result = result + key + ': ' + element.value + '\n';
     });
@@ -2763,12 +2777,61 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   $scope.data = {};
   $scope.data_json = "";
 
+  $scope.tree = { selected_nodes: {}, count: 0 };
+  $scope.toggle_selected_node = function(node) {
+    var services = $scope.available_services($scope.data);
+    if (services.indexOf(node.component) == -1)
+      return false;
+
+    if (node.id in $scope.tree.selected_nodes) {
+      $scope.tree.count--;
+      delete $scope.tree.selected_nodes[node.id];
+    } else {
+      $scope.tree.count++;
+      $scope.tree.selected_nodes[node.id] = node;
+    }
+
+    return true;
+  }
+
+  $scope.get_blueprint_url = function(deployment) {
+    if (!(deployment && deployment.environment && deployment.environment.providers))
+      return "";
+
+    var all_providers = deployment.environment.providers;
+    var providers = _.find(all_providers, function(p) { return p.constraints; }) || {};
+    var constraint = _.find(providers.constraints, function(c) { return c.source; }) || {};
+    var original_url = constraint.source;
+    if (!original_url)
+      return "";
+
+    var last_hash = original_url.lastIndexOf('#')
+    if (last_hash == -1) last_hash = original_url.length;
+    var repo_url = original_url.substring(0,last_hash);
+    var branch_url = original_url.substring(last_hash, original_url.length);
+    var url = repo_url.replace("git://", "http://").replace(/\.git$/, "") + branch_url;
+
+    return url;
+  }
+
+  $scope.display_details = function(details) {
+    var available_details = false;
+    angular.forEach(details, function(detail) {
+      if (!detail['is-secret']) {
+        available_details = true;
+      }
+    });
+    return available_details;
+  }
+
   $scope.showSecrets = function() {
+    if ($scope.data.secrets != 'AVAILABLE') return;
+
     $scope.secretsDialog = $dialog.dialog({
         resolve: {
             dialog: function() {return $scope.secretsDialog;}
         }
-    }).open('/partials/secrets.html', 'SecretsController');
+    }).open('/partials/deployments/_secrets.html', 'SecretsController');
   };
 
   $scope.shouldDisplayWorkflowStatus = function() {
@@ -2850,7 +2913,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     return Deployment.available_services(deployment);
   }
 
-  $scope.is_scalable_service = function(deployment, resource) {
+  $scope.is_scalable_service = function(resource, deployment) {
+    if (!deployment)
+      deployment = $scope.data;
+
     var service = resource.service;
     if (!service) return false;
 
@@ -3018,7 +3084,6 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   };
 
   $scope.create_vertex = function(resource, resource_list) {
-    var v1 = resource.index;
     var group = resource.service;
     var dns_name = resource['dns-name'] || '';
     var name = dns_name.split('.').shift();
@@ -3031,7 +3096,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       component: resource.component,
       name: name,
       status: resource.status,
-      host: {}
+      host: {},
+      service: resource.service,
+      index: resource.index,
+      'dns-name': resource['dns-name']
     };
     if (host) {
       vertex.host = {
@@ -3325,7 +3393,9 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   $scope.submit = function(){
     var url = '/:tenantId/deployments',
         tenant_id = $scope.auth.context.tenantId,
-        deployment = $scope.get_new_deployment(tenant_id);
+        deployment = $scope.get_new_deployment(tenant_id),
+        DEFAULT_TATTOO = 'http://7555e8905adb704bd73e-744765205721eed93c384dae790e86aa.r66.cf2.rackcdn.com/custom-tattoo.png',
+        DEFAULT_20_BY_20 = 'http://7555e8905adb704bd73e-744765205721eed93c384dae790e86aa.r66.cf2.rackcdn.com/custom-20x20.png';
 
     deployment.inputs = {custom_resources: []};
     for (i=0; i<$scope.selected_resources.length; i++){
@@ -3335,7 +3405,11 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
       'services': {},
       'name': $scope.deployment.name,
       'meta-data': {
-        'application-name': 'Custom'
+        'application-name': 'Custom',
+        'reach-info': {
+          'tattoo': DEFAULT_TATTOO,
+          'icon-20x20': DEFAULT_20_BY_20
+        }
       }
     };
     deployment.environment = { //TODO Make providers list dynamic based on resources
@@ -3372,7 +3446,7 @@ if (Modernizr.localstorage) {
   alert("This browser application requires an HTML5 browser with support for local storage");
 }
 
-var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+var foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
 
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
