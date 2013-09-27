@@ -372,7 +372,19 @@ class Deployment(morpheus.MorpheusDict):
                 result = provider.get_resource_status(context, self.get('id'),
                                                       resource, key)
                 if result:
-                    resources.update(result)
+                    resources.update({key: result['instance:%s' % key]})
+        # If instance is 'DELETED' or 'ERROR', so is anything hosted on it
+        for key, resource in self.get('resources', {}).items():
+            if (key.isdigit() and 'hosted_on' in resource and
+                    resource['hosted_on'] in resources and 
+                    resources[resource['hosted_on']]['status'] in
+                    ['DELETED', 'ERROR']):
+                resources.update(
+                    {key: {
+                        'status': resources[resource['hosted_on']]['status']}
+                    }
+                )
+
         statuses = self._calc_dep_and_op_statuses(resources)
         statuses.update({'resources': resources})
         return statuses

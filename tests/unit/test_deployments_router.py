@@ -662,13 +662,18 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
         self.mock_write_body = write_body_patcher.start()
         self.addCleanup(write_body_patcher.stop)
 
-    @mock.patch.object(deployments.router.tasks.resource_postback, 'delay')
+    @mock.patch.object(deployments.router.tasks, 'postback')
     def test_sync_deployment(self, mock_postback):
         router = deployments.Router(mock.Mock(), mock.Mock())
         router.sync_deployment('dep_id')
         self.mock_write_body.assert_called_once_with(
             self.statuses['resources'], mock.ANY, mock.ANY)
-        self.assertEqual(2, mock_postback.call_count)
+        mock_postback.assert_called_once_with(
+            'dep_id',
+            {'resources': {'instance:1': {'instance': {'status-message': ''}},
+                           'instance:3': {'instance': {'status-message': ''}}}
+            }
+        )
 
     @mock.patch.object(deployments.router.tasks, 'resource_postback')
     def test_check_deployment(self, mock_postback):
