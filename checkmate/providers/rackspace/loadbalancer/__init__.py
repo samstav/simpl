@@ -27,6 +27,7 @@ import redis
 from checkmate.common import statsd
 from checkmate import deployments
 from checkmate import exceptions
+from checkmate.providers.rackspace.loadbalancer.manager import Manager
 from checkmate.providers.rackspace.loadbalancer.provider import Provider
 from checkmate import utils
 
