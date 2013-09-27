@@ -3,7 +3,7 @@ var is_chrome_extension = navigator.userAgent.toLowerCase().indexOf('chrome') > 
 var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
-var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ui', 'ngLocale', 'ui.bootstrap']);
+var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ui.utils', 'ui.bootstrap', 'ui.codemirror']);
 
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider) {
@@ -88,11 +88,11 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: WorkflowListController
   })
   .when('/blueprints', {
-    templateUrl: '/partials/blueprints-remote.html',
+    templateUrl: '/partials/blueprints/blueprints-remote.html',
     controller: BlueprintRemoteListController
   })
   .when('/:tenantId/blueprints', {
-    templateUrl: '/partials/blueprints-remote.html',
+    templateUrl: '/partials/blueprints/blueprints-remote.html',
     controller: BlueprintRemoteListController
   })
   .when('/:tenantId/deployments', {
@@ -272,7 +272,14 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.init_webengage = webengage.init;
   $scope.showHeader = true;
   $scope.showStatus = false;
-  $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+  $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
+  $scope.codemirrorLoaded = function(_editor){
+    _editor.eachLine(function(line){
+      if(line.text.substring(0,3) == '  "') {
+        $scope.foldFunc(_editor, _editor.getLineNumber(line))
+      }
+    })
+  }
 
   $scope.is_admin = function(strict) {
     return auth.is_admin(strict);
@@ -3377,7 +3384,7 @@ if (Modernizr.localstorage) {
   alert("This browser application requires an HTML5 browser with support for local storage");
 }
 
-var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+var foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
 
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar

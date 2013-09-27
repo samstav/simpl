@@ -20,7 +20,7 @@
 
   <div class="span9">
     <ng-include src="'/partials/workflows/_auto_refresh.html'"></ng-include>
-    <textarea id="spec_source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="$parent.current_spec_json">
+    <textarea id="spec_source" ui-codemirror="{ onLoad: codemirrorLoaded, theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="$parent.current_spec_json">
     </textarea>
     <alert type="alert.type" close="$parent.hide_alert('overwrite_secrets')" ng-show="$parent.display_alert('overwrite_secrets')">
       <strong>Warning!</strong> If your updates include any 'secret' values

@@ -3,7 +3,7 @@
     <div class="row-fluid">
       <div class="span12">
         <h3>Raw Data</h3>
-        <textarea id="source" ui-codemirror="{ theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="data"></textarea>
+        <textarea id="source" ui-codemirror="{ onLoad: codemirrorLoaded, theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true }" ng-model="data"></textarea>
       </div>
     </div>
   </div>
