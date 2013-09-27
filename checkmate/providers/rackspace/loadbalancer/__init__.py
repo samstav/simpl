@@ -239,18 +239,20 @@ def collect_record_data(deployment_id, resource_key, record):
 
 def _update_metadata(context, resource, clb):
     """Updates metadata on cloud loadbalancer."""
-    exists = False
+    new_meta = Provider.generate_resource_tag(context.get('base_url'),
+                                              context.get('tenant'),
+                                              context.get('deployment'),
+                                              resource.get('index'))
+    add_tag = True
     for entry in clb.get_metadata():
-        if entry['key'] == 'RAX-CHECKMATE':
-            exists = True
+        if entry['key'] == 'RAX-CHKMATE':
+            clb.delete_metadata('RAX-CHKMATE')
+        elif (entry['key'] == 'RAX-CHECKMATE' and
+                entry['value'] == new_meta['RAX-CHECKMATE']):
+            add_tag = False
 
-    if not exists:
-        clb.update_metadata(
-            Provider.generate_resource_tag(context.get('base_url'),
-                                           context.get('tenant'),
-                                           context.get('deployment'),
-                                           resource.get('index'))
-        )
+    if add_tag:
+        clb.update_metadata(new_meta)
 
 
 @task
