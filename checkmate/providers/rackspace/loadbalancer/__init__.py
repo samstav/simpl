@@ -276,7 +276,6 @@ def sync_resource_task(context, resource, resource_key, api=None):
             raise exceptions.CheckmateException(error_message)
         clb = api.get(instance_id)
 
-        # TODO(any): Dont think this is a good place for this.
         _update_metadata(context, resource, clb)
 
         status = {'status': clb.status}
