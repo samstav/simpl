@@ -272,7 +272,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   $scope.init_webengage = webengage.init;
   $scope.showHeader = true;
   $scope.showStatus = false;
-  $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+  $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
   $scope.codemirrorLoaded = function(_editor){
     _editor.eachLine(function(line){
       if(line.text.substring(0,3) == '  "') {
@@ -3379,7 +3379,7 @@ if (Modernizr.localstorage) {
   alert("This browser application requires an HTML5 browser with support for local storage");
 }
 
-var foldFunc = CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder);
+var foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
 
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
