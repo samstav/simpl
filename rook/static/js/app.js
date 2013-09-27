@@ -34,6 +34,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/deployment-new-remote.html',
     controller: DeploymentNewRemoteController
   })
+  .when('/blueprints/new', {
+    templateUrl: '/partials/blueprints/new.html',
+    controller: BlueprintNewController
+  })
   .when('/:tenantId/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: DeploymentNewRemoteController,
@@ -3435,6 +3439,30 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
       console.log(deployment);
     });
   };
+}
+
+function BlueprintNewController($scope, BlueprintHint) {
+  var blueprint_info = ["This is the meat of your blueprint.  You can build deployments and stuff with these things.  Hit Ctrl+Space for a list of valid keys", "name: String", "services: Hash", "documentation: String"].join('<br />');
+  var BLUEPRINT_INFO_MAP = {
+    '"blueprint"': blueprint_info,
+    '"services"': "Services:  These things help make up a deployment",
+    '"documentation"': "Documentation: Write some relevant info for the users of your blueprint",
+    '"meta-data"': "Metadata: Add some meta-data here.  You might need it for the control panel to display things properly"
+  }
+  $scope.blueprint_json = JSON.stringify({"name": "Your deployment name!"}, null, 2);
+  $scope.help_display = BLUEPRINT_INFO_MAP['_default'];
+
+  $scope.newBlueprintCodemirrorLoaded = function(_editor){
+    CodeMirror.commands.autocomplete = function(cm) {
+      CodeMirror.showHint(cm, BlueprintHint.hinting);
+    };
+    _editor.setOption('extraKeys', {'Ctrl-Space': 'autocomplete'})
+    _editor.on('cursorActivity', function(instance, event) {
+      current_fold_key = BlueprintHint.get_fold_key(_editor, _editor.getCursor(), true)
+      $scope.help_display = BLUEPRINT_INFO_MAP[current_fold_key]
+      $scope.$apply()
+    })
+  }
 }
 
 /*

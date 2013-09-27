@@ -378,6 +378,19 @@ body {
     color: inherit;
 }
 
+#new_blueprint_container {
+  height: 100%;
+}
+
+#new_blueprint_editor {
+  height: 100%;
+}
+
+#new_blueprint_container .CodeMirror {
+  height: 100%;
+  width: 100%;
+}
+
 .nohover:hover {
     text-decoration: inherit;
     color: inherit;

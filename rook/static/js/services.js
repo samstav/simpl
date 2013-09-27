@@ -2354,3 +2354,72 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
 
   return scope;
 }]);
+
+angular.module('checkmate.services').factory('BlueprintHint', [function() {
+  var SERVICE_KEYS = ['"master"', '"lb"', '"backend"', '"web"'],
+      AUTOCOMPLETE = {
+        '"blueprint"': ['"name"', '"services"', '"version"', '"documentation"', '"meta-data"'],
+        '"services"': ['"master"', '"lb"', '"backend"', '"web"'],
+        '"_service_type"': ['"display-name"', '"component"', '"relations"', '"constraints"', '"display-outputs"']
+      },
+      scope = {};
+
+  var _get_fold = function(_editor, line_number){
+    pos = CodeMirror.Pos(line_number)
+    return CodeMirror.fold.brace(_editor, pos)
+  }
+
+  var _transform_fold_key = function(key){
+    if (SERVICE_KEYS.indexOf(key) > -1)
+      return '"_service_type"'
+    return key
+  }
+
+  scope.get_fold_key = function(_editor, cursor, check_current_line) {
+    var keep_going = true,
+        start,
+        fold_key,
+        current_fold;
+
+   if (check_current_line) {
+     start = cursor.line
+   } else {
+     start = cursor.line-1
+   }
+
+    angular.forEach(_.range(start, -1, -1), function(num){
+      if (!keep_going)
+        return
+
+      current_fold = _get_fold(_editor, num);
+      if(current_fold) {
+        if (current_fold.to.line > cursor.line){
+          fold_containing_cursor = current_fold
+
+          if (fold_containing_cursor.from.line == 0) {
+            fold_key = '"blueprint"';
+          } else {
+            trimmed_key_line = _editor.getLine(fold_containing_cursor.from.line).trim()
+            fold_key = trimmed_key_line.substring(0, trimmed_key_line.indexOf(":"))
+          }
+
+          keep_going = false;
+        }
+      }
+    })
+    return fold_key
+  }
+
+  scope.hinting = function(_editor) {
+    cursor = _editor.getCursor()
+    fold_key = scope.get_fold_key(_editor, cursor)
+
+    return {
+      list: AUTOCOMPLETE[_transform_fold_key(fold_key)] || [],
+      from: CodeMirror.Pos(cursor.line, cursor.ch),
+      to: CodeMirror.Pos(cursor.line, cursor.ch)
+    }
+  }
+
+  return scope;
+}]);
