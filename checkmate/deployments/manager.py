@@ -516,3 +516,43 @@ class Manager(object):
                                                      driver=driver,
                                                      wf_type="SCALE UP")
         operations.add(deployment, add_node_workflow, "SCALE UP", tenant_id)
+
+    def deploy_take_resource_offline(self, deployment, r_id, context,
+                                     tenant_id):
+        """Create the workflow for taking passed in resource offline
+        :param deployment: deployment containing the resource
+        :param r_id: resource id
+        :param context: request context
+        :param tenant_id: tenant id
+        :return: operation for taking the node offline
+        """
+        driver = db.get_driver(api_id=deployment["id"])
+        wf_spec = workflow_spec.WorkflowSpec.create_resource_offline_spec(
+            deployment, r_id, context)
+        deploy_workflow = workflow.create_workflow(wf_spec, deployment,
+                                                   context, driver=driver,
+                                                   wf_type="TAKE OFFLINE")
+        operation = operations.add(deployment, deploy_workflow, "TAKE OFFLINE",
+                                   tenant_id)
+        self.save_deployment(deployment, tenant_id=tenant_id)
+        return operation
+
+    def deploy_get_resource_online(self, deployment, r_id, context,
+                                   tenant_id):
+        """Create the workflow for getting passed in resource online
+        :param deployment: deployment containing the resource
+        :param r_id: resource id
+        :param context: request context
+        :param tenant_id: tenant id
+        :return: operation for getting the node online
+        """
+        driver = db.get_driver(api_id=deployment["id"])
+        wf_spec = workflow_spec.WorkflowSpec.create_resource_online_spec(
+            deployment, r_id, context)
+        deploy_workflow = workflow.create_workflow(wf_spec, deployment,
+                                                   context, driver=driver,
+                                                   wf_type="GET ONLINE")
+        operation = operations.add(deployment, deploy_workflow, "GET ONLINE",
+                                   tenant_id)
+        self.save_deployment(deployment, tenant_id=tenant_id)
+        return operation

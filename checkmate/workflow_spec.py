@@ -21,13 +21,75 @@ import logging
 from SpiffWorkflow import specs
 
 from checkmate import exceptions
-from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
 
 class WorkflowSpec(specs.WorkflowSpec):
     """Workflow Spec related methods."""
+    @staticmethod
+    def create_resource_offline_spec(deployment, resource_id, context):
+        """Creates the workflow spec for taking a resource offline
+        :param deployment:
+        :param resource_id:
+        :param context:
+        :return:
+        """
+        environment = deployment.environment()
+        resources = deployment.get_non_deleted_resources()
+        resource = deployment['resources'].get(resource_id)
+        wf_spec = WorkflowSpec(name="Take resource offline %s(%s)" % (
+            deployment["id"], resource_id))
+        for _, relation in resource.get('relations', {}).iteritems():
+            if relation.get('source'):
+                source_resource = resources[relation.get('source')]
+                provider = environment.get_provider(
+                    source_resource['provider'])
+                tasks = provider.disable_connection_tasks(wf_spec,
+                                                          deployment, context,
+                                                          source_resource,
+                                                          resource,
+                                                          relation.get('name'))
+                if tasks:
+                    wf_spec.start.connect(tasks.get('root'))
+
+        if not wf_spec.start.outputs:
+            noop = specs.Simple(wf_spec, "end")
+            wf_spec.start.connect(noop)
+        return wf_spec
+
+    @staticmethod
+    def create_resource_online_spec(deployment, resource_id, context):
+        """Creates the workflow spec for getting a resource online
+        :param deployment:
+        :param resource_id:
+        :param context:
+        :return:
+        """
+        environment = deployment.environment()
+        resources = deployment.get_non_deleted_resources()
+        resource = deployment['resources'].get(resource_id)
+        wf_spec = WorkflowSpec(name="Get resource %s in deployment %s online"
+                                    % (resource_id, deployment["id"]))
+        for _, relation in resource.get('relations', {}).iteritems():
+            if relation.get('source'):
+                source_resource = resources[relation.get('source')]
+                provider = environment.get_provider(
+                    source_resource['provider'])
+                tasks = provider.enable_connection_tasks(wf_spec,
+                                                         deployment,
+                                                         context,
+                                                         source_resource,
+                                                         resource,
+                                                         relation.get('name'))
+                if tasks:
+                    wf_spec.start.connect(tasks.get('root'))
+
+        if not wf_spec.start.outputs:
+            noop = specs.Simple(wf_spec, "end")
+            wf_spec.start.connect(noop)
+        return wf_spec
+
     @staticmethod
     def create_delete_dep_wf_spec(deployment, context):
         """Creates a SpiffWorkflow spec for deleting a deployment

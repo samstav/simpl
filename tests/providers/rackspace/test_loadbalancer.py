@@ -22,6 +22,8 @@ import mock
 import mox
 import unittest
 
+from pyrax import exceptions
+from SpiffWorkflow import specs
 from SpiffWorkflow import Workflow
 
 from checkmate import deployment as cm_dep
@@ -70,6 +72,94 @@ class TestLoadBalancer(test.ProviderTester):
         workflow_dump = re.sub(r"\s", "", workflow.get_dump())
 
         self.assertEqual(expected_dump, workflow_dump)
+
+    def test_disable_connection_tasks(self):
+        provider = loadbalancer.Provider({})
+        deployment = {'id': "DEP_ID"}
+        context = mock.Mock()
+        source_resource = {
+            'index': '0',
+            'service': 'lb',
+            'instance': {
+                'id': "LB_ID",
+            },
+            'region': 'ORD',
+        }
+        target_resource = {
+            'index': '1',
+            'service': 'web',
+            'instance': {
+                'private_ip': 'IP',
+            },
+        }
+        relation_name = 'lb-web'
+        wf_spec = specs.WorkflowSpec()
+        context.get_queued_task_dict.return_value = {}
+        exp_call = "checkmate.providers.rackspace.loadbalancer" \
+                   ".update_node_status"
+        result = provider.disable_connection_tasks(wf_spec, deployment,
+                                                   context, source_resource,
+                                                   target_resource,
+                                                   relation_name)
+        root_task = result['root']
+        self.assertEqual(len(result), 2)
+        self.assertListEqual(result.keys(), ['root', 'final'])
+        self.assertIsInstance(root_task, specs.Celery)
+        self.assertEqual(root_task.call, exp_call)
+        self.assertEqual(root_task.args, [{}, "LB_ID", "IP", "ORD",
+                                              "DISABLED", "OFFLINE"])
+        self.assertEqual(root_task.properties, {
+            'provider': provider.key,
+            'resource': '1',
+            'estimated_duration': 5
+        })
+        context.get_queued_task_dict.assert_called_once_with(
+            deployment="DEP_ID", source_resource="0", target_resource="1",
+            relation_name=relation_name)
+
+    def test_enable_connection_tasks(self):
+        provider = loadbalancer.Provider({})
+        deployment = {'id': "DEP_ID"}
+        context = mock.Mock()
+        source_resource = {
+            'index': '0',
+            'service': 'lb',
+            'instance': {
+                'id': "LB_ID",
+            },
+            'region': 'ORD',
+        }
+        target_resource = {
+            'index': '1',
+            'service': 'web',
+            'instance': {
+                'private_ip': 'IP',
+            },
+        }
+        relation_name = 'lb-web'
+        wf_spec = specs.WorkflowSpec()
+        context.get_queued_task_dict.return_value = {}
+        exp_call = "checkmate.providers.rackspace.loadbalancer" \
+                   ".update_node_status"
+        result = provider.enable_connection_tasks(wf_spec, deployment,
+                                                  context, source_resource,
+                                                  target_resource,
+                                                  relation_name)
+        root_task = result['root']
+        self.assertEqual(len(result), 2)
+        self.assertListEqual(result.keys(), ['root', 'final'])
+        self.assertIsInstance(root_task, specs.Celery)
+        self.assertEqual(root_task.call, exp_call)
+        self.assertEqual(root_task.args, [{}, "LB_ID", "IP", "ORD",
+                                              "ENABLED", "ACTIVE"])
+        self.assertEqual(root_task.properties, {
+            'provider': provider.key,
+            'resource': '1',
+            'estimated_duration': 5
+        })
+        context.get_queued_task_dict.assert_called_once_with(
+            deployment="DEP_ID", source_resource="0", target_resource="1",
+            relation_name=relation_name)
 
     def verify_limits(self, max_lbs, max_nodes):
         """Test the verify_limits() method."""
@@ -193,6 +283,175 @@ class TestCeleryTasks(unittest.TestCase):
 
     def tearDown(self):
         self.mox.UnsetStubs()
+
+    @mock.patch('checkmate.deployments.tasks.postback')
+    @mock.patch(
+        'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
+    def test_update_node_status(self, mock_connect, mock_postback):
+        context = {
+            'source_resource': '0',
+            'target_resource': '1',
+            'relation_name': 'lb-web',
+            'deployment': 'dep_id',
+        }
+        lb_id = "LB_ID"
+        ip = "IP"
+        region = "ORD"
+        expected_results = {
+            'resources': {
+                '0': {
+                    "relations": {
+                        "lb-web-1": {
+                            'state': 'DISABLED'
+                        }
+                    }
+                },
+                '1': {
+                    "status": "OFFLINE",
+                    "relations": {
+                        "lb-web-0": {
+                            'state': 'DISABLED'
+                        }
+                    }
+                }
+            }
+        }
+        mock_api = mock.Mock()
+        mock_node = mock.Mock()
+        mock_node.address = ip
+        mock_connect.return_value = mock_api
+        mock_lb = mock_api.get.return_value
+        mock_lb.nodes = [mock_node]
+        results = loadbalancer.update_node_status(context, lb_id, ip,
+                                                  region, "DISABLED",
+                                                  "OFFLINE")
+        self.assertTrue(mock_node.update.called)
+        self.assertEqual(mock_node.condition, "DISABLED")
+        self.assertDictEqual(results, expected_results)
+        mock_postback.assert_called_once_with("dep_id", expected_results)
+
+    @mock.patch(
+        'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
+    def test_update_node_status_with_422_client_exception(self, mock_connect):
+        context = {
+            'source_resource': '0',
+            'target_resource': '1',
+            'relation_name': 'lb-web',
+            'deployment': 'dep_id',
+        }
+        lb_id = 1234
+        ip = "IP"
+        region = "ORD"
+
+        mock_api = mock.Mock()
+        mock_node = mock.Mock()
+        mock_node.address = ip
+        mock_connect.return_value = mock_api
+        mock_lb = mock_api.get.return_value
+        mock_lb.nodes = [mock_node]
+        exception = exceptions.ClientException("422", message="exception")
+        mock_node.update.side_effect = exception
+        loadbalancer.update_node_status.retry = mock.Mock(
+            side_effect=StandardError(""))
+        self.assertRaises(StandardError, loadbalancer.update_node_status,
+                          context, lb_id, ip, region, "ENABLED", "ACTIVE")
+        loadbalancer.update_node_status.retry.assert_called_once_with(
+            exc=exception)
+
+    @mock.patch(
+        'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
+    def test_update_node_status_with_client_exception(self, mock_connect):
+        context = {
+            'source_resource': '0',
+            'target_resource': '1',
+            'relation_name': 'lb-web',
+            'deployment': 'dep_id',
+        }
+        lb_id = 1234
+        ip = "IP"
+        region = "ORD"
+
+        mock_api = mock.Mock()
+        mock_node = mock.Mock()
+        mock_node.address = ip
+        mock_connect.return_value = mock_api
+        mock_lb = mock_api.get.return_value
+        mock_lb.nodes = [mock_node]
+        exception = exceptions.ClientException("404", message="exception")
+        mock_node.update.side_effect = exception
+        loadbalancer.update_node_status.retry = mock.Mock(
+            side_effect=StandardError(""))
+        self.assertRaises(StandardError, loadbalancer.update_node_status,
+                          context, lb_id, ip, region, "ENABLED", "ACTIVE")
+        loadbalancer.update_node_status.retry.assert_called_once_with(
+            exc=exception)
+
+    @mock.patch(
+        'checkmate.providers.rackspace.loadbalancer.provider.Provider.connect')
+    def test_update_node_status_with_standard_error(self, mock_connect):
+        context = {
+            'source_resource': '0',
+            'target_resource': '1',
+            'relation_name': 'lb-web',
+            'deployment': 'dep_id',
+        }
+        lb_id = 1234
+        ip = "IP"
+        region = "ORD"
+
+        mock_api = mock.Mock()
+        mock_node = mock.Mock()
+        mock_node.address = ip
+        mock_connect.return_value = mock_api
+        mock_lb = mock_api.get.return_value
+        mock_lb.nodes = [mock_node]
+        exception = StandardError("exception")
+        mock_node.update.side_effect = exception
+        loadbalancer.update_node_status.retry = mock.Mock(
+            side_effect=StandardError(""))
+        self.assertRaises(StandardError, loadbalancer.update_node_status,
+                          context, lb_id, ip, region, "ENABLED", "ACTIVE")
+
+        loadbalancer.update_node_status.retry.assert_called_once_with(
+            exc=exception)
+
+    @mock.patch('checkmate.deployments.tasks.postback')
+    def test_update_node_status_for_simulation(self, mock_postback):
+        context = {
+            'source_resource': '0',
+            'target_resource': '1',
+            'relation_name': 'lb-web',
+            'deployment': 'dep_id',
+            'simulation': True
+        }
+        expected_results = {
+            'resources': {
+                '0': {
+                    "relations": {
+                        "lb-web-1": {
+                            'state': 'DISABLED'
+                        }
+                    }
+                },
+                '1': {
+                    "status": "OFFLINE",
+                    "relations": {
+                        "lb-web-0": {
+                            'state': 'DISABLED'
+                        }
+                    }
+                }
+            }
+        }
+        lb_id = 1234
+        ip = "IP"
+        region = "ORD"
+
+        results = loadbalancer.update_node_status(context, lb_id, ip,
+                                                  region, "DISABLED",
+                                                  "OFFLINE")
+        self.assertDictEqual(results, expected_results)
+        mock_postback.assert_called_once_with("dep_id", expected_results)
 
     @mock.patch.object(deployments.tasks.reset_failed_resource_task, 'delay')
     @mock.patch.object(deployments.resource_postback, 'delay')
@@ -917,7 +1176,6 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'North',
                     ],
                     'kwargs': {
-                        'dns': False,
                         'algorithm': 'ROUND_ROBIN',
                         'port': None,
                         'tags': {

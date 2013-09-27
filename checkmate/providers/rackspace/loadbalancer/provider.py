@@ -310,7 +310,6 @@ class Provider(rsbase.RackspaceProviderBase):
                 'estimated_duration': 30,
                 'task_tags': create_lb_task_tags
             },
-            dns=cdns,
             algorithm=algorithm,
             tags=self.generate_resource_tag(
                 context.base_url,
@@ -479,6 +478,74 @@ class Provider(rsbase.RackspaceProviderBase):
             )
             task_dict["root"].append(delete_record)
         return task_dict
+
+    def disable_connection_tasks(self, wf_spec, deployment, context,
+                                 source_resource, target_resource,
+                                 relation_name):
+        """Creates tasks for disabling the connection from loadbalancer to a
+         specific node
+        :param wf_spec: spiff wf spec
+        :param deployment: deployment
+        :param context: request context
+        :param source_resource:
+        :param target_resource:
+        :param relation_name:
+        :return: tasks to disable connection
+        """
+        source_key = source_resource['index']
+        target_key = target_resource['index']
+        delete_node_task = specs.Celery(
+            wf_spec,
+            "Disable Node %s in LB %s" % (target_key, source_key),
+            "checkmate.providers.rackspace.loadbalancer.update_node_status",
+            call_args=[
+                context.get_queued_task_dict(deployment=deployment['id'],
+                                             source_resource=source_key,
+                                             relation_name=relation_name,
+                                             target_resource=target_key),
+                source_resource['instance'].get('id'),
+                target_resource['instance'].get('private_ip'),
+                source_resource['region'],
+                "DISABLED",
+                "OFFLINE",
+            ],
+            defines=dict(provider=self.key, resource=target_key),
+            properties={'estimated_duration': 5})
+        return {'root': delete_node_task, 'final': delete_node_task}
+
+    def enable_connection_tasks(self, wf_spec, deployment, context,
+                                source_resource, target_resource,
+                                relation_name):
+        """Creates tasks for disabling the connection from loadbalancer to a
+         specific node
+        :param wf_spec: spiff wf spec
+        :param deployment: deployment
+        :param context: request context
+        :param source_resource:
+        :param target_resource:
+        :param relation_name:
+        :return: tasks to disable connection
+        """
+        source_key = source_resource['index']
+        target_key = target_resource['index']
+        enable_node_task = specs.Celery(
+            wf_spec,
+            "Enable Node %s in LB %s" % (target_key, source_key),
+            "checkmate.providers.rackspace.loadbalancer.update_node_status",
+            call_args=[
+                context.get_queued_task_dict(deployment=deployment['id'],
+                                             source_resource=source_key,
+                                             relation_name=relation_name,
+                                             target_resource=target_key),
+                source_resource['instance'].get('id'),
+                target_resource['instance'].get('private_ip'),
+                source_resource['region'],
+                "ENABLED",
+                "ACTIVE",
+            ],
+            defines=dict(provider=self.key, resource=target_key),
+            properties={'estimated_duration': 5})
+        return {'root': enable_node_task, 'final': enable_node_task}
 
     def add_delete_connection_tasks(self, wf_spec, context,
                                     deployment, source_resource,
