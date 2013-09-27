@@ -22,11 +22,7 @@ setup(
     version=get_config().get("rook", "version"),
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
-    install_requires=['bottle==0.11.6',
-                      'SQLAlchemy==0.8.1',
-                      'WebOb==1.2.2',
-                      'pymongo==2.5',
-                      ],
+    install_requires=[],  # let checkmate drive these
     packages=find_packages(exclude=['vagrant', 'tests', 'examples', 'doc']),
     include_package_data=True,
     license='Apache License (2.0)',
