@@ -3018,7 +3018,6 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   };
 
   $scope.create_vertex = function(resource, resource_list) {
-    var v1 = resource.index;
     var group = resource.service;
     var dns_name = resource['dns-name'] || '';
     var name = dns_name.split('.').shift();

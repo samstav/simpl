@@ -29,8 +29,8 @@ describe('Deployment service', function(){
         invalid_specs = {
           'undefined spec': undefined,
           'no properties': { pseudo_properties: {} },
-          'no inputs': { pseudo_inputs: [] },
-          'inputs length is zero': { inputs: [] }
+          'inputs length is zero': { inputs: [], outputs: ['blah'] },
+          'no inputs and no outputs(Root node)': { inputs: [], outputs: [] }
         };
         streams = WorkflowSpec.to_streams(invalid_specs);
       });
@@ -46,7 +46,8 @@ describe('Deployment service', function(){
         spec = {
           id: 1,
           properties: { resource: '0' },
-          inputs: [ '1' ]
+          inputs: [ '1' ],
+          outputs: [ '2' ]
         };
         specs = { 'First Spec': spec };
         streams = WorkflowSpec.to_streams(specs);
@@ -56,12 +57,14 @@ describe('Deployment service', function(){
         var spec_2 = {
           id: 2,
           properties: { resource: '0' },
-          inputs: [ 'Alpha Spec' ]
+          inputs: [ 'Alpha Spec' ],
+          outputs: []
         };
         var spec_3 = {
           id: 3,
           properties: { resource: '0' },
-          inputs: [ 'Alpha Spec' ]
+          inputs: [ 'Alpha Spec' ],
+          outputs: []
         };
         var deployment = { resources: {} };
         specs = { 'Zeta Spec': spec_3, 'Bravo Spec': spec_2, 'Alpha Spec': spec };
@@ -83,6 +86,25 @@ describe('Deployment service', function(){
         specs = { 'First Spec': spec, 'Lookup Spec': no_resource_in_properties_spec };
         var deployment = { resources: {} };
         streams = WorkflowSpec.to_streams(specs, deployment);
+      });
+
+      it('should include the Start node if it is a custom deployment (has an "end" node)', function(){
+        var start_node = {
+          id: 1,
+          properties: { resource: '0' },
+          inputs: [],
+          outputs: [ 'end' ]
+        };
+        var end_node = {
+          id: 2,
+          properties: { resource: '0' },
+          inputs: [ 'Start' ],
+          outputs: []
+        };
+        var deployment = { resources: {} };
+        specs = { 'end': end_node, 'Start': start_node };
+        streams = WorkflowSpec.to_streams(specs);
+        expect(streams.nodes).toEqual([start_node, end_node])
       });
 
       it('should contain one stream', function() {
