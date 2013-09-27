@@ -2731,22 +2731,29 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 
   $scope.load = function() {
     console.log("Starting load");
+    $scope.loading = { secrets: true };
     this.klass = $resource((checkmate_server_base || '') + $location.path() + '/secrets.json');
-    $scope.secrets = this.klass.get($routeParams, function(data, getResponseHeaders){
-      $scope.data = data;
+    $scope.secrets_info = this.klass.get($routeParams, function(data, getResponseHeaders){
+      $scope.loading.secrets = false;
+      angular.forEach(data.secrets, function(s) {
+        if (s.status == 'LOCKED')
+          $scope.secrets_dismissed = true;
+      });
     });
   };
 
+  $scope.secrests_dismissed = false;
   $scope.dismissSecrets = function() {
-    _.each($scope.secrets.secrets, function(element) {
+    $scope.secrets_dismissed = true;
+    angular.forEach($scope.secrets_info.secrets, function(element) {
       element.status = 'LOCKED';
     });
-    $scope.secrets.$save();
+    $scope.secrets_info.$save();
   };
 
   $scope.allAvailableSecrets = function() {
     var result = '';
-    _.each($scope.secrets.secrets, function(element, key) {
+    _.each($scope.secrets_info.secrets, function(element, key) {
       if (element.status == 'AVAILABLE')
         result = result + key + ': ' + element.value + '\n';
     });
@@ -2824,7 +2831,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         resolve: {
             dialog: function() {return $scope.secretsDialog;}
         }
-    }).open('/partials/secrets.html', 'SecretsController');
+    }).open('/partials/deployments/_secrets.html', 'SecretsController');
   };
 
   $scope.shouldDisplayWorkflowStatus = function() {
