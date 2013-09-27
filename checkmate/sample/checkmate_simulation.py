@@ -19,29 +19,30 @@ import os
 import pkg_resources
 import sys
 
-print """
-*** Checkmate Server Simulator ***
-
-Executes examples/app.yaml in simulation mode. This is for testing
-and learning about Checkmate
-
-Usage:
-
-    checkmate-simulate
-
-
-Settings:
-"""
-
-if 'CHECKMATE_CLIENT_USERNAME' not in os.environ:
-    sys.exit("CHECKMATE_CLIENT_USERNAME not set in environment")
-
-if 'CHECKMATE_CLIENT_APIKEY' not in os.environ:
-    sys.exit("CHECKMATE_CLIENT_APIKEY not set in environment")
-
 
 def main_func():
     """Run a simulation."""
+
+    print """
+    *** Checkmate Server Simulator ***
+
+    Executes examples/app.yaml in simulation mode. This is for testing
+    and learning about Checkmate
+
+    Usage:
+
+        checkmate-simulate
+
+
+    Settings:
+    """
+
+    if 'CHECKMATE_CLIENT_USERNAME' not in os.environ:
+        sys.exit("CHECKMATE_CLIENT_USERNAME not set in environment")
+
+    if 'CHECKMATE_CLIENT_APIKEY' not in os.environ:
+        sys.exit("CHECKMATE_CLIENT_APIKEY not set in environment")
+
     for key in os.environ:
         if key.startswith('CHECKMATE_CLIENT'):
             print key, '=', os.environ[key]
