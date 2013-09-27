@@ -1,3 +1,4 @@
+# pylint: disable=R0904
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -22,14 +23,19 @@ class TestDependencies(unittest.TestCase):
     Unusual = forks of public projects, depedencies that need complicated
               libraries (like openssh), etc...
     """
+
     def test_python_version(self):
-        self.assertGreaterEqual(sys.version_info, (2, 7, 1), "Checkmate needs "
-                                "python version 2.7.1 or later")
+        version = sys.version_info
+        self.assertGreaterEqual(version, (2, 7, 1), "Checkmate needs "
+                                "python version 2.7.1 or later. Found %s" %
+                                '.'.join([str(d) for d in version]))
 
     def test_pycrypto_version(self):
         import Crypto
-        self.assertGreaterEqual(Crypto.version_info, (2, 6), "Checkmate "
-                                "expects pycrypto version 2.6 or later")
+        version = Crypto.version_info
+        self.assertGreaterEqual(version, (2, 6), "Checkmate "
+                                "expects pycrypto version 2.6 or later. Found "
+                                "%s" % '.'.join([str(d) for d in version]))
 
     def test_paramiko_version(self):
         import paramiko
@@ -37,25 +43,26 @@ class TestDependencies(unittest.TestCase):
             # new syntax is a string
             version = tuple(int(v) for v in paramiko.__version__.split('.'))
         except AttributeError:
-            version = paramiko.__version_info__  # older syntax
-        self.assertGreaterEqual(version, (1, 7, 7, 1),
-                                "Checkmate expects paramiko version 1.7.7.1 "
-                                "or later")
-
-    def test_pam_version(self):
-        import pam
+            # older syntax
+            version = paramiko.__version_info__   # pylint: disable=E1101
+        self.assertGreaterEqual(version, (1, 7, 7, 2),
+                                "Checkmate expects paramiko version 1.7.7.2 "
+                                "or later. Found %s" %
+                                '.'.join([str(d) for d in version]))
 
     def test_celery_version(self):
         import celery
         version = [int(part) for part in celery.__version__.split(".")]
-        self.assertGreaterEqual(version, [3, 0, 9], "Checkmate expects celery "
-                                "version 3.0.9 or later")
+        self.assertGreaterEqual(version, [3, 0, 23], "Checkmate expects "
+                                "celery version 3.0.23 or later. Found %s" %
+                                '.'.join([str(d) for d in version]))
 
     def test_yaml_version(self):
         import yaml
         version = [int(part) for part in yaml.__version__.split(".")]
         self.assertGreaterEqual(version, [3, 10], "Checkmate expects PyYAML "
-                                "version 3.10 or later")
+                                "version 3.10 or later. Found %s" %
+                                '.'.join([str(d) for d in version]))
 
     def test_spiff_version(self):
         import SpiffWorkflow
@@ -65,16 +72,37 @@ class TestDependencies(unittest.TestCase):
         version, _ = SpiffWorkflow.version().split('-')[0:2]
         version = [int(part) for part in version.split(".")]
         self.assertGreaterEqual(version, [0, 3, 2], "Checkmate expects "
-                                "SpiffWorkflow version 0.3.2 or later")
+                                "SpiffWorkflow version 0.3.2 or later. Found "
+                                "%s" % '.'.join([str(d) for d in version]))
 
     def test_jinja_version(self):
         import jinja2
         version = [int(part) for part in jinja2.__version__.split(".")]
-        self.assertEqual(version, [2, 6],
-                         "Checkmate expects Jinja2 version 2.6")
+        self.assertEqual(version, [2, 7, 1],
+                         "Checkmate expects Jinja2 version 2.7.1. Found %s" %
+                         '.'.join([str(d) for d in version]))
 
+    def test_bottle_version(self):
+        import bottle
+        version = [int(d) for d in bottle.__version__.split('.')]
+        self.assertEqual(version, [0, 11, 6],
+                         "Checkmate expects bottle version 0.11.6. Found %s" %
+                         '.'.join([str(d) for d in version]))
+
+    def test_eventlet_version(self):
+        import eventlet
+        version = [int(d) for d in eventlet.__version__.split('.')]
+        self.assertEqual(version, [0, 14, 0],
+                         "Checkmate expects eventlet version 0.14.0. Found %s"
+                         % '.'.join([str(d) for d in version]))
+
+    def test_pymongo_version(self):
+        import pymongo
+        version = [int(d) for d in pymongo.version.split('.')]
+        self.assertEqual(version, [2, 6, 2],
+                         "Checkmate expects pymongo version 2.6.2. Found %s"
+                         % '.'.join([str(d) for d in version]))
 
 if __name__ == '__main__':
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()
