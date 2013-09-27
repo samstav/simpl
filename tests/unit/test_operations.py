@@ -20,8 +20,9 @@ import unittest
 
 from SpiffWorkflow import Task
 
-from checkmate import exceptions as cmexc, utils
+from checkmate import exceptions as cmexc
 from checkmate import operations
+from checkmate import utils
 
 
 class TestOperations(unittest.TestCase):
