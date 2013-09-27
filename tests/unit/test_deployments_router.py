@@ -670,8 +670,11 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
             self.statuses['resources'], mock.ANY, mock.ANY)
         mock_postback.assert_called_once_with(
             'dep_id',
-            {'resources': {'instance:1': {'instance': {'status-message': ''}},
-                           'instance:3': {'instance': {'status-message': ''}}}
+            {
+                'resources': {
+                    'instance:1': {'instance': {'status-message': ''}},
+                    'instance:3': {'instance': {'status-message': ''}}
+                }
             }
         )
 
