@@ -27,14 +27,13 @@ from SpiffWorkflow import (
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate import exceptions
-from checkmate import task as cmtsk
-from checkmate import utils
-
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.deployment import Deployment
+from checkmate import exceptions
+from checkmate import task as cmtsk
+from checkmate import utils
 from checkmate.workflow_spec import WorkflowSpec
 
 DB = get_driver()

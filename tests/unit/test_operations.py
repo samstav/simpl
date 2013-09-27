@@ -150,7 +150,8 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         mock_db.save_deployment.assert_called_once_with(
             'depid', {'operation': {'test_kwarg': 'test',
                                     'updated': '2013-03-31 17:49:51 +0000'}},
-            partial=True)
+            partial=True
+        )
 
     @mock.patch.object(operations, 'get_operation')
     @mock.patch.object(utils, 'get_time_string')
@@ -247,7 +248,8 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         mock_db.save_deployment.assert_called_once_with(
             'depid', {'operation': {'status': 'BUILD',
                                     'updated': '2013-03-31 17:49:51 +0000'}},
-            partial=True)
+            partial=True
+        )
 
     @mock.patch.object(operations, 'get_operation')
     @mock.patch.object(utils, 'get_time_string')
