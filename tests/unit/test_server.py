@@ -32,10 +32,9 @@ class TestServerErrorParsing(unittest.TestCase):
     @mock.patch.object(utils, 'write_body')
     def test_default_message(self, mock_write, mock_response, mock_request):
         """Error response is the safe default for non-checkmate exceptions."""
-        mock_error = mock.Mock()
-        mock_error.exception = Exception('test')
-        mock_error.output = "output"
-        server.error_formatter(mock_error)
+        exception = Exception('test')
+        error = bottle.HTTPError(exception=exception)
+        server.error_formatter(error)
         expected = {
             'error': {
                 'reason': exceptions.UNEXPECTED_ERROR,
@@ -51,9 +50,9 @@ class TestServerErrorParsing(unittest.TestCase):
     def test_default_checkmate_message(self, mock_write, mock_response,
                                        mock_request):
         """Error response is the safe default for CheckmateExceptions."""
-        mock_error = mock.Mock()
-        mock_error.exception = exceptions.CheckmateException('test')
-        server.error_formatter(mock_error)
+        exception = exceptions.CheckmateException('test')
+        error = bottle.HTTPError(exception=exception)
+        server.error_formatter(error)
         expected = {
             'error': {
                 'reason': exceptions.UNEXPECTED_ERROR,
@@ -69,10 +68,10 @@ class TestServerErrorParsing(unittest.TestCase):
     def test_friendly_checkmate_message(self, mock_write, mock_response,
                                         mock_request):
         """Error response is the safe default for CheckmateExceptions."""
-        mock_error = mock.Mock()
-        mock_error.exception = exceptions.CheckmateException(
+        exception = exceptions.CheckmateException(
             'test', friendly_message="Hi!")
-        server.error_formatter(mock_error)
+        error = bottle.HTTPError(exception=exception)
+        server.error_formatter(error)
         expected = {
             'error': {
                 'reason': "Hi!",
@@ -88,9 +87,9 @@ class TestServerErrorParsing(unittest.TestCase):
     def test_content_yaml(self, mock_write, mock_response, mock_request):
         """Error response is in yaml if accepts requests it."""
         mock_request.get_header.return_value = 'application/x-yaml'
-        mock_error = mock.Mock()
-        mock_error.exception = exceptions.CheckmateException('test')
-        server.error_formatter(mock_error)
+        exception = exceptions.CheckmateException('test')
+        error = bottle.HTTPError(exception=exception)
+        server.error_formatter(error)
         expected = {
             'error': {
                 'reason': exceptions.UNEXPECTED_ERROR,
@@ -99,10 +98,8 @@ class TestServerErrorParsing(unittest.TestCase):
             }
         }
         mock_write.assert_called_with(expected, mock_request, mock_response)
-        self.assertIsInstance(mock_error.headers, bottle.HeaderDict)
-        self.assertEqual(mock_error.headers["content-type"],
-                         "application/x-yaml")
-        mock_error.apply.assert_called_with(mock_response)
+        self.assertIsInstance(error.headers, bottle.HeaderDict)
+        self.assertEqual(error.headers["content-type"], "application/x-yaml")
 
 
 if __name__ == '__main__':

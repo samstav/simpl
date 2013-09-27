@@ -294,7 +294,7 @@ def _git_route_callback(dep_id, path):
     """Check deployment and verify it is valid before git backend call."""
     environ = _set_git_environ(dict(bottle.request.environ), dep_id, path)
     if not os.path.isdir(environ['GIT_PROJECT_ROOT']):
-        raise bottle.HTTPError(code=404, output="%s not found" %
+        raise bottle.HTTPError(status=404, output="%s not found" %
                                environ['PATH_INFO'])
     manager.init_deployment_repo(environ.get('GIT_PROJECT_ROOT'))
     (status_line, headers, response_body_generator

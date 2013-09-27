@@ -119,7 +119,7 @@ class TenantMiddleware(object):
                 errors = any_tenant_id_problems(tenant)
                 if errors:
                     return webexc.HTTPNotFound(errors)(environ, start_response)
-                context = bottle.request.context
+                context = environ['context']
                 rewrite = "/%s" % '/'.join(path_parts[2:])
                 LOG.debug("Rewrite for tenant %s from '%s' to '%s'", tenant,
                           environ['PATH_INFO'], rewrite)
@@ -194,7 +194,7 @@ class PAMAuthMiddleware(object):
         # Authenticate basic auth calls to PAM
         # TODO(any): this header is not being returned in a 401
         start_response = self.start_response_callback(start_response)
-        context = bottle.request.context
+        context = environ['context']
 
         if 'HTTP_AUTHORIZATION' in environ:
             if getattr(context, 'authenticated', False) is True:
@@ -296,7 +296,7 @@ class TokenAuthMiddleware(object):
         start_response = self.start_response_callback(start_response)
 
         if 'HTTP_X_AUTH_TOKEN' in environ:
-            context = bottle.request.context
+            context = environ['context']
             if context.authenticated is True:
                 #Auth has been handled by some other middleware
                 pass
@@ -407,7 +407,7 @@ class AuthorizationMiddleware(object):
             # Allow anonymous calls
             return self.app(environ, start_response)
 
-        context = bottle.request.context
+        context = environ['context']
 
         if context.is_admin is True:
             start_response = self.start_response_callback(start_response)

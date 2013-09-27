@@ -116,11 +116,10 @@ def error_formatter(error):
     output = {}
     accept = bottle.request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
-        error.headers = bottle.HeaderDict(
-            {"content-type": "application/x-yaml"})
+        error.headers.update({"content-type": "application/x-yaml"})
         error.apply(bottle.response)
     else:  # default to JSON
-        error.headers = bottle.HeaderDict({"content-type": "application/json"})
+        error.headers.update({"content-type": "application/json"})
         error.apply(bottle.response)
 
     if isinstance(error.exception, CheckmateNoMapping):
@@ -171,7 +170,7 @@ def error_formatter(error):
     output['description'] = error.output
     if 'reason' not in output:
         output['reason'] = output['description']
-    output['code'] = error.status
+    output['code'] = error.status_code
     bottle.response.status = error.status
     return utils.write_body(
         dict(error=output), bottle.request, bottle.response)

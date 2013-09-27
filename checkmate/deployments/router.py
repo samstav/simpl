@@ -82,7 +82,7 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
         assert tenant_id, "Tenant ID must be specified in deployment."
         entity['tenantId'] = tenant_id
     if 'created-by' not in entity:
-        entity['created-by'] = request.context.username
+        entity['created-by'] = request.environ['context'].username
     deployment = cmdeploy.Deployment(entity)  # Also validates syntax
     return deployment
 
@@ -236,17 +236,18 @@ class Router(object):
         except exceptions.CheckmateHOTTemplateException:
             return self.stack_router.post_stack_compat(tenant_id=tenant_id)
 
-        is_simulation = bottle.request.context.simulation
+        is_simulation = bottle.request.environ['context'].simulation
         if is_simulation:
             deployment['id'] = utils.get_id(is_simulation)
         api_id = str(deployment['id'])
         if bottle.request.query.get('asynchronous') == '1':
             self.manager.save_deployment(deployment, api_id=api_id,
                                          tenant_id=tenant_id)
-            request_context = copy.deepcopy(bottle.request.context)
+            request_context = copy.deepcopy(bottle.request.environ['context'])
             tasks.process_post_deployment.delay(deployment, request_context)
         else:
-            tasks.process_post_deployment(deployment, bottle.request.context)
+            tasks.process_post_deployment(deployment,
+                                          bottle.request.environ['context'])
         bottle.response.status = 202
         write_deploy_headers(api_id, tenant_id=tenant_id)
         return utils.write_body(deployment, bottle.request, bottle.response)
@@ -254,7 +255,7 @@ class Router(object):
     @utils.with_tenant
     def simulate(self, tenant_id=None):
         """Run a simulation."""
-        bottle.request.context.simulation = True
+        bottle.request.environ['context'].simulation = True
         return self.post_deployment(tenant_id=tenant_id)
 
     @utils.with_tenant
@@ -276,7 +277,8 @@ class Router(object):
         else:
             check_access = True
         deployment = _content_to_deployment(tenant_id=tenant_id)
-        results = self.manager.plan(deployment, bottle.request.context,
+        results = self.manager.plan(deployment,
+                                    bottle.request.environ['context'],
                                     check_limits=check_limits,
                                     check_access=check_access,
                                     parse_only=True)
@@ -286,9 +288,10 @@ class Router(object):
     def preview_deployment(self, tenant_id=None):
         """Parse and preview a deployment and its workflow."""
         deployment = _content_to_deployment(tenant_id=tenant_id)
-        results = self.manager.plan(deployment, bottle.request.context)
+        results = self.manager.plan(deployment,
+                                    bottle.request.environ['context'])
         spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            results, bottle.request.context)
+            results, bottle.request.environ['context'])
         serializer = DictionarySerializer()
         serialized_spec = spec.serialize(serializer)
         results['workflow'] = dict(wf_spec=serialized_spec)
@@ -317,7 +320,7 @@ class Router(object):
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
                         "by %s", api_id,
-                        tenant_id, bottle.request.context.username)
+                        tenant_id, bottle.request.environ['context'].username)
             bottle.abort(404)
 
         return utils.write_body(entity, bottle.request, bottle.response)
@@ -395,7 +398,7 @@ class Router(object):
         :param tenant_id:
         :return:
         """
-        context = bottle.request.context
+        context = bottle.request.environ['context']
         if utils.is_simulation(api_id):
             context.simulation = True
 
@@ -441,7 +444,7 @@ class Router(object):
     def add_nodes(self, api_id, tenant_id=None):
         """Add nodes to deployment identified by api_id."""
         if utils.is_simulation(api_id):
-            bottle.request.context.simulation = True
+            bottle.request.environ['context'].simulation = True
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
                                                  with_secrets=True)
         if not deployment:
@@ -460,16 +463,15 @@ class Router(object):
         if not service_name or not count:
             bottle.abort(400, "Invalid input, service_name and count is not "
                               "provided in the request body")
-        deployment = self.manager.plan_add_nodes(deployment,
-                                                 bottle.request.context,
-                                                 service_name,
-                                                 count)
-        self.manager.deploy_add_nodes(deployment, bottle.request.context,
+        deployment = self.manager.plan_add_nodes(
+            deployment, bottle.request.environ['context'], service_name, count)
+        self.manager.deploy_add_nodes(deployment,
+                                      bottle.request.environ['context'],
                                       tenant_id)
         deployment = self.manager.save_deployment(deployment, api_id=api_id,
                                                   tenant_id=tenant_id)
         add_nodes_wf_id = deployment['operation']['workflow-id']
-        context = bottle.request.context
+        context = bottle.request.environ['context']
         wf_tasks.cycle_workflow.delay(add_nodes_wf_id,
                                       context.get_queued_task_dict())
 
@@ -490,7 +492,7 @@ class Router(object):
     @utils.with_tenant
     def delete_deployment(self, api_id, tenant_id=None):
         """Delete the specified deployment."""
-        request_context = bottle.request.context
+        request_context = bottle.request.environ['context']
         if utils.is_simulation(api_id):
             request_context.simulation = True
         deployment = self.manager.get_deployment(api_id)
@@ -551,9 +553,9 @@ class Router(object):
         assert api_id, "Deployment ID cannot be empty"
         deployment = self.manager.clone(
             api_id,
-            bottle.request.context,
+            bottle.request.environ['context'],
             tenant_id=tenant_id,
-            simulate=bottle.request.context.simulation
+            simulate=bottle.request.environ['context'].simulation
         )
         return utils.write_body(deployment, bottle.request, bottle.response)
 
@@ -572,7 +574,7 @@ class Router(object):
                 "be planned" % (api_id, entity.get('status')))
         deployment = cmdeploy.Deployment(entity)  # Also validates syntax
         planned_deployment = self.manager.plan(
-            deployment, bottle.request.context)
+            deployment, bottle.request.environ['context'])
         results = self.manager.save_deployment(planned_deployment,
                                                deployment_id=api_id,
                                                tenant_id=tenant_id)
@@ -588,15 +590,15 @@ class Router(object):
                 'No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)
         if utils.is_simulation(api_id):
-            bottle.request.context.simulation = True
-        bottle.request.context['deployment'] = api_id
+            bottle.request.environ['context'].simulation = True
+        bottle.request.environ['context']['deployment'] = api_id
         return deployment
 
     @utils.with_tenant
     def sync_deployment(self, api_id, tenant_id=None):
         """Sync existing deployment objects with current cloud status."""
         deployment = self._setup_deployment(api_id, tenant_id)
-        statuses = deployment.get_statuses(bottle.request.context)
+        statuses = deployment.get_statuses(bottle.request.environ['context'])
         for key, value in statuses.get('resources').iteritems():
             tasks.resource_postback.delay(api_id, {key: value})
         common_tasks.update_operation(
@@ -610,7 +612,7 @@ class Router(object):
     def check_deployment(self, api_id, tenant_id=None):
         """Check instance statuses."""
         deployment = self._setup_deployment(api_id, tenant_id)
-        statuses = deployment.get_statuses(bottle.request.context)
+        statuses = deployment.get_statuses(bottle.request.environ['context'])
         check_results = {
             'current': statuses,
             'updates': {},
@@ -639,7 +641,7 @@ class Router(object):
             exceptions.CheckmateDoesNotExist(
                 'No deployment with id %s' % api_id)
         deployment = cmdeploy.Deployment(entity)  # Also validates syntax
-        context = bottle.request.context
+        context = bottle.request.environ['context']
         if entity.get('status', 'NEW') == 'NEW':
             deployment = self.manager.plan(deployment, context)
         if entity.get('status') != 'PLANNED':
@@ -664,16 +666,17 @@ class Router(object):
             entity = self.manager.get_deployment(api_id, tenant_id=tenant_id)
         except exceptions.CheckmateDoesNotExist:
             bottle.abort(404)
+        context = bottle.request.environ['context']
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
                         "by %s", api_id, tenant_id,
-                        bottle.request.context.username)
+                        context.username)
             bottle.abort(404)
 
-        if not (bottle.request.context.is_admin is True or
+        if not (context.is_admin is True or
                 ('created-by' in entity and
                  entity['created-by'] is not None and
-                 bottle.request.context.username == entity.get('created-by'))):
+                 context.username == entity.get('created-by'))):
             bottle.abort(401, "You must be the creator of a deployment or an "
                               "admin to retrieve its secrets")
         data = self.manager.get_deployment_secrets(api_id, tenant_id=tenant_id)
@@ -689,16 +692,17 @@ class Router(object):
                                                  with_secrets=False)
         except exceptions.CheckmateDoesNotExist:
             bottle.abort(404)
+        context = bottle.request.environ['context']
         if tenant_id is not None and tenant_id != entity.get('tenantId'):
             LOG.warning("Attempt to access deployment %s from wrong tenant %s "
                         "by %s", api_id, tenant_id,
-                        bottle.request.context.username)
+                        context.username)
             bottle.abort(404)
 
-        if not (bottle.request.context.is_admin is True or
+        if not (context.is_admin is True or
                 ('created-by' in entity and
                  entity['created-by'] is not None and
-                 bottle.request.context.username == entity.get('created-by'))):
+                 context.username == entity.get('created-by'))):
             bottle.abort(401, "You must be the creator of a deployment or an "
                          "admin to retrieve its secrets")
 
@@ -778,7 +782,7 @@ class Router(object):
             bottle.abort(404, "No resource %s in deployment %s" %
                               (r_id, api_id))
         deployment = cmdeploy.Deployment(deployment)
-        context = bottle.request.context
+        context = bottle.request.environ['context']
         operation = self.manager.deploy_take_resource_offline(deployment,
                                                               r_id,
                                                               context,
@@ -797,7 +801,7 @@ class Router(object):
             bottle.abort(404, "No resource %s in deployment %s" %
                               (r_id, api_id))
         deployment = cmdeploy.Deployment(deployment)
-        context = bottle.request.context
+        context = bottle.request.environ['context']
         operation = self.manager.deploy_get_resource_online(deployment, r_id,
                                                             context,
                                                             tenant_id)
