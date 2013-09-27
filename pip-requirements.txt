@@ -52,7 +52,7 @@
 amqp==1.0.11
 anyjson==0.3.3
 billiard==2.7.3.28
-bottle==0.10.11
+bottle==0.11.6
 celery==3.0.19
 eventlet==0.12.1
 impacket==0.9.10
