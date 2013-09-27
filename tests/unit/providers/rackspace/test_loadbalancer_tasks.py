@@ -146,6 +146,14 @@ class TestLoadBalancerSyncTask(unittest.TestCase):
         loadbalancer._update_metadata(self.context, self.resource, self.api)
         assert not self.api.update_metadata.called
 
+    def test_metadata_clean_old_key(self):
+        """Verifies that the RAX-CHKMATE key is removed if found."""
+        self.api.get_metadata.return_value = [{
+            'key': 'RAX-CHKMATE',
+            'value': 'url/T0/deployments/dep_id/resources/0'}]
+        loadbalancer._update_metadata(self.context, self.resource, self.api)
+        self.api.delete_metadata.assert_called_once_with('RAX-CHKMATE')
+
 
 if __name__ == '__main__':
     from checkmate import test
