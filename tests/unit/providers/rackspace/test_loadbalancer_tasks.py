@@ -1,4 +1,4 @@
-# pylint: disable=R0904,C0103
+# pylint: disable=R0904,C0103,W0212
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -73,8 +73,9 @@ class TestLoadBalancerSyncTask(unittest.TestCase):
 
     def setUp(self):
         """Re-use test vars."""
-        self.context = {}
-        self.resource = {'instance': {'id': '1234'}}
+        self.context = {'base_url': 'url', 'tenant': 'T0',
+                        'deployment': 'dep_id'}
+        self.resource = {'instance': {'id': '1234'}, 'index': '0'}
         self.resource_key = 1
         self.api = mock.MagicMock()
 
@@ -83,7 +84,6 @@ class TestLoadBalancerSyncTask(unittest.TestCase):
         """Verifies methods and return results on sync_resource_task."""
         clb = mock.MagicMock()
         clb.status = 'RESIZING'
-        clb.metadata.side_effect = StandardError('testing')
         self.api.get.return_value = clb
         expected = {'instance:1': {'status': 'RESIZING'}}
 
@@ -129,3 +129,32 @@ class TestLoadBalancerSyncTask(unittest.TestCase):
         self.assertEqual(expected, results)
         mock_logger.assert_called_with('Marking load balancer instance %s as '
                                        '%s', None, 'DELETED')
+
+    def test_metadata_requires_update(self):
+        """Verifies that metadata is updated with RAX-CHECKMATE."""
+        self.api.get_metadata.return_value = [{'id': 'an_id', 'key': 'a_key',
+                                               'value': 'a_value'}]
+        loadbalancer._update_metadata(self.context, self.resource, self.api)
+        self.api.update_metadata.assert_called_once_with(
+            {'RAX-CHECKMATE': 'url/T0/deployments/dep_id/resources/0'})
+
+    def test_metadata_no_update_required(self):
+        """Verifies no change when RAX-CHECKMATE already exists."""
+        self.api.get_metadata.return_value = [{
+            'key': 'RAX-CHECKMATE',
+            'value': 'url/T0/deployments/dep_id/resources/0'}]
+        loadbalancer._update_metadata(self.context, self.resource, self.api)
+        assert not self.api.update_metadata.called
+
+    def test_metadata_clean_old_key(self):
+        """Verifies that the RAX-CHKMATE key is removed if found."""
+        self.api.get_metadata.return_value = [{
+            'key': 'RAX-CHKMATE',
+            'value': 'url/T0/deployments/dep_id/resources/0'}]
+        loadbalancer._update_metadata(self.context, self.resource, self.api)
+        self.api.delete_metadata.assert_called_once_with('RAX-CHKMATE')
+
+
+if __name__ == '__main__':
+    from checkmate import test
+    test.run_with_params()

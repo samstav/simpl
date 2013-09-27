@@ -619,7 +619,7 @@ class TestCeleryTasks(unittest.TestCase):
         mocklb.id = 'fake_lb_id'
         mocklb.name = 'fake_lb'
         mocklb.status = 'ERROR'
-        mocklb.get_metadata.return_value = {}
+        mocklb.get_metadata.return_value = []
 
         resource_key = "1"
 
@@ -678,12 +678,12 @@ class TestCeleryTasks(unittest.TestCase):
                                               mock_generate_resource_tag):
         self.setUpSyncResourceTask()
         mock_generate_resource_tag.return_value = {"test": "me"}
-        self.mocklb.metadata = []
+        self.mocklb.get_metadata.return_value = []
         loadbalancer.sync_resource_task(self.context, self.resource,
                                         self.resource_key, self.lb_api_mock)
 
         self.lb_api_mock.get.assert_called_once_with(self.mocklb.id)
-        self.mocklb.set_metadata.assert_called_once_with({"test": "me"})
+        self.mocklb.update_metadata.assert_called_once_with({"test": "me"})
 
     @mock.patch.object(loadbalancer.Provider, 'generate_resource_tag')
     def test_sync_resource_task_without_metadata(self,
@@ -692,13 +692,13 @@ class TestCeleryTasks(unittest.TestCase):
         metadata attribute doesn't even exist
         """
         self.setUpSyncResourceTask()
-        del self.mocklb.metadata
+        self.mocklb.get_metadata.return_value = []
         mock_generate_resource_tag.return_value = {"test": "me"}
         loadbalancer.sync_resource_task(self.context, self.resource,
                                         self.resource_key, self.lb_api_mock)
 
         self.lb_api_mock.get.assert_called_once_with(self.mocklb.id)
-        self.mocklb.set_metadata.assert_called_once_with({"test": "me"})
+        self.mocklb.update_metadata.assert_called_once_with({"test": "me"})
 
 
 class TestGetAlgorithms(unittest.TestCase):

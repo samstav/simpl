@@ -1,3 +1,5 @@
+# pylint: disable=E1102,W0613
+
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -235,24 +237,20 @@ def collect_record_data(deployment_id, resource_key, record):
 
 def _update_metadata(context, resource, clb):
     """Updates metadata on cloud loadbalancer."""
-    try:
-        metadata = {}
-        cloud_metadata = []
-        if hasattr(clb, 'metadata'):
-            cloud_metadata = clb.metadata
-        for data in cloud_metadata:
-            metadata[data['key']] = data['value']
-        if "RAX-CHECKMATE" not in metadata:
-            checkmate_tag = Provider.generate_resource_tag(
-                context['base_url'], context['tenant'],
-                context['deployment'], resource['index']
-            )
-            new_meta = utils.merge_dictionary(metadata, checkmate_tag)
-            clb.set_metadata(new_meta)
-    except StandardError as exc:
-        LOG.info("Could not set metadata tag "
-                 "on checkmate managed compute resource")
-        LOG.info(exc)
+    new_meta = Provider.generate_resource_tag(context.get('base_url'),
+                                              context.get('tenant'),
+                                              context.get('deployment'),
+                                              resource.get('index'))
+    add_tag = True
+    for entry in clb.get_metadata():
+        if entry['key'] == 'RAX-CHKMATE':
+            clb.delete_metadata('RAX-CHKMATE')
+        elif (entry['key'] == 'RAX-CHECKMATE' and
+                entry['value'] == new_meta['RAX-CHECKMATE']):
+            add_tag = False
+
+    if add_tag:
+        clb.update_metadata(new_meta)
 
 
 @task
@@ -279,7 +277,6 @@ def sync_resource_task(context, resource, resource_key, api=None):
             raise exceptions.CheckmateException(error_message)
         clb = api.get(instance_id)
 
-        # TODO(any): Dont think this is a good place for this.
         _update_metadata(context, resource, clb)
 
         status = {'status': clb.status}
