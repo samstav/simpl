@@ -73,8 +73,8 @@ class TestLoadBalancerSyncTask(unittest.TestCase):
 
     def setUp(self):
         """Re-use test vars."""
-        self.context = {}
-        self.resource = {'instance': {'id': '1234'}}
+        self.context = {'base_url': 'url', 'tenant': 'T0', 'deployment': {}}
+        self.resource = {'instance': {'id': '1234'}, 'index': '0'}
         self.resource_key = 1
         self.api = mock.MagicMock()
 
@@ -83,7 +83,7 @@ class TestLoadBalancerSyncTask(unittest.TestCase):
         """Verifies methods and return results on sync_resource_task."""
         clb = mock.MagicMock()
         clb.status = 'RESIZING'
-        clb.metadata.side_effect = StandardError('testing')
+        clb.metadata = []
         self.api.get.return_value = clb
         expected = {'instance:1': {'status': 'RESIZING'}}
 
