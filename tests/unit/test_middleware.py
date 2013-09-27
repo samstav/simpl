@@ -19,11 +19,12 @@ import os
 import unittest
 
 import bottle
+import webob
 
 from checkmate import middleware as cmmid
 
 
-def _start_response():
+def _start_response(environ, handler):
     "Helper method to mock _start_response."""
     pass
 
@@ -35,6 +36,34 @@ class MockWsgiApp(object):
 
     def __call__(self, env, start_response):
         pass
+
+
+class TestGenerateResponse(unittest.TestCase):
+    """Test the webob patch."""
+    def setUp(self):
+        self.http_exception = webob.exc.WSGIHTTPException()
+        self.environ = {'REQUEST_METHOD': 'GET'}
+
+    def test_html_error(self):
+        self.environ['HTTP_ACCEPT'] = 'text/html'
+        results = middleware.generate_response(self.http_exception,
+                                               self.environ,
+                                               _start_response)
+        self.assertIn("<html>", results[0])
+
+    def test_yaml_error(self):
+        self.environ['HTTP_ACCEPT'] = 'application/x-yaml'
+        results = middleware.generate_response(self.http_exception,
+                                               self.environ,
+                                               _start_response)
+        self.assertIn("error:\n", results[0])
+
+    def test_json_error(self):
+        self.environ['HTTP_ACCEPT'] = 'application/json'
+        results = middleware.generate_response(self.http_exception,
+                                               self.environ,
+                                               _start_response)
+        self.assertIn("""{\n    "error": {\n""", results[0])
 
 
 class TestStripPathMiddleware(unittest.TestCase):
