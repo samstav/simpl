@@ -2817,7 +2817,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
         resolve: {
             dialog: function() {return $scope.secretsDialog;}
         }
-    }).open('/partials/secrets.html', 'SecretsController');
+    }).open('/partials/deployments/_secrets.html', 'SecretsController');
   };
 
   $scope.shouldDisplayWorkflowStatus = function() {
