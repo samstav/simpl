@@ -140,8 +140,9 @@ class TestLoadBalancerSyncTask(unittest.TestCase):
 
     def test_metadata_no_update_required(self):
         """Verifies no change when RAX-CHECKMATE already exists."""
-        self.api.get_metadata.return_value = [{'key': 'RAX-CHECKMATE',
-                                               'value': 'http://test'}]
+        self.api.get_metadata.return_value = [{
+            'key': 'RAX-CHECKMATE',
+            'value': 'url/T0/deployments/dep_id/resources/0'}]
         loadbalancer._update_metadata(self.context, self.resource, self.api)
         assert not self.api.update_metadata.called
 
