@@ -105,7 +105,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   })
   .when('/:tenantId/deployments/:id', {
     controller: DeploymentController,
-    templateUrl: '/partials/deployment.html'
+    templateUrl: '/partials/deployments/deployment.html'
   })
   .when('/:tenantId/providers', {
     controller: ProviderListController,
@@ -2770,7 +2770,56 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   $scope.data = {};
   $scope.data_json = "";
 
+  $scope.tree = { selected_nodes: {}, count: 0 };
+  $scope.toggle_selected_node = function(node) {
+    var services = $scope.available_services($scope.data);
+    if (services.indexOf(node.component) == -1)
+      return false;
+
+    if (node.id in $scope.tree.selected_nodes) {
+      $scope.tree.count--;
+      delete $scope.tree.selected_nodes[node.id];
+    } else {
+      $scope.tree.count++;
+      $scope.tree.selected_nodes[node.id] = node;
+    }
+
+    return true;
+  }
+
+  $scope.get_blueprint_url = function(deployment) {
+    if (!(deployment && deployment.environment && deployment.environment.providers))
+      return "";
+
+    var all_providers = deployment.environment.providers;
+    var providers = _.find(all_providers, function(p) { return p.constraints; }) || {};
+    var constraint = _.find(providers.constraints, function(c) { return c.source; }) || {};
+    var original_url = constraint.source;
+    if (!original_url)
+      return "";
+
+    var last_hash = original_url.lastIndexOf('#')
+    if (last_hash == -1) last_hash = original_url.length;
+    var repo_url = original_url.substring(0,last_hash);
+    var branch_url = original_url.substring(last_hash, original_url.length);
+    var url = repo_url.replace("git://", "http://").replace(/\.git$/, "") + branch_url;
+
+    return url;
+  }
+
+  $scope.display_details = function(details) {
+    var available_details = false;
+    angular.forEach(details, function(detail) {
+      if (!detail['is-secret']) {
+        available_details = true;
+      }
+    });
+    return available_details;
+  }
+
   $scope.showSecrets = function() {
+    if ($scope.data.secrets != 'AVAILABLE') return;
+
     $scope.secretsDialog = $dialog.dialog({
         resolve: {
             dialog: function() {return $scope.secretsDialog;}
@@ -2857,7 +2906,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     return Deployment.available_services(deployment);
   }
 
-  $scope.is_scalable_service = function(deployment, resource) {
+  $scope.is_scalable_service = function(resource, deployment) {
+    if (!deployment)
+      deployment = $scope.data;
+
     var service = resource.service;
     if (!service) return false;
 
@@ -3037,7 +3089,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       component: resource.component,
       name: name,
       status: resource.status,
-      host: {}
+      host: {},
+      service: resource.service,
+      index: resource.index,
+      'dns-name': resource['dns-name']
     };
     if (host) {
       vertex.host = {

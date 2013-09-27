@@ -1,0 +1,15 @@
+<p class="lead" ng-show="display_details(data['display-outputs'])">
+  {{data.blueprint['meta-data']['application']}} Details
+</p>
+
+<form class="form-horizontal">
+  <fieldset>
+    <div class="control-group" ng-repeat="(name, output) in data['display-outputs']" ng-hide="output['is-secret']">
+      <label class="control-label" for="{{'output' + $index}}">{{name}}</label>
+      <div class="controls">
+        <input type="text" readonly id="{{'output' + $index}}" value="{{output.value.url ||output.value}}">
+      </div>
+    </div>
+  </fieldset>
+</form>
+

@@ -1,4 +1,27 @@
 <ul class="nav nav-list">
+  <!-- INFO -->
+  <li class="nav-header">
+    Info
+  </li>
+
+  <li ng-show="is_resumable()">
+    <a ng-click="resume()">Resume</a>
+  </li>
+
+  <li ng-show="is_retriable()">
+    <a ng-click="retry()">Retry</a>
+  </li>
+
+  <li>
+  <a class="controls" ng-switch="data.secrets" ng-class="{muted: data.secrets != 'AVAILABLE'}" ng-click="showSecrets()">
+      <i class="icon-lock"></i>
+      <span ng-switch-when="AVAILABLE" style="display: inline-block">Secrets available</span>
+      <span ng-switch-when="LOCKED">Secrets Dismissed</span>
+      <span ng-switch-when="GENERATING">available soon</span>
+      <span ng-switch-default>No secrets</span>
+    </a>
+  </li>
+
   <!-- COMMANDS -->
   <li class="nav-header">
     Commands
@@ -10,37 +33,11 @@
     </a>
   </li>
 
-  <a ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
-    <i class="icon-retweet"></i>
-    Sync
-  </a>
-
-  <li ng-show="available_services(data).length > 0">
-    <a ng-show="data.status == 'UP'" ng-click="open_modal('delete_nodes_warning')" tooltip="Delete Nodes from current deployment" tooltip-placement="right">
-      <i class="icon-arrow-down"></i>
-      Scale Down
+  <li>
+    <a ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
+      <i class="icon-retweet"></i>
+      Sync
     </a>
-    <a ng-hide="data.status == 'UP'" class="muted" tooltip="Please wait until deployment status is UP" tooltip-placement="right">
-      <i class="icon-arrow-down"></i>
-      Scale Down
-    </a>
-    <!-- delete_nodes_warning -->
-    <div modal="modal_window.delete_nodes_warning" close="close_modal('delete_nodes_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="warning_title" aria-hidden="true">
-      <div class="modal-header">
-        <h3 id="warning_title" class="alert alert-danger">Warning! Data Destructive Task</h3>
-      </div>
-      <div class="modal-body" ng-init="selected_resources = {}">
-        Select the nodes you want to delete:
-        <label class="checkbox" ng-repeat="resource in resources" ng-show="is_scalable_service(data, resource) && resource.status != 'DELETED'">
-          <input type="checkbox" ng-model="selected_resources[resource.index]">
-          {{resource['dns-name']}}
-        </label>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" ng-click="delete_nodes(data, selected_resources); close_modal('delete_nodes_warning');">Go ahead and Delete these nodes</button>
-        <button class="btn" ng-click="close_modal('delete_nodes_warning')">Cancel</button>
-      </div>
-    </div>
   </li>
 
   <li>
@@ -88,9 +85,13 @@
     Workflows
   </li>
   <li ng-repeat="operation in operations_history | filter:{ link: '!canvas' }">
+    <i class="icon-list"></i>
     <a href="{{operation.link}}">{{operation.type | capitalize}}</a>
   </li>
   <li>
-    <a ng-show="data.operation.link" href="{{data.operation.link}}">{{data.operation.type | capitalize}}</a>
+    <a ng-show="data.operation.link" href="{{data.operation.link}}">
+      <i class="icon-tasks"></i>
+      {{data.operation.type | capitalize}}
+    </a>
   </li>
 </ul>

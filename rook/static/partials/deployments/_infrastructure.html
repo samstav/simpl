@@ -33,6 +33,12 @@
   </tbody>
 </table>
 
+<accordion ng-show="data.blueprint.documentation.instructions">
+  <accordion-group heading="Instructions">
+    <p class="help-block" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>
+  </accordion-group>
+</accordion>
+
 <accordion>
   <accordion-group heading="Show me the old completion screen">
     <clippy clippy-element="{{clippy_element}}" style="top:0" bgcolor="#f5f5f5"></clippy>
@@ -77,10 +83,3 @@
   </accordion-group>
 </accordion>
 
-<div ng-show="data.blueprint.documentation.instructions">
-  <accordion>
-    <accordion-group heading="Instructions">
-      <p class="help-block" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>
-    </accordion-group>
-  </accordion>
-</div>
