@@ -9,9 +9,7 @@ flake8.out
 coverage.xml
 newrelic.ini
 nosetests.xml
-doc/build
-doc/source/modules.rst
-doc/source/checkmate.*
+docs/.build
 build/
 dist/
 coverage/
@@ -19,9 +17,9 @@ var/
 src/
 checkmate/static-libs/
 checkmate/openstack
-/tests/data/environments
-/tests/data/simulator.json
-/checkmate/providers/opscode/chef-stockton
+tests/data/environments
+tests/data/simulator.json
+checkmate/providers/opscode/chef-stockton
 tmp
 checkmate/blueprints/.blueprint_cache
 .testrepository/
