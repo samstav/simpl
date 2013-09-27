@@ -48,7 +48,7 @@ class Router(object):
     def get_stacks(self, tenant_id=None):
         """Get existing stacks."""
         return self.manager.get_stacks(
-            bottle.request.context,
+            bottle.request.environ['context'],
             tenant_id
         )
 
@@ -56,7 +56,7 @@ class Router(object):
     def post_stack(self, tenant_id=None):
         """Create a stack."""
         return self.manager.create_stack(
-            bottle.request.context,
+            bottle.request.environ['context'],
             tenant_id,
             utils.read_body(bottle.request),
             bottle.request.headers.get("X-Auth-Key")
@@ -82,7 +82,7 @@ class Router(object):
             'template': stack,
         }
         return self.manager.create_stack(
-            bottle.request.context,
+            bottle.request.environ['context'],
             tenant_id,
             body,
             bottle.request.headers.get("X-Auth-Key") or api_key
@@ -92,7 +92,7 @@ class Router(object):
     def get_stack(self, stack_id, tenant_id=None):
         """Get existing stack."""
         return self.manager.get_stack(
-            bottle.request.context,
+            bottle.request.environ['context'],
             tenant_id,
             stack_id
         )
@@ -101,7 +101,7 @@ class Router(object):
     def get_stack_resources(self, stack_id, tenant_id=None):
         """Get existing stack resources."""
         return self.manager.get_stack_resources(
-            bottle.request.context,
+            bottle.request.environ['context'],
             tenant_id,
             stack_id
         )
@@ -110,7 +110,7 @@ class Router(object):
     def get_stack_resource(self, name, stack_id, resource_id, tenant_id=None):
         """Get existing stack resource."""
         return self.manager.get_stack_resource(
-            bottle.request.context,
+            bottle.request.environ['context'],
             tenant_id,
             name,
             stack_id,

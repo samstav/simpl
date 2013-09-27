@@ -1,4 +1,17 @@
-#!/usr/bin/env python
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""Environments"""
 import logging
 import uuid
 
@@ -12,16 +25,16 @@ from checkmate import utils
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
 
-"""Environments"""
 
 @bottle.get('/environments')
 @utils.with_tenant
 def get_environments(tenant_id=None):
     """Return all saved environments."""
     if 'with_secrets' in bottle.request.query:
-        if bottle.request.context.is_admin is True:
-            LOG.info("Administrator accessing environments with secrets: %s" %
-                     bottle.request.context.username)
+        context = bottle.request.environ['context']
+        if context.is_admin is True:
+            LOG.info("Administrator accessing environments with secrets: %s",
+                     context.username)
             results = DB.get_environments(tenant_id=tenant_id,
                                           with_secrets=True)
         else:
@@ -84,10 +97,11 @@ def put_environment(eid, tenant_id=None):
 @utils.with_tenant
 def get_environment(eid, tenant_id=None):
     """Return an environment by its' ID."""
+    context = bottle.request.environ['context']
     if 'with_secrets' in bottle.request.query:
-        if bottle.request.context.is_admin is True:
-            LOG.info("Administrator accessing environment %s secrets: %s" %
-                    (id, bottle.request.context.username))
+        if context.is_admin is True:
+            LOG.info("Administrator accessing environment %s secrets: %s",
+                     eid, context.username)
             entity = DB.get_environment(eid, with_secrets=True)
         else:
             bottle.abort(
@@ -98,7 +112,7 @@ def get_environment(eid, tenant_id=None):
         bottle.abort(404, 'No environment with id %s' % eid)
     if tenant_id is not None and tenant_id != entity.get('tenantId'):
         LOG.warning("Attempt to access environment %s from wrong tenant %s by "
-                    "%s" % (eid, tenant_id, bottle.request.context.username))
+                    "%s", eid, tenant_id, context.username)
         bottle.abort(404)
     return utils.write_body(entity, bottle.request, bottle.response)
 
@@ -140,7 +154,7 @@ def get_environment_provider(environment_id, provider_id, tenant_id=None):
     environment = cm_env.Environment(entity)
     provider = environment.get_provider(provider_id)
     if 'provides' not in provider._dict:
-        provider.provides(bottle.request.context)
+        provider.provides(bottle.request.environ['context'])
 
     return utils.write_body(provider._dict, bottle.request, bottle.response)
 
@@ -159,10 +173,10 @@ def get_provider_environment_catalog(environment_id, provider_id,
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
     if 'type' in bottle.request.query:
-        catalog = (provider.get_catalog(bottle.request.context,
+        catalog = (provider.get_catalog(bottle.request.environ['context'],
                    type_filter=bottle.request.query['type']))
     else:
-        catalog = provider.get_catalog(bottle.request.context)
+        catalog = provider.get_catalog(bottle.request.environ['context'])
 
     return utils.write_body(catalog, bottle.request, bottle.response)
 
@@ -181,14 +195,15 @@ def get_environment_component(environment_id, provider_id, component_id,
         provider = environment.get_provider(provider_id)
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
-    component = provider.get_component(bottle.request.context, component_id)
+    component = provider.get_component(bottle.request.environ['context'],
+                                       component_id)
     if component:
         return utils.write_body(
             component._data, bottle.request, bottle.response)
     else:
         bottle.abort(404, "Component %s not found or not available under this "
-                     "provider and environment (%s/%s)" % (component_id,
-                     environment_id, provider_id))
+                     "provider and environment (%s/%s)", component_id,
+                     environment_id, provider_id)
 
 
 #
@@ -203,7 +218,7 @@ def get_providers(tenant_id=None):
         results[key] = (dict(
             vendor=provider.vendor,
             name=provider.name,
-            provides=provider({}).provides(bottle.request.context)
+            provides=provider({}).provides(bottle.request.environ['context'])
         ))
     return utils.write_body(results, bottle.request, bottle.response)
 
@@ -227,12 +242,12 @@ def get_provider_catalog(provider_id, tenant_id=None):
     if 'type' in bottle.request.query:
         type_filter = bottle.request.query.pop('type')
     if type_filter:
-        catalog = (provider.get_catalog(bottle.request.context,
+        catalog = (provider.get_catalog(bottle.request.environ['context'],
                    type_filter=type_filter))
     else:
         if len(bottle.request.query) > 16:
             bottle.abort(403, "Invalid url parameters.")
-        catalog = provider.get_catalog(bottle.request.context,
+        catalog = provider.get_catalog(bottle.request.environ['context'],
                                        **bottle.request.query)
 
     return utils.write_body(catalog, bottle.request, bottle.response)
@@ -254,7 +269,8 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
         bottle.abort(404, "Invalid provider: %s" % provider_id)
     if len(bottle.request.query) > 16:
         bottle.abort(403, "Invalid url parameters.")
-    component = provider.get_component(bottle.request.context, component_id)
+    component = provider.get_component(bottle.request.environ['context'],
+                                       component_id)
     if component:
         return utils.write_body(
             component._data, bottle.request, bottle.response)
@@ -277,7 +293,7 @@ def provider_get_resources(provider_id, tenant_id=None):
         provider = environment.get_provider(provider_id)
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
-    results = provider.get_resources(bottle.request.context,
+    results = provider.get_resources(bottle.request.environ['context'],
                                      tenant_id=tenant_id)
 
     return utils.write_body(results, bottle.request, bottle.response)

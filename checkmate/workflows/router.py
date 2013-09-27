@@ -92,9 +92,9 @@ class Router(object):
         """
         limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         if 'with_secrets' in bottle.request.query:
-            if bottle.request.context.is_admin is True:
+            if bottle.request.environ['context'].is_admin is True:
                 LOG.info("Administrator accessing workflows with secrets: %s",
-                         bottle.request.context.username)
+                         bottle.request.environ['context'].username)
                 results = self.manager.get_workflows(tenant_id=tenant_id,
                                                      with_secrets=True,
                                                      offset=offset,
@@ -176,7 +176,7 @@ class Router(object):
         """
         if 'with_secrets' in bottle.request.query:
             LOG.info("Administrator accessing workflow %s with secrets: %s",
-                     api_id, bottle.request.context.username)
+                     api_id, bottle.request.environ['context'].username)
             results = self.manager.get_workflow(api_id, with_secrets=True)
         else:
             results = self.manager.get_workflow(api_id)
@@ -187,7 +187,7 @@ class Router(object):
         if tenant_id is not None and tenant_id != results.get('tenantId'):
             LOG.warning("Attempt to access workflow %s from wrong tenant %s by"
                         " %s", api_id, tenant_id,
-                        bottle.request.context.username)
+                        bottle.request.environ['context'].username)
             bottle.abort(404)
         return utils.write_body(results, bottle.request, bottle.response)
 
@@ -220,7 +220,7 @@ class Router(object):
         if not workflow:
             bottle.abort(404, 'No workflow with id %s' % api_id)
 
-        context = bottle.request.context
+        context = bottle.request.environ['context']
         celery_task_id = workflow.get('celery_task_id')
 
         if celery_task_id:
@@ -276,7 +276,7 @@ class Router(object):
             dep_id, tenant_id=tenant_id)
         operation = deployment.get("operation")
         if operation and operation.get('status') == 'PAUSED':
-            context = bottle.request.context
+            context = bottle.request.environ['context']
             async_call = cycle_workflow.delay(api_id,
                                               context.get_queued_task_dict())
             LOG.debug("Executed a task to run workflow '%s'", async_call)
@@ -343,8 +343,8 @@ class Router(object):
             for error in retriable_errors:
                 task_id = error["task-id"]
                 LOG.debug("Resuming task %s for workflow %s", task_id, id)
-                run_one_task.delay(bottle.request.context, api_id, task_id,
-                                   timeout=10)
+                run_one_task.delay(bottle.request.environ['context'], api_id,
+                                   task_id, timeout=10)
 
             workflow = self.manager.get_workflow(id)
 
@@ -544,11 +544,11 @@ class Router(object):
         :param api_id: checkmate workflow id
         :param task_id: checkmate workflow task id
         """
-        context = bottle.request.context
+        context = bottle.request.environ['context']
         if utils.is_simulation(api_id):
             context.simulation = True
         if utils.is_simulation(api_id):
-            bottle.request.context.simulation = True
+            bottle.request.environ['context'].simulation = True
         try:
             with(self.manager.workflow_lock(api_id)):
                 workflow = self.manager.get_workflow(api_id, with_secrets=True)
@@ -632,9 +632,9 @@ class Router(object):
                     and len(task.task_spec.args) > 0 and
                         isinstance(task.task_spec.args[0], dict) and
                         task.task_spec.args[0].get('auth_token') !=
-                        bottle.request.context.auth_token):
+                        bottle.request.environ['context'].auth_token):
                     task.task_spec.args[0]['auth_token'] = (
-                        bottle.request.context.auth_token)
+                        bottle.request.environ['context'].auth_token)
                     LOG.debug("Updating task auth token with new caller token")
                 if task.task_spec.retry_fire(task):
                     LOG.debug("Progressing task '%s' (%s)", task_id,
@@ -676,7 +676,8 @@ class Router(object):
 
         try:
             #Synchronous call
-            run_one_task(bottle.request.context, api_id, task_id, timeout=10)
+            run_one_task(bottle.request.environ['context'], api_id, task_id,
+                         timeout=10)
         except db.ObjectLockedError:
             bottle.abort(404, "Cannot execute task(%s) while workflow(%s) is "
                               "executing." % (task_id, api_id))

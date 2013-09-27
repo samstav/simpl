@@ -29,6 +29,7 @@ from checkmate import utils
 
 class TestUtils(unittest.TestCase):
     def tearDown(self):
+        # reset the request object's headers and set the body to {}
         bottle.response.bind({})
 
     def test_extract_sensitive_data_simple(self):
@@ -551,7 +552,7 @@ class TestUtils(unittest.TestCase):
             1, 2, bottle.response, 'deployments', 'T3'
         )
         self.assertEquals(206, bottle.response.status_code)
-        self.assertEquals(
+        self.assertItemsEqual(
             [
                 ('Link', '</T3/deployments?limit=2>; rel="first"; '
                          'title="First page"'),
@@ -677,8 +678,5 @@ class TestQueryParams(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

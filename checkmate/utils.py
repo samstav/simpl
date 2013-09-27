@@ -281,7 +281,7 @@ def escape_yaml_simple_string(text):
 
 def write_json(data, request, response):
     """Write output in json."""
-    response.set_header('content-type', 'application/json')
+    response.set_header('Content-Type', 'application/json')
     return to_json(data)
 
 
@@ -325,6 +325,7 @@ def formatted_response(uripath, with_pagination=False):
                 return
 
             data = fxn(*args, **kwargs)
+            context = bottle.request.environ['context']
             if with_pagination:
                 _write_pagination_headers(
                     data,
@@ -332,12 +333,12 @@ def formatted_response(uripath, with_pagination=False):
                     kwargs.get('limit') or 100,
                     bottle.response,
                     uripath,
-                    kwargs.get('tenant_id', bottle.request.context.tenant)
+                    kwargs.get('tenant_id', context.tenant)
                 )
             if 'deployments' in uripath:
                 expected_tenant = kwargs.get(
-                    'tenant_id', bottle.request.context.tenant)
-                if bottle.request.context.is_admin is True:
+                    'tenant_id', bottle.request.environ['context'].tenant)
+                if context.is_admin is True:
                     LOG.info('An Administrator performed a GET on deployments '
                              'with Tenant ID %s.', expected_tenant)
                 elif expected_tenant:
@@ -691,8 +692,9 @@ def with_tenant(fxn):
             # Tenant ID is being passed in
             return fxn(*args, **kwargs)
         else:
-            return fxn(
-                *args, tenant_id=bottle.request.context.tenant, **kwargs)
+            return fxn(*args,
+                       tenant_id=bottle.request.environ['context'].tenant,
+                       **kwargs)
     return wrapped
 
 
@@ -722,9 +724,10 @@ def only_admins(fxn):
     """Decorator to limit access to admins only."""
     def wrapped(*args, **kwargs):
         """Internal function wrapped as a decorator."""
-        if bottle.request.context.is_admin is True:
+        if bottle.request.environ['context'].is_admin is True:
             LOG.debug("Admin account '%s' accessing '%s'",
-                      bottle.request.context.username, bottle.request.path)
+                      bottle.request.environ['context'].username,
+                      bottle.request.path)
             return fxn(*args, **kwargs)
         else:
             bottle.abort(

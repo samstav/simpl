@@ -1334,8 +1334,8 @@ class TestDeleteDeployments(unittest.TestCase):
 
     def setUp(self):
         bottle.request.bind({})
-        bottle.request.context = cmmid.RequestContext()
-        bottle.request.context.tenant = None
+        bottle.request.environ['context'] = cmmid.RequestContext()
+        bottle.request.environ['context'].tenant = None
         self._deployment = {
             'id': '1234',
             'status': 'PLANNED',
@@ -1365,7 +1365,7 @@ class TestDeleteDeployments(unittest.TestCase):
             self.fail("Delete deployment with bad status did not raise "
                       "exception")
         except bottle.HTTPError as exc:
-            self.assertEqual(400, exc.status)
+            self.assertEqual(400, exc.status_code)
             self.assertIn("Deployment 1234 cannot be deleted while in status "
                           "PLANNED", exc.output)
 
@@ -1398,11 +1398,13 @@ class TestDeleteDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(workflow_spec.WorkflowSpec,
                                   "create_delete_dep_wf_spec")
         workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
-            self._deployment, bottle.request.context).AndReturn(mock_spec)
+            self._deployment, bottle.request.environ['context'])\
+            .AndReturn(mock_spec)
         self._mox.StubOutWithMock(workflow,
                                   "create_workflow")
         workflow.create_workflow(mock_spec, self._deployment,
-                                 bottle.request.context, driver=mock_driver,
+                                 bottle.request.environ['context'],
+                                 driver=mock_driver,
                                  wf_type="DELETE")\
             .AndReturn(mock_spiff_wf)
         self._mox.StubOutWithMock(common_tasks, "update_operation")
@@ -1413,7 +1415,8 @@ class TestDeleteDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
         wf_tasks.cycle_workflow.delay(
             'w_id',
-            bottle.request.context.get_queued_task_dict()).AndReturn(4)
+            bottle.request.environ['context'].get_queued_task_dict())\
+            .AndReturn(4)
 
         self._mox.ReplayAll()
         router.delete_deployment('1234', tenant_id="T1000")
@@ -1442,8 +1445,8 @@ class TestGetResourceStuff(unittest.TestCase):
     def setUp(self):
         self._mox = mox.Mox()
         bottle.request.bind({})
-        bottle.request.context = task.Context()
-        bottle.request.context.tenant = None
+        bottle.request.environ['context'] = task.Context()
+        bottle.request.environ['context'].tenant = None
         self._deployment = {
             'id': '1234',
             'status': 'PLANNED',
@@ -1564,8 +1567,8 @@ class TestPostbackHelpers(unittest.TestCase):
     def setUp(self):
         self._mox = mox.Mox()
         bottle.request.bind({})
-        bottle.request.context = cmmid.RequestContext()
-        bottle.request.context.tenant = None
+        bottle.request.environ['context'] = cmmid.RequestContext()
+        bottle.request.environ['context'].tenant = None
         self._deployment = {
             'id': '1234',
             'status': 'PLANNED',
@@ -1626,8 +1629,8 @@ class TestDeploymentAddNodes(unittest.TestCase):
     def setUp(self):
         self._mox = mox.Mox()
         bottle.request.bind({})
-        bottle.request.context = cmmid.RequestContext()
-        bottle.request.context.tenant = None
+        bottle.request.environ['context'] = cmmid.RequestContext()
+        bottle.request.environ['context'].tenant = None
         self._deployment = {
             'id': '1234',
             'status': 'PLANNED',
@@ -1655,9 +1658,11 @@ class TestDeploymentAddNodes(unittest.TestCase):
             'count': '2'
         })
 
-        manager.plan_add_nodes(self._deployment, bottle.request.context,
+        manager.plan_add_nodes(self._deployment,
+                               bottle.request.environ['context'],
                                "service_name", 2).AndReturn(self._deployment)
-        manager.deploy_add_nodes(self._deployment, bottle.request.context,
+        manager.deploy_add_nodes(self._deployment,
+                                 bottle.request.environ['context'],
                                  "T1000")
         self._deployment["operation"].update({'workflow-id': 'w_id'})
         manager.save_deployment(self._deployment, api_id='1234',
@@ -1665,7 +1670,7 @@ class TestDeploymentAddNodes(unittest.TestCase):
         self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
         wf_tasks.cycle_workflow.delay(
             'w_id',
-            bottle.request.context.get_queued_task_dict())
+            bottle.request.environ['context'].get_queued_task_dict())
 
         self._mox.ReplayAll()
         router.add_nodes("1234", tenant_id="T1000")

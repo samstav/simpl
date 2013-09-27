@@ -60,8 +60,8 @@ class TestAPICalls(unittest.TestCase):
         self.manager.deploy_take_resource_offline.return_value = {
             'workflow-id': "W_ID"
         }
-        self.filters.context.get_queued_task_dict = mock.Mock()
-        self.filters.context.get_queued_task_dict.return_value = {}
+        #mock_request.environ = dict(context=self.filters.context)
+        self.filters.context.get_queued_task_dict = mock.Mock(return_value={})
         res = self.app.post('/T1000/deployments/DEP_ID/resources/RES_ID'
                             '/+take-offline', content_type='application/json')
         self.assertEqual(res.status, "200 OK")
@@ -116,40 +116,6 @@ class TestAPICalls(unittest.TestCase):
         self.assertEqual(res.status, "404 Not Found")
         self.manager.get_deployment.assert_was_called_with("DEP_ID",
                                                            tenant_id="T1000")
-
-    @mock.patch.object(utils, 'read_body')
-    def test_created_by_assigned(self, mock_read):
-        req = mock.Mock()
-        req.context = mock.Mock()
-        req.context.username = 'john'
-        req.headers = {}
-        mock_read.return_value = {}
-        result = deployments.router._content_to_deployment(request=req,
-                                                           deployment_id="1",
-                                                           tenant_id="A")
-        self.assertIn('created', result)
-        expected = {
-            'status': 'NEW',
-            'tenantId': 'A',
-            'created-by': 'john',
-            'id': '1',
-            'created': result['created'],
-        }
-        self.assertDictEqual(result, expected)
-        mock_read.assert_called_once_with(req)
-
-    @mock.patch.object(utils, 'read_body')
-    def test_created_not_overwritten(self, mock_read):
-        req = mock.Mock()
-        req.context = mock.Mock()
-        req.context.username = 'john'
-        req.headers = {}
-        mock_read.return_value = {'created-by': 'tom'}
-        result = deployments.router._content_to_deployment(request=req,
-                                                           deployment_id="1",
-                                                           tenant_id="A")
-        self.assertEqual(result['created-by'], 'tom')
-        mock_read.assert_called_once_with(req)
 
     def test_get_count(self):
         self.manager.count.return_value = 3
@@ -215,9 +181,8 @@ class TestAPICalls(unittest.TestCase):
         }
         self.manager.get_deployment.return_value = deployment
 
-        context = mock.Mock()
-        context.is_admin = True
-        mock_request.context = context
+        self.filters.context.is_admin = True
+        mock_request.environ = {'context': self.filters.context}
         data = {'foo': 1}
         self.manager.get_deployment_secrets.return_value = data
         mock_write_body.return_value = 42
@@ -240,9 +205,7 @@ class TestAPICalls(unittest.TestCase):
         }
         self.manager.get_deployment.return_value = deployment
 
-        context = mock.Mock()
-        context.is_admin = False
-        mock_request.context = context
+        mock_request.environ = {'context': self.filters.context}
         data = {'foo': 1}
         self.manager.get_deployment_secrets.return_value = data
         mock_write.return_value = 42
@@ -265,15 +228,15 @@ class TestAPICalls(unittest.TestCase):
     def test_update_deployment_wont_get_deployment_if_no_api_id(self,
                                                                 mock_content,
                                                                 mock_write):
-        '''Test that update does not make an unnecessary database call
+        """Test that update does not make an unnecessary database call
         when no api_id is given.
-        '''
+        """
         self.manager.save_deployment.return_value = {'id': 'test'}
         self.router.update_deployment(None)
         mock_write.assert_called_once_with(mock.ANY, mock.ANY, mock.ANY)
         self.assertTrue(mock_content.called)
         assert not self.manager.get_deployment.called, \
-            'get_deploment should not be called'
+            'get_deployment should not be called'
 
 
 class TestDeploymentRouter(unittest.TestCase):
@@ -613,22 +576,60 @@ class TestSetupDeployment(unittest.TestCase):
         self.mock_any_id_problems.return_value = True
         with self.assertRaises(bottle.HTTPError) as expected:
             self.router._setup_deployment('bad_id', None)
-        self.assertEqual('HTTP Response 406', str(expected.exception))
+            self.assertEqual('HTTP Response 406', str(expected.exception))
 
     def test_no_deployment(self):
         self.mock_any_id_problems.return_value = False
         self.manager.get_deployment.return_value = None
         with self.assertRaises(exceptions.CheckmateDoesNotExist) as expected:
             self.router._setup_deployment('dep_id', None)
-        self.assertEqual('No deployment with id dep_id',
-                         str(expected.exception))
+            self.assertEqual('No deployment with id dep_id',
+                             str(expected.exception))
 
     @mock.patch.object(deployments.router, 'bottle')
     def test_is_simulation(self, mock_bottle):
         self.mock_any_id_problems.return_value = False
         self.manager.get_deployment.return_value = {'id': 'simulate_dep'}
         self.router._setup_deployment('simulate_dep', None)
-        self.assertTrue(mock_bottle.request.context.simulation)
+        self.assertTrue(mock_bottle.request.environ['context'].simulation)
+
+
+class TestTimestampDeployments(TestDeploymentRouter):
+
+    @mock.patch.object(utils, 'read_body')
+    def test_created_by_assigned(self, mock_read):
+        req = mock.Mock()
+        req.environ = {'context': self.filters.context}
+        self.filters.context.username = 'john'
+        req.headers = {}
+        mock_read.return_value = {}
+        result = deployments.router._content_to_deployment(request=req,
+                                                           deployment_id="1",
+                                                           tenant_id="A")
+        self.assertIn('created', result)
+        expected = {
+            'status': 'NEW',
+            'tenantId': 'A',
+            'created-by': 'john',
+            'id': '1',
+            'created': result['created'],
+        }
+        self.assertDictEqual(result, expected)
+        mock_read.assert_called_once_with(req)
+
+    @mock.patch.object(utils, 'read_body')
+    def test_created_not_overwritten(self, mock_read):
+        req = mock.Mock()
+        req.environ = {'context': self.filters.context}
+        self.filters.context.username = 'john'
+        req.headers = {}
+        mock_read.return_value = {'created-by': 'tom'}
+        result = deployments.router._content_to_deployment(request=req,
+                                                           deployment_id="1",
+                                                           tenant_id="A")
+        self.assertIn('created-by', result)
+        self.assertEqual(result['created-by'], 'tom')
+        mock_read.assert_called_once_with(req)
 
 
 class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):

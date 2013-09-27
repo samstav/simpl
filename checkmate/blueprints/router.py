@@ -34,5 +34,5 @@ class Router(object):
             offset=offset,
             limit=limit,
             details=details == '1',
-            roles=bottle.request.context.roles
+            roles=bottle.request.environ['context'].roles
         )
