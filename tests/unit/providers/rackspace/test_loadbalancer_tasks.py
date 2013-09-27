@@ -83,7 +83,6 @@ class TestLoadBalancerSyncTask(unittest.TestCase):
         """Verifies methods and return results on sync_resource_task."""
         clb = mock.MagicMock()
         clb.status = 'RESIZING'
-        clb.metadata = []
         self.api.get.return_value = clb
         expected = {'instance:1': {'status': 'RESIZING'}}
 
