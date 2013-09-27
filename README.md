@@ -825,9 +825,16 @@ And then start the checkmate server:
     bin/checkmate-server START --with-ui --with-simulator
 
 
+## Documentation
+
+We're using sphinx. You can build the docs using `. build_docs.sh`
+
+TODO: we just started with Sphinx and not all docs have been ported ovewr yet.
+
+
 ## Hacking & Contributing:
 
-We're using github and it's fork & pull. There are great instructions on that on [github](https://help.github.com/). Until the project gets open sourced, we're
+We're using github and its fork & pull. There are great instructions on that on [github](https://help.github.com/). Until the project gets open sourced, we're
 using internal [Rackspace github](https://github.rackspace.com/checkmate).
 
 You can run tests using the `run_tests.sh` script or just the plain `nosetests` command. `./run_tests.sh` has more friendly output.

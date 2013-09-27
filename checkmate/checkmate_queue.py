@@ -19,7 +19,7 @@ import sys
 
 
 def main_func():
-    "Called automatically when this module is loaded."""
+    "Called automatically when this module is executed."""
     if len(sys.argv) > 1 and sys.argv[1] == 'START':
         params = []
         if '--newrelic' in sys.argv:

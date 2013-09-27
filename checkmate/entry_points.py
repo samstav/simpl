@@ -14,6 +14,8 @@
 
 """Things that should happen first (on app entry) go here."""
 
+import os
+
 # start tracer - pylint/flakes friendly
 # NOTE: this will load checklmate which wil monkeypatch if eventlet is
 #       requested. We also load this ASAP so we can trace as much code as
@@ -29,9 +31,24 @@ def preconfigure():
 
 def client():
     """Entry point for Checkmate client."""
-    preconfigure()
-    from checkmate import checkmate_client
-    checkmate_client.main_func()
+
+    print """
+*** Checkmate Command-Line Client Utility ***
+
+This tool is not ready yet. This file is being used to
+reserve the name 'checkmate' as a command-line client
+utility.
+
+Too run the server, use one of these:
+- checkmate-queue:  to manage the message queue listeners
+- checkmate-server: to manage the REST server
+
+Settings:
+"""
+
+    for key in os.environ:
+        if key.startswith('CHECKMATE_CLIENT'):
+            print key, '=', os.environ[key]
 
 
 def queue():
