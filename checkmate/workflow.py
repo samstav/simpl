@@ -27,12 +27,12 @@ from SpiffWorkflow import (
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
 
-from checkmate import task as cmtsk
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.db import get_driver
 from checkmate.deployment import Deployment
 from checkmate import exceptions
+from checkmate import task as cmtsk
 from checkmate import utils
 from checkmate.workflow_spec import WorkflowSpec
 
@@ -450,6 +450,8 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
     workflow.attributes['id'] = workflow_id
     workflow.attributes['tenant_id'] = deployment['tenantId']
     workflow.attributes['type'] = wf_type
+    workflow.attributes['created'] = utils.get_time_string()
+    workflow.attributes['updated'] = utils.get_time_string()
     update_workflow_status(workflow)
 
     return workflow

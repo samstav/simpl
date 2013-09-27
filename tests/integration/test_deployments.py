@@ -181,10 +181,12 @@ class TestDeploymentDeployer(unittest.TestCase):
     def tearDown(self):
         self._mox.UnsetStubs()
 
+    @mock.patch.object(utils, 'get_time_string')
     @mock.patch('checkmate.deployments.manager.db.get_driver')
-    def test_deployer(self, mock_get_driver):
+    def test_deployer(self, mock_get_driver, mock_get_time_string):
         mock_db = self._mox.CreateMockAnything()
         mock_get_driver.return_value = mock_db
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
         manager = cmdeps.Manager()
         mock_db.save_workflow(mox.IgnoreArg(),
                               mox.IgnoreArg(),
@@ -212,6 +214,7 @@ class TestDeploymentDeployer(unittest.TestCase):
         operation = manager.deploy(parsed, cmmid.RequestContext())
         self._mox.VerifyAll()
         expected = {
+            'created': '2013-03-31 17:49:51 +0000',
             'status': 'IN PROGRESS',
             'tasks': 2,
             'complete': 0,
