@@ -88,11 +88,11 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: WorkflowListController
   })
   .when('/blueprints', {
-    templateUrl: '/partials/blueprints-remote.html',
+    templateUrl: '/partials/blueprints/blueprints-remote.html',
     controller: BlueprintRemoteListController
   })
   .when('/:tenantId/blueprints', {
-    templateUrl: '/partials/blueprints-remote.html',
+    templateUrl: '/partials/blueprints/blueprints-remote.html',
     controller: BlueprintRemoteListController
   })
   .when('/:tenantId/deployments', {
