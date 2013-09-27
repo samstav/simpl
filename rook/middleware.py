@@ -12,16 +12,8 @@ import os
 import sys
 from urlparse import urlparse
 
-# pylint: disable=E0611
-from bottle import (
-    abort,
-    Bottle,
-    get,
-    HTTPError,
-    request,
-    response,
-    static_file,
-)
+import bottle
+
 from checkmate.middleware import TokenAuthMiddleware, RequestContext
 from Crypto.Hash import MD5
 import eventlet
@@ -45,8 +37,8 @@ from checkmate.utils import (
 
 __version_string__ = None
 
-ROOK_STATIC = Bottle()
-ROOK_API = Bottle()
+ROOK_STATIC = bottle.Bottle()
+ROOK_API = bottle.Bottle()
 
 
 def init_db():
@@ -103,14 +95,14 @@ class BrowserMiddleware(object):
             token = environ.get('HTTP_X_AUTH_TOKEN')
             if token and token in CATALOG_CACHE:
                 cached_response = CATALOG_CACHE[token]
-                request.context.set_context(cached_response)
+                environ['context'].set_context(cached_response)
         except StandardError:
             pass
         try:
             ROOK_API.match(environ)
-            request.proxy_endpoints = self.proxy_endpoints
+            environ['proxy_endpoints'] = self.proxy_endpoints
             return ROOK_API(environ, handler)
-        except HTTPError:
+        except bottle.HTTPError:
             pass
 
         # .yaml, .json, and .xml not handled by rook
@@ -158,9 +150,9 @@ class BrowserMiddleware(object):
 @support_only(['text/html', 'text/css', 'text/javascript'])
 def marketing(path):
     """Returns files from the marketing path which have absolute links."""
-    return static_file(path,
-                       root=os.path.join(os.path.dirname(__file__),
-                                         'static', 'marketing'))
+    return bottle.static_file(path,
+                              root=os.path.join(os.path.dirname(__file__),
+                                                'static', 'marketing'))
 
 
 @ROOK_STATIC.post('/autologin')
@@ -168,15 +160,16 @@ def autologin():
     """This handles automatic login from other systems."""
     fields = ['tenantId', 'token', 'username', 'api_key']
     for field in fields:
-        value = request.forms.get(field) or ""
-        response.add_header('Set-Cookie', '%s=%s' % (field, value))
+        value = bottle.request.forms.get(field) or ""
+        bottle.response.add_header('Set-Cookie', '%s=%s' % (field, value))
 
-    endpoint = request.forms.get('endpoint')
+    endpoint = bottle.request.forms.get('endpoint')
     endpoint = endpoint.replace('-internal', '')
-    response.add_header('Set-Cookie', '%s=%s' % ('endpoint', endpoint))
+    bottle.response.add_header('Set-Cookie', '%s=%s' % ('endpoint', endpoint))
 
-    return static_file('index.html',
-                       root=os.path.join(os.path.dirname(__file__), 'static'))
+    return bottle.static_file('index.html',
+                              root=os.path.join(os.path.dirname(__file__),
+                                                'static'))
 
 
 @ROOK_STATIC.get('/')
@@ -200,9 +193,9 @@ def static(path=None):
             mimetype = 'image/x-icon'
     # Check if path exists and return it, otherwise serve index.html
     if path and os.path.exists(os.path.join(root, path)):
-        return static_file(path, root=root, mimetype=mimetype)
+        return bottle.static_file(path, root=root, mimetype=mimetype)
     else:
-        return static_file('/index.html', root=root, mimetype=mimetype)
+        return bottle.static_file('/index.html', root=root, mimetype=mimetype)
 
 
 #
@@ -215,7 +208,7 @@ def get_rook_version():
     if not __version_string__:
         __version_string__ = rook.version()
     return write_body({"version": __version_string__},
-                      request, response)
+                      bottle.request, bottle.response)
 
 
 @ROOK_API.post('/authproxy')
@@ -228,27 +221,27 @@ def authproxy(path=None):
     allows it to authenticate through this server.
     """
     # Check for source
-    source = request.get_header('X-Auth-Source')
+    source = bottle.request.get_header('X-Auth-Source')
     if not source:
-        abort(401, "X-Auth-Source header not supplied. The header is "
-              "required and must point to a valid and permitted auth "
-              "endpoint.")
+        bottle.abort(401, "X-Auth-Source header not supplied. The header is "
+                     "required and must point to a valid and permitted auth "
+                     "endpoint.")
 
     url = urlparse(source)
     auth_root = url.scheme + "://" + url.hostname
     allowed_domain = False
     cache_catalog = False
-    for uri, endpoint in request.proxy_endpoints.items():
+    for uri, endpoint in bottle.request.environ['proxy_endpoints'].items():
         if uri.startswith(auth_root):
             allowed_domain = True
             cache_catalog = endpoint.get('kwargs', {}).get('cache_catalog')
             break
 
     if not allowed_domain:
-        abort(401, "Auth endpoint not permitted: %s" % source)
+        bottle.abort(401, "Auth endpoint not permitted: %s" % source)
 
-    if request.body and getattr(request.body, 'len', -1) > 0:
-        auth = read_body(request)
+    if bottle.request.body and getattr(bottle.request.body, 'len', -1) > 0:
+        auth = read_body(bottle.request)
     else:
         auth = None
 
@@ -263,12 +256,12 @@ def authproxy(path=None):
     http = http_class(host, port, timeout=10)
 
     headers = {}
-    token = request.get_header('X-Auth-Token')
+    token = bottle.request.get_header('X-Auth-Token')
     if token:
         headers['X-Auth-Token'] = token
-    headers['Content-Type'] = request.get_header('Content-Type',
-                                                 'application/json')
-    headers['Accept'] = request.get_header('Accept', 'application/json')
+    headers['Content-Type'] = bottle.request.get_header('Content-Type',
+                                                        'application/json')
+    headers['Accept'] = bottle.request.get_header('Accept', 'application/json')
 
     # TODO: implement some caching to not overload auth
     LOG.debug('Proxy call to auth to %s', source)
@@ -277,37 +270,38 @@ def authproxy(path=None):
     if not proxy_path.startswith('/'):
         proxy_path = '/%s' % proxy_path
     try:
-        http.request(request.method, proxy_path, body=post_body,
+        http.request(bottle.request.method, proxy_path, body=post_body,
                      headers=headers)
         resp = http.getresponse()
         body = resp.read()
     except Exception as e:
         LOG.error('HTTP connection exception: %s', e)
-        raise HTTPError(401, output='Unable to communicate with '
-                        'keystone server')
+        raise bottle.HTTPError(401, output='Unable to communicate with '
+                               'keystone server')
     finally:
         http.close()
 
     if resp.status != 200:
         LOG.debug('Invalid authentication: %s', resp.reason)
-        raise HTTPError(401, output=resp.reason)
+        raise bottle.HTTPError(401, output=resp.reason)
 
     try:
         content = json.loads(body)
     except ValueError:
         msg = "Auth target did not return json-encoded body"
         LOG.debug(msg)
-        raise HTTPError(401, output=msg)
+        raise bottle.HTTPError(401, output=msg)
 
     try:  # to detect if we just authenticated an admin
-        for endpoint_url, endpoint in request.proxy_endpoints.iteritems():
+        for endpoint_url, endpoint in \
+                bottle.request.environ['proxy_endpoints'].iteritems():
             if endpoint_url == source:
                 role = endpoint.get('kwargs', {}).get('admin_role')
                 if role:
                     if any(r for r in content['access']['user'].get('roles')
                            if r['name'] == role):
                         LOG.debug("Admin authenticated: %s", )
-                        response.add_header('X-AuthZ-Admin', 'True')
+                        bottle.response.add_header('X-AuthZ-Admin', 'True')
     except StandardError as exc:
         LOG.debug("Ignored error checking roles: %s", exc)
 
@@ -318,7 +312,7 @@ def authproxy(path=None):
         except StandardError as exc:
             LOG.debug("Ignored error parsing response: %s", exc)
 
-    return write_body(content, request, response)
+    return write_body(content, bottle.request, bottle.response)
 
 
 @ROOK_API.get('/githubproxy/<path:path>')
@@ -333,11 +327,11 @@ def githubproxy(path=None):
     The target server URL should be passed in through the
     X-Target-Url header.
     """
-    source = request.get_header('X-Target-Url')
+    source = bottle.request.get_header('X-Target-Url')
     if not source:
-        abort(406, "X-Target-Url header not supplied. The header is "
-              "required and must point to a valid and permitted "
-              "git endpoint.")
+        bottle.abort(406, "X-Target-Url header not supplied. The header is "
+                     "required and must point to a valid and permitted "
+                     "git endpoint.")
 
     url = urlparse(source)
     if url.scheme == 'https':
@@ -347,12 +341,13 @@ def githubproxy(path=None):
     host = url.hostname
 
     query = ''
-    if request.query.per_page:
-        query = "?per_page=" + request.query.per_page
+    if bottle.request.query.per_page:
+        query = "?per_page=" + bottle.request.query.per_page
 
     headers = {
-        'Accept': request.get_header('Accept', ['application/json']),
-        'Content-Type': request.get_header('Content-Type', 'application/json'),
+        'Accept': bottle.request.get_header('Accept', ['application/json']),
+        'Content-Type': bottle.request.get_header('Content-Type',
+                                                  'application/json'),
     }
     body = None
     data = None
@@ -366,23 +361,23 @@ def githubproxy(path=None):
         body = resp.read()
     except socket.gaierror as exc:
         LOG.error('HTTP connection exception: %s', exc)
-        raise HTTPError(500, output="Unable to communicate with "
-                        "github server: %s" % source)
+        raise bottle.HTTPError(500, output="Unable to communicate with "
+                               "github server: %s" % source)
     except urllib2.HTTPError as exc:
         LOG.error("HTTP connection exception of type '%s': %s",
                   exc.__class__.__name__, exc)
-        raise HTTPError(exc.code, output="Unable to communicate with "
-                        "github server")
+        raise bottle.HTTPError(exc.code, output="Unable to communicate with "
+                               "github server")
     except Exception as exc:
         LOG.error("Caught exception of type '%s': %s",
                   exc.__class__.__name__, exc)
-        raise HTTPError(401, output="Unable to communicate with "
-                        "github server")
+        raise bottle.HTTPError(401, output="Unable to communicate with "
+                               "github server")
 
     if status != 200:
         LOG.debug('Invalid github call: %s\n\nBody: %s', resp.reason,
                   body)
-        raise HTTPError(status, output=resp.reason)
+        raise bottle.HTTPError(status, output=resp.reason)
 
     if 'application/json' in resp.info().getheader('Content-type'):
         try:
@@ -390,61 +385,61 @@ def githubproxy(path=None):
         except ValueError:
             msg = 'Github did not return json-encoded body'
             LOG.debug(msg)
-            raise HTTPError(status, output=msg)
+            raise bottle.HTTPError(status, output=msg)
     else:
         content = body
 
-    return write_body(content, request, response)
+    return write_body(content, bottle.request, bottle.response)
 
 
 @ROOK_API.route('/feedback', method=['POST', 'OPTIONS'])
 @support_only(['application/json'])
 def feedback():
     """Accepts feedback from UI."""
-    if request.method == 'OPTIONS':
-        origin = request.get_header('origin', 'http://noaccess')
+    if bottle.request.method == 'OPTIONS':
+        origin = bottle.request.get_header('origin', 'http://noaccess')
         url = urlparse(origin)
         is_rax_pre_prod = 'chkmate.rackspace.net' in url.netloc
         is_rax_prod = (url.netloc == 'checkmate.rackspace.com')
         is_dev_box = (url.netloc == 'localhost:8080')
         if (is_rax_prod or is_rax_pre_prod or is_dev_box):
-            response.add_header('Access-Control-Allow-Origin', origin)
-            response.add_header('Access-Control-Allow-Methods',
-                                'POST, OPTIONS')
-            response.add_header('Access-Control-Allow-Headers',
-                                'Origin, Accept, Content-Type, '
-                                'X-Requested-With, X-CSRF-Token, '
-                                'X-Auth-Source, X-Auth-Token')
-        return write_body({}, request, response)
-    user_feedback = read_body(request)
+            bottle.response.add_header('Access-Control-Allow-Origin', origin)
+            bottle.response.add_header('Access-Control-Allow-Methods',
+                                       'POST, OPTIONS')
+            bottle.response.add_header('Access-Control-Allow-Headers',
+                                       'Origin, Accept, Content-Type, '
+                                       'X-Requested-With, X-CSRF-Token, '
+                                       'X-Auth-Source, X-Auth-Token')
+        return write_body({}, bottle.request, bottle.response)
+    user_feedback = read_body(bottle.request)
     if not user_feedback or 'feedback' not in user_feedback:
-        abort(406, "Expecting a 'feedback' body in the request")
-    token = request.get_header('X-Auth-Token')
+        bottle.abort(406, "Expecting a 'feedback' body in the request")
+    token = bottle.request.get_header('X-Auth-Token')
     if token:
         user_feedback['feedback']['token'] = token
     user_feedback['feedback']['received'] = get_time_string()
     FEEDBACK_DB.save_feedback(user_feedback)
-    return write_body(user_feedback, request, response)
+    return write_body(user_feedback, bottle.request, bottle.response)
 
 
 # Wired to Checkmate!
-@get('/admin/feedback')
-@get('/admin/feedback.json')
-@get('/admin/feedback/.json')
+@bottle.get('/admin/feedback')
+@bottle.get('/admin/feedback.json')
+@bottle.get('/admin/feedback/.json')
 @support_only(['application/json'])
 def get_admin():
     """Read feedback."""
-    if request.path in ['/admin/feedback', '/admin/feedback/.json']:
-        if request.context.is_admin is True:
+    if bottle.request.path in ['/admin/feedback', '/admin/feedback/.json']:
+        if bottle.request.environ['context'].is_admin is True:
             LOG.info("Administrator accessing feedback: %s",
-                     request.context.username)
+                     bottle.request.environ['context'].username)
             results = FEEDBACK_DB.get_feedback()
-            return write_body(results, request, response)
+            return write_body(results, bottle.request, bottle.response)
         else:
-            abort(403, "Administrator privileges needed for this "
-                  "operation")
+            bottle.abort(403, "Administrator privileges needed for this "
+                         "operation")
     else:
-        raise HTTPNotFound("File not found: %s" % request.path)
+        raise HTTPNotFound("File not found: %s" % bottle.request.path)
 
 
 class RackspaceSSOAuthMiddleware(object):
@@ -520,7 +515,7 @@ class RackspaceSSOAuthMiddleware(object):
         start_response = self.start_response_callback(start_response)
 
         if 'HTTP_X_AUTH_TOKEN' in environ and self.service_token:
-            context = request.context
+            context = environ['context']
             try:
                 content = self._validate_keystone(
                     context, token=environ['HTTP_X_AUTH_TOKEN'])
@@ -528,7 +523,7 @@ class RackspaceSSOAuthMiddleware(object):
                 if (self.admin_role and
                         any(r for r in content['access']['user'].get('roles')
                             if r['name'] == self.admin_role['name'])):
-                    request.context.is_admin = True
+                    environ['context'].is_admin = True
             except HTTPUnauthorized as exc:
                 return exc(environ, start_response)
             context.set_context(content)
@@ -726,7 +721,7 @@ class BasicAuthMultiCloudMiddleware(object):
                         domain = 'default'
                     if domain in self.domains:
                         if self.domains[domain]['protocol'] == 'keystone':
-                            context = request.context
+                            context = environ['context']
                             try:
                                 content = (self._auth_cloud_basic(context,
                                            uname, passwd,
@@ -746,8 +741,9 @@ class BasicAuthMultiCloudMiddleware(object):
         else:
             try:
                 LOG.debug('Authenticating to %s', middleware.endpoint)
-                content = (middleware._auth_keystone(context,
-                           username=uname, password=passwd))
+                content = middleware._auth_keystone(context,
+                                                    username=uname,
+                                                    password=passwd)
                 self.cache[cred_hash] = content
             except HTTPUnauthorized as exc:
                 LOG.exception(exc)
@@ -777,5 +773,5 @@ class BasicAuthMultiCloudMiddleware(object):
 
 def write_raw(data, request, response):
     """Write output in raw format."""
-    response.set_header('Content-type', 'application/vnd.github.v3.raw')
+    bottle.response.set_header('Content-type', 'application/vnd.github.v3.raw')
     return data

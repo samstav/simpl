@@ -22,7 +22,7 @@ setup(
     version=get_config().get("rook", "version"),
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
-    install_requires=['bottle==0.10.11',
+    install_requires=['bottle==0.11.6',
                       'SQLAlchemy==0.8.1',
                       'WebOb==1.2.2',
                       'pymongo==2.5',
