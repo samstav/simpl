@@ -599,8 +599,7 @@ class Router(object):
         """Sync existing deployment objects with current cloud status."""
         deployment = self._setup_deployment(api_id, tenant_id)
         statuses = deployment.get_statuses(bottle.request.environ['context'])
-        for key, value in statuses.get('resources').iteritems():
-            tasks.resource_postback.delay(api_id, {key: value})
+        tasks.postback(api_id, {'resources': statuses.get('resources', {})})
         common_tasks.update_operation(
             api_id, operations.current_workflow_id(deployment),
             deployment_status=statuses['deployment_status'],

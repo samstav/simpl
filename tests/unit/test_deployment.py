@@ -192,7 +192,7 @@ class TestDeployments(unittest.TestCase):
         self.provider.get_resource_status.return_value = resource_status
 
         expected = {
-            'resources': resource_status,
+            'resources': {'0': {'status': 'DELETED'}},
             'deployment_status': 'DELETED',
             'operation_status': 'COMPLETE',
         }
@@ -210,7 +210,7 @@ class TestDeployments(unittest.TestCase):
         self.provider.get_resource_status.return_value = resource_status
 
         expected = {
-            'resources': resource_status,
+            'resources': {'0': {'status': 'ACTIVE'}},
             'deployment_status': 'UP',
             'operation_status': 'COMPLETE',
         }
@@ -226,7 +226,7 @@ class TestDeployments(unittest.TestCase):
         self.provider.get_resource_status.return_value = resource_status
 
         expected = {
-            'resources': resource_status,
+            'resources': {'0': {'status': 'NEW'}},
             'deployment_status': 'PLANNED',
             'operation_status': 'NEW',
         }

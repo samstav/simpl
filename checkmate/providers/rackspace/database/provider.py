@@ -358,7 +358,7 @@ class Provider(providers.ProviderBase):
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
         from checkmate.providers.rackspace.database import sync_resource_task
-        sync_resource_task(context, resource, key, api=api)
+        return sync_resource_task(context, resource, key, api=api)
 
     @staticmethod
     def delete_one_resource(context):
