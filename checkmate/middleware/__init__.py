@@ -704,7 +704,7 @@ class RequestContext(object):
 
 
 class ContextMiddleware(object):
-    """Adds a request.context to the call which holds authn+z data."""
+    """Adds a call context to the call environ which holds authn+z data."""
     def __init__(self, app):
         self.app = app
 
@@ -728,8 +728,12 @@ class ContextMiddleware(object):
                         url += ':' + environ['SERVER_PORT']
 
         # Use a default empty context
-        bottle.request.context = RequestContext(base_url=url)
-        LOG.debug("BASE URL IS %s", bottle.request.context.base_url)
+        context = RequestContext(base_url=url)
+        environ['context'] = context
+        # TODO: Don't set as an attribute, use environ. Keeping temporarily to
+        # not break existing code
+        bottle.request.context = context
+        LOG.debug("BASE URL IS %s", context.base_url)
         return self.app(environ, start_response)
 
 
