@@ -58,7 +58,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: FeedbackListController
   })
   .when('/admin/deployments', {
-    templateUrl: '/partials/deployments.html',
+    templateUrl: '/partials/deployments/index.html',
     controller: DeploymentListController
   });
 
@@ -96,7 +96,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: BlueprintRemoteListController
   })
   .when('/:tenantId/deployments', {
-    templateUrl: '/partials/deployments.html',
+    templateUrl: '/partials/deployments/index.html',
     controller: DeploymentListController
   })
   .when('/:tenantId/deployments/custom', {

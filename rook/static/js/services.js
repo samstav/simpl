@@ -2035,7 +2035,7 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
   }
 
   scope.progress = function(deployment){
-    if(scope.status(deployment) === 'FAILED')
+    if(scope.status(deployment) === 'FAILED' || scope.status(deployment) === 'UP')
       return 100;
     if(!deployment.operation)
       return 0;
