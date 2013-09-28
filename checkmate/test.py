@@ -25,6 +25,7 @@ import uuid
 import bottle
 from celery.app import default_app
 from celery.result import AsyncResult
+import mock
 import mox
 from mox import (IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains,
                  Not)
@@ -178,6 +179,13 @@ CATALOG = [
     }
 ]
 LOG = logging.getLogger(__name__)
+
+
+def mock_object(receiver, target, method_name):
+    patcher = mock.patch.object(target, method_name)
+    mock_object = patcher.start()
+    receiver.addCleanup(mock_object.stop)
+    return mock_object
 
 
 def register():

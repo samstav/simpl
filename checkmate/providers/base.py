@@ -669,16 +669,17 @@ class ProviderTask(celery.Task):
         """Calls postback with instance.id to ensure posted to resource."""
         from checkmate.deployments import tasks as deployment_tasks
         # TODO(Paul/Nate): Added here to get around circular dep issue.
+        resource_index = context['resource_key']
         results = {
             'resources': {
-                context['resource_key']: {
+                resource_index: {
                     'instance': data
                 }
             }
         }
         if 'status' in data:
             status = data['status']
-            results['resources'][context['resource_key']]['status'] = \
+            results['resources'][resource_index]['status'] = \
                 self.provider.translate_status(status)
             if status == "ERROR":
                 results['status'] = "FAILED"
