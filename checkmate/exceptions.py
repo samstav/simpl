@@ -41,7 +41,10 @@ LOG = logging.getLogger(__name__)
 
 
 class CheckmateException(Exception):
-    """Checkmate Error."""
+    """Checkmate Error
+
+    Base for all Checkmate server errors
+    """
 
     def __init__(self, message=None, friendly_message=None, options=0,
                  http_status=None):
@@ -60,19 +63,17 @@ class CheckmateException(Exception):
                     Ex.  '404 Not Found'
         """
         args = ()
-        self.message = message or self.__doc__
+        self._message = message
         self._friendly_message = friendly_message
         self.options = options
         self.http_status = http_status
-        if message:
-            args = args + (message,)
-        if friendly_message:
-            args = args + (friendly_message,)
-        if options and options != 0:
-            args = args + (options,)
-        if http_status:
-            args = args + (http_status,)
+        args = (message, friendly_message, options, http_status)
         super(CheckmateException, self).__init__(*args)
+
+    @property
+    def message(self):
+        """Return a message always."""
+        return self._message or self.__doc__.split('\n')[0]
 
     @property
     def friendly_message(self):
@@ -93,6 +94,10 @@ class CheckmateException(Exception):
     def resetable(self):
         """Detect if exception can be retried with a task tree reset."""
         return self.options & CAN_RESET
+
+    def __str__(self):
+        return self._friendly_message or self._message or\
+            self.__doc__.split('\n')[0]
 
 
 class CheckmateDatabaseConnectionError(CheckmateException):

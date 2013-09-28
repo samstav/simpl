@@ -21,32 +21,55 @@ from checkmate import exceptions as cmexc
 
 
 class TestCheckmateException(unittest.TestCase):
+
+    def test_checkmate_exception(self):
+        exc = cmexc.CheckmateException()
+        self.assertFalse(exc.resetable)
+        self.assertFalse(exc.retriable)
+        self.assertFalse(exc.resumable)
+        self.assertEqual(str(exc), "Checkmate Error")
+        self.assertEqual(repr(exc), "CheckmateException(None, None, 0, None)")
+
+    def test_checkmate_exception_message(self):
+        exc = cmexc.CheckmateException("Technical Message")
+        self.assertFalse(exc.resetable)
+        self.assertFalse(exc.retriable)
+        self.assertFalse(exc.resumable)
+        self.assertEqual(str(exc), "Technical Message")
+        self.assertEqual(
+            repr(exc),
+            "CheckmateException('Technical Message', None, 0, None)")
+
+    def test_checkmate_exception_friendly(self):
+        exc = cmexc.CheckmateException("Technical Message",
+                                       friendly_message="Friendly Message")
+        self.assertFalse(exc.resetable)
+        self.assertFalse(exc.retriable)
+        self.assertFalse(exc.resumable)
+        self.assertEqual(str(exc), "Friendly Message")
+
     def test_checkmate_retriable_exception(self):
-        exc = cmexc.CheckmateException("Techincal Message",
-                                       friendly_message="Friendly Message",
+        exc = cmexc.CheckmateException("Technical Message",
                                        options=cmexc.CAN_RETRY)
         self.assertTrue(exc.retriable)
         self.assertFalse(exc.resumable)
         self.assertFalse(exc.resetable)
 
     def test_checkmate_resumable_exception(self):
-        exc = cmexc.CheckmateException("Techincal Message",
-                                       friendly_message="Friendly Message",
+        exc = cmexc.CheckmateException("Technical Message",
                                        options=cmexc.CAN_RESUME)
         self.assertTrue(exc.resumable)
         self.assertFalse(exc.retriable)
         self.assertFalse(exc.resetable)
 
     def test_checkmate_resetable_exception(self):
-        exc = cmexc.CheckmateException("Techincal Message",
-                                       friendly_message="Friendly Message",
+        exc = cmexc.CheckmateException("Technical Message",
                                        options=cmexc.CAN_RESET)
         self.assertTrue(exc.resetable)
         self.assertFalse(exc.retriable)
         self.assertFalse(exc.resumable)
 
-    def test_checkmate_exception(self):
-        exc = cmexc.CheckmateException("Techincal Message")
-        self.assertFalse(exc.resetable)
-        self.assertFalse(exc.retriable)
-        self.assertFalse(exc.resumable)
+
+if __name__ == '__main__':
+    from checkmate import test
+    test.run_with_params()
