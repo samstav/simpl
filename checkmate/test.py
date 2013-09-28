@@ -181,11 +181,16 @@ CATALOG = [
 LOG = logging.getLogger(__name__)
 
 
-def mock_object(receiver, target, method_name):
+def mock_object(test_self, target, method_name):
+    """Helper function to mock objects in a setUp() method of a test class.
+
+    :param test_self: the test_self of the unittest.TestCase instance
+    :param target: the object to mock
+    """
     patcher = mock.patch.object(target, method_name)
-    mock_object = patcher.start()
-    receiver.addCleanup(mock_object.stop)
-    return mock_object
+    the_mock = patcher.start()
+    test_self.addCleanup(the_mock.stop)
+    return the_mock
 
 
 def register():
