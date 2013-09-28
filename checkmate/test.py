@@ -25,6 +25,7 @@ import uuid
 import bottle
 from celery.app import default_app
 from celery.result import AsyncResult
+import mock
 import mox
 from mox import (IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains,
                  Not)
@@ -178,6 +179,18 @@ CATALOG = [
     }
 ]
 LOG = logging.getLogger(__name__)
+
+
+def mock_object(test_self, target, method_name):
+    """Helper function to mock objects in a setUp() method of a test class.
+
+    :param test_self: the test_self of the unittest.TestCase instance
+    :param target: the object to mock
+    """
+    patcher = mock.patch.object(target, method_name)
+    the_mock = patcher.start()
+    test_self.addCleanup(the_mock.stop)
+    return the_mock
 
 
 def register():

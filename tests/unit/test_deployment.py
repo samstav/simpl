@@ -203,7 +203,7 @@ class TestDeployments(unittest.TestCase):
             'test',
             {'provider': 'test'}, '0'
         )
-        self.context.__setitem__.assert_called_with('resource', '0')
+        self.context.__setitem__.assert_called_with('resource_key', '0')
 
     def test_get_statuses_for_active_resources(self):
         resource_status = {'instance:0': {'status': 'ACTIVE'}}
@@ -219,7 +219,7 @@ class TestDeployments(unittest.TestCase):
         self.provider.get_resource_status.assert_called_with(
             self.context, 'test', {'provider': 'test'}, '0'
         )
-        self.context.__setitem__.assert_called_with('resource', '0')
+        self.context.__setitem__.assert_called_with('resource_key', '0')
 
     def test_get_statuses_for_new_resources(self):
         resource_status = {'instance:0': {'status': 'NEW'}}
@@ -232,7 +232,7 @@ class TestDeployments(unittest.TestCase):
         }
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)
-        self.context.__setitem__.assert_called_with('resource', '0')
+        self.context.__setitem__.assert_called_with('resource_key', '0')
 
     def test_get_statuses_for_no_resources(self):
         self.provider.get_resource_status.return_value = {}
@@ -243,7 +243,7 @@ class TestDeployments(unittest.TestCase):
         }
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)
-        self.context.__setitem__.assert_called_with('resource', '0')
+        self.context.__setitem__.assert_called_with('resource_key', '0')
 
     def test_schema(self):
         """Test the schema validates a deployment with all possible fields."""
