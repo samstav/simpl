@@ -920,8 +920,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             """))
         vip_deployment['tenantId'] = "tenantId"
         deployments.Manager.plan(vip_deployment, self.context)
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            vip_deployment, self.context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(self.context,
+                                                               vip_deployment)
         workflow = cm_wf.init_spiff_workflow(
             wf_spec, vip_deployment, self.context, "w_id", "BUILD")
 
@@ -1006,8 +1006,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         dep_with_allow_unencrypted['tenantId'] = 'tenantId'
         deployments.Manager.plan(
             dep_with_allow_unencrypted, self.context)
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            dep_with_allow_unencrypted, self.context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(
+            self.context, dep_with_allow_unencrypted)
         workflow = cm_wf.init_spiff_workflow(
             wf_spec, dep_with_allow_unencrypted, self.context, "w_id",
             "BUILD")
@@ -1084,8 +1084,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         """))
         deployment['tenantId'] = "tenantId"
         deployments.Manager.plan(deployment, self.context)
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            deployment, self.context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(self.context,
+                                                               deployment)
         workflow = cm_wf.init_spiff_workflow(wf_spec, deployment,
                                              self.context, "w_id", "BUILD")
 
@@ -1106,8 +1106,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected)
 
     def test_workflow_task_generation(self):
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            self.deployment, self.context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(
+            self.context, self.deployment)
         workflow = cm_wf.init_spiff_workflow(wf_spec, self.deployment,
                                              self.context, "w_id", "BUILD")
 

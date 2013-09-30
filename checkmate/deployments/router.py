@@ -18,6 +18,7 @@ Handles API calls to /deployments and routes them appropriately
 """
 import copy
 import logging
+import random
 import uuid
 
 import bottle
@@ -199,8 +200,8 @@ class Router(object):
                   self.get_resource)
         app.route('/deployments/<api_id>/resources/<r_id>/+take-offline',
                   'POST', self.take_resource_offline)
-        app.route('/deployments/<api_id>/resources/<r_id>/+get-online',
-                  'POST', self.get_resource_online)
+        app.route('/deployments/<api_id>/resources/<r_id>/+bring-online',
+                  'POST', self.bring_resource_online)
         self.stack_router = stacks.Router(self.app, stacks.Manager())
 
     param_whitelist = ['search', 'name', 'blueprint.name', 'status',
@@ -288,10 +289,10 @@ class Router(object):
     def preview_deployment(self, tenant_id=None):
         """Parse and preview a deployment and its workflow."""
         deployment = _content_to_deployment(tenant_id=tenant_id)
-        results = self.manager.plan(deployment,
-                                    bottle.request.environ['context'])
-        spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            results, bottle.request.environ['context'])
+        context = bottle.request.environ['context']
+        results = self.manager.plan(deployment, bottle.request.context)
+        spec = workflow_spec.WorkflowSpec.create_build_spec(
+            results, context)
         serializer = DictionarySerializer()
         serialized_spec = spec.serialize(serializer)
         results['workflow'] = dict(wf_spec=serialized_spec)
@@ -415,14 +416,17 @@ class Router(object):
 
         LOG.debug("Received request to delete %s nodes for service %s for "
                   "deployment %s", count, service_name, deployment['id'])
+        resources_for_service = deployment.get_resources_for_service(
+            service_name).keys()
+        resources_for_service = list(set(resources_for_service) - set(
+            victim_list))
+        random.shuffle(resources_for_service)
+        victim_list.extend(resources_for_service[:(count - len(victim_list))])
+        operation = self.manager.deploy_workflow(context, deployment,
+                                                 tenant_id, "SCALE DOWN",
+                                                 victim_list=victim_list)
 
-        self.manager.delete_nodes(deployment, context,
-                                  service_name, count, victim_list, tenant_id)
-
-        deployment = self.manager.save_deployment(deployment=deployment,
-                                                  api_id=api_id,
-                                                  tenant_id=tenant_id)
-        delete_nodes_wf_id = deployment['operation']['workflow-id']
+        delete_nodes_wf_id = operation['workflow-id']
         wf_tasks.cycle_workflow.delay(delete_nodes_wf_id,
                                       context.get_queued_task_dict())
 
@@ -463,15 +467,15 @@ class Router(object):
         if not service_name or not count:
             bottle.abort(400, "Invalid input, service_name and count is not "
                               "provided in the request body")
-        deployment = self.manager.plan_add_nodes(
-            deployment, bottle.request.environ['context'], service_name, count)
-        self.manager.deploy_add_nodes(deployment,
-                                      bottle.request.environ['context'],
-                                      tenant_id)
-        deployment = self.manager.save_deployment(deployment, api_id=api_id,
-                                                  tenant_id=tenant_id)
-        add_nodes_wf_id = deployment['operation']['workflow-id']
         context = bottle.request.environ['context']
+        deployment = self.manager.plan_add_nodes(deployment,
+                                                 context,
+                                                 service_name,
+                                                 count)
+        operation = self.manager.deploy_workflow(context,
+                                                 deployment,
+                                                 tenant_id, "SCALE UP")
+        add_nodes_wf_id = operation['workflow-id']
         wf_tasks.cycle_workflow.delay(add_nodes_wf_id,
                                       context.get_queued_task_dict())
 
@@ -539,7 +543,6 @@ class Router(object):
         if tenant_id:
             location = "/%s%s" % (tenant_id, location)
             link = "/%s%s" % (tenant_id, link)
-        bottle.response.set_header("Location", location)
         bottle.response.set_header("Link", '<%s>; rel="workflow"; '
                                    'title="Delete Deployment"' % link)
         bottle.response.set_header("Location", location)
@@ -776,34 +779,37 @@ class Router(object):
         """Creates and executes the workflow for taking the passed in
         resource offline.
         """
+        if utils.is_simulation(api_id):
+            bottle.request.environ['context'].simulation = True
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
         if not deployment.get('resources').get(r_id):
             bottle.abort(404, "No resource %s in deployment %s" %
                               (r_id, api_id))
         deployment = cmdeploy.Deployment(deployment)
         context = bottle.request.environ['context']
-        operation = self.manager.deploy_take_resource_offline(deployment,
-                                                              r_id,
-                                                              context,
-                                                              tenant_id)
+        operation = self.manager.deploy_workflow(context, deployment,
+                                                 tenant_id, "TAKE OFFLINE",
+                                                 resource_id=r_id)
         wf_tasks.cycle_workflow.delay(operation['workflow-id'],
                                       context.get_queued_task_dict())
         return utils.write_body(deployment, bottle.request, bottle.response)
 
     @utils.with_tenant
-    def get_resource_online(self, api_id, r_id, tenant_id=None):
+    def bring_resource_online(self, api_id, r_id, tenant_id=None):
         """Creates and executes the workflow for getting the passed in
         resource online.
         """
+        if utils.is_simulation(api_id):
+            bottle.request.environ['context'].simulation = True
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
         if not deployment.get('resources').get(r_id):
             bottle.abort(404, "No resource %s in deployment %s" %
                               (r_id, api_id))
         deployment = cmdeploy.Deployment(deployment)
         context = bottle.request.environ['context']
-        operation = self.manager.deploy_get_resource_online(deployment, r_id,
-                                                            context,
-                                                            tenant_id)
+        operation = self.manager.deploy_workflow(context, deployment,
+                                                 tenant_id, "BRING ONLINE",
+                                                 resource_id=r_id)
         wf_tasks.cycle_workflow.delay(operation['workflow-id'],
                                       context.get_queued_task_dict())
         return utils.write_body(deployment, bottle.request, bottle.response)

@@ -1661,12 +1661,10 @@ class TestDeploymentAddNodes(unittest.TestCase):
         manager.plan_add_nodes(self._deployment,
                                bottle.request.environ['context'],
                                "service_name", 2).AndReturn(self._deployment)
-        manager.deploy_add_nodes(self._deployment,
-                                 bottle.request.environ['context'],
-                                 "T1000")
-        self._deployment["operation"].update({'workflow-id': 'w_id'})
-        manager.save_deployment(self._deployment, api_id='1234',
-                                tenant_id='T1000').AndReturn(self._deployment)
+        manager.deploy_workflow(bottle.request.environ['context'],
+                                self._deployment,
+                                "T1000", "SCALE UP").AndReturn(
+                                    {'workflow-id': 'w_id'})
         self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
         wf_tasks.cycle_workflow.delay(
             'w_id',

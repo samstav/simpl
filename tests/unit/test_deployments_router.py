@@ -22,6 +22,7 @@ import unittest
 import bottle
 import webtest
 
+from checkmate import deployment
 from checkmate import deployments
 from checkmate import exceptions
 from checkmate import test
@@ -57,7 +58,7 @@ class TestAPICalls(unittest.TestCase):
             'status': 'UP'
         }
         self.manager.get_deployment.return_value = deployment
-        self.manager.deploy_take_resource_offline.return_value = {
+        self.manager.deploy_workflow.return_value = {
             'workflow-id': "W_ID"
         }
         #mock_request.environ = dict(context=self.filters.context)
@@ -67,8 +68,9 @@ class TestAPICalls(unittest.TestCase):
         self.assertEqual(res.status, "200 OK")
         self.manager.get_deployment.assert_was_called_with("DEP_ID",
                                                            tenant_id="T1000")
-        self.manager.deploy_take_resource_offline.assert_called_once_with(
-            deployment, "RES_ID", self.filters.context, "T1000")
+        self.manager.deploy_workflow.assert_called_once_with(
+            self.filters.context, deployment, "T1000", "TAKE OFFLINE",
+            resource_id="RES_ID")
         mock_delay.assert_called_once_with('W_ID', self.filters.context)
 
     def test_take_resource_offline_for_non_existing_resource(self):
@@ -83,7 +85,7 @@ class TestAPICalls(unittest.TestCase):
                                                            tenant_id="T1000")
 
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.delay')
-    def test_get_resource_online(self, mock_delay):
+    def test_bring_resource_online(self, mock_delay):
         deployment = {
             'resources': {
                 'RES_ID': {'instance': {}}
@@ -92,18 +94,19 @@ class TestAPICalls(unittest.TestCase):
             'status': 'UP'
         }
         self.manager.get_deployment.return_value = deployment
-        self.manager.deploy_get_resource_online.return_value = {
+        self.manager.deploy_workflow.return_value = {
             'workflow-id': "W_ID"
         }
         self.filters.context.get_queued_task_dict = mock.Mock()
         self.filters.context.get_queued_task_dict.return_value = {}
         res = self.app.post('/T1000/deployments/DEP_ID/resources/RES_ID'
-                            '/+get-online', content_type='application/json')
+                            '/+bring-online', content_type='application/json')
         self.assertEqual(res.status, "200 OK")
         self.manager.get_deployment.assert_was_called_with("DEP_ID",
                                                            tenant_id="T1000")
-        self.manager.deploy_get_resource_online.assert_called_once_with(
-            deployment, "RES_ID", self.filters.context, "T1000")
+        self.manager.deploy_workflow.assert_called_once_with(
+            self.filters.context, deployment, "T1000", "BRING ONLINE",
+            resource_id="RES_ID")
         mock_delay.assert_called_once_with('W_ID', self.filters.context)
 
     def test_get_resource_online_for_non_existing_resource(self):
@@ -300,95 +303,59 @@ class TestGetDeployments(TestDeploymentRouter):
 
 
 class TestDeleteNodes(TestDeploymentRouter):
-
     def setUp(self):
         super(TestDeleteNodes, self).setUp()
         deployment_info = {'id': '99', 'operation': {'workflow-id': 'w999'}}
         self.manager.get_deployment.return_value = deployment_info
-        saved_deployment = {'operation': {'workflow-id': 'w99'}, 'id': 'faked'}
-        self.manager.save_deployment.return_value = saved_deployment
         mock_context = self.filters.context
         mock_context.get_queued_task_dict = mock.Mock()
         mock_context.get_queued_task_dict.return_value = {'fake_dict': True}
 
     @mock.patch.object(utils, 'is_simulation')
     @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
-    def setUpSimulation(self, _delay, _is_simulation):
-        """setUp: Simulation Context."""
+    @mock.patch.object(deployment.Deployment, 'get_resources_for_service')
+    def test_sets_simulation_context(self, resources_for_service, mock_delay,
+                                     _is_simulation):
         _is_simulation.return_value = True
+        resources_for_service.return_value = {
+            '1': {},
+            '2': {},
+        }
+        self.manager.deploy_workflow.return_value = {
+            'workflow-id': 'scale_down_wf_id'}
         self.router._validate_delete_node_request = mock.Mock()
         url = '/123/deployments/999/+delete-nodes'
         data = {'service_name': 'service', 'count': 2}
         self.app.post(url, json.dumps(data), content_type='application/json')
-
-    def test_sets_simulation_context(self):
-        self.setUpSimulation()
-        call_args, _ = self.manager.delete_nodes.call_args
-        context = call_args[1]
+        call_args, _ = self.manager.deploy_workflow.call_args
+        context = call_args[0]
         self.assertEquals(context.simulation, True)
+        mock_delay.assert_called_once_with('scale_down_wf_id',
+                                           {'fake_dict': True})
 
     @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
-    def setUpNoVictimList(self, _delay):
-        """setUp: No Victim List."""
+    @mock.patch.object(deployment.Deployment, 'get_resources_for_service')
+    def test_delete_nodes_with_victim_list(self, resources_for_service,
+                                           mock_delay):
         self.router._validate_delete_node_request = mock.Mock()
+        resources_for_service.return_value = {
+            '1': {},
+            '2': {},
+        }
+        self.manager.deploy_workflow.return_value = {
+            'workflow-id': 'scale_down_wf_id'}
         url = '/123/deployments/999/+delete-nodes'
-        data = {'service_name': 'service', 'count': 2}
-        self.app.post(url, json.dumps(data), content_type='application/json')
-
-    def test_accept_empty_victim_list(self):
-        self.setUpNoVictimList()
-        call_args, _ = self.manager.delete_nodes.call_args
-        self.assertEquals(call_args[4], [])
-
-    @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
-    def setUpVictimList(self, _delay):
-        """setUp: Victim List."""
-        self._delay = _delay
-        self.router._validate_delete_node_request = mock.Mock()
-        url = '/123/deployments/999/+delete-nodes'
-        data = {'service_name': 'faked', 'count': 2, 'victim_list': ['1', '2']}
-        self.app.post(url, json.dumps(data), content_type='application/json')
-
-    def test_manager_deletes_nodes(self):
-        self.setUpVictimList()
-        call_args, _ = self.manager.delete_nodes.call_args
-        self.assertEquals(call_args[0]['id'], '99')
-        self.assertEquals(call_args[1], {})
-        self.assertEquals(call_args[2], 'faked')
-        self.assertEquals(call_args[3], 2)
-        self.assertEquals(call_args[4], ['1', '2'])
-        self.assertEquals(call_args[5], '123')
-
-    def test_manager_saves_deployment(self):
-        self.setUpVictimList()
-        _, kwargs = self.manager.save_deployment.call_args
-        self.assertEquals(kwargs['deployment']['id'], '99')
-        self.assertEquals(kwargs['api_id'], '999')
-        self.assertEquals(kwargs['tenant_id'], '123')
-
-    def test_workflow_cycles_through_tasks(self):
-        self.setUpVictimList()
-        call_args, _ = self._delay.call_args
-        self.assertEquals(call_args[0], 'w99')
-        self.assertEquals(call_args[1], {'fake_dict': True})
-
-    @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
-    def setUpFinalResponse(self, _delay):
-        """setUp: Victim List."""
-        self._delay = _delay
-        self.router._validate_delete_node_request = mock.Mock()
-        url = '/123/deployments/999/+delete-nodes'
-        data = {'service_name': 'faked', 'count': 2, 'victim_list': ['1', '2']}
-        jdata = json.dumps(data)
-        response = self.app.post(url, jdata, content_type='application/json')
-        self.final_response = response
-
-    def test_server_responds_correctly(self):
-        self.setUpFinalResponse()
-        response = self.final_response
+        data = {'service_name': 'faked', 'count': 2, 'victim_list': ['1']}
+        response = self.app.post(url, json.dumps(data),
+                                 content_type='application/json')
         deployment = json.loads(response.body)
         self.assertEquals(response.status, '202 Accepted')
-        self.assertEquals(deployment['id'], 'faked')
+        self.assertEquals(deployment['id'], '99')
+        self.manager.deploy_workflow.assert_called_once_with(
+            self.filters.context, deployment, "123", "SCALE DOWN",
+            victim_list=["1", "2"])
+        mock_delay.assert_called_once_with('scale_down_wf_id',
+                                           {'fake_dict': True})
 
 
 class TestValidateDeleteNodeRequest(TestDeploymentRouter):

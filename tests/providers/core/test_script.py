@@ -168,7 +168,7 @@ devstack.git
         """Verify workflow includes the supplied install script run."""
         deployments.Manager.plan(self.deployment, self.context)
         workflow_spec = cmwfspec.WorkflowSpec\
-            .create_workflow_spec_deploy(self.deployment, self.context)
+            .create_build_spec(self.context, self.deployment)
         spec = workflow_spec.task_specs['Execute Script 0 (1)']
         provider = self.deployment['environment']['providers']['script']
         component = provider['catalog']['application']['openstack']
@@ -179,7 +179,7 @@ devstack.git
         """Verify workflow PICKED UP TIMEOUT CONSTRAINT."""
         deployments.Manager.plan(self.deployment, self.context)
         workflow_spec = cmwfspec.WorkflowSpec\
-            .create_workflow_spec_deploy(self.deployment, self.context)
+            .create_build_spec(self.context, self.deployment)
         spec = workflow_spec.task_specs['Execute Script 0 (1)']
         self.assertEqual(spec.kwargs['timeout'], 600)
 
@@ -249,8 +249,8 @@ devstack.git
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        workflow_spec = cmwfspec.WorkflowSpec.create_workflow_spec_deploy(
-            self.deployment, context)
+        workflow_spec = cmwfspec.WorkflowSpec.create_build_spec(
+            context, self.deployment)
         wflow = workflow.init_spiff_workflow(
             workflow_spec, self.deployment, context, "w_id", "BUILD")
         task_list = wflow.spec.task_specs.keys()

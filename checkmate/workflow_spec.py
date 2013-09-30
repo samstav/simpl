@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 class WorkflowSpec(specs.WorkflowSpec):
     """Workflow Spec related methods."""
     @staticmethod
-    def create_resource_offline_spec(deployment, resource_id, context):
+    def create_take_offline_spec(context, deployment, **kwargs):
         """Creates the workflow spec for taking a resource offline
         :param deployment:
         :param resource_id:
@@ -37,6 +37,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         """
         environment = deployment.environment()
         resources = deployment.get_non_deleted_resources()
+        resource_id = kwargs.get('resource_id')
         resource = deployment['resources'].get(resource_id)
         wf_spec = WorkflowSpec(name="Take resource offline %s(%s)" % (
             deployment["id"], resource_id))
@@ -59,13 +60,14 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     @staticmethod
-    def create_resource_online_spec(deployment, resource_id, context):
+    def create_bring_online_spec(context, deployment, **kwargs):
         """Creates the workflow spec for getting a resource online
         :param deployment:
         :param resource_id:
         :param context:
         :return:
         """
+        resource_id = kwargs['resource_id']
         environment = deployment.environment()
         resources = deployment.get_non_deleted_resources()
         resource = deployment['resources'].get(resource_id)
@@ -268,7 +270,11 @@ class WorkflowSpec(specs.WorkflowSpec):
         return wf_spec
 
     @staticmethod
-    def create_workflow_spec_deploy(deployment, context):
+    def create_scale_up_spec(context, deployment):
+        return WorkflowSpec.create_build_spec(context, deployment)
+
+    @staticmethod
+    def create_build_spec(context, deployment):
         """Creates a SpiffWorkflow spec for initial deployment of a Checkmate
         deployment
 
@@ -523,7 +529,7 @@ class WorkflowSpec(specs.WorkflowSpec):
             return task
 
     @staticmethod
-    def create_delete_node_spec(deployment, resources_to_delete, context):
+    def create_scale_down_spec(context, deployment, **kwargs):
         """Create the workflow spec for deleting a node in a deployment
         :param deployment: The deployment to delete the node from
         :param resources_to_delete: Comma separated list of resource ids
@@ -531,6 +537,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         :param context: RequestContext
         :return: Workflow spec for delete of passed in resources
         """
+        resources_to_delete = kwargs['victim_list']
         LOG.debug("Creating workflow spec for deleting resources %s",
                   resources_to_delete)
         dep_id = deployment["id"]

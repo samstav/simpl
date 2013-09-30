@@ -291,8 +291,8 @@ class StubbedWorkflowBase(unittest.TestCase):
         if self.deployment.get('status') == 'NEW':
             deployments.Manager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            self.deployment, context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(context,
+                                                               self.deployment)
         workflow = init_spiff_workflow(wf_spec, self.deployment,
                                        context, "w_id", "BUILD")
 

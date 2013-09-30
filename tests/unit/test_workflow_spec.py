@@ -83,8 +83,9 @@ class TestWorkflowSpec(unittest.TestCase):
         nova_provider.delete_resource_tasks(mox.IgnoreArg(), context, "TEST",
                                             self.resource2, "2")
         self._mox.ReplayAll()
-        workflow_spec.WorkflowSpec.create_delete_node_spec(self.deployment,
-                                                           ["1"], context)
+        workflow_spec.WorkflowSpec.create_scale_down_spec(context,
+                                                          self.deployment,
+                                                          victim_list=["1"])
         self._mox.VerifyAll()
 
     def test_create_resource_offline_spec(self):
@@ -115,8 +116,8 @@ class TestWorkflowSpec(unittest.TestCase):
         mock_provider.disable_connection_tasks.return_value = {
             'root': mock_task_spec}
 
-        wf_spec = workflow_spec.WorkflowSpec.create_resource_offline_spec(
-            deployment, "1", context)
+        wf_spec = workflow_spec.WorkflowSpec.create_take_offline_spec(
+            context, deployment, resource_id="1")
         self.assertListEqual(wf_spec.start.outputs, [mock_task_spec])
         mock_environment.get_provider.assert_called_once_with('load-balancer')
         mock_provider.disable_connection_tasks.assert_called_once_with(
@@ -151,8 +152,8 @@ class TestWorkflowSpec(unittest.TestCase):
         mock_provider.enable_connection_tasks.return_value = {
             'root': mock_task_spec}
 
-        wf_spec = workflow_spec.WorkflowSpec.create_resource_online_spec(
-            deployment, "1", context)
+        wf_spec = workflow_spec.WorkflowSpec.create_bring_online_spec(
+            context, deployment, resource_id="1")
         self.assertListEqual(wf_spec.start.outputs, [mock_task_spec])
         mock_environment.get_provider.assert_called_once_with('load-balancer')
         mock_provider.enable_connection_tasks.assert_called_once_with(
