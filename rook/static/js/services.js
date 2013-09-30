@@ -2089,6 +2089,12 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
     sync.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, success_callback, error_callback)
   }
 
+  scope.parse =  function(deployment, tenant_id, success_callback, error_callback){
+    var Parse = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+parse.json', null, {'get': {method:'GET'}});
+    var parse = new Parse(deployment);
+    parse.$save({tenantId: tenant_id}, success_callback, error_callback)
+  }
+
   return scope;
 }]);
 

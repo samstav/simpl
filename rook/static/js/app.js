@@ -3357,7 +3357,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
-function BlueprintNewController($scope, BlueprintHint) {
+function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTree) {
   var blueprint_info = ["This is the blueprint.  You can build deployments and stuff with these things.  Hit Ctrl+Space for a list of valid keys", "name: String", "services: Hash", "documentation: String"].join('<br />');
   var DEPLOYMENT_INFO_MAP = {
     '"blueprint"': blueprint_info,
@@ -3374,6 +3374,14 @@ function BlueprintNewController($scope, BlueprintHint) {
   };
   $scope.deployment_json = JSON.stringify(empty_deployment, null, 2);
   $scope.help_display = DEPLOYMENT_INFO_MAP['"deployment"'];
+  $scope.parsed_deployment_tree = DeploymentTree.build({});
+
+  $scope.parse_deployment = function(deployment) {
+    Deployment.parse(JSON.parse(deployment), $scope.auth.context.tenantId, function(response) {
+      $scope.foo = response;
+      $scope.parsed_deployment_tree = DeploymentTree.build(response);
+    })
+  };
 
   $scope.newBlueprintCodemirrorLoaded = function(_editor){
     CodeMirror.commands.autocomplete = function(cm) {
@@ -3386,6 +3394,7 @@ function BlueprintNewController($scope, BlueprintHint) {
       $scope.$apply()
     })
   }
+
 }
 
 /*
