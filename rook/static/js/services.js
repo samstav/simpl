@@ -2397,7 +2397,7 @@ angular.module('checkmate.services').factory('BlueprintHint', [function() {
           fold_containing_cursor = current_fold
 
           if (fold_containing_cursor.from.line == 0) {
-            fold_key = '"blueprint"';
+            fold_key = '"deployment"';
           } else {
             trimmed_key_line = _editor.getLine(fold_containing_cursor.from.line).trim()
             fold_key = trimmed_key_line.substring(0, trimmed_key_line.indexOf(":"))
