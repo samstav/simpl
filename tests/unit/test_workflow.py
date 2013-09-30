@@ -193,7 +193,8 @@ class TestWorkflow(unittest.TestCase):
                           "+reset-task-tree",
             "task-id": "task_id",
             "error-traceback": "Traceback",
-            "error-string": "('foo', 'exception_message', 2)"
+            "error-string": "CheckmateException('foo', 'exception_message', "
+            "2, None)"
         }
         self.assertDictEqual(expected_error, error)
 
@@ -205,7 +206,8 @@ class TestWorkflow(unittest.TestCase):
             "error-message": "exception_message",
             "task-id": "task_id",
             "error-traceback": "Traceback",
-            "error-string": "('foo', 'exception_message', 1)",
+            "error-string": "CheckmateException('foo', 'exception_message', "
+            "1, None)",
             "resumable": True,
             "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute"
         }
@@ -222,7 +224,8 @@ class TestWorkflow(unittest.TestCase):
                           "+reset-task-tree",
             "task-id": "task_id",
             "error-traceback": "Traceback",
-            "error-string": "('foo', 'exception_message', 4)",
+            "error-string": "CheckmateException('foo', 'exception_message', "
+            "4, None)",
         }
         self.assertDictEqual(error, expected_error)
 
@@ -235,7 +238,7 @@ class TestWorkflow(unittest.TestCase):
                              "deployment",
             "retriable": True,
             "retry-link": "/tenant_id/workflows/wf_id/+execute",
-            'error-string': '',
+            'error-string': 'MaxRetriesExceededError()',
         }
         self.assertDictEqual(expected_error, error)
 
@@ -244,7 +247,7 @@ class TestWorkflow(unittest.TestCase):
         error = workflow.convert_exc_to_dict(info, "task_id", "tenant_id",
                                              "wf_id", "Traceback")
         expected_error = {"error-message": exceptions.UNEXPECTED_ERROR,
-                          "error-string": "This is an exception",
+                          "error-string": "Exception('This is an exception',)",
                           "error-traceback": "Traceback"}
         self.assertDictEqual(expected_error, error)
 
@@ -321,7 +324,7 @@ class TestWorkflow(unittest.TestCase):
         self.assertEqual(1, len(failed_tasks))
         expected_error = {"error-message": exceptions.UNEXPECTED_ERROR,
                           "error-traceback": "Traceback",
-                          "error-string": "This is an exception"}
+                          "error-string": "Exception('This is an exception',)"}
         self.assertDictEqual(expected_error,
                              failed_tasks[0])
 
@@ -433,7 +436,6 @@ class TestWorkflow(unittest.TestCase):
                           '2013-03-31 17:49:51 +0000')
         self.assertEquals(test_workflow.attributes["updated"],
                           '2013-03-31 17:49:51 +0000')
-
 
     def test_create_delete_workflow_with_incomplete_operation(self):
         context = cmmid.RequestContext(auth_token='MOCK_TOKEN',

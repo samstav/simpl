@@ -1,4 +1,4 @@
-# pylint: disable=C0103,R0904
+# pylint: disable=C0103,R0904,R0903
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -18,12 +18,12 @@
 import os
 import unittest
 
-import bottle
+import webob
 
-from checkmate import middleware as cmmid
+from checkmate import middleware
 
 
-def _start_response():
+def _start_response(environ, handler):
     "Helper method to mock _start_response."""
     pass
 
@@ -37,9 +37,37 @@ class MockWsgiApp(object):
         pass
 
 
+class TestGenerateResponse(unittest.TestCase):
+    """Test the webob patch."""
+    def setUp(self):
+        self.http_exception = webob.exc.WSGIHTTPException()
+        self.environ = {'REQUEST_METHOD': 'GET'}
+
+    def test_html_error(self):
+        self.environ['HTTP_ACCEPT'] = 'text/html'
+        results = middleware.generate_response(self.http_exception,
+                                               self.environ,
+                                               _start_response)
+        self.assertIn("<html>", results[0])
+
+    def test_yaml_error(self):
+        self.environ['HTTP_ACCEPT'] = 'application/x-yaml'
+        results = middleware.generate_response(self.http_exception,
+                                               self.environ,
+                                               _start_response)
+        self.assertIn("error:\n", results[0])
+
+    def test_json_error(self):
+        self.environ['HTTP_ACCEPT'] = 'application/json'
+        results = middleware.generate_response(self.http_exception,
+                                               self.environ,
+                                               _start_response)
+        self.assertIn("""{\n    "error": {\n""", results[0])
+
+
 class TestStripPathMiddleware(unittest.TestCase):
     def setUp(self):
-        self.filter = cmmid.StripPathMiddleware(MockWsgiApp())
+        self.filter = middleware.StripPathMiddleware(MockWsgiApp())
 
     def test_trailing_slash(self):
         env = {'PATH_INFO': '/something/'}
@@ -54,8 +82,8 @@ class TestStripPathMiddleware(unittest.TestCase):
 
 class TestTenantMiddleware(unittest.TestCase):
     def setUp(self):
-        self.filter = cmmid.ContextMiddleware(
-            cmmid.TenantMiddleware(MockWsgiApp()))
+        self.filter = middleware.ContextMiddleware(
+            middleware.TenantMiddleware(MockWsgiApp()))
 
     def test_no_tenant(self):
         env = {'PATH_INFO': '/',
@@ -81,7 +109,7 @@ class TestTenantMiddleware(unittest.TestCase):
 
 class TestExtensionsMiddleware(unittest.TestCase):
     def setUp(self):
-        self.filter = cmmid.ExtensionsMiddleware(MockWsgiApp())
+        self.filter = middleware.ExtensionsMiddleware(MockWsgiApp())
 
     def test_no_extension(self):
         env = {'PATH_INFO': '/someresource'}
@@ -113,22 +141,22 @@ class TestExtensionsMiddleware(unittest.TestCase):
 class RequestContextTests(unittest.TestCase):
     """RequestContextTests"""
     def test_dict_conversion(self):
-        context = cmmid.RequestContext(simulation='True',
-                                       param1='value1', param2='value2')
-        dict = context.get_queued_task_dict(param3='value3')
+        context = middleware.RequestContext(simulation='True',
+                                            param1='value1', param2='value2')
+        data = context.get_queued_task_dict(param3='value3')
         self.assertDictContainsSubset({'param1': 'value1',
                                        'param2': 'value2',
                                        'param3': 'value3',
-                                       'simulation': 'True'}, dict)
-        dict2 = context.get_queued_task_dict()
+                                       'simulation': 'True'}, data)
+        data2 = context.get_queued_task_dict()
         self.assertDictContainsSubset({'param1': 'value1',
                                        'param2': 'value2',
-                                       'simulation': 'True'}, dict2)
+                                       'simulation': 'True'}, data2)
 
 
 class TestRequestContext(unittest.TestCase):
     def setUp(self):
-        self.filter = cmmid.ContextMiddleware(MockWsgiApp())
+        self.filter = middleware.ContextMiddleware(MockWsgiApp())
         # Remove CHECKMATE_OVERRIDE_URL before running!
         if os.environ.get('CHECKMATE_OVERRIDE_URL'):
             del os.environ['CHECKMATE_OVERRIDE_URL']

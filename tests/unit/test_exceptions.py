@@ -21,32 +21,81 @@ from checkmate import exceptions as cmexc
 
 
 class TestCheckmateException(unittest.TestCase):
+
+    def test_checkmate_exception(self):
+        exc = cmexc.CheckmateException()
+        self.assertFalse(exc.resetable)
+        self.assertFalse(exc.retriable)
+        self.assertFalse(exc.resumable)
+        self.assertEqual(str(exc), "Checkmate Error")
+        self.assertEqual(repr(exc), "CheckmateException(None, None, 0, None)")
+
+    def test_checkmate_exception_message(self):
+        exc = cmexc.CheckmateException("Technical Message")
+        self.assertFalse(exc.resetable)
+        self.assertFalse(exc.retriable)
+        self.assertFalse(exc.resumable)
+        self.assertEqual(str(exc), "Technical Message")
+        self.assertEqual(
+            repr(exc),
+            "CheckmateException('Technical Message', None, 0, None)")
+
+    def test_checkmate_exception_friendly(self):
+        """Exception uses standard message for __str__ like other exceptions.
+
+        We only want to use friendly messages when we explicetly want them,
+        otherwise we want to behave like a normal exception.
+        """
+        exc = cmexc.CheckmateException("Technical Message",
+                                       friendly_message="Friendly Message")
+        self.assertFalse(exc.resetable)
+        self.assertFalse(exc.retriable)
+        self.assertFalse(exc.resumable)
+        self.assertEqual(str(exc), "Technical Message")
+
     def test_checkmate_retriable_exception(self):
-        exc = cmexc.CheckmateException("Techincal Message",
-                                       friendly_message="Friendly Message",
+        exc = cmexc.CheckmateException("Technical Message",
                                        options=cmexc.CAN_RETRY)
         self.assertTrue(exc.retriable)
         self.assertFalse(exc.resumable)
         self.assertFalse(exc.resetable)
 
     def test_checkmate_resumable_exception(self):
-        exc = cmexc.CheckmateException("Techincal Message",
-                                       friendly_message="Friendly Message",
+        exc = cmexc.CheckmateException("Technical Message",
                                        options=cmexc.CAN_RESUME)
         self.assertTrue(exc.resumable)
         self.assertFalse(exc.retriable)
         self.assertFalse(exc.resetable)
 
     def test_checkmate_resetable_exception(self):
-        exc = cmexc.CheckmateException("Techincal Message",
-                                       friendly_message="Friendly Message",
+        exc = cmexc.CheckmateException("Technical Message",
                                        options=cmexc.CAN_RESET)
         self.assertTrue(exc.resetable)
         self.assertFalse(exc.retriable)
         self.assertFalse(exc.resumable)
 
-    def test_checkmate_exception(self):
-        exc = cmexc.CheckmateException("Techincal Message")
-        self.assertFalse(exc.resetable)
-        self.assertFalse(exc.retriable)
-        self.assertFalse(exc.resumable)
+    def test_exception_representable(self):
+        """Representation of CheckmateException allows for eval()"""
+        exc = cmexc.CheckmateException("Technical Message",
+                                       friendly_message="Friendly Message",
+                                       options=cmexc.CAN_RESET,
+                                       http_status=500)
+        representation = repr(exc)
+        self.assertEqual(representation,
+                         "CheckmateException('Technical Message', "
+                         "'Friendly Message', 4, 500)")
+
+    def test_exception_evaluable(self):
+        exc = cmexc.CheckmateException("Technical Message",
+                                       friendly_message="Friendly Message",
+                                       options=cmexc.CAN_RESET,
+                                       http_status=500)
+        rehydratred = eval(repr(exc),
+                           {'CheckmateException': cmexc.CheckmateException},
+                           {'no': 'global'})
+        self.assertEqual(rehydratred.__dict__, exc.__dict__)
+
+
+if __name__ == '__main__':
+    from checkmate import test
+    test.run_with_params()

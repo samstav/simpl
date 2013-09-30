@@ -1,4 +1,4 @@
-# pylint: disable=C0103,E1101,E1120
+# pylint: disable=C0103,E1101,E1120,R0904
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -25,7 +25,6 @@ import mox
 from checkmate.middleware.os_auth import auth_utils
 from checkmate.middleware.os_auth import exceptions
 from checkmate.middleware.os_auth import identity
-
 
 LOG = logging.getLogger(__name__)
 
@@ -597,8 +596,5 @@ class TestIdentity(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

@@ -244,7 +244,7 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
                 "retry-link": "/%s/workflows/%s/tasks/%s/+reset-task-tree" % (
                     tenant_id, workflow_id, task_id),
                 "error-traceback": traceback,
-                "error-string": str(exception),
+                "error-string": repr(exception),
             }
         elif exception.resumable:
             exc_dict = {
@@ -256,14 +256,14 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
                     workflow_id,
                     task_id),
                 "error-traceback": traceback,
-                "error-string": str(exception),
+                "error-string": repr(exception),
             }
         else:
             exc_dict = {
                 "error-message": exception.friendly_message,
                 "task-id": task_id,
                 "error-traceback": traceback,
-                "error-string": str(exception),
+                "error-string": repr(exception),
             }
     elif type(exception) is MaxRetriesExceededError:
         exc_dict = {
@@ -272,13 +272,13 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
             "retriable": True,
             "retry-link": "/%s/workflows/%s/+execute" % (
                 tenant_id, workflow_id),
-            "error-string": str(exception),
+            "error-string": repr(exception),
         }
     elif isinstance(exception, Exception):
         exc_dict = {
             "error-message": exceptions.UNEXPECTED_ERROR,
             "error-traceback": traceback,
-            "error-string": str(exception),
+            "error-string": repr(exception),
         }
     return exc_dict
 

@@ -1,4 +1,5 @@
 # pylint: disable=W0212
+#
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -14,10 +15,19 @@
 #    under the License.
 
 """Task Class and Helper Functions"""
+import inspect
 
-# pylint: disable=W0611
+from celery.exceptions import MaxRetriesExceededError
 
-from checkmate.exceptions import CheckmateException
+from checkmate import exceptions
+
+EVAL_LOCALS = dict(inspect.getmembers(exceptions, inspect.isclass))
+EVAL_LOCALS['CAN_RETRY'] = exceptions.CAN_RETRY
+EVAL_LOCALS['CAN_RESUME'] = exceptions.CAN_RESUME
+EVAL_LOCALS['CAN_RESET'] = exceptions.CAN_RESET
+EVAL_LOCALS['MaxRetriesExceededError'] = MaxRetriesExceededError
+EVAL_LOCALS['Exception'] = Exception
+EVAL_GLOBALS = {'nothing': None}
 
 
 def set_exception(exception, task):
@@ -28,7 +38,7 @@ def set_exception(exception, task):
     @return:
     """
     task_state = task._get_internal_attribute("task_state")
-    task_state["info"] = exception.__repr__()
+    task_state["info"] = repr(exception)
     task._set_internal_attribute(task_state=task_state)
 
 
@@ -38,12 +48,13 @@ def get_exception(task):
     @return:
     """
     task_state = task._get_internal_attribute("task_state")
-    info = task_state["info"]
-    return eval(info)
+    info = task_state.get("info")
+    if info:
+        return eval(info, EVAL_GLOBALS, EVAL_LOCALS)
 
 
 def is_failed(task):
-    '''Checks whether a task has failed by checking the task_state dict in
+    """Checks whether a task has failed by checking the task_state dict in
     internal attribs. The format of task_state is
     task_state: {
         'state': 'FAILURE',
@@ -52,6 +63,6 @@ def is_failed(task):
     }
     :param task:
     :return:
-    '''
+    """
     task_state = task._get_internal_attribute("task_state")
     return task_state and task_state.get("state") == "FAILURE"

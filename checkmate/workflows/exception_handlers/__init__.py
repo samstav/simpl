@@ -17,44 +17,36 @@
 
 import logging
 
-from checkmate import exceptions
 from checkmate import task
-from checkmate.workflows.exception_handlers.automatic_reset_and_retry_handler \
-    import AutomaticResetAndRetryHandler
-from checkmate.workflows.exception_handlers.exception_handler import \
-    ExceptionHandler
-
+from checkmate.workflows.exception_handlers.automatic_reset_and_retry import \
+    AutomaticResetAndRetryHandler
 
 LOG = logging.getLogger(__name__)
 
+HANDLERS = [AutomaticResetAndRetryHandler]
 
-def get_handlers(d_wf, failed_tasks_ids, context, driver):
+
+def get_handlers(workflow, failed_tasks_ids, context, driver):
     """Gets an exception handler based on the task_state exception.
-    @param d_wf: Workflows
-    @param failed_tasks_ids: Failed task Ids
-    @param context:
-    @param driver: DB driver
-    @return:
+
+    Also updates the friendly error message using the handler's formatter.
+
+    :param workflow: The SpiffWorkflow
+    :param failed_tasks_ids: The list of failed task ID's
+    :param context:
+    :param driver: DB driver
+    :returns:
     """
-    handlers = []
+    results = []
 
     for failed_task_id in failed_tasks_ids:
         try:
-            failed_task = d_wf.get_task(failed_task_id)
+            failed_task = workflow.get_task(failed_task_id)
             exception = task.get_exception(failed_task)
-
-            auto_retry_count = failed_task.task_spec.get_property(
-                "auto_retry_count")
-            if (isinstance(exception, exceptions.CheckmateException) and
-                    exception.resetable and auto_retry_count):
-                handler = AutomaticResetAndRetryHandler(d_wf, failed_task_id,
-                                                        context, driver)
-                exception = exceptions.CheckmateException(
-                    exception.message,
-                    friendly_message=handler.friendly_message([failed_task.id,
-                                              auto_retry_count]))
-                task.set_exception(exception, failed_task)
-                handlers.append(handler)
-        except Exception as exc:
-            LOG.debug("ExceptionHandlerBase raised exception %s", exc)
-    return handlers
+            for handler in HANDLERS:
+                if handler.can_handle(failed_task, exception):
+                    instance = handler(workflow, failed_task, context, driver)
+                    results.append(instance)
+        except Exception as exc:  # pylint: disable=W0703
+            LOG.warn("Exception finding handler: %s", exc)
+    return results
