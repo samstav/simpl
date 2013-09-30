@@ -23,7 +23,7 @@ regex:
         * 1-31 characters
         * alphanumeric
         * may contain, but not begin with '_'
-        
+
         Linux user requirements as explained from [StackOverflow](http://stackoverflow.com/questions/6949667/what-are-the-real-rules-for-linux-usernames-on-centos-6-and-rhel-6)
         and required (at least 1 character).
       tests:
@@ -41,7 +41,7 @@ regex:
         * 1-31 characters
         * alphanumeric
         * may contain, but not begin with '_'
-        
+
         Linux user requirements as explained from [StackOverflow](http://stackoverflow.com/questions/6949667/what-are-the-real-rules-for-linux-usernames-on-centos-6-and-rhel-6)
         excluding 'root'.
       tests:
@@ -93,7 +93,7 @@ regex:
         Passwords have no maximum length, but we want to limit values passed
         to checkmate to prevent a DoS attempt.
       tests:
-      - fail: ""
+      - faile: ""
         description: |
           The password string must not be blank.
     tests:
@@ -111,7 +111,7 @@ regex:
       description: |
         The password should be no longer than 255 characters.
   private_key:
-    optional: 
+    optional:
       value: '((^-----BEGIN [DR]SA PRIVATE KEY-----($\n^| )(([0-9A-Za-z+/]){64}($\n^| )){1,100}(([0-9A-Za-z+/]){1,64}($\n^| ))-----END [DR]SA PRIVATE KEY-----$)|(^$))'
       message: must be a valid private key
       description: |
@@ -336,7 +336,7 @@ regex:
         description: The database name must be less than 65 characters.
       - fail: abcd;fae
         description: The only special characters allowed are '$' or '_'
-      - faile: bob.dole
+      - fail: bob.dole
         description: The only special characters allowed are '$' or '_'
   cloud_files:
     username:
@@ -354,6 +354,7 @@ regex:
         description: |
           This regex will check for a Cloud Files compatible username that is
           alphanumeric, lower case, and is 1-32 characters long.
+        tests:
         - fail: ""
           description: The username is not allowed to be blank.
       tests:
