@@ -319,14 +319,15 @@ class TestNovaCompute(test.ProviderTester):
                     ],
                     'private': [
                         {'version': 4, 'addr': '10.10.10.10'}
-                    ]
+                    ],
                 },
                 'ip': '8.8.8.8',
                 'region': 'North',
                 'public_ip': '4.4.4.4',
                 'private_ip': '10.10.10.10',
                 'id': 'fake_server_id',
-                'status-message': ''
+                'status-message': '',
+                'rackconnect-automation-status': 'DEPLOYED'
             }
         }
 

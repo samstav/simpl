@@ -184,12 +184,14 @@ class Provider(ProviderBase):
         # Create the cook task
 
         resource = deployment['resources'][key]
+        host_idx = resource.get('hosted_on', key)
+        instance_ip = PathAttrib("instance:%s/ip" % host_idx)
         anchor_task = configure_task = Celery(
             wfspec,
             'Configure %s: %s (%s)' % (component_id, key, service_name),
             'checkmate.providers.opscode.knife.cook',
             call_args=[
-                PathAttrib('instance:%s/ip' % resource.get('hosted_on', key)),
+                instance_ip,
                 deployment['id'], resource
             ],
             password=PathAttrib(
@@ -782,12 +784,14 @@ class Provider(ProviderBase):
             name = 'Reconfigure %s: client ready' % server['component']
             host_idx = server.get('hosted_on', server['index'])
             run_list = self._get_component_run_list(server_component)
+            instance_ip = PathAttrib("instance:%s/ip" % host_idx)
+
             reconfigure_task = Celery(
                 wfspec,
                 name,
                 'checkmate.providers.opscode.knife.cook',
                 call_args=[
-                    PathAttrib('instance:%s/public_ip' % host_idx),
+                    instance_ip,
                     deployment['id'], client
                 ],
                 password=PathAttrib('instance:%s/password' % host_idx),

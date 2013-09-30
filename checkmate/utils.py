@@ -1033,7 +1033,8 @@ def cap_limit(limit, tenant_id):
     return limit
 
 
-def get_ips_from_server(server, roles, primary_address_type='public'):
+def get_ips_from_server(server, is_rackconnected_account=False,
+                        primary_address_type='public'):
     """Extract ip addresses from a server object."""
     ip_addr = None
     result = {}
@@ -1043,7 +1044,7 @@ def get_ips_from_server(server, roles, primary_address_type='public'):
             ip_addr = address['addr']
             break
     if ((primary_address_type != 'public' and server.accessIPv4) or
-            'rack_connect' in roles):
+            is_rackconnected_account):
         ip_addr = server.accessIPv4
         LOG.info("Using accessIPv4 to connect: %s", ip_addr)
     result['ip'] = ip_addr
@@ -1061,6 +1062,10 @@ def get_ips_from_server(server, roles, primary_address_type='public'):
             break
 
     return result
+
+
+def is_rackconnect_account(context):
+    return 'rack_connect' in context['roles']
 
 
 class Simulation(object):
