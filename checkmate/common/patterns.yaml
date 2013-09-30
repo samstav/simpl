@@ -2,7 +2,6 @@ regex:
   linux_user:
     optional:
       value: '^([a-z_][a-z0-9_]{0,30})?$'
-      value: '^(linux_user.required)?$'
       message: must be lower case, alpha numeric, and fewer than 32 characters
       description: |
         This regex will allow an optional linux user string that is:
@@ -213,7 +212,7 @@ regex:
     - fail: notgood@example.com/web
       description: |
         The email address cannot have special characters after the '@' symbol.
-    - fail: @example.com
+    - fail: '@example.com'
       description: |
         The email address must contain a username before the domain and the
         '@' symbol.
@@ -239,7 +238,7 @@ regex:
       tests:
       - pass: bob
       - pass: abcdefghijklmnop
-      - pass: @bc$d_efg
+      - pass: '@bc$d_efg'
       - pass: 23kk3e
       - fail: abcdefghijklmnopq
         description: The MySQL username must be less than 17 characters.
