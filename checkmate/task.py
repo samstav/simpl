@@ -38,7 +38,7 @@ def set_exception(exception, task):
     @return:
     """
     task_state = task._get_internal_attribute("task_state")
-    task_state["info"] = exception.__repr__()
+    task_state["info"] = repr(exception)
     task._set_internal_attribute(task_state=task_state)
 
 
@@ -48,8 +48,9 @@ def get_exception(task):
     @return:
     """
     task_state = task._get_internal_attribute("task_state")
-    info = task_state["info"]
-    return eval(info, EVAL_GLOBALS, EVAL_LOCALS)
+    info = task_state.get("info")
+    if info:
+        return eval(info, EVAL_GLOBALS, EVAL_LOCALS)
 
 
 def is_failed(task):

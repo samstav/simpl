@@ -74,6 +74,27 @@ class TestCheckmateException(unittest.TestCase):
         self.assertFalse(exc.retriable)
         self.assertFalse(exc.resumable)
 
+    def test_exception_representable(self):
+        """Representation of CheckmateException allows for eval()"""
+        exc = cmexc.CheckmateException("Technical Message",
+                                       friendly_message="Friendly Message",
+                                       options=cmexc.CAN_RESET,
+                                       http_status=500)
+        representation = repr(exc)
+        self.assertEqual(representation,
+                         "CheckmateException('Technical Message', "
+                         "'Friendly Message', 4, 500)")
+
+    def test_exception_evaluable(self):
+        exc = cmexc.CheckmateException("Technical Message",
+                                       friendly_message="Friendly Message",
+                                       options=cmexc.CAN_RESET,
+                                       http_status=500)
+        rehydratred = eval(repr(exc),
+                           {'CheckmateException': cmexc.CheckmateException},
+                           {'no': 'global'})
+        self.assertEqual(rehydratred.__dict__, exc.__dict__)
+
 
 if __name__ == '__main__':
     from checkmate import test
