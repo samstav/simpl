@@ -683,7 +683,8 @@ class TestCeleryTasks(unittest.TestCase):
                                         self.resource_key, self.lb_api_mock)
 
         self.lb_api_mock.get.assert_called_once_with(self.mocklb.id)
-        self.mocklb.update_metadata.assert_called_once_with({"test": "me"})
+        self.mocklb.update_metadata.assert_called_once_with(
+            {'key': 'test', 'value': 'me'})
 
     @mock.patch.object(loadbalancer.Provider, 'generate_resource_tag')
     def test_sync_resource_task_without_metadata(self,
@@ -698,7 +699,8 @@ class TestCeleryTasks(unittest.TestCase):
                                         self.resource_key, self.lb_api_mock)
 
         self.lb_api_mock.get.assert_called_once_with(self.mocklb.id)
-        self.mocklb.update_metadata.assert_called_once_with({"test": "me"})
+        self.mocklb.update_metadata.assert_called_once_with(
+            {'key': 'test', 'value': 'me'})
 
 
 class TestGetAlgorithms(unittest.TestCase):
