@@ -358,6 +358,8 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     POST/GET /:tid/deployments/:id/secrets
     GET /:tid/deployments/:id/resources
     GET /:tid/deployments/:id/resources/:rid
+    POST/GET /:tid/deployments/:id/resources/:r_id/+take-offline
+    POST/GET /:tid/deployments/:id/resources/:r_id/+bring-online
 
     GET  /:tid/workflows/[?offset=OFFSET&limit=LIMIT]
     POST /:tid/workflows
