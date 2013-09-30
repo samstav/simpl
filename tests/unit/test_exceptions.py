@@ -41,12 +41,17 @@ class TestCheckmateException(unittest.TestCase):
             "CheckmateException('Technical Message', None, 0, None)")
 
     def test_checkmate_exception_friendly(self):
+        """Exception uses standard message for __str__ like other exceptions.
+
+        We only want to use friendly messages when we explicetly want them,
+        otherwise we want to behave like a normal exception.
+        """
         exc = cmexc.CheckmateException("Technical Message",
                                        friendly_message="Friendly Message")
         self.assertFalse(exc.resetable)
         self.assertFalse(exc.retriable)
         self.assertFalse(exc.resumable)
-        self.assertEqual(str(exc), "Friendly Message")
+        self.assertEqual(str(exc), "Technical Message")
 
     def test_checkmate_retriable_exception(self):
         exc = cmexc.CheckmateException("Technical Message",

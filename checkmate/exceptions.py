@@ -72,8 +72,10 @@ class CheckmateException(Exception):
 
     @property
     def message(self):
-        """Return a message always."""
-        return self._message or self.__doc__.split('\n')[0]
+        if self._message is None:
+            return self.__doc__.split('\n')[0]
+        else:
+            return str(self._message)
 
     @property
     def friendly_message(self):
@@ -96,8 +98,7 @@ class CheckmateException(Exception):
         return self.options & CAN_RESET
 
     def __str__(self):
-        return self._friendly_message or self._message or\
-            self.__doc__.split('\n')[0]
+        return self.message
 
 
 class CheckmateDatabaseConnectionError(CheckmateException):
