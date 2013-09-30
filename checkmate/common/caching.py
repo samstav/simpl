@@ -181,9 +181,16 @@ class Cache:
 
     def cache(self, data, key):
         '''Store return value in cache.'''
-        self._cache_local(data, key)
+        try:
+            self._cache_local(data, key)
+        except StandardError as exc:
+            LOG.warn("Error caching locally: %s", exc)
+
         if self.backing_store:
-            self._cache_backing(data, key)
+            try:
+                self._cache_backing(data, key)
+            except StandardError as exc:
+                LOG.warn("Error caching to backing store: %s", exc)
 
     def _cache_local(self, data, key):
         '''Cache item to local, in-momory store.'''
@@ -201,6 +208,8 @@ class Cache:
                                          self._encode(data), self.max_age)
             except ConnectionError as exc:
                 LOG.warn("Error connecting to Redis: %s", exc)
+            except pickle.PickleError as exc:
+                LOG.warn("Error pickling value for backing store: %s", exc)
             except StandardError as exc:
                 LOG.warn("Error storing value in backing store: %s", exc)
 
@@ -214,7 +223,7 @@ class Cache:
     def get_hash(self, *args, **kwargs):
         '''Calculate a secure hash.'''
         if (not self.sensitive_args and not self.sensitive_kwargs and not
-          self.ignore_args and not self.ignore_kwargs):
+                self.ignore_args and not self.ignore_kwargs):
             return (args, tuple(sorted(kwargs.items())))
         clean_args = list(copy.deepcopy(args))
         clean_kwargs = copy.deepcopy(kwargs)
