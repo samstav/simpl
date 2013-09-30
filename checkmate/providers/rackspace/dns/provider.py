@@ -43,11 +43,11 @@ class Provider(rsbase.RackspaceProviderBase):
 
     @caching.CacheMethod(timeout=3600, sensitive_args=[1], store=DNS_API_CACHE)
     def _get_limits(self, url, api):
-        '''Returns the Cloud DNS API limits.'''
+        """Returns the Cloud DNS API limits."""
         return api.get_absolute_limits()
 
     def _is_new_domain(self, domain, context):
-        '''Returns True if domain does not already exist on this account.'''
+        """Returns True if domain does not already exist on this account."""
         if domain and context:
             api = self.connect(context)
             dom = self._my_list_domains_info(api, domain)
@@ -56,7 +56,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
     @staticmethod
     def _my_list_domains_info(api, dom_name):
-        '''Fetch information for specified domain name.'''
+        """Fetch information for specified domain name."""
         try:
             return api.find(name=dom_name)
         except pyrax.exceptions.NotFound as resp_error:
@@ -66,7 +66,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
     def _check_record_limits(self, context, dom_name, max_records,
                              num_new_recs):
-        '''Raise API error if adding domain records will violate limits.'''
+        """Raise API error if adding domain records will violate limits."""
         if num_new_recs > 0:
             api = self.connect(context)
             if dom_name:
@@ -129,7 +129,7 @@ class Provider(rsbase.RackspaceProviderBase):
             })
 
         def _count_filter_records(resources):
-            '''Make sure we're not exceeding the record count.'''
+            """Make sure we're not exceeding the record count."""
             handled = {}
             for resource in resources:
                 dom = parse_domain(resource.get('dns-name'))
@@ -206,13 +206,13 @@ class Provider(rsbase.RackspaceProviderBase):
 
     @staticmethod
     def get_resources(context, tenant_id=None):
-        """Proxy request through to provider"""
+        """Proxy request through to provider."""
         api = Provider.connect(context)
         return [domain._info for domain in api.list()]
 
     @staticmethod
     def _find_url(catalog):
-        '''Find the public endpoint for the DNS service.'''
+        """Find the public endpoint for the DNS service."""
         for service in catalog:
             if service['name'] == 'cloudDNS':
                 endpoints = service['endpoints']
@@ -221,13 +221,13 @@ class Provider(rsbase.RackspaceProviderBase):
 
     @staticmethod
     def connect(context, region=None):
-        '''Use context info to connect to API and return api object.'''
+        """Use context info to connect to API and return api object."""
         return getattr(rsbase.RackspaceProviderBase._connect(context, region),
                        Provider.method)
 
 
 def parse_domain(domain_str):
-    '''Return "domain.com" for "sub2.sub1.domain.com".'''
+    """Return "domain.com" for "sub2.sub1.domain.com"."""
     if not domain_str:
         return ""
     extractor = tldextract.TLDExtract(
