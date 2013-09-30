@@ -193,6 +193,8 @@ directives.directive('cmTreeView', function() {
   }
 
   var select_node = function(node, scope, element) {
+    if (!scope.selectNode) return;
+
     var toggled = scope.$apply(function() { return scope.selectNode(node); });
     if (toggled) {
       toggle_highlight(node, element);
@@ -294,6 +296,8 @@ directives.directive('cmTreeView', function() {
   }
 
   var _add_tooltips = function(node, scope, element) {
+    if (!scope.clickableNode) return;
+
     var is_scalable_service = scope.clickableNode(node);
     if (is_scalable_service) return;
 
