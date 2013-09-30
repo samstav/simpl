@@ -323,6 +323,8 @@ directives.directive('cmTreeView', function() {
       });
     vertices.select('image')
       .attr('xlink:href', get_icon);
+    vertices.select('text')
+      .text(function(d) { return d.name; });
     vertices.select('circle')
       .attr('r', function(d) { if (d.host.id) return 8; })
       .attr('cy', -20)
