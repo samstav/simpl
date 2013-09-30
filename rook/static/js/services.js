@@ -2423,3 +2423,96 @@ angular.module('checkmate.services').factory('BlueprintHint', [function() {
 
   return scope;
 }]);
+
+angular.module('checkmate.services').factory('DeploymentTree', [function() {
+  var scope = {};
+
+  var VERTEX_GROUPS = {
+    // Standard architecture
+    lb: 0,
+    master: 1,
+    web: 1,
+    app: 1,
+    admin: 1,
+    backend: 2,
+
+    // Cassandra
+    seed: 0,
+    node: 1,
+    'region-two': 2,
+
+    // Mongo
+    primary: 0,
+    data: 1
+  };
+
+  var _create_vertex = function(resource, resource_list) {
+    var group = resource.service;
+    var dns_name = resource['dns-name'] || '';
+    var name = dns_name.split('.').shift();
+    var host_id = resource.hosted_on;
+    var host = resource_list[host_id];
+
+    var vertex = {
+      id: resource.index,
+      group: group,
+      component: resource.component,
+      name: name,
+      status: resource.status,
+      host: {},
+      service: resource.service,
+      index: resource.index,
+      'dns-name': resource['dns-name']
+    };
+    if (host) {
+      vertex.host = {
+        id: host.index,
+        status: host.status,
+        type: host.component
+      };
+    }
+    return vertex;
+  };
+
+  var _create_edges = function(vertex, relations) {
+    var edges = [];
+
+    var v1 = vertex.id;
+    for (var i in relations) {
+      var relation = relations[i];
+      if (relation.relation != 'reference') continue;
+
+      var v2 = relation.source || relation.target;
+      var sorted_edges = [v1, v2].sort();
+      var edge = { v1: sorted_edges[0], v2: sorted_edges[1] };
+      edges.push(edge);
+    }
+
+    return edges;
+  }
+
+  scope.build = function(deployment) {
+    var edges = [];
+    var vertices = [];
+    var resources = deployment.resources;
+
+    for (var i in resources) {
+      var resource = resources[i];
+      if (!resource.relations) continue;
+
+      // Vertices
+      var vertex = _create_vertex(resource, resources);
+      var group_idx = VERTEX_GROUPS[vertex.group] || 0;
+      if (!vertices[group_idx]) vertices[group_idx] = [];
+      vertices[group_idx].push(vertex);
+
+      // Edges
+      edges = edges.concat(_create_edges(vertex, resource.relations));
+    }
+
+    return { vertex_groups: vertices, edges: edges };
+  }
+
+  return scope;
+}]);
+
