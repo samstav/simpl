@@ -20,24 +20,38 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-class ExceptionHandler(object):
+class ExceptionHandlerBase(object):
     """Base Class for Exception Handlers."""
-    def __init__(self, d_wf, task_id, context, driver):
-        self.d_wf = d_wf
-        self.task_id = task_id
+
+    def __init__(self, workflow, task, context, driver):
+        """Initialize a handler for a specific task.
+
+        :param workflow: this is a SpiffWorkflow
+        """
+        self.workflow = workflow
+        self.task = task
         self.context = context
         self.driver = driver
 
-    def friendly_message(self, args):
-        """Handler method that does the required actions with the task
-        :return:
+    @staticmethod
+    def can_handle(failed_task, exception):
+        """Determine if this handler can handle a failed task.
+
+        :param failed_task: the SpiffWorkflow task
+        :param exception: the exception causing the task to failed_task
+        :returns: True/False
         """
+        return False
+
+    def friendly_message(self, exception):
+        """Client-viewable message to display while handling failed task."""
         LOG.debug("%s.friendly_message called, but was not implemented",
                   self.__class__.__name__)
 
     def handle(self):
-        """Handler method that does the required actions with the task
-        :return:
+        """Do the required actions with the failed task.
+
+        :returns: id of a new workflow if one was created.
         """
         LOG.debug("%s.handle called, but was not implemented",
                   self.__class__.__name__)
