@@ -383,7 +383,7 @@ directives.directive('cmTreeView', function() {
 
   return {
     restrict: 'E',
-    template: '<div></div>',
+    template: '<div class="deployment_tree"></div>',
     replace: true,
     scope: {
       data: '=',
