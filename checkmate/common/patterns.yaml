@@ -70,7 +70,7 @@ regex:
     - fail: bobdolebobdolebobdolebobdolebobd
       description: |
         Usernames are not allowed to be greater than 31 characters.
-    - fail: "@#$%$^#@%$#@#$%^"
+    - fail: '@#$%$^#@%$#@#$%^'
       description: |
         Usernames should only be alpha-numeric, only an underscore is allowed.
   linux_password:
