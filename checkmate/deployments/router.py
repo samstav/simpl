@@ -500,9 +500,9 @@ class Router(object):
             raise exceptions.CheckmateDoesNotExist(
                 "No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
-        if deployment.get('status') == "DELETED":
-            bottle.abort(400, "This deployment has already been deleted.")
         if bottle.request.query.get('force') != '1':
+            if deployment.get('status') == "DELETED":
+                bottle.abort(400, "This deployment has already been deleted.")
             if not deployment.fsm.permitted('DELETED'):
                 bottle.abort(
                     400,
