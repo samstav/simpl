@@ -23,55 +23,71 @@ import logging
 
 from celery.result import AsyncResult
 
-from checkmate import workflow as cmwf
-from checkmate.workflows.exception_handlers import exception_handler
+from checkmate import exceptions
+from checkmate import task as cmtask
+from checkmate import workflow
+from checkmate.workflows.exception_handlers import base
 
 LOG = logging.getLogger(__name__)
 
 
-class AutomaticResetAndRetryHandler(exception_handler.ExceptionHandler):
+class AutomaticResetAndRetryHandler(base.ExceptionHandlerBase):
     """Handles a reset task tree exception."""
-    MAX_RETRIES_FOR_TASK = 3
 
-    def friendly_message(self, args):
-        max_retries = AutomaticResetAndRetryHandler.MAX_RETRIES_FOR_TASK
-        retry_number = max_retries - args[1] + 1
-        return ("Attempting to automatically reset and retry failed task {0}"
-                " ({1}/{2})").format(args[0], retry_number, max_retries)
+    @staticmethod
+    def _get_retry_count(failed_task):
+        """Get retry count from task."""
+        return failed_task.task_spec.get_property("auto_retry_count", 0)
+
+    @staticmethod
+    def can_handle(failed_task, exception):
+        """Handle CheckmateExceptions that have auto_retry_counts."""
+        if (isinstance(exception, exceptions.CheckmateException) and
+                exception.resetable):
+            if AutomaticResetAndRetryHandler._get_retry_count(failed_task):
+                return True
+        return False
+
+    def friendly_message(self, exception):
+        retry_count = self._get_retry_count(self.task) or "No"
+        return "Retrying a failed task (%s attempts remaining)" % retry_count
 
     def handle(self):
-        """Handler method that does the required actions with the task
-        :return:
-        """
-        failed_task = self.d_wf.get_task(self.task_id)
-        task_spec = failed_task.task_spec
-        auto_retry_count = task_spec.get_property("auto_retry_count")
-
+        """Do the required actions with the failed task."""
+        exception = cmtask.get_exception(self.task)
+        auto_retry_count = self._get_retry_count(self.task) or 0
         if auto_retry_count <= 0:
-            LOG.debug("AutomaticResetAndRetryHandler will not handle task %s"
-                      " in workflow %s, as it has crossed the maximum "
-                      "retries permissible %s", self.task_id,
-                      self.d_wf.get_attribute('id'),
-                      AutomaticResetAndRetryHandler.MAX_RETRIES_FOR_TASK)
+            LOG.warn("AutomaticResetAndRetryHandler will not handle task %s "
+                     "in workflow %s, as it has reached the maximum "
+                     "retries permissible", self.task.id,
+                     self.workflow.get_attribute('id'))
+            max_retries_exception = exceptions.CheckmateException(
+                exception.message,
+                friendly_message="%s (Maximum retries reached)" %
+                exception.friendly_message)
+            cmtask.set_exception(max_retries_exception, self.task)
             return
 
-        reset_workflow_celery_id = cmwf.get_subworkflow(self.d_wf,
-                                                        self.task_id)
+        retry_exception = exceptions.CheckmateException(
+            str(exception), friendly_message=self.friendly_message(exception))
+        cmtask.set_exception(retry_exception, self.task)
+
+        reset_workflow_celery_id = workflow.get_subworkflow(self.workflow,
+                                                            self.task.id)
         if reset_workflow_celery_id and not AsyncResult(
                 reset_workflow_celery_id).ready():
             LOG.debug("AutomaticResetAndRetryHandler ignoring the handle "
                       "request for task %s in workflow %s as there is a "
-                      "existing workflow in progress", self.task_id,
-                      self.d_wf.get_attribute('id'))
+                      "existing workflow in progress", self.task.id,
+                      self.workflow.get_attribute('id'))
             return
 
-        dep_id = self.d_wf.get_attribute("deploymentId")
-        reset_wf = cmwf.create_reset_failed_task_wf(
-            self.d_wf, dep_id, self.context, failed_task, driver=self.driver)
+        dep_id = self.workflow.get_attribute("deploymentId")
+        reset_wf = workflow.create_reset_failed_task_wf(
+            self.workflow, dep_id, self.context, self.task, driver=self.driver)
 
         reset_wf_id = reset_wf.get_attribute('id')
-        cmwf.add_subworkflow(self.d_wf, reset_wf_id, self.task_id)
+        workflow.add_subworkflow(self.workflow, reset_wf_id, self.task.id)
 
-        failed_task.task_spec.set_property(
-            auto_retry_count=auto_retry_count-1)
+        self.task.task_spec.set_property(auto_retry_count=auto_retry_count-1)
         return reset_wf_id
