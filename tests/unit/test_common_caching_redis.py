@@ -15,8 +15,12 @@
 #    under the License.
 
 """Tests for Redis caching."""
+import cPickle as pickle
 import time
 import unittest
+
+import mock
+from redis import exceptions
 
 try:
     import fakeredis
@@ -154,10 +158,65 @@ class TestRedisCache(unittest.TestCase):
         key = cache2.get_hash()
         self.assertIn(key, cache2._store)
 
+    @mock.patch.object(caching.Cache, '_encode')
+    def test_bypass_on_pickle_error(self, mock_encode):
+        # We've seen these in production!
+        mock_encode.side_effect = [pickle.PickleError, pickle.PickleError]
+
+        def increment(amount=1):
+            """Helper method to test caching."""
+            increment.calls += amount
+            return increment.calls
+
+        # No caching
+        increment.calls = 0
+        fxn = increment
+        result1 = fxn(1)
+        self.assertEqual(result1, 1)
+        result2 = fxn(1)
+        self.assertEqual(result2, 2)
+
+        # With caching
+        cache = caching.Cache(backing_store=self.redis, backing_store_key='C')
+        increment.calls = 0
+        fxn = cache(increment)
+        result1 = fxn(1)
+        self.assertEqual(result1, 1)
+        result2 = fxn(1)
+        self.assertEqual(result2, 1)  # still caches locally
+
+        # Shared cache should not have populated the key
+        key = cache.get_hash()
+        self.assertNotIn(key, cache._store)
+
+    def test_bypass_on_connection_error(self):
+        mock_redis = mock.Mock()
+        mock_redis.side_effect = [exceptions.ConnectionError,
+                                  exceptions.ConnectionError]
+
+        def increment(amount=1):
+            """Helper method to test caching."""
+            increment.calls += amount
+            return increment.calls
+
+        # No caching
+        increment.calls = 0
+        fxn = increment
+        result1 = fxn(1)
+        self.assertEqual(result1, 1)
+        result2 = fxn(1)
+        self.assertEqual(result2, 2)
+
+        # With caching
+        cache = caching.Cache(backing_store=mock_redis, backing_store_key='C')
+        increment.calls = 0
+        fxn = cache(increment)
+        result1 = fxn(1)
+        self.assertEqual(result1, 1)
+        result2 = fxn(1)
+        self.assertEqual(result2, 1)  # still caches locally
+
 
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

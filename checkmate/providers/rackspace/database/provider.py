@@ -612,4 +612,5 @@ def _get_flavors(context, api_endpoint, auth_token):
     api = Provider.connect(context)
     LOG.info("Calling Cloud Databases to get flavors for %s",
              api.management_url)
-    return api.list_flavors()
+    results = api.list_flavors() or []
+    return [flavor._info for flavor in results]  # pylint: disable=W0212

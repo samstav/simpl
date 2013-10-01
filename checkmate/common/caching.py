@@ -12,7 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-'''
+"""
 Function Caching Decorators
 
 Usage:
@@ -86,7 +86,7 @@ Note: avoid using arguments that cannot be used as a hash key (ex. an object)
       or the cache key generated for the call will never match other calls (or
       worse, will match an incorrect call by pure chance)
 
-'''
+"""
 import copy
 import cPickle as pickle
 import hashlib
@@ -102,8 +102,9 @@ LOG = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 3600
 
 
+# catch generic exceptions and bypass caching - pylint: disable=W0703
 class Cache:
-    '''Cache a function.'''
+    """Cache a function."""
 
     def __init__(self, max_entries=1000, timeout=DEFAULT_TIMEOUT,
                  sensitive_args=None, sensitive_kwargs=None, ignore_args=None,
@@ -132,7 +133,7 @@ class Cache:
         self.memorized_function = func.__name__
 
         def wrapped_f(*args, **kwargs):
-            '''The function to return in place of the cached function.'''
+            """The function to return in place of the cached function."""
             key, result = self.try_cache(*args, **kwargs)
             if key:
                 if self.cache_exceptions and isinstance(result, Exception):
@@ -142,7 +143,7 @@ class Cache:
                     return result
             try:
                 result = func(*args, **kwargs)
-            except StandardError as exc:
+            except Exception as exc:
                 if self.cache_exceptions:
                     self.cache(exc, self.get_hash(*args, **kwargs))
                 raise exc
@@ -152,10 +153,10 @@ class Cache:
         return wrapped_f
 
     def try_cache(self, *args, **kwargs):
-        '''Return cached value if it exists and isn't stale
+        """Return cached value if it exists and isn't stale
 
         Returns key, value as tuple
-        '''
+        """
         key = self.get_hash(*args, **kwargs)
         if key in self._store:
             birthday, data = self._store[key]
@@ -175,18 +176,28 @@ class Cache:
                 LOG.warn("Error connecting to Redis: %s", exc)
             except KeyError:
                 pass
-            except StandardError as exc:
+            except Exception as exc:
                 LOG.warn("Error accesing backing store: %s", exc)
         return None, None
 
     def cache(self, data, key):
-        '''Store return value in cache.'''
-        self._cache_local(data, key)
+        """Store return value in cache.
+
+        Do not raise errors, just log and don't store the info.
+        """
+        try:
+            self._cache_local(data, key)
+        except Exception as exc:
+            LOG.warn("Error caching locally: %s", exc)
+
         if self.backing_store:
-            self._cache_backing(data, key)
+            try:
+                self._cache_backing(data, key)
+            except Exception as exc:
+                LOG.warn("Error caching to backing store: %s", exc)
 
     def _cache_local(self, data, key):
-        '''Cache item to local, in-momory store.'''
+        """Cache item to local, in-momory store."""
         if self.max_entries == 0 or len(self._store) < self.max_entries:
             self._store[key] = (time.time(), data)
         elif self.limit_reached is not True:
@@ -194,27 +205,27 @@ class Cache:
             LOG.warn("Maximum entries reached for %s", self.memorized_function)
 
     def _cache_backing(self, data, key):
-        '''Cache item to backing store (if it is configured).'''
+        """Cache item to backing store (if it is configured)."""
         if self.backing_store:
             try:
                 self.backing_store.setex(self._backing_store_key(key),
                                          self._encode(data), self.max_age)
             except ConnectionError as exc:
                 LOG.warn("Error connecting to Redis: %s", exc)
-            except StandardError as exc:
+            except Exception as exc:
                 LOG.warn("Error storing value in backing store: %s", exc)
 
     def _backing_store_key(self, key):
-        '''Generate a key used for the backing store.'''
+        """Generate a key used for the backing store."""
         if self.backing_store_key is None:
             return key
         else:
             return '%s.%s' % (key, self.backing_store_key)
 
     def get_hash(self, *args, **kwargs):
-        '''Calculate a secure hash.'''
+        """Calculate a secure hash."""
         if (not self.sensitive_args and not self.sensitive_kwargs and not
-          self.ignore_args and not self.ignore_kwargs):
+                self.ignore_args and not self.ignore_kwargs):
             return (args, tuple(sorted(kwargs.items())))
         clean_args = list(copy.deepcopy(args))
         clean_kwargs = copy.deepcopy(kwargs)
@@ -256,9 +267,9 @@ class Cache:
             del self._store[key]
 
     def collect(self):
-        '''Clean out any cache entries in this store that are currently older
+        """Clean out any cache entries in this store that are currently older
         than allowed.
-        '''
+        """
         now = time.time()
         for key, entry in self._store.items():
             birthday, _ = entry
@@ -268,7 +279,7 @@ class Cache:
         self.last_reaping = time.time()
 
     def start_collection(self):
-        '''Initizate the removal of stale cache items.'''
+        """Initizate the removal of stale cache items."""
         if self.reaper is None:
             try:
                 self.reaper = threading.Thread(target=self.collect)
@@ -281,22 +292,22 @@ class Cache:
 
     @staticmethod
     def _encode(data):
-        '''Encode python data into format we can restore from Redis.'''
+        """Encode python data into format we can restore from Redis."""
         return pickle.dumps(data, pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
     def _decode(data):
-        '''Decode our python data from the Redis string.'''
+        """Decode our python data from the Redis string."""
         return pickle.loads(data)
 
 
 class CacheMethod(Cache):
-    '''Use this instead of @Cache with instance methods.'''
+    """Use this instead of @Cache with instance methods."""
     def __call__(self, func):
         self.memorized_function = func.__name__
 
         def wrapped_f(itself, *args, **kwargs):
-            '''The function to return in place of the cached function.'''
+            """The function to return in place of the cached function."""
             key, result = self.try_cache(*args, **kwargs)
             if key:
                 if self.cache_exceptions and isinstance(result, Exception):
