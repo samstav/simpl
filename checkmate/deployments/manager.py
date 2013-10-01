@@ -50,7 +50,7 @@ class Manager(object):
     def count(self, tenant_id=None, blueprint_id=None, status=None,
               query=None):
         """Return count of deployments filtered by passed in parameters."""
-        # TODO: This should be a filter at the database layer. Example:
+        # TODO(any): This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
         deployments = db.get_driver().get_deployments(tenant_id=tenant_id,
                                                       with_count=True,
@@ -355,55 +355,36 @@ class Manager(object):
             self.save_deployment(deployment_body, api_id=deployment_id,
                                  partial=True)
 
-    def postback(self, deployment_id, contents):
-        #FIXME: we need to receive a context and check access?
-        """This is a generic postback intended to replace all postback calls.
+    def postback(self, dep_id, contents, check_only=False):
+        #TODO(any): we need to receive a context and check access?
+        """This is a generic postback intended to handle all postback calls.
         Accepts back results from a remote call and updates the deployment with
         the result data.
 
         Use deployments.tasks.postback for calling as a task
 
         The data updated must be a dict containing any/all of the following:
-        - a deployment status: must be checkmate valid
-        - a operation: dict containing operation data
-            'operation': {
-                'status': 'COMPLETE',
-                'tasks': 64,
-                'complete': 64,
-                'type': 'BUILD'
-            }
-        - a resources dict containing resources data
-            'resources': {
-                '1': {
-                    'status': 'ACTIVE',
-                    'status-message': ''
-                    'instance': {
-                        'status': 'ACTIVE'
-                        'status-message': ''
-                    }
-                }
-            }
+        - deployment status: must be checkmate valid
+        - operation: dict containing operation data
+        - resources: dict containing resources data
         """
-
-        deployment = db.get_driver(
-            api_id=deployment_id
-        ).get_deployment(deployment_id, with_secrets=True)
-        deployment = Deployment(deployment)
-
+        dep = Deployment(
+            db.get_driver(api_id=dep_id).get_deployment(dep_id,
+                                                        with_secrets=True)
+        )
         if not isinstance(contents, dict):
             raise CheckmateValidationException("Postback contents is not "
                                                "type dictionary")
+        dep.on_postback(contents, target=dep)
 
-        deployment.on_postback(contents, target=deployment)
-
-        body, secrets = utils.extract_sensitive_data(deployment)
-        db.get_driver(api_id=deployment_id).save_deployment(
-            deployment_id, body, secrets, partial=True,
-            tenant_id=deployment['tenantId']
-        )
-
-        LOG.debug("Updated deployment %s with postback", deployment_id,
-                  extra=dict(data=contents))
+        if not check_only:
+            body, secrets = utils.extract_sensitive_data(dep)
+            db.get_driver(api_id=dep_id).save_deployment(
+                dep_id, body, secrets, partial=True,
+                tenant_id=dep['tenantId']
+            )
+            LOG.debug("Updated deployment %s with postback", dep_id,
+                      extra=dict(data=contents))
 
     def plan_add_nodes(self, deployment, context, service_name, count,
                        parse_only=False):
