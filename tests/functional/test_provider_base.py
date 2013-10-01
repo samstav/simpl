@@ -128,6 +128,7 @@ class TestProviderBase(unittest.TestCase):
                         is: widget
                         provides:
                         - widget: bar
+                    gadget:
                       gadget:
                         is: gadget
                         provides:

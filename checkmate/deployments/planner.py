@@ -623,6 +623,7 @@ class Planner(classes.ExtensibleDict):
             definition = service['component']
             LOG.debug("Identifying component '%s' for service '%s'",
                       definition, service_name)
+            component = self.identify_component(definition, context)
             try:
                 component = self.identify_component(definition, context)
             except Exception as exc:
@@ -797,7 +798,9 @@ class Planner(classes.ExtensibleDict):
         LOG.debug("Analyzing requirements")
         services = self['services']
         for service_name, service in services.iteritems():
-            requirements = service['component']['requires']
+            requirements = service['component'].get('requires')
+            if not requirements:
+                continue
             for key, requirement in requirements.iteritems():
                 # Skip if already matched
                 if 'satisfied-by' in requirement:
@@ -1092,5 +1095,5 @@ class Planner(classes.ExtensibleDict):
         :returns: 'provides' key
         '''
         for key, provided in component.get('provides', {}).iteritems():
-            if provided['interface'] == relation['interface']:
+            if provided.get('interface') == relation['interface']:
                 return key

@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Unit Tests for Script class."""
+import json
 import os
 import unittest
 
@@ -22,6 +23,23 @@ import yaml
 
 from checkmate.common import templating
 from checkmate import deployment as cm_dep
+
+TEST_CERT = """-----BEGIN CERTIFICATE-----
+MIICkjCCAfsCAgXeMA0GCSqGSIb3DQEBBQUAMIG2MQswCQYDVQQGEwJVUzEOMAwG
+A1UECBMFVGV4YXMxFDASBgNVBAcTC1NhbiBBbnRvbmlvMRIwEAYDVQQKEwlSYWNr
+c3BhY2UxHjAcBgNVBAsTFVN5c3RlbSBBZG1pbmlzdHJhdGlvbjEjMCEGA1UEAxMa
+UmFja3NwYWNlIEludGVybmFsIFJvb3QgQ0ExKDAmBgkqhkiG9w0BCQEWGVNlcnZp
+Y2VEZXNrQHJhY2tzcGFjZS5jb20wHhcNMTMwNTE2MDYxMDQ3WhcNMTQwNTE2MDYx
+MDQ3WjBrMQswCQYDVQQGEwJVUzEOMAwGA1UECBMFVGV4YXMxEjAQBgNVBAoTCVJh
+Y2tzcGFjZTEVMBMGA1UECxMMWmlhZCBTYXdhbGhhMSEwHwYDVQQDExhjaGVja21h
+dGUuY2xvdWQuaW50ZXJuYWwwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBALin
+K4gUwoQVt6mapFqmFBHAL1YUqabjWeyQNGD4Vt7L9XVgh6l1k+uqdzOKP7vlKh+T
+diUnDh/VTpq8HZ+bHI8HhDLLIXG61+3LDa+CkgRi4RuwgWIUUY7rs9rUCnJ2HeYa
+gRR+moptp+OK9rIwPv0k4O2Q29efBnZaL5Yyk3dPAgMBAAEwDQYJKoZIhvcNAQEF
+BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
+0qrcpuTvCS7ggfg1nCtXteJiYsRxZaleQeQSXBswXT3s3ZrUR9RSRPfGqJ9XiGlz
+/YrPhnGGC24lpqLV8lBZkLsdnnoKwQfI+aRGbg0x2pi+Zh22H8U=
+-----END CERTIFICATE-----"""
 
 
 class TestTemplating(unittest.TestCase):
@@ -86,41 +104,25 @@ class TestTemplating(unittest.TestCase):
     def test_parsing_functions_parse_url_Input(self):
         template = '''
             cert: {{ parse_url({'url': 'http://github.com', 'certificate': \
-'TEST_CERT'}).certificate }}
+'SOME_CERT'}).certificate }}
             scheme: {{ parse_url({'url': 'http://github.com', 'certificate': \
-'TEST_CERT'}).protocol }}
+'SOME_CERT'}).protocol }}
         '''
         parsed = templating.parse(template)
         result = yaml.safe_load(parsed)
         expected = {
             'scheme': 'http',
-            'cert': 'TEST_CERT',
+            'cert': 'SOME_CERT',
         }
         self.assertEqual(result, expected)
 
     def test_parsing_functions_url_certificate(self):
-        cert = """-----BEGIN CERTIFICATE-----
-MIICkjCCAfsCAgXeMA0GCSqGSIb3DQEBBQUAMIG2MQswCQYDVQQGEwJVUzEOMAwG
-A1UECBMFVGV4YXMxFDASBgNVBAcTC1NhbiBBbnRvbmlvMRIwEAYDVQQKEwlSYWNr
-c3BhY2UxHjAcBgNVBAsTFVN5c3RlbSBBZG1pbmlzdHJhdGlvbjEjMCEGA1UEAxMa
-UmFja3NwYWNlIEludGVybmFsIFJvb3QgQ0ExKDAmBgkqhkiG9w0BCQEWGVNlcnZp
-Y2VEZXNrQHJhY2tzcGFjZS5jb20wHhcNMTMwNTE2MDYxMDQ3WhcNMTQwNTE2MDYx
-MDQ3WjBrMQswCQYDVQQGEwJVUzEOMAwGA1UECBMFVGV4YXMxEjAQBgNVBAoTCVJh
-Y2tzcGFjZTEVMBMGA1UECxMMWmlhZCBTYXdhbGhhMSEwHwYDVQQDExhjaGVja21h
-dGUuY2xvdWQuaW50ZXJuYWwwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBALin
-K4gUwoQVt6mapFqmFBHAL1YUqabjWeyQNGD4Vt7L9XVgh6l1k+uqdzOKP7vlKh+T
-diUnDh/VTpq8HZ+bHI8HhDLLIXG61+3LDa+CkgRi4RuwgWIUUY7rs9rUCnJ2HeYa
-gRR+moptp+OK9rIwPv0k4O2Q29efBnZaL5Yyk3dPAgMBAAEwDQYJKoZIhvcNAQEF
-BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
-0qrcpuTvCS7ggfg1nCtXteJiYsRxZaleQeQSXBswXT3s3ZrUR9RSRPfGqJ9XiGlz
-/YrPhnGGC24lpqLV8lBZkLsdnnoKwQfI+aRGbg0x2pi+Zh22H8U=
------END CERTIFICATE-----"""
         deployment = cm_dep.Deployment({
             'inputs': {
                 'blueprint': {
                     'url': {
                         'url': 'http://github.com',
-                        'certificate': cert,
+                        'certificate': TEST_CERT,
                     },
                 },
             },
@@ -130,9 +132,43 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
     {{ parse_url(setting('url')).certificate  | indent(4)}}"""
         result = templating.parse(template, deployment=deployment)
         data = yaml.safe_load(result)
-        self.assertEqual(data['value'], cert)
+        self.assertEqual(data['value'], TEST_CERT)
+
+
+class TestJsonYamlCoexistance(unittest.TestCase):
+    """Test that we can use templating in JSON and YAML."""
+    def test_preserve_linefeed_escaping(self):
+        """preserve returns escaped linefeeds."""
+        result = templating.parse('{{ "A\nB" | preserve }}')
+        self.assertEqual(result, 'A\\nB')
+
+    def test_json_certificate(self):
+        """url.certificate works in json."""
+        deployment = cm_dep.Deployment({
+            'inputs': {
+                'blueprint': {
+                    'url': {
+                        'url': 'http://github.com',
+                        'certificate': TEST_CERT,
+                    },
+                },
+            },
+            'blueprint': {},
+        })
+        template = ('value: "{{ parse_url(setting("url")).certificate | '
+                    'preserve }}" ')
+        result = templating.parse(template, deployment=deployment)
+        data = yaml.safe_load(result)
+        self.assertEqual(data['value'], TEST_CERT)
+
+        template = ('{"value": "{{ parse_url(setting("url")).certificate |'
+                    ' preserve }}"}')
+        result = templating.parse(template, deployment=deployment)
+        data = json.loads(result)
+        self.assertEqual(data['value'], TEST_CERT)
 
     def test_parsing_patterns(self):
+        """patterns exist."""
         path = os.path.join(os.path.dirname(__file__),
                             os.path.pardir,  # tests
                             os.path.pardir,  # checkmate

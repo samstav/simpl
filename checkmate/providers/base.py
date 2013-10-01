@@ -331,6 +331,8 @@ class ProviderBase(ProviderBasePlanningMixIn,
                             for entry in component['provides']:
                                 if entry not in results:
                                     results.append(entry)
+                        if interface is None and 'is' in component:
+                            results.append({component['is']: None})
             self._dict['provides'] = results  # cache this
 
         filtered = []
@@ -412,7 +414,7 @@ class ProviderBase(ProviderBasePlanningMixIn,
                 match = False
                 for _, provide in provides.iteritems():
                     ptype = provide.get('resource_type')
-                    pinterface = provide['interface']
+                    pinterface = provide.get('interface')
                     if interface and interface != pinterface:
                         continue  # Interface specified and does not match
                     if resource_type and resource_type != ptype:
@@ -465,7 +467,7 @@ class ProviderBase(ProviderBasePlanningMixIn,
                 provides = comp.provides or {}
                 for entry in provides.values():
                     ptype = entry.get('resource_type')
-                    pinterface = entry['interface']
+                    pinterface = entry.get('interface')
                     if interface and interface != pinterface:
                         continue  # Interface specified and does not match
                     if resource_type and resource_type != ptype:
