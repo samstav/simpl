@@ -1,7 +1,7 @@
 regex:
   linux_user:
     optional:
-      value: '^([a-z_][a-z0-9_]{0,30})?$'
+      value: '^([a-z][a-z0-9_]{0,30})?$'
       message: must be lower case, alpha numeric, and fewer than 32 characters
       description: |
         This regex will allow an optional linux user string that is:
@@ -15,7 +15,7 @@ regex:
       tests:
       - pass: ""
     required:
-      value: '^[a-z_][a-z0-9_]{1,30}$'
+      value: '^[a-z][a-z0-9_]{1,30}$'
       message: must be lower case, alpha numeric, and fewer than 32 characters
       description: |
         This regex will require a linux user string that is:
@@ -32,7 +32,7 @@ regex:
         description: |
           Username is required to have 1-31 characters.
     non_root:
-      value: '^(?!^root$)([a-z_][a-z0-9_]{1,30})$'
+      value: '^(?!^root$)([a-z][a-z0-9_]{1,30})$'
       message: must be lower case, alpha numeric, under 32 characters, and not 'root'
       description: |
         This regex will require a linux user string that is:
@@ -93,7 +93,7 @@ regex:
         Passwords have no maximum length, but we want to limit values passed
         to checkmate to prevent a DoS attempt.
       tests:
-      - faile: ""
+      - fail: ""
         description: |
           The password string must not be blank.
     tests:
@@ -112,7 +112,7 @@ regex:
         The password should be no longer than 255 characters.
   private_key:
     optional:
-      value: '((^-----BEGIN [DR]SA PRIVATE KEY-----($\n^| )(([0-9A-Za-z+/]){64}($\n^| )){1,100}(([0-9A-Za-z+/]){1,64}($\n^| ))-----END [DR]SA PRIVATE KEY-----$)|(^$))'
+      value: '((^-----BEGIN [DR]SA PRIVATE KEY-----(\n| )(([0-9A-Za-z+/]){64}(\n| )){1,100}(([0-9A-Za-z+/=]){1,64}(\n| ))-----END [DR]SA PRIVATE KEY-----(\n| )?))|(^$)'
       message: must be a valid private key
       description: |
         This regex will look for a private key (optional) with spaces or
@@ -120,7 +120,7 @@ regex:
       tests:
       - pass: ""
     required:
-      value: '^-----BEGIN [DR]SA PRIVATE KEY-----($\n^| )(([0-9A-Za-z+/]){64}($\n^| )){1,100}(([0-9A-Za-z+/]){1,64}($\n^| ))-----END [DR]SA PRIVATE KEY-----$'
+      value: '^-----BEGIN [DR]SA PRIVATE KEY-----(\n| )(([0-9A-Za-z+/]){64}(\n| )){1,100}(([0-9A-Za-z+/=]){1,64}(\n| ))-----END [DR]SA PRIVATE KEY-----(\n)?$'
       message: must be a valid private key
       description: |
         This regex will look for a private key (required) with spaces or
@@ -268,11 +268,11 @@ regex:
       - pass: a
       - pass: _$
       - pass: $_
-      - fail: fdkafjdksdjfskdjfkashdfksjafksjdkfjasfjdsakjfskghlasjdfafasdflf
+      - fail: fdkafjdksdjfskdjfkashdfksjafksjdkfjasfjdsak4ijfskghlasjdfafasdflf
         description: The table name must be less than 65 characters.
       - fail: abcd;fae
         description: The only special characters allowed are '$' or '_'
-      - faile: bob.dole
+      - fail: bob.dole
         description: The only special characters allowed are '$' or '_'
     table_prefix:
       optional:
@@ -304,11 +304,11 @@ regex:
         description: The table name must be less than 10 characters.
       - fail: abcd;fae
         description: The only special characters allowed are '$' or '_'
-      - faile: bob.dole
+      - fail: bob.dole
         description: The only special characters allowed are '$' or '_'
     db_name:
       optional:
-        value: '^[0-9a-zA-Z$_]{0,64}$'
+        value: '^[0-9a-zA-Z$_]{0,64}?$'
         message: must be less than 65 characters, alphanumeric, or '$' '_'
         description: |
           This regex will check for an optional MySQL compatible database name
@@ -332,7 +332,7 @@ regex:
       - pass: a
       - pass: _$
       - pass: $_
-      - fail: fdkafjdksdjfskdjfkashdfksjafksjdkfjasfjdsakjfskghlasjdfafasdflf
+      - fail: fdkafjdksdjfskdjfkashdfksjafksjdkfjasfjdsakj4fskghlasjdfafaisdflf
         description: The database name must be less than 65 characters.
       - fail: abcd;fae
         description: The only special characters allowed are '$' or '_'
@@ -341,7 +341,7 @@ regex:
   cloud_files:
     username:
       optional:
-        value: '^([0-9a-z]{32})?$'
+        value: '^([0-9a-z]{0,32})?$'
         message: must be less than 33 characters, lower case, and alphanumeric
         description: |
           This regex will check for a Cloud Files compatible username that is
@@ -349,7 +349,7 @@ regex:
         tests:
         - pass: ""
       required:
-        value: '^[0-9a-z]{32}$'
+        value: '^[0-9a-z]{1,32}$'
         message: must be less than 33 characters, lower case, and alphanumeric
         description: |
           This regex will check for a Cloud Files compatible username that is
@@ -361,7 +361,32 @@ regex:
       - pass: username
       - pass: username50
       - pass: 50username
-      - fail: dfasdfjskdfjskdfjaskfjdkjdkasdfl
+      - fail: idfasdfjskdfjskdfjaskfjdkjdkasdfl
         description: The username must be less than 33 characters.
       - fail: user.name
         description: The username must not contain special characters.
+    apikey:
+      optional:
+        value: '^([0-9a-z]{32})?$'
+        message: must be 32 characters, lower case, and alphanumeric
+        description: |
+          This regex will check for a Cloud Files API key to make sure it's 
+          alphanumeric, lower case, and is 32 characters long.
+        tests:
+        - pass: ""
+      required:
+        value: '^[0-9a-z]{32}$'
+        message: must be 32 characters, lower case, and alphanumeric
+        description: |
+          This regex will check for a Cloud Files api key to make sure it's 
+          alphanumeric, lower case, and is 32 characters long.
+        tests:
+        - fail: ""
+          description: The username is not allowed to be blank.
+      tests:
+      - fail: username
+        description: incorrect length of API key
+      - fail: username50username50username501$
+        description: invalid character in API key
+      - pass: df39dfjsk5fjskdfjaskfjdkjdkas4df
+
