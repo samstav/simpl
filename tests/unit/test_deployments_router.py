@@ -611,6 +611,7 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
         }
         mock_dep = mock.Mock()
         mock_dep.get_statuses.return_value = self.statuses
+        mock_dep.get.return_value = {'status': 'UP'}
 
         setup_deployment_patcher = mock.patch.object(deployments.router.Router,
                                                      '_setup_deployment')
@@ -621,7 +622,7 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
         update_operation_patcher = mock.patch.object(
             deployments.router.common_tasks, 'update_operation')
         mock_update_op = update_operation_patcher.start()
-        mock_update_op.return_value = {}
+        mock_update_op.return_value = {'status': 'UP'}
         self.addCleanup(update_operation_patcher.stop)
 
         write_body_patcher = mock.patch.object(deployments.router.utils,
@@ -645,21 +646,18 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
             }
         )
 
-    @mock.patch.object(deployments.router.utils, 'format_check')
     @mock.patch.object(deployments.router.tasks, 'postback')
-    def test_check_deployment(self, mock_postback, mock_format_check):
+    def test_check_deployment(self, mock_postback):
         expected = {
-            'curr-resources': self.statuses,
-            'new-resources': self.statuses,
-            'curr-operation': {},
-            'new-operation': {}
+            'operation': [{'message': 'Operation status UP is consistent.',
+                           'type': 'INFORMATION'}],
+            'resources': {}
         }
         mock_postback.return_value = {}
         router = deployments.Router(mock.Mock(), mock.Mock())
         router.check_deployment('dep_id')
         self.mock_write_body.assert_called_once_with(
-            mock.ANY, mock.ANY, mock.ANY)
-        mock_format_check.assert_called_once_with(mock.ANY)
+            expected, mock.ANY, mock.ANY)
 
 
 if __name__ == '__main__':
