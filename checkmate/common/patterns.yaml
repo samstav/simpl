@@ -1,0 +1,392 @@
+regex:
+  linux_user:
+    optional:
+      value: '^([a-z][a-z0-9_]{0,30})?$'
+      message: must be lower case, alpha numeric, and fewer than 32 characters
+      description: |
+        This regex will allow an optional linux user string that is:
+
+        * 0-31 characters
+        * alphanumeric
+        * may contain, but not begin with '_'
+
+        Linux user requirements as explained from [StackOverflow](http://stackoverflow.com/questions/6949667/what-are-the-real-rules-for-linux-usernames-on-centos-6-and-rhel-6)
+        and optional (blank).
+      tests:
+      - pass: ""
+    required:
+      value: '^[a-z][a-z0-9_]{1,30}$'
+      message: must be lower case, alpha numeric, and fewer than 32 characters
+      description: |
+        This regex will require a linux user string that is:
+
+        * 1-31 characters
+        * alphanumeric
+        * may contain, but not begin with '_'
+
+        Linux user requirements as explained from [StackOverflow](http://stackoverflow.com/questions/6949667/what-are-the-real-rules-for-linux-usernames-on-centos-6-and-rhel-6)
+        and required (at least 1 character).
+      tests:
+      - pass: b0bd0l3
+      - fail: ""
+        description: |
+          Username is required to have 1-31 characters.
+    non_root:
+      value: '^(?!^root$)([a-z][a-z0-9_]{1,30})$'
+      message: must be lower case, alpha numeric, under 32 characters, and not 'root'
+      description: |
+        This regex will require a linux user string that is:
+
+        * not 'root'
+        * 1-31 characters
+        * alphanumeric
+        * may contain, but not begin with '_'
+
+        Linux user requirements as explained from [StackOverflow](http://stackoverflow.com/questions/6949667/what-are-the-real-rules-for-linux-usernames-on-centos-6-and-rhel-6)
+        excluding 'root'.
+      tests:
+      - fail: ""
+        description: |
+          Username is required to have 1-31 characters.
+      - fail: root
+        description: |
+          Username is not allowed to use the reserved name 'root'.
+    tests:
+    - pass: bobdole
+    - pass: bob_dole
+    - pass: b0bd0l3
+      description: |
+        Username is required to have 1-31 characters.
+    - fail: bob.dole
+      description: |
+        We want to stay away from '.' since it is not always
+        accepted.
+    - fail: _bob
+      description: |
+        Usernames are not allowed to start with '_'.
+    - fail: 1bob
+      description: |
+        Usernames are not allowed to start with a number.
+    - fail: bobdolebobdolebobdolebobdolebobd
+      description: |
+        Usernames are not allowed to be greater than 31 characters.
+    - fail: '@#$%$^#@%$#@#$%^'
+      description: |
+        Usernames should only be alpha-numeric, only an underscore is allowed.
+  linux_password:
+    optional:
+      value: '^((.){8,255})?$'
+      message: must be between 8-255 characters
+      description: |
+        This regex will look for 0 (optional) or 8-255 character strings.
+
+        Passwords have no maximum length, but we want to limit values passed
+        to checkmate to prevent a DoS attempt.
+      tests:
+      - pass: ""
+    required:
+      value: '^(.){8,255}$'
+      message: must be between 8-255 characters
+      description: |
+        This regex will look for 8-255 character strings (required).
+
+        Passwords have no maximum length, but we want to limit values passed
+        to checkmate to prevent a DoS attempt.
+      tests:
+      - fail: ""
+        description: |
+          The password string must not be blank.
+    tests:
+    - pass: 5234d345#@%@#%#6235
+    - pass: '$#@$54355kj4358jgkdir;a-f-89j3j3lkrjq8gu vv485vjafjk '
+    - pass: a38a7a83
+    - pass: don'tusethisone
+    - pass: orthisone
+      description: |
+        The password string must not be blank.
+    - fail: whale
+      description: |
+        The password should be greater than 7 characters.
+    - fail: fashfkuhirhakhfukawheflknulsehfkashfukyehfkasbhefuawyefklushefuaheflkuaehuaehfkuehfuahfuehaufwhefuagefjgefyjagefjgeyegfajkegyfajkygwegfajyegfajygfefgawjkgwyefgajwygfawyegfyjawgefyjawgefyjagfyjawgayfgefyjawgefjyagefagwjefgajfgajwegfjawygefajkwgfjawgefjkagfjkagwfjk
+      description: |
+        The password should be no longer than 255 characters.
+  private_key:
+    optional:
+      value: '((^-----BEGIN [DR]SA PRIVATE KEY-----(\n| )(([0-9A-Za-z+/]){64}(\n| )){1,100}(([0-9A-Za-z+/=]){1,64}(\n| ))-----END [DR]SA PRIVATE KEY-----(\n| )?))|(^$)'
+      message: must be a valid private key
+      description: |
+        This regex will look for a private key (optional) with spaces or
+        newlines depending on the input provider.
+      tests:
+      - pass: ""
+    required:
+      value: '^-----BEGIN [DR]SA PRIVATE KEY-----(\n| )(([0-9A-Za-z+/]){64}(\n| )){1,100}(([0-9A-Za-z+/=]){1,64}(\n| ))-----END [DR]SA PRIVATE KEY-----(\n)?$'
+      message: must be a valid private key
+      description: |
+        This regex will look for a private key (required) with spaces or
+        newlines depending on the input provider.
+      tests:
+      - fail: ""
+        description: |
+          The private key must not be blank.
+    tests:
+    - pass: |
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEAuP33XZ7qEodBa62Kpto3+ZT+yRTztchSS7qdggT3nxY7fhso
+        bueaJfss2IOb2AOIDInka4GdNy6dpne6Y4zgwGjHp0zRgB2f8wJ7VQqqQ3hxR75q
+        BBvU7jr43Q+eziKLzaEO254CgFQSj4YmhGXyERDdUMQuIxzOC/rq2125zMrd2uEz
+        VNgj1OMUHcH1oQEVNeLHEbABqHvm78sjnpy/9PLwG4CMmw0kzoRUfKP3wm6xez2n
+        18XJvEQPLShYOBw+VbxLw6GXHdrURVvhP8qkoNy3vMGjCLR/j3XZ5YuZBLPBPSPn
+        Xqbbao4ZMAx3WbE72HblUUUM4UNw/PKJ4WFLawIDAQABAoIBABCrwmkLcyisS7b6
+        cq5KqBSz2qogWz4ciV4NuTgIXpBVnpLku6YS9Q9LLWVtptO2rcIDgzQ1AAgDCW4B
+        CCkEfxSX3LY09ARJpyptJNQrG+Dsr7i5bjBkmbHGWrsBN1x4PIURaJdeC/eom+uX
+        OU1hKoljLa6jn0zGwcLOn++Y6K+NyWHzDFlgllyCuok9VAykRdbbU6Q1sIL0u4Rs
+        /QuAaa4l5fnjJkC7xopdkm1IpOU9FGMsNapNHWGuRrGQ97ls39MxBvbEEqyc/njL
+        NUFubwXLvpw9Rwc10WZhO9LQvpaTamT0D9DdbjMvZgxCf2f+R/o6c1vFW3S7tk4T
+        okzsn1ECgYEA0GBLlE6SyoztEcB4A/cdXd7oepqV8LRQrZBZfaIeFFhQm2Pvjtkw
+        UC6BNglWTldtpEXocA129v3RU4NkZMOmy8+43dlSh6oUcQ8quEgD0TRR7yN5FgtW
+        laAqiRGHDmM6e7btyrgK4/0wiemypQbMvl6WOcIymqcvGHSrVHfEAccCgYEA40WC
+        taHtoNc2+4RkgJ6E2tWVXkHQx9hJdXyM5Hg6IgIU2FL0l/yNMUrKINc2VYF1UjQu
+        FXAznad9YUAwmy+ZiyQaDJHWq43L+bei5arlD8BW7KnCeIJm0QuzmMeu1FkWDfBj
+        gUJtMZINqdE0/f66iGCLjpgkxYiSQ3m3dTF8KT0CgYBV6r5/Af7IgV7maOOTTvrO
+        z7AvjTmxq8dwKQqdIJEidl+WEpid37Np/CLOsv7hAm90wlZajVK1+GWs94oXegx2
+        EMn6vzamNVyEWWqV3SulwNrfrVKp4jbrLsUbCx0Ss5tTk1NsuIHVC3pOAwvju3AE
+        Nl/epNHUroZeoQxboZ4x1QKBgQCTn030vtaEN+bN3sQNS2oOXtdj3ypG9PVaK+m0
+        aWeROXrivJeFtZTcpLDAPipbxfg3yg74++V7DRUCu1gXJQb9+xg0e/JNgpAwhxh3
+        R9b7sTqFBQt9jW5NcOVaYrHr2mXZ7gAkMMqOfUkEuhBKv0/YT6W2nJqd+ETRMVl5
+        9QeqHQKBgQCtzeITG3LCZ2K8y5tCnsplgJxpmH6XQcwOfJuFvbNmyQDqITTfMhCk
+        8OS2RxyMUFWv9jDAqIVJ+wosFieUWMkHm9/9gd/E5lrDwEsENopoxSiQbW6o0SgC
+        tcMF2Amh6f6QxJVj8f4Kf3kwT6swbzpNo5GhKemAo+KZAwUBsoSRkg==
+        -----END RSA PRIVATE KEY-----
+    - pass: |
+        -----BEGIN RSA PRIVATE KEY----- MIIEpAIBAAKCAQEAuP33XZ7qEodBa62Kpto3+ZT+yRTztchSS7qdggT3nxY7fhso bueaJfss2IOb2AOIDInka4GdNy6dpne6Y4zgwGjHp0zRgB2f8wJ7VQqqQ3hxR75q BBvU7jr43Q+eziKLzaEO254CgFQSj4YmhGXyERDdUMQuIxzOC/rq2125zMrd2uEz VNgj1OMUHcH1oQEVNeLHEbABqHvm78sjnpy/9PLwG4CMmw0kzoRUfKP3wm6xez2n 18XJvEQPLShYOBw+VbxLw6GXHdrURVvhP8qkoNy3vMGjCLR/j3XZ5YuZBLPBPSPn Xqbbao4ZMAx3WbE72HblUUUM4UNw/PKJ4WFLawIDAQABAoIBABCrwmkLcyisS7b6 cq5KqBSz2qogWz4ciV4NuTgIXpBVnpLku6YS9Q9LLWVtptO2rcIDgzQ1AAgDCW4B CCkEfxSX3LY09ARJpyptJNQrG+Dsr7i5bjBkmbHGWrsBN1x4PIURaJdeC/eom+uX OU1hKoljLa6jn0zGwcLOn++Y6K+NyWHzDFlgllyCuok9VAykRdbbU6Q1sIL0u4Rs /QuAaa4l5fnjJkC7xopdkm1IpOU9FGMsNapNHWGuRrGQ97ls39MxBvbEEqyc/njL NUFubwXLvpw9Rwc10WZhO9LQvpaTamT0D9DdbjMvZgxCf2f+R/o6c1vFW3S7tk4T okzsn1ECgYEA0GBLlE6SyoztEcB4A/cdXd7oepqV8LRQrZBZfaIeFFhQm2Pvjtkw UC6BNglWTldtpEXocA129v3RU4NkZMOmy8+43dlSh6oUcQ8quEgD0TRR7yN5FgtW laAqiRGHDmM6e7btyrgK4/0wiemypQbMvl6WOcIymqcvGHSrVHfEAccCgYEA40WC taHtoNc2+4RkgJ6E2tWVXkHQx9hJdXyM5Hg6IgIU2FL0l/yNMUrKINc2VYF1UjQu FXAznad9YUAwmy+ZiyQaDJHWq43L+bei5arlD8BW7KnCeIJm0QuzmMeu1FkWDfBj gUJtMZINqdE0/f66iGCLjpgkxYiSQ3m3dTF8KT0CgYBV6r5/Af7IgV7maOOTTvrO z7AvjTmxq8dwKQqdIJEidl+WEpid37Np/CLOsv7hAm90wlZajVK1+GWs94oXegx2 EMn6vzamNVyEWWqV3SulwNrfrVKp4jbrLsUbCx0Ss5tTk1NsuIHVC3pOAwvju3AE Nl/epNHUroZeoQxboZ4x1QKBgQCTn030vtaEN+bN3sQNS2oOXtdj3ypG9PVaK+m0 aWeROXrivJeFtZTcpLDAPipbxfg3yg74++V7DRUCu1gXJQb9+xg0e/JNgpAwhxh3 R9b7sTqFBQt9jW5NcOVaYrHr2mXZ7gAkMMqOfUkEuhBKv0/YT6W2nJqd+ETRMVl5 9QeqHQKBgQCtzeITG3LCZ2K8y5tCnsplgJxpmH6XQcwOfJuFvbNmyQDqITTfMhCk 8OS2RxyMUFWv9jDAqIVJ+wosFieUWMkHm9/9gd/E5lrDwEsENopoxSiQbW6o0SgC tcMF2Amh6f6QxJVj8f4Kf3kwT6swbzpNo5GhKemAo+KZAwUBsoSRkg== -----END RSA PRIVATE KEY-----
+    - pass: |
+        -----BEGIN DSA PRIVATE KEY-----
+        MIIBuwIBAAKBgQChOeAJe4ONX3M+druVjduYaIayp5elheYF4XrEe7jiEQfY97OS
+        38HuGCmEAlfgNRyaDIuW8ifoJI3rE+iMGwsDQNNwsNLfeYssKzZ3gEr0SCtOWYMb
+        VPthOWKAMWY/z/otqEJ0NdSNPsQuHBPu6BcYs98hMr1DMpyinU2SL9T99wIVALMO
+        S19uXOdEiTVJE2MDlnUp0e7/AoGBAJ6jHw+On1wUOwjlC9WFnIWjKNeN1kqkRztK
+        IT/etWGHPH7UPWJkBk86fPN3GlLIrj2RBFBT/MX/sOdOx1gpa2/VgyVSl/fUYGeE
+        54rn3E474Rn5kb9brTerAY85qY5yKURgVYcMUJ3wG2IwvaF76ULGrymFKxBemIaN
+        eNZzdQcaAoGAT8Itl4qWtrg6tOmd3Es09T7H1KVzmXjCAEjhhSXet00ceO/MB+V3
+        O9M4cWr3Ak0CUxHeW5O8Ik9WF771KET9joE6EVzHxHsDrd//w1rENkR3Pzfbc4oA
+        IjheWcQ44tRtpmW82697qMvXvMhSQMzN1nQlHN3MVIquvroW00+gu38CFCPL1yQn
+        AYksFiyFR3JZ0YA8TToJ
+        -----END DSA PRIVATE KEY-----
+    - pass: |
+        -----BEGIN DSA PRIVATE KEY----- MIIBuwIBAAKBgQChOeAJe4ONX3M+druVjduYaIayp5elheYF4XrEe7jiEQfY97OS 38HuGCmEAlfgNRyaDIuW8ifoJI3rE+iMGwsDQNNwsNLfeYssKzZ3gEr0SCtOWYMb VPthOWKAMWY/z/otqEJ0NdSNPsQuHBPu6BcYs98hMr1DMpyinU2SL9T99wIVALMO S19uXOdEiTVJE2MDlnUp0e7/AoGBAJ6jHw+On1wUOwjlC9WFnIWjKNeN1kqkRztK IT/etWGHPH7UPWJkBk86fPN3GlLIrj2RBFBT/MX/sOdOx1gpa2/VgyVSl/fUYGeE 54rn3E474Rn5kb9brTerAY85qY5yKURgVYcMUJ3wG2IwvaF76ULGrymFKxBemIaN eNZzdQcaAoGAT8Itl4qWtrg6tOmd3Es09T7H1KVzmXjCAEjhhSXet00ceO/MB+V3 O9M4cWr3Ak0CUxHeW5O8Ik9WF771KET9joE6EVzHxHsDrd//w1rENkR3Pzfbc4oA IjheWcQ44tRtpmW82697qMvXvMhSQMzN1nQlHN3MVIquvroW00+gu38CFCPL1yQn AYksFiyFR3JZ0YA8TToJ -----END DSA PRIVATE KEY-----
+    - fail: |
+        ----BEGIN DSA PRIVATE KEY----- MIIBuwIBAAKBgQChOeAJe4ONX3M+druVjduYaIayp5elheYF4XrEe7jiEQfY97OS 38HuGCmEAlfgNRyaDIuW8ifoJI3rE+iMGwsDQNNwsNLfeYssKzZ3gEr0SCtOWYMb VPthOWKAMWY/z/otqEJ0NdSNPsQuHBPu6BcYs98hMr1DMpyinU2SL9T99wIVALMO S19uXOdEiTVJE2MDlnUp0e7/AoGBAJ6jHw+On1wUOwjlC9WFnIWjKNeN1kqkRztK IT/etWGHPH7UPWJkBk86fPN3GlLIrj2RBFBT/MX/sOdOx1gpa2/VgyVSl/fUYGeE 54rn3E474Rn5kb9brTerAY85qY5yKURgVYcMUJ3wG2IwvaF76ULGrymFKxBemIaN eNZzdQcaAoGAT8Itl4qWtrg6tOmd3Es09T7H1KVzmXjCAEjhhSXet00ceO/MB+V3 O9M4cWr3Ak0CUxHeW5O8Ik9WF771KET9joE6EVzHxHsDrd//w1rENkR3Pzfbc4oA IjheWcQ44tRtpmW82697qMvXvMhSQMzN1nQlHN3MVIquvroW00+gu38CFCPL1yQn AYksFiyFR3JZ0YA8TToJ -----END DSA PRIVATE KEY-----
+      description: The BEGIN and END must be wrapped with 5 '-'
+    - fail: |
+        MIIBuwIBAAKBgQChOeAJe4ONX3M+druVjduYaIayp5elheYF4XrEe7jiEQfY97OS 38HuGCmEAlfgNRyaDIuW8ifoJI3rE+iMGwsDQNNwsNLfeYssKzZ3gEr0SCtOWYMb VPthOWKAMWY/z/otqEJ0NdSNPsQuHBPu6BcYs98hMr1DMpyinU2SL9T99wIVALMO S19uXOdEiTVJE2MDlnUp0e7/AoGBAJ6jHw+On1wUOwjlC9WFnIWjKNeN1kqkRztK IT/etWGHPH7UPWJkBk86fPN3GlLIrj2RBFBT/MX/sOdOx1gpa2/VgyVSl/fUYGeE 54rn3E474Rn5kb9brTerAY85qY5yKURgVYcMUJ3wG2IwvaF76ULGrymFKxBemIaN eNZzdQcaAoGAT8Itl4qWtrg6tOmd3Es09T7H1KVzmXjCAEjhhSXet00ceO/MB+V3 O9M4cWr3Ak0CUxHeW5O8Ik9WF771KET9joE6EVzHxHsDrd//w1rENkR3Pzfbc4oA IjheWcQ44tRtpmW82697qMvXvMhSQMzN1nQlHN3MVIquvroW00+gu38CFCPL1yQn AYksFiyFR3JZ0YA8TToJ
+      description: The key must begin and end with a Key header and footer.
+  email_address:
+    optional:
+      value: ((^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:[.][A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?[.])+[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$)|(^$))
+      message: must be a valid email address
+      description: |
+        This regex will check for a valid email address (optional).
+      tests:
+      - pass: ""
+    required:
+      value: ^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:[.][A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?[.])+[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$
+      message: must be a valid email address
+      description: |
+        This regex will check for a valid email address (required).
+      tests:
+      - fail: ""
+        description: The email address is required.
+    tests:
+    - pass: bob@example.com
+    - pass: joe@example.com
+    - pass: jane@email.example.com
+    - pass: john.doe@example.com
+    - pass: john.doe@email.example.com
+    - pass: jack@example.io
+    - pass: jack_theman@example.io
+    - pass: oh_$n!&@example.com
+    - pass: blah@example.co.uk
+    - fail: bob@bob@example.com
+      description: The email address cannot contain 2 '@' symbols.
+    - fail: notgood@example.com/web
+      description: |
+        The email address cannot have special characters after the '@' symbol.
+    - fail: '@example.com'
+      description: |
+        The email address must contain a username before the domain and the
+        '@' symbol.
+  mysql:
+    username:
+      optional:
+        value: '^(.){0,16}$'
+        message: must be less than 17 characters
+        description: |
+          This regex will check for an optional MySQL compatible username that
+          is 0-16 characters.
+        tests:
+        - pass: ""
+      required:
+        value: '^(.){1,16}$'
+        message: must be less than 17 characters
+        description: |
+          This regex will check for a required MySQL compatible username that
+          is 1-16 characters.
+        test:
+        - fail: ""
+          description: The username must not be blank.
+      tests:
+      - pass: bob
+      - pass: abcdefghijklmnop
+      - pass: '@bc$d_efg'
+      - pass: 23kk3e
+      - fail: abcdefghijklmnopq
+        description: The MySQL username must be less than 17 characters.
+    table_name:
+      optional:
+        value: '^([0-9a-zA-Z$_]){0,64}$'
+        message: must be less than 65 charactes, alphanumeric, or '$' '_'
+        description: |
+          This regex will check for an optional MySQL compatible table name
+          that is alphanumeric, can contain '$' or '_', and is 0-64 characters
+          long.
+        tests:
+        - pass: ""
+      required:
+        value: '^([0-9a-zA-Z$_]){1,64}$'
+        message: must be less than 65 charactes, alphanumeric, or '$' '_'
+        description: |
+          This regex will check for a required MySQL compatible table name
+          that is alphanumeric, can contain '$' or '_', and is 1-64 characters
+          long.
+        tests:
+        - fail: ""
+          description: The table name is not allowed to be blank.
+      tests:
+      - pass: wordpress
+      - pass: word_pre$s
+      - pass: a
+      - pass: _$
+      - pass: $_
+      - fail: fdkafjdksdjfskdjfkashdfksjafksjdkfjasfjdsak4ijfskghlasjdfafasdflf
+        description: The table name must be less than 65 characters.
+      - fail: abcd;fae
+        description: The only special characters allowed are '$' or '_'
+      - fail: bob.dole
+        description: The only special characters allowed are '$' or '_'
+    table_prefix:
+      optional:
+        value: '^[0-9a-zA-Z$_]{0,10}$'
+        message: must be less than 11 charactes, alphanumeric, or '$' '_'
+        description: |
+          This regex will check for an optional MySQL compatible table prefix
+          that is alphanumeric, can contain '$' or '_', and is 0-10 characters
+          long.
+        tests:
+        - pass: ""
+      required:
+        value: '^[0-9a-zA-Z$_]{1,10}$'
+        message: must be less than 11 charactes, alphanumeric, or '$' '_'
+        description: |
+          This regex will check for a required MySQL compatible table prefix
+          that is alphanumeric, can contain '$' or '_', and is 0-10 characters
+          long.
+        tests:
+        - fail: ""
+          description: The table prefix is not allowed to be blank.
+      tests:
+      - pass: wordpress_
+      - pass: word_pre$s
+      - pass: a
+      - pass: _$
+      - pass: $_
+      - fail: fdkafjdksdfda
+        description: The table name must be less than 10 characters.
+      - fail: abcd;fae
+        description: The only special characters allowed are '$' or '_'
+      - fail: bob.dole
+        description: The only special characters allowed are '$' or '_'
+    db_name:
+      optional:
+        value: '^[0-9a-zA-Z$_]{0,64}?$'
+        message: must be less than 65 characters, alphanumeric, or '$' '_'
+        description: |
+          This regex will check for an optional MySQL compatible database name
+          that is alphanumeric, can contain '$' or '_', and is 0-64 characters
+          long.
+        tests:
+        - pass: ""
+      required:
+        value: '^[0-9a-zA-Z$_]{1,64}$'
+        message: must be less than 65 characters, alphanumeric, or '$' '_'
+        description: |
+          This regex will check for a required MySQL compatible database name
+          that is alphanumeric, can contain '$' or '_', and is 1-64 characters
+          long.
+        tests:
+        - fail: ""
+          description: The database name is not allowed to be blank.
+      tests:
+      - pass: wordpress_
+      - pass: word_pre$s
+      - pass: a
+      - pass: _$
+      - pass: $_
+      - fail: fdkafjdksdjfskdjfkashdfksjafksjdkfjasfjdsakj4fskghlasjdfafaisdflf
+        description: The database name must be less than 65 characters.
+      - fail: abcd;fae
+        description: The only special characters allowed are '$' or '_'
+      - fail: bob.dole
+        description: The only special characters allowed are '$' or '_'
+  cloud_files:
+    username:
+      optional:
+        value: '^([0-9a-z]{0,32})?$'
+        message: must be less than 33 characters, lower case, and alphanumeric
+        description: |
+          This regex will check for a Cloud Files compatible username that is
+          alphanumeric, lower case, and is 0-32 characters long.
+        tests:
+        - pass: ""
+      required:
+        value: '^[0-9a-z]{1,32}$'
+        message: must be less than 33 characters, lower case, and alphanumeric
+        description: |
+          This regex will check for a Cloud Files compatible username that is
+          alphanumeric, lower case, and is 1-32 characters long.
+        tests:
+        - fail: ""
+          description: The username is not allowed to be blank.
+      tests:
+      - pass: username
+      - pass: username50
+      - pass: 50username
+      - fail: idfasdfjskdfjskdfjaskfjdkjdkasdfl
+        description: The username must be less than 33 characters.
+      - fail: user.name
+        description: The username must not contain special characters.
+    apikey:
+      optional:
+        value: '^([0-9a-z]{32})?$'
+        message: must be 32 characters, lower case, and alphanumeric
+        description: |
+          This regex will check for a Cloud Files API key to make sure it's 
+          alphanumeric, lower case, and is 32 characters long.
+        tests:
+        - pass: ""
+      required:
+        value: '^[0-9a-z]{32}$'
+        message: must be 32 characters, lower case, and alphanumeric
+        description: |
+          This regex will check for a Cloud Files api key to make sure it's 
+          alphanumeric, lower case, and is 32 characters long.
+        tests:
+        - fail: ""
+          description: The username is not allowed to be blank.
+      tests:
+      - fail: username
+        description: incorrect length of API key
+      - fail: username50username50username501$
+        description: invalid character in API key
+      - pass: df39dfjsk5fjskdfjaskfjdkjdkas4df
+
