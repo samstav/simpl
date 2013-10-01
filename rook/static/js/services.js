@@ -2465,7 +2465,7 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
 
   // ===== Scope =====
   scope.find = function(path_tree) {
-    var doc = null;
+    var doc = {};
     var current_doc = _docs;
     var _path_tree = angular.copy(path_tree);
     var current_path = _path_tree.shift();

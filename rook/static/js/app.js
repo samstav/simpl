@@ -6,7 +6,10 @@ var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : ''
 var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ui.utils', 'ui.bootstrap', 'ui.codemirror']);
 
 //Load Angular Routes
-checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider) {
+checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', 'BlueprintDocsProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider, BlueprintDocsProvider) {
+
+  BlueprintDocsProvider.docs(YAML.load("/blueprint_help.yaml"));
+
   // Static Paths
   $routeProvider.when('/', {
     templateUrl: '/partials/home.html',
