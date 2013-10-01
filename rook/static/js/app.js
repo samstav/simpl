@@ -3370,6 +3370,20 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
   $scope.deployment_json = JSON.stringify(empty_deployment, null, 2);
   $scope.parsed_deployment_tree = DeploymentTree.build({});
 
+  $scope.toggle_editor_type = function() {
+    if ($scope.codemirror_options.mode == 'application/json') {
+      $scope.codemirror_options.gutters = [];
+      $scope.codemirror_options.lint = false;
+      $scope.codemirror_options.mode = 'text/x-yaml';
+      $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
+    } else {
+      $scope.codemirror_options.gutters = ['CodeMirror-lint-markers'];
+      $scope.codemirror_options.lint = true;
+      $scope.codemirror_options.mode = 'application/json';
+      $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
+    }
+  }
+
   $scope.parse_deployment = function(deployment) {
     Deployment.parse(JSON.parse(deployment), $scope.auth.context.tenantId, function(response) {
       $scope.parsed_deployment_tree = DeploymentTree.build(response);
@@ -3389,6 +3403,23 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
       });
     });
   }
+
+  $scope.codemirror_options = {
+    onLoad: $scope.newBlueprintCodemirrorLoaded,
+    theme: 'lesser-dark',
+    mode: 'application/json',
+    lineNumbers: true,
+    autoFocus: true,
+    lineWrapping: true,
+    matchBrackets: true,
+    onGutterClick: function() {
+      var mode = $scope.codemirror_options.mode;
+      var func = (mode == 'application/json') ? CodeMirror.fold.brace : CodeMirror.fold.indent;
+      return CodeMirror.newFoldFunction(func).apply(this, arguments);
+    },
+    lint: true,
+    gutters: ['CodeMirror-lint-markers']
+  };
 
   $scope.$watch('deployment_json', function(newValue, oldValue) {
     var new_deployment, old_deployment;

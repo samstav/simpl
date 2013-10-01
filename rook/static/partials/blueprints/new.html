@@ -2,16 +2,7 @@
   <div class="span6" id="new_blueprint_editor">
     <textarea id="blueprint_source"
               ng-model="deployment_json"
-              ui-codemirror="{ onLoad: newBlueprintCodemirrorLoaded,
-                               theme: 'lesser-dark',
-                               mode: 'application/json',
-                               lineNumbers: true,
-                               autoFocus: true,
-                               lineWrapping: true,
-                               matchBrackets: true,
-                               onGutterClick: foldFunc,
-                               lint: true,
-                               gutters: ['CodeMirror-lint-markers'] }">
+              ui-codemirror="codemirror_options">
     </textarea>
   </div>
   <div class="span6">
