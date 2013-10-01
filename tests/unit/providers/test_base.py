@@ -131,16 +131,6 @@ class TestProviderTask(unittest.TestCase):
             self.assertEqual(str(exc), "Context passed into ProviderTask is "
                              "an unsupported type <type 'str'>.")
 
-    def test_provider_task_context_region_kwargs(self):
-        context = middleware.RequestContext(**{})
-        do_something.run = mock.Mock()
-        do_something.callback = mock.MagicMock(return_value=True)
-
-        do_something(context, 'test', api='api', region='ORD')
-        self.assertEqual(context.region, 'ORD')
-        do_something.run.assert_called_with(context, 'test',
-                                            api='api', region='ORD')
-
     @mock.patch('checkmate.deployments.tasks')
     def test_provider_task_callback(self, mocked_lib):
         context = {

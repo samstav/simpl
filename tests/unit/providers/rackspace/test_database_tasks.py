@@ -256,6 +256,7 @@ class TestDatabaseTasks(unittest.TestCase):
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_invalid_api(self, mock_reset):
         context = {'resource': '0', 'deployment': 0}
+        context = middleware.RequestContext(**context)
         try:
             database.create_instance(context, 'test_instance', '1', '1',
                                      None, 'DFW', api='invalid')

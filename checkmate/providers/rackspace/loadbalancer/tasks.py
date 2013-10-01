@@ -24,8 +24,8 @@ from checkmate.providers.rackspace.loadbalancer import manager
 from checkmate.providers.rackspace.loadbalancer import provider
 
 
-@task.task(base=base.ProviderTask, default_retry_delay=10, max_retries=2,
-           provider=provider.Provider)
+@task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
+           max_retries=2, provider=provider.Provider)
 @statsd.collect
 def enable_content_caching(context, lbid, api=None, callback=None):
     """Task to enable loadbalancer content caching."""

@@ -17,14 +17,14 @@ Rackspace mailgun provider tasks
 from celery import task
 
 from checkmate.common import statsd
-from checkmate.providers.base import ProviderTask
+from checkmate.providers.base import RackspaceProviderTask
 from checkmate.providers.rackspace.mailgun import Manager
 from checkmate.providers.rackspace.mailgun import Provider
 
 
 # Disable pylint on api and callback as their passed in from ProviderTask
 # pylint: disable=W0613
-@task.task(base=ProviderTask, default_retry_delay=10, max_retries=2,
+@task.task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=2,
            provider=Provider)
 @statsd.collect
 def create_domain(context, domain_name, password, api=None, callback=None):
@@ -33,7 +33,7 @@ def create_domain(context, domain_name, password, api=None, callback=None):
                                  create_domain.api, context.simulation)
 
 
-@task.task(base=ProviderTask, default_retry_delay=10, max_retries=2,
+@task.task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=2,
            provider=Provider)
 @statsd.collect
 def delete_domain(context, domain_name, exists, api=None, callback=None):

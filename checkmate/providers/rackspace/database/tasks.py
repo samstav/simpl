@@ -20,7 +20,7 @@ import logging
 from celery.task import task
 
 from checkmate.common import statsd
-from checkmate.providers.base import ProviderTask
+from checkmate.providers.base import RackspaceProviderTask
 from checkmate.providers.rackspace.database import Manager
 from checkmate.providers.rackspace.database import Provider
 
@@ -28,7 +28,7 @@ LOG = logging.getLogger(__name__)
 
 # Disable pylint on api and callback as their passed in from ProviderTask
 # pylint: disable=W0613
-@task(base=ProviderTask, default_retry_delay=30, max_retries=120,
+@task(base=RackspaceProviderTask, default_retry_delay=30, max_retries=120,
       acks_late=True, provider=Provider)
 @statsd.collect
 def wait_on_build(context, region, instance=None, api=None, callback=None):
@@ -48,7 +48,7 @@ def wait_on_build(context, region, instance=None, api=None, callback=None):
 
 # Disable on api and callback.  Suppress num args
 # pylint: disable=W0613
-@task(base=ProviderTask, provider=Provider)
+@task(base=RackspaceProviderTask, provider=Provider)
 @statsd.collect
 def sync_resource_task(context, resource, api=None, callback=None):
     """Task to handle syncing remote status with checkmate status."""
@@ -58,7 +58,7 @@ def sync_resource_task(context, resource, api=None, callback=None):
 
 # Disable pylint on api and callback as their passed in from ProviderTask
 # pylint: disable=W0613, R0913
-@task(base=ProviderTask, default_retry_delay=10, max_retries=2,
+@task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=2,
       provider=Provider)
 @statsd.collect
 def create_instance(context, instance_name, flavor, size, databases, region,
@@ -79,7 +79,7 @@ def create_instance(context, instance_name, flavor, size, databases, region,
 
 
 #pylint: disable=R0913
-@task(base=ProviderTask, default_retry_delay=15, max_retries=40,
+@task(base=RackspaceProviderTask, default_retry_delay=15, max_retries=40,
       provider=Provider)
 @statsd.collect
 def create_database(context, name, region=None, character_set=None,
@@ -108,7 +108,7 @@ def create_database(context, name, region=None, character_set=None,
                                    simulate=context.simulation)
 
 
-@task(base=ProviderTask, default_retry_delay=10, max_retries=2,
+@task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=2,
       provider=Provider)
 def add_user(context, instance_id, databases, username, password,
              api=None, callback=None):

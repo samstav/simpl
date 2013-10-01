@@ -640,9 +640,6 @@ class ProviderTask(celery.Task):
             raise exceptions.CheckmateException(
                 'Context passed into ProviderTask is an unsupported type %s.'
                 % type(context))
-        # TODO(zns): remove region - this is specific to Rackspace provider
-        if context.region is None and 'region' in kwargs:
-            context.region = kwargs.get('region')
 
         try:
             self.api = kwargs.get('api') or self.provider.connect(
@@ -696,4 +693,5 @@ class RackspaceProviderTask(ProviderTask):
     def __call__(self, context, *args, **kwargs):
         if context.region is None and 'region' in kwargs:
             context.region = kwargs.get('region')
-        super(RackspaceProviderTask, self).__call__(context, *args, **kwargs)
+        return super(RackspaceProviderTask, self).__call__(context, *args,
+                                                           **kwargs)
