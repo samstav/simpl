@@ -37,8 +37,8 @@ class TestServerErrorParsing(unittest.TestCase):
         server.error_formatter(error)
         expected = {
             'error': {
-                'reason': exceptions.UNEXPECTED_ERROR,
                 'code': 500,
+                'message': 'Internal Server Error',
                 'description': exceptions.UNEXPECTED_ERROR
             }
         }
@@ -55,8 +55,8 @@ class TestServerErrorParsing(unittest.TestCase):
         server.error_formatter(error)
         expected = {
             'error': {
-                'reason': exceptions.UNEXPECTED_ERROR,
                 'code': 500,
+                'message': 'Internal Server Error',
                 'description': exceptions.UNEXPECTED_ERROR
             }
         }
@@ -74,8 +74,8 @@ class TestServerErrorParsing(unittest.TestCase):
         server.error_formatter(error)
         expected = {
             'error': {
-                'reason': "Hi!",
                 'code': 500,
+                'message': 'Internal Server Error',
                 'description': "Hi!"
             }
         }
@@ -92,8 +92,8 @@ class TestServerErrorParsing(unittest.TestCase):
         server.error_formatter(error)
         expected = {
             'error': {
-                'reason': exceptions.UNEXPECTED_ERROR,
                 'code': 500,
+                'message': 'Internal Server Error',
                 'description': exceptions.UNEXPECTED_ERROR
             }
         }

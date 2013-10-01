@@ -112,17 +112,26 @@ class CheckmateNoTokenError(CheckmateException):
     Auth token was not available in this session.
     Try logging on using an auth token
     """
-    pass
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or self._message or UNEXPECTED_ERROR
 
 
 class CheckmateNoMapping(CheckmateException):
     """No mapping found between parameter types."""
-    pass
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or self._message or UNEXPECTED_ERROR
 
 
 class CheckmateInvalidParameterError(CheckmateException):
     """Parameters provided are not valid, not permitted or incongruous."""
-    pass
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or self._message or UNEXPECTED_ERROR
 
 
 class CheckmateNoData(CheckmateException):
@@ -132,12 +141,18 @@ class CheckmateNoData(CheckmateException):
 
 class CheckmateDoesNotExist(CheckmateException):
     """Object does not exist."""
-    pass
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or self._message or UNEXPECTED_ERROR
 
 
 class CheckmateBadState(CheckmateException):
     """Object is not in correct state for the requested operation."""
-    pass
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or self._message or UNEXPECTED_ERROR
 
 
 class CheckmateIndexError(CheckmateException):
@@ -179,7 +194,10 @@ class CheckmateServerBuildFailed(CheckmateException):
 
 class CheckmateValidationException(CheckmateException):
     """Validation Error."""
-    pass
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or self._message or UNEXPECTED_ERROR
 
 
 class CheckmateDataIntegrityError(CheckmateException):

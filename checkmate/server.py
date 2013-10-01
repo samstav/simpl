@@ -30,6 +30,7 @@ all as that breaks reloading.
 #       possible. So position is important.  KEEP THIS FIRST
 __import__('checkmate.common.tracer')
 
+import httplib
 import json
 import logging
 import os
@@ -112,15 +113,27 @@ DEFAULT_AUTH_ENDPOINTS = [{
 
 
 def error_formatter(error):
-    """Catch errors and output them in the correct format/media-type."""
+    """Catch errors and output them in the correct format/media-type.
+
+    We return all errors formatted according to requested format. We default to
+    json if we don't recognize or support the content.
+
+    The content is:
+
+        error:             - this is the wrapper for the returned error object
+            code:          - the HTTP error code (ex. 404)
+            message:       - the HTTP error code message (ex. Not Found)
+            description:   - the plain english, user-friendly description. Use
+                             this to to surface a UI/CLI. non-technical message
+            reason:        - (optional) any additional technical information to
+                             thelp a technical user help troubleshooting
+    """
     output = {}
     accept = bottle.request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
         error.headers.update({"content-type": "application/x-yaml"})
-        error.apply(bottle.response)
     else:  # default to JSON
         error.headers.update({"content-type": "application/json"})
-        error.apply(bottle.response)
 
     if isinstance(error.exception, CheckmateNoMapping):
         error.status = error.exception.http_status or 406
@@ -130,8 +143,9 @@ def error_formatter(error):
         error.output = error.exception.friendly_message
     elif isinstance(error.exception, CheckmateHOTTemplateException):
         error.status = error.exception.http_status or 406
+        # TODO(zns): move this to exception.py
         error.output = error.exception.friendly_message or (
-            "Operation not support with HOT template")
+            "Operation not supported with HOT template")
     elif isinstance(error.exception, CheckmateDoesNotExist):
         error.status = error.exception.http_status or 404
         error.output = error.exception.friendly_message
@@ -146,6 +160,7 @@ def error_formatter(error):
         error.output = error.exception.friendly_message
     elif isinstance(error.exception, CheckmateDatabaseConnectionError):
         error.status = error.exception.http_status or 500
+        # TODO(zns): move this to exception.py
         error.output = "Database connection error on server."
     elif isinstance(error.exception, CheckmateException):
         error.status = error.exception.http_status or 500
@@ -155,23 +170,23 @@ def error_formatter(error):
     elif isinstance(error.exception, AssertionError):
         error.status = 400
         error.output = str(error.exception)
-        LOG.exception(error.exception)
+        LOG.error(error.exception)
     else:
         # For other errors, log underlying cause
         if error.exception:
             error.status = 500
             error.output = UNEXPECTED_ERROR
-            LOG.exception(error.exception)
+            LOG.error(error.exception)
 
     if hasattr(error.exception, 'args'):
         if len(error.exception.args) > 1:
             LOG.warning('HTTPError: %s', error.exception.args)
 
     output['description'] = error.output
-    if 'reason' not in output:
-        output['reason'] = output['description']
     output['code'] = error.status_code
-    bottle.response.status = error.status
+    output['message'] = httplib.responses[error.status_code]
+
+    error.apply(bottle.response)
     return utils.write_body(
         dict(error=output), bottle.request, bottle.response)
 
@@ -366,6 +381,7 @@ def main():
             LOG.error(msg)
             print msg
             sys.exit(1)
+        LOG.info("Loading NewRelic agent")
         newrelic.agent.initialize(os.path.normpath(os.path.join(
                                   os.path.dirname(__file__), os.path.pardir,
                                   'newrelic.ini')))  # optional param
