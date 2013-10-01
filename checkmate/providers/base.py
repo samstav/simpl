@@ -688,3 +688,12 @@ class ProviderTask(celery.Task):
 
         deployment_tasks.postback(context.get('deployment_id') or
                                   context['deployment'], results)
+
+
+class RackspaceProviderTask(ProviderTask):
+    abstract = True
+
+    def __call__(self, context, *args, **kwargs):
+        if context.region is None and 'region' in kwargs:
+            context.region = kwargs.get('region')
+        super(RackspaceProviderTask, self).__call__(context, *args, **kwargs)

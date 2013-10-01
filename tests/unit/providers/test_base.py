@@ -168,6 +168,30 @@ class TestProviderTask(unittest.TestCase):
         mocked_lib.postback.assert_called_with('DEP_ID', expected_postback)
 
 
+class TestRackspaceProviderTask(unittest.TestCase):
+    """Tests ProviderTask functionality."""
+
+    def setUp(self):
+        self._run = rackspace_provider_task.run
+        self._retry = rackspace_provider_task.retry
+        self._callback = rackspace_provider_task.callback
+
+    def tearDown(self):
+        rackspace_provider_task.run = self._run
+        rackspace_provider_task.retry = self._retry
+        rackspace_provider_task.callback = self._callback
+
+    def test_rackspace_provider_task_context_region_kwargs(self):
+        context = middleware.RequestContext(**{})
+        rackspace_provider_task.run = mock.Mock()
+        rackspace_provider_task.callback = mock.MagicMock(return_value=True)
+
+        rackspace_provider_task(context, 'test', api='api', region='ORD')
+        self.assertEqual(context.region, 'ORD')
+        rackspace_provider_task.run.assert_called_with(context, 'test',
+                                                       api='api', region='ORD')
+
+
 @celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
 def do_something(context, name, api, region=None):
     return {
@@ -175,6 +199,17 @@ def do_something(context, name, api, region=None):
         'name': name,
         'api2': api,
         'status': 'BLOCKED'
+    }
+
+
+@celery.task.task(base=cm_base.RackspaceProviderTask,
+                  provider=database.Provider)
+def rackspace_provider_task(context, name, api, region=None):
+    return {
+        'context': context,
+        'region': region,
+        'name': name,
+        'api': api
     }
 
 
