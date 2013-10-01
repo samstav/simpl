@@ -645,18 +645,21 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
             }
         )
 
+    @mock.patch.object(deployments.router.utils, 'format_check')
     @mock.patch.object(deployments.router.tasks, 'postback')
-    def test_check_deployment(self, mock_postback):
+    def test_check_deployment(self, mock_postback, mock_format_check):
         expected = {
-            'current': self.statuses,
-            'updates': {},
-            'operations-delta': {}
+            'curr-resources': self.statuses,
+            'new-resources': self.statuses,
+            'curr-operation': {},
+            'new-operation': {}
         }
         mock_postback.return_value = {}
         router = deployments.Router(mock.Mock(), mock.Mock())
         router.check_deployment('dep_id')
         self.mock_write_body.assert_called_once_with(
-            expected, mock.ANY, mock.ANY)
+            mock.ANY, mock.ANY, mock.ANY)
+        mock_format_check.assert_called_once_with(mock.ANY)
 
 
 if __name__ == '__main__':

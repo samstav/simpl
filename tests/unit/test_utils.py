@@ -24,6 +24,7 @@ import uuid
 import bottle
 import mock
 
+from checkmate.exceptions import CheckmateInvalidParameterError
 from checkmate import utils
 
 
@@ -675,6 +676,42 @@ class TestQueryParams(unittest.TestCase):
         query = self.parser({'foo': '', 'bar': None})
         self.assertNotIn('foo', query)
         self.assertNotIn('bar', query)
+
+
+class TestFormatCheck(unittest.TestCase):
+    def test_missing_keys(self):
+        expected_msg = ("parameter keys do not match ['curr-operation', "
+                        "'curr-resources', 'new-operation', 'new-resources']: "
+                        "['curr-operation', 'curr-resources']")
+        with self.assertRaises(CheckmateInvalidParameterError) as expected:
+            utils.format_check({'curr-operation': {}, 'curr-resources': {}})
+        self.assertEqual(expected_msg, str(expected.exception))
+
+    def test_extra_key(self):
+        expected_msg = ("parameter keys do not match ['curr-operation', "
+                        "'curr-resources', 'new-operation', 'new-resources']: "
+                        "['curr-operation', 'curr-resources', 'invalid-key', "
+                        "'new-operation', 'new-resources']")
+        with self.assertRaises(CheckmateInvalidParameterError) as expected:
+            utils.format_check({
+                'curr-operation': {}, 'curr-resources': {},
+                'new-operation': {}, 'new-resources': {}, 'invalid-key': {}
+            })
+        self.assertEqual(expected_msg, str(expected.exception))
+
+    def test_operation_status_no_change(self):
+        expected_msg = {
+            'resources': {},
+            'operation': [
+                {'type': 'INFORMATION',
+                 'message': 'Operation status UP is consistent.'}
+            ]
+        }
+        result = utils.format_check({
+            'curr-operation': {'status': 'UP'}, 'curr-resources': {},
+            'new-operation': {'status': 'UP'}, 'new-resources': {}
+        })
+        self.assertEqual(expected_msg, result)
 
 
 if __name__ == '__main__':

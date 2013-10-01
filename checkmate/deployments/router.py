@@ -615,21 +615,18 @@ class Router(object):
         """Check instance statuses."""
         deployment = self._setup_deployment(api_id, tenant_id)
         statuses = deployment.get_statuses(bottle.request.environ['context'])
-        check_results = {
-            'current': statuses,
-            'updates': {},
-            'operations-delta': {}
-        }
-        check_results['updates'] = tasks.postback(
-            api_id,{'resources': statuses.get('resources')}, check_only=True)
-        check_results['operations-delta'] = common_tasks.update_operation(
+        check_results = {'curr-resources': deployment.get('resources'),
+                         'curr-operation': deployment.get('operation')}
+        check_results['new-resources'] = tasks.postback(
+            api_id, {'resources': statuses.get('resources')}, check_only=True)
+        check_results['new-operation'] = common_tasks.update_operation(
             api_id, operations.current_workflow_id(deployment),
             deployment_status=statuses['deployment_status'],
             status=statuses['operation_status'],
             check_only=True
         )
         return utils.write_body(
-            check_results, bottle.request, bottle.response)
+            utils.format_check(check_results), bottle.request, bottle.response)
 
     @utils.with_tenant
     def deploy_deployment(self, api_id, tenant_id=None):
