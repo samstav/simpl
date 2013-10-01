@@ -137,6 +137,7 @@ class TestTemplating(unittest.TestCase):
 
 class TestJsonYamlCoexistance(unittest.TestCase):
     """Test that we can use templating in JSON and YAML."""
+
     def test_preserve_linefeed_escaping(self):
         """preserve returns escaped linefeeds."""
         result = templating.parse('{{ "A\nB" | preserve }}')
