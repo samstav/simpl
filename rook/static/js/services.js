@@ -2416,11 +2416,11 @@ angular.module('checkmate.services').factory('BlueprintHint', [function() {
         fold_containing_cursor,
         current_fold;
 
-   if (check_current_line) {
-     start = cursor.line
-   } else {
-     start = cursor.line-1
-   }
+    if (check_current_line) {
+      start = cursor.line
+    } else {
+      start = cursor.line-1
+    }
 
     angular.forEach(_.range(start, -1, -1), function(num){
       if (!keep_going)
