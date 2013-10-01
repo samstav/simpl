@@ -3383,7 +3383,7 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
     _editor.setOption('extraKeys', {'Ctrl-Space': 'autocomplete'})
     _editor.on('cursorActivity', function(instance, event) {
       $scope.$apply(function() {
-        var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor(), false);
+        var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor());
         var doc = BlueprintDocs.find(path_tree);
         $scope.help_display = doc.text();
       });

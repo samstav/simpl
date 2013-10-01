@@ -2361,24 +2361,12 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
   return scope;
 }]);
 
-angular.module('checkmate.services').factory('BlueprintHint', [function() {
-  var SERVICE_KEYS = ['"master"', '"lb"', '"backend"', '"web"'],
-      AUTOCOMPLETE = {
-        '"blueprint"': ['"name"', '"services"', '"version"', '"documentation"', '"meta-data"'],
-        '"services"': ['"master"', '"lb"', '"backend"', '"web"'],
-        '"_service_type"': ['"display-name"', '"component"', '"relations"', '"constraints"', '"display-outputs"']
-      },
-      scope = {};
+angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', function(BlueprintDocs) {
+  var scope = {};
 
   var _get_fold = function(_editor, line_number){
     pos = CodeMirror.Pos(line_number)
     return CodeMirror.fold.brace(_editor, pos)
-  }
-
-  var _transform_fold_key = function(key){
-    if (SERVICE_KEYS.indexOf(key) > -1)
-      return '"_service_type"'
-    return key
   }
 
   scope.get_fold_tree = function(_editor, cursor, check_current_line) {
@@ -2387,22 +2375,25 @@ angular.module('checkmate.services').factory('BlueprintHint', [function() {
     var current_cursor = cursor;
     var current_key;
 
+    if (check_current_line === undefined)
+      check_current_line = true;
+
+    if (check_current_line)
+      fold_tree.push(scope.get_key(_editor, cursor.line))
+
     while (true) {
-      current_fold = scope.get_parent_fold(_editor, current_cursor, check_current_line);
+      current_fold = scope.get_parent_fold(_editor, current_cursor);
       if (current_fold === undefined)
         break;
       current_key = scope.get_key(_editor, current_fold.from.line);
       if (current_key == "")
         break;
 
-      fold_tree.unshift(current_key);
+      fold_tree.push(current_key);
       current_cursor = current_fold.from;
-      check_current_line = false;
     }
 
-    fold_tree.push(scope.get_key(_editor, cursor.line))
-
-    return fold_tree;
+    return fold_tree.reverse();
   }
 
   scope.get_key = function(_editor, line_num) {
@@ -2444,11 +2435,12 @@ angular.module('checkmate.services').factory('BlueprintHint', [function() {
   }
 
   scope.hinting = function(_editor) {
-    cursor = _editor.getCursor()
-    fold_key = scope.get_parent_fold_key(_editor, cursor)
+    var cursor = _editor.getCursor();
+    var fold_key = scope.get_parent_fold_key(_editor, cursor);
+    var keys = BlueprintDocs.keys( scope.get_fold_tree(_editor, cursor, false) );
 
     return {
-      list: AUTOCOMPLETE[_transform_fold_key(fold_key)] || [],
+      list: keys || [],
       from: CodeMirror.Pos(cursor.line, cursor.ch),
       to: CodeMirror.Pos(cursor.line, cursor.ch)
     }
@@ -2470,8 +2462,7 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
     };
   }
 
-  // ===== Scope =====
-  scope.find = function(path_tree) {
+  var _find_doc = function(path_tree) {
     var doc = {};
     var current_doc = _docs;
     var _path_tree = angular.copy(path_tree);
@@ -2488,7 +2479,20 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
       current_doc = doc;
     }
 
-    return _wrap_docs(doc);
+    return doc;
+  }
+
+  // ===== Scope =====
+  scope.find = function(path_tree) {
+    return _wrap_docs(_find_doc(path_tree));
+  }
+
+  scope.keys = function(path_tree) {
+    var _doc = _find_doc(path_tree);
+    var doc = angular.copy(_doc);
+    delete doc[_any_key];
+    delete doc[_text_key];
+    return Object.keys(doc);
   }
 
   // ===== Provider =====
