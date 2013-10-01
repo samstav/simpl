@@ -530,10 +530,10 @@ class Provider(providers.ProviderBase):
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['sizes'] = {
-                str(f.id): {
-                    'name': f.name,
-                    'memory': f.ram
-                } for f in flavors
+                str(f['id']): {
+                    'name': f.get('name'),
+                    'memory': f.get('ram')
+                } for f in flavors if 'id' in f
             }
 
         self.validate_catalog(results)

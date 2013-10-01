@@ -406,10 +406,7 @@ class TestCatalog(unittest.TestCase):
     def test_generation(self):
         provider = database.Provider({})
         context = self.mox.CreateMockAnything()
-        flavor1 = self.mox.CreateMockAnything()
-        flavor1.id = '1'
-        flavor1.ram = 1024
-        flavor1.name = 'm1.tiny'
+        flavor1 = {'id': '1', 'ram': 1024, 'name': 'm1.tiny'}
 
         context.catalog = [{
             "endpoints": [
