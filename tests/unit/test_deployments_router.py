@@ -645,11 +645,11 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
             }
         )
 
-    @mock.patch.object(deployments.router.tasks, 'resource_postback')
+    @mock.patch.object(deployments.router.tasks, 'postback')
     def test_check_deployment(self, mock_postback):
         expected = {
             'current': self.statuses,
-            'updates': {'instance:1': {}, 'instance:3': {}},
+            'updates': {},
             'operations-delta': {}
         }
         mock_postback.return_value = {}

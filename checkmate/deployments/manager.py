@@ -385,6 +385,7 @@ class Manager(object):
             )
             LOG.debug("Updated deployment %s with postback", dep_id,
                       extra=dict(data=contents))
+        return dep.get('resources')
 
     def plan_add_nodes(self, deployment, context, service_name, count,
                        parse_only=False):

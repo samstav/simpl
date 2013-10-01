@@ -620,9 +620,11 @@ class Router(object):
             'updates': {},
             'operations-delta': {}
         }
-        for key, value in statuses.get('resources').iteritems():
-            check_results['updates'][key] = tasks.resource_postback(
-                api_id, {key: value}, check_only=True)
+        #for key, value in statuses.get('resources').iteritems():
+        #    check_results['updates'][key] = tasks.resource_postback(
+        #        api_id, {key: value}, check_only=True)
+        check_results['updates'] = tasks.postback(
+            api_id,{'resources': statuses.get('resources')}, check_only=True)
         check_results['operations-delta'] = common_tasks.update_operation(
             api_id, operations.current_workflow_id(deployment),
             deployment_status=statuses['deployment_status'],

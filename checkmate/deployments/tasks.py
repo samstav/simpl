@@ -179,10 +179,11 @@ def update_all_provider_resources(provider, deployment_id, status,
 
 @task(default_retry_delay=0.5, max_retries=6)
 @statsd.collect
-def postback(deployment_id, contents):
+def postback(deployment_id, contents, check_only=False):
     """Exposes DeploymentsManager.postback as a task."""
     utils.match_celery_logging(LOG)
-    MANAGERS['deployments'].postback(deployment_id, contents)
+    return MANAGERS['deployments'].postback(deployment_id, contents,
+                                            check_only=check_only)
 
 
 @task(default_retry_delay=0.5, max_retries=6)
