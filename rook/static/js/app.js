@@ -3394,7 +3394,7 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
       $scope.$apply(function() {
         var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor(), false);
         var doc = BlueprintDocs.find(path_tree);
-        $scope.help_display = doc._;
+        $scope.help_display = doc.text();
       });
     });
   }

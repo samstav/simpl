@@ -2458,10 +2458,17 @@ angular.module('checkmate.services').factory('BlueprintHint', [function() {
 }]);
 
 angular.module('checkmate.services').provider('BlueprintDocs', [function() {
-  var ANY = 'any';
+  var _any_key = 'any';
+  var _text_key = '_';
   var _docs = {};
   var scope = {};
   var provider = {};
+
+  var _wrap_docs = function(doc) {
+    return {
+      text: function() { return doc[_text_key]; }
+    };
+  }
 
   // ===== Scope =====
   scope.find = function(path_tree) {
@@ -2472,23 +2479,30 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
 
     while (current_path) {
       current_path = current_path.replace(/"/g, '');
-      doc = current_doc[current_path];
+      doc = current_doc[current_path] || current_doc[_any_key];
       if (!doc) {
-        doc = current_doc[ANY];
-        if (!doc)
-          return {};
+        doc = {};
+        break;
       }
       current_path = _path_tree.shift();
       current_doc = doc;
     }
 
-    return doc;
+    return _wrap_docs(doc);
   }
 
   // ===== Provider =====
   provider.docs = function(docs) {
     _docs = docs;
-  };
+  }
+
+  provider.any_key = function(any_key) {
+    _any_key = any_key;
+  }
+
+  provider.text_key = function(text_key) {
+    _text_key = text_key;
+  }
 
   provider.$get = function() {
     return scope;
