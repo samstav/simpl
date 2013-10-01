@@ -160,6 +160,7 @@ class TestRedisCache(unittest.TestCase):
 
     @mock.patch.object(caching.Cache, '_encode')
     def test_bypass_on_pickle_error(self, mock_encode):
+        # We've seen these in production!
         mock_encode.side_effect = [pickle.PickleError, pickle.PickleError]
 
         def increment(amount=1):

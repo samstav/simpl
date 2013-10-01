@@ -102,6 +102,7 @@ LOG = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 3600
 
 
+# catch generic exceptions and bypass caching - pylint: disable=W0703
 class Cache:
     """Cache a function."""
 
@@ -142,7 +143,7 @@ class Cache:
                     return result
             try:
                 result = func(*args, **kwargs)
-            except StandardError as exc:
+            except Exception as exc:
                 if self.cache_exceptions:
                     self.cache(exc, self.get_hash(*args, **kwargs))
                 raise exc
@@ -175,7 +176,7 @@ class Cache:
                 LOG.warn("Error connecting to Redis: %s", exc)
             except KeyError:
                 pass
-            except StandardError as exc:
+            except Exception as exc:
                 LOG.warn("Error accesing backing store: %s", exc)
         return None, None
 
@@ -186,13 +187,13 @@ class Cache:
         """
         try:
             self._cache_local(data, key)
-        except StandardError as exc:
+        except Exception as exc:
             LOG.warn("Error caching locally: %s", exc)
 
         if self.backing_store:
             try:
                 self._cache_backing(data, key)
-            except StandardError as exc:
+            except Exception as exc:
                 LOG.warn("Error caching to backing store: %s", exc)
 
     def _cache_local(self, data, key):
@@ -211,9 +212,7 @@ class Cache:
                                          self._encode(data), self.max_age)
             except ConnectionError as exc:
                 LOG.warn("Error connecting to Redis: %s", exc)
-            except pickle.PickleError as exc:
-                LOG.warn("Error pickling value for backing store: %s", exc)
-            except StandardError as exc:
+            except Exception as exc:
                 LOG.warn("Error storing value in backing store: %s", exc)
 
     def _backing_store_key(self, key):
