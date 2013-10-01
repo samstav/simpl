@@ -32,6 +32,7 @@ from checkmate.common import setup as setup_tools
 
 
 REQUIRES = setup_tools.parse_requirements()
+print REQUIRES
 if 'develop' in sys.argv:
     print ("We are assuming that since you're developing you have the\n"
            "dependency repos set up for development as well. If not,\n"
