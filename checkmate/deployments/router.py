@@ -584,7 +584,7 @@ class Router(object):
         return utils.write_body(results, bottle.request, bottle.response)
 
     def _setup_deployment(self, api_id, tenant_id):
-        """Basic deployment setup for plan_deployment and check_deployment."""
+        """Basic deployment setup for sync_deployment and check_deployment."""
         if db.any_id_problems(api_id):
             bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id)
