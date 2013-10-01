@@ -53,7 +53,7 @@
 #            fetch from code.google.com. 
 #            impacket is a Collection of Python classes providing
 #            access to network packets.
-https://impacket.googlecode.com/files/impacket-0.9.10.tar.gz#egg=impacket-0.9.10
+https://impacket.googlecode.com/files/impacket-0.9.10.tar.gz#egg=impacket
 
 #### Checkmate applications
 
