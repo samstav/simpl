@@ -3372,12 +3372,10 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
 
   $scope.toggle_editor_type = function() {
     if ($scope.codemirror_options.mode == 'application/json') {
-      $scope.codemirror_options.gutters = [];
       $scope.codemirror_options.lint = false;
       $scope.codemirror_options.mode = 'text/x-yaml';
       $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
     } else {
-      $scope.codemirror_options.gutters = ['CodeMirror-lint-markers'];
       $scope.codemirror_options.lint = true;
       $scope.codemirror_options.mode = 'application/json';
       $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
@@ -3385,7 +3383,7 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
   }
 
   $scope.parse_deployment = function(deployment) {
-    Deployment.parse(JSON.parse(deployment), $scope.auth.context.tenantId, function(response) {
+    Deployment.parse(deployment, $scope.auth.context.tenantId, function(response) {
       $scope.parsed_deployment_tree = DeploymentTree.build(response);
     })
   };
@@ -3403,6 +3401,7 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
       });
     });
   }
+
 
   $scope.codemirror_options = {
     onLoad: $scope.newBlueprintCodemirrorLoaded,
@@ -3422,22 +3421,24 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
   };
 
   $scope.$watch('deployment_json', function(newValue, oldValue) {
-    var new_deployment, old_deployment;
+    var deployment, new_deployment, old_deployment;
+    var parse_func = ($scope.codemirror_options.mode == 'application/json') ? JSON.parse : YAML.parse;
     try {
-      new_deployment = JSON.stringify(JSON.parse(newValue));
+      deployment = parse_func(newValue);
+      new_deployment = JSON.stringify(deployment);
     } catch(err) {
-      console.log("Invalid JSON. Will not try to parse deployment.")
+      console.log("Invalid JSON/YAML. Will not try to parse deployment.")
       return;
     }
 
     try {
-      old_deployment = JSON.stringify(JSON.parse(oldValue));
+      old_deployment = JSON.stringify(parse_func(oldValue));
     } catch(err) {
-      console.log("Previous JSON was invalid")
+      console.log("Previous JSON/YAML was invalid")
     }
 
     if (new_deployment != old_deployment)
-      $scope.parse_deployment(newValue);
+      $scope.parse_deployment(deployment);
   });
 }
 
@@ -3449,8 +3450,6 @@ if (Modernizr.localstorage) {
 } else {
   alert("This browser application requires an HTML5 browser with support for local storage");
 }
-
-var foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
 
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
