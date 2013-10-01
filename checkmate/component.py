@@ -112,6 +112,13 @@ class Component(ExtensibleDict):
                     value['resource_type'] = value['type']
                     del value['type']
                     break
+        if 'is' in self._data:
+            key = self._data['is']
+            if not results:
+                results = {}
+            if not any(v for v in results.itervalues()
+                       if key == v.get('resource_type')):
+                results[key] = {'resource_type': key}
         return results
 
     @property
