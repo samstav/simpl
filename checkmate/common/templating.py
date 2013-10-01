@@ -117,6 +117,15 @@ def parse_url(value):
     return result
 
 
+def preserve_linefeeds(value):
+    """Escape linefeeds.
+
+    To make templates work with both YAML and JSON, escape linefeeds instead of
+    allowing Jinja to render them.
+    """
+    return value.replace("\n", "\\n").replace("\r", "")
+
+
 def parse(template, **kwargs):
     """Parse template.
 
@@ -127,6 +136,7 @@ def parse(template, **kwargs):
     env = ImmutableSandboxedEnvironment(loader=DictLoader(template_map),
                                         bytecode_cache=CompilerCache())
     env.filters['prepend'] = do_prepend
+    env.filters['preserve'] = preserve_linefeeds
     env.json = json
     env.globals['parse_url'] = parse_url
     env.globals['patterns'] = get_patterns()
@@ -163,7 +173,6 @@ def parse(template, **kwargs):
     env.globals['setting'] = fxn
     env.globals['hash'] = hash_SHA512
 
-    template = env.get_template('template')
     minimum_kwargs = {
         'deployment': {'id': ''},
         'resource': {},
@@ -172,6 +181,7 @@ def parse(template, **kwargs):
     }
     minimum_kwargs.update(kwargs)
 
+    template = env.get_template('template')
     try:
         result = template.render(**minimum_kwargs)
         #TODO(zns): exceptions in Jinja template sometimes missing
