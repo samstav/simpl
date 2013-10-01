@@ -22,7 +22,7 @@ import unittest
 import bottle
 import webtest
 
-from checkmate import deployment
+from checkmate import deployment as cm_deployment
 from checkmate import deployments
 from checkmate import exceptions
 from checkmate import test
@@ -313,7 +313,7 @@ class TestDeleteNodes(TestDeploymentRouter):
 
     @mock.patch.object(utils, 'is_simulation')
     @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
-    @mock.patch.object(deployment.Deployment, 'get_resources_for_service')
+    @mock.patch.object(cm_deployment.Deployment, 'get_resources_for_service')
     def test_sets_simulation_context(self, resources_for_service, mock_delay,
                                      _is_simulation):
         _is_simulation.return_value = True
@@ -334,7 +334,7 @@ class TestDeleteNodes(TestDeploymentRouter):
                                            {'fake_dict': True})
 
     @mock.patch.object(workflows.tasks.cycle_workflow, 'delay')
-    @mock.patch.object(deployment.Deployment, 'get_resources_for_service')
+    @mock.patch.object(cm_deployment.Deployment, 'get_resources_for_service')
     def test_delete_nodes_with_victim_list(self, resources_for_service,
                                            mock_delay):
         self.router._validate_delete_node_request = mock.Mock()

@@ -88,7 +88,7 @@ class TestWorkflowSpec(unittest.TestCase):
                                                           victim_list=["1"])
         self._mox.VerifyAll()
 
-    def test_create_resource_offline_spec(self):
+    def test_create_take_offline_spec(self):
         context = mock.Mock()
         source_resource = {'provider': 'load-balancer'}
         dest_resource = {
@@ -124,7 +124,7 @@ class TestWorkflowSpec(unittest.TestCase):
             mock.ANY, deployment, context, source_resource, dest_resource,
             'lb-web')
 
-    def test_create_resource_online_spec(self):
+    def test_create_bring_online_spec(self):
         context = mock.Mock()
         source_resource = {'provider': 'load-balancer'}
         dest_resource = {

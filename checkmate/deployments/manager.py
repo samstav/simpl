@@ -434,15 +434,25 @@ class Manager(object):
 
     def deploy_workflow(self, context, deployment, tenant_id, wf_type,
                         workflow_id=None, **kwargs):
+        """Creates a workflow and operation based in the passed in workflow
+        type
+        :param context: request context
+        :param deployment: deployment
+        :param tenant_id: tenant id
+        :param wf_type: workflow type
+        :param workflow_id: workflow id
+        :param kwargs:
+        :return: operation created to handle the workflow
+        """
         driver = db.get_driver(api_id=deployment["id"])
         attr_name = "create_%s_spec" % wf_type.lower().replace(' ', '_')
         spec_creator = getattr(workflow_spec.WorkflowSpec, attr_name)
         wf_spec = spec_creator(context, deployment, **kwargs)
-        wf = workflow.create_workflow(wf_spec, deployment, context,
-                                      driver=driver,
-                                      workflow_id=workflow_id,
-                                      wf_type=wf_type)
-        operation = operations.add(deployment, wf, wf_type, tenant_id)
+        created_wf = workflow.create_workflow(wf_spec, deployment, context,
+                                              driver=driver,
+                                              workflow_id=workflow_id,
+                                              wf_type=wf_type)
+        operation = operations.add(deployment, created_wf, wf_type, tenant_id)
         self.save_deployment(deployment, tenant_id=tenant_id)
         return operation
 
