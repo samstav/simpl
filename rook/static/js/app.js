@@ -3361,14 +3361,6 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
 }
 
 function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs) {
-  var blueprint_info = ["This is the blueprint.  You can build deployments and stuff with these things.  Hit Ctrl+Space for a list of valid keys", "name: String", "services: Hash", "documentation: String"].join('<br />');
-  var DEPLOYMENT_INFO_MAP = {
-    '"blueprint"': blueprint_info,
-    '"deployment"': "A deployment is composed of a blueprint, inputs, and environment... etc",
-    '"services"': "Services:  These things help make up a deployment",
-    '"documentation"': "Documentation: Write some relevant info for the users of your blueprint",
-    '"meta-data"': "Metadata: Add some meta-data here.  You might need it for the control panel to display things properly"
-  }
   var empty_deployment = {
     "blueprint": {"name": "your blueprint name"},
     "inputs": {},
@@ -3376,7 +3368,6 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
     "name": {}
   };
   $scope.deployment_json = JSON.stringify(empty_deployment, null, 2);
-  $scope.help_display = DEPLOYMENT_INFO_MAP['"deployment"'];
   $scope.parsed_deployment_tree = DeploymentTree.build({});
 
   $scope.parse_deployment = function(deployment) {
