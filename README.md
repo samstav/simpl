@@ -245,7 +245,7 @@ When launching a deployment, the values selected for options are stored as an *i
         dns-name: srv1.stabletransit.com
       - example_resource2:
         type: database
-        # ... 
+        # ...
 
 
 Options can be associated with one or more options using *constraints*. Example:
@@ -309,6 +309,21 @@ Objects are returned as JSON by default, but YAML is also supported (content-typ
 HTML output is also supported if the server is started with a `--with-ui` parameter.
 
 XML is not yet supported.
+
+### Errors
+
+Errors will be returned in the format requested (YAML or JSON, with JSON being the default).
+
+The body will contain an object (shown here as yaml):
+
+  error:             # this is the wrapper for the returned error object
+      code:          # the HTTP error code (ex. 404)
+      message:       # the HTTP error code message (ex. Not Found)
+      description:   # the plain english, user-friendly description. Use
+                       this to to surface a UI/CLI non-technical message
+      reason:        # (optional) may contain additional technical information to
+                       help a technically knowledgable user troubleshoot the problem
+
 
 ###Special cases and considerations
 
