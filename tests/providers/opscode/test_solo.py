@@ -384,8 +384,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
     def test_workflow_task_generation(self):
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            self.deployment, context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(context,
+                                                               self.deployment)
         workflow = cm_wf.init_spiff_workflow(
             wf_spec, self.deployment, context, "w_id", "BUILD")
 
@@ -593,8 +593,8 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
 
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            self.deployment, context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(context,
+                                                               self.deployment)
         workflow = cm_wf.init_spiff_workflow(
             wf_spec, self.deployment, context, "w_id", "BUILD")
 
@@ -724,8 +724,8 @@ interfaces/mysql/host
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            self.deployment, context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(context,
+                                                               self.deployment)
         workflow = cm_wf.init_spiff_workflow(
             wf_spec, self.deployment, context, "w_id", "BUILD")
         task_list = workflow.spec.task_specs.keys()
@@ -1046,8 +1046,8 @@ interfaces/mysql/database_name
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        wf_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            self.deployment, context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(context,
+                                                               self.deployment)
         workflow = cm_wf.init_spiff_workflow(
             wf_spec, self.deployment, context, "w_id", "BUILD")
         collect_task = workflow.spec.task_specs['Collect Chef Data for 0']

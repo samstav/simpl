@@ -23,7 +23,6 @@ import unittest
 
 from checkmate import deployment as cmdep
 from checkmate import deployments
-from checkmate import workflow_spec
 from checkmate.workflows import tasks as workflow_tasks
 
 
@@ -46,10 +45,10 @@ class TestManager(unittest.TestCase):
     @mock.patch('checkmate.operations.add')
     @mock.patch('checkmate.workflow.create_workflow')
     @mock.patch(
-        'checkmate.workflow_spec.WorkflowSpec.create_resource_offline_spec')
+        'checkmate.workflow_spec.WorkflowSpec.create_bring_online_spec')
     @mock.patch('checkmate.db.get_driver')
-    def test_deploy_take_resource_offline(self, mock_driver, mock_spec,
-                                          mock_workflow, mock_add_operation):
+    def test_deploy_workflow(self, mock_driver, mock_spec, mock_workflow,
+                             mock_add_operation):
         deployment = {'id': "DEP_ID"}
         context = mock.Mock()
         driver = mock_driver.return_value
@@ -57,103 +56,19 @@ class TestManager(unittest.TestCase):
         workflow = mock_workflow.return_value
         operation = mock_add_operation.return_value
         self.controller.save_deployment = mock.Mock()
-        actual = self.controller.deploy_take_resource_offline(deployment,
-                                                              "res_id",
-                                                              context,
-                                                              "tenant_id")
+        actual = self.controller.deploy_workflow(context, deployment,
+                                                 "tenant_id", "BRING ONLINE",
+                                                 resource_id="r_id")
         self.assertEqual(operation, actual)
-        mock_spec.assert_called_once_with(deployment, "res_id", context)
+        mock_spec.assert_called_once_with(context, deployment,
+                                          resource_id="r_id")
         mock_workflow.assert_called_once_with(spec, deployment, context,
                                               driver=driver,
-                                              wf_type="TAKE OFFLINE")
+                                              wf_type="BRING ONLINE",
+                                              workflow_id=None)
         mock_add_operation.assert_called_once_with(deployment, workflow,
-                                                   "TAKE OFFLINE",
+                                                   "BRING ONLINE",
                                                    "tenant_id")
-
-    @mock.patch('checkmate.operations.add')
-    @mock.patch('checkmate.workflow.create_workflow')
-    @mock.patch(
-        'checkmate.workflow_spec.WorkflowSpec.create_resource_online_spec')
-    @mock.patch('checkmate.db.get_driver')
-    def test_deploy_get_resource_online(self, mock_driver, mock_spec,
-                                        mock_workflow, mock_add_operation):
-        deployment = {'id': "DEP_ID"}
-        context = mock.Mock()
-        driver = mock_driver.return_value
-        spec = mock_spec.return_value
-        workflow = mock_workflow.return_value
-        operation = mock_add_operation.return_value
-        self.controller.save_deployment = mock.Mock()
-        actual = self.controller.deploy_get_resource_online(deployment,
-                                                            "res_id",
-                                                            context,
-                                                            "tenant_id")
-        self.assertEqual(operation, actual)
-        mock_spec.assert_called_once_with(deployment, "res_id", context)
-        mock_workflow.assert_called_once_with(spec, deployment, context,
-                                              driver=driver,
-                                              wf_type="GET ONLINE")
-        mock_add_operation.assert_called_once_with(deployment, workflow,
-                                                   "GET ONLINE",
-                                                   "tenant_id")
-
-    @mock.patch('checkmate.workflow.create_workflow')
-    @mock.patch('checkmate.operations.add')
-    @mock.patch.object(workflow_spec.WorkflowSpec, 'create_delete_node_spec')
-    def test_delete_nodes(self, mock_create_delete, mock_add, mock_create_wf):
-        resources = {
-            '0': {},
-            '1': {},
-            '2': {},
-            '3': {},
-        }
-        deployment = cmdep.Deployment({'id': 'DEP_ID'})
-        mock_get_resources = mock.Mock(return_value=resources)
-        deployment.get_resources_for_service = mock_get_resources
-        mock_context = mock.Mock()
-        mock_spec = mock.Mock()
-        mock_wf = mock.Mock()
-        mock_create_delete.return_value = mock_spec
-
-        mock_create_wf.return_value = mock_wf
-        self.controller.delete_nodes(deployment, mock_context, 'web', 2,
-                                     ['1', '2'], "T_ID")
-        mock_create_wf.assert_called_with(
-            mock_spec,
-            deployment,
-            mock_context,
-            driver=self.driver,
-            wf_type="SCALE DOWN"
-        )
-        mock_add.assert_called_with(deployment, mock_wf,
-                                    'SCALE DOWN', 'T_ID')
-
-    @mock.patch('checkmate.workflow.create_workflow')
-    @mock.patch('checkmate.operations.add')
-    @mock.patch.object(workflow_spec.WorkflowSpec,
-                       'create_workflow_spec_deploy')
-    def test_deploy_add_nodes(self,
-                              mock_create_wf_s_d,
-                              mock_add,
-                              mock_create_wf):
-        deployment = {"id": "DEP_ID"}
-        mock_context = mock.Mock()
-        mock_spec = mock.Mock()
-        mock_wf = mock.Mock()
-        mock_create_wf_s_d.return_value = mock_spec
-
-        mock_create_wf.return_value = mock_wf
-        self.controller.deploy_add_nodes(deployment, mock_context, "T_ID")
-        mock_create_wf_s_d.assert_called_with(deployment, mock_context)
-        mock_create_wf.assert_called_with(
-            mock_spec,
-            deployment,
-            mock_context,
-            driver=self.driver,
-            wf_type="SCALE UP"
-        )
-        mock_add.assert_called_with(deployment, mock_wf,
-                                    'SCALE UP', 'T_ID')
 
     def test_reset_failed_resources(self):
         deployment_id = 1234

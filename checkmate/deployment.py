@@ -51,7 +51,7 @@ OPERATION_DEPLOYMENT_STATUS_MAP = {
     'SCALE UP': {'initial': 'UP', 'final': 'UP', 'error': 'ALERT'},
     'SCALE DOWN': {'initial': 'UP', 'final': 'UP', 'error': 'ALERT'},
     'TAKE OFFLINE': {'initial': 'UP', 'final': 'UP', 'error': 'ALERT'},
-    'GET ONLINE': {'initial': 'UP', 'final': 'UP', 'error': 'ALERT'},
+    'BRING ONLINE': {'initial': 'UP', 'final': 'UP', 'error': 'ALERT'},
 }
 
 

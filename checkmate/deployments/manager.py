@@ -20,7 +20,6 @@ Handles deployment logic
 
 import copy
 import logging
-import random
 import uuid
 
 import eventlet
@@ -147,18 +146,9 @@ class Manager(object):
                                                   deployment.get('status')))
         generate_keys(deployment)
         deployment['display-outputs'] = deployment.calculate_outputs()
-
-        deploy_spec = workflow_spec.WorkflowSpec.create_workflow_spec_deploy(
-            deployment, context)
-        spiff_wf = workflow.create_workflow(
-            deploy_spec, deployment, context, driver=db.get_driver(
-                api_id=deployment['id']), workflow_id=deployment['id'],
-            wf_type="BUILD")
-        deployment['workflow'] = spiff_wf.attributes['id']
-        operation = operations.add(deployment, spiff_wf, "BUILD",
-                                   tenant_id=deployment['tenantId'])
-        self.save_deployment(deployment)
-        return operation
+        return self.deploy_workflow(context, deployment,
+                                    deployment['tenantId'], "BUILD",
+                                    workflow_id=deployment['id'])
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
         """Get a single deployment by id.
@@ -254,38 +244,6 @@ class Manager(object):
         if rid in resources:
             return resources.get(rid)
         raise ValueError("No resource %s in deployment %s" % (rid, api_id))
-
-    def execute(self, api_id, context, timeout=None):
-        """Process a checkmate deployment workflow
-
-        Executes and moves the workflow forward.
-        Retrieves results (final or intermediate) and updates them into
-        deployment.
-
-        :param id: checkmate deployment id
-        :param timeout: sets timeout for the execution (max 1 hr, min 10 mins)
-        :returns: the async task
-        """
-        if db.any_id_problems(api_id):
-            raise CheckmateValidationException(db.any_id_problems(api_id))
-
-        deployment = self.get_deployment(api_id)
-        if not deployment:
-            raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
-
-        args = [api_id, context.get_queued_task_dict()]
-        cycle = workflows.tasks.cycle_workflow
-        if isinstance(timeout, int):
-            time_limit = min(3600, max(600, timeout))
-            max_retries = int(time_limit / cycle.default_retry_delay) * 2
-            LOG.debug("Cycling workflow with custom timeout of %s yielding a "
-                      "time limit of %s and a max retry count of %s", timeout,
-                      time_limit, max_retries)
-            result = cycle.apply_async(args=args, time_limit=time_limit,
-                                       max_retries=max_retries)
-        else:
-            result = cycle.apply_async(args=args)
-        return result
 
     def clone(self, api_id, context, tenant_id=None, simulate=False):
         """Launch a new deployment from a deleted one."""
@@ -474,85 +432,58 @@ class Manager(object):
                  deployment['id'], deployment['status'])
         return deployment
 
-    def delete_nodes(self, deployment, context, service_name, count,
-                     victim_list, tenant_id):
-        """Delete the passed in resources from a deployment
-        :param deployment: Deployment to delete resources from
-        :param context: RequestContext
-        :param victim_list: Resources to delete
-        :param tenant_id: TenantId of the customer
-        :return:
-        """
-        resources_for_service = deployment.get_resources_for_service(
-            service_name).keys()
-        random.shuffle(resources_for_service)
-        resources_for_service = list(set(resources_for_service) - set(
-            victim_list))
-        victim_list.extend(resources_for_service[:(count - len(victim_list))])
-        driver = db.get_driver(api_id=deployment["id"])
-        wf_spec = workflow_spec.WorkflowSpec.create_delete_node_spec(
-            deployment, victim_list, context)
-        delete_node_workflow = workflow.create_workflow(wf_spec, deployment,
-                                                        context,
-                                                        driver=driver,
-                                                        wf_type="SCALE DOWN")
-        operations.add(deployment, delete_node_workflow, "SCALE DOWN",
-                       tenant_id)
-
-    def deploy_add_nodes(self, deployment, context, tenant_id):
-        """Creates the workflow and operation for add node
-
-        :param deployment: Deployment to add the nodes to
-        :param context: RequestContext
-        :param tenant_id: TenantId
-        :return:
-        """
-        driver = db.get_driver(api_id=deployment["id"])
-        add_node_workflow_spec = (workflow_spec.WorkflowSpec
-                                  .create_workflow_spec_deploy(deployment,
-                                                               context))
-        add_node_workflow = workflow.create_workflow(add_node_workflow_spec,
-                                                     deployment, context,
-                                                     driver=driver,
-                                                     wf_type="SCALE UP")
-        operations.add(deployment, add_node_workflow, "SCALE UP", tenant_id)
-
-    def deploy_take_resource_offline(self, deployment, r_id, context,
-                                     tenant_id):
-        """Create the workflow for taking passed in resource offline
-        :param deployment: deployment containing the resource
-        :param r_id: resource id
+    def deploy_workflow(self, context, deployment, tenant_id, wf_type,
+                        workflow_id=None, **kwargs):
+        """Creates a workflow and operation based in the passed in workflow
+        type
         :param context: request context
+        :param deployment: deployment
         :param tenant_id: tenant id
-        :return: operation for taking the node offline
+        :param wf_type: workflow type
+        :param workflow_id: workflow id
+        :param kwargs:
+        :return: operation created to handle the workflow
         """
         driver = db.get_driver(api_id=deployment["id"])
-        wf_spec = workflow_spec.WorkflowSpec.create_resource_offline_spec(
-            deployment, r_id, context)
-        deploy_workflow = workflow.create_workflow(wf_spec, deployment,
-                                                   context, driver=driver,
-                                                   wf_type="TAKE OFFLINE")
-        operation = operations.add(deployment, deploy_workflow, "TAKE OFFLINE",
-                                   tenant_id)
+        attr_name = "create_%s_spec" % wf_type.lower().replace(' ', '_')
+        spec_creator = getattr(workflow_spec.WorkflowSpec, attr_name)
+        wf_spec = spec_creator(context, deployment, **kwargs)
+        created_wf = workflow.create_workflow(wf_spec, deployment, context,
+                                              driver=driver,
+                                              workflow_id=workflow_id,
+                                              wf_type=wf_type)
+        operation = operations.add(deployment, created_wf, wf_type, tenant_id)
         self.save_deployment(deployment, tenant_id=tenant_id)
         return operation
 
-    def deploy_get_resource_online(self, deployment, r_id, context,
-                                   tenant_id):
-        """Create the workflow for getting passed in resource online
-        :param deployment: deployment containing the resource
-        :param r_id: resource id
-        :param context: request context
-        :param tenant_id: tenant id
-        :return: operation for getting the node online
+    def execute(self, api_id, context, timeout=None):
+        """Process a checkmate deployment workflow
+
+        Executes and moves the workflow forward.
+        Retrieves results (final or intermediate) and updates them into
+        deployment.
+
+        :param id: checkmate deployment id
+        :param timeout: sets timeout for the execution (max 1 hr, min 10 mins)
+        :returns: the async task
         """
-        driver = db.get_driver(api_id=deployment["id"])
-        wf_spec = workflow_spec.WorkflowSpec.create_resource_online_spec(
-            deployment, r_id, context)
-        deploy_workflow = workflow.create_workflow(wf_spec, deployment,
-                                                   context, driver=driver,
-                                                   wf_type="GET ONLINE")
-        operation = operations.add(deployment, deploy_workflow, "GET ONLINE",
-                                   tenant_id)
-        self.save_deployment(deployment, tenant_id=tenant_id)
-        return operation
+        if db.any_id_problems(api_id):
+            raise CheckmateValidationException(db.any_id_problems(api_id))
+
+        deployment = self.get_deployment(api_id)
+        if not deployment:
+            raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
+
+        args = [api_id, context.get_queued_task_dict()]
+        cycle = workflows.tasks.cycle_workflow
+        if isinstance(timeout, int):
+            time_limit = min(3600, max(600, timeout))
+            max_retries = int(time_limit / cycle.default_retry_delay) * 2
+            LOG.debug("Cycling workflow with custom timeout of %s yielding a "
+                      "time limit of %s and a max retry count of %s", timeout,
+                      time_limit, max_retries)
+            result = cycle.apply_async(args=args, time_limit=time_limit,
+                                       max_retries=max_retries)
+        else:
+            result = cycle.apply_async(args=args)
+        return result
