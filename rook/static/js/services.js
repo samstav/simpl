@@ -2436,12 +2436,16 @@ angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', 
 
   scope.hinting = function(_editor) {
     var cursor = _editor.getCursor();
+    var token = _editor.getTokenAt(cursor);
     var fold_key = scope.get_parent_fold_key(_editor, cursor);
-    var keys = BlueprintDocs.keys( scope.get_fold_tree(_editor, cursor, false) );
+    var keys = BlueprintDocs.keys( scope.get_fold_tree(_editor, cursor, false), token );
+    var position = (token.type === null) ? cursor.ch : token.start;
+    if (token.type && token.type.indexOf('string') > -1)
+      position++;
 
     return {
       list: keys || [],
-      from: CodeMirror.Pos(cursor.line, cursor.ch),
+      from: CodeMirror.Pos(cursor.line, position),
       to: CodeMirror.Pos(cursor.line, cursor.ch)
     }
   }
@@ -2487,12 +2491,20 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
     return _wrap_docs(_find_doc(path_tree));
   }
 
-  scope.keys = function(path_tree) {
+  scope.keys = function(path_tree, partial_token) {
+    var filter_partial = function(elem) {
+      var text = partial_token.string.trim().replace(/['"]/g, '');
+      if (elem.indexOf(text) == 0)
+        return true;
+    }
+
     var _doc = _find_doc(path_tree);
     var doc = angular.copy(_doc);
     delete doc[_any_key];
     delete doc[_text_key];
-    return Object.keys(doc);
+    var keys = Object.keys(doc);
+
+    return _.filter(keys, filter_partial);
   }
 
   // ===== Provider =====
