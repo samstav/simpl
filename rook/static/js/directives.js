@@ -785,6 +785,30 @@ angular.module('checkmate.directives').directive('cmPasswordManager', ['$rootSco
   };
 }]);
 
+angular.module('checkmate.directives').directive('markdown', [function() {
+  var to_html = function(new_value, old_value, scope) {
+    var text = new_value || "";
+    var html = scope.converter.makeHtml(text);
+    scope.element.html(html);
+  }
+
+  var link_fn = function(scope, element, attrs) {
+    scope.converter = new Showdown.converter();
+    scope.element = element;
+    if (attrs.text) {
+      scope.$watch('text', to_html);
+    } else {
+      to_html(element.text(), null, scope);
+    }
+  }
+
+  return {
+    restrict: 'E',
+    scope: { text: '=' },
+    link: link_fn
+  };
+}]);
+
 // Extend ui-bootstrap to use HTML popovers
 directives.directive( 'popoverHtmlUnsafePopup', function () {
   return {

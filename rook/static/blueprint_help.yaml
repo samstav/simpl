@@ -1,6 +1,13 @@
 # Blueprint Schema Definition
 blueprint:
-  _: "This is the blueprint"
+  _: |
+    # Blueprint
+
+    This is the blueprint. Advantages:
+
+    * this
+    * also this
+    * one more...
   services:
     _: "These are the services"
     any:
