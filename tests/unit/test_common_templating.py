@@ -14,6 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Unit Tests for Script class."""
+import os
 import unittest
 
 import mox
@@ -130,6 +131,19 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
         result = templating.parse(template, deployment=deployment)
         data = yaml.safe_load(result)
         self.assertEqual(data['value'], cert)
+
+    def test_parsing_patterns(self):
+        path = os.path.join(os.path.dirname(__file__),
+                            os.path.pardir,  # tests
+                            os.path.pardir,  # checkmate
+                            'checkmate',
+                            'common',
+                            'patterns.yaml')
+        patterns = yaml.safe_load(open(path, 'r'))
+        value = patterns['regex']['linux_user']['optional']['value']
+        template = "value: {{ patterns.regex.linux_user.optional.value }}"
+        expected = ("value: %s" % value)
+        self.assertEqual(templating.parse(template), expected)
 
 
 if __name__ == '__main__':
