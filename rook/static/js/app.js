@@ -3357,7 +3357,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
-function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTree) {
+function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs) {
   var blueprint_info = ["This is the blueprint.  You can build deployments and stuff with these things.  Hit Ctrl+Space for a list of valid keys", "name: String", "services: Hash", "documentation: String"].join('<br />');
   var DEPLOYMENT_INFO_MAP = {
     '"blueprint"': blueprint_info,
@@ -3378,7 +3378,6 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
 
   $scope.parse_deployment = function(deployment) {
     Deployment.parse(JSON.parse(deployment), $scope.auth.context.tenantId, function(response) {
-      $scope.foo = response;
       $scope.parsed_deployment_tree = DeploymentTree.build(response);
     })
   };
@@ -3389,12 +3388,32 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
     };
     _editor.setOption('extraKeys', {'Ctrl-Space': 'autocomplete'})
     _editor.on('cursorActivity', function(instance, event) {
-      current_fold_key = BlueprintHint.get_fold_key(_editor, _editor.getCursor(), true)
-      $scope.help_display = DEPLOYMENT_INFO_MAP[current_fold_key]
-      $scope.$apply()
-    })
+      $scope.$apply(function() {
+        var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor(), false);
+        var doc = BlueprintDocs.find(path_tree);
+        $scope.help_display = doc._;
+      });
+    });
   }
 
+  $scope.$watch('deployment_json', function(newValue, oldValue) {
+    var new_deployment, old_deployment;
+    try {
+      new_deployment = JSON.stringify(JSON.parse(newValue));
+    } catch(err) {
+      console.log("Invalid JSON. Will not try to parse deployment.")
+      return;
+    }
+
+    try {
+      old_deployment = JSON.stringify(JSON.parse(oldValue));
+    } catch(err) {
+      console.log("Previous JSON was invalid")
+    }
+
+    if (new_deployment != old_deployment)
+      $scope.parse_deployment(newValue);
+  });
 }
 
 /*

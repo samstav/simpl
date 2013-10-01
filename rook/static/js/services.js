@@ -2381,10 +2381,39 @@ angular.module('checkmate.services').factory('BlueprintHint', [function() {
     return key
   }
 
-  scope.get_fold_key = function(_editor, cursor, check_current_line) {
+  scope.get_fold_tree = function(_editor, cursor, check_current_line) {
+    var fold_tree = [];
+    var current_fold = null;
+    var current_cursor = cursor;
+    var current_key;
+
+    while (true) {
+      current_fold = scope.get_parent_fold(_editor, current_cursor, check_current_line);
+      if (current_fold === undefined)
+        break;
+      current_key = scope.get_key(_editor, current_fold.from.line);
+      if (current_key == "")
+        break;
+
+      fold_tree.unshift(current_key);
+      current_cursor = current_fold.from;
+      check_current_line = false;
+    }
+
+    fold_tree.push(scope.get_key(_editor, cursor.line))
+
+    return fold_tree;
+  }
+
+  scope.get_key = function(_editor, line_num) {
+    trimmed_key_line = _editor.getLine(line_num).trim();
+    return trimmed_key_line.substring(0, trimmed_key_line.indexOf(":"));
+  }
+
+  scope.get_parent_fold = function(_editor, cursor, check_current_line) {
     var keep_going = true,
         start,
-        fold_key,
+        fold_containing_cursor,
         current_fold;
 
    if (check_current_line) {
@@ -2401,24 +2430,22 @@ angular.module('checkmate.services').factory('BlueprintHint', [function() {
       if(current_fold) {
         if (current_fold.to.line > cursor.line){
           fold_containing_cursor = current_fold
-
-          if (fold_containing_cursor.from.line == 0) {
-            fold_key = '"deployment"';
-          } else {
-            trimmed_key_line = _editor.getLine(fold_containing_cursor.from.line).trim()
-            fold_key = trimmed_key_line.substring(0, trimmed_key_line.indexOf(":"))
-          }
-
           keep_going = false;
         }
       }
     })
-    return fold_key
+    return fold_containing_cursor;
+  }
+
+  scope.get_parent_fold_key = function(_editor, cursor, check_current_line){
+    var fold = scope.get_parent_fold(_editor, cursor, check_current_line)
+    if (fold === undefined) return "";
+    return scope.get_key(_editor, fold.from.line);
   }
 
   scope.hinting = function(_editor) {
     cursor = _editor.getCursor()
-    fold_key = scope.get_fold_key(_editor, cursor)
+    fold_key = scope.get_parent_fold_key(_editor, cursor)
 
     return {
       list: AUTOCOMPLETE[_transform_fold_key(fold_key)] || [],
@@ -2428,6 +2455,46 @@ angular.module('checkmate.services').factory('BlueprintHint', [function() {
   }
 
   return scope;
+}]);
+
+angular.module('checkmate.services').provider('BlueprintDocs', [function() {
+  var ANY = 'any';
+  var _docs = {};
+  var scope = {};
+  var provider = {};
+
+  // ===== Scope =====
+  scope.find = function(path_tree) {
+    var doc = null;
+    var current_doc = _docs;
+    var _path_tree = angular.copy(path_tree);
+    var current_path = _path_tree.shift();
+
+    while (current_path) {
+      current_path = current_path.replace(/"/g, '');
+      doc = current_doc[current_path];
+      if (!doc) {
+        doc = current_doc[ANY];
+        if (!doc)
+          return {};
+      }
+      current_path = _path_tree.shift();
+      current_doc = doc;
+    }
+
+    return doc;
+  }
+
+  // ===== Provider =====
+  provider.docs = function(docs) {
+    _docs = docs;
+  };
+
+  provider.$get = function() {
+    return scope;
+  }
+
+  return provider;
 }]);
 
 angular.module('checkmate.services').factory('DeploymentTree', [function() {
