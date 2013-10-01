@@ -15,6 +15,7 @@ dist/
 coverage/
 var/
 src/
+venv/
 checkmate/static-libs/
 checkmate/openstack
 tests/data/environments
