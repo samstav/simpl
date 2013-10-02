@@ -615,8 +615,8 @@ class Router(object):
         """Check instance statuses."""
         deployment = self._setup_deployment(api_id, tenant_id)
         statuses = deployment.get_statuses(bottle.request.environ['context'])
-        check_results = {'curr-resources': deployment.get('resources'),
-                         'curr-operation': deployment.get('operation')}
+        check_results = {'current-resources': deployment.get('resources'),
+                         'current-operation': deployment.get('operation')}
         check_results['new-resources'] = tasks.postback(
             api_id, {'resources': statuses.get('resources')}, check_only=True)
         check_results['new-operation'] = common_tasks.update_operation(

@@ -680,21 +680,24 @@ class TestQueryParams(unittest.TestCase):
 
 class TestFormatCheck(unittest.TestCase):
     def test_missing_keys(self):
-        expected_msg = ("parameter keys do not match ['curr-operation', "
-                        "'curr-resources', 'new-operation', 'new-resources']: "
-                        "['curr-operation', 'curr-resources']")
+        expected_msg = ("parameter keys do not match ['current-operation', "
+                        "'current-resources', 'new-operation', "
+                        "'new-resources']: ['current-operation', "
+                        "'current-resources']")
         with self.assertRaises(CheckmateInvalidParameterError) as expected:
-            utils.format_check({'curr-operation': {}, 'curr-resources': {}})
+            utils.format_check(
+                {'current-operation': {}, 'current-resources': {}})
         self.assertEqual(expected_msg, str(expected.exception))
 
     def test_extra_key(self):
-        expected_msg = ("parameter keys do not match ['curr-operation', "
-                        "'curr-resources', 'new-operation', 'new-resources']: "
-                        "['curr-operation', 'curr-resources', 'invalid-key', "
-                        "'new-operation', 'new-resources']")
+        expected_msg = ("parameter keys do not match ['current-operation', "
+                        "'current-resources', 'new-operation', "
+                        "'new-resources']: ['current-operation', "
+                        "'current-resources', 'invalid-key', 'new-operation', "
+                        "'new-resources']")
         with self.assertRaises(CheckmateInvalidParameterError) as expected:
             utils.format_check({
-                'curr-operation': {}, 'curr-resources': {},
+                'current-operation': {}, 'current-resources': {},
                 'new-operation': {}, 'new-resources': {}, 'invalid-key': {}
             })
         self.assertEqual(expected_msg, str(expected.exception))
@@ -708,7 +711,7 @@ class TestFormatCheck(unittest.TestCase):
             ]
         }
         result = utils.format_check({
-            'curr-operation': {'status': 'UP'}, 'curr-resources': {},
+            'current-operation': {'status': 'UP'}, 'current-resources': {},
             'new-operation': {'status': 'UP'}, 'new-resources': {}
         })
         self.assertEqual(expected_msg, result)

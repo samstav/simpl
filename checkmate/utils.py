@@ -1113,7 +1113,7 @@ def format_check(data):
 
     :param data: a dict containing 4 sections (see expected_keys)
     """
-    expected_keys = ['curr-operation', 'curr-resources', 'new-operation',
+    expected_keys = ['current-operation', 'current-resources', 'new-operation',
                      'new-resources']
     data_keys = data.keys()
     data_keys.sort()
@@ -1125,18 +1125,19 @@ def format_check(data):
 
     result = {'resources': {}, 'operation': []}
 
-    if (data['curr-operation'].get('status') !=
+    if (data['current-operation'].get('status') !=
             data['new-operation'].get('status')):
         result['operation'].append({
             'type': 'WARNING',
             'message': 'Status should be updated from %s to %s' %
-            (data['curr-operation']['status'], data['new-operation']['status'])
+            (data['current-operation']['status'],
+            data['new-operation']['status'])
         })
     else:
         result['operation'].append({
             'type': 'INFORMATION',
             'message': 'Operation status %s is consistent.' %
-            data['curr-operation']['status']
+            data['current-operation']['status']
         })
 
     return result

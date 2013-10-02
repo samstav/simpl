@@ -375,7 +375,7 @@ class Manager(object):
         if not isinstance(contents, dict):
             raise CheckmateValidationException("Postback contents is not "
                                                "type dictionary")
-        dep.on_postback(contents, target=dep)
+        dep.on_postback(contents)
 
         if not check_only:
             body, secrets = utils.extract_sensitive_data(dep)
