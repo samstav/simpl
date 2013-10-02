@@ -72,6 +72,7 @@ class CheckmateException(Exception):
 
     @property
     def message(self):
+        """Read only property for _message."""
         if self._message is None:
             return self.__doc__.split('\n')[0]
         else:
