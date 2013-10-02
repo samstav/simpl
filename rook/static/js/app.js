@@ -8,7 +8,7 @@ var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.ser
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', 'BlueprintDocsProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider, BlueprintDocsProvider) {
 
-  BlueprintDocsProvider.docs(YAML.load("/blueprint_help.yaml"));
+  BlueprintDocsProvider.docs(YAML.load("/partials/blueprint_help.yaml.js"));
 
   // Static Paths
   $routeProvider.when('/', {
