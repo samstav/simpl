@@ -2509,8 +2509,12 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
   }
 
   // ===== Provider =====
-  provider.docs = function(docs) {
-    _docs = docs;
+  provider.docs = function(filename) {
+    try {
+      _docs = YAML.load(filename);
+    } catch(err) {
+      console.log("YAML file for Blueprint documentation could not be parsed");
+    }
   }
 
   provider.any_key = function(any_key) {
