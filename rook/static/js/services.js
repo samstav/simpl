@@ -2364,6 +2364,10 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
 angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', function(BlueprintDocs) {
   var scope = {};
 
+  var _blank_token = function(token) {
+    return (token.type === null && token.string.trim() == "");
+  }
+
   var _get_fold = function(_editor, line_number){
     var pos = CodeMirror.Pos(line_number);
     var mode = _editor.getOption('mode');
@@ -2440,7 +2444,7 @@ angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', 
     var cursor = _editor.getCursor();
     var token = _editor.getTokenAt(cursor);
     var keys = BlueprintDocs.keys( scope.get_fold_tree(_editor, cursor, false), token );
-    var position = (token.type === null) ? cursor.ch : token.start;
+    var position = _blank_token(token) ? cursor.ch : token.start;
     if (token.type && token.type.indexOf('string') > -1)
       position++;
 
@@ -2503,7 +2507,7 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
     var doc = angular.copy(_doc);
     delete doc[_any_key];
     delete doc[_text_key];
-    var keys = Object.keys(doc);
+    var keys = Object.keys(doc).sort();
 
     return _.filter(keys, filter_partial);
   }
