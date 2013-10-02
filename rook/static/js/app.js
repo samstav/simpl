@@ -482,6 +482,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     $scope.close_login_prompt();
     $scope.deferred_login.resolve({ logged_in: true });
     $scope.deferred_login = null;
+    $route.reload();
 
     mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
   };
