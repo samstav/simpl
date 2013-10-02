@@ -3392,7 +3392,21 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
     CodeMirror.commands.autocomplete = function(cm) {
       CodeMirror.showHint(cm, BlueprintHint.hinting);
     };
-    _editor.setOption('extraKeys', {'Ctrl-Space': 'autocomplete'})
+
+    function betterTab(cm) {
+      if (cm.somethingSelected()) {
+        cm.indentSelection("add");
+      } else {
+        cm.replaceSelection(cm.getOption("indentWithTabs")? "\t":
+                            Array(cm.getOption("indentUnit") + 1).join(" "), "end", "+input");
+      }
+    }
+
+    _editor.setOption('extraKeys', {
+      'Ctrl-Space': 'autocomplete',
+      Tab: betterTab
+    })
+
     _editor.on('cursorActivity', function(instance, event) {
       $scope.$apply(function() {
         var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor());
