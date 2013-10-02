@@ -2364,6 +2364,10 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
 angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', function(BlueprintDocs) {
   var scope = {};
 
+  var _blank_token = function(token) {
+    return (token.type === null && token.string.trim() == "");
+  }
+
   var _get_fold = function(_editor, line_number){
     var pos = CodeMirror.Pos(line_number);
     var mode = _editor.getOption('mode');
@@ -2440,7 +2444,7 @@ angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', 
     var cursor = _editor.getCursor();
     var token = _editor.getTokenAt(cursor);
     var keys = BlueprintDocs.keys( scope.get_fold_tree(_editor, cursor, false), token );
-    var position = (token.type === null) ? cursor.ch : token.start;
+    var position = _blank_token(token) ? cursor.ch : token.start;
     if (token.type && token.type.indexOf('string') > -1)
       position++;
 
@@ -2503,7 +2507,7 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
     var doc = angular.copy(_doc);
     delete doc[_any_key];
     delete doc[_text_key];
-    var keys = Object.keys(doc);
+    var keys = Object.keys(doc).sort();
 
     return _.filter(keys, filter_partial);
   }
@@ -2624,3 +2628,46 @@ angular.module('checkmate.services').factory('DeploymentTree', [function() {
   return scope;
 }]);
 
+angular.module('checkmate.services').factory('DelayedRefresh', ['$timeout', function($timeout) {
+
+  var scope = {};
+
+  /*
+   This creates an object with a refresh method.  This method takes a callback which will
+   be executed only after the given timeout expires. If refresh is called again before the
+   timeout expires, the timeout is reset and the callback execution is delayed further.
+
+   This allows for responsive callbacks while still keeping expensive calls at a minimum.
+   */
+
+  scope.get_instance = function(callback, timeout) {
+    var _scope = {};
+
+    _scope.callback = callback;
+    _scope.timeout = timeout || 2000;
+    _scope.timeout_handle = null;
+
+    _scope.reset = function(value) {
+      if (_scope.timeout_handle) {
+        $timeout.cancel(_scope.timeout_handle);
+      }
+      _scope.timeout_handle = null;
+      return value;
+    }
+
+    _scope.start = function(callback) {
+      _scope.timeout_handle = $timeout(callback || _scope.callback, _scope.timeout);
+      return _scope.timeout_handle.then(_scope.reset);
+    }
+
+    _scope.refresh = function(callback) {
+      _scope.reset();
+      return _scope.start(callback);
+    }
+
+    return _scope;
+  }
+
+  return scope;
+
+}]);
