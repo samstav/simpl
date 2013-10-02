@@ -1503,7 +1503,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         return wait_on_build.retry(exc=cmexc.CheckmateException(msg))
 
     # if a rack_connect account, wait for rack_connect configuration to finish
-    if 'rack_connect' in context['roles']:
+    rackconnected = utils.is_rackconnect_account(context)
+    if rackconnected:
         if 'rackconnect_automation_status' not in server.metadata:
             msg = ("Rack Connect server still does not have the "
                    "'rackconnect_automation_status' metadata tag")
@@ -1512,20 +1513,34 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                                            {instance_key: results})
             wait_on_build.retry(exc=cmexc.CheckmateException(msg))
         else:
-            if server.metadata['rackconnect_automation_status'] == 'DEPLOYED':
+            rc_automation_status = server.metadata[
+                'rackconnect_automation_status']
+            if rc_automation_status == 'DEPLOYED':
                 LOG.debug("Rack Connect server ready. Metadata found'")
+                results["rackconnect-automation-status"] = rc_automation_status
+            elif rc_automation_status in ['FAILED', 'UNPROCESSABLE']:
+                msg = ("RackConnect server "
+                       "metadata has 'rackconnect_automation_status' is "
+                       "set to %s.%s. RackConnect will  not be enabled for "
+                       "this server(#%s) . " % (rc_automation_status,
+                       get_rackconnect_error_reason(server.metadata),
+                       server_id))
+                LOG.debug(msg)
+                results["rackconnect-automation-status"] = rc_automation_status
             else:
                 msg = ("Rack Connect server 'rackconnect_automation_status' "
                        "metadata tag is still not 'DEPLOYED'. It is '%s'" %
-                       server.metadata.get('rackconnect_automation_status'))
+                       rc_automation_status)
                 results['status-message'] = msg
-                cmdeps.resource_postback.delay(deployment_id,
-                                               {instance_key: results})
+                cmdeps.resource_postback.delay(
+                    deployment_id,
+                    {instance_key: results}
+                )
                 wait_on_build.retry(exc=cmexc.CheckmateException(msg))
 
     ips = utils.get_ips_from_server(
         server,
-        context['roles'],
+        rackconnected,
         primary_address_type=ip_address_type
     )
     utils.merge_dictionary(results, ips)
@@ -1541,6 +1556,15 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     results = {instance_key: results}
     cmdeps.resource_postback.delay(deployment_id, results)
     return results
+
+
+def get_rackconnect_error_reason(metadata):
+    """Get the reason why rackconnect automation went into UNPROCESSED status
+    @param metadata: Server metadata
+    @return:
+    """
+    reason = metadata.get("rackconnect_unprocessable_reason", None)
+    return "" if not reason else " Reason: %s" % reason
 
 
 @ctask.task(default_retry_delay=1, max_retries=30)

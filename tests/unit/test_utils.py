@@ -596,7 +596,7 @@ class TestUtils(unittest.TestCase):
         server = mock.Mock()
         server.addresses = {'public': [{'version': 4, 'addr': '1.1.2.2'}]}
         expected = {'ip': '1.1.2.2', 'public_ip': '1.1.2.2'}
-        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+        self.assertEqual(utils.get_ips_from_server(server, False), expected)
 
     def test_get_ips_from_server_with_different_address_type(self):
         server = mock.Mock()
@@ -605,7 +605,7 @@ class TestUtils(unittest.TestCase):
         expected = {'ip': '1.1.2.2'}
         self.assertEqual(
             utils.get_ips_from_server(server,
-                                      [],
+                                      False,
                                       primary_address_type='foobar'),
             expected)
 
@@ -614,21 +614,21 @@ class TestUtils(unittest.TestCase):
         server.addresses = {'public': [{'version': 4, 'addr': '1.1.1.1'}]}
         server.accessIPv4 = None
         expected = {'ip': '1.1.1.1', 'public_ip': '1.1.1.1'}
-        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+        self.assertEqual(utils.get_ips_from_server(server, False), expected)
 
     def test_get_ips_from_server_private_ip_is_ipv4(self):
         server = mock.Mock()
         server.addresses = {'private': [{'version': 4, 'addr': '1.1.1.1'}]}
         server.accessIPv4 = None
         expected = {'ip': None, 'private_ip': '1.1.1.1'}
-        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+        self.assertEqual(utils.get_ips_from_server(server, False), expected)
 
     def test_get_ips_from_server_private_ip_is_not_ipv4(self):
         server = mock.Mock()
         server.addresses = {'private': [{'version': 6, 'addr': '1.1.1.1'}]}
         server.accessIPv4 = None
         expected = {'ip': None}
-        self.assertEqual(utils.get_ips_from_server(server, []), expected)
+        self.assertEqual(utils.get_ips_from_server(server, False), expected)
 
     def test_hide_url_password(self):
         hidden = utils.hide_url_password('http://user:pass@localhost')
@@ -677,6 +677,24 @@ class TestQueryParams(unittest.TestCase):
         self.assertNotIn('foo', query)
         self.assertNotIn('bar', query)
 
+    def test_should_indicate_if_rackconnect_account(self):
+        self.assertTrue(utils.is_rackconnect_account({
+            "roles": ['rack_connect', 'rax_managed']}
+        ))
+        self.assertFalse(utils.is_rackconnect_account({
+            "roles": ['rax_managed']}
+        ))
+
+    def test_cap_limit(self):
+        self.assertEquals(90, utils.cap_limit(90, None))
+        self.assertEquals(100, utils.cap_limit(120, None))
+        self.assertEquals(100, utils.cap_limit(-10, None))
+
+    def test_filter_resources(self):
+        resources = {"1": {"provider": "compute"}, "2": {}}
+        filtered = utils.filter_resources(resources, "compute")
+        self.assertEquals(1, len(filtered))
+        self.assertDictEqual({"provider": "compute"}, filtered[0])
 
 class TestFormatCheck(unittest.TestCase):
     def test_missing_keys(self):
