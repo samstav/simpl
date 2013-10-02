@@ -1,22 +1,33 @@
 CodeMirror.registerHelper("fold", "indent", function(cm, start) {
-  var foldEnded = function(myIndent, curColumn, prevColumn, numLines) {
-    return ( (curColumn < myIndent) ||
-             (curColumn == myIndent && prevColumn >= myIndent) ||
-             (curColumn > myIndent && i == numLines-1) );
+  var foldEnded = function(myIndent, currColumn, prevColumn, lastLineNumber) {
+    return ( (currColumn < myIndent) ||
+             (currColumn == myIndent && prevColumn >= myIndent) ||
+             (currColumn > myIndent && i == lastLineNumber) );
   }
 
-  var numLines = cm.lineCount(),
+  var lastLineNumber = cm.lineCount() - 1,
       tabSize = cm.getOption("tabSize"),
       firstLine = cm.getLine(start.line),
-      myIndent = CodeMirror.countColumn(firstLine, null, tabSize);
+      myIndent = CodeMirror.countColumn(firstLine, null, tabSize),
+      maxColumn = myIndent;
 
-  for (var i = start.line + 1 ; i < numLines ; i++) {
-    var curColumn = CodeMirror.countColumn(cm.getLine(i), null, tabSize);
-    var prevColumn = CodeMirror.countColumn(cm.getLine(i-1), null, tabSize);
+  if (firstLine.trim() == "") return;
 
-    if (foldEnded(myIndent, curColumn, prevColumn, numLines)) {
-      var lastFoldLineNumber = (curColumn > myIndent && i == numLines-1) ? i : i-1;
+  for (var i = start.line + 1 ; i <= lastLineNumber ; i++) {
+    var prevLine = cm.getLine(i-1);
+    var currLine = cm.getLine(i);
+    if (currLine.trim() == "" && i < lastLineNumber) continue;
+
+    var prevColumn = CodeMirror.countColumn(prevLine, null, tabSize);
+    var currColumn = CodeMirror.countColumn(currLine, null, tabSize);
+    maxColumn = Math.max(currColumn, maxColumn);
+
+    if (foldEnded(myIndent, currColumn, prevColumn, lastLineNumber)) {
+      if (maxColumn <= myIndent) return;
+
+      var lastFoldLineNumber = (currColumn > myIndent && i == lastLineNumber) ? i : i-1;
       var lastFoldLine = cm.getLine(lastFoldLineNumber);
+
       return {from: CodeMirror.Pos(start.line, firstLine.length),
               to: CodeMirror.Pos(lastFoldLineNumber, lastFoldLine.length)};
     }
