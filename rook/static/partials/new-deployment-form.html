@@ -44,7 +44,18 @@ url: shows "Address Builder" to handle url options
     display:inline;
 }
 </style>
-<div class="alert" ng-class="{'alert-info': stable}" ng-show="blueprint &amp;&amp; remote.branch.name != 'stable'"><h4 ng-show="!stable">Warning!</h4> You have selected an <strong>unsupported</strong> <span ng-show="stable">version of this </span>blueprint. <span ng-show="stable"><a ng-href="/deployments/new?blueprint={{stable.url}}">This</a> is a supported version of this blueprint.</span><span ng-show="!stable">Try a supported blueprint from the list on the home page instead.</span></div>
+
+<div class="alert" ng-class="{'alert-info': stable}" ng-show="blueprint &amp;&amp; remote.branch.name != 'stable'">
+  <h4 ng-show="!stable">Warning!</h4>
+  You have selected an <strong>unsupported</strong> <span ng-show="stable">version of this</span> blueprint.
+  <span ng-show="stable">
+    <a ng-href="/deployments/new?blueprint={{stable.url}}">This</a> is a supported version of this blueprint.
+  </span>
+  <span ng-show="!stable">
+    Try a supported blueprint from the list on the home page instead.
+  </span>
+</div>
+
 <form id="newDeploymentForm" name="newDeploymentForm" class="form-horizontal" autocomplete="off" ng-show="blueprint" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{blueprint['meta-data']['reach-info'].tattoo}})">
   <fieldset>
     <!-- Name -->
@@ -52,7 +63,7 @@ url: shows "Address Builder" to handle url options
         <div class="control-group span10" ng-form="subForm" ng-class="{error: subForm.$invalid &amp;&amp; subForm.$dirty}">
             <label class="control-label" for="deployment_name">Deployment Name</label>
             <div class="controls">
-                <input id="deployment_name" type="text" ng-model="$parent.deployment_name" class="input-xlarge" maxlength="32" ng-maxlength="32" placeholder="ex. My Favorite App">
+              <input id="deployment_name" type="text" ng-model="$parent.deployment_name" class="input-xlarge" maxlength="32" ng-maxlength="32" placeholder="ex. My Favorite App">
             </div>
         </div>
     </div>

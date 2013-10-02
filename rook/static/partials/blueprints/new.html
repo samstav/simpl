@@ -1,4 +1,4 @@
-<div id="new_blueprint_container" class="row-fluid">
+<div id="new_blueprint_container" class="row-fluid" ng-init="load_blueprint()">
   <div class="span6" id="new_blueprint_editor">
     <textarea id="blueprint_source"
               ng-model="deployment_json"
@@ -9,5 +9,7 @@
     <cm-tree-view data="parsed_deployment_tree" width="640" height="480"></cm-tree-view>
     <hr />
     <markdown text="help_display"></markdown>
+    <hr />
+    <a ng-click="toggle_editor_type()">Toggle editor type</a>
   </div>
 </div>
