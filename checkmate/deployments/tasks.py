@@ -179,16 +179,16 @@ def update_all_provider_resources(provider, deployment_id, status,
 
 @task(default_retry_delay=0.5, max_retries=6)
 @statsd.collect
-def postback(deployment_id, contents):
+def postback(deployment_id, contents, check_only=False):
     """Exposes DeploymentsManager.postback as a task."""
     utils.match_celery_logging(LOG)
-    MANAGERS['deployments'].postback(deployment_id, contents)
+    return MANAGERS['deployments'].postback(deployment_id, contents,
+                                            check_only=check_only)
 
 
 @task(default_retry_delay=0.5, max_retries=6)
 @statsd.collect
-def resource_postback(deployment_id, contents, driver=None,
-                      check_only=False):
+def resource_postback(deployment_id, contents, driver=None):
     #FIXME: we need to receive a context and check access
     """Accepts back results from a remote call and updates the deployment with
     the result data for a specific resource.
@@ -253,7 +253,7 @@ def resource_postback(deployment_id, contents, driver=None,
     if new_contents:
         deployment.on_resource_postback(new_contents, target=updates)
 
-    if updates and not check_only:
+    if updates:
         body, secrets = utils.extract_sensitive_data(updates)
         try:
             driver.save_deployment(deployment_id, body, secrets,
@@ -266,5 +266,3 @@ def resource_postback(deployment_id, contents, driver=None,
             LOG.warn("Object lock collision in resource_postback on "
                      "Deployment %s", deployment_id)
             resource_postback.retry()
-
-    return updates

@@ -295,11 +295,12 @@ def to_json(data):
     return json.dumps(data, indent=4)
 
 
-def try_int(string):
+def try_int(the_str):
+    """Try converting string to int. Return the string on failure."""
     try:
-        return int(string)
+        return int(the_str)
     except ValueError:
-        return string
+        return the_str
 
 HANDLERS = {
     'application/x-yaml': write_yaml,
@@ -1105,3 +1106,38 @@ def hide_url_password(url):
     except StandardError:
         pass
     return url
+
+
+def format_check(data):
+    """Calculates a deployment's deltas and returns a formatted result.
+
+    :param data: a dict containing 4 sections (see expected_keys)
+    """
+    expected_keys = ['current-operation', 'current-resources', 'new-operation',
+                     'new-resources']
+    data_keys = data.keys()
+    data_keys.sort()
+    if data_keys != expected_keys:
+        raise cmexc.CheckmateInvalidParameterError(
+            'parameter keys do not match %s: %s' %
+            (expected_keys, data_keys)
+        )
+
+    result = {'resources': {}, 'operation': []}
+
+    if (data['current-operation'].get('status') !=
+            data['new-operation'].get('status')):
+        result['operation'].append({
+            'type': 'WARNING',
+            'message': 'Status should be updated from %s to %s' %
+            (data['current-operation']['status'],
+            data['new-operation']['status'])
+        })
+    else:
+        result['operation'].append({
+            'type': 'INFORMATION',
+            'message': 'Operation status %s is consistent.' %
+            data['current-operation']['status']
+        })
+
+    return result

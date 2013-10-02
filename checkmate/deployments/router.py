@@ -584,7 +584,7 @@ class Router(object):
         return utils.write_body(results, bottle.request, bottle.response)
 
     def _setup_deployment(self, api_id, tenant_id):
-        """Basic deployment setup for plan_deployment and check_deployment."""
+        """Basic deployment setup for sync_deployment and check_deployment."""
         if db.any_id_problems(api_id):
             bottle.abort(406, db.any_id_problems(api_id))
         entity = self.manager.get_deployment(api_id)
@@ -615,22 +615,18 @@ class Router(object):
         """Check instance statuses."""
         deployment = self._setup_deployment(api_id, tenant_id)
         statuses = deployment.get_statuses(bottle.request.environ['context'])
-        check_results = {
-            'current': statuses,
-            'updates': {},
-            'operations-delta': {}
-        }
-        for key, value in statuses.get('resources').iteritems():
-            check_results['updates'][key] = tasks.resource_postback(
-                api_id, {key: value}, check_only=True)
-        check_results['operations-delta'] = common_tasks.update_operation(
+        check_results = {'current-resources': deployment.get('resources'),
+                         'current-operation': deployment.get('operation')}
+        check_results['new-resources'] = tasks.postback(
+            api_id, {'resources': statuses.get('resources')}, check_only=True)
+        check_results['new-operation'] = common_tasks.update_operation(
             api_id, operations.current_workflow_id(deployment),
             deployment_status=statuses['deployment_status'],
             status=statuses['operation_status'],
             check_only=True
         )
         return utils.write_body(
-            check_results, bottle.request, bottle.response)
+            utils.format_check(check_results), bottle.request, bottle.response)
 
     @utils.with_tenant
     def deploy_deployment(self, api_id, tenant_id=None):
