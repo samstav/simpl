@@ -793,7 +793,7 @@ class Provider(ProviderBase):
                 'checkmate.providers.opscode.knife.cook',
                 call_args=[
                     instance_ip,
-                    deployment['id'], client
+                    deployment['id'], server
                 ],
                 password=PathAttrib('instance:%s/password' % host_idx),
                 attributes=PathAttrib(
