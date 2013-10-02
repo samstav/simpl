@@ -1,0 +1,31 @@
+# Blueprint Schema Definition
+blueprint:
+  _: |
+    # Blueprint
+
+    This is the blueprint. Advantages:
+
+    * this
+    * also this
+    * one more...
+  services:
+    _: "These are the services"
+    any:
+      _: "This should be applied to any attributes under services"
+      display-name:
+        _: "This is the display name"
+      component:
+        _: "This is the component"
+  name:
+    _: "This is the name of the blueprint"
+  description:
+    _: "This is the description of the blueprint"
+
+# Blueprint User Inputs
+inputs:
+  _: "These are the user's inputs..."
+
+# Blueprint Environment
+environment:
+  _: "This is the environment"
+

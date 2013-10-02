@@ -2089,6 +2089,12 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
     sync.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, success_callback, error_callback)
   }
 
+  scope.parse =  function(deployment, tenant_id, success_callback, error_callback){
+    var Parse = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+parse.json', null, {'get': {method:'GET'}});
+    var parse = new Parse(deployment);
+    parse.$save({tenantId: tenant_id}, success_callback, error_callback)
+  }
+
   return scope;
 }]);
 
@@ -2354,3 +2360,263 @@ angular.module('checkmate.services').factory('WorkflowSpec', [function() {
 
   return scope;
 }]);
+
+angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', function(BlueprintDocs) {
+  var scope = {};
+
+  var _get_fold = function(_editor, line_number){
+    var pos = CodeMirror.Pos(line_number);
+    var mode = _editor.getOption('mode');
+    var func = (mode == 'application/json') ? CodeMirror.fold.brace : CodeMirror.fold.indent;
+    return func(_editor, pos)
+  }
+
+  scope.get_fold_tree = function(_editor, cursor, check_current_line) {
+    var fold_tree = [];
+    var current_fold = null;
+    var current_cursor = cursor;
+    var current_key;
+
+    if (check_current_line === undefined)
+      check_current_line = true;
+
+    if (check_current_line)
+      fold_tree.push(scope.get_key(_editor, cursor.line))
+
+    while (true) {
+      current_fold = scope.get_parent_fold(_editor, current_cursor);
+      if (current_fold === undefined)
+        break;
+      current_key = scope.get_key(_editor, current_fold.from.line);
+      if (current_key == "")
+        break;
+
+      fold_tree.push(current_key);
+      current_cursor = current_fold.from;
+    }
+
+    return fold_tree.reverse();
+  }
+
+  scope.get_key = function(_editor, line_num) {
+    var trimmed_key_line = _editor.getLine(line_num).trim();
+    return trimmed_key_line.substring(0, trimmed_key_line.indexOf(":"));
+  }
+
+  scope.get_parent_fold = function(_editor, cursor, check_current_line) {
+    var keep_going = true,
+        start,
+        fold_containing_cursor,
+        current_fold;
+
+    if (check_current_line) {
+      start = cursor.line
+    } else {
+      start = cursor.line-1
+    }
+
+    angular.forEach(_.range(start, -1, -1), function(num){
+      if (!keep_going)
+        return
+
+      current_fold = _get_fold(_editor, num);
+      if(current_fold) {
+        if (current_fold.to.line >= cursor.line){
+          fold_containing_cursor = current_fold
+          keep_going = false;
+        }
+      }
+    })
+    return fold_containing_cursor;
+  }
+
+  scope.get_parent_fold_key = function(_editor, cursor, check_current_line){
+    var fold = scope.get_parent_fold(_editor, cursor, check_current_line)
+    if (fold === undefined) return "";
+    return scope.get_key(_editor, fold.from.line);
+  }
+
+  scope.hinting = function(_editor) {
+    var cursor = _editor.getCursor();
+    var token = _editor.getTokenAt(cursor);
+    var keys = BlueprintDocs.keys( scope.get_fold_tree(_editor, cursor, false), token );
+    var position = (token.type === null) ? cursor.ch : token.start;
+    if (token.type && token.type.indexOf('string') > -1)
+      position++;
+
+    return {
+      list: keys || [],
+      from: CodeMirror.Pos(cursor.line, position),
+      to: CodeMirror.Pos(cursor.line, cursor.ch)
+    }
+  }
+
+  return scope;
+}]);
+
+angular.module('checkmate.services').provider('BlueprintDocs', [function() {
+  var _any_key = 'any';
+  var _text_key = '_';
+  var _docs = {};
+  var scope = {};
+  var provider = {};
+
+  var _wrap_docs = function(doc) {
+    return {
+      text: function() { return doc[_text_key]; }
+    };
+  }
+
+  var _find_doc = function(path_tree) {
+    var doc = _docs;
+    var current_doc = _docs;
+    var _path_tree = angular.copy(path_tree);
+    var current_path = _path_tree.shift();
+
+    while (current_path) {
+      current_path = current_path.replace(/"/g, '');
+      doc = current_doc[current_path] || current_doc[_any_key];
+      if (!doc) {
+        doc = {};
+        break;
+      }
+      current_path = _path_tree.shift();
+      current_doc = doc;
+    }
+
+    return doc;
+  }
+
+  // ===== Scope =====
+  scope.find = function(path_tree) {
+    return _wrap_docs(_find_doc(path_tree));
+  }
+
+  scope.keys = function(path_tree, partial_token) {
+    var filter_partial = function(elem) {
+      var text = partial_token.string.trim().replace(/['"]/g, '');
+      if (elem.indexOf(text) == 0)
+        return true;
+    }
+
+    var _doc = _find_doc(path_tree);
+    var doc = angular.copy(_doc);
+    delete doc[_any_key];
+    delete doc[_text_key];
+    var keys = Object.keys(doc);
+
+    return _.filter(keys, filter_partial);
+  }
+
+  // ===== Provider =====
+  provider.docs = function(docs) {
+    _docs = docs;
+  }
+
+  provider.any_key = function(any_key) {
+    _any_key = any_key;
+  }
+
+  provider.text_key = function(text_key) {
+    _text_key = text_key;
+  }
+
+  provider.$get = function() {
+    return scope;
+  }
+
+  return provider;
+}]);
+
+angular.module('checkmate.services').factory('DeploymentTree', [function() {
+  var scope = {};
+
+  var VERTEX_GROUPS = {
+    // Standard architecture
+    lb: 0,
+    master: 1,
+    web: 1,
+    app: 1,
+    admin: 1,
+    backend: 2,
+
+    // Cassandra
+    seed: 0,
+    node: 1,
+    'region-two': 2,
+
+    // Mongo
+    primary: 0,
+    data: 1
+  };
+
+  var _create_vertex = function(resource, resource_list) {
+    var group = resource.service;
+    var dns_name = resource['dns-name'] || '';
+    var name = dns_name.split('.').shift();
+    var host_id = resource.hosted_on;
+    var host = resource_list[host_id];
+
+    var vertex = {
+      id: resource.index,
+      group: group,
+      component: resource.component,
+      name: name,
+      status: resource.status,
+      host: {},
+      service: resource.service,
+      index: resource.index,
+      'dns-name': resource['dns-name']
+    };
+    if (host) {
+      vertex.host = {
+        id: host.index,
+        status: host.status,
+        type: host.component
+      };
+    }
+    return vertex;
+  };
+
+  var _create_edges = function(vertex, relations) {
+    var edges = [];
+
+    var v1 = vertex.id;
+    for (var i in relations) {
+      var relation = relations[i];
+      if (relation.relation != 'reference') continue;
+
+      var v2 = relation.source || relation.target;
+      var sorted_edges = [v1, v2].sort();
+      var edge = { v1: sorted_edges[0], v2: sorted_edges[1] };
+      edges.push(edge);
+    }
+
+    return edges;
+  }
+
+  scope.build = function(deployment) {
+    var edges = [];
+    var vertices = [];
+    var resources = deployment.resources;
+
+    for (var i in resources) {
+      var resource = resources[i];
+      if (!resource.relations) continue;
+
+      // Vertices
+      var vertex = _create_vertex(resource, resources);
+      var group_idx = VERTEX_GROUPS[vertex.group] || 0;
+      if (!vertices[group_idx]) vertices[group_idx] = [];
+      vertices[group_idx].push(vertex);
+
+      // Edges
+      edges = edges.concat(_create_edges(vertex, resource.relations));
+    }
+
+    return { vertex_groups: vertices, edges: edges };
+  }
+
+  return scope;
+}]);
+

@@ -193,6 +193,8 @@ directives.directive('cmTreeView', function() {
   }
 
   var select_node = function(node, scope, element) {
+    if (!scope.selectNode) return;
+
     var toggled = scope.$apply(function() { return scope.selectNode(node); });
     if (toggled) {
       toggle_highlight(node, element);
@@ -294,6 +296,8 @@ directives.directive('cmTreeView', function() {
   }
 
   var _add_tooltips = function(node, scope, element) {
+    if (!scope.clickableNode) return;
+
     var is_scalable_service = scope.clickableNode(node);
     if (is_scalable_service) return;
 
@@ -319,6 +323,8 @@ directives.directive('cmTreeView', function() {
       });
     vertices.select('image')
       .attr('xlink:href', get_icon);
+    vertices.select('text')
+      .text(function(d) { return d.name; });
     vertices.select('circle')
       .attr('r', function(d) { if (d.host.id) return 8; })
       .attr('cy', -20)
@@ -379,7 +385,7 @@ directives.directive('cmTreeView', function() {
 
   return {
     restrict: 'E',
-    template: '<div></div>',
+    template: '<div class="deployment_tree"></div>',
     replace: true,
     scope: {
       data: '=',
@@ -776,6 +782,30 @@ angular.module('checkmate.directives').directive('cmPasswordManager', ['$rootSco
         modelCtrl.$setViewValue(element.val());
       })
     }
+  };
+}]);
+
+angular.module('checkmate.directives').directive('markdown', [function() {
+  var to_html = function(new_value, old_value, scope) {
+    var text = new_value || "";
+    var html = scope.converter.makeHtml(text);
+    scope.element.html(html);
+  }
+
+  var link_fn = function(scope, element, attrs) {
+    scope.converter = new Showdown.converter();
+    scope.element = element;
+    if (attrs.text) {
+      scope.$watch('text', to_html);
+    } else {
+      to_html(element.text(), null, scope);
+    }
+  }
+
+  return {
+    restrict: 'E',
+    scope: { text: '=' },
+    link: link_fn
   };
 }]);
 

@@ -6,7 +6,10 @@ var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : ''
 var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ui.utils', 'ui.bootstrap', 'ui.codemirror']);
 
 //Load Angular Routes
-checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider) {
+checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', 'BlueprintDocsProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider, BlueprintDocsProvider) {
+
+  BlueprintDocsProvider.docs(YAML.load("/blueprint_help.yaml"));
+
   // Static Paths
   $routeProvider.when('/', {
     templateUrl: '/partials/home.html',
@@ -33,6 +36,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   .when('/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: DeploymentNewRemoteController
+  })
+  .when('/blueprints/new', {
+    templateUrl: '/partials/blueprints/new.html',
+    controller: BlueprintNewController
   })
   .when('/:tenantId/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
@@ -2764,7 +2771,7 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow) {
+function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow, DeploymentTree) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -3064,93 +3071,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   };
 
   $scope.tree_data = null;
-  $scope.vertex_groups = {
-    // Standard architecture
-    lb: 0,
-    master: 1,
-    web: 1,
-    app: 1,
-    admin: 1,
-    backend: 2,
-
-    // Cassandra
-    seed: 0,
-    node: 1,
-    'region-two': 2,
-
-    // Mongo
-    primary: 0,
-    data: 1
-  };
-
-  $scope.create_vertex = function(resource, resource_list) {
-    var group = resource.service;
-    var dns_name = resource['dns-name'] || '';
-    var name = dns_name.split('.').shift();
-    var host_id = resource.hosted_on;
-    var host = resource_list[host_id];
-
-    var vertex = {
-      id: resource.index,
-      group: group,
-      component: resource.component,
-      name: name,
-      status: resource.status,
-      host: {},
-      service: resource.service,
-      index: resource.index,
-      'dns-name': resource['dns-name']
-    };
-    if (host) {
-      vertex.host = {
-        id: host.index,
-        status: host.status,
-        type: host.component
-      };
-    }
-    return vertex;
-  };
-
-  $scope.create_edges = function(vertex, relations) {
-    var edges = [];
-
-    var v1 = vertex.id;
-    for (var i in relations) {
-      var relation = relations[i];
-      if (relation.relation != 'reference') continue;
-
-      var v2 = relation.source || relation.target;
-      var sorted_edges = [v1, v2].sort();
-      var edge = { v1: sorted_edges[0], v2: sorted_edges[1] };
-      edges.push(edge);
-    }
-
-    return edges;
-  }
-
-  $scope.build_tree = function() {
-    var edges = [];
-    var vertices = [];
-    var resources = $scope.data.resources;
-
-    for (var i in resources) {
-      var resource = resources[i];
-      if (!resource.relations) continue;
-
-      // Vertices
-      var vertex = $scope.create_vertex(resource, resources);
-      var group_idx = $scope.vertex_groups[vertex.group] || 0;
-      if (!vertices[group_idx]) vertices[group_idx] = [];
-      vertices[group_idx].push(vertex);
-
-      // Edges
-      edges = edges.concat($scope.create_edges(vertex, resource.relations));
-    }
-
-    $scope.tree_data = { vertex_groups: vertices, edges: edges };
-    return $scope.tree_data;
-  }
-  $scope.$watch('data', $scope.build_tree);
+  $scope.$watch('data', function(newData, oldData) {
+    $scope.tree_data = DeploymentTree.build(newData);
+  });
 }
 
 /*
@@ -3437,6 +3360,88 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
+function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs) {
+  var empty_deployment = {
+    "blueprint": {"name": "your blueprint name"},
+    "inputs": {},
+    "environment": {},
+    "name": {}
+  };
+  $scope.deployment_json = JSON.stringify(empty_deployment, null, 2);
+  $scope.parsed_deployment_tree = DeploymentTree.build({});
+
+  $scope.toggle_editor_type = function() {
+    if ($scope.codemirror_options.mode == 'application/json') {
+      $scope.codemirror_options.lint = false;
+      $scope.codemirror_options.mode = 'text/x-yaml';
+      $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
+    } else {
+      $scope.codemirror_options.lint = true;
+      $scope.codemirror_options.mode = 'application/json';
+      $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
+    }
+  }
+
+  $scope.parse_deployment = function(deployment) {
+    Deployment.parse(deployment, $scope.auth.context.tenantId, function(response) {
+      $scope.parsed_deployment_tree = DeploymentTree.build(response);
+    })
+  };
+
+  $scope.newBlueprintCodemirrorLoaded = function(_editor){
+    CodeMirror.commands.autocomplete = function(cm) {
+      CodeMirror.showHint(cm, BlueprintHint.hinting);
+    };
+    _editor.setOption('extraKeys', {'Ctrl-Space': 'autocomplete'})
+    _editor.on('cursorActivity', function(instance, event) {
+      $scope.$apply(function() {
+        var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor());
+        var doc = BlueprintDocs.find(path_tree);
+        $scope.help_display = doc.text();
+      });
+    });
+    $scope.$watch('codemirror_options.onGutterClick', function(newValue, oldValue) {
+      _editor.off('gutterClick', oldValue);
+      _editor.on('gutterClick', newValue);
+    });
+  }
+
+
+  $scope.codemirror_options = {
+    onLoad: $scope.newBlueprintCodemirrorLoaded,
+    theme: 'lesser-dark',
+    mode: 'application/json',
+    lineNumbers: true,
+    autoFocus: true,
+    lineWrapping: true,
+    matchBrackets: true,
+    onGutterClick: $scope.foldFunc,
+    lint: true,
+    gutters: ['CodeMirror-lint-markers']
+  };
+
+  $scope.$watch('deployment_json', function(newValue, oldValue) {
+    var deployment, new_deployment, old_deployment;
+    var parse_func = ($scope.codemirror_options.mode == 'application/json') ? JSON.parse : YAML.parse;
+    try {
+      deployment = parse_func(newValue);
+      new_deployment = JSON.stringify(deployment);
+    } catch(err) {
+      console.log("Invalid JSON/YAML. Will not try to parse deployment.")
+      return;
+    }
+
+    try {
+      old_deployment = JSON.stringify(parse_func(oldValue));
+    } catch(err) {
+      console.log("Previous JSON/YAML was invalid")
+    }
+
+    if (new_deployment != old_deployment)
+      $scope.parse_deployment(deployment);
+  });
+}
+
 /*
  * Other stuff
  */
@@ -3445,8 +3450,6 @@ if (Modernizr.localstorage) {
 } else {
   alert("This browser application requires an HTML5 browser with support for local storage");
 }
-
-var foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
 
 document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar

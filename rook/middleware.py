@@ -113,6 +113,8 @@ class BrowserMiddleware(object):
         if path:
             extension = path.split('.')[-1]
             if (extension in ['yaml', 'json']):
+                if (path == '/blueprint_help.yaml'):
+                    return ROOK_STATIC(environ, handler)
                 LOG.debug("Rook bypassing %s %s with extension %s",
                           environ['REQUEST_METHOD'], path, extension)
                 return self.nextapp(environ, handler)

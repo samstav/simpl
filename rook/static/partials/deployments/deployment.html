@@ -72,7 +72,7 @@ Priv Key: {{formatted_data.private_key}}
             <ng-include src="'/partials/deployments/_edit_nodes.html'"
                         ng-show="available_services(data).length > 0"></ng-include>
 
-            <cm-tree-view id="deployment_tree" data="tree_data"
+            <cm-tree-view data="tree_data"
                           select-node="toggle_selected_node"
                           clickable-node="is_scalable_service"
                           width="640" height="480"></cm-tree-view>

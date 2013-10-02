@@ -1,0 +1,13 @@
+<div id="new_blueprint_container" class="row-fluid">
+  <div class="span6" id="new_blueprint_editor">
+    <textarea id="blueprint_source"
+              ng-model="deployment_json"
+              ui-codemirror="codemirror_options">
+    </textarea>
+  </div>
+  <div class="span6">
+    <cm-tree-view data="parsed_deployment_tree" width="640" height="480"></cm-tree-view>
+    <hr />
+    <markdown text="help_display"></markdown>
+  </div>
+</div>
