@@ -3400,6 +3400,10 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
         $scope.help_display = doc.text();
       });
     });
+    $scope.$watch('codemirror_options.onGutterClick', function(newValue, oldValue) {
+      _editor.off('gutterClick', oldValue);
+      _editor.on('gutterClick', newValue);
+    });
   }
 
 
@@ -3411,11 +3415,7 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
     autoFocus: true,
     lineWrapping: true,
     matchBrackets: true,
-    onGutterClick: function() {
-      var mode = $scope.codemirror_options.mode;
-      var func = (mode == 'application/json') ? CodeMirror.fold.brace : CodeMirror.fold.indent;
-      return CodeMirror.newFoldFunction(func).apply(this, arguments);
-    },
+    onGutterClick: $scope.foldFunc,
     lint: true,
     gutters: ['CodeMirror-lint-markers']
   };
