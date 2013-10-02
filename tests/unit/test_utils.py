@@ -684,6 +684,11 @@ class TestQueryParams(unittest.TestCase):
             "roles": ['rax_managed']}
         ))
 
+    def test_cap_limit(self):
+        self.assertEquals(90, utils.cap_limit(90, None))
+        self.assertEquals(100, utils.cap_limit(120, None))
+        self.assertEquals(100, utils.cap_limit(-10, None))
+
 if __name__ == '__main__':
     from checkmate import test
     test.run_with_params()

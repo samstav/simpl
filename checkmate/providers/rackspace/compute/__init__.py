@@ -1559,6 +1559,10 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 
 
 def get_rackconnect_error_reason(metadata):
+    """Get the reason why rackconnect automation went into UNPROCESSED status
+    @param metadata: Server metadata
+    @return:
+    """
     reason = metadata.get("rackconnect_unprocessable_reason", None)
     return "" if not reason else " Reason: %s" % reason
 

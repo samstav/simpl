@@ -1,3 +1,4 @@
+# pylint: disable=C0302
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -1065,6 +1066,8 @@ def get_ips_from_server(server, is_rackconnected_account=False,
 
 
 def is_rackconnect_account(context):
+    """Checks if the context has information that indicates that the account
+     is a RackConnect account"""
     return 'rack_connect' in context['roles']
 
 
