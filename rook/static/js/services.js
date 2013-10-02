@@ -2365,8 +2365,10 @@ angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', 
   var scope = {};
 
   var _get_fold = function(_editor, line_number){
-    pos = CodeMirror.Pos(line_number)
-    return CodeMirror.fold.brace(_editor, pos)
+    var pos = CodeMirror.Pos(line_number);
+    var mode = _editor.getOption('mode');
+    var func = (mode == 'application/json') ? CodeMirror.fold.brace : CodeMirror.fold.indent;
+    return func(_editor, pos)
   }
 
   scope.get_fold_tree = function(_editor, cursor, check_current_line) {
@@ -2397,7 +2399,7 @@ angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', 
   }
 
   scope.get_key = function(_editor, line_num) {
-    trimmed_key_line = _editor.getLine(line_num).trim();
+    var trimmed_key_line = _editor.getLine(line_num).trim();
     return trimmed_key_line.substring(0, trimmed_key_line.indexOf(":"));
   }
 
@@ -2419,7 +2421,7 @@ angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', 
 
       current_fold = _get_fold(_editor, num);
       if(current_fold) {
-        if (current_fold.to.line > cursor.line){
+        if (current_fold.to.line >= cursor.line){
           fold_containing_cursor = current_fold
           keep_going = false;
         }
@@ -2437,7 +2439,6 @@ angular.module('checkmate.services').factory('BlueprintHint', ['BlueprintDocs', 
   scope.hinting = function(_editor) {
     var cursor = _editor.getCursor();
     var token = _editor.getTokenAt(cursor);
-    var fold_key = scope.get_parent_fold_key(_editor, cursor);
     var keys = BlueprintDocs.keys( scope.get_fold_tree(_editor, cursor, false), token );
     var position = (token.type === null) ? cursor.ch : token.start;
     if (token.type && token.type.indexOf('string') > -1)
@@ -2467,7 +2468,7 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
   }
 
   var _find_doc = function(path_tree) {
-    var doc = {};
+    var doc = _docs;
     var current_doc = _docs;
     var _path_tree = angular.copy(path_tree);
     var current_path = _path_tree.shift();
