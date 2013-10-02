@@ -1560,9 +1560,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 
 def get_rackconnect_error_reason(metadata):
     reason = metadata.get("rackconnect_unprocessable_reason", None)
-    if reason:
-        return " Reason: %s" % reason
-    return ""
+    return "" if not reason else " Reason: %s" % reason
 
 
 @ctask.task(default_retry_delay=1, max_retries=30)
