@@ -1067,7 +1067,8 @@ def get_ips_from_server(server, is_rackconnected_account=False,
 
 def is_rackconnect_account(context):
     """Checks if the context has information that indicates that the account
-     is a RackConnect account"""
+     is a RackConnect account
+     """
     return 'rack_connect' in context['roles']
 
 

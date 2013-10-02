@@ -689,6 +689,12 @@ class TestQueryParams(unittest.TestCase):
         self.assertEquals(100, utils.cap_limit(120, None))
         self.assertEquals(100, utils.cap_limit(-10, None))
 
+    def test_filter_resources(self):
+        resources = {"1": {"provider": "compute"}, "2": {}}
+        filtered = utils.filter_resources(resources, "compute")
+        self.assertEquals(1, len(filtered))
+        self.assertDictEqual({"provider": "compute"}, filtered[0])
+
 if __name__ == '__main__':
     from checkmate import test
     test.run_with_params()
