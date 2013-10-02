@@ -3360,7 +3360,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
-function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs) {
+function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh) {
   var empty_deployment = {
     "blueprint": {"name": "your blueprint name"},
     "inputs": {},
@@ -3382,10 +3382,29 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
     }
   }
 
-  $scope.parse_deployment = function(deployment) {
+  $scope.parse_deployment = function(newValue, oldValue) {
+    var deployment;
+    var parse_func = ($scope.codemirror_options.mode == 'application/json') ? JSON.parse : YAML.parse;
+    try {
+      deployment = parse_func(newValue);
+    } catch(err) {
+      console.log("Invalid JSON/YAML. Will not try to parse deployment.")
+      return;
+    }
+
     Deployment.parse(deployment, $scope.auth.context.tenantId, function(response) {
       $scope.parsed_deployment_tree = DeploymentTree.build(response);
     })
+  };
+
+  $scope.delayed_parse_deployment = DelayedRefresh.get_instance();
+  $scope.refresh_parse_deployment = function(newValue, oldValue) {
+    console.log("Refreshing...");
+    $scope.delayed_parse_deployment.refresh(
+      function () {
+        $scope.parse_deployment(newValue, oldValue);
+      }
+    );
   };
 
   $scope.newBlueprintCodemirrorLoaded = function(_editor){
@@ -3434,26 +3453,7 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
     gutters: ['CodeMirror-lint-markers']
   };
 
-  $scope.$watch('deployment_json', function(newValue, oldValue) {
-    var deployment, new_deployment, old_deployment;
-    var parse_func = ($scope.codemirror_options.mode == 'application/json') ? JSON.parse : YAML.parse;
-    try {
-      deployment = parse_func(newValue);
-      new_deployment = JSON.stringify(deployment);
-    } catch(err) {
-      console.log("Invalid JSON/YAML. Will not try to parse deployment.")
-      return;
-    }
-
-    try {
-      old_deployment = JSON.stringify(parse_func(oldValue));
-    } catch(err) {
-      console.log("Previous JSON/YAML was invalid")
-    }
-
-    if (new_deployment != old_deployment)
-      $scope.parse_deployment(deployment);
-  });
+  $scope.$watch('deployment_json', $scope.refresh_parse_deployment);
 }
 
 /*
