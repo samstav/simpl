@@ -2628,3 +2628,46 @@ angular.module('checkmate.services').factory('DeploymentTree', [function() {
   return scope;
 }]);
 
+angular.module('checkmate.services').factory('DelayedRefresh', ['$timeout', function($timeout) {
+
+  var scope = {};
+
+  /*
+   This creates an object with a refresh method.  This method takes a callback which will
+   be executed only after the given timeout expires. If refresh is called again before the
+   timeout expires, the timeout is reset and the callback execution is delayed further.
+
+   This allows for responsive callbacks while still keeping expensive calls at a minimum.
+   */
+
+  scope.get_instance = function(callback, timeout) {
+    var _scope = {};
+
+    _scope.callback = callback;
+    _scope.timeout = timeout || 2000;
+    _scope.timeout_handle = null;
+
+    _scope.reset = function(value) {
+      if (_scope.timeout_handle) {
+        $timeout.cancel(_scope.timeout_handle);
+      }
+      _scope.timeout_handle = null;
+      return value;
+    }
+
+    _scope.start = function(callback) {
+      _scope.timeout_handle = $timeout(callback || _scope.callback, _scope.timeout);
+      return _scope.timeout_handle.then(_scope.reset);
+    }
+
+    _scope.refresh = function(callback) {
+      _scope.reset();
+      return _scope.start(callback);
+    }
+
+    return _scope;
+  }
+
+  return scope;
+
+}]);
