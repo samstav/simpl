@@ -112,7 +112,7 @@ class BrowserMiddleware(object):
         path = environ['PATH_INFO']
         if path:
             extension = path.split('.')[-1]
-            if (extension in ['yaml', 'json']):
+            if (extension in ['yaml', 'json', 'wadl']):
                 LOG.debug("Rook bypassing %s %s with extension %s",
                           environ['REQUEST_METHOD'], path, extension)
                 return self.nextapp(environ, handler)
