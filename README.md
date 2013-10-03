@@ -275,6 +275,7 @@ The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 
 - /admin
 - /webhooks
+- /version
 
 *Note: not all verbs on all paths. DELETE not yet ready*
 
@@ -347,6 +348,8 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
 
 ### List of all calls
 *:tid* is the tenant ID and is required.
+
+    GET /version[.wadl | .json | .yaml]
 
     GET/POST /:tid/environments
     PUT/GET/POST /:tid/environments/:id

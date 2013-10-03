@@ -1,0 +1,1163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application xmlns="http://wadl.dev.java.net/2009/02"
+xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <!-- ******************************************** -->
+  <!-- **            VERSION                     ** -->
+  <!-- ******************************************** -->
+  <resource_type id="Version">
+    <resource path="/version">
+      <method name="GET">
+        <doc title="Get Checkmate Version">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <!-- ******************************************** -->
+  <!-- **            DEPLOYMENTS                 ** -->
+  <!-- ******************************************** -->
+  <resource_type id="Get_All_Tenant_Deployments">
+    <resource path="/{tenantId}/deployments">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="GET">
+        <doc title="Get all deployments for a tenant">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="offset"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="limit"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="show_deleted"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="status"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="blueprint_branch"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="search"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="start_date"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="end_date"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Launch_Deployment">
+    <resource path="/{tenantId}/deployments">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="POST">
+        <doc title="Launch Deployment">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Launch_Deployment_Simulate">
+    <resource path="/{tenantId}/deployments/simulate">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="POST">
+        <doc title="Launch Deployment Simulation">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Deployment_By_ID">
+    <resource path="/{tenantId}/deployments/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="GET">
+        <doc title="Get a deployment by ID">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="with_secrets"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Edit_Deployment_By_ID">
+    <resource path="/{tenantId}/deployments/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Edit a deployment (accepts partial data)">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Save_Deployment_By_ID">
+    <resource path="/{tenantId}/deployments/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="PUT">
+        <doc title="Update a whole Deployment">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Delete_Deployment_By_ID">
+    <resource path="/{tenantId}/deployments/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="DELETE">
+        <doc title="Delete Deployment">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="force"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Deployment_Secrets">
+    <resource path="/{tenantId}/deployments/{api_id}/secrets">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="GET">
+        <doc title="Get deployment secrets">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Post_Deployment_Secrets">
+    <resource path="/{tenantId}/deployments/{api_id}/secrets">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Post data to deployment secrets">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Deployment_Resources">
+    <resource path="/{tenantId}/deployments/{api_id}/resources">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="GET">
+        <doc title="Get the resources for a deployment">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="with_secrets"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Deployment_Resource">
+    <resource path="/{tenantId}/deployments/{api_id}/resources/{res_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <param style="template" type="xs:string" name="res_id"/>
+      <method name="GET">
+        <doc title="Get a resource from a deployment">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="with_secrets"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Preview_Deployment">
+    <resource path="/{tenantId}/deployments/+preview">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="POST">
+        <doc title="Preview a deployment. Returns a deployment and workflow.">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Parse_Deployment">
+    <resource path="/{tenantId}/deployments/+parse">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="POST">
+        <doc title="Parse a deployment. Just calculates the resources needed.">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="check_access"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="check_limits"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Sync_Deployment_By_ID">
+    <resource path="/{tenantId}/deployments/{api_id}/+sync">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Sync a deployment.">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Plan_Deployment_By_ID">
+    <resource path="/{tenantId}/deployments/{api_id}/+plan">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Plan a deployment.">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Deploy_Deployment_By_ID">
+    <resource path="/{tenantId}/deployments/{api_id}/+deploy">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Deploy a planned deployment.">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Check_Deployment_By_ID">
+    <resource path="/{tenantId}/deployments/{api_id}/+check">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Sync a deployment.">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <!-- ******************************************** -->
+  <!-- **            BLUEPRINTS                  ** -->
+  <!-- ******************************************** -->
+  <resource_type id="Get_All_Tenant_Blueprints">
+    <resource path="/{tenantId}/blueprints">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="GET">
+        <doc title="Get all blueprints applicable to a tenant">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="offset"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="limit"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="show_deleted"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Blueprint_By_ID">
+    <resource path="/{tenantId}/blueprints/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="GET">
+        <doc title="Get a blueprint by ID">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Blueprint_Notifications">
+    <resource path="/webhooks/blueprints">
+      <method name="POST">
+        <doc title="Blueprint updated webhook">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <!-- ******************************************** -->
+  <!-- **            RESOURCES                   ** -->
+  <!-- ******************************************** -->
+  <resource_type id="Get_All_Tenant_Resources">
+    <resource path="/{tenantId}/resources">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="GET">
+        <doc title="Get all resources for a tenant">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="provider"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="type"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="instance.id"/>
+          <!--TODO (zns): confirm this?-->
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <!-- ******************************************** -->
+  <!-- **            PROVIDERS                   ** -->
+  <!-- ******************************************** -->
+  <resource_type id="Get_All_Tenant_Providers">
+    <resource path="/{tenantId}/providers">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="GET">
+        <doc title="Get all providers for a tenant">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Provider_By_Key">
+    <resource path="/{tenantId}/providers/{key}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="key"/>
+      <method name="GET">
+        <doc title="Get a provider by key">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Provider_Catalog">
+    <resource path="/{tenantId}/providers/{key}/catalog">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="key"/>
+      <method name="GET">
+        <doc title="Get a provider catalog">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="region"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="type"/>
+          <!--TODO (zns): figure out dynamic params-->
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Provider_Component_By_ID">
+    <resource path="/{tenantId}/providers/{key}/catalog/{component_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="key"/>
+      <param style="template" type="xs:string" name="component_id"/>
+      <method name="GET">
+        <doc title="Get a provider catalog component by ID">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Provider_Resources">
+    <resource path="/{tenantId}/providers/{key}/resources">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="key"/>
+      <method name="GET">
+        <doc title="Get provider resourcesg">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="region"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="type"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="instance.id"/>
+          <!--TODO (zns): figure out dynamic params-->
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+      </method>
+    </resource>
+  </resource_type>
+  <!-- ******************************************** -->
+  <!-- **            WORKFLOWS                   ** -->
+  <!-- ******************************************** -->
+  <resource_type id="Get_All_Tenant_Workflows">
+    <resource path="/{tenantId}/workflows">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="GET">
+        <doc title="Get all workflows for a tenant">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="offset"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="limit"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="show_deleted"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="with_secrets"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Workflow_By_ID">
+    <resource path="/{tenantId}/workflows/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="GET">
+        <doc title="Get a workflow by ID">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="with_secrets"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Create_Workflow">
+    <resource path="/{tenantId}/workflows">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="POST">
+        <doc title="Create workflow">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Edit_Workflow_By_ID">
+    <resource path="/{tenantId}/workflows/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Edit a deployment (accepts partial data)">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Save_Workflow_By_ID">
+    <resource path="/{tenantId}/workflows/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="PUT">
+        <doc title="Update a whole Workflow">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Delete_Workflow_By_ID">
+    <resource path="/{tenantId}/workflows/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="DELETE">
+        <doc title="Delete Workflow">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="force"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Execute_Workflow">
+    <resource path="/{tenantId}/workflows/{api_id}/+execute">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Run a workflow.">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Pause_Workflow">
+    <resource path="/{tenantId}/workflows/{api_id}/+pause">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Pause a workflow.">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Resume_Workflow">
+    <resource path="/{tenantId}/workflows/{api_id}/+resume">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="POST">
+        <doc title="Resume a paused a workflow.">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Workflow_Task">
+    <resource path="/{tenantId}/workflows/{api_id}/tasks/{task_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <param style="template" type="xs:string" name="task_id"/>
+      <method name="GET">
+        <doc title="Get a workflow task">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="with_secrets"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Execute_Workflow_Task">
+    <resource path="/{tenantId}/workflows/{api_id}/tasks/{task_id}/+execute">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <param style="template" type="xs:string" name="task_id"/>
+      <method name="GET">
+        <doc title="Execute a workflow task">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+      <method name="POST">
+        <doc title="Execute a workflow task">
+        WRITEME
+        </doc>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Resubmit_Workflow_Task">
+    <resource path="/{tenantId}/workflows/{api_id}/tasks/{task_id}/+resubmit">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <param style="template" type="xs:string" name="task_id"/>
+      <method name="GET">
+        <doc title="Resubmit a workflow task">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+      <method name="POST">
+        <doc title="Resubmit a workflow task">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <!-- ******************************************** -->
+  <!-- **            ENVIRONMENTS                ** -->
+  <!-- ******************************************** -->
+  <!-- NOT YET IMPLEMENETED -->
+  <!-- ******************************************** -->
+  <!-- **            ADMIN                       ** -->
+  <!-- ******************************************** -->
+  <resource_type id="Get_All_Deployments">
+    <resource path="/admin/deployments">
+      <method name="GET">
+        <doc title="Get all deployments for all tenants">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="offset"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="limit"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="show_deleted"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="status"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="blueprint_branch"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="search"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="start_date"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="end_date"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_All_Tenants">
+    <resource path="/admin/tenants">
+      <method name="GET">
+        <doc title="Get all tagged tenants">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="tag"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Tenant_By_ID">
+    <resource path="/admin/tenants/{api_id}">
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="GET">
+        <doc title="Get tenant">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Cached_Blueprints">
+    <resource path="/admin/cache/blueprints">
+      <method name="GET">
+        <doc title="Get cached blueprints">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Celery_Status">
+    <resource path="/admin/status/celery">
+      <method name="GET">
+        <doc title="Get celery status">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Library_Versions">
+    <resource path="/admin/status/libraries">
+      <method name="GET">
+        <doc title="Get library versions">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <!-- ******************************************** -->
+  <!-- **            ROOK                        ** -->
+  <!-- ******************************************** -->
+  <resource_type id="Rook_Version">
+    <resource path="/rookversion">
+      <method name="GET">
+        <doc title="Get Rook Version">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Rook_Auth_Proxy">
+    <resource path="/authproxy{/path*}">
+      <param style="template" type="xs:string" name="path"/>
+      <method name="POST">
+        <doc title="Authentication proxy for CORS-compatible clients">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+      <method name="GET">
+        <doc title="Authentication proxy for CORS-compatible clients">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="belongsTo"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Rook_GitHub_Proxy">
+    <resource path="/githubproxy{/path*}">
+      <param style="template" type="xs:string" name="path"/>
+      <method name="GET">
+        <doc title="Authentication proxy for CORS-compatible clients">
+        WRITEME
+        </doc>
+        <request>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="offset"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="limit"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="show_deleted"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="status"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Rook_Static">
+    <resource path="/">
+      <method name="GET">
+        <doc title="Get rook root page">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="*/*"/>
+        </request>
+        <response>
+          <representation mediaType="text/html"/>
+        </response>
+      </method>
+    </resource>
+    <resource path="/libs{/path*}">
+      <param style="template" type="xs:string" name="path"/>
+      <method name="GET">
+        <doc title="Get rook root page">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="*/*"/>
+        </request>
+        <response>
+          <representation mediaType="*/*"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Rook_Partial">
+    <resource path="/partials">
+      <method name="GET">
+        <doc title="AngularJS calls to get partials sometimes have wrong content type">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="*/*"/>
+        </request>
+        <response>
+          <representation mediaType="*/*"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <!-- ******************************************** -->
+  <!-- **               STACKS                   ** -->
+  <!-- ******************************************** -->
+  <resource_type id="Get_All_Tenant_Stacks">
+    <resource path="/{tenantId}/stacks">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="GET">
+        <doc title="Get all stacks for a tenant">
+        WRITEME
+        </doc>
+        <request >
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="offset"/>
+          <param xmlns:xs="http://www.w3.org/2001/XMLSchema" type="xs:string" style="query" name="limit"/>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Launch_Stack">
+    <resource path="/{tenantId}/stacks">
+      <method name="POST">
+        <doc title="Launch Stack">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Stack_By_ID">
+    <resource path="/{tenantId}/stacks/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="GET">
+        <doc title="Get a stack by ID">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Delete_Stack_By_ID">
+    <resource path="/{tenantId}/stacks/{api_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="DELETE">
+        <doc title="Delete Stack">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Parse_Stack_By_ID">
+    <resource path="/{tenantId}/stacks/+parse">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <method name="POST">
+        <doc title="Parse a stack. Just calculates the resources needed.">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Stack_Resources">
+    <resource path="/{tenantId}/stacks/{api_id}/resources">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <method name="GET">
+        <doc title="Get a stack's resources">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+  <resource_type id="Get_Stack_Resource">
+    <resource path="/{tenantId}/stacks/{stack_name}/{api_id}/resources/{res_id}">
+      <param style="template" type="xs:string" name="tenantId"/>
+      <param style="template" type="xs:string" name="stack_name"/>
+      <param style="template" type="xs:string" name="api_id"/>
+      <param style="template" type="xs:string" name="res_id"/>
+      <method name="GET">
+        <doc title="Get a stack resource">
+        WRITEME
+        </doc>
+        <request>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </request>
+        <response>
+          <representation mediaType="application/json"/>
+          <representation mediaType="application/x-yaml"/>
+        </response>
+      </method>
+    </resource>
+  </resource_type>
+</application>
+
