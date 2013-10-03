@@ -829,8 +829,8 @@ angular.module("template/popover/popover-html-unsafe-popup.html", []).run(["$tem
     "  <div class=\"arrow\"></div>\n" +
     "\n" +
     "  <div class=\"popover-inner\">\n" +
-    "      <h3 class=\"popover-title\" ng-bind-html-unsafe=\"title\" ng-show=\"title\"></h3>\n" +
-    "      <div class=\"popover-content\" ng-bind-html-unsafe=\"content\"></div>\n" +
+    "      <h3 class=\"popover-title\" ng-bind-html=\"title\" ng-show=\"title\"></h3>\n" +
+    "      <div class=\"popover-content\" ng-bind-html=\"content\"></div>\n" +
     "  </div>\n" +
     "</div>\n" +
     "");
