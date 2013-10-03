@@ -33,7 +33,7 @@ filters.filter('prepend', function() {
 
 filters.filter('yaml', function() {
   return function(d) {
-    return d ? jsyaml.safeDump(d) : '';
+    return d ? jsyaml.dump(d) : '';
   };
 });
 
