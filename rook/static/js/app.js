@@ -3,7 +3,7 @@ var is_chrome_extension = navigator.userAgent.toLowerCase().indexOf('chrome') > 
 var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
-var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ui.utils', 'ui.bootstrap', 'ui.codemirror']);
+var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ngRoute', 'ui.utils', 'ui.bootstrap', 'ui.codemirror']);
 
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', 'BlueprintDocsProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider, BlueprintDocsProvider) {
@@ -139,7 +139,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   $httpProvider.defaults.headers.post['Content-Type'] = "application/json;charset=utf-8";
 
   // Allow ssh, irc URLs
-  $compileProvider.urlSanitizationWhitelist(/^\s*(https?|mailto|ssh|irc):/);
+  $compileProvider.aHrefSanitizationWhitelist(/^\s*(https?|mailto|ssh|irc):/);
 }]);
 
 /*
