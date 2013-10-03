@@ -3376,14 +3376,14 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   $scope.errors = {};
 
   var _to_yaml = function() {
-    $scope.deployment_json = YAML.stringify(JSON.parse($scope.deployment_json));
+    $scope.deployment_json = jsyaml.safeDump(JSON.parse($scope.deployment_json));
     $scope.codemirror_options.lint = false;
     $scope.codemirror_options.mode = 'text/x-yaml';
     $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
   }
 
   var _to_json = function() {
-    $scope.deployment_json = JSON.stringify(YAML.parse($scope.deployment_json), null, 2);
+    $scope.deployment_json = JSON.stringify(jsyaml.safeLoad($scope.deployment_json), null, 2);
     $scope.codemirror_options.lint = true;
     $scope.codemirror_options.mode = 'application/json';
     $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
@@ -3415,7 +3415,7 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
 
   $scope.parse_deployment = function(newValue, oldValue) {
     var deployment;
-    var parse_func = ($scope.codemirror_options.mode == 'application/json') ? JSON.parse : YAML.parse;
+    var parse_func = ($scope.codemirror_options.mode == 'application/json') ? JSON.parse : jsyaml.safeLoad;
     try {
       deployment = parse_func(newValue);
     } catch(err) {

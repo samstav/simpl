@@ -765,7 +765,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
                   var yaml_string = yaml_data
                                       .replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name)
                                       .replace('%username%', username || '%username%');
-                  checkmate_yaml = YAML.parse(yaml_string);
+                  checkmate_yaml = jsyaml.safeLoad(yaml_string);
                 } catch(err) {
                   if (err.name == "YamlParseException") {
                     var parse_error_response = {
