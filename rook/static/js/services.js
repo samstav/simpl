@@ -585,6 +585,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     var remote = {};
 
     var url = URI(url_string);
+    var hash = url.hash();
     var segments = url.path().substring(1).split('/');
     var first_path_part = segments[0];
     remote.server = url.protocol() + '://' + url.host(); //includes port
@@ -595,6 +596,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     if (segments.length > 1) {
       remote.repo.name = segments[1];
     }
+    remote.branch = {  };
 
     // Unknown at this point
     remote.org = null;
@@ -763,7 +765,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
                   var yaml_string = yaml_data
                                       .replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name)
                                       .replace('%username%', username || '%username%');
-                  checkmate_yaml = YAML.parse(yaml_string);
+                  checkmate_yaml = jsyaml.safeLoad(yaml_string);
                 } catch(err) {
                   if (err.name == "YamlParseException") {
                     var parse_error_response = {
@@ -785,15 +787,20 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   }
 
   scope.get_contents = function(remote, url, content_item, callback){
-    var destination_path = URI(url).path();
-    var path = '/githubproxy' + destination_path + "/contents/" + content_item;
-    return $http.get(path, get_config(remote.api.server)).
-      success(function(data, status, headers, config) {
-        callback(data);
-      }).
-      error(function() {
+    var path;
+    if (url) {
+      var destination_path = URI(url).path();
+      path = '/githubproxy' + destination_path + "/contents/" + content_item;
+    } else {
+      path = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/contents/' + content_item;
+    }
+    return $http.get(path, get_config(remote.api.server)).then(
+      function(response) { return response.data; },
+      function(response) {
         console.log('Failed to retrieve ' + content_item + ' from ' + url);
-      });
+        return response;
+      }
+    );
   }
 
   scope.get_refs = function(repos, type) {

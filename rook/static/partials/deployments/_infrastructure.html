@@ -35,7 +35,7 @@
 
 <accordion ng-show="data.blueprint.documentation.instructions">
   <accordion-group heading="Instructions">
-    <p class="help-block" ng-bind-html-unsafe="render_markdown(data.blueprint.documentation.instructions)"></p>
+    <markdown text="data.blueprint.documentation.instructions"><markdown>
   </accordion-group>
 </accordion>
 
