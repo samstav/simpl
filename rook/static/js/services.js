@@ -796,7 +796,10 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     }
     return $http.get(path, get_config(remote.api.server)).then(
       function(response) { return response.data; },
-      function(response) { console.log('Failed to retrieve ' + content_item + ' from ' + url); }
+      function(response) {
+        console.log('Failed to retrieve ' + content_item + ' from ' + url);
+        return response;
+      }
     );
   }
 
