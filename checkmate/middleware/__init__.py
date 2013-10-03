@@ -452,7 +452,7 @@ class StripPathMiddleware(object):
 
 
 class ExtensionsMiddleware(object):
-    """Converts extensions to accept headers: yaml, json, html."""
+    """Converts extensions to accept headers: yaml, json, wadl."""
     def __init__(self, app):
         self.app = app
 
@@ -466,8 +466,8 @@ class ExtensionsMiddleware(object):
         elif environ['PATH_INFO'].endswith('.yaml'):
             webob.Request(environ).accept = 'application/x-yaml'
             environ['PATH_INFO'] = environ['PATH_INFO'][0:-5]
-        elif environ['PATH_INFO'].endswith('.html'):
-            webob.Request(environ).accept = 'text/html'
+        elif environ['PATH_INFO'].endswith('.wadl'):
+            webob.Request(environ).accept = 'application/vnd.sun.wadl+xml'
             environ['PATH_INFO'] = environ['PATH_INFO'][0:-5]
         return self.app(environ, start_response)
 

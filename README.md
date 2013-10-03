@@ -266,15 +266,17 @@ TODO: fix terminology. 'setting', 'option' and/or 'input'. And update code, sche
 ## Semantic: The API
 The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 
-- /blueprints[/:id]
-- /deployments[/:id]
-- /workflows[/:id]
+- /blueprints[/:id]/...
+- /deployments[/:id]/...
+- /workflows[/:id]/...
 
-- /environments[/:id]
-- /providers[/:id]
+- /environments[/:id]/...
+- /providers[/:key]/...
+- /resources/...
 
-- /admin
-- /webhooks
+- /admin/...
+- /webhooks/...
+- /version
 
 *Note: not all verbs on all paths. DELETE not yet ready*
 
@@ -348,6 +350,8 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
 ### List of all calls
 *:tid* is the tenant ID and is required.
 
+    GET /version[.wadl | .json | .yaml]
+
     GET/POST /:tid/environments
     PUT/GET/POST /:tid/environments/:id
 
@@ -393,6 +397,8 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET /:tid/providers/:pid/catalog
     GET /:tid/providers/:pid/catalog/:cid
     GET /:tid/providers/:pid/resources
+
+    GET /:tid/resources[?id=<lcomma-separated ist>&provider=<key>&type=<resource type>]
 
     # If the server is started with --with-admin, the following calls are available to admin users:
 
