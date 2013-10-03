@@ -41,11 +41,15 @@ describe('BlueprintRemoteListController', function(){
   });
 
   describe('receive_blueprints', function(){
-    var data;
-    beforeEach(function(){
+    var $rootScope, $q, deferred, data;
+    beforeEach(inject(function($injector) {
       items.clear = emptyFunction;
       data = undefined;
-    });
+      $q = $injector.get('$q');
+      $rootScope = $injector.get('$rootScope');
+      deferred = $q.defer();
+      github = { get_contents: sinon.stub().returns(deferred.promise) };
+    }));
 
     it('should remove the loading gif from display', function(){
       scope.loading_remote_blueprints = true;
@@ -61,7 +65,6 @@ describe('BlueprintRemoteListController', function(){
             }]};
       items = { receive: sinon.stub().returns(data) };
 
-      github = { get_contents: sinon.spy() };
       controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
       scope.receive_blueprints();
       expect(github.get_contents.getCall(0).args[0]).not.toBeNull();
@@ -75,9 +78,6 @@ describe('BlueprintRemoteListController', function(){
       var arkansas = { name: 'Arkansas' };
       data = { all: [alpha, abba, arkansas]};
       items = { receive: sinon.stub().returns(data) };
-      github = { get_contents: sinon.stub().returns(
-          { then: sinon.stub().returns( {then: emptyFunction}) }
-      ) };
       controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
       scope.receive_blueprints();
       expect(scope.items).toEqual([abba, alpha, arkansas]);
@@ -87,7 +87,7 @@ describe('BlueprintRemoteListController', function(){
       var alpha = { name: 'Alpha' },
           bravo = { name: 'Bravo' },
           charlie = { name: 'Charlie' },
-          bravo_promise = { then: sinon.stub() },
+          bravo_promise = { then: sinon.stub().returns($q.defer().promise) },
           alpha_promise = { then: sinon.stub().returns(bravo_promise) };
 
       items.all = [ alpha, bravo, charlie];
@@ -108,16 +108,15 @@ describe('BlueprintRemoteListController', function(){
         items.all = [item];
         data = { all: [item] };
         items = { receive: sinon.stub().returns(data) };
-        github = { get_contents: sinon.spy() };
         controller = new BlueprintRemoteListController(scope, location, routeParams, resource, http, items, navbar, options, workflow, github);
         scope.receive_blueprints();
-
         success_function = github.get_contents.getCall(0).args[3];
       });
 
       it('should set is_blueprint_repo to true for item if successfully retrieved a checkmate.yaml file', function(){
         var content_data = { type: 'file' };
-        success_function(content_data);
+        deferred.resolve(content_data);
+        $rootScope.$apply();
         expect(item.is_blueprint_repo).toBe(true);
       });
     });

@@ -3,7 +3,7 @@ var is_chrome_extension = navigator.userAgent.toLowerCase().indexOf('chrome') > 
 var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
-var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ui.utils', 'ui.bootstrap', 'ui.codemirror']);
+var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ngRoute', 'ui.utils', 'ui.bootstrap', 'ui.codemirror']);
 
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', 'BlueprintDocsProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider, BlueprintDocsProvider) {
@@ -139,7 +139,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   $httpProvider.defaults.headers.post['Content-Type'] = "application/json;charset=utf-8";
 
   // Allow ssh, irc URLs
-  $compileProvider.urlSanitizationWhitelist(/^\s*(https?|mailto|ssh|irc):/);
+  $compileProvider.aHrefSanitizationWhitelist(/^\s*(https?|mailto|ssh|irc):/);
 }]);
 
 /*
@@ -1729,17 +1729,19 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     }
 
     function verifyBlueprintRepo(blueprint){
-      return github.get_contents($scope.remote, blueprint.api_url, "checkmate.yaml", function(content_data){
-        if(content_data.type === 'file'){
-          blueprint.is_blueprint_repo = true;
+      return github.get_contents($scope.remote, blueprint.api_url, "checkmate.yaml").then(
+        function(content_data) {
+          if(content_data.type === 'file'){
+            blueprint.is_blueprint_repo = true;
 
-          updateBlueprintCache([blueprint]);
+            updateBlueprintCache([blueprint]);
 
-          blueprint.is_fresh = true;
+            blueprint.is_fresh = true;
 
-          updateListWithBlueprint($scope.items, blueprint)
+            updateListWithBlueprint($scope.items, blueprint)
+          }
         }
-      });
+      );
     }
 
     var received_items = items.receive(data, function(item, key) {
@@ -1780,7 +1782,9 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       _.reduce(sorted_items.slice(1),
                // Waiting on Angular 1.1.5 which includes an #always method. Until then, passing the same callback for both success and error to #then
                // See https://github.com/angular/angular.js/pull/2424
-               function(memo, item) { return memo.then(function(){ return verifyBlueprintRepo(item) }, function(){ return verifyBlueprintRepo(item) }) },
+               function(memo, item) {
+                 return memo.then(function(){ return verifyBlueprintRepo(item) },
+                                  function(){ return verifyBlueprintRepo(item) }) },
                verifyBlueprintRepo(sorted_items[0]));
     }
   };
@@ -3360,7 +3364,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
-function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh) {
+function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github) {
   var empty_deployment = {
     "blueprint": {"name": "your blueprint name"},
     "inputs": {},
@@ -3369,22 +3373,49 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
   };
   $scope.deployment_json = JSON.stringify(empty_deployment, null, 2);
   $scope.parsed_deployment_tree = DeploymentTree.build({});
+  $scope.errors = {};
+
+  var _to_yaml = function() {
+    $scope.deployment_json = jsyaml.safeDump(JSON.parse($scope.deployment_json));
+    $scope.codemirror_options.lint = false;
+    $scope.codemirror_options.mode = 'text/x-yaml';
+    $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
+  }
+
+  var _to_json = function() {
+    $scope.deployment_json = JSON.stringify(jsyaml.safeLoad($scope.deployment_json), null, 2);
+    $scope.codemirror_options.lint = true;
+    $scope.codemirror_options.mode = 'application/json';
+    $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
+  }
 
   $scope.toggle_editor_type = function() {
-    if ($scope.codemirror_options.mode == 'application/json') {
-      $scope.codemirror_options.lint = false;
-      $scope.codemirror_options.mode = 'text/x-yaml';
-      $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
-    } else {
-      $scope.codemirror_options.lint = true;
-      $scope.codemirror_options.mode = 'application/json';
-      $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
+    try {
+      if ($scope.codemirror_options.mode == 'application/json') {
+        _to_yaml();
+      } else {
+        _to_json();
+      }
+    } catch(err) {
+      $scope.errors.conversion = "Ooops!";
+    }
+  }
+
+  $scope.load_blueprint = function() {
+    var base64_decode = window.atob; // atob is javascript builtin base64 decode
+    var url = $location.search().url;
+    if (url) {
+      var remote = github.parse_url(url);
+      github.get_contents(remote, null, 'checkmate.yaml').then(function(contents) {
+        var sanitized_contents = contents.content.replace(/\n/g, '');
+        $scope.deployment_json = base64_decode(sanitized_contents);
+      });
     }
   }
 
   $scope.parse_deployment = function(newValue, oldValue) {
     var deployment;
-    var parse_func = ($scope.codemirror_options.mode == 'application/json') ? JSON.parse : YAML.parse;
+    var parse_func = ($scope.codemirror_options.mode == 'application/json') ? JSON.parse : jsyaml.safeLoad;
     try {
       deployment = parse_func(newValue);
     } catch(err) {
@@ -3427,11 +3458,10 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
     })
 
     _editor.on('cursorActivity', function(instance, event) {
-      $scope.$apply(function() {
-        var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor());
-        var doc = BlueprintDocs.find(path_tree);
-        $scope.help_display = doc.text();
-      });
+      var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor());
+      var doc = BlueprintDocs.find(path_tree);
+      $scope.help_display = doc.text();
+      $scope.$$phase || $scope.$apply();
     });
     $scope.$watch('codemirror_options.onGutterClick', function(newValue, oldValue) {
       _editor.off('gutterClick', oldValue);
@@ -3439,17 +3469,16 @@ function BlueprintNewController($scope, BlueprintHint, Deployment, DeploymentTre
     });
   }
 
-
   $scope.codemirror_options = {
     onLoad: $scope.newBlueprintCodemirrorLoaded,
     theme: 'lesser-dark',
-    mode: 'application/json',
+    mode: 'text/x-yaml',
     lineNumbers: true,
     autoFocus: true,
     lineWrapping: true,
     matchBrackets: true,
     onGutterClick: $scope.foldFunc,
-    lint: true,
+    lint: false,
     gutters: ['CodeMirror-lint-markers']
   };
 
