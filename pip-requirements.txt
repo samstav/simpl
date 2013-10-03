@@ -45,12 +45,12 @@
 # Upstream: https://github.com/naterh/pyrax.git
 # Notes: 	This is the initial add for the mailgun module.  This should be
 #			integrated into pyrax shortly and can be removed.
--e git://github.com/naterh/pyrax.git@7c3c2828cd085e55e42628352090ddb0e32d6a01#egg=pyrax
+-e git://github.com/ziadsawalha/pyrax.git@7c5eda1f8be2ab4da45da2747d508e1c48da7025#egg=pyrax
 
 # impacket
 # Notes:     pypi lost its copy of impacket, and pip is unable to locate it.
 #            As of  10/01/2013 it will
-#            fetch from code.google.com. 
+#            fetch from code.google.com.
 #            impacket is a Collection of Python classes providing
 #            access to network packets.
 https://impacket.googlecode.com/files/impacket-0.9.10.tar.gz#egg=impacket
