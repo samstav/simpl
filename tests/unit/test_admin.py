@@ -44,9 +44,6 @@ class TestAdminDeploymentCounts(unittest.TestCase):
 
         unittest.TestCase.setUp(self)
 
-    def tearDown(self):
-        unittest.TestCase.tearDown(self)
-
     def test_get_count_all(self):
         self.manager.count.return_value = 3
         res = self.app.get('/admin/deployments/count')
@@ -142,6 +139,4 @@ class TestAdminTenants(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import sys
-
-    test.run_with_params(sys.argv[:])
+    test.run_with_params()

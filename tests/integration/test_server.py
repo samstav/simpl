@@ -1,5 +1,6 @@
 # pylint: disable=C0103,E1101
 
+# Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -16,7 +17,6 @@
 """Tests for server module."""
 import json
 import mock
-import sys
 import unittest
 import uuid
 
@@ -353,6 +353,5 @@ class TestServer(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()
