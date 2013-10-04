@@ -1,7 +1,20 @@
-'''
-Utilities with minimum-depends for use in setup.py
-'''
-
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""
+Utilities with minimum-dependencies for use in setup.py
+"""
 import logging
 import os
 import re
@@ -16,19 +29,27 @@ KNOWN_PACKAGE_TO_IMPORT_MAP = {
 }
 LOG = logging.getLogger(__name__)
 
-# Get requirements from the first file that exists
+
 def get_reqs_from_files(requirements_files):
+    """Get requirements from the first file that exists."""
     for requirements_file in requirements_files:
         if os.path.exists(requirements_file):
-            with open(requirements_file, 'r') as fil:
-                return fil.read().split('\n')
+            with open(requirements_file, 'r') as file_handle:
+                return file_handle.read().split('\n')
     return []
 
 
-def parse_dependency_links(requirements_files=['pip-requirements.txt']):
+def parse_dependency_links(requirements_files=None):
+    """Parse pip requirements and return a setup.py dependency_link list.
+
+    Setup.py dependency_links inject alternate locations to find packages
+    listed in requirements. This will return git repos for dependencies listed
+    as git URLs.
+    """
+    if requirements_files is None:
+        requirements_files = ['pip-requirements.txt', 'requirements.txt']
+
     dependency_links = []
-    # dependency_links inject alternate locations to find packages listed
-    # in requirements
     for line in get_reqs_from_files(requirements_files):
         # skip comments and blank lines
         if re.match(r'(\s*#)|(\s*$)', line):
