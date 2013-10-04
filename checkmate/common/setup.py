@@ -2,10 +2,19 @@
 Utilities with minimum-depends for use in setup.py
 '''
 
+import logging
 import os
 import re
 import sys
 
+KNOWN_PACKAGE_TO_IMPORT_MAP = {
+    "SpiffWorkflow": "SpiffWorkflow",
+    "PyYAML": "yaml",
+    "pycrypto": "Crypto",
+    "PyChef": "chef",
+    "PyGithub": "github",
+}
+LOG = logging.getLogger(__name__)
 
 # Get requirements from the first file that exists
 def get_reqs_from_files(requirements_files):
@@ -94,3 +103,24 @@ def parse_requirements(requirements_files=None):
             requirements.append(parsed)
 
     return requirements
+
+
+def required_imports(requirements_files=None):
+    """Returns the imports for the required packages."""
+    imports = []
+    requirements = parse_requirements(requirements_files=requirements_files)
+    for entry in requirements:
+        try:
+            parts = ''.join([c if c not in '<=>,' else " "
+                             for c in entry]).split()
+            lib_name = parts[0]
+            version_constraints = entry[len(lib_name):]
+            if lib_name in KNOWN_PACKAGE_TO_IMPORT_MAP:
+                lib_name = KNOWN_PACKAGE_TO_IMPORT_MAP[lib_name]
+            else:
+                lib_name = parts[0].lower()
+                lib_name = lib_name.replace('python', '').strip('-')
+            imports.append((lib_name, version_constraints))
+        except StandardError:
+            LOG.warn("Error parsing requirement: %s", entry)
+    return imports
