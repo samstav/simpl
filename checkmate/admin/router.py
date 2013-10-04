@@ -29,12 +29,14 @@ import copy
 import errno
 from functools import partial
 import logging
+import os
 import subprocess
 import sys
 import urlparse
 
 import bottle
 
+from checkmate.common import setup
 from checkmate import exceptions
 from checkmate import utils
 
@@ -133,36 +135,41 @@ class Router(object):
     @utils.only_admins
     def get_dependency_versions():
         """Checking on dependencies."""
+        pip_path = os.path.join(os.path.dirname(__file__),  # admin
+                                os.path.pardir,             # checkmate
+                                os.path.pardir,             # the root
+                                'pip-requirements.txt')
+        libraries = setup.required_imports(requirements_files=[pip_path])
         result = {}
-        libraries = [
-            'bottle',  # HTTP request router
-            'celery',  # asynchronous/queued call wrapper
-            'Jinja2',  # templating library for HTML calls
-            'kombu',   # message queue interface (dependency for celery)
-            'openstack.compute',  # Rackspace CLoud Server (legacy) library
-            'paramiko',  # SSH library
-            'pycrypto',  # Cryptography (key generation)
-            'pyrax',  # Python Rackspace Cloud bindings
-            'python-novaclient',  # OpenStack Compute client library
-            'pyyaml',  # YAML parser
-            'SpiffWorkflow',  # Workflow Engine
-            'sqlalchemy',  # ORM
-            'sqlalchemy-migrate',  # database schema versioning
-            'webob',   # HTTP request handling
-        ]  # copied from setup.py with additions added
-        for library in libraries:
+        for library, constraints in libraries:
             result[library] = {}
             try:
                 if library in sys.modules:
                     module = sys.modules[library]
-                    if hasattr(module, '__version__'):
-                        result[library]['version'] = module.__version__
-                    result[library]['path'] = getattr(module, '__path__',
-                                                      'N/A')
                     result[library]['status'] = 'loaded'
                 else:
+                    module = __import__(library)
                     result[library]['status'] = 'not loaded'
-            except Exception as exc:
+
+                version = "N/A"
+                if hasattr(module, '__version__'):
+                    version = module.__version__
+                elif hasattr(module, 'version'):
+                    if callable(module.version):
+                        version = module.version()
+                    else:
+                        if isinstance(module.version, basestring):
+                            version = module.version
+                        if isinstance(module.version, tuple):
+                            version = '.'.join(module.version)
+                        else:
+                            version = repr(module.version)
+                result[library]['version'] = version
+                result[library]['required_version'] = constraints
+
+                result[library]['path'] = getattr(module, '__path__',
+                                                  'N/A')
+            except StandardError as exc:
                 result[library]['status'] = 'ERROR: %s' % exc
 
         # Chef version
