@@ -697,7 +697,7 @@ def with_tenant(fxn):
             return fxn(*args,
                        tenant_id=bottle.request.environ['context'].tenant,
                        **kwargs)
-    return wrapped
+    return functools.wraps(fxn)(wrapped)
 
 
 def support_only(types):
