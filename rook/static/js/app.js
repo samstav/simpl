@@ -3364,14 +3364,14 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
-function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github) {
+function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github, options) {
   var empty_deployment = {
     "blueprint": {"name": "your blueprint name"},
     "inputs": {},
     "environment": {},
     "name": {}
   };
-  $scope.deployment_json = JSON.stringify(empty_deployment, null, 2);
+  $scope.deployment_json = jsyaml.safeDump(empty_deployment, null, 2);
   $scope.parsed_deployment_tree = DeploymentTree.build({});
   $scope.errors = {};
 
@@ -3442,6 +3442,7 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   };
 
   $scope.newBlueprintCodemirrorLoaded = function(_editor){
+    $scope.inputs = {};
     CodeMirror.commands.autocomplete = function(cm) {
       CodeMirror.showHint(cm, BlueprintHint.hinting);
     };
@@ -3459,6 +3460,27 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
       'Ctrl-Space': 'autocomplete',
       Tab: betterTab
     })
+
+    var _update_options = function() {
+      var blueprint;
+      try {
+        blueprint = jsyaml.safeLoad($scope.deployment_json);
+      } catch(err) {
+        blueprint = {};
+        console.log('Could not parse blueprint');
+      }
+      var inner_blueprint = blueprint.blueprint || {};
+      var opts = options.getOptionsFromBlueprint(inner_blueprint) || {};
+      $scope.options_to_display = opts.options_to_display || [];
+      $scope.option_groups = opts.groups || {};
+      $scope.option_headers = opts.option_headers || {};
+      $scope.$$phase || $scope.$apply();
+    }
+    var _delayed_refresh_options = DelayedRefresh.get_instance(_update_options);
+
+    _editor.on('change', function() {
+      _delayed_refresh_options.refresh();
+    });
 
     _editor.on('cursorActivity', function(instance, event) {
       var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor());
