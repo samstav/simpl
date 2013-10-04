@@ -1518,12 +1518,25 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
             if rc_automation_status == 'DEPLOYED':
                 LOG.debug("Rack Connect server ready. Metadata found'")
                 results["rackconnect-automation-status"] = rc_automation_status
-            elif rc_automation_status in ['FAILED', 'UNPROCESSABLE']:
+            elif rc_automation_status == 'FAILED':
+                msg = ("Rackconnect server metadata has "
+                       "'rackconnect_automation_status' set to FAILED.")
+                LOG.debug(msg)
+                results['status'] = 'ERROR'
+                results['status-message'] = msg
+                results["rackconnect-automation-status"] = rc_automation_status
+                cmdeps.resource_postback.delay(deployment_id,
+                                               {instance_key: results})
+                raise cmexc.CheckmateException(message=msg,
+                                               friendly_message=cmexc
+                                               .UNEXPECTED_ERROR)
+            elif rc_automation_status == 'UNPROCESSABLE':
+                reason = get_rackconnect_error_reason(server.metadata)
                 msg = ("RackConnect server "
                        "metadata has 'rackconnect_automation_status' is "
                        "set to %s.%s. RackConnect will  not be enabled for "
                        "this server(#%s) . " % (rc_automation_status,
-                       get_rackconnect_error_reason(server.metadata),
+                                                reason,
                        server_id))
                 LOG.debug(msg)
                 results["rackconnect-automation-status"] = rc_automation_status

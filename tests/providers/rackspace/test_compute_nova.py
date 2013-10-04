@@ -341,6 +341,161 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
+    def test_wait_on_build_rackconnect_failed(self):
+        server = self.mox.CreateMockAnything()
+        server.id = 'fake_server_id'
+        server.status = 'ACTIVE'
+        server.addresses = {
+            "private": [
+                {
+                    "addr": "10.10.10.10",
+                    "version": 4
+                }],
+            "public": [
+                {
+                    "addr": "4.4.4.4",
+                    "version": 4
+                },
+                {
+                    "addr": "2001:4800:780e:0510:d87b:9cbc:ff04:513a",
+                    "version": 6
+                }]}
+        server.adminPass = 'password'
+        server.image = {'id': 1}
+        server.metadata = {'rackconnect_automation_status': 'FAILED'}
+        server.accessIPv4 = "8.8.8.8"
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
+
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock.client.region_name = 'North'
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
+
+        context = dict(deployment_id='DEP', resource_key='1',
+                       roles=['rack_connect'])
+
+        expected = {
+            'instance:1': {
+                'status': 'ERROR',
+                'addresses': {
+                    'public': [
+                        {
+                            'version': 4,
+                            'addr': '4.4.4.4'
+                        },
+                        {
+                            'version': 6,
+                            'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
+                        }
+                    ],
+                    'private': [
+                        {
+                            'version': 4,
+                            'addr': '10.10.10.10'
+                        }
+                    ],
+                },
+                'region': 'North',
+                'id': 'fake_server_id',
+                'status-message': "Rackconnect server metadata has "
+                                  "'rackconnect_automation_status' set to "
+                                  "FAILED.",
+                'rackconnect-automation-status': 'FAILED'
+            }
+        }
+
+        cm_deps.resource_postback.delay(context['deployment_id'],
+                                        expected).AndReturn(True)
+        self.mox.ReplayAll()
+        try:
+            compute.wait_on_build(context, server.id, 'North',
+                                  api_object=openstack_api_mock)
+            self.fail("Should have thrown a Checkmate Exception!")
+        except exceptions.CheckmateException:
+            self.mox.VerifyAll()
+
+    def test_wait_on_build_rackconnect_unprocessed(self):
+        server = self.mox.CreateMockAnything()
+        server.id = 'fake_server_id'
+        server.status = 'ACTIVE'
+        server.addresses = {
+            "private": [
+                {
+                    "addr": "10.10.10.10",
+                    "version": 4
+                }],
+            "public": [
+                {
+                    "addr": "4.4.4.4",
+                    "version": 4
+                },
+                {
+                    "addr": "2001:4800:780e:0510:d87b:9cbc:ff04:513a",
+                    "version": 6
+                }]}
+        server.adminPass = 'password'
+        server.image = {'id': 1}
+        server.metadata = {'rackconnect_automation_status': 'UNPROCESSABLE'}
+        server.accessIPv4 = "8.8.8.8"
+
+        #Stub out postback call
+        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
+
+        #Create appropriate api mocks
+        openstack_api_mock = self.mox.CreateMockAnything()
+        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock.client.region_name = 'North'
+        openstack_api_mock.servers = self.mox.CreateMockAnything()
+        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
+
+        context = dict(deployment_id='DEP',
+                       resource_key='1',
+                       roles=['rack_connect'])
+
+        expected = {
+            'instance:1': {
+                'status': 'ACTIVE',
+                'addresses': {
+                    'public': [
+                        {
+                            'version': 4,
+                            'addr': '4.4.4.4'
+                        },
+                        {
+                            'version': 6,
+                            'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
+                        }
+                    ],
+                    'private': [
+                        {
+                            'version': 4,
+                            'addr': '10.10.10.10'
+                        }]
+                },
+                'ip': '8.8.8.8',
+                'region': 'North',
+                'public_ip': '4.4.4.4',
+                'private_ip': '10.10.10.10',
+                'id': 'fake_server_id',
+                'status-message': '',
+                'rackconnect-automation-status': 'UNPROCESSABLE'
+            }
+        }
+
+        cm_deps.resource_postback.delay(context['deployment_id'],
+                                        expected).AndReturn(True)
+        self.mox.ReplayAll()
+        results = compute.wait_on_build(context, server.id,
+                                        'North',
+                                        api_object=openstack_api_mock)
+
+        self.assertDictEqual(results, expected)
+        self.mox.VerifyAll()
+
     def test_wait_on_build(self):
         server = self.mox.CreateMockAnything()
         server.id = 'fake_server_id'
