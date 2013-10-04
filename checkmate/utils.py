@@ -1123,7 +1123,7 @@ def format_check(data):
     :param data: a dict containing 4 sections (see expected_keys)
     """
     data = data or {}
-    body = {}
+    body = {'resources': {}}
     instance = {}
     desired = {}
 
@@ -1134,7 +1134,7 @@ def format_check(data):
             instance[key]['region'] = value.get('region')
             desired[key] = value['desired-state']
         elif 'desired-state' in value:  # instance is missing
-            body[key] = [{
+            body['resources'][key] = [{
                 'type': 'WARNING',
                 'message': 'Resource %s has desired-state but no instance.' %
                 key
@@ -1142,20 +1142,20 @@ def format_check(data):
 
     # Build the output
     for resource, checks in desired.iteritems():
-        body[resource] = []
+        body['resources'][resource] = []
         for setting, value in checks.iteritems():
             if instance[resource].get(setting) is None:
-                body[resource].append({
+                body['resources'][resource].append({
                     'type': 'WARNING',
                     'message': '%s does not exist in instance.' % setting
                 })
             elif value == instance[resource].get(setting):
-                body[resource].append({
+                body['resources'][resource].append({
                     'type': 'INFORMATION',
                     'message': '%s is valid.' % setting
                 })
             else:
-                body[resource].append({
+                body['resources'][resource].append({
                     'type': 'WARNING',
                     'message': "%s invalid: currently '%s'. Should be '%s'." %
                     (

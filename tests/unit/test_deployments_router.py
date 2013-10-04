@@ -648,12 +648,12 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
 
     @mock.patch.object(deployments.router.tasks, 'postback')
     def test_check_deployment(self, mock_postback):
-        expected = {
+        expected = {'resources': {
             '0': [
                 {'message': 'flavor is valid.', 'type': 'INFORMATION'},
                 {'message': 'region is valid.', 'type': 'INFORMATION'}
             ]
-        }
+        }}
         mock_postback.return_value = {
             '0': {
                 'desired-state': {'flavor': '3', 'region': 'DFW'},

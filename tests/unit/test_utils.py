@@ -698,23 +698,23 @@ class TestQueryParams(unittest.TestCase):
 
 class TestFormatCheck(unittest.TestCase):
     def test_no_data(self):
-        self.assertEqual({}, utils.format_check(None))
+        self.assertEqual({'resources': {}}, utils.format_check(None))
 
     def test_empty_data(self):
-        self.assertEqual({}, utils.format_check({}))
+        self.assertEqual({'resources': {}}, utils.format_check({}))
 
     def test_desired_but_no_instance(self):
-        expected = {
+        expected = {'resources': {
             '0': [{
                 'type': 'WARNING',
                 'message': 'Resource 0 has desired-state but no instance.'
             }]
-        }
+        }}
         data = {'0': {'desired-state': {'flavor': '3'}}}
         self.assertEqual(expected, utils.format_check(data))
 
     def test_all_output(self):
-        expected = {
+        expected = {'resources': {
             '0': [{
                 'type': 'WARNING',
                 'message': 'not-there does not exist in instance.'}
@@ -729,7 +729,7 @@ class TestFormatCheck(unittest.TestCase):
                     'message': "flavor invalid: currently '3'. Should be '5'."
                 }
             ]
-        }
+        }}
         data = {
             '0': {
                 'desired-state': {'not-there': '42'},
