@@ -649,15 +649,22 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
     @mock.patch.object(deployments.router.tasks, 'postback')
     def test_check_deployment(self, mock_postback):
         expected = {
-            'operation': [{'message': 'Operation status UP is consistent.',
-                           'type': 'INFORMATION'}],
-            'resources': {}
+            '0': [
+                {'message': 'flavor is valid.', 'type': 'INFORMATION'},
+                {'message': 'region is valid.', 'type': 'INFORMATION'}
+            ]
         }
-        mock_postback.return_value = {}
+        mock_postback.return_value = {
+            '0': {
+                'desired-state': {'flavor': '3', 'region': 'DFW'},
+                'instance': {'flavor': '3'},
+                'region': 'DFW'
+            }
+        }
         router = deployments.Router(mock.Mock(), mock.Mock())
         router.check_deployment('dep_id')
-        self.mock_write_body.assert_called_once_with(
-            expected, mock.ANY, mock.ANY)
+        self.mock_write_body.assert_called_once_with(expected, mock.ANY,
+                                                     mock.ANY)
 
 
 if __name__ == '__main__':
