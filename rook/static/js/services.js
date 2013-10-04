@@ -568,16 +568,18 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     var domain = host_parts[0];
     var port = host_parts.length > 1 ? ':'+ host_parts[1] : '';
 
+    api.server = uri.protocol() + '://';
+    api.url = (checkmate_server_base || '') + '/githubproxy/';
+
     if(/github\.com$/i.test(domain)) {
       // The repo is on the Github website
-      api.server = uri.protocol() + '://' + 'api.github.com' + port;
-      api.url = (checkmate_server_base || '') + '/githubproxy/';
-      return api;
+      api.server += 'api.github.com' + port;
+    } else {
+      // The repo is on Github Enterprise
+      api.server += uri.host();
+      api.url = '/api/v3/';
     }
 
-    // The repo is on Github Enterprise
-    api.server = uri.protocol() + '://' + uri.host();
-    api.url = (checkmate_server_base || '') + '/githubproxy/api/v3/';
     return api;
   }
 
@@ -596,7 +598,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     if (segments.length > 1) {
       remote.repo.name = segments[1];
     }
-    remote.branch = {  };
+    remote.branch_name = hash;
 
     // Unknown at this point
     remote.org = null;
@@ -732,70 +734,56 @@ services.factory('github', ['$http', '$q', function($http, $q) {
       );
   }
 
-  scope.get_blueprint = function(remote, username) {
-    var repo_url = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name;
-    var commit_url = repo_url + '/git/trees/' + remote.branch.commit;
-    var config = get_config(remote.api.server);
-
-    return $http.get(commit_url, config)
-      .then(
-        // Success
-        function(response) {
-          var data = response.data;
-          var checkmate_yaml_file = _.find(data.tree, function(file) {return file.path == "checkmate.yaml";});
-
-          // No checkmate.yaml file was found: Reject!
-          if (checkmate_yaml_file === undefined) {
-            var not_found_response = {
-              data: "No 'checkmate.yaml' found in the repository '" + remote.repo.name + "'",
-              status: 404
-            };
-            return $q.reject(not_found_response);
-          }
-
-          var raw_url = repo_url + '/git/blobs/' + checkmate_yaml_file.sha;
-          var raw_config = get_config(remote.api.server, 'application/vnd.github.v3.raw');
-          return $http.get(raw_url, raw_config)
-            .then(
-              // Success
-              function(response) {
-                var yaml_data = response.data;
-                var checkmate_yaml = {};
-                try {
-                  var yaml_string = yaml_data
-                                      .replace('%repo_url%', remote.repo.git_url + '#' + remote.branch.name)
-                                      .replace('%username%', username || '%username%');
-                  checkmate_yaml = jsyaml.safeLoad(yaml_string);
-                } catch(err) {
-                  if (err.name == "YamlParseException") {
-                    var parse_error_response = {
-                      data: "YAML syntax error in line " + err.parsedLine + ". '" + err.snippet + "' caused error '" + err.message + "'",
-                      status: 400
-                    };
-                    return $q.reject(parse_error_response);
-                  }
-                }
-                return checkmate_yaml;
-              },
-              // Error
-              $q.reject
-            );
-        },
-        // Error
-        $q.reject
-      );
+  var _get_branch_name = function(remote) {
+    return ((remote.branch && remote.branch.name) || remote.branch_name || 'master');
   }
 
-  scope.get_contents = function(remote, url, content_item, callback){
+  var _parse_blueprint = function(yaml_string, remote, username) {
+    var checkmate_yaml;
+    var branch_name = _get_branch_name(remote);
+    var sanitized_yaml = yaml_string
+                           .replace('%repo_url%', remote.repo.git_url + '#' + branch_name)
+                           .replace('%username%', username || '%username%');
+    checkmate_yaml = jsyaml.safeLoad(sanitized_yaml);
+    return checkmate_yaml;
+  }
+
+  scope.get_blueprint = function(remote, username) {
+    return scope.get_contents(remote, null, 'checkmate.yaml').then(
+      function success(yaml_string) {
+        try {
+          return _parse_blueprint(yaml_string, remote, username);
+        } catch(err) {
+          var parse_error_response = {
+            data: err.message,
+            status: 400
+          };
+          return $q.reject(parse_error_response);
+        }
+      },
+      // Error
+      $q.reject
+    );
+  }
+
+  scope.get_contents = function(remote, url, content_item){
     var path;
     if (url) {
       var destination_path = URI(url).path();
       path = '/githubproxy' + destination_path + "/contents/" + content_item;
     } else {
-      path = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/contents/' + content_item;
+      var branch_name = _get_branch_name(remote);
+      path = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/contents/' + content_item + "?ref=" + branch_name;
     }
-    return $http.get(path, get_config(remote.api.server)).then(
-      function(response) { return response.data; },
+    var config = get_config(remote.api.server);
+    config.headers['X-Target-Url'] = remote.api.server;
+    return $http.get(path, config).then(
+      function(response) {
+        var base64_decode = window.atob; // atob is javascript builtin base64 decode
+        var contents = response.data.content;
+        var sanitized_contents = contents.replace(/\n/g, '');
+        return base64_decode(sanitized_contents);
+      },
       function(response) {
         console.log('Failed to retrieve ' + content_item + ' from ' + url);
         return response;

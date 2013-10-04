@@ -3402,14 +3402,17 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   }
 
   $scope.load_blueprint = function() {
-    var base64_decode = window.atob; // atob is javascript builtin base64 decode
     var url = $location.search().url;
     if (url) {
       var remote = github.parse_url(url);
-      github.get_contents(remote, null, 'checkmate.yaml').then(function(contents) {
-        var sanitized_contents = contents.content.replace(/\n/g, '');
-        $scope.deployment_json = base64_decode(sanitized_contents);
-      });
+      github.get_blueprint(remote).then(
+        function(blueprint) {
+          $scope.deployment_json = jsyaml.safeDump(blueprint);
+        },
+        function(response) {
+          console.log(response);
+        }
+      );
     }
   }
 
