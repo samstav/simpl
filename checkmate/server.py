@@ -428,6 +428,7 @@ def main():
         kwargs['backlog'] = 100
         kwargs['log'] = EventletLogFilter
         eventlet_backdoor.initialize_if_enabled()
+        eventlet.wsgi.MAX_HEADER_LINE = 32768  # to accept x-catalog
     else:
         if CONFIG.access_log:
             print "--access-log only works with --eventlet"
