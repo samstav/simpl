@@ -39,6 +39,7 @@ from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
 from checkmate import providers as cmprov
+from checkmate.providers import RackspaceProviderTask, ProviderTask
 from checkmate.providers.rackspace import base
 from checkmate import rdp
 from checkmate import ssh
@@ -200,6 +201,7 @@ class Provider(RackspaceComputeProviderBase):
         'ACTIVE': 'ACTIVE',
         'BUILD': 'BUILD',
         'DELETED': 'DELETED',
+        'DELETING': 'DELETING',
         'ERROR': 'ERROR',
         'HARD_REBOOT': 'CONFIGURE',
         'MIGRATING': 'CONFIGURE',
@@ -394,7 +396,6 @@ class Provider(RackspaceComputeProviderBase):
             call_args=[
                 queued_task_dict,
                 resource.get('dns-name'),
-                desired['region']
             ],
             image=desired.get('image'),
             flavor=desired.get('flavor', "2"),
@@ -415,7 +416,6 @@ class Provider(RackspaceComputeProviderBase):
             call_args=[
                 queued_task_dict,
                 swops.PathAttrib('instance:%s/id' % key),
-                resource['region'],
             ],
             properties={'estimated_duration': 150,
                         'auto_retry_count': 3},
@@ -1019,9 +1019,9 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
 #
 
 
-@ctask.task
+@ctask.task(base=RackspaceProviderTask, provider=Provider)
 @statsd.collect
-def create_server(context, name, region, api_object=None, flavor="2",
+def create_server(context, name, api=None, region=None, flavor="2",
                   files=None, image=None, tags=None):
     """Create a Rackspace Cloud server using novaclient.
 
@@ -1032,7 +1032,7 @@ def create_server(context, name, region, api_object=None, flavor="2",
     :param context: the context information
     :type context: dict
     :param name: the name of the server
-    :param api_object: existing, authenticated connection to API
+    :param api: existing, authenticated connection to API
     :param image: the image ID to use when building the server (which OS)
     :param flavor: the size of the server (a string ID)
     :param files: a list of files to inject
@@ -1056,22 +1056,11 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     deployment_id = context["deployment_id"]
     resource_key = context['resource_key']
-    instance_key = 'instance:%s' % resource_key
     if context.get('simulation') is True:
-        results = {
-            'instance:%s' % resource_key: {
-                'id': str(1000 + int(resource_key)),
-                'status': "BUILD",
-                'password': 'RandomPass',
-            },
-            'resources': {
-                resource_key: context.get('resource'),
-            },
-        }
-        # Send data back to deployment
-        cmdeps.resource_postback.delay(deployment_id, results)
+        results = {'id': str(1000 + int(resource_key)),
+                   'status': "BUILD",
+                   'password': 'RandomPass'}
         return results
-
     utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -1082,31 +1071,28 @@ def create_server(context, name, region, api_object=None, flavor="2",
 
     create_server.on_failure = on_failure
 
-    if api_object is None:
-        api_object = Provider.connect(context, region)
-
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor, name,
               files)
 
     try:
         # Check image and flavor IDs (better descriptions if we error here)
-        image_object = api_object.images.find(id=image)
+        image_object = api.images.find(id=image)
         LOG.debug("Image id %s found. Name=%s", image, image_object.name)
-        flavor_object = api_object.flavors.find(id=str(flavor))
+        flavor_object = api.flavors.find(id=str(flavor))
         LOG.debug("Flavor id %s found. Name=%s", flavor, flavor_object.name)
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               (api_object.client.management_url))
+               (api.client.management_url))
         LOG.error(msg, exc_info=True)
-        raise create_server.retry(exc=exc)
+        raise cmexc.CheckmateException(message=msg, options=cmexc.CAN_RESUME)
 
     # Add RAX-CHECKMATE to metadata
     # support old way of getting metadata from generate_template
     meta = tags or context.get("metadata", None)
     try:
-        server = api_object.servers.create(name, image_object, flavor_object,
-                                           meta=meta, files=files,
-                                           disk_config='AUTO')
+        server = api.servers.create(name, image_object, flavor_object,
+                                    meta=meta, files=files,
+                                    disk_config='AUTO')
     except ncexc.OverLimit as exc:
         raise cmexc.CheckmateException(
             str(exc),
@@ -1117,9 +1103,9 @@ def create_server(context, name, region, api_object=None, flavor="2",
         )
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               (api_object.client.management_url))
+               (api.client.management_url))
         LOG.error(msg, exc_info=True)
-        raise create_server.retry(exc=exc)
+        raise cmexc.CheckmateException(message=msg, options=cmexc.CAN_RESUME)
 
     # Update task in workflow
     create_server.update_state(state="PROGRESS",
@@ -1127,25 +1113,17 @@ def create_server(context, name, region, api_object=None, flavor="2",
     LOG.info('Created server %s (%s) for deployment %s.', name, server.id,
              deployment_id)
 
-    results = {
-        instance_key: {
-            'id': server.id,
-            'password': server.adminPass,
-            'region': api_object.client.region_name,
-            'status': 'NEW',
-            'flavor': flavor,
-            'image': image,
-            'error-message': '',
-            'status-message': '',
-        },
-        'resources': {
-            resource_key: context.get('resource'),
-        },
-    }
+    result = {'id': server.id,
+              'password': server.adminPass,
+              'region': api.client.region_name,
+              'status': 'NEW',
+              'flavor': flavor,
+              'image': image,
+              'error-message': '',
+              'status-message': '',
+              }
 
-    # Send data back to deployment
-    cmdeps.resource_postback.delay(deployment_id, results)
-    return results
+    return result
 
 
 @ctask.task
@@ -1201,9 +1179,10 @@ def sync_resource_task(context, resource, resource_key, api=None):
             raise cmexc.CheckmateNoTokenError("Auth token expired")
 
 
-@ctask.task(default_retry_delay=30, max_retries=120)
+@ctask.task(base=RackspaceProviderTask, default_retry_delay=30,
+            max_retries=120, provider=Provider)
 @statsd.collect
-def delete_server_task(context, api=None):
+def delete_server_task(context, api=None, region=None):
     """Celery Task to delete a Nova compute instance."""
     utils.match_celery_logging(LOG)
 
@@ -1221,11 +1200,6 @@ def delete_server_task(context, api=None):
 
     delete_server_task.on_failure = on_failure
 
-    key = context.get("resource_key")
-    inst_key = "instance:%s" % key
-
-    if api is None and context.get('simulation') is not True:
-        api = Provider.connect(context, region=context.get("region"))
     server = None
     inst_id = context.get("instance_id")
     resource = context.get('resource')
@@ -1238,14 +1212,12 @@ def delete_server_task(context, api=None):
                (resource_key, deployment_id))
         LOG.info(msg)
         results = {
-            inst_key: {
-                'status': 'DELETED',
-                'status-message': msg
-            }
+            'status': 'DELETED',
+            'status-message': msg
         }
-        cmdeps.resource_postback.delay(deployment_id, results)
-        return
-    ret = {}
+        return results
+
+    results = {}
     try:
         if context.get('simulation') is not True:
             server = api.servers.get(inst_id)
@@ -1255,53 +1227,60 @@ def delete_server_task(context, api=None):
         msg = ("Connection error talking to %s endpoint" %
                (api.client.management_url))
         LOG.error(msg, exc_info=True)
-        raise delete_server_task.retry(exc=exc)
+        raise exception.CheckmateException(message=msg,
+                                           options=cmexc.CAN_RESUME)
     if (not server) or (server.status == 'DELETED'):
-        ret = {
-            inst_key: {
-                'status': 'DELETED',
-                'status-message': ''
-            }
+        results = {
+            'status': 'DELETED',
+            'status-message': ''
         }
         if 'hosts' in resource:
+            hosts_results = {}
             for comp_key in resource.get('hosts', []):
-                ret.update({'instance:%s' % comp_key: {'status': 'DELETED',
-                            'status-message': ''}})
-    elif server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
-        ret = {}
-        ret.update({
-            inst_key: {
-                'status': 'DELETING',
-                'status-message': 'Waiting on resource deletion'
-            }
-        })
-        if 'hosts' in resource:
-            for comp_key in resource.get('hosts', []):
-                ret.update({
+                hosts_results.update({
                     'instance:%s' % comp_key: {
-                        'status': 'DELETING',
-                        'status-message': 'Host %s is being deleted.' % key
+                        'status': 'DELETED',
+                        'status-message': ''
                     }
                 })
+            cmdeps.resource_postback.delay(deployment_id, hosts_results)
+    elif server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
+        results = {
+            'status': 'DELETING',
+            'status-message': 'Waiting on resource deletion'
+        }
+        if 'hosts' in resource:
+            hosts_results = {}
+            for comp_key in resource.get('hosts', []):
+                hosts_results.update({
+                    'instance:%s' % comp_key: {
+                        'status': 'DELETING',
+                        'status-message': 'Host %s is being deleted.' %
+                                          resource_key
+                    }
+                })
+            cmdeps.resource_postback.delay(deployment_id, hosts_results)
         try:
             server.delete()
         except requests.ConnectionError as exc:
             msg = ("Connection error talking to %s endpoint" %
                    (api.client.management_url))
             LOG.error(msg, exc_info=True)
-            raise delete_server_task.retry(exc=exc)
+            raise exception.CheckmateException(message=msg,
+                                               options=cmexc.CAN_RESUME)
     else:
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
                % server.status)
-        cmdeps.resource_postback.delay(deployment_id,
-                                       {inst_key: {'status': 'DELETING',
-                                                   'status-message': msg}})
-        delete_server_task.retry(exc=cmexc.CheckmateException(msg))
-    cmdeps.resource_postback.delay(deployment_id, ret)
-    return ret
+        delete_server_task.partial({
+            'status': 'DELETING',
+            'status-message': msg
+        })
+        raise cmexc.CheckmateException(message=msg, options=cmexc.CAN_RESUME)
+    return results
 
 
-@ctask.task(default_retry_delay=30, max_retries=120)
+@ctask.task(base=RackspaceProviderTask, default_retry_delay=30,
+            max_retries=120, provider=Provider)
 @statsd.collect
 def wait_on_delete_server(context, api=None):
     """Wait for a server resource to be deleted."""
@@ -1319,11 +1298,7 @@ def wait_on_delete_server(context, api=None):
 
     wait_on_delete_server.on_failure = on_failure
 
-    key = context.get("resource_key")
-    inst_key = "instance:%s" % key
     resource = context.get('resource')
-    if api is None and context.get('simulation') is not True:
-        api = Provider.connect(context, region=context.get("region"))
     server = None
     inst_id = context.get("instance_id")
 
@@ -1336,15 +1311,12 @@ def wait_on_delete_server(context, api=None):
                % (resource_key, deployment_id))
         LOG.info(msg)
         results = {
-            inst_key: {
-                'status': 'DELETED',
-                'status-message': msg
-            }
+            'status': 'DELETED',
+            'status-message': msg
         }
-        cmdeps.resource_postback.delay(deployment_id, results)
-        return
+        return results
 
-    ret = {}
+    results = {}
     try:
         if context.get('simulation') is not True:
             server = api.servers.find(id=inst_id)
@@ -1354,39 +1326,42 @@ def wait_on_delete_server(context, api=None):
         msg = ("Connection error talking to %s endpoint" %
                (api.client.management_url))
         LOG.error(msg, exc_info=True)
-        raise wait_on_delete_server.retry(exc=exc)
+        raise exception.CheckmateException(message=msg,
+                                           options=cmexc.CAN_RESUME)
     if (not server) or (server.status == "DELETED"):
-        ret = {
-            inst_key: {
-                'status': 'DELETED',
-                'status-message': ''
-            }
+        results = {
+            'status': 'DELETED',
+            'status-message': ''
         }
         if 'hosts' in resource:
+            hosted_resources = {}
             for hosted in resource.get('hosts', []):
-                ret.update({
+                hosted_resources.update({
                     'instance:%s' % hosted: {
                         'status': 'DELETED',
                         'status-message': ''
                     }
                 })
+            cmdeps.resource_postback.delay(context.get("deployment_id"),
+                                           hosted_resources)
     else:
         msg = ('Instance is in state %s. Waiting on DELETED resource.'
                % server.status)
-        cmdeps.resource_postback.delay(
-            context.get("deployment_id"),
-            {inst_key: {'status': 'DELETING', 'status-message': msg}}
-        )
-        wait_on_delete_server.retry(exc=cmexc.CheckmateException(msg))
-    cmdeps.resource_postback.delay(context.get("deployment_id"), ret)
-    return ret
+        results = {
+            'status': 'DELETING',
+            'status-message': msg
+        }
+        wait_on_delete_server.partial(results)
+        raise cmexc.CheckmateException(message=msg, options=cmexc.CAN_RESUME)
+    return results
 
 
 # max 60 minute wait
-@ctask.task(default_retry_delay=30, max_retries=120, acks_late=True)
+@ctask.task(base=RackspaceProviderTask, default_retry_delay=30,
+            max_retries=120, acks_late=True, provider=Provider)
 @statsd.collect
-def wait_on_build(context, server_id, region, ip_address_type='public',
-                  api_object=None):
+def wait_on_build(context, server_id, ip_address_type='public',
+                  region=None, api=None):
     """Checks build is complete.
 
     :param context: context data
@@ -1394,83 +1369,74 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     :param region: region in which the server exists
     :param ip_address_type: the type of IP address to return as 'ip' in the
         response
-    :param api_object: api object for getting server details
+    :param api: api object for getting server details
     :return: False when build not ready. Dict with ip addresses when done.
     """
     utils.match_celery_logging(LOG)
     deployment_id = context["deployment_id"]
     resource_key = context['resource_key']
-    instance_key = 'instance:%s' % resource_key
 
     if context.get('simulation') is True:
         results = {
-            instance_key: {
-                'status': "ACTIVE",
-                'status-message': "",
-                'ip': '4.4.4.%s' % resource_key,
-                'public_ip': '4.4.4.%s' % resource_key,
-                'private_ip': '10.1.2.%s' % resource_key,
-                'addresses': {
-                    'public': [
-                        {
-                            "version": 4,
-                            "addr": "4.4.4.%s" % resource_key,
-                        },
-                        {
-                            "version": 6,
-                            "addr": "2001:babe::ff04:36c%s" % resource_key,
-                        }
-                    ],
-                    'private': [
-                        {
-                            "version": 4,
-                            "addr": "10.1.2.%s" % resource_key,
-                        }
-                    ]
-                }
+            'status': "ACTIVE",
+            'status-message': "",
+            'ip': '4.4.4.%s' % resource_key,
+            'public_ip': '4.4.4.%s' % resource_key,
+            'private_ip': '10.1.2.%s' % resource_key,
+            'addresses': {
+                'public': [
+                    {
+                        "version": 4,
+                        "addr": "4.4.4.%s" % resource_key,
+                    },
+                    {
+                        "version": 6,
+                        "addr": "2001:babe::ff04:36c%s" % resource_key,
+                    }
+                ],
+                'private': [
+                    {
+                        "version": 4,
+                        "addr": "10.1.2.%s" % resource_key,
+                    }
+                ]
             }
         }
-        # Send data back to deployment
-        cmdeps.resource_postback.delay(deployment_id, results)
         return results
-
-    if api_object is None:
-        api_object = Provider.connect(context, region)
 
     assert server_id, "ID must be provided"
     LOG.debug("Getting server %s", server_id)
     try:
-        server = api_object.servers.find(id=server_id)
+        server = api.servers.find(id=server_id)
     except (ncexc.NotFound, ncexc.NoUniqueMatch):
         msg = "No server matching id %s" % server_id
         LOG.error(msg, exc_info=True)
         raise cmexc.CheckmateException(msg)
     except requests.ConnectionError as exc:
         msg = ("Connection error talking to %s endpoint" %
-               api_object.client.management_url)
+               api.client.management_url)
         LOG.error(msg, exc_info=True)
-        raise wait_on_build.retry(exc=exc)
+        raise exception.CheckmateException(message=msg,
+                                           options=cmexc.CAN_RESUME)
 
     results = {
         'id': server_id,
         'status': server.status,
         'addresses': server.addresses,
-        'region': api_object.client.region_name,
+        'region': api.client.region_name,
     }
 
     if server.status == 'ERROR':
         results = {
-            instance_key: {
-                'status': 'ERROR',
-                'status-message': "Server %s build failed" % server_id,
-            }
+            'status': 'ERROR',
+            'status-message': "Server %s build failed" % server_id,
         }
 
-        cmdeps.resource_postback.delay(deployment_id, results)
         context["instance_id"] = server_id
+        wait_on_build.partial(results)
         raise cmexc.CheckmateException(
-            results[instance_key]['status-message'],
-            results[instance_key]['status-message'],
+            results['status-message'],
+            results['status-message'],
             cmexc.CAN_RESET)
     if server.status == 'BUILD':
         results['progress'] = server.progress
@@ -1489,8 +1455,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                server_id, server.progress))
         LOG.debug(msg)
         results['progress'] = server.progress
-        cmdeps.resource_postback.delay(deployment_id, {instance_key: results})
-        return wait_on_build.retry(exc=cmexc.CheckmateException(msg))
+        wait_on_build.partial(results)
+        raise cmexc.CheckmateException(message=msg, options=cmexc.CAN_RESUME)
 
     if server.status != 'ACTIVE':
         # this may fail with custom/unexpected statuses like "networking"
@@ -1499,8 +1465,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         msg = ("Server '%s' status is %s, which is not recognized. "
                "Not assuming it is active" % (server_id, server.status))
         results['status-message'] = msg
-        cmdeps.resource_postback.delay(deployment_id, {instance_key: results})
-        return wait_on_build.retry(exc=cmexc.CheckmateException(msg))
+        wait_on_build.partial(results)
+        raise cmexc.CheckmateException(message=msg, options=cmexc.CAN_RESUME)
 
     # if a rack_connect account, wait for rack_connect configuration to finish
     rackconnected = utils.is_rackconnect_account(context)
@@ -1509,9 +1475,9 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
             msg = ("Rack Connect server still does not have the "
                    "'rackconnect_automation_status' metadata tag")
             results['status-message'] = msg
-            cmdeps.resource_postback.delay(deployment_id,
-                                           {instance_key: results})
-            wait_on_build.retry(exc=cmexc.CheckmateException(msg))
+            wait_on_build.partial(results)
+            raise cmexc.CheckmateException(message=msg,
+                                           options=cmexc.CAN_RESUME)
         else:
             rc_automation_status = server.metadata[
                 'rackconnect_automation_status']
@@ -1545,11 +1511,10 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                        "metadata tag is still not 'DEPLOYED'. It is '%s'" %
                        rc_automation_status)
                 results['status-message'] = msg
-                cmdeps.resource_postback.delay(
-                    deployment_id,
-                    {instance_key: results}
-                )
-                wait_on_build.retry(exc=cmexc.CheckmateException(msg))
+
+                wait_on_build.partial(results)
+                raise cmexc.CheckmateException(message=msg,
+                                               options=cmexc.CAN_RESUME)
 
     ips = utils.get_ips_from_server(
         server,
@@ -1560,14 +1525,11 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
 
     # we might not get an ip right away, so wait until its populated
     if 'ip' not in results:
-        return wait_on_build.retry(exc=cmexc.CheckmateException(
-                                   "Could not find IP of server '%s'" %
-                                   server_id))
-
+        raise cmexc.CheckmateException(message="Could not find IP of server "
+                                               "'%s'" % server_id,
+                                       options=cmexc.CAN_RESUME)
     results['status'] = "ACTIVE"
     results['status-message'] = ''
-    results = {instance_key: results}
-    cmdeps.resource_postback.delay(deployment_id, results)
     return results
 
 

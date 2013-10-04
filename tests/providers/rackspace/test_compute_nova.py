@@ -136,7 +136,7 @@ class TestNovaCompute(test.ProviderTester):
 
         self.mox.ReplayAll()
         results = compute.create_server(context, 'fake_server', "North",
-                                        api_object=openstack_api_mock,
+                                        api=openstack_api_mock,
                                         flavor='2', files=None,
                                         image=image.id,
                                         tags=provider.generate_resource_tag(
@@ -165,7 +165,7 @@ class TestNovaCompute(test.ProviderTester):
 
         with self.assertRaises(requests.ConnectionError):
             compute.create_server({'deployment_id': '1', 'resource_key': '1'},
-                                  None, None, api_object=mock_api_obj)
+                                  None, None, api=mock_api_obj)
 
         compute.LOG.error.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
@@ -182,7 +182,7 @@ class TestNovaCompute(test.ProviderTester):
 
         with self.assertRaises(requests.ConnectionError):
             compute.create_server({'deployment_id': '1', 'resource_key': '1'},
-                                  None, None, api_object=mock_api_obj)
+                                  None, None, api=mock_api_obj)
         mock_logger.assert_called_with('Connection error talking to '
                                        'test.local endpoint', exc_info=True)
 
@@ -336,7 +336,7 @@ class TestNovaCompute(test.ProviderTester):
 
         self.mox.ReplayAll()
         results = compute.wait_on_build(context, server.id, 'North',
-                                        api_object=openstack_api_mock)
+                                        api=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -564,7 +564,7 @@ class TestNovaCompute(test.ProviderTester):
 
         self.mox.ReplayAll()
         results = compute.wait_on_build(
-            context, server.id, 'North', api_object=openstack_api_mock)
+            context, server.id, 'North', api=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -640,7 +640,7 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.ReplayAll()
         with self.assertRaises(requests.ConnectionError):
             compute.wait_on_build(
-                context, server.id, 'North', [], api_object=openstack_api_mock)
+                context, server.id, 'North', [], api=openstack_api_mock)
 
         self.mox.VerifyAll()
 

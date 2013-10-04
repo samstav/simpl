@@ -642,7 +642,8 @@ class ProviderTask(celery.Task):
                 % type(context))
 
         try:
-            self.api = kwargs.get('api') or self.provider.connect(context)
+            if 'api' not in kwargs:
+                kwargs.update({'api': self.provider.connect(context)})
         # TODO(Nate): Generalize exception raised in providers connect
         except exceptions.CheckmateValidationException:
             raise
@@ -690,6 +691,13 @@ class RackspaceProviderTask(ProviderTask):
     abstract = True
 
     def __call__(self, context, *args, **kwargs):
+        if isinstance(context, dict):
+            context = middleware.RequestContext(**context)
+        elif not isinstance(context, middleware.RequestContext):
+            raise exceptions.CheckmateException(
+                'Context passed into ProviderTask is an unsupported type %s.'
+                % type(context))
+
         if context.region is None and 'region' in kwargs:
             context.region = kwargs.get('region')
         return super(RackspaceProviderTask, self).__call__(context, *args,
