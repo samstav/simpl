@@ -158,6 +158,11 @@ class Driver(common.DbBase):
             background=True,
             name='tenant_tags',
         )
+        self.database()[self._blueprint_collection_name].create_index(
+            [("tenantId", pymongo.DESCENDING)],
+            background=True,
+            name="blueprints_tenantId",
+        )
 
     def __getstate__(self):
         """Support serializing to connection string."""
