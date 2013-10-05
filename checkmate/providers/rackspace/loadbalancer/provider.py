@@ -324,7 +324,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
         task_name = ('Wait for Loadbalancer %s (%s) build' %
                      (key, resource['service']))
-        celery_call = ('checkmate.providers.rackspace.loadbalancer.tasks'
+        celery_call = ('checkmate.providers.rackspace.loadbalancer.tasks.'
                        'wait_on_build')
         build_wait_task = specs.Celery(
             wfspec,
@@ -369,7 +369,7 @@ class Provider(rsbase.RackspaceProviderBase):
             build_wait_task.connect(create_record_task)
             task_name = ("Update Load Balancer %s (%s) DNS Data"
                          % (key, resource['service']))
-            celery_call = ('checkmate.providers.rackspace.loadbalancer.tasks'
+            celery_call = ('checkmate.providers.rackspace.loadbalancer.tasks.'
                            'collect_record_data')
             crd = specs.Celery(
                 wfspec, task_name, celery_call,
