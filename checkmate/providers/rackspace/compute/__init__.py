@@ -396,6 +396,7 @@ class Provider(RackspaceComputeProviderBase):
             call_args=[
                 queued_task_dict,
                 resource.get('dns-name'),
+                desired['region']
             ],
             image=desired.get('image'),
             flavor=desired.get('flavor', "2"),
@@ -416,6 +417,7 @@ class Provider(RackspaceComputeProviderBase):
             call_args=[
                 queued_task_dict,
                 swops.PathAttrib('instance:%s/id' % key),
+                resource['region'],
             ],
             properties={'estimated_duration': 150,
                         'auto_retry_count': 3},
@@ -1021,7 +1023,7 @@ def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
 
 @ctask.task(base=RackspaceProviderTask, provider=Provider)
 @statsd.collect
-def create_server(context, name, api=None, region=None, flavor="2",
+def create_server(context, name, region, api=None, flavor="2",
                   files=None, image=None, tags=None):
     """Create a Rackspace Cloud server using novaclient.
 
@@ -1073,6 +1075,9 @@ def create_server(context, name, api=None, region=None, flavor="2",
 
     LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor, name,
               files)
+
+    if api is None:
+        api = Provider.connect(context, region)
 
     try:
         # Check image and flavor IDs (better descriptions if we error here)
@@ -1182,7 +1187,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
 @ctask.task(base=RackspaceProviderTask, default_retry_delay=30,
             max_retries=120, provider=Provider)
 @statsd.collect
-def delete_server_task(context, api=None, region=None):
+def delete_server_task(context, api=None):
     """Celery Task to delete a Nova compute instance."""
     utils.match_celery_logging(LOG)
 
@@ -1199,6 +1204,10 @@ def delete_server_task(context, api=None, region=None):
         _on_failure(exc, task_id, args, kwargs, einfo, action, method)
 
     delete_server_task.on_failure = on_failure
+
+
+    if api is None and context.get('simulation') is not True:
+        api = Provider.connect(context, region=context.get("region"))
 
     server = None
     inst_id = context.get("instance_id")
@@ -1298,6 +1307,9 @@ def wait_on_delete_server(context, api=None):
 
     wait_on_delete_server.on_failure = on_failure
 
+    if api is None and context.get('simulation') is not True:
+        api = Provider.connect(context, region=context.get("region"))
+
     resource = context.get('resource')
     server = None
     inst_id = context.get("instance_id")
@@ -1360,8 +1372,8 @@ def wait_on_delete_server(context, api=None):
 @ctask.task(base=RackspaceProviderTask, default_retry_delay=30,
             max_retries=120, acks_late=True, provider=Provider)
 @statsd.collect
-def wait_on_build(context, server_id, ip_address_type='public',
-                  region=None, api=None):
+def wait_on_build(context, server_id, region, ip_address_type='public',
+                  api=None):
     """Checks build is complete.
 
     :param context: context data
@@ -1406,6 +1418,10 @@ def wait_on_build(context, server_id, ip_address_type='public',
 
     assert server_id, "ID must be provided"
     LOG.debug("Getting server %s", server_id)
+
+    if api is None:
+        api = Provider.connect(context, region)
+
     try:
         server = api.servers.find(id=server_id)
     except (ncexc.NotFound, ncexc.NoUniqueMatch):
