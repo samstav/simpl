@@ -20,7 +20,7 @@ from celery import task
 
 from checkmate.common import statsd
 from checkmate.providers import base
-from checkmate.providers.rackspace.loadbalancer import Manager
+from checkmate.providers.rackspace.loadbalancer.manager import Manager
 from checkmate.providers.rackspace.loadbalancer import provider
 
 
