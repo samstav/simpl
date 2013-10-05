@@ -512,3 +512,96 @@ class TestCollectRecordData(unittest.TestCase):
         record = {"id": "ID"}
         self.assertRaises(exceptions.CheckmateException,
                           manager.Manager.collect_record_data, record)
+
+
+class TestUpdateNodeStatus(unittest.TestCase):
+    def test_sim(self):
+        mock_callback = mock.Mock()
+        expected = {
+            "relations": {
+                "lb-web-2": {
+                    "state": "ENABLED"
+                }
+            }
+        }
+        target_results = {
+            "status": "ACTIVE",
+            "relations": {
+                "lb-web-1": {
+                    "state": "ENABLED"
+                }
+            }
+        }
+        relation = {"name": "lb-web", "target": "2"}
+        actual = manager.Manager.update_node_status(
+            {'resource_key': '1'}, 1234, "0.0.0.0", "ENABLED", "ACTIVE",
+            relation, mock_callback, None, simulate=True)
+        self.assertDictEqual(actual, expected)
+        mock_callback.assert_called_once_with(target_results,
+                                              resource_key="2")
+
+    def test_success(self):
+        mock_callback = mock.Mock()
+        mock_api = mock.Mock()
+        mock_node = mock.Mock(address="0.0.0.0")
+        mock_api.get.return_value = mock.Mock(nodes=[mock_node])
+
+        expected = {
+            "relations": {
+                "lb-web-2": {
+                    "state": "ENABLED"
+                }
+            }
+        }
+        target_results = {
+            "status": "ACTIVE",
+            "relations": {
+                "lb-web-1": {
+                    "state": "ENABLED"
+                }
+            }
+        }
+        relation = {"name": "lb-web", "target": "2"}
+        actual = manager.Manager.update_node_status(
+            {'resource_key': '1'}, 1234, "0.0.0.0", "ENABLED", "ACTIVE",
+            relation, mock_callback, mock_api)
+        self.assertDictEqual(actual, expected)
+        self.assertTrue(mock_node.update.called)
+        self.assertEqual(mock_node.condition, "ENABLED")
+        mock_callback.assert_called_once_with(target_results,
+                                              resource_key="2")
+        mock_api.get.assert_called_once_with(1234)
+
+    def test_pyrax_exc_handling(self):
+        mock_callback = mock.Mock()
+        mock_api = mock.Mock()
+        mock_node = mock.Mock(address="0.0.0.0")
+        mock_api.get.return_value = mock.Mock(nodes=[mock_node])
+        mock_node.update.side_effect = pyrax.exceptions.ClientException(422)
+
+        relation = {"name": "lb-web", "target": "2"}
+        self.assertRaises(exceptions.CheckmateException,
+                          manager.Manager.update_node_status,
+                          {'resource_key': '1'}, 1234, "0.0.0.0", "ENABLED",
+                          "ACTIVE", relation, mock_callback, mock_api)
+        self.assertTrue(mock_node.update.called)
+        self.assertFalse(mock_callback.update.called)
+        self.assertEqual(mock_node.condition, "ENABLED")
+        mock_api.get.assert_called_once_with(1234)
+
+    def test_standard_error_handling(self):
+        mock_callback = mock.Mock()
+        mock_api = mock.Mock()
+        mock_node = mock.Mock(address="0.0.0.0")
+        mock_api.get.return_value = mock.Mock(nodes=[mock_node])
+        mock_node.update.side_effect = StandardError
+
+        relation = {"name": "lb-web", "target": "2"}
+        self.assertRaises(exceptions.CheckmateException,
+                          manager.Manager.update_node_status,
+                          {'resource_key': '1'}, 1234, "0.0.0.0", "ENABLED",
+                          "ACTIVE", relation, mock_callback, mock_api)
+        self.assertTrue(mock_node.update.called)
+        self.assertFalse(mock_callback.update.called)
+        self.assertEqual(mock_node.condition, "ENABLED")
+        mock_api.get.assert_called_once_with(1234)

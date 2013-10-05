@@ -17,15 +17,11 @@
 # pylint: disable=R0913,E1102
 """Rackspace Cloud Load Balancer provider and specs.Celery tasks."""
 import logging
-import os
 
 from celery import task
 import pyrax
-import redis
 
 from checkmate.common import statsd
-from checkmate import deployments
-from checkmate.deployments import tasks as deployment_tasks
 from checkmate import exceptions
 from checkmate.providers.rackspace.loadbalancer.manager import Manager
 from checkmate.providers.rackspace.loadbalancer.provider import Provider
@@ -34,44 +30,7 @@ from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
-# Any names should become airport codes
-REGION_MAP = {
-    'dallas': 'DFW',
-    'chicago': 'ORD',
-    'london': 'LON',
-    'sydney': 'SYD',
-}
 
-PROTOCOL_PAIRS = {
-    'https': 'http',
-    'sftp': 'ftp',
-    'ldaps': 'ldap',
-    'pop3s': 'pop3',
-}
-
-API_ALGORTIHM_CACHE = {}
-API_PROTOCOL_CACHE = {}
-LB_API_CACHE = {}
-REDIS = None
-if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
-    try:
-        REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
-    except StandardError as exception:
-        LOG.warn("Error connecting to Redis: %s", exception)
-
-MANAGERS = {'deployments': deployments.Manager()}
-GET_RESOURCE_BY_ID = MANAGERS['deployments'].get_resource_by_id
-
-
-# Cloud Load Balancers needs an IP for all load balancers. To create one we
-# sometimes need a dummy node. This is the IP address we use for the dummy
-# node. Requests to manage this node are intentionally errored out.
-PLACEHOLDER_IP = '1.2.3.4'
-
-
-#
-# Celery tasks
-#
 @task
 @statsd.collect
 def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
@@ -84,6 +43,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
                                     algorithm=algorithm, tags=tags,
                                     parent_lb=parent_lb)
 
+
 @task
 @statsd.collect
 def collect_record_data(deployment_id, resource_key, record):
@@ -93,6 +53,52 @@ def collect_record_data(deployment_id, resource_key, record):
         'resource_key': resource_key
     }
     tasks.collect_record_data.delay(context, record)
+
+
+@task
+@statsd.collect
+def delete_lb_task(context, key, lbid, region, api=None):
+    """DEPRECATED: Please use loadbalancer/tasks."""
+    tasks.delete_lb_task.delay(context, lbid, region=region, api=api)
+
+
+@task(default_retry_delay=2, max_retries=60)
+@statsd.collect
+def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
+    """DEPRECATED: Please use loadbalancer/tasks."""
+    tasks.wait_on_lb_delete_task.delay(context, lb_id, region=region, api=api)
+
+
+@task(default_retry_delay=10, max_retries=10)
+@statsd.collect
+def add_node(context, lbid, ipaddr, region, resource, api=None):
+    """DEPRECATED: Please use loadbalancer/tasks."""
+    tasks.add_node.delay(context, lbid, ipaddr, region=region, api=api)
+
+
+@task(default_retry_delay=10, max_retries=10)
+@statsd.collect
+def delete_node(context, lbid, ipaddr, region, api=None):
+    """DEPRECATED: Please use loadbalancer/tasks."""
+    tasks.delete_node.delay(context, lbid, ipaddr, region=region, api=api)
+
+
+@task(default_retry_delay=10, max_retries=10)
+@statsd.collect
+def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
+                timeout=10, attempts=3, body='(.*)',
+                status='^[234][0-9][0-9]$', api=None):
+    """DEPRECATED: Please use loadbalancer/tasks."""
+    tasks.set_monitor.delay(context, lbid, mon_type, region=region, path=path,
+                            delay=delay, timeout=timeout, attempts=attempts,
+                            body=body, status=status, api=api)
+
+
+@task(default_retry_delay=30, max_retries=120, acks_late=True)
+@statsd.collect
+def wait_on_build(context, lbid, region, api=None):
+    """DEPRECATED: Please use loadbalancer/tasks."""
+    tasks.wait_on_build(context, lbid, region=region, api=api)
 
 
 def _fix_corrupted_data(data):
@@ -173,129 +179,6 @@ def sync_resource_task(context, resource, resource_key, api=None):
         LOG.info("Marking load balancer instance %s as %s", instance_id,
                  status['status'])
     return {key: status}
-
-
-@task
-@statsd.collect
-def delete_lb_task(context, key, lbid, region, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.delete_lb_task.delay(context, lbid, region=region, api=api)
-
-
-@task(default_retry_delay=2, max_retries=60)
-@statsd.collect
-def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.wait_on_lb_delete_task.delay(context, lb_id, region=region, api=api)
-
-
-@task(default_retry_delay=10, max_retries=10)
-@statsd.collect
-def add_node(context, lbid, ipaddr, region, resource, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.add_node.delay(context, lbid, ipaddr, region=region, api=api)
-
-
-@task(default_retry_delay=10, max_retries=10)
-@statsd.collect
-def update_node_status(context, lb_id, ip_address, region, node_status,
-                       resource_status, api=None):
-    """Celery task to disable a load balancer node
-    :param context: request context
-    :param lb_id: load balancer id
-    :param ip_address: ip address of the node
-    :param region: region of the load balancer
-    :param node_status: status to be updated on the node
-    :param resource_status: status to be updated on the resource
-    :param api: api to call
-    :return:
-    """
-    utils.match_celery_logging(LOG)
-    source_key = context['source_resource']
-    target_key = context['target_resource']
-    relation_name = context['relation_name']
-    results = {
-        'resources': {
-            source_key: {
-                "relations": {
-                    "%s-%s" % (relation_name, target_key): {
-                        'state': node_status
-                    }
-                }
-            },
-            target_key: {
-                "status": resource_status,
-                "relations": {
-                    "%s-%s" % (relation_name, source_key): {
-                        'state': node_status
-                    }
-                }
-            }
-        }
-    }
-
-    if context.get('simulation') is True:
-        deployment_tasks.postback(context['deployment'], results)
-        return results
-
-    if api is None:
-        api = Provider.connect(context, region)
-
-    loadbalancer = api.get(lb_id)
-    node_to_update = None
-    for node in loadbalancer.nodes:
-        if node.address == ip_address:
-            node_to_update = node
-    if node_to_update:
-        try:
-            node_to_update.condition = node_status
-            node_to_update.update()
-            LOG.info('Update %s to %s for load balancer %s', ip_address,
-                     node_status, lb_id)
-        except pyrax.exceptions.ClientException as exc:
-            if exc.code == '422':
-                LOG.debug("Cannot modify load balancer %d. Will retry "
-                          "deleting %s (%s %s)", lb_id, ip_address, exc.code,
-                          exc.message)
-                update_node_status.retry(exc=exc)
-            LOG.debug('Response error from load balancer %d. Will retry '
-                      'updating node %s (%s %s)', lb_id, ip_address,
-                      exc.code,
-                      exc.message)
-            update_node_status.retry(exc=exc)
-        except StandardError as exc:
-            LOG.debug("Error updating node %s for load balancer %s. Error: %s"
-                      ". Retrying", ip_address, lb_id, str(exc))
-            update_node_status.retry(exc=exc)
-        deployment_tasks.postback(context['deployment'], results)
-        return results
-    else:
-        LOG.debug('No node matching %s on LB %s', ip_address, lb_id)
-
-
-@task(default_retry_delay=10, max_retries=10)
-@statsd.collect
-def delete_node(context, lbid, ipaddr, region, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.delete_node.delay(context, lbid, ipaddr, region=region, api=api)
-
-
-@task(default_retry_delay=10, max_retries=10)
-@statsd.collect
-def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
-                timeout=10, attempts=3, body='(.*)',
-                status='^[234][0-9][0-9]$', api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.set_monitor.delay(context, lbid, mon_type, region=region, path=path,
-                            delay=delay, timeout=timeout, attempts=attempts,
-                            body=body, status=status, api=api)
-
-
-@task(default_retry_delay=30, max_retries=120, acks_late=True)
-@statsd.collect
-def wait_on_build(context, lbid, region, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.wait_on_build(context, lbid, region=region, api=api)
 
 
 class CheckmateLoadbalancerBuildFailed(exceptions.CheckmateException):

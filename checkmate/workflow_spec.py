@@ -44,13 +44,17 @@ class WorkflowSpec(specs.WorkflowSpec):
         for _, relation in resource.get('relations', {}).iteritems():
             if relation.get('source'):
                 source_resource = resources[relation.get('source')]
+                source_relation_key = "%s-%s" % (relation.get('name'),
+                                                 resource_id)
+                source_relation = source_resource['relations'].get(
+                    source_relation_key)
                 provider = environment.get_provider(
                     source_resource['provider'])
                 tasks = provider.disable_connection_tasks(wf_spec,
                                                           deployment, context,
                                                           source_resource,
                                                           resource,
-                                                          relation.get('name'))
+                                                          source_relation)
                 if tasks:
                     wf_spec.start.connect(tasks.get('root'))
 
@@ -76,6 +80,10 @@ class WorkflowSpec(specs.WorkflowSpec):
         for _, relation in resource.get('relations', {}).iteritems():
             if relation.get('source'):
                 source_resource = resources[relation.get('source')]
+                source_relation_key = "%s-%s" % (relation.get('name'),
+                                                 resource_id)
+                source_relation = source_resource['relations'].get(
+                    source_relation_key)
                 provider = environment.get_provider(
                     source_resource['provider'])
                 tasks = provider.enable_connection_tasks(wf_spec,
@@ -83,7 +91,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                                                          context,
                                                          source_resource,
                                                          resource,
-                                                         relation.get('name'))
+                                                         source_relation)
                 if tasks:
                     wf_spec.start.connect(tasks.get('root'))
 

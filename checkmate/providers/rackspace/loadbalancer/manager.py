@@ -23,6 +23,8 @@ from checkmate import exceptions
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
+
+#This is the IP address we use for the dummy node.
 PLACEHOLDER_IP = '1.2.3.4'
 
 
@@ -441,3 +443,69 @@ class Manager(object):
             "record_id": record.get("id")
         }
         return contents
+
+    @staticmethod
+    def update_node_status(context, lb_id, ip_address, node_status,
+                           resource_status, relation, callback, api,
+                           simulate=False):
+        """Updates status of a loadbalancer node
+        :param context: request context
+        :param lb_id: load balancer id
+        :param ip_address: ip address of the node
+        :param node_status: status to be updated on the node
+        :param resource_status: status to be updated on the resource
+        :param api: api to call
+        :param simulate: whether to simulate the call or not
+        :return:
+        """
+        source_key = context['resource_key']
+        relation_name = relation['name']
+        source_results = {
+            "relations": {
+                "%s-%s" % (relation_name, relation['target']): {
+                    'state': node_status
+                }
+            }
+        }
+        target_results = {
+            "status": resource_status,
+            "relations": {
+                "%s-%s" % (relation_name, source_key): {
+                    'state': node_status
+                }
+            }
+        }
+
+        if simulate:
+            callback(target_results, resource_key=relation['target'])
+            return source_results
+
+        loadbalancer = api.get(lb_id)
+        node_to_update = None
+        for node in loadbalancer.nodes:
+            if node.address == ip_address:
+                node_to_update = node
+        if node_to_update:
+            try:
+                node_to_update.condition = node_status
+                node_to_update.update()
+                LOG.info('Update %s to %s for load balancer %s', ip_address,
+                         node_status, lb_id)
+            except pyrax.exceptions.ClientException as exc:
+                msg = ("Response error from load balancer %d. Will retry "
+                       "updating node %s (%s %s)" % (lb_id, ip_address,
+                                                     exc.code,
+                                                     exc.message))
+                LOG.debug(msg)
+                raise exceptions.CheckmateException(
+                    msg, options=exceptions.CAN_RESUME)
+            except StandardError as exc:
+                msg = ("Error updating node %s for load balancer %s. Error: "
+                       "%s. Retrying" % (ip_address, lb_id, str(exc)))
+                LOG.debug(msg)
+                raise exceptions.CheckmateException(
+                    msg, options=exceptions.CAN_RESUME)
+            callback(target_results, resource_key=relation['target'])
+            return source_results
+        else:
+            LOG.debug('No node matching %s on LB %s', ip_address, lb_id)
