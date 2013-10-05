@@ -361,6 +361,8 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     GET /:tid/environments/:id/providers/:pid/catalog/:cid
 
     GET  /:tid/blueprints/[?offset=OFFSET&limit=LIMIT&details=1]
+    GET/PUT  /:tid/blueprints/:id
+    POST  /:tid/blueprints/
 
     GET  /:tid/deployments/[?offset=OFFSET&limit=LIMIT&show_deleted=1]
     POST /:tid/deployments

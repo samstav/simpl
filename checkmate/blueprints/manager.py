@@ -17,9 +17,11 @@ Blueprints Manager
 
 Handles blueprint logic
 """
-
 import logging
+import uuid
 
+from checkmate import exceptions
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -41,3 +43,48 @@ class Manager(object):
             offset=offset,
             limit=limit,
         )
+
+    def get_blueprint(self, api_id, tenant_id=None):
+        """Get an existing blueprint."""
+        blueprint = self.driver.get_blueprint(api_id)
+        if blueprint:
+            if blueprint.get("tenantId") != tenant_id:
+                raise exceptions.CheckmateDoesNotExist(
+                    friendly_message="Blueprint does not exist for this "
+                    "tenant")
+        return blueprint
+
+    def save_blueprint(self, entity, api_id=None, tenant_id=None):
+        """Save a blueprint.
+
+        :returns: saved blueprint
+        """
+        if not api_id:
+            if 'id' not in entity:
+                api_id = uuid.uuid4().hex
+                entity['id'] = api_id
+            else:
+                api_id = entity['id']
+        else:
+            if 'id' not in entity:
+                entity['id'] = api_id
+            else:
+                assert api_id == entity['id'], ("Blueprint ID (%s) does not "
+                                                "match entityId (%s)",
+                                                (api_id, entity['id']))
+        if 'tenantId' in entity:
+            if tenant_id:
+                assert entity['tenantId'] == tenant_id, (
+                    "tenantId must match with current tenant ID")
+            else:
+                tenant_id = entity['tenantId']
+        else:
+            assert tenant_id, "Tenant ID must be specified in entity"
+            entity['tenantId'] = tenant_id
+
+        body, secrets = utils.extract_sensitive_data(entity)
+        results = self.driver.save_blueprint(
+            api_id, body, secrets=secrets, tenant_id=tenant_id
+        )
+        LOG.info("Saved blueprint %s to tenant %s", api_id, tenant_id)
+        return results

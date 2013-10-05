@@ -23,8 +23,10 @@ import uuid
 import bottle
 import webtest
 
+from checkmate import blueprints
 from checkmate import deployments
 from checkmate import environments
+from checkmate import exceptions
 from checkmate import middleware as cmmid
 from checkmate import server
 from checkmate import workflows
@@ -70,6 +72,15 @@ class TestServer(unittest.TestCase):
         reload(environments)
         self.root_app = bottle.default_app.pop()
         self.root_app.catchall = False
+        self.root_app.error_handler = {
+            500: server.error_formatter,
+            400: server.error_formatter,
+            401: server.error_formatter,
+            404: server.error_formatter,
+            405: server.error_formatter,
+            406: server.error_formatter,
+            415: server.error_formatter,
+        }
 
         deployments_manager = deployments.Manager()
         self.dep_router = deployments.Router(self.root_app,
@@ -88,6 +99,12 @@ class TestServer(unittest.TestCase):
     def tearDown(self):
         TestServer.testdb.clean()
 
+    def test_multitenant_blueprint(self):
+        manager = blueprints.Manager(self.testdb.driver)
+        blueprints.Router(self.root_app, manager)
+
+        self.rest_tenant_exercise('blueprint')
+
     def test_multitenant_deployment(self):
         self.rest_tenant_exercise('deployment')
 
@@ -98,6 +115,12 @@ class TestServer(unittest.TestCase):
     def test_multitenant_workflow(self, mock_db_lock):
         mock_db_lock()
         self.rest_tenant_exercise('workflow')
+
+    def test_crosstenant_blueprint(self):
+        manager = blueprints.Manager(self.testdb.driver)
+        blueprints.Router(self.root_app, manager)
+
+        self.rest_cross_tenant_exercise('blueprint')
 
     def test_crosstenant_deployment(self):
         self.rest_cross_tenant_exercise('deployment')
@@ -214,9 +237,15 @@ class TestServer(unittest.TestCase):
         self.assertEqual(res.content_type, 'application/json')
 
         #GET (1 from T2000) - SHOULD FAIL
-        res = self.app.get('/T2000/%ss/%s' % (model_name, id1),
-                           expect_errors=True)
-        self.assertEqual(res.status, '404 Not Found')
+        try:
+            res = self.app.get('/T2000/%ss/%s' % (model_name, id1),
+                               expect_errors=True)
+        except Exception as exc:
+            # Some routers raise exceptions
+            self.assertIsInstance(exc, exceptions.CheckmateDoesNotExist)
+        else:
+            # Other routers call abort still
+            self.assertEqual(res.status, '404 Not Found')
 
         # TODO(any): test posting object with bad tenant_id in it
 
