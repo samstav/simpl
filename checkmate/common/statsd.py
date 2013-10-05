@@ -73,6 +73,9 @@ def simple_decorator(decorator):
 def collect(func):
     '''Wraps a celery task with statsd collect code.'''
 
+    task_name = func.__name__
+    stats_ns = func.__module__
+
     def collect_wrapper(*args, **kwargs):
         '''Replaces decorated function.'''
 
@@ -91,9 +94,6 @@ def collect(func):
             port=CONFIG.statsd_port,
             sample_rate=1
         )
-
-        task_name = func.__name__
-        stats_ns = func.__module__
 
         if kwargs.get('statsd_counter') is None:
             counter = statsd.counter.Counter('%s.status' % stats_ns,
