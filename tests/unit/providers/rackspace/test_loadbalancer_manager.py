@@ -269,7 +269,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         mock_api = mock.Mock()
         node = clb.Node(id="NODE_ID", address="0.0.0.0", port=80,
                         condition="ENABLED")
-        old_lb = mock.Mock(status="ACTIVE", port="80", nodes=[node])
+        old_lb = mock.Mock(status="ACTIVE", port=80, nodes=[node])
         mock_api.get.return_value = old_lb
 
         actual = manager.Manager.add_node("LB_ID", "0.0.0.0", mock_api)

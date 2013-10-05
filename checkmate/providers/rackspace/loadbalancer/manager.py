@@ -222,7 +222,7 @@ class Manager(object):
                 str(exc), options=exceptions.CAN_RESUME)
         except StandardError as exc:
             msg = ("Error setting %s monitor on load balancer %s. Error: %s. "
-                   "Retrying" % type, lb_id, str(exc))
+                   "Retrying" % (type, lb_id, str(exc)))
             LOG.debug(msg)
             raise exceptions.CheckmateException(
                 msg, options=exceptions.CAN_RESUME)
