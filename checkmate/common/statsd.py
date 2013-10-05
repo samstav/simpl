@@ -27,12 +27,15 @@ Limitation: Does not readily work on subclasses of celery.tasks.Task
 because it always reports `task_name` as 'run'
 '''
 from __future__ import absolute_import
+import logging
+import time
 
 import statsd
 
 from checkmate.common import config
 
 CONFIG = config.current()
+LOG = logging.getLogger(__name__)
 
 
 def simple_decorator(decorator):
@@ -74,7 +77,14 @@ def collect(func):
         '''Replaces decorated function.'''
 
         if not CONFIG.statsd_host:
-            return func(*args, **kwargs)
+            start = time.time()
+            try:
+                return func(*args, **kwargs)
+            except:
+                raise
+            finally:
+                end = time.time()
+                LOG.debug("%s took %s to run", func.__name__, end - start)
 
         stats_conn = statsd.connection.Connection(
             host=CONFIG.statsd_host,

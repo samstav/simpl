@@ -40,11 +40,13 @@ def return_failure(*args, **kwargs):
 class TestCollect(unittest.TestCase):
     """Verifies the functionallity of statsd.collect."""
 
+    @mock.patch.object(statsd, 'LOG')
     @mock.patch.object(statsd, 'CONFIG')
-    def test_collect_no_config(self, mock_config):
+    def test_collect_no_config(self, mock_config, mock_log):
         """Test that statsd.collect does nothing if not configured."""
         mock_config.statsd_host = None
         self.assertTrue(statsd.collect(return_success)())
+        mock_log.assertEqual(len(mock_log.debug.calls), 1)
 
     @mock.patch.object(statsd, 'CONFIG')
     @mock.patch.object(py_statsd.timer, 'Timer')
