@@ -8,6 +8,7 @@ import uuid
 
 import bottle
 
+from checkmate.common import statsd
 from checkmate import db
 from checkmate import exceptions
 from checkmate import utils
@@ -34,10 +35,12 @@ class Router(object):
         app.route('/blueprints', 'POST', self.post_blueprint)
         app.route('/blueprints/<api_id>', 'PUT', self.put_blueprint)
 
+    @statsd.collect
     @utils.with_tenant
     @utils.formatted_response('blueprints', with_pagination=True)
     def get_blueprints(self, tenant_id=None, offset=None, limit=None):
         """Get existing blueprints."""
+        start = time.time()
         local = self.manager.get_blueprints(
             tenant_id=tenant_id,
             offset=offset,
@@ -63,6 +66,13 @@ class Router(object):
             total = local['collection-count'] + combined['collection-count']
             combined['results'].update(local['results'])  # local overrides
             combined['collection-count'] = total
+        duration = time.time() - start
+        if duration <= 0.5:
+            LOG.debug("Get blueprints took less than 500ms: %s", duration)
+        elif duration <= 1:
+            LOG.warn("Get blueprints took more than 500ms: %s", duration)
+        else:
+            LOG.error("Get blueprints took more than 1 seconds: %s", duration)
 
         return combined or local
 
