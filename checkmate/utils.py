@@ -225,7 +225,10 @@ def read_body(request):
                                                      "Check:\n%s" % exc)
 
     elif content_type == 'application/json':
-        return json.load(data)
+        try:
+            return json.load(data)
+        except ValueError as exc:
+            raise cmexc.CheckmateValidationException("Invalid JSON. %s" % exc)
     elif content_type == 'application/x-www-form-urlencoded':
         obj = request.forms.object
         if obj:
