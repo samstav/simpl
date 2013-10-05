@@ -32,7 +32,6 @@ from checkmate.common import setup as setup_tools
 
 
 REQUIRES = setup_tools.parse_requirements()
-print REQUIRES
 if 'develop' in sys.argv:
     print ("We are assuming that since you're developing you have the\n"
            "dependency repos set up for development as well. If not,\n"
@@ -44,6 +43,11 @@ else:
 
 class Tox(TestCommand):
     """Use Tox for setup.py test command."""
+
+    def __init__(self, *args, **kwargs):
+        self.test_args = []
+        self.test_suite = True
+        TestCommand.__init__(self, *args, **kwargs)
 
     def finalize_options(self):
         TestCommand.finalize_options(self)
