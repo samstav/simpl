@@ -19,6 +19,7 @@ Handles API calls to /deployments and routes them appropriately
 import copy
 import logging
 import random
+import time
 import uuid
 
 import bottle
@@ -26,6 +27,7 @@ from SpiffWorkflow.storage import DictionarySerializer
 
 from checkmate import blueprints
 from checkmate.common import config
+from checkmate.common import statsd
 from checkmate.common import tasks as common_tasks
 from checkmate import db
 from checkmate import deployment as cmdeploy
@@ -267,6 +269,7 @@ class Router(object):
             {'count': result}, bottle.request, bottle.response)
 
     @utils.with_tenant
+    @statsd.collect
     def parse_deployment(self, tenant_id=None):
         """Parse a deployment and return the parsed response."""
         if bottle.request.query.get('check_limits') == "0":
@@ -277,12 +280,21 @@ class Router(object):
             check_access = False
         else:
             check_access = True
+        start = time.time()
         deployment = _content_to_deployment(tenant_id=tenant_id)
         results = self.manager.plan(deployment,
                                     bottle.request.environ['context'],
                                     check_limits=check_limits,
                                     check_access=check_access,
                                     parse_only=True)
+        duration = time.time() - start
+        if duration <= 1:
+            LOG.debug("Parse took less than one second: %d", duration)
+        elif duration <= 12:
+            LOG.warn("Parse took more than one second: %d", duration)
+        else:
+            LOG.error("Parse took more than 12 seconds: %d", duration)
+
         return utils.write_body(results, bottle.request, bottle.response)
 
     @utils.with_tenant
