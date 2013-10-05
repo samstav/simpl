@@ -291,7 +291,7 @@ def main():
             MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
         MANAGERS['blueprints'] = MANAGERS['github']
     else:
-        MANAGERS['blueprints'] = blueprints.Manager()
+        MANAGERS['blueprints'] = blueprints.Manager(db.get_driver())
     ROUTERS['blueprints'] = blueprints.Router(
         root_app, MANAGERS['blueprints']
     )
