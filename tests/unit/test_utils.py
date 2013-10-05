@@ -24,7 +24,6 @@ import uuid
 import bottle
 import mock
 
-from checkmate.exceptions import CheckmateInvalidParameterError
 from checkmate import utils
 
 
@@ -696,43 +695,53 @@ class TestQueryParams(unittest.TestCase):
         self.assertEquals(1, len(filtered))
         self.assertDictEqual({"provider": "compute"}, filtered[0])
 
+
 class TestFormatCheck(unittest.TestCase):
-    def test_missing_keys(self):
-        expected_msg = ("parameter keys do not match ['current-operation', "
-                        "'current-resources', 'new-operation', "
-                        "'new-resources']: ['current-operation', "
-                        "'current-resources']")
-        with self.assertRaises(CheckmateInvalidParameterError) as expected:
-            utils.format_check(
-                {'current-operation': {}, 'current-resources': {}})
-        self.assertEqual(expected_msg, str(expected.exception))
+    def test_no_data(self):
+        self.assertEqual({'resources': {}}, utils.format_check(None))
 
-    def test_extra_key(self):
-        expected_msg = ("parameter keys do not match ['current-operation', "
-                        "'current-resources', 'new-operation', "
-                        "'new-resources']: ['current-operation', "
-                        "'current-resources', 'invalid-key', 'new-operation', "
-                        "'new-resources']")
-        with self.assertRaises(CheckmateInvalidParameterError) as expected:
-            utils.format_check({
-                'current-operation': {}, 'current-resources': {},
-                'new-operation': {}, 'new-resources': {}, 'invalid-key': {}
-            })
-        self.assertEqual(expected_msg, str(expected.exception))
+    def test_empty_data(self):
+        self.assertEqual({'resources': {}}, utils.format_check({}))
 
-    def test_operation_status_no_change(self):
-        expected_msg = {
-            'resources': {},
-            'operation': [
-                {'type': 'INFORMATION',
-                 'message': 'Operation status UP is consistent.'}
+    def test_desired_but_no_instance(self):
+        expected = {'resources': {
+            '0': [{
+                'type': 'WARNING',
+                'message': 'Resource 0 has desired-state but no instance.'
+            }]
+        }}
+        data = {'0': {'desired-state': {'flavor': '3'}}}
+        self.assertEqual(expected, utils.format_check(data))
+
+    def test_all_output(self):
+        expected = {'resources': {
+            '0': [{
+                'type': 'WARNING',
+                'message': 'not-there does not exist in instance.'}
+            ],
+            '1': [
+                {
+                    'type': 'INFORMATION',
+                    'message': 'region is valid.'
+                },
+                {
+                    'type': 'WARNING',
+                    'message': "flavor invalid: currently '3'. Should be '5'."
+                }
             ]
+        }}
+        data = {
+            '0': {
+                'desired-state': {'not-there': '42'},
+                'instance': {}
+            },
+            '1': {
+                'desired-state': {'region': 'DFW', 'flavor': '5'},
+                'region': 'DFW',
+                'instance': {'flavor': '3'}
+            }
         }
-        result = utils.format_check({
-            'current-operation': {'status': 'UP'}, 'current-resources': {},
-            'new-operation': {'status': 'UP'}, 'new-resources': {}
-        })
-        self.assertEqual(expected_msg, result)
+        self.assertEqual(expected, utils.format_check(data))
 
 
 if __name__ == '__main__':

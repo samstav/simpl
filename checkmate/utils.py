@@ -1122,31 +1122,46 @@ def format_check(data):
 
     :param data: a dict containing 4 sections (see expected_keys)
     """
-    expected_keys = ['current-operation', 'current-resources', 'new-operation',
-                     'new-resources']
-    data_keys = data.keys()
-    data_keys.sort()
-    if data_keys != expected_keys:
-        raise cmexc.CheckmateInvalidParameterError(
-            'parameter keys do not match %s: %s' %
-            (expected_keys, data_keys)
-        )
+    data = data or {}
+    body = {'resources': {}}
+    instance = {}
+    desired = {}
 
-    result = {'resources': {}, 'operation': []}
+    # Extract the data
+    for key, value in data.iteritems():
+        if all(section in value for section in ('desired-state', 'instance')):
+            instance[key] = value['instance']
+            instance[key]['region'] = value.get('region')
+            desired[key] = value['desired-state']
+        elif 'desired-state' in value:  # instance is missing
+            body['resources'][key] = [{
+                'type': 'WARNING',
+                'message': 'Resource %s has desired-state but no instance.' %
+                key
+            }]
 
-    if (data['current-operation'].get('status') !=
-            data['new-operation'].get('status')):
-        result['operation'].append({
-            'type': 'WARNING',
-            'message': 'Status should be updated from %s to %s' %
-            (data['current-operation']['status'],
-            data['new-operation']['status'])
-        })
-    else:
-        result['operation'].append({
-            'type': 'INFORMATION',
-            'message': 'Operation status %s is consistent.' %
-            data['current-operation']['status']
-        })
-
-    return result
+    # Build the output
+    for resource, checks in desired.iteritems():
+        body['resources'][resource] = []
+        for setting, value in checks.iteritems():
+            if instance[resource].get(setting) is None:
+                body['resources'][resource].append({
+                    'type': 'WARNING',
+                    'message': '%s does not exist in instance.' % setting
+                })
+            elif value == instance[resource].get(setting):
+                body['resources'][resource].append({
+                    'type': 'INFORMATION',
+                    'message': '%s is valid.' % setting
+                })
+            else:
+                body['resources'][resource].append({
+                    'type': 'WARNING',
+                    'message': "%s invalid: currently '%s'. Should be '%s'." %
+                    (
+                        setting,
+                        instance[resource].get(setting),
+                        value
+                    )
+                })
+    return body
