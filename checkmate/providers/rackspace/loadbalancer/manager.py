@@ -353,3 +353,89 @@ class Manager(object):
                 raise exceptions.CheckmateException(
                     str(exc), options=exceptions.CAN_RESUME)
         return results
+
+    @staticmethod
+    def wait_on_lb_delete_task(lb_id, api, simulate=False):
+        """DELETED status check."""
+        utils.match_celery_logging(LOG)
+        dlb = None
+
+        if simulate:
+            dlb = utils.Simulation(id=lb_id, status="DELETED")
+        else:
+            LOG.debug("Checking on loadbalancer %s delete status", lb_id)
+            try:
+                dlb = api.get(lb_id)
+            except pyrax.exceptions.NotFound:
+                pass
+
+        if dlb and dlb.status != "DELETED":
+            msg = ("Waiting on state DELETED. Load balancer is in state %s"
+                   % dlb.status)
+            raise exceptions.CheckmateException(msg,
+                                                options=exceptions.CAN_RESUME)
+        results = {
+            'status': 'DELETED',
+            'status-message': ''
+        }
+
+        return results
+
+    @staticmethod
+    def delete_lb_task(lb_id, api, simulate=False):
+        """Celery task to delete a Cloud Load Balancer"""
+        utils.match_celery_logging(LOG)
+
+        if simulate:
+            results = {
+                'status': 'DELETING',
+                "status-message": "Waiting on resource deletion"
+            }
+            return results
+
+        dlb = None
+        try:
+            dlb = api.get(lb_id)
+        except pyrax.exceptions.NotFound:
+            LOG.debug('Load balancer %s was already deleted.', lb_id)
+            results = {
+                'status': 'DELETED',
+                'status-message': ''
+            }
+
+        if dlb:
+            LOG.debug("Found load balancer %s [%s] to delete", dlb, dlb.status)
+            if dlb.status in ("ACTIVE", "ERROR", "SUSPENDED"):
+                LOG.debug('Deleting Load balancer %s.', lb_id)
+                dlb.delete()
+                status_message = 'Waiting on resource deletion'
+            else:
+                status_message = ("Cannot delete LoadBalancer %s, as it "
+                                  "currently is in %s state. Waiting for "
+                                  "load-balancer status to move to ACTIVE, "
+                                  "ERROR or SUSPENDED" % (lb_id, dlb.status))
+                LOG.debug(status_message)
+                raise exceptions.CheckmateException(
+                    status_message, options=exceptions.CAN_RESUME)
+            results = {
+                'status': 'DELETING',
+                'status-message': status_message
+            }
+        return results
+
+    @staticmethod
+    def collect_record_data(record):
+        """Validates DNS record passed in."""
+        assert record, "No record specified"
+
+        if "id" not in record:
+            message = "Missing record id in %s" % record
+            raise exceptions.CheckmateException(message)
+        if "domain" not in record:
+            message = "No domain specified for record %s" % record.get("id")
+            raise exceptions.CheckmateException(message)
+        contents = {
+            "domain_id": record.get("domain"),
+            "record_id": record.get("id")
+        }
+        return contents

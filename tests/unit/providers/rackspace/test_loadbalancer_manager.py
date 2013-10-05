@@ -367,3 +367,92 @@ class TestLoadBalancerTasks(unittest.TestCase):
                           manager.Manager.add_node, 1234, "0.0.0.0", mock_api)
         self.assertTrue(placeholder_node.delete.called)
         mock_api.get.assert_called_once_with(1234)
+
+    def test_wait_on_lb_delete_sim(self):
+        expected = {'status': 'DELETED', 'status-message': ''}
+        actual = manager.Manager.wait_on_lb_delete_task(1234, None,
+                                                        simulate=True)
+        self.assertDictEqual(actual, expected)
+
+    def test_wait_on_lb_delete(self):
+        mock_api = mock.Mock()
+        mock_api.get.return_value = mock.Mock(status='DELETED')
+        expected = {'status': 'DELETED', 'status-message': ''}
+        actual = manager.Manager.wait_on_lb_delete_task(1234, mock_api)
+        self.assertDictEqual(actual, expected)
+        mock_api.get.assert_called_once_with(1234)
+
+    def test_wait_on_lb_delete_for_invalid_lb(self):
+        mock_api = mock.Mock()
+        mock_api.get.side_effect = pyrax.exceptions.NotFound(404)
+        expected = {'status': 'DELETED', 'status-message': ''}
+        actual = manager.Manager.wait_on_lb_delete_task(1234, mock_api)
+        self.assertDictEqual(actual, expected)
+        mock_api.get.assert_called_once_with(1234)
+
+    def test_wait_on_lb_delete_for_deleting_lb(self):
+        mock_api = mock.Mock()
+        mock_api.get.return_value = mock.Mock(status='DELETING')
+        self.assertRaises(exceptions.CheckmateException,
+                          manager.Manager.wait_on_lb_delete_task, 1234,
+                          mock_api)
+        mock_api.get.assert_called_once_with(1234)
+
+    def test_delete_lb_task_sim(self):
+        expected = {
+            'status': 'DELETING',
+            'status-message': 'Waiting on resource deletion'
+        }
+        actual = manager.Manager.delete_lb_task(1234, None, simulate=True)
+        self.assertDictEqual(actual, expected)
+
+    def test_delete_lb_task(self):
+        mock_api = mock.Mock()
+        mock_lb = mock.Mock(status="ACTIVE")
+        mock_api.get.return_value = mock_lb
+        expected = {
+            'status': 'DELETING',
+            'status-message': 'Waiting on resource deletion'
+        }
+        actual = manager.Manager.delete_lb_task(1234, mock_api)
+        self.assertDictEqual(actual, expected)
+        mock_api.get.assert_called_once_with(1234)
+        self.assertTrue(mock_lb.delete.called)
+
+    def test_delete_lb_task_for_building_lb(self):
+        mock_api = mock.Mock()
+        mock_lb = mock.Mock(status="BUILD")
+        mock_api.get.return_value = mock_lb
+        self.assertRaises(exceptions.CheckmateException,
+                          manager.Manager.delete_lb_task, 1234, mock_api)
+        mock_api.get.assert_called_once_with(1234)
+
+    def test_delete_lb_task_for_invalid_lb(self):
+        mock_api = mock.Mock()
+        mock_api.get.side_effect = pyrax.exceptions.NotFound(404)
+        expected = {
+            'status': 'DELETED',
+            'status-message': ''
+        }
+        actual = manager.Manager.delete_lb_task(1234, mock_api)
+        self.assertDictEqual(actual, expected)
+        mock_api.get.assert_called_once_with(1234)
+
+    def test_collect_record_data(self):
+        record = {"domain": "foo.com", "id": "ID"}
+        expected = {
+            "domain_id": "foo.com",
+            "record_id": "ID",
+        }
+        actual = manager.Manager.collect_record_data(record)
+        self.assertDictEqual(actual, expected)
+
+    def test_collect_record_data_without_id(self):
+        record = {"domain": "foo.com"}
+        self.assertRaises(exceptions.CheckmateException,
+                          manager.Manager.collect_record_data, record)
+
+    def test_collect_record_data_without_domain(self):
+        record = {"id": "ID"}
+        self.assertRaises(exceptions.CheckmateException,
+                          manager.Manager.collect_record_data, record)
