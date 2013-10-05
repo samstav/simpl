@@ -8,7 +8,6 @@ from morpheus import MorpheusDict as dict
 import simplefsm
 from simplefsm import exceptions as fsmexc
 
-
 from checkmate.common import schema
 from checkmate.exceptions import CheckmateValidationException
 

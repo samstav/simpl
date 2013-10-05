@@ -1,4 +1,4 @@
-'''Decorator to quickly add statsd (graphite) instrumentation to Celery
+"""Decorator to quickly add statsd (graphite) instrumentation to Celery
 task functions.
 
 With some slight modification, this could be used to instrument just
@@ -25,7 +25,7 @@ http://wiki.python.org/moin/PythonDecoratorLibrary#Property_Definition
 
 Limitation: Does not readily work on subclasses of celery.tasks.Task
 because it always reports `task_name` as 'run'
-'''
+"""
 from __future__ import absolute_import
 import logging
 import time
@@ -39,7 +39,7 @@ LOG = logging.getLogger(__name__)
 
 
 def simple_decorator(decorator):
-    '''Borrowed from:
+    """Borrowed from:
     http://wiki.python.org/moin/PythonDecoratorLibrary#Property_Definition
 
     Original docstring:
@@ -52,9 +52,9 @@ def simple_decorator(decorator):
     your decorator and it will automatically preserve the
     docstring and function attributes of functions to which
     it is applied.
-    '''
+    """
     def new_decorator(func):
-        '''Inherit attributes from original method.'''
+        """Inherit attributes from original method."""
         decorated = decorator(func)
         decorated.__name__ = func.__name__
         decorated.__module__ = func.__module__  # or celery throws a fit
@@ -71,19 +71,19 @@ def simple_decorator(decorator):
 
 @simple_decorator
 def collect(func):
-    '''Wraps a celery task with statsd collect code.'''
+    """Wraps a celery task with statsd collect code."""
 
     task_name = func.__name__
     stats_ns = func.__module__
 
     def collect_wrapper(*args, **kwargs):
-        '''Replaces decorated function.'''
+        """Replaces decorated function."""
 
         if not CONFIG.statsd_host:
             start = time.time()
             try:
                 return func(*args, **kwargs)
-            except:
+            except Exception:
                 raise
             finally:
                 end = time.time()

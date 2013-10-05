@@ -1,4 +1,4 @@
-# pylint: disable=W0613
+# pylint: disable=W0613,R0904
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -15,10 +15,8 @@
 #    under the License.
 
 """Tests for statsd decorator."""
-from __future__ import absolute_import
 
 import mock
-import statsd as py_statsd
 import unittest
 
 from checkmate.common import config
@@ -49,9 +47,9 @@ class TestCollect(unittest.TestCase):
         mock_log.assertEqual(len(mock_log.debug.calls), 1)
 
     @mock.patch.object(statsd, 'CONFIG')
-    @mock.patch.object(py_statsd.timer, 'Timer')
-    @mock.patch.object(py_statsd.counter, 'Counter')
-    @mock.patch.object(py_statsd.connection, 'Connection')
+    @mock.patch.object(statsd.statsd.timer, 'Timer')
+    @mock.patch.object(statsd.statsd.counter, 'Counter')
+    @mock.patch.object(statsd.statsd.connection, 'Connection')
     def test_no_counter_no_timer(self, mock_conn, mock_counter, mock_timer,
                                  mock_config):
         """Verifies method calls with no counter or timer passed in."""
@@ -65,18 +63,16 @@ class TestCollect(unittest.TestCase):
 
         self.assertTrue(statsd.collect(return_success)())
 
-        mock_counter.assert_called_with('tests.unit.test_statsd.status',
-                                        connection)
+        mock_counter.assert_called_with("%s.status" % __name__, connection)
         assert counter.increment.mock_calls == [
             mock.call('return_success.started'),
             mock.call('return_success.success')
         ]
-        mock_timer.assert_called_with('tests.unit.test_statsd.duration',
-                                      connection)
+        mock_timer.assert_called_with("%s.duration" % __name__, connection)
         timer.start.assert_called_with()
         timer.stop.assert_called_with('return_success.success')
 
-    @mock.patch.object(py_statsd.connection, 'Connection')
+    @mock.patch.object(statsd.statsd.connection, 'Connection')
     @mock.patch.object(statsd, 'CONFIG')
     def test_counter_timer(self, mock_config, mock_conn):
         """Verifies method calls with counter and timer passed in."""
@@ -94,7 +90,7 @@ class TestCollect(unittest.TestCase):
         timer.start.assert_called_with()
         timer.stop.assert_called_with('return_success.success')
 
-    @mock.patch.object(py_statsd.connection, 'Connection')
+    @mock.patch.object(statsd.statsd.connection, 'Connection')
     @mock.patch.object(statsd, 'CONFIG')
     def test_exception_raised(self, mock_config, mock_conn):
         """Verifies method calls when exception raised during original run."""
@@ -113,8 +109,5 @@ class TestCollect(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

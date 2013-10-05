@@ -29,7 +29,8 @@ LOG = logging.getLogger(__name__)
 class Manager(object):
     """Contains Blueprints Model and Logic for Accessing Blueprints."""
     def __init__(self, driver):
-        """
+        """Initialize manager with driver.
+
         :param driver: database driver
         """
         assert driver is not None, "No driver supplied to manager"
