@@ -312,7 +312,7 @@ class Manager(object):
         if not new_node:
             node = api.Node(address=ip_addr, port=port, condition="ENABLED")
             try:
-                results = loadbalancer.add_nodes([node])
+                _, body = loadbalancer.add_nodes([node])
                 # I don't believe you! Check... this has been unreliable.
                 # Possible because we need to refresh nodes
                 lb_fresh = api.get(lb_id)
@@ -320,7 +320,9 @@ class Manager(object):
                     #OK!
                     LOG.info("Added node %s:%s to load balancer %s", ip_addr,
                              port, lb_id)
-                    results = {'id': results[0].id}
+                    results = {
+                        'nodes': [body.get('nodes')[0].get('id')]
+                    }
                 else:
                     LOG.warning("CloudLB says node %s (ID=%s) was added to LB "
                                 "%s, but upon validating, it does not look "
@@ -334,12 +336,12 @@ class Manager(object):
                        "adding %s (%d %s)" % (lb_id, ip_addr, exc.code,
                        exc.message))
                 LOG.debug(msg)
-                raise exceptions.CheckmateException(msg)
+                raise exceptions.CheckmateException(msg, exceptions.CAN_RESUME)
             except StandardError as exc:
                 msg = ("Error adding %s behind load balancer %d. Error: %s. "
                        "Retrying" % (ip_addr, lb_id, str(exc)))
                 LOG.debug(msg)
-                raise exceptions.CheckmateException(msg)
+                raise exceptions.CheckmateException(msg, exceptions.CAN_RESUME)
 
         # Delete placeholder
         if placeholder:

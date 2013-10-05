@@ -292,20 +292,19 @@ class Provider(rsbase.RackspaceProviderBase):
         create_lb = specs.Celery(
             wfspec,
             'Create %s Loadbalancer (%s)' % (proto.upper(), key),
-            'checkmate.providers.rackspace.loadbalancer.create_loadbalancer',
+            'checkmate.providers.rackspace.loadbalancer'
+            '.tasks.create_loadbalancer',
             call_args=[
                 context.get_queued_task_dict(
-                    deployment=deployment['id'],
-                    resource=key
+                    deployment_id=deployment['id'],
+                    resource_key=key,
+                    region=resource['region']
                 ),
                 resource.get('dns-name'),
                 'PUBLIC',
                 proto.upper(),
-                resource['region']
             ],
             defines={'resource': key, 'provider': self.key},
-            # FIXME: final task should be the one that finishes
-            # when all extra_protocols are done, not this one
             properties={
                 'estimated_duration': 30,
                 'task_tags': create_lb_task_tags
@@ -325,7 +324,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
         task_name = ('Wait for Loadbalancer %s (%s) build' %
                      (key, resource['service']))
-        celery_call = ('checkmate.providers.rackspace.loadbalancer.'
+        celery_call = ('checkmate.providers.rackspace.loadbalancer.tasks'
                        'wait_on_build')
         build_wait_task = specs.Celery(
             wfspec,
@@ -333,11 +332,11 @@ class Provider(rsbase.RackspaceProviderBase):
             celery_call,
             call_args=[
                 context.get_queued_task_dict(
-                    deployment=deployment['id'],
-                    resource=key
+                    deployment_id=deployment['id'],
+                    resource_key=key,
+                    region=resource['region']
                 ),
                 operators.PathAttrib('instance:%s/id' % key),
-                resource['region']
             ],
             properties={'estimated_druation': 150,
                         'auto_retry_count': 3},
@@ -370,12 +369,14 @@ class Provider(rsbase.RackspaceProviderBase):
             build_wait_task.connect(create_record_task)
             task_name = ("Update Load Balancer %s (%s) DNS Data"
                          % (key, resource['service']))
-            celery_call = ('checkmate.providers.rackspace.loadbalancer.'
+            celery_call = ('checkmate.providers.rackspace.loadbalancer.tasks'
                            'collect_record_data')
             crd = specs.Celery(
                 wfspec, task_name, celery_call,
                 call_args=[
-                    deployment["id"], key, operators.Attrib('dns-record')
+                    context.get_queued_task_dict(
+                        deployment_id=deployment['id'], resource_key=key),
+                    operators.Attrib('dns-record')
                 ]
             )
             create_record_task.connect(crd)
@@ -398,15 +399,16 @@ class Provider(rsbase.RackspaceProviderBase):
 
         task_name = ('Add monitor to Loadbalancer %s (%s) build' %
                      (key, resource['service']))
-        celery_call = 'checkmate.providers.rackspace.loadbalancer.set_monitor'
+        celery_call = 'checkmate.providers.rackspace.loadbalancer.tasks' \
+                      '.set_monitor'
         set_monitor_task = specs.Celery(
             wfspec, task_name, celery_call,
             call_args=[
-                context.get_queued_task_dict(deployment=deployment['id'],
-                                             resource=key),
+                context.get_queued_task_dict(deployment_id=deployment['id'],
+                                             resource_key=key,
+                                             region=resource['region']),
                 operators.PathAttrib('instance:%s/id' % key),
                 proto.upper(),
-                resource['region']
             ],
             defines=dict(resource=key, provider=self.key, task_tags=['final'])
         )
@@ -437,17 +439,17 @@ class Provider(rsbase.RackspaceProviderBase):
         rec_id = resource.get("instance", {}).get("record_id")
         region = resource.get("region")
         if isinstance(context, middleware.RequestContext):
-            context = context.get_queued_task_dict(deployment=deployment_id,
-                                                   resource=key)
+            context = context.get_queued_task_dict(
+                deployment_id=deployment_id, resource_key=key, region=region)
         else:
-            context['deployment'] = deployment_id
-            context['resource'] = key
+            context['deployment_id'] = deployment_id
+            context['resource_key'] = key
 
         delete_lb = specs.Celery(
             wf_spec,
             'Delete Loadbalancer (%s)' % key,
-            'checkmate.providers.rackspace.loadbalancer.delete_lb_task',
-            call_args=[context, key, lb_id, region],
+            'checkmate.providers.rackspace.loadbalancer.tasks.delete_lb_task',
+            call_args=[context, lb_id],
             properties={
                 'estimated_duration': 5,
             },
@@ -458,7 +460,7 @@ class Provider(rsbase.RackspaceProviderBase):
             'Wait for Loadbalancer (%s) delete' % key,
             'checkmate.providers.rackspace.loadbalancer.'
             'wait_on_lb_delete_task',
-            call_args=[context, key, lb_id, region],
+            call_args=[context, key, lb_id],
             properties={
                 'estimated_duration': 20,
             },
@@ -555,13 +557,14 @@ class Provider(rsbase.RackspaceProviderBase):
         delete_node_task = specs.Celery(
             wf_spec,
             "Remove Node %s from LB %s" % (target_key, source_key),
-            "checkmate.providers.rackspace.loadbalancer.delete_node",
+            "checkmate.providers.rackspace.loadbalancer.tasks.delete_node",
             call_args=[
-                context.get_queued_task_dict(deployment=deployment['id'],
-                                             resource=source_key),
+                context.get_queued_task_dict(deployment_id=deployment['id'],
+                                             resource_key=source_key,
+                                             region=source_resource[
+                                                 'region']),
                 operators.PathAttrib('instance:%s/id' % source_key),
                 operators.PathAttrib('instance:%s/private_ip' % target_key),
-                source_resource['region']
             ],
             defines=dict(provider=self.key, resource=target_key,
                          task_tags=['delete_connection']),
@@ -613,14 +616,13 @@ class Provider(rsbase.RackspaceProviderBase):
         add_node_task = specs.Celery(
             wfspec,
             "Add Node %s to LB %s" % (relation['target'], key),
-            'checkmate.providers.rackspace.loadbalancer.'
-            'add_node',
+            'checkmate.providers.rackspace.loadbalancer.tasks.add_node',
             call_args=[
-                context.get_queued_task_dict(deployment=deployment['id'],
-                                             resource=key),
+                context.get_queued_task_dict(deployment_id=deployment['id'],
+                                             resource_key=key,
+                                             region=resource['region']),
                 operators.PathAttrib('instance:%s/id' % key),
                 operators.PathAttrib('instance:%s/private_ip' % target),
-                resource['region'], resource
             ],
             defines=dict(relation=relation_key, provider=self.key,
                          task_tags=['final']),
