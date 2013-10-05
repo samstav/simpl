@@ -27,8 +27,50 @@ from checkmate.providers.rackspace.loadbalancer import manager
 from checkmate import utils
 
 
-class TestLoadBalancerTasks(unittest.TestCase):
-    def test_create_loadbalancer_sim(self):
+class TestEnableContentCaching(unittest.TestCase):
+    """Class for testing enable_content_caching task."""
+
+    def setUp(self):
+        """Setup vars for re-use."""
+        self.lbid = '12345'
+        self.api = mock.MagicMock()
+
+    def test_sim_success(self):
+        """Verifies results on simulation."""
+        expected = {
+            'id': '12345',
+            'status': 'ACTIVE',
+            'caching': True
+        }
+        results = manager.Manager.enable_content_caching(self.lbid, 'api',
+                                                         simulate=True)
+        self.assertEqual(expected, results)
+
+    def test_success(self):
+        """Verifies method calls and results."""
+        clb = mock.Mock()
+        clb.status = 'ACTIVE'
+        self.api.get.return_value = clb
+        expected = {
+            'id': '12345',
+            'status': 'ACTIVE',
+            'caching': True
+        }
+        results = manager.Manager.enable_content_caching(self.lbid, self.api)
+        self.assertEqual(results, expected)
+        self.api.get.assert_called_with(self.lbid)
+
+    def test_api_get_exception(self):
+        """Verifies CheckmateException raised when caught ClientException."""
+        self.api.get.side_effect = pyrax.exceptions.ClientException('testing')
+        expected = 'ClientException occurred enabling content caching on lb '
+        self.assertRaisesRegexp(exceptions.CheckmateException, expected,
+                                manager.Manager.enable_content_caching,
+                                self.lbid, self.api)
+
+
+class TestCreateLoadBalancer(unittest.TestCase):
+    def test_sim(self):
         expected = {
             'id': 'LB1',
             'status': 'BUILD',
@@ -51,7 +93,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertEqual(expected, actual)
         mock_callback.assert_called_once_with({'id': 'LB1'})
 
-    def test_create_loadbalancer(self):
+    def test_success(self):
         vip = "0.0.0.0"
         expected = {
             'id': 'LB_ID',
@@ -78,7 +120,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         mock_callback.assert_called_once_with({'id': 'LB_ID'})
         self.assertTrue(mock_api.create.called)
 
-    def test_create_lb_handles_overlimit_error(self):
+    def test_overlimit_error_handling(self):
         mock_api = mock.Mock()
         mock_callback = mock.Mock()
         mock_api.create.side_effect = pyrax.exceptions.OverLimit("400")
@@ -88,7 +130,9 @@ class TestLoadBalancerTasks(unittest.TestCase):
                           mock_callback)
         self.assertTrue(mock_api.create.called)
 
-    def test_wait_on_build_sim(self):
+
+class TestWaitOnBuild(unittest.TestCase):
+    def test_sim(self):
         expected = {
             'id': 'LB_ID',
             'status': 'ACTIVE',
@@ -98,7 +142,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
                                                simulate=True)
         self.assertEqual(expected, actual)
 
-    def test_wait_on_build_for_active_lb(self):
+    def test_success(self):
         expected = {
             'id': 'LB_ID',
             'status': 'ACTIVE',
@@ -112,7 +156,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertEqual(expected, actual)
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_wait_on_build_for_errored_lb(self):
+    def test_for_errored_lb(self):
         mock_callback = mock.Mock()
         mock_api = mock.Mock()
         mock_get = mock_api.get.return_value
@@ -126,7 +170,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
             {'status': 'ERROR', 'status-message': 'Loadbalancer LB_ID build '
                                                   'failed'})
 
-    def test_wait_on_build_for_building_lb(self):
+    def test_for_building_lb(self):
         mock_callback = mock.Mock()
         mock_api = mock.Mock()
         mock_get = mock_api.get.return_value
@@ -137,7 +181,9 @@ class TestLoadBalancerTasks(unittest.TestCase):
                           "LB_ID", mock_api, mock_callback)
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_set_monitor(self):
+
+class TestSetMonitor(unittest.TestCase):
+    def test_success(self):
         mock_api = mock.Mock()
         mock_get = mock_api.get.return_value
 
@@ -150,7 +196,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
             statusRegex="status", attemptsBeforeDeactivation=1,
             bodyRegex="body")
 
-    def test_set_monitor_sim(self):
+    def test_sim(self):
         mock_api = mock.Mock()
 
         manager.Manager.set_monitor("LB_ID", "type", mock_api, path="path",
@@ -159,7 +205,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
                                     simulate=True)
         self.assertFalse(mock_api.get.called)
 
-    def test_set_monitor_handles_pyrax_exc(self):
+    def test_pyrax_exc_handling(self):
         mock_api = mock.Mock()
         mock_get = mock_api.get.return_value
         mock_get.add_health_monitor.side_effect = pyrax.exceptions\
@@ -171,7 +217,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
                           attempts=1, body="body", status="status")
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_set_monitor_handles_standard_error(self):
+    def test_standard_error_handling(self):
         mock_api = mock.Mock()
         mock_get = mock_api.get.return_value
         mock_get.add_health_monitor.side_effect = StandardError
@@ -182,7 +228,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
                           attempts=1, body="body", status="status")
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_set_monitor_handles_422_client_exc(self):
+    def test_422_client_exc_handling(self):
         mock_api = mock.Mock()
         mock_get = mock_api.get.return_value
         mock_get.add_health_monitor.side_effect = pyrax.exceptions\
@@ -194,7 +240,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
                           attempts=1, body="body", status="status")
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_set_monitor_handles_other_client_exc(self):
+    def test_other_client_exc_handling(self):
         mock_api = mock.Mock()
         mock_get = mock_api.get.return_value
         mock_get.add_health_monitor.side_effect = pyrax.exceptions\
@@ -206,7 +252,9 @@ class TestLoadBalancerTasks(unittest.TestCase):
                           attempts=1, body="body", status="status")
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_delete_node(self):
+
+class TestDeleteNode(unittest.TestCase):
+    def test_success(self):
         mock_api = mock.Mock()
         mock_lb = mock_api.get.return_value
         mock_node = mock.Mock(address="0.0.0.0")
@@ -215,7 +263,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertTrue(mock_node.delete.called)
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_delete_node_handles_client_exc(self):
+    def test_client_exc_handling(self):
         mock_api = mock.Mock()
         mock_lb = mock_api.get.return_value
         mock_node = mock.Mock(address="0.0.0.0")
@@ -227,7 +275,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertTrue(mock_node.delete.called)
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_delete_node_handles_standard_error(self):
+    def test_standard_error_handling(self):
         mock_api = mock.Mock()
         mock_lb = mock_api.get.return_value
         mock_node = mock.Mock(address="0.0.0.0")
@@ -239,18 +287,20 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertTrue(mock_node.delete.called)
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_delete_node_sim(self):
+    def test_sim(self):
         mock_api = mock.Mock()
         manager.Manager.delete_node("LB_ID", "0.0.0.0", mock_api,
                                     simulate=True)
         self.assertFalse(mock_api.get.called)
 
-    def test_add_node_sim(self):
+
+class TestAddNode(unittest.TestCase):
+    def test_sim(self):
         mock_api = mock.Mock()
         manager.Manager.add_node("LB_ID", "0.0.0.0", mock_api, simulate=True)
         self.assertFalse(mock_api.get.called)
 
-    def test_add_for_new_node(self):
+    def test_success(self):
         mock_api = mock.Mock()
         node = clb.Node(address="0.0.0.0", port="80", condition="ENABLED")
         old_lb = mock.Mock(status="ACTIVE", port="80", nodes=[])
@@ -265,7 +315,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         calls = [mock.call('LB_ID'), mock.call('LB_ID')]
         mock_api.get.assert_has_calls(calls)
 
-    def test_add_for_existing_node(self):
+    def test_for_existing_node(self):
         mock_api = mock.Mock()
         node = clb.Node(id="NODE_ID", address="0.0.0.0", port=80,
                         condition="ENABLED")
@@ -276,7 +326,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertDictEqual({'id': "NODE_ID"}, actual)
         mock_api.get.assert_called_once_with("LB_ID")
 
-    def test_add_for_existing_disabled_node(self):
+    def test_for_existing_disabled_node(self):
         mock_api = mock.Mock()
         node = clb.Node(id="NODE_ID", address="0.0.0.0", port=800,
                         condition="DISABLED")
@@ -291,7 +341,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertEqual(node.condition, "ENABLED")
         mock_api.get.assert_called_once_with(1234)
 
-    def test_add_node_handles_client_exc(self):
+    def test_client_exc_handling(self):
         mock_api = mock.Mock()
         node = clb.Node(address="0.0.0.0", port=80, condition="ENABLED")
         lb = mock.Mock(status="ACTIVE", port=80, nodes=[])
@@ -304,7 +354,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         lb.add_nodes.assert_called_once_with([node])
         mock_api.get.assert_called_once_with(1234)
 
-    def test_add_node_handles_standard_exc(self):
+    def test_standard_exc_handling(self):
         mock_api = mock.Mock()
         node = clb.Node(address="0.0.0.0", port=80, condition="ENABLED")
         lb = mock.Mock(status="ACTIVE", port=80, nodes=[])
@@ -317,26 +367,26 @@ class TestLoadBalancerTasks(unittest.TestCase):
         lb.add_nodes.assert_called_once_with([node])
         mock_api.get.assert_called_once_with(1234)
 
-    def test_add_node_with_placeholder_ip(self):
+    def test_for_placeholder_ip(self):
         self.assertRaises(exceptions.CheckmateException,
                           manager.Manager.add_node, 1234,
                           manager.PLACEHOLDER_IP, None)
 
-    def test_add_for_non_active_lb(self):
+    def test_for_non_active_lb(self):
         mock_api = mock.Mock()
         lb = mock.Mock(status="BUILD")
         mock_api.get.return_value = lb
         self.assertRaises(exceptions.CheckmateException,
                           manager.Manager.add_node, 1234, "0.0.0.0", mock_api)
 
-    def test_add_for_invalid_lb(self):
+    def test_for_invalid_lb(self):
         mock_api = mock.Mock()
         lb = mock.Mock(status="ACTIVE", port=None)
         mock_api.get.return_value = lb
         self.assertRaises(exceptions.CheckmateBadState,
                           manager.Manager.add_node, 1234, "0.0.0.0", mock_api)
 
-    def test_add_node_placeholder_delete(self):
+    def test_placeholder_delete(self):
         mock_api = mock.Mock()
         placeholder_node = clb.Node(address=manager.PLACEHOLDER_IP, port=80,
                                     condition="ENABLED")
@@ -351,7 +401,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertTrue(placeholder_node.delete.called)
         mock_api.get.assert_called_once_with(1234)
 
-    def test_add_node_placeholder_delete_exc_handling(self):
+    def test_placeholder_delete_exc_handling(self):
         mock_api = mock.Mock()
         placeholder_node = clb.Node(address=manager.PLACEHOLDER_IP, port=80,
                                     condition="ENABLED")
@@ -368,13 +418,15 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertTrue(placeholder_node.delete.called)
         mock_api.get.assert_called_once_with(1234)
 
-    def test_wait_on_lb_delete_sim(self):
+
+class TestWaitOnLbDelete(unittest.TestCase):
+    def test_sim(self):
         expected = {'status': 'DELETED', 'status-message': ''}
         actual = manager.Manager.wait_on_lb_delete_task(1234, None,
                                                         simulate=True)
         self.assertDictEqual(actual, expected)
 
-    def test_wait_on_lb_delete(self):
+    def test_success(self):
         mock_api = mock.Mock()
         mock_api.get.return_value = mock.Mock(status='DELETED')
         expected = {'status': 'DELETED', 'status-message': ''}
@@ -382,7 +434,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertDictEqual(actual, expected)
         mock_api.get.assert_called_once_with(1234)
 
-    def test_wait_on_lb_delete_for_invalid_lb(self):
+    def test_for_invalid_lb(self):
         mock_api = mock.Mock()
         mock_api.get.side_effect = pyrax.exceptions.NotFound(404)
         expected = {'status': 'DELETED', 'status-message': ''}
@@ -390,7 +442,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertDictEqual(actual, expected)
         mock_api.get.assert_called_once_with(1234)
 
-    def test_wait_on_lb_delete_for_deleting_lb(self):
+    def test_for_deleting_lb(self):
         mock_api = mock.Mock()
         mock_api.get.return_value = mock.Mock(status='DELETING')
         self.assertRaises(exceptions.CheckmateException,
@@ -398,7 +450,9 @@ class TestLoadBalancerTasks(unittest.TestCase):
                           mock_api)
         mock_api.get.assert_called_once_with(1234)
 
-    def test_delete_lb_task_sim(self):
+
+class TestDeleteLbTask(unittest.TestCase):
+    def test_sim(self):
         expected = {
             'status': 'DELETING',
             'status-message': 'Waiting on resource deletion'
@@ -406,7 +460,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         actual = manager.Manager.delete_lb_task(1234, None, simulate=True)
         self.assertDictEqual(actual, expected)
 
-    def test_delete_lb_task(self):
+    def test_success(self):
         mock_api = mock.Mock()
         mock_lb = mock.Mock(status="ACTIVE")
         mock_api.get.return_value = mock_lb
@@ -419,7 +473,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
         mock_api.get.assert_called_once_with(1234)
         self.assertTrue(mock_lb.delete.called)
 
-    def test_delete_lb_task_for_building_lb(self):
+    def test_for_building_lb(self):
         mock_api = mock.Mock()
         mock_lb = mock.Mock(status="BUILD")
         mock_api.get.return_value = mock_lb
@@ -427,7 +481,7 @@ class TestLoadBalancerTasks(unittest.TestCase):
                           manager.Manager.delete_lb_task, 1234, mock_api)
         mock_api.get.assert_called_once_with(1234)
 
-    def test_delete_lb_task_for_invalid_lb(self):
+    def test_for_invalid_lb(self):
         mock_api = mock.Mock()
         mock_api.get.side_effect = pyrax.exceptions.NotFound(404)
         expected = {
@@ -438,7 +492,9 @@ class TestLoadBalancerTasks(unittest.TestCase):
         self.assertDictEqual(actual, expected)
         mock_api.get.assert_called_once_with(1234)
 
-    def test_collect_record_data(self):
+
+class TestCollectRecordData(unittest.TestCase):
+    def test_success(self):
         record = {"domain": "foo.com", "id": "ID"}
         expected = {
             "domain_id": "foo.com",
@@ -447,12 +503,12 @@ class TestLoadBalancerTasks(unittest.TestCase):
         actual = manager.Manager.collect_record_data(record)
         self.assertDictEqual(actual, expected)
 
-    def test_collect_record_data_without_id(self):
+    def test_without_id(self):
         record = {"domain": "foo.com"}
         self.assertRaises(exceptions.CheckmateException,
                           manager.Manager.collect_record_data, record)
 
-    def test_collect_record_data_without_domain(self):
+    def test_without_domain(self):
         record = {"id": "ID"}
         self.assertRaises(exceptions.CheckmateException,
                           manager.Manager.collect_record_data, record)
