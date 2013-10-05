@@ -27,10 +27,8 @@ tasks.
 import logging
 
 #Error message constants
-BLUEPRINT_ERROR = ("There is a possible problem in the Blueprint provided - "
-                   "Please contact support")
-UNEXPECTED_ERROR = ("Unable to automtically recover from error - Please "
-                    "contact support")
+BLUEPRINT_ERROR = "There is a possible problem in the Blueprint provided."
+UNEXPECTED_ERROR = "Unable to automatically recover from error."
 
 # options
 CAN_RESUME = 1  # just run the workflow again (ex. to get new token)

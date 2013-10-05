@@ -158,6 +158,11 @@ class Driver(common.DbBase):
             background=True,
             name='tenant_tags',
         )
+        self.database()[self._blueprint_collection_name].create_index(
+            [("tenantId", pymongo.DESCENDING)],
+            background=True,
+            name="blueprints_tenantId",
+        )
 
     def __getstate__(self):
         """Support serializing to connection string."""
@@ -743,11 +748,13 @@ class Driver(common.DbBase):
             if query:
                 query_condition = ['true']
                 if query.get('provider'):
-                    query_condition.append("provider == %s" %
-                                           json.encoder.encode_basestring(query['provider']))
+                    query_condition.append(
+                        "provider == %s" %
+                        json.encoder.encode_basestring(query['provider']))
                 if query.get('resource_type'):
-                    query_condition.append("resource_type == %s" %
-                                           json.encoder.encode_basestring(query['resource_type']))
+                    query_condition.append(
+                        "resource_type == %s" %
+                        json.encoder.encode_basestring(query['resource_type']))
                 if query.get('resource_ids'):
                     resource_ids = map(cmutils.try_int, query['resource_ids'])
                     query_condition.append(
@@ -755,18 +762,18 @@ class Driver(common.DbBase):
                         json.JSONEncoder().encode(resource_ids)
                     )
                 search_function = (
-                    "function() {"
-                        "for (var key in this) {"
-                            "if (!this.hasOwnProperty(key)) {continue;}"
-                            "if (!key.match(/^\d+$/)) {continue;}"
-                            "var instance_id = this[key]['instance']['id'];"
-                            "var provider = this[key]['provider'];"
-                            "var resource_type = this[key]['type'];"
-                            "if (%s){"
-                                "return true;"
-                            "}"
-                        "}"
-                    "}")
+                    """function() {
+                        for (var key in this) {
+                            if (!this.hasOwnProperty(key)) {continue;}
+                            if (!key.match(/^\\d+$/)) {continue;}
+                            var instance_id = this[key]['instance']['id'];
+                            var provider = this[key]['provider'];
+                            var resource_type = this[key]['type'];
+                            if (%s){
+                                return true;
+                            }
+                        }
+                    }""")
                 filters['$where'] = bson.code.Code(
                     search_function % " && ".join(query_condition)
                 )

@@ -286,14 +286,15 @@ def main():
     resources.append('workflows')
 
     # Load Blueprint Handlers - choose between database or github cache
+    MANAGERS['blueprints'] = blueprints.Manager(db.get_driver())
+    MANAGERS['blueprint-cache'] = MANAGERS['blueprints']
     if CONFIG.github_api:
         if 'github' not in MANAGERS:
             MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
-        MANAGERS['blueprints'] = MANAGERS['github']
-    else:
-        MANAGERS['blueprints'] = blueprints.Manager()
+        MANAGERS['blueprint-cache'] = MANAGERS['github']
     ROUTERS['blueprints'] = blueprints.Router(
-        root_app, MANAGERS['blueprints']
+        root_app, MANAGERS['blueprints'],
+        cache_manager=MANAGERS['blueprint-cache']
     )
     resources.append('blueprints')
 
@@ -315,11 +316,11 @@ def main():
     if CONFIG.with_admin is True:
         LOG.info("Loading Admin API")
         MANAGERS['tenants'] = admin.TenantManager()
-        if 'github' not in MANAGERS:
+        if CONFIG.github_api and 'github' not in MANAGERS:
             MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
-        ROUTERS['admin'] = admin.Router(root_app, MANAGERS['deployments'],
-                                        MANAGERS['tenants'],
-                                        blueprints_manager=MANAGERS['github'])
+        ROUTERS['admin'] = admin.Router(
+            root_app, MANAGERS['deployments'], MANAGERS['tenants'],
+            blueprints_manager=MANAGERS.get('github'))
         resources.append('admin')
 
     next_app = middleware.AuthorizationMiddleware(
