@@ -113,7 +113,7 @@ def set_monitor(context, lb_id, mon_type, region=None, path='/', delay=10,
 @statsd.collect
 def update_node_status(context, relation, lb_id, ip_address, node_status,
                        resource_status, api=None):
-    """Task to update loadbalancer node status"""
+    """Task to update loadbalancer node status."""
     return Manager.update_node_status(context, lb_id, ip_address,
                                       node_status, resource_status, relation,
                                       update_node_status.partial,
