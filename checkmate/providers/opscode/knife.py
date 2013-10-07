@@ -493,6 +493,10 @@ def write_databag(environment, bagname, itemname, contents, resource,
                 }
             }
             cmdeps.resource_postback.delay(environment, results)
+        else:
+            LOG.debug("No contents provided to write_databag for '%s/%s'",
+                      environment, bagname)
+            results = {}
         return results
 
     def on_failure(exc, task_id, args, kwargs, einfo):
