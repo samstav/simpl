@@ -158,7 +158,6 @@ Scope variables that control the Checkmate UI:
 
 //Loads static content into body
 function StaticController($scope, $location) {
-  console.log("Loading static file " + $location.path());
   $scope.showStatus = false;
 
   $scope.carousel_interval = -1; // Stopped
@@ -247,7 +246,7 @@ function RawController($scope, $location, $http) {
     });
 }
 
-function AutoLoginController($scope, $window, $cookies, auth) {
+function AutoLoginController($scope, $window, $cookies, $log, auth) {
   $scope.auto_login_success = function() {
     $window.location.href = '/';
   };
@@ -268,7 +267,7 @@ function AutoLoginController($scope, $window, $cookies, auth) {
     }
     creds.endpoint = _.find(auth.endpoints, function(endpoint) { return endpoint.uri == creds.endpoint; } ) || {};
 
-    console.log("Submitting auto login credentials");
+    $log.info("Submitting auto login credentials");
     return auth.authenticate(creds.endpoint, creds.username, creds.api_key, null, creds.token, null, creds.tenantId)
       .then($scope.auto_login_success, $scope.auto_login_fail);
   };
@@ -598,11 +597,9 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   };
 
   // Utility Functions
-  console.log("Getting api version");
   var api = $resource((checkmate_server_base || '') + '/version');
   api.get(function(data, getResponseHeaders){
     $scope.api_version = data.version;
-    console.log("Got api version: " + $scope.api_version);
     //Check if simulator enabled
     $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
     //Check for which auth endpoints are enabled
@@ -637,7 +634,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     auth.parseWWWAuthenticateHeaders(headers);
   });
 
-  console.log("Getting rook version");
   $scope.$root.blueprint_ref = 'master';
   var rook = $resource((checkmate_server_base || '') + '/rookversion');
   rook.get(function(rookdata, getResponseHeaders){

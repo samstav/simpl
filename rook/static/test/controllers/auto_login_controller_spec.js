@@ -1,23 +1,25 @@
 describe('AutoLoginController', function(){
-  var scope,
-      window,
-      cookies,
+  var $scope,
+      $window,
+      $cookies,
+      $log,
       auth,
       controller;
 
-  beforeEach(function() {
-    scope = { '$apply': emptyFunction, loginPrompt: emptyFunction };
-    window = { location: { href: undefined } };
-    cookies = {};
+  beforeEach(inject(function($injector) {
+    $scope = { '$apply': emptyFunction, loginPrompt: emptyFunction };
+    $window = { location: { href: undefined } };
+    $cookies = {};
+    $log = $injector.get('$log');
     auth = {};
-    controller = new AutoLoginController(scope, window, cookies, auth);
+    controller = new AutoLoginController($scope, $window, $cookies, $log, auth);
     mixpanel = { track: emptyFunction }; // TODO: We are dependent on this being a global var
-  });
+  }));
 
   it('should assign autologin callbacks and method to the scope', function(){
-    expect(scope.auto_login_success).not.toBe(null);
-    expect(scope.auto_login_fail).not.toBe(null);
-    expect(scope.autoLogIn).not.toBe(null);
+    expect($scope.auto_login_success).not.toBe(null);
+    expect($scope.auto_login_fail).not.toBe(null);
+    expect($scope.autoLogIn).not.toBe(null);
   });
 
   describe('auto_login_fail', function(){
@@ -29,24 +31,24 @@ describe('AutoLoginController', function(){
 
     it('should track the failure with mixpanel', function(){
       sinon.spy(mixpanel, 'track');
-      scope.auto_login_fail(response);
+      $scope.auto_login_fail(response);
 
       expect(mixpanel.track.getCall(0).args[0]).toEqual('Log In Failed');
       expect(mixpanel.track.getCall(0).args[1]).toEqual({ 'problem': 'faketext' });
     });
 
     it('should set the window href', function(){
-      scope.auto_login_fail(response);
+      $scope.auto_login_fail(response);
 
-      expect(window.location.href).toEqual('/');
+      expect($window.location.href).toEqual('/');
     });
   });
 
   describe('auto_login_success', function(){
     it('should set the window href', function(){
-      scope.auto_login_fail({ statusText: 'blah' });
+      $scope.auto_login_fail({ statusText: 'blah' });
 
-      expect(window.location.href).toEqual('/');
+      expect($window.location.href).toEqual('/');
     });
   });
 
@@ -55,27 +57,27 @@ describe('AutoLoginController', function(){
     beforeEach(function(){
       promise_callback = sinon.spy();
       auth.authenticate = sinon.stub().returns({ then: promise_callback });
-      cookies.endpoint = 'www.uri.com';
-      cookies.token = 'token';
-      cookies.tenantId = 'tenantId';
+      $cookies.endpoint = 'www.uri.com';
+      $cookies.token = 'token';
+      $cookies.tenantId = 'tenantId';
       auth.endpoints = [{ uri: 'www.uri.com', scheme: 'Kablamo' }];
     });
 
     it('should call authenticate with the matching endpoint', function(){
-      scope.autoLogIn();
+      $scope.autoLogIn();
 
       expect(auth.authenticate.getCall(0).args[0]).toEqual({ uri: 'www.uri.com', scheme: 'Kablamo' });
     });
 
     it('should pass an empty endpoint object if no matches are found', function(){
       auth.endpoints = [];
-      scope.autoLogIn();
+      $scope.autoLogIn();
 
       expect(auth.authenticate.getCall(0).args[0]).toEqual({});
     });
 
     it('should call authenticate with token/tenantId', function(){
-      scope.autoLogIn();
+      $scope.autoLogIn();
 
       expect(auth.authenticate.getCall(0).args[0]).toEqual(auth.endpoints[0]);
       expect(auth.authenticate.getCall(0).args[4]).toEqual('token');
@@ -83,11 +85,11 @@ describe('AutoLoginController', function(){
     });
 
     it('should call authenticate with username/api_key', function(){
-      delete cookies.token;
-      delete cookies.tenantId;
-      cookies.username = 'batman';
-      cookies.api_key = 'secret key';
-      scope.autoLogIn();
+      delete $cookies.token;
+      delete $cookies.tenantId;
+      $cookies.username = 'batman';
+      $cookies.api_key = 'secret key';
+      $scope.autoLogIn();
 
       expect(auth.authenticate.getCall(0).args[0]).toEqual(auth.endpoints[0]);
       expect(auth.authenticate.getCall(0).args[1]).toEqual('batman');
@@ -95,8 +97,8 @@ describe('AutoLoginController', function(){
     });
 
     it('should pass success and error callbacks', function() {
-      scope.autoLogIn();
-      expect(promise_callback).toHaveBeenCalledWith(scope.auto_login_success, scope.auto_login_fail);
+      $scope.autoLogIn();
+      expect(promise_callback).toHaveBeenCalledWith($scope.auto_login_success, $scope.auto_login_fail);
     });
   });
 });
