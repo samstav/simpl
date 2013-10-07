@@ -642,7 +642,10 @@ class ProviderTask(celery.Task):
                 % type(context))
 
         try:
-            self.api = kwargs.get('api') or self.provider.connect(context)
+            if context.simulation:
+                self.api = "simulation api"
+            else:
+                self.api = kwargs.get('api') or self.provider.connect(context)
         # TODO(Nate): Generalize exception raised in providers connect
         except exceptions.CheckmateValidationException:
             raise
