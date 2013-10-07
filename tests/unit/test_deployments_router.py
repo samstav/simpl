@@ -650,8 +650,8 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
     def test_check_deployment(self, mock_postback):
         expected = {'resources': {
             '0': [
-                {'message': 'flavor is valid.', 'type': 'INFORMATION'},
-                {'message': 'region is valid.', 'type': 'INFORMATION'}
+                {'message': 'flavor 3 is valid.', 'type': 'INFORMATION'},
+                {'message': 'region DFW is valid.', 'type': 'INFORMATION'}
             ]
         }}
         mock_postback.return_value = {
