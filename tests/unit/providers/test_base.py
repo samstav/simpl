@@ -103,7 +103,7 @@ class TestProviderTask(unittest.TestCase):
                 'status': 'BLOCKED'
             }
         }
-        do_something.callback = mock.MagicMock(return_value=True)
+        do_something.callback = mock.MagicMock(return_value={})
         results = do_something(context, 'test', api='test_api')
 
         do_something.callback.assert_called_with(
@@ -198,7 +198,7 @@ class TestRackspaceProviderTask(unittest.TestCase):
     def test_rackspace_provider_task_context_region_kwargs(self):
         context = middleware.RequestContext(**{})
         rackspace_provider_task.run = mock.Mock()
-        rackspace_provider_task.callback = mock.MagicMock(return_value=True)
+        rackspace_provider_task.callback = mock.MagicMock(return_value={})
 
         rackspace_provider_task(context, 'test', api='api', region='ORD')
         self.assertEqual(context.region, 'ORD')

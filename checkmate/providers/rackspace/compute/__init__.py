@@ -1236,8 +1236,8 @@ def delete_server_task(context, api=None):
         msg = ("Connection error talking to %s endpoint" %
                (api.client.management_url))
         LOG.error(msg, exc_info=True)
-        raise exception.CheckmateException(message=msg,
-                                           options=cmexc.CAN_RESUME)
+        raise cmexc.CheckmateException(message=msg,
+                                       options=cmexc.CAN_RESUME)
     if (not server) or (server.status == 'DELETED'):
         results = {
             'status': 'DELETED',
@@ -1338,8 +1338,8 @@ def wait_on_delete_server(context, api=None):
         msg = ("Connection error talking to %s endpoint" %
                (api.client.management_url))
         LOG.error(msg, exc_info=True)
-        raise exception.CheckmateException(message=msg,
-                                           options=cmexc.CAN_RESUME)
+        raise cmexc.CheckmateException(message=msg,
+                                       options=cmexc.CAN_RESUME)
     if (not server) or (server.status == "DELETED"):
         results = {
             'status': 'DELETED',
@@ -1432,8 +1432,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         msg = ("Connection error talking to %s endpoint" %
                api.client.management_url)
         LOG.error(msg, exc_info=True)
-        raise exception.CheckmateException(message=msg,
-                                           options=cmexc.CAN_RESUME)
+        raise cmexc.CheckmateException(message=msg,
+                                       options=cmexc.CAN_RESUME)
 
     results = {
         'id': server_id,

@@ -99,9 +99,9 @@ class TestDatabase(test.ProviderTester):
                                             resource_key='1')
 
         database._create_instance.callback(context,
-                                           {'id': instance.id}).AndReturn(True)
+                                           {'id': instance.id}).AndReturn({})
         database._create_instance.callback(
-            context, expected['instance:1']).AndReturn(True)
+            context, expected['instance:1']).AndReturn({})
 
         self.mox.ReplayAll()
         results = database.create_instance(context, instance.name, 1, 1,
@@ -160,7 +160,7 @@ class TestDatabase(test.ProviderTester):
         #Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get(instance.id).AndReturn(instance)
-        instance.create_database('db1', None, None).AndReturn(True)
+        instance.create_database('db1', None, None).AndReturn(None)
 
         expected = {
             'instance:1': {
@@ -179,8 +179,9 @@ class TestDatabase(test.ProviderTester):
             }
         }
         database._create_database.callback(
-            context, {'status': instance.status}).AndReturn(True)
-        database._create_database.callback(context, expected['instance:1'])
+            context, {'status': instance.status}).AndReturn({})
+        database._create_database.callback(context, expected['instance:1'])\
+            .AndReturn({})
         self.mox.ReplayAll()
         results = database.create_database(context, 'db1', 'NORTH',
                                            instance_id=instance.id,
