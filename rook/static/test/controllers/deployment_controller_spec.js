@@ -119,6 +119,64 @@ describe('DeploymentController', function(){
     });
   });
 
+  describe('#check', function() {
+    var deployment, response, $rootScope;
+    beforeEach(inject(function(_$rootScope_, $q) {
+      $rootScope = _$rootScope_;
+      deployment = {};
+      response = $q.defer();
+      Deployment.check = sinon.stub().returns(response.promise);
+    }));
+
+    it('should set loading status to true', function() {
+      $scope.check(deployment);
+      expect($scope.loading.check).toBe(true);
+    });
+
+    it('should set resource_info to empty object', function() {
+      $scope.check(deployment);
+      expect($scope.resources_info).toEqual({});
+    });
+
+    describe('- successfully loaded', function() {
+      var check_response;
+      beforeEach(function() {
+        $scope.check(deployment);
+        check_response = { data: { resources: {} } };
+      });
+
+      it('should set loading status to false', function() {
+        response.resolve(check_response);
+        $rootScope.$apply();
+        expect($scope.loading.check).toBe(false);
+      });
+
+      it('should group messages to resources_info', function() {
+        check_response.data.resources['0'] = [
+          {type: 'INFORMATION', message: 'info_msg1'},
+          {type: 'ERROR', message: 'error_msg1'},
+          {type: 'INFORMATION', message: 'info_msg2'},
+        ];
+        response.resolve(check_response);
+        $rootScope.$apply();
+        expect($scope.resources_info['0'].error).toEqual(['error_msg1']);
+        expect($scope.resources_info['0'].info).toEqual(['info_msg1', 'info_msg2']);
+      });
+    });
+
+    describe('- unsuccessfully loaded', function() {
+      beforeEach(function() {
+        $scope.check(deployment);
+        response.reject();
+        $rootScope.$apply();
+      });
+
+      it('should set loading status to false', function() {
+        expect($scope.loading.check).toBe(false);
+      });
+    });
+  });
+
   describe('#load', function() {
     it('should get the resource', function() {
       var resource_result = { get: sinon.spy() };

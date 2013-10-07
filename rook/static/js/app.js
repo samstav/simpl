@@ -2835,6 +2835,44 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     return available_details;
   }
 
+  $scope.loading = {};
+  $scope.check = function(deployment) {
+    var _group_messages = function(resources) {
+      var messages = {};
+      messages.has_errors = false;
+      angular.forEach(resources, function(info_list, id) {
+        var has_messages = false;
+        messages[id] = {
+          error: [],
+          warning: [],
+          info: []
+        };
+        angular.forEach(info_list, function(info) {
+          messages.has_errors = has_messages = true;
+          var type = info.type.toLowerCase();
+          if (type == 'information') type = 'info';
+          messages[id][type].push(info.message);
+        });
+        if (!has_messages)
+          messages[id].success = true;
+      });
+      return messages;
+    };
+
+    $scope.loading.check = true;
+    $scope.resources_info = {};
+    Deployment.check(deployment).then(
+      function success(response) {
+        $scope.loading.check = false;
+        $scope.resources_info = _group_messages(response.data.resources);
+      },
+      function error(response) {
+        $scope.loading.check = false;
+        $scope.resources_info.error = "Error while checking deployment...";
+      }
+    );
+  }
+
   $scope.showSecrets = function() {
     if ($scope.data.secrets != 'AVAILABLE') return;
 
