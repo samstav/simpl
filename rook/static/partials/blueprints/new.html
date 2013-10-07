@@ -5,12 +5,16 @@
               ui-codemirror="codemirror_options">
     </textarea>
   </div>
-  <div class="span6">
+  <div class="span6 entries">
     <cm-tree-view data="parsed_deployment_tree" width="640" height="480"></cm-tree-view>
     <hr />
     <markdown text="help_display"></markdown>
     <hr />
     <a ng-click="toggle_editor_type()">Toggle editor type</a>
     <p>{{errors.conversion}}</p>
-  </div>
+    <hr />
+
+    <form id='blueprint_options' name='blueprint_options'>
+      <ng-include src="'/partials/blueprints/_options.html'"></ng-include>
+    </form>
 </div>

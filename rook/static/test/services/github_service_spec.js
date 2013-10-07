@@ -106,7 +106,8 @@ describe('github service', function(){
     });
 
     it('should call the github api through our proxy to get file contents', function(){
-      $httpBackend.when('GET', '/githubproxy/this/is/a/path/contents/checkmate.yaml').respond({});
+      var data = { content: "some yaml" };
+      $httpBackend.when('GET', '/githubproxy/this/is/a/path/contents/checkmate.yaml').respond(data);
       $httpBackend.expectGET('/githubproxy/this/is/a/path/contents/checkmate.yaml');
       url = 'https://omgwtfbbq.com/this/is/a/path';
       content_item = "checkmate.yaml";
