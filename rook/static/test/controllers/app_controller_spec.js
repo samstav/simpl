@@ -415,6 +415,10 @@ describe('AppController', function(){
     it('should close the login prompt', function() {
       expect(scope.close_login_prompt).toHaveBeenCalled();
     });
+
+    it('should reload the current route', function() {
+      expect($route.reload).toHaveBeenCalled();
+    });
   });
 
   describe('#on_auth_failed', function() {
