@@ -660,11 +660,14 @@ class ProviderTask(celery.Task):
                 return self.retry(exc=exc)
             else:
                 raise exc
-        self.callback(context, data)
-        return {'instance:%s' % context["resource_key"]: data}
+        if data:
+            self.callback(context, data)
+            return {'instance:%s' % context["resource_key"]: data}
 
     def callback(self, context, data, resource_key=None):
         """Calls postback with instance.id to ensure posted to resource."""
+        if not data:
+            return
         from checkmate.deployments import tasks as deployment_tasks
         # TODO(Paul/Nate): Added here to get around circular dep issue.
         resource_index = resource_key or context['resource_key']

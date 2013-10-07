@@ -111,6 +111,17 @@ class TestProviderTask(unittest.TestCase):
         self.assertEqual(results, expected)
         assert do_something.partial, 'Partial attr should be set'
 
+    def test_provider_task_success_with_no_data(self):
+        context = middleware.RequestContext(**{'region': 'ORD',
+                                            'resource_key': '1',
+                                            'deployment': {}})
+
+        do_nothing.callback = mock.MagicMock(return_value=True)
+        results = do_nothing(context, 'test', api='test_api')
+
+        self.assertFalse(do_nothing.callback.called)
+        self.assertIsNone(results)
+
     def test_provider_task_retry(self):
         context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
         do_something.run = mock.Mock()
@@ -157,6 +168,19 @@ class TestProviderTask(unittest.TestCase):
 
         mocked_lib.postback.assert_called_with('DEP_ID', expected_postback)
 
+    @mock.patch('checkmate.deployments.tasks')
+    def test_provider_task_callback_with_no_data(self, mocked_lib):
+        context = {
+            'region': 'ORD',
+            'resource_key': 1,
+            'deployment_id': 'DEP_ID'
+        }
+        mocked_lib.postback = mock.MagicMock()
+
+        do_nothing(context, 'test', api='test_api')
+
+        self.assertFalse(mocked_lib.postback.called)
+
 
 class TestRackspaceProviderTask(unittest.TestCase):
     """Tests ProviderTask functionality."""
@@ -190,6 +214,11 @@ def do_something(context, name, api, region=None):
         'api2': api,
         'status': 'BLOCKED'
     }
+
+
+@celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
+def do_nothing(context, name, api, region=None):
+    return
 
 
 @celery.task.task(base=cm_base.RackspaceProviderTask,
