@@ -468,6 +468,7 @@ def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
 def add_node(context, lbid, ipaddr, region, resource, api=None):
     """Celery task to add a node to a Cloud Load Balancer."""
     utils.match_celery_logging(LOG)
+    instance_key = 'instance:%s' % context['resource']
 
     if context.get('simulation') is True:
         results = {}
@@ -525,7 +526,8 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
     if not new_node:
         node = api.Node(address=ipaddr, port=port, condition="ENABLED")
         try:
-            results = loadbalancer.add_nodes([node])
+            _, body = loadbalancer.add_nodes([node])
+
             # I don't believe you! Check... this has been unreliable. Possible
             # because we need to refresh nodes
             lb_fresh = api.get(lbid)
@@ -533,7 +535,13 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                 #OK!
                 LOG.info("Added node %s:%s to load balancer %s", ipaddr, port,
                          lbid)
-                results = {'id': results[0].id}
+                results = {
+                    instance_key: {
+                        'nodes': [body.get('nodes')[0].get('id')]
+                    }
+                }
+                deployments.resource_postback.delay(context['deployment'],
+                                                    results)
             else:
                 LOG.warning("CloudLB says node %s (ID=%s) was added to LB %s, "
                             "but upon validating, it does not look like that "
