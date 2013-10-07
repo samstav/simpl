@@ -48,9 +48,9 @@ class TestEnableContentCaching(unittest.TestCase):
 
     def test_success(self):
         """Verifies method calls and results."""
-        clb = mock.Mock()
-        clb.status = 'ACTIVE'
-        self.api.get.return_value = clb
+        lb = mock.Mock()
+        lb.status = 'ACTIVE'
+        self.api.get.return_value = lb
         expected = {
             'id': '12345',
             'status': 'ACTIVE',
