@@ -312,9 +312,9 @@ class Manager(object):
         if check_limits:
             limits = pool.spawn(planner.verify_limits, context)
         if check_access:
-            deployment['check-limit-results'] = access.wait()
+            deployment['check-access-results'] = access.wait()
         if check_limits:
-            deployment['check-access-results'] = limits.wait()
+            deployment['check-limit-results'] = limits.wait()
 
         # Save plan details for future rehydration/use
         deployment['plan'] = planner._data  # get dict so we can serialize it

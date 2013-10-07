@@ -1155,7 +1155,7 @@ def format_check(data):
             elif value == instance[resource].get(setting):
                 body['resources'][resource].append({
                     'type': 'INFORMATION',
-                    'message': '%s is valid.' % setting
+                    'message': '%s %s is valid.' % (setting, value)
                 })
             else:
                 body['resources'][resource].append({

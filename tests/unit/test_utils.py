@@ -722,7 +722,7 @@ class TestFormatCheck(unittest.TestCase):
             '1': [
                 {
                     'type': 'INFORMATION',
-                    'message': 'region is valid.'
+                    'message': 'region DFW is valid.'
                 },
                 {
                     'type': 'WARNING',
