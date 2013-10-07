@@ -272,14 +272,14 @@ class Router(object):
     @statsd.collect
     def parse_deployment(self, tenant_id=None):
         """Parse a deployment and return the parsed response."""
-        if bottle.request.query.get('check_limits') == "0":
-            check_limits = False
-        else:
+        if bottle.request.query.get('check_limits') == "1":
             check_limits = True
-        if bottle.request.query.get('check_access') == "0":
-            check_access = False
         else:
+            check_limits = False
+        if bottle.request.query.get('check_access') == "1":
             check_access = True
+        else:
+            check_access = False
         start = time.time()
         deployment = _content_to_deployment(tenant_id=tenant_id)
         results = self.manager.plan(deployment,
