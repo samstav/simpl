@@ -338,12 +338,14 @@ class Manager(object):
                        "adding %s (%d %s)" % (lb_id, ip_addr, exc.code,
                        exc.message))
                 LOG.debug(msg)
-                raise exceptions.CheckmateException(msg, exceptions.CAN_RESUME)
+                raise exceptions.CheckmateException(msg,
+                                                    exceptions.CAN_RESUME)
             except StandardError as exc:
                 msg = ("Error adding %s behind load balancer %d. Error: %s. "
                        "Retrying" % (ip_addr, lb_id, str(exc)))
                 LOG.debug(msg)
-                raise exceptions.CheckmateException(msg, exceptions.CAN_RESUME)
+                raise exceptions.CheckmateException(msg,
+                                                    exceptions.CAN_RESUME)
 
         # Delete placeholder
         if placeholder:

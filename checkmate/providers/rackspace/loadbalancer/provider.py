@@ -444,6 +444,7 @@ class Provider(rsbase.RackspaceProviderBase):
         else:
             context['deployment_id'] = deployment_id
             context['resource_key'] = key
+            context['region'] = region
 
         delete_lb = specs.Celery(
             wf_spec,
