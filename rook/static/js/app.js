@@ -1731,15 +1731,10 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     function verifyBlueprintRepo(blueprint){
       return github.get_contents($scope.remote, blueprint.api_url, "checkmate.yaml").then(
         function(content_data) {
-          if(content_data.type === 'file'){
-            blueprint.is_blueprint_repo = true;
-
-            updateBlueprintCache([blueprint]);
-
-            blueprint.is_fresh = true;
-
-            updateListWithBlueprint($scope.items, blueprint)
-          }
+          blueprint.is_blueprint_repo = true;
+          updateBlueprintCache([blueprint]);
+          blueprint.is_fresh = true;
+          updateListWithBlueprint($scope.items, blueprint)
         }
       );
     }
