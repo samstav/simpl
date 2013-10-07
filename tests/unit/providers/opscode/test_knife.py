@@ -20,8 +20,13 @@ from checkmate.providers.opscode import knife
 
 class TestWriteDatabag(unittest.TestCase):
 
-    def test_no_contents_simulated(self):
+    def test_none_contents_simulated(self):
         results = knife.write_databag("simulateA", "prada", "lipstick", None,
+                                      {'index': '0', 'hosted_on': '1'})
+        self.assertEqual(results, {})
+
+    def test_no_contents_simulated(self):
+        results = knife.write_databag("simulateA", "prada", "lipstick", {},
                                       {'index': '0', 'hosted_on': '1'})
         self.assertEqual(results, {})
 
