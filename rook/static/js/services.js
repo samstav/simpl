@@ -775,14 +775,10 @@ services.factory('github', ['$http', '$q', function($http, $q) {
       var branch_name = _get_branch_name(remote);
       path = remote.api.url + 'repos/' + remote.owner + '/' + remote.repo.name + '/contents/' + content_item + "?ref=" + branch_name;
     }
-    var config = get_config(remote.api.server);
-    config.headers['X-Target-Url'] = remote.api.server;
+    var config = get_config(remote.api.server, 'application/vnd.github.v3.raw');
     return $http.get(path, config).then(
       function(response) {
-        var base64_decode = window.atob; // atob is javascript builtin base64 decode
-        var contents = response.data.content;
-        var sanitized_contents = contents.replace(/\n/g, '');
-        return base64_decode(sanitized_contents);
+        return response.data;
       },
       function(response) {
         console.log('Failed to retrieve ' + content_item + ' from ' + url);
