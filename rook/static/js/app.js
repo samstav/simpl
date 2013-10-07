@@ -246,7 +246,7 @@ function RawController($scope, $location, $http) {
     });
 }
 
-function AutoLoginController($scope, $window, $cookies, auth) {
+function AutoLoginController($scope, $window, $cookies, $log, auth) {
   $scope.auto_login_success = function() {
     $window.location.href = '/';
   };
@@ -267,7 +267,7 @@ function AutoLoginController($scope, $window, $cookies, auth) {
     }
     creds.endpoint = _.find(auth.endpoints, function(endpoint) { return endpoint.uri == creds.endpoint; } ) || {};
 
-    console.log("Submitting auto login credentials");
+    $log.info("Submitting auto login credentials");
     return auth.authenticate(creds.endpoint, creds.username, creds.api_key, null, creds.token, null, creds.tenantId)
       .then($scope.auto_login_success, $scope.auto_login_fail);
   };

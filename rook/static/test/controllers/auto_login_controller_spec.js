@@ -2,17 +2,19 @@ describe('AutoLoginController', function(){
   var scope,
       window,
       cookies,
+      $log,
       auth,
       controller;
 
-  beforeEach(function() {
+  beforeEach(inject(function($injector) {
     scope = { '$apply': emptyFunction, loginPrompt: emptyFunction };
     window = { location: { href: undefined } };
     cookies = {};
+    $log = $injector.get('$log');
     auth = {};
-    controller = new AutoLoginController(scope, window, cookies, auth);
+    controller = new AutoLoginController(scope, window, cookies, $log, auth);
     mixpanel = { track: emptyFunction }; // TODO: We are dependent on this being a global var
-  });
+  }));
 
   it('should assign autologin callbacks and method to the scope', function(){
     expect(scope.auto_login_success).not.toBe(null);
