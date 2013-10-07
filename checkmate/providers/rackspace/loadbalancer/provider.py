@@ -458,9 +458,9 @@ class Provider(rsbase.RackspaceProviderBase):
         wait_on_lb_delete = specs.Celery(
             wf_spec,
             'Wait for Loadbalancer (%s) delete' % key,
-            'checkmate.providers.rackspace.loadbalancer.'
+            'checkmate.providers.rackspace.loadbalancer.tasks.'
             'wait_on_lb_delete_task',
-            call_args=[context, key, lb_id],
+            call_args=[context, lb_id],
             properties={
                 'estimated_duration': 20,
             },
