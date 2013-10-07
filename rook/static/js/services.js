@@ -577,7 +577,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     } else {
       // The repo is on Github Enterprise
       api.server += uri.host();
-      api.url = '/api/v3/';
+      api.url += 'api/v3/';
     }
 
     return api;
