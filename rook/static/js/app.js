@@ -1728,15 +1728,10 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     function verifyBlueprintRepo(blueprint){
       return github.get_contents($scope.remote, blueprint.api_url, "checkmate.yaml").then(
         function(content_data) {
-          if(content_data.type === 'file'){
-            blueprint.is_blueprint_repo = true;
-
-            updateBlueprintCache([blueprint]);
-
-            blueprint.is_fresh = true;
-
-            updateListWithBlueprint($scope.items, blueprint)
-          }
+          blueprint.is_blueprint_repo = true;
+          updateBlueprintCache([blueprint]);
+          blueprint.is_fresh = true;
+          updateListWithBlueprint($scope.items, blueprint)
         }
       );
     }
@@ -3399,14 +3394,14 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
-function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github) {
+function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github, options) {
   var empty_deployment = {
     "blueprint": {"name": "your blueprint name"},
     "inputs": {},
     "environment": {},
     "name": {}
   };
-  $scope.deployment_json = JSON.stringify(empty_deployment, null, 2);
+  $scope.deployment_json = jsyaml.safeDump(empty_deployment, null, 2);
   $scope.parsed_deployment_tree = DeploymentTree.build({});
   $scope.errors = {};
 
@@ -3437,14 +3432,17 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   }
 
   $scope.load_blueprint = function() {
-    var base64_decode = window.atob; // atob is javascript builtin base64 decode
     var url = $location.search().url;
     if (url) {
       var remote = github.parse_url(url);
-      github.get_contents(remote, null, 'checkmate.yaml').then(function(contents) {
-        var sanitized_contents = contents.content.replace(/\n/g, '');
-        $scope.deployment_json = base64_decode(sanitized_contents);
-      });
+      github.get_blueprint(remote).then(
+        function(blueprint) {
+          $scope.deployment_json = jsyaml.safeDump(blueprint);
+        },
+        function(response) {
+          console.log(response);
+        }
+      );
     }
   }
 
@@ -3474,6 +3472,7 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   };
 
   $scope.newBlueprintCodemirrorLoaded = function(_editor){
+    $scope.inputs = {};
     CodeMirror.commands.autocomplete = function(cm) {
       CodeMirror.showHint(cm, BlueprintHint.hinting);
     };
@@ -3491,6 +3490,27 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
       'Ctrl-Space': 'autocomplete',
       Tab: betterTab
     })
+
+    var _update_options = function() {
+      var blueprint;
+      try {
+        blueprint = jsyaml.safeLoad($scope.deployment_json);
+      } catch(err) {
+        blueprint = {};
+        console.log('Could not parse blueprint');
+      }
+      var inner_blueprint = blueprint.blueprint || {};
+      var opts = options.getOptionsFromBlueprint(inner_blueprint) || {};
+      $scope.options_to_display = opts.options_to_display || [];
+      $scope.option_groups = opts.groups || {};
+      $scope.option_headers = opts.option_headers || {};
+      $scope.$$phase || $scope.$apply();
+    }
+    var _delayed_refresh_options = DelayedRefresh.get_instance(_update_options);
+
+    _editor.on('change', function() {
+      _delayed_refresh_options.refresh();
+    });
 
     _editor.on('cursorActivity', function(instance, event) {
       var path_tree = BlueprintHint.get_fold_tree(_editor, _editor.getCursor());

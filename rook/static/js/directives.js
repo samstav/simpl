@@ -113,7 +113,11 @@ directives.directive('validateOption', function () {
     link: function (scope, elm, attrs, ctrl) {
       var option = scope[attrs.validateOption];
 
-      function validate(value) {
+      scope.$watch(attrs.validateOption, function(){
+        option = scope[attrs.validateOption];
+      });
+
+      function validate(value, elem) {
         //Check constraints
         var constraints = option.constraints;
         var index = 0;
@@ -133,20 +137,21 @@ directives.directive('validateOption', function () {
         });
         var error_key = 'constraints' + option.id.replace('-', '');
         ctrl.$setValidity(error_key, valid);
-        //FIXME: hack! dynamically generated control validation is not bubbling up otherwise
-        angular.element($('#newDeploymentForm')).scope().newDeploymentForm.$setValidity(error_key, valid, ctrl);
+        var form_name = elem.closest('form').attr('name');
+        var form_scope = angular.element(elem).scope();
+        form_scope[form_name].$setValidity(error_key, valid, ctrl);
         option.invalid = !valid;
         return valid ? value : undefined;
       }
 
       //For DOM -> model validation
       ctrl.$parsers.unshift(function(viewValue) {
-          return validate(viewValue) ? viewValue : undefined;
+          return validate(viewValue, elm) ? viewValue : undefined;
       });
 
       //For model -> DOM validation
       ctrl.$formatters.unshift(function(value) {
-        validate(value);
+        validate(value, elm);
         return value;
       });
     }
