@@ -158,7 +158,6 @@ Scope variables that control the Checkmate UI:
 
 //Loads static content into body
 function StaticController($scope, $location) {
-  console.log("Loading static file " + $location.path());
   $scope.showStatus = false;
 
   $scope.carousel_interval = -1; // Stopped
@@ -598,11 +597,9 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   };
 
   // Utility Functions
-  console.log("Getting api version");
   var api = $resource((checkmate_server_base || '') + '/version');
   api.get(function(data, getResponseHeaders){
     $scope.api_version = data.version;
-    console.log("Got api version: " + $scope.api_version);
     //Check if simulator enabled
     $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
     //Check for which auth endpoints are enabled
@@ -637,7 +634,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     auth.parseWWWAuthenticateHeaders(headers);
   });
 
-  console.log("Getting rook version");
   $scope.$root.blueprint_ref = 'master';
   var rook = $resource((checkmate_server_base || '') + '/rookversion');
   rook.get(function(rookdata, getResponseHeaders){
