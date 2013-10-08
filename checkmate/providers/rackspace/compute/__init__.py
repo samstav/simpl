@@ -39,7 +39,7 @@ from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
 from checkmate import providers as cmprov
-from checkmate.providers import RackspaceProviderTask, ProviderTask
+from checkmate.providers import RackspaceProviderTask
 from checkmate.providers.rackspace import base
 from checkmate import rdp
 from checkmate import ssh
@@ -1205,7 +1205,6 @@ def delete_server_task(context, api=None):
 
     delete_server_task.on_failure = on_failure
 
-
     if api is None and context.get('simulation') is not True:
         api = Provider.connect(context, region=context.get("region"))
 
@@ -1271,7 +1270,7 @@ def delete_server_task(context, api=None):
             cmdeps.resource_postback.delay(deployment_id, hosts_results)
         try:
             server.delete()
-        except requests.ConnectionError as exc:
+        except requests.ConnectionError:
             msg = ("Connection error talking to %s endpoint" %
                    (api.client.management_url))
             LOG.error(msg, exc_info=True)
@@ -1334,7 +1333,7 @@ def wait_on_delete_server(context, api=None):
             server = api.servers.find(id=inst_id)
     except (ncexc.NotFound, ncexc.NoUniqueMatch):
         pass
-    except requests.ConnectionError as exc:
+    except requests.ConnectionError:
         msg = ("Connection error talking to %s endpoint" %
                (api.client.management_url))
         LOG.error(msg, exc_info=True)
@@ -1385,7 +1384,6 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     :return: False when build not ready. Dict with ip addresses when done.
     """
     utils.match_celery_logging(LOG)
-    deployment_id = context["deployment_id"]
     resource_key = context['resource_key']
 
     if context.get('simulation') is True:
@@ -1428,7 +1426,7 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
         msg = "No server matching id %s" % server_id
         LOG.error(msg, exc_info=True)
         raise cmexc.CheckmateException(msg)
-    except requests.ConnectionError as exc:
+    except requests.ConnectionError:
         msg = ("Connection error talking to %s endpoint" %
                api.client.management_url)
         LOG.error(msg, exc_info=True)

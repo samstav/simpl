@@ -155,7 +155,6 @@ class TestNovaCompute(test.ProviderTester):
             disk_config='AUTO'
         )
 
-
         postback.assert_called_once_with('DEP', {
             'resources': expected_resources
         })
@@ -308,7 +307,6 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {'rackconnect_automation_status': 'DEPLOYED'}
         server.accessIPv4 = "8.8.8.8"
 
-
         #Create appropriate api mocks
         openstack_api_mock = mock.MagicMock()
         openstack_api_mock.client = mock.MagicMock
@@ -320,39 +318,35 @@ class TestNovaCompute(test.ProviderTester):
                        roles=['rack_connect'])
 
         expected_resources = {
-                '1': {
-                    'status': 'ACTIVE',
-                    'instance': {
-                        'status': 'ACTIVE',
-                        'addresses': {
-                            'public': [
-                                {
-                                    'version': 4,
-                                    'addr': '4.4.4.4'
-                                },
-                                {
-                                    'version': 6,
-                                    'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:'
-                                            '513a'
-                                }
-                            ],
-                            'private': [
-                                {
-                                'version': 4,
-                                'addr': '10.10.10.10'
-                                }
-                            ],
-                        },
-                        'ip': '8.8.8.8',
-                        'region': 'North',
-                        'public_ip': '4.4.4.4',
-                        'private_ip': '10.10.10.10',
-                        'id': 'fake_server_id',
-                        'status-message': '',
-                        'rackconnect-automation-status': 'DEPLOYED'
-                    }
+            '1': {
+                'status': 'ACTIVE',
+                'instance': {
+                'status': 'ACTIVE',
+                'addresses': {
+                'public': [
+                    {
+                        'version': 4,
+                        'addr': '4.4.4.4'
+                    },
+                    {
+                        'version': 6,
+                        'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
+                    }],
+                'private': [
+                    {
+                        'version': 4,
+                        'addr': '10.10.10.10'
+                    }]},
+                'ip': '8.8.8.8',
+                'region': 'North',
+                'public_ip': '4.4.4.4',
+                'private_ip': '10.10.10.10',
+                'id': 'fake_server_id',
+                'status-message': '',
+                'rackconnect-automation-status': 'DEPLOYED'
                 }
             }
+        }
 
         expected = {
             'instance:1': {
@@ -383,13 +377,12 @@ class TestNovaCompute(test.ProviderTester):
 
         self.assertDictEqual(results, expected)
         openstack_api_mock.servers.find.assert_called_once_with(id=server.id)
-        postback.assert_called_once_with("DEP", {"resources":
-                                                     expected_resources})
-
+        postback.assert_called_once_with("DEP",
+                                         {"resources": expected_resources})
 
     @mock.patch.object(cm_deps.tasks, 'postback')
-    def test_wait_on_build_rackconnect_failed(self,postback):
-        server = self.mox.CreateMockAnything()
+    def test_wait_on_build_rackconnect_failed(self, postback):
+        server = mock.MagicMock()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
         server.addresses = {
@@ -412,15 +405,12 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {'rackconnect_automation_status': 'FAILED'}
         server.accessIPv4 = "8.8.8.8"
 
-        #Stub out postback call
-
         #Create appropriate api mocks
-        openstack_api_mock = self.mox.CreateMockAnything()
-        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock = mock.MagicMock()
+        openstack_api_mock.client = mock.MagicMock()
         openstack_api_mock.client.region_name = 'North'
-        openstack_api_mock.servers = self.mox.CreateMockAnything()
-        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
-
+        openstack_api_mock.servers = mock.MagicMock()
+        openstack_api_mock.servers.find.return_value = server
         context = dict(deployment_id='DEP', resource_key='1',
                        roles=['rack_connect'])
         expected_resource = {
@@ -454,51 +444,17 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        expected = {
-            'instance:1': {
-                'status': 'ERROR',
-                'addresses': {
-                    'public': [
-                        {
-                            'version': 4,
-                            'addr': '4.4.4.4'
-                        },
-                        {
-                            'version': 6,
-                            'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
-                        }
-                    ],
-                    'private': [
-                        {
-                            'version': 4,
-                            'addr': '10.10.10.10'
-                        }
-                    ],
-                },
-                'region': 'North',
-                'id': 'fake_server_id',
-                'status-message': "Rackconnect server metadata has "
-                                  "'rackconnect_automation_status' set to "
-                                  "FAILED.",
-                'rackconnect-automation-status': 'FAILED'
-            },
-            'resources': {
-                '1': expected_resource
-            }
-        }
-
-        self.mox.ReplayAll()
-        results = {}
         try:
             compute.wait_on_build(context, server.id, 'North',
                                   api=openstack_api_mock)
             self.fail("Should have thrown a Checkmate Exception!")
         except exceptions.CheckmateException:
             pass
-        self.mox.VerifyAll()
         postback.assert_called_once_with("DEP",
                                          {"resources": {
                                              "1": expected_resource}})
+        openstack_api_mock.servers.find.assert_called_once_with(
+            id=server.id)
 
     @mock.patch.object(cm_deps.tasks, 'postback')
     def test_wait_on_build_rackconnect_unprocessed(self, postback):
@@ -541,35 +497,36 @@ class TestNovaCompute(test.ProviderTester):
                 'status': 'ACTIVE',
                 'instance': {
                     'status': 'ACTIVE',
-                'addresses': {
-                    'public': [
-                        {
-                            'version': 4,
-                            'addr': '4.4.4.4'
-                        },
-                        {
-                            'version': 6,
-                            'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
-                        }
-                    ],
-                    'private': [
-                        {
-                            'version': 4,
-                            'addr': '10.10.10.10'
-                        }]
-                },
-                'ip': '8.8.8.8',
-                'region': 'North',
-                'public_ip': '4.4.4.4',
-                'private_ip': '10.10.10.10',
-                'id': 'fake_server_id',
-                'status-message': '',
-                'rackconnect-automation-status': 'UNPROCESSABLE'
+                    'addresses': {
+                        'public': [
+                            {
+                                'version': 4,
+                                'addr': '4.4.4.4'
+                            },
+                            {
+                                'version': 6,
+                                'addr': '2001:4800:780e:0510'
+                                        ':d87b:9cbc:ff04:513a'
+                            }
+                        ],
+                        'private': [
+                            {
+                                'version': 4,
+                                'addr': '10.10.10.10'
+                            }]
+                    },
+                    'ip': '8.8.8.8',
+                    'region': 'North',
+                    'public_ip': '4.4.4.4',
+                    'private_ip': '10.10.10.10',
+                    'id': 'fake_server_id',
+                    'status-message': '',
+                    'rackconnect-automation-status': 'UNPROCESSABLE'
                 }
-
             }
         }
-        expected = {
+
+        expected_result = {
             'instance:1': {
                 'status': 'ACTIVE',
                 'addresses': {
@@ -604,11 +561,10 @@ class TestNovaCompute(test.ProviderTester):
                                         'North',
                                         api=openstack_api_mock)
 
-        self.assertDictEqual(results, expected)
+        self.assertDictEqual(results, expected_result)
         postback.assert_called_once_with("DEP",
                                          {"resources": expected_resource})
         openstack_api_mock.servers.find.assert_called_once_with(id=server.id)
-
 
     @mock.patch.object(cm_deps.tasks, 'postback')
     def test_wait_on_build(self, postback):
@@ -639,7 +595,6 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {}
         server.accessIPv4 = "4.4.4.4"
 
-
         #Create appropriate api mocks
         openstack_api_mock = mock.MagicMock()
         openstack_api_mock.client = mock.MagicMock()
@@ -654,24 +609,25 @@ class TestNovaCompute(test.ProviderTester):
             '1': {
                 "status": "ACTIVE",
                 "instance": {
-                'status': 'ACTIVE',
-                'addresses': {
-                    'public': [
-                        {
-                            'version': 4,
-                            'addr': '4.4.4.4'
-                        },
-                        {
-                            'version': 6,
-                            'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
-                        }],
-                    'private': [
-                        {
-                            'version': 4,
-                            'addr': '10.10.10.10'
-                        }
-                    ]
-                },
+                    'status': 'ACTIVE',
+                    'addresses': {
+                        'public': [
+                            {
+                                'version': 4,
+                                'addr': '4.4.4.4'
+                            },
+                            {
+                                'version': 6,
+                                'addr': '2001:4800:780e:0510:'
+                                        'd87b:9cbc:ff04:513a'
+                            }],
+                        'private': [
+                            {
+                                'version': 4,
+                                'addr': '10.10.10.10'
+                            }
+                        ]
+                    },
                 'ip': '4.4.4.4',
                 'region': 'North',
                 'public_ip': '4.4.4.4',
@@ -942,7 +898,6 @@ class TestNovaCompute(test.ProviderTester):
                 }
             }
         })
-
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.cmdeps')

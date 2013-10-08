@@ -672,7 +672,6 @@ class ProviderTask(celery.Task):
             results.update(resources)
             return results
 
-
     def callback(self, context, data, resource_key=None):
         """Calls postback with instance.id to ensure posted to resource."""
         if not data:
@@ -696,7 +695,6 @@ class ProviderTask(celery.Task):
                                   context['deployment'], results)
 
         return results
-
 
 
 class RackspaceProviderTask(ProviderTask):
