@@ -2987,6 +2987,28 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       .then($scope.load, $scope.show_error);
   };
 
+  $scope.take_offline = function(deployment, resource) {
+    var resource_name = resource['dns-name'];
+    Deployment.take_offline(deployment, resource).then(
+      function success(response) {
+        $scope.notify(resource_name + ' will be taken offline');
+        $scope.load();
+      },
+      $scope.show_error
+    );
+  }
+
+  $scope.bring_online = function(deployment, resource) {
+    var resource_name = resource['dns-name'];
+    Deployment.bring_online(deployment, resource).then(
+      function success(response) {
+        $scope.notify(resource_name + ' will be online shortly');
+        $scope.load();
+      },
+      $scope.show_error
+    );
+  }
+
   $scope.display_progress_bar = function() {
     return ($scope.data.operation && $scope.data.operation.status != 'COMPLETE');
   };

@@ -501,4 +501,100 @@ describe('DeploymentController', function(){
       expect(promise.then.getCall(0).args[1]).toEqual('fake show error');
     });
   });
+
+  describe('take_offline', function() {
+    var deferred, $rootScope;
+    beforeEach(inject(function($injector) {
+      $rootScope = $injector.get('$rootScope');
+      var $q = $injector.get('$q');
+      deferred = $q.defer();
+      Deployment.take_offline = sinon.stub().returns(deferred.promise);
+
+      $scope.load = sinon.spy();
+      $scope.notify = sinon.spy();
+      $scope.show_error = sinon.spy();
+
+      var deployment = 'fake deployment';
+      var resource = { 'dns-name': 'fakename' };
+      $scope.take_offline(deployment, resource);
+    }));
+
+    it('should forward calls to Deployment service', function() {
+      expect(Deployment.take_offline).toHaveBeenCalledWith('fake deployment', {'dns-name': 'fakename'});
+    });
+
+    describe('- on success:', function() {
+      beforeEach(function() {
+        deferred.resolve('Success!');
+        $rootScope.$apply();
+      });
+
+      it('should reload the page', function() {
+        expect($scope.load).toHaveBeenCalled();
+      });
+
+      it('should notify the user', function() {
+        expect($scope.notify).toHaveBeenCalledWith('fakename will be taken offline');
+      });
+    });
+
+    describe('- on failure:', function() {
+      beforeEach(function() {
+        deferred.reject('Failure! =(');
+        $rootScope.$apply();
+      });
+
+      it('should display the error', function() {
+        expect($scope.show_error).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('bring_online', function() {
+    var deferred, $rootScope;
+    beforeEach(inject(function($injector) {
+      $rootScope = $injector.get('$rootScope');
+      var $q = $injector.get('$q');
+      deferred = $q.defer();
+      Deployment.bring_online = sinon.stub().returns(deferred.promise);
+
+      $scope.load = sinon.spy();
+      $scope.notify = sinon.spy();
+      $scope.show_error = sinon.spy();
+
+      var deployment = 'fake deployment';
+      var resource = { 'dns-name': 'fakename' };
+      $scope.bring_online(deployment, resource);
+    }));
+
+    it('should forward calls to Deployment service', function() {
+      expect(Deployment.bring_online).toHaveBeenCalledWith('fake deployment', {'dns-name': 'fakename'});
+    });
+
+    describe('- on success:', function() {
+      beforeEach(function() {
+        deferred.resolve('Success!');
+        $rootScope.$apply();
+      });
+
+      it('should reload the page', function() {
+        expect($scope.load).toHaveBeenCalled();
+      });
+
+      it('should notify the user', function() {
+        expect($scope.notify).toHaveBeenCalledWith('fakename will be online shortly');
+      });
+    });
+
+    describe('- on failure:', function() {
+      beforeEach(function() {
+        deferred.reject('Failure! =(');
+        $rootScope.$apply();
+      });
+
+      it('should display the error', function() {
+        expect($scope.show_error).toHaveBeenCalled();
+      });
+    });
+  });
 });

@@ -6,24 +6,7 @@
 
     <tr ng-repeat="resource in resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
       <td>
-        <div class="dropdown" ng-show="urlBuilder.is_valid(resource)">
-          <a class="dropdown-toggle">{{resource['dns-name']}}</a>
-          <ul class="dropdown-menu">
-            <li>
-              <a target="_blank" ng-href="{{urlBuilder.get_url('cloud_control', resource, data.tenantId, auth.context.username)}}">Cloud Control</a>
-            </li>
-            <li>
-              <a target="_blank" ng-href="{{urlBuilder.get_url('my_cloud', resource, data.tenantId, auth.context.username)}}">My Cloud</a>
-            </li>
-            <li>
-              <a target="_blank" ng-href="{{urlBuilder.get_url('nova_stats', resource, data.tenantId, auth.context.username)}}">Nova Stats</a>
-            </li>
-            <li>
-              <a ng-href="{{urlBuilder.get_url('ssh', resource, data.tenantId, auth.context.username)}}">SSH</a>
-            </li>
-          </ul>
-        </div>
-        <span ng-hide="urlBuilder.is_valid(resource)">{{resource['dns-name']}} ({{resource.provider}})</span>
+        <ng-include src="'/partials/deployments/_resource_actions.html'"></ng-include>
       </td>
       <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
       <td>{{resource.instance.public_ip}}</td>

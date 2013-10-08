@@ -77,7 +77,7 @@ describe('Deployment service', function(){
       var deployment = { id: 987, tenantId: 123 };
       var service_name = 'web';
       var num_nodes = 3;
-      $httpBackend.expectPOST('/123/deployments/987/+add-nodes.json', { service_name: 'web', count: 3 }).respond(200, '');
+      $httpBackend.expectPOST('/123/deployments/987/+add-nodes', { service_name: 'web', count: 3 }).respond(200, '');
       Deployment.add_nodes(deployment, service_name, num_nodes);
       $httpBackend.flush();
     });
@@ -107,13 +107,13 @@ describe('Deployment service', function(){
     })
 
     it('should post a list of comma separated resource ids, number of nodes, and service name', function() {
-      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { service_name: 'web', count: 3, victim_list: ['0','1','2'] }).respond(200, '');
+      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes', { service_name: 'web', count: 3, victim_list: ['0','1','2'] }).respond(200, '');
       Deployment.delete_nodes(deployment, 'web', 3, resources);
     });
 
     it('should include only resources in service plan', function() {
       deployment.plan.services.web.component.instances = ['0', '2'];
-      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { service_name: 'web', count: 2, victim_list: ['0','2']  }).respond(200, '');
+      $httpBackend.expectPOST('/123/deployments/987/+delete-nodes', { service_name: 'web', count: 2, victim_list: ['0','2']  }).respond(200, '');
       Deployment.delete_nodes(deployment, 'web', 2, resources);
     });
 
@@ -123,7 +123,7 @@ describe('Deployment service', function(){
           { index: '1', service: 'web', hosted_on: '0' },
         ];
         deployment.plan.services.web.component.instances = ['0'];
-        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { service_name: 'web', count: 1, victim_list: ['0']  }).respond(200, '');
+        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes', { service_name: 'web', count: 1, victim_list: ['0']  }).respond(200, '');
         Deployment.delete_nodes(deployment, 'web', 1, resources);
       });
 
@@ -132,9 +132,29 @@ describe('Deployment service', function(){
           { index: '1', service: 'web', hosts: ['0'] },
         ];
         deployment.plan.services.web.component.instances = ['0'];
-        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes.json', { service_name: 'web', count: 1, victim_list: ['0']  }).respond(200, '');
+        $httpBackend.expectPOST('/123/deployments/987/+delete-nodes', { service_name: 'web', count: 1, victim_list: ['0']  }).respond(200, '');
         Deployment.delete_nodes(deployment, 'web', 1, resources);
       });
+    });
+  });
+
+  describe('#take_offline', function() {
+    it('should post deployment and resource information to server', function() {
+      var deployment = { id: 987, tenantId: 123 };
+      var resource = { index: '1', 'dns-name': 'fake resource' };
+      $httpBackend.expectPOST('/123/deployments/987/resources/1/+take-offline').respond(200, '');
+      Deployment.take_offline(deployment, resource);
+      $httpBackend.flush();
+    });
+  });
+
+  describe('#bring_online', function() {
+    it('should post deployment and resource information to server', function() {
+      var deployment = { id: 987, tenantId: 123 };
+      var resource = { index: '1', 'dns-name': 'fake resource' };
+      $httpBackend.expectPOST('/123/deployments/987/resources/1/+bring-online').respond(200, '');
+      Deployment.bring_online(deployment, resource);
+      $httpBackend.flush();
     });
   });
 

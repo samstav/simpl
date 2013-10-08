@@ -2009,8 +2009,18 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
       url += '/' + action;
     }
 
-    url += '.json';
     return url;
+  }
+
+  var _get_resource_url = function(deployment, resource, action) {
+    var deployment_url = get_deployment_url(deployment);
+    var resource_url = deployment_url+'/resources/'+resource.index;
+
+    if (action) {
+      resource_url += '/' + action;
+    }
+
+    return resource_url;
   }
 
   scope.status = function(deployment) {
@@ -2077,6 +2087,18 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
     }
 
     return available_services;
+  }
+
+  scope.take_offline = function(deployment, resource) {
+    var data = {};
+    var url = _get_resource_url(deployment, resource, '+take-offline');
+    return $http.post(url, data);
+  }
+
+  scope.bring_online = function(deployment, resource) {
+    var data = {};
+    var url = _get_resource_url(deployment, resource, '+bring-online');
+    return $http.post(url, data);
   }
 
   scope.sync =  function(deployment, success_callback, error_callback){
