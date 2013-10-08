@@ -647,3 +647,21 @@ tr:hover .off-table-left {
 .cm-tips {
   color: #999;
 }
+
+#new_blueprint_container .editor_side_container {
+  height: inherit;
+}
+
+.editor_side_container .tabbable {
+  height: 87%;
+  margin-top: 12px;
+}
+
+.editor_side_container .tab-content {
+  height: inherit;
+  border-bottom: solid grey 1px;
+}
+
+.editor_side_container .tab-pane {
+  padding-bottom: 32px;
+}

@@ -3448,14 +3448,14 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
     $scope.deployment_json = jsyaml.safeDump(JSON.parse($scope.deployment_json));
     $scope.codemirror_options.lint = false;
     $scope.codemirror_options.mode = 'text/x-yaml';
-    $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
+    $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
   }
 
   var _to_json = function() {
     $scope.deployment_json = JSON.stringify(jsyaml.safeLoad($scope.deployment_json), null, 2);
     $scope.codemirror_options.lint = true;
     $scope.codemirror_options.mode = 'application/json';
-    $scope.codemirror_options.onGutterClick = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
+    $scope.foldFunc= CodeMirror.newFoldFunction(CodeMirror.fold.brace);
   }
 
   $scope.toggle_editor_type = function() {
@@ -3563,6 +3563,7 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
     });
   }
 
+  $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
   $scope.codemirror_options = {
     onLoad: $scope.newBlueprintCodemirrorLoaded,
     theme: 'lesser-dark',
