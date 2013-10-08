@@ -2545,15 +2545,7 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
 
   // ===== Provider =====
   provider.docs = function(filename) {
-    try {
-      jQuery.ajax(filename, {dataType: 'text'}).success(function(data){
-        _docs = jsyaml.safeLoad(data);
-      }).error(function(){
-        console.log('Could not load YAML file ' + filename)
-      });
-    } catch(err) {
-      console.log("YAML file for Blueprint documentation could not be parsed");
-    }
+    provider._filename = filename;
   }
 
   provider.any_key = function(any_key) {
@@ -2564,7 +2556,14 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
     _text_key = text_key;
   }
 
-  provider.$get = function() {
+  provider.$get = function($http) {
+    $http.get(provider._filename).then(function(response){
+      try {
+        _docs = jsyaml.safeLoad(response.data);
+      } catch(err) {
+        console.log("YAML file for Blueprint documentation could not be parsed");
+      }
+    });
     return scope;
   }
 
