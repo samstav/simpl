@@ -321,8 +321,8 @@ blueprint:
         type:
           _: "A shortcut for resource-type"
 
-        constraints: &constraints
-          _: |
+        constraints:
+          _: &constraints_help |
             An array of mappings (key/value pairs) in the standard Checkmate constraints syntax. Supported constraints are:
 
             * _greater-than_: self-explanatory (for strings or integers)
@@ -342,7 +342,7 @@ blueprint:
               constraints:
               - count: 2
           any:
-            *constraints
+            _: *constraints_help
 
       relations:
         _: |
@@ -743,7 +743,7 @@ blueprint:
     _: ""
 
     constrains: &constrains
-      _: |
+      _: &constrains_help |
         constrains: (v. not noun) what values within components that this option constrains. Key value to select the options, and then the option name. Example:
 
         Example:
@@ -754,7 +754,7 @@ blueprint:
           attribute: private_key # this will take the private_key value from the generated keys and apply it as the value for 'key' in the my_database_thang component.
         ```
       any:
-        *constrains
+        _: *constrains_help
 
   resources:
     _: static resources to be created at planning time and shared across the blueprint. For example, users and keys.
