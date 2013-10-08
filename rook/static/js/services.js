@@ -2546,7 +2546,11 @@ angular.module('checkmate.services').provider('BlueprintDocs', [function() {
   // ===== Provider =====
   provider.docs = function(filename) {
     try {
-      _docs = YAML.load(filename);
+      jQuery.ajax(filename, {dataType: 'text'}).success(function(data){
+        _docs = jsyaml.safeLoad(data);
+      }).error(function(){
+        console.log('Could not load YAML file ' + filename)
+      });
     } catch(err) {
       console.log("YAML file for Blueprint documentation could not be parsed");
     }

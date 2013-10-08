@@ -321,7 +321,7 @@ blueprint:
         type:
           _: "A shortcut for resource-type"
 
-        constraints:
+        constraints: &constraints_info
           _type: array
           _: |
             An array of mappings (key/value pairs) in the standard Checkmate constraints syntax. Supported constraints are:
@@ -342,6 +342,8 @@ blueprint:
 
               constraints:
               - count: 2
+          any:
+            *constraints_info
 
       relations:
         _: |
