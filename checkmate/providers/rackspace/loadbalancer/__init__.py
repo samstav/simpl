@@ -517,7 +517,11 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                 LOG.info("Updated %s:%d from load balancer %d", node.address,
                          node.port, lbid)
                 # We return this at the end of the call
-            results = {'id': node.id}
+            results = {
+                instance_key: {
+                    'nodes': [node.id]
+                }
+            }
         elif node.address == PLACEHOLDER_IP:
             # This is the dummy, placeholder node
             placeholder = node
