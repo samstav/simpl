@@ -527,6 +527,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
         node = api.Node(address=ipaddr, port=port, condition="ENABLED")
         try:
             _, body = loadbalancer.add_nodes([node])
+            node_id = body.get('nodes')[0].get('id')
 
             # I don't believe you! Check... this has been unreliable. Possible
             # because we need to refresh nodes
@@ -537,7 +538,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
                          lbid)
                 results = {
                     instance_key: {
-                        'nodes': [body.get('nodes')[0].get('id')]
+                        'nodes': [node_id]
                     }
                 }
                 deployments.resource_postback.delay(context['deployment'],
@@ -545,7 +546,7 @@ def add_node(context, lbid, ipaddr, region, resource, api=None):
             else:
                 LOG.warning("CloudLB says node %s (ID=%s) was added to LB %s, "
                             "but upon validating, it does not look like that "
-                            "is the case!", ipaddr, results[0].id, lbid)
+                            "is the case!", ipaddr, node_id, lbid)
                 # Try again!
                 exc = exceptions.CheckmateException("Validation failed - "
                                                     "Node was not added")
