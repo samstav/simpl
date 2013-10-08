@@ -39,8 +39,8 @@ from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
 from checkmate import providers as cmprov
-from checkmate.providers import RackspaceProviderTask
 from checkmate.providers.rackspace import base
+from checkmate.providers import RackspaceProviderTask
 from checkmate import rdp
 from checkmate import ssh
 from checkmate import utils
@@ -1231,7 +1231,7 @@ def delete_server_task(context, api=None):
             server = api.servers.get(inst_id)
     except (ncexc.NotFound, ncexc.NoUniqueMatch):
         LOG.warn("Server %s already deleted", inst_id)
-    except requests.ConnectionError as exc:
+    except requests.ConnectionError:
         msg = ("Connection error talking to %s endpoint" %
                (api.client.management_url))
         LOG.error(msg, exc_info=True)
