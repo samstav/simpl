@@ -782,10 +782,12 @@ class Router(object):
         if utils.is_simulation(api_id):
             bottle.request.environ['context'].simulation = True
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
-        if not deployment.get('resources').get(r_id):
+        deployment = cmdeploy.Deployment(deployment)
+        resource = deployment.get('resources').get(r_id)
+        if not resource:
             bottle.abort(404, "No resource %s in deployment %s" %
                               (r_id, api_id))
-        deployment = cmdeploy.Deployment(deployment)
+        self._validate_node_update_call(deployment, resource)
         context = bottle.request.environ['context']
         operation = self.manager.deploy_workflow(context, deployment,
                                                  tenant_id, "TAKE OFFLINE",
@@ -802,10 +804,12 @@ class Router(object):
         if utils.is_simulation(api_id):
             bottle.request.environ['context'].simulation = True
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
-        if not deployment.get('resources').get(r_id):
+        deployment = cmdeploy.Deployment(deployment)
+        resource = deployment.get('resources').get(r_id)
+        if not resource:
             bottle.abort(404, "No resource %s in deployment %s" %
                               (r_id, api_id))
-        deployment = cmdeploy.Deployment(deployment)
+        self._validate_node_update_call(deployment, resource)
         context = bottle.request.environ['context']
         operation = self.manager.deploy_workflow(context, deployment,
                                                  tenant_id, "BRING ONLINE",
@@ -813,3 +817,14 @@ class Router(object):
         wf_tasks.cycle_workflow.delay(operation['workflow-id'],
                                       context.get_queued_task_dict())
         return utils.write_body(deployment, bottle.request, bottle.response)
+
+    @staticmethod
+    def _validate_node_update_call(deployment, resource):
+        """Validates lb node status update calls."""
+        service = resource.get('service')
+        index = resource.get('index')
+        valid_resource_keys = deployment.get_resources_for_service(
+            service).keys()
+        if index not in valid_resource_keys:
+            raise exceptions.CheckmateValidationException(
+                "Resource id %s is not valid" % index)

@@ -52,10 +52,19 @@ class TestAPICalls(unittest.TestCase):
     def test_take_resource_offline(self, mock_delay):
         deployment = {
             'resources': {
-                'RES_ID': {'instance': {}}
+                '0': {'instance': {}, 'index': '0', 'service': 'web'}
             },
             'created': 'time',
-            'status': 'UP'
+            'status': 'UP',
+            'plan': {
+                'services': {
+                    'web': {
+                        'component': {
+                            'instances': ['0']
+                        }
+                    }
+                }
+            }
         }
         self.manager.get_deployment.return_value = deployment
         self.manager.deploy_workflow.return_value = {
@@ -63,14 +72,14 @@ class TestAPICalls(unittest.TestCase):
         }
         #mock_request.environ = dict(context=self.filters.context)
         self.filters.context.get_queued_task_dict = mock.Mock(return_value={})
-        res = self.app.post('/T1000/deployments/DEP_ID/resources/RES_ID'
+        res = self.app.post('/T1000/deployments/DEP_ID/resources/0'
                             '/+take-offline', content_type='application/json')
         self.assertEqual(res.status, "200 OK")
         self.manager.get_deployment.assert_was_called_with("DEP_ID",
                                                            tenant_id="T1000")
         self.manager.deploy_workflow.assert_called_once_with(
             self.filters.context, deployment, "T1000", "TAKE OFFLINE",
-            resource_id="RES_ID")
+            resource_id="0")
         mock_delay.assert_called_once_with('W_ID', self.filters.context)
 
     def test_take_resource_offline_for_non_existing_resource(self):
@@ -84,14 +93,48 @@ class TestAPICalls(unittest.TestCase):
         self.manager.get_deployment.assert_was_called_with("DEP_ID",
                                                            tenant_id="T1000")
 
+    def test_take_resource_offline_for_invalid_resource(self):
+        deployment = {
+            'resources': {
+                '0': {'instance': {}, 'index': '0', 'service': 'web'}
+            },
+            'created': 'time',
+            'status': 'UP',
+            'plan': {
+                'services': {
+                    'web': {
+                        'component': {
+                            'instances': ['1']
+                        }
+                    }
+                }
+            }
+        }
+        self.manager.get_deployment.return_value = deployment
+        url = '/T1000/deployments/DEP_ID/resources/0/+take-offline'
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          self.app.post, url,
+                          content_type='application/json', expect_errors=True)
+        self.manager.get_deployment.assert_was_called_with("DEP_ID",
+                                                           tenant_id="T1000")
+
     @mock.patch('checkmate.workflows.tasks.cycle_workflow.delay')
     def test_bring_resource_online(self, mock_delay):
         deployment = {
             'resources': {
-                'RES_ID': {'instance': {}}
+                '0': {'instance': {}, 'index': '0', 'service': 'web'}
             },
             'created': 'time',
-            'status': 'UP'
+            'status': 'UP',
+            'plan': {
+                'services': {
+                    'web': {
+                        'component': {
+                            'instances': ['0']
+                        }
+                    }
+                }
+            }
         }
         self.manager.get_deployment.return_value = deployment
         self.manager.deploy_workflow.return_value = {
@@ -99,24 +142,49 @@ class TestAPICalls(unittest.TestCase):
         }
         self.filters.context.get_queued_task_dict = mock.Mock()
         self.filters.context.get_queued_task_dict.return_value = {}
-        res = self.app.post('/T1000/deployments/DEP_ID/resources/RES_ID'
+        res = self.app.post('/T1000/deployments/DEP_ID/resources/0'
                             '/+bring-online', content_type='application/json')
         self.assertEqual(res.status, "200 OK")
         self.manager.get_deployment.assert_was_called_with("DEP_ID",
                                                            tenant_id="T1000")
         self.manager.deploy_workflow.assert_called_once_with(
             self.filters.context, deployment, "T1000", "BRING ONLINE",
-            resource_id="RES_ID")
+            resource_id="0")
         mock_delay.assert_called_once_with('W_ID', self.filters.context)
 
     def test_get_resource_online_for_non_existing_resource(self):
         deployment = {'resources': {}}
         self.manager.get_deployment.return_value = deployment
-        res = self.app.post('/T1000/deployments/DEP_ID/resources/RES_ID'
-                            '/+get-online',
+        res = self.app.post('/T1000/deployments/DEP_ID/resources/0'
+                            '/+bring-online',
                             content_type='application/json',
                             expect_errors=True)
         self.assertEqual(res.status, "404 Not Found")
+        self.manager.get_deployment.assert_was_called_with("DEP_ID",
+                                                           tenant_id="T1000")
+
+    def test_get_resource_online_for_invalid_resource(self):
+        deployment = {
+            'resources': {
+                '0': {'instance': {}, 'index': '0', 'service': 'web'}
+            },
+            'created': 'time',
+            'status': 'UP',
+            'plan': {
+                'services': {
+                    'web': {
+                        'component': {
+                            'instances': ['1']
+                        }
+                    }
+                }
+            }
+        }
+        self.manager.get_deployment.return_value = deployment
+        url = '/T1000/deployments/DEP_ID/resources/0/+bring-online'
+        self.assertRaises(exceptions.CheckmateValidationException,
+                          self.app.post, url,
+                          content_type='application/json', expect_errors=True)
         self.manager.get_deployment.assert_was_called_with("DEP_ID",
                                                            tenant_id="T1000")
 
