@@ -1,3 +1,11 @@
+<dl ng-show="resources_info.error">
+  <dd class="alert alert-error">
+    <span class="text-error">There was a problem while checking for errors!</span>
+    <br />
+    <span>{{resources_info.error}}</span>
+  </dd>
+</dl>
+
 <dl ng-hide="resources_info.has_errors">
   <dd class="alert alert-success">
     <span class="text-success">No errors found. You're good to go!</span>

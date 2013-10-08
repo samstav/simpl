@@ -2860,7 +2860,8 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       },
       function error(response) {
         $scope.loading.check = false;
-        $scope.resources_info.error = "Error while checking deployment...";
+        $scope.resources_info.has_errors = true;
+        $scope.resources_info.error = response;
       }
     );
   }
