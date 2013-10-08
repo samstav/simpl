@@ -615,7 +615,8 @@ class Router(object):
         updates = {'meta-data': {'requested-sync': utils.get_time_string()}}
         deployment = self._setup_deployment(api_id, tenant_id)
         try:
-            statuses = deployment.get_statuses(bottle.request.environ['context'])
+            statuses = deployment.get_statuses(
+                bottle.request.environ['context'])
             updates['resources'] = statuses['resources']
             updates.update(
                 common_tasks.update_operation(
@@ -637,7 +638,7 @@ class Router(object):
     def check_deployment(self, api_id, tenant_id=None):
         """Check instance statuses."""
         deployment = self._setup_deployment(api_id, tenant_id)
-        statuses = deployment.get_statuses(bottle.request.environ['context'])
+        deployment.get_statuses(bottle.request.environ['context'])
         return utils.write_body(
             utils.format_check(deployment.get('resources')),
             bottle.request,
