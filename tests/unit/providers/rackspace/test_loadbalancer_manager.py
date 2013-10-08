@@ -323,7 +323,7 @@ class TestAddNode(unittest.TestCase):
         mock_api.get.return_value = old_lb
 
         actual = manager.Manager.add_node("LB_ID", "0.0.0.0", mock_api)
-        self.assertDictEqual({'id': "NODE_ID"}, actual)
+        self.assertDictEqual({'nodes': ["NODE_ID"]}, actual)
         mock_api.get.assert_called_once_with("LB_ID")
 
     def test_for_existing_disabled_node(self):
@@ -335,7 +335,7 @@ class TestAddNode(unittest.TestCase):
         mock_api.get.return_value = old_lb
 
         actual = manager.Manager.add_node(1234, "0.0.0.0", mock_api)
-        self.assertDictEqual({'id': "NODE_ID"}, actual)
+        self.assertDictEqual({'nodes': ["NODE_ID"]}, actual)
         self.assertTrue(node.update.called)
         self.assertEqual(node.port, 80)
         self.assertEqual(node.condition, "ENABLED")

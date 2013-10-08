@@ -296,7 +296,7 @@ class Manager(object):
                     LOG.info("Updated %s:%d from load balancer %d",
                              node.address, node.port, lb_id)
                     # We return this at the end of the call
-                results = {'id': node.id}
+                results = {'nodes': [node.id]}
             elif node.address == PLACEHOLDER_IP:
                 # This is the dummy, placeholder node
                 placeholder = node
@@ -321,7 +321,7 @@ class Manager(object):
                     LOG.warning("CloudLB says node %s (ID=%s) was added to LB "
                                 "%s, but upon validating, it does not look "
                                 "like that is the case!", ip_addr,
-                                node_id.id, lb_id)
+                                node_id, lb_id)
                     # Try again!
                     raise exceptions.CheckmateException("Validation failed - "
                                                         "Node was not added")
