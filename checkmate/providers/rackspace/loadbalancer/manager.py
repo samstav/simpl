@@ -315,6 +315,7 @@ class Manager(object):
             node = api.Node(address=ip_addr, port=port, condition="ENABLED")
             try:
                 _, body = loadbalancer.add_nodes([node])
+                node_id = body.get('nodes')[0].get('id')
                 # I don't believe you! Check... this has been unreliable.
                 # Possible because we need to refresh nodes
                 lb_fresh = api.get(lb_id)
@@ -323,13 +324,13 @@ class Manager(object):
                     LOG.info("Added node %s:%s to load balancer %s", ip_addr,
                              port, lb_id)
                     results = {
-                        'nodes': [body.get('nodes')[0].get('id')]
+                        'nodes': [node_id]
                     }
                 else:
                     LOG.warning("CloudLB says node %s (ID=%s) was added to LB "
                                 "%s, but upon validating, it does not look "
                                 "like that is the case!", ip_addr,
-                                results[0].id, lb_id)
+                                node_id.id, lb_id)
                     # Try again!
                     raise exceptions.CheckmateException("Validation failed - "
                                                         "Node was not added")

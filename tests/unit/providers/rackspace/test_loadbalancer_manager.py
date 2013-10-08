@@ -307,12 +307,12 @@ class TestAddNode(unittest.TestCase):
         fresh_lb = mock.Mock(nodes=[node])
         mock_api.get.side_effect = [old_lb, fresh_lb]
         mock_api.Node.return_value = node
-        old_lb.add_nodes.return_value = [mock.Mock(id="NODE_ID")]
+        old_lb.add_nodes.return_value = (None, {'nodes': [{'id': 3456}]})
 
-        actual = manager.Manager.add_node("LB_ID", "0.0.0.0", mock_api)
-        self.assertDictEqual({'id': "NODE_ID"}, actual)
+        actual = manager.Manager.add_node(1234, "0.0.0.0", mock_api)
+        self.assertDictEqual({'nodes': [3456]}, actual)
         old_lb.add_nodes.assert_called_once_with([node])
-        calls = [mock.call('LB_ID'), mock.call('LB_ID')]
+        calls = [mock.call(1234), mock.call(1234)]
         mock_api.get.assert_has_calls(calls)
 
     def test_for_existing_node(self):
