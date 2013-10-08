@@ -30,10 +30,11 @@ Priv Key: {{formatted_data.private_key}}
             <a ng-href="/deployments/new?blueprint={{get_blueprint_url(data)}}">
               {{data.blueprint.name}}
             </a>
-            by
-            <span>
-              <a ng-href="/{{data.tenantId}}/deployments" ng-hide="is_admin()">{{data['created-by']}}</a>
-              <a ng-href="/admin/deployments?tenant_id={{data.tenantId}}" ng-show="is_admin()">{{data['created-by']}}</a>
+            <span ng-show="is_admin(true)">
+              by
+              <a ng-click="impersonate(data['created-by'])" ng-show="is_admin()" tooltip="Impersonate this user">
+                {{data['created-by']}}
+              </a>
             </span>:
             <span id="status" class="label" ng-class="{
               'label-info': data.status == 'PLANNED',
