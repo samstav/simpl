@@ -58,8 +58,6 @@ class Manager(object):
                             port=None, algorithm='ROUND_ROBIN', tags=None,
                             parent_lb=None, simulate=False):
         """Celery task to create Cloud Load Balancer."""
-        utils.match_celery_logging(LOG)
-
         if not port:
             port = 443 if "https" == protocol.lower() else 80
 
@@ -154,8 +152,6 @@ class Manager(object):
         """Checks to see if a lb's status is ACTIVE, so we can change resource
         status in deployment
         """
-
-        utils.match_celery_logging(LOG)
         assert lb_id, "ID must be provided"
         LOG.debug("Getting loadbalancer %s", lb_id)
 
@@ -186,7 +182,6 @@ class Manager(object):
                     timeout=10, attempts=3, body='(.*)',
                     status='^[234][0-9][0-9]$', simulate=False):
         """Create a monitor for a Cloud Load Balancer."""
-        utils.match_celery_logging(LOG)
         LOG.debug("Setting monitor on lbid: %s", lb_id)
 
         if simulate:
@@ -232,8 +227,6 @@ class Manager(object):
     @staticmethod
     def delete_node(lb_id, ip_addr, api, simulate=False):
         """Celery task to delete a node from a Cloud Load Balancer."""
-        utils.match_celery_logging(LOG)
-
         if simulate:
             return
 
@@ -266,8 +259,6 @@ class Manager(object):
     @staticmethod
     def add_node(lb_id, ip_addr, api, simulate=False):
         """Celery task to add a node to a Cloud Load Balancer."""
-        utils.match_celery_logging(LOG)
-
         if simulate:
             return
 
@@ -364,7 +355,6 @@ class Manager(object):
     @staticmethod
     def wait_on_lb_delete_task(lb_id, api, simulate=False):
         """DELETED status check."""
-        utils.match_celery_logging(LOG)
         dlb = None
 
         if simulate:
@@ -391,8 +381,6 @@ class Manager(object):
     @staticmethod
     def delete_lb_task(lb_id, api, simulate=False):
         """Celery task to delete a Cloud Load Balancer"""
-        utils.match_celery_logging(LOG)
-
         if simulate:
             results = {
                 'status': 'DELETING',
