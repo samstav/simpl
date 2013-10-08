@@ -177,6 +177,27 @@ describe('DeploymentController', function(){
     });
   });
 
+  describe('#group_resources', function() {
+    it('should return an empty group if there are no resources', function() {
+      expect($scope.group_resources()).toEqual({});
+    });
+
+    it('should group resources by dns-name', function() {
+      var resources = {
+        0: { 'dns-name': 'dns0', name: 'alpha' },
+        1: { 'dns-name': 'dns1', name: 'beta' },
+        2: { 'dns-name': 'dns0', name: 'gama' },
+        3: { 'dns-name': 'dns1', name: 'delta' },
+      };
+      var groups = $scope.group_resources(resources);
+      expect(groups['dns0']).toContain({'dns-name': 'dns0', name: 'alpha'});
+      expect(groups['dns0']).toContain({'dns-name': 'dns0', name: 'gama'});
+
+      expect(groups['dns1']).toContain({'dns-name': 'dns1', name: 'beta'});
+      expect(groups['dns1']).toContain({'dns-name': 'dns1', name: 'delta'});
+    });
+  });
+
   describe('#load', function() {
     it('should get the resource', function() {
       var resource_result = { get: sinon.spy() };
@@ -499,6 +520,104 @@ describe('DeploymentController', function(){
 
     it('should show_error() when call is not successful', function() {
       expect(promise.then.getCall(0).args[1]).toEqual('fake show error');
+    });
+  });
+
+  describe('take_offline', function() {
+    var deferred, $rootScope;
+    beforeEach(inject(function($injector) {
+      $rootScope = $injector.get('$rootScope');
+      var $q = $injector.get('$q');
+      deferred = $q.defer();
+      Deployment.take_offline = sinon.stub().returns(deferred.promise);
+
+      $scope.load = sinon.spy();
+      $scope.notify = sinon.spy();
+      $scope.show_error = sinon.spy();
+
+      var deployment = 'fake deployment';
+      var resource = { 'dns-name': 'fakename' };
+      Deployment.get_application = sinon.stub().returns(resource);
+      $scope.take_offline(deployment, resource);
+    }));
+
+    it('should forward calls to Deployment service', function() {
+      expect(Deployment.take_offline).toHaveBeenCalledWith('fake deployment', {'dns-name': 'fakename'});
+    });
+
+    describe('- on success:', function() {
+      beforeEach(function() {
+        deferred.resolve('Success!');
+        $rootScope.$apply();
+      });
+
+      it('should reload the page', function() {
+        expect($scope.load).toHaveBeenCalled();
+      });
+
+      it('should notify the user', function() {
+        expect($scope.notify).toHaveBeenCalledWith('fakename will be taken offline');
+      });
+    });
+
+    describe('- on failure:', function() {
+      beforeEach(function() {
+        deferred.reject('Failure! =(');
+        $rootScope.$apply();
+      });
+
+      it('should display the error', function() {
+        expect($scope.show_error).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('bring_online', function() {
+    var deferred, $rootScope;
+    beforeEach(inject(function($injector) {
+      $rootScope = $injector.get('$rootScope');
+      var $q = $injector.get('$q');
+      deferred = $q.defer();
+      Deployment.bring_online = sinon.stub().returns(deferred.promise);
+
+      $scope.load = sinon.spy();
+      $scope.notify = sinon.spy();
+      $scope.show_error = sinon.spy();
+
+      var deployment = 'fake deployment';
+      var resource = { 'dns-name': 'fakename' };
+      Deployment.get_application = sinon.stub().returns(resource);
+      $scope.bring_online(deployment, resource);
+    }));
+
+    it('should forward calls to Deployment service', function() {
+      expect(Deployment.bring_online).toHaveBeenCalledWith('fake deployment', {'dns-name': 'fakename'});
+    });
+
+    describe('- on success:', function() {
+      beforeEach(function() {
+        deferred.resolve('Success!');
+        $rootScope.$apply();
+      });
+
+      it('should reload the page', function() {
+        expect($scope.load).toHaveBeenCalled();
+      });
+
+      it('should notify the user', function() {
+        expect($scope.notify).toHaveBeenCalledWith('fakename will be online shortly');
+      });
+    });
+
+    describe('- on failure:', function() {
+      beforeEach(function() {
+        deferred.reject('Failure! =(');
+        $rootScope.$apply();
+      });
+
+      it('should display the error', function() {
+        expect($scope.show_error).toHaveBeenCalled();
+      });
     });
   });
 });

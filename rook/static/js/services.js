@@ -2009,8 +2009,18 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
       url += '/' + action;
     }
 
-    url += '.json';
     return url;
+  }
+
+  var _get_resource_url = function(deployment, resource, action) {
+    var deployment_url = get_deployment_url(deployment);
+    var resource_url = deployment_url+'/resources/'+resource.index;
+
+    if (action) {
+      resource_url += '/' + action;
+    }
+
+    return resource_url;
   }
 
   scope.status = function(deployment) {
@@ -2079,6 +2089,18 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
     return available_services;
   }
 
+  scope.take_offline = function(deployment, resource) {
+    var data = {};
+    var url = _get_resource_url(deployment, resource, '+take-offline');
+    return $http.post(url, data);
+  }
+
+  scope.bring_online = function(deployment, resource) {
+    var data = {};
+    var url = _get_resource_url(deployment, resource, '+bring-online');
+    return $http.post(url, data);
+  }
+
   scope.sync =  function(deployment, success_callback, error_callback){
     var Sync = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
     var sync = new Sync();
@@ -2089,6 +2111,19 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
     var Parse = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+parse.json', null, {'get': {method:'GET'}});
     var parse = new Parse(deployment);
     parse.$save({tenantId: tenant_id}, success_callback, error_callback)
+  }
+
+  scope.get_application = function(deployment, resource) {
+    if (resource.type == 'application')
+      return resource;
+
+    var hosted_resources = resource.hosts;
+    for (var i=0 ; i<hosted_resources.length ; i++) {
+      var idx = hosted_resources[i];
+      var current_resource = deployment.resources[idx];
+      if (current_resource.type == 'application')
+        return current_resource;
+    }
   }
 
   return scope;

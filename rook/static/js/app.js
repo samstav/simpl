@@ -2860,7 +2860,8 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       },
       function error(response) {
         $scope.loading.check = false;
-        $scope.resources_info.error = "Error while checking deployment...";
+        $scope.resources_info.has_errors = true;
+        $scope.resources_info.error = response;
       }
     );
   }
@@ -2921,6 +2922,19 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     })
   };
 
+  $scope.group_resources = function(resources) {
+    var groups = {};
+
+    angular.forEach(resources, function(r) {
+      var name = r['dns-name'];
+      if (!groups[name]) groups[name] = [];
+
+      groups[name].push(r);
+    });
+
+    return groups;
+  }
+
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
@@ -2933,6 +2947,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       if (data['operations-history'])
         $scope.operations_history = angular.copy(data['operations-history']).reverse();
       $scope.resources = _.values($scope.data.resources);
+      $scope.resource_groups = $scope.group_resources($scope.resources);
       $scope.showCommands = $scope.auth.is_current_tenant($scope.data.tenantId);
       $scope.abs_url = $location.absUrl();
       $scope.clippy_element = "#deployment_summary_clipping";
@@ -2986,6 +3001,30 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     Deployment.delete_nodes(deployment, service_name, num_nodes, selected_resources)
       .then($scope.load, $scope.show_error);
   };
+
+  $scope.take_offline = function(deployment, resource) {
+    var application = Deployment.get_application(deployment, resource);
+    var resource_name = application['dns-name'];
+    Deployment.take_offline(deployment, application).then(
+      function success(response) {
+        $scope.notify(resource_name + ' will be taken offline');
+        $scope.load();
+      },
+      $scope.show_error
+    );
+  }
+
+  $scope.bring_online = function(deployment, resource) {
+    var application = Deployment.get_application(deployment, resource);
+    var resource_name = application['dns-name'];
+    Deployment.bring_online(deployment, application).then(
+      function success(response) {
+        $scope.notify(resource_name + ' will be online shortly');
+        $scope.load();
+      },
+      $scope.show_error
+    );
+  }
 
   $scope.display_progress_bar = function() {
     return ($scope.data.operation && $scope.data.operation.status != 'COMPLETE');
