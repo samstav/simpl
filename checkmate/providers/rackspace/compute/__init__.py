@@ -1507,8 +1507,10 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
                 results['status'] = 'ERROR'
                 results['status-message'] = msg
                 results["rackconnect-automation-status"] = rc_automation_status
-                cmdeps.resource_postback.delay(deployment_id,
-                                               {instance_key: results})
+
+                context["instance_id"] = server_id
+                wait_on_build.partial(results)
+
                 raise cmexc.CheckmateException(message=msg,
                                                friendly_message=cmexc
                                                .UNEXPECTED_ERROR)
