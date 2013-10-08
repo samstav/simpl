@@ -71,9 +71,7 @@ class TestCommonTasks(unittest.TestCase):
         tasks.update_operation.lock_db = self.driver
         tasks.update_operation('DEP1', "WID", driver=self, x=1)
         tasks.operations.update_operation.assert_called_once_with(
-            'DEP1', 'WID', driver=self, deployment_status=None,
-            check_only=False, x=1
-        )
+            'DEP1', 'WID', driver=self, deployment_status=None, x=1)
 
     @mock.patch.object(tasks.operations, 'update_operation')
     def test_update_deployment_status(self, mock_update):
@@ -84,9 +82,7 @@ class TestCommonTasks(unittest.TestCase):
                                deployment_status="UP",
                                x=1)
         tasks.operations.update_operation.assert_called_once_with(
-            'DEP1', 'WID', driver=self, deployment_status='UP',
-            check_only=False, x=1
-        )
+            'DEP1', 'WID', driver=self, deployment_status='UP', x=1)
 
 
 if __name__ == '__main__':

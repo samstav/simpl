@@ -612,25 +612,37 @@ class Router(object):
     @utils.with_tenant
     def sync_deployment(self, api_id, tenant_id=None):
         """Sync existing deployment objects with current cloud status."""
+        updates = {'meta-data': {'requested-sync': utils.get_time_string()}}
         deployment = self._setup_deployment(api_id, tenant_id)
-        statuses = deployment.get_statuses(bottle.request.environ['context'])
-        tasks.postback(api_id, {'resources': statuses.get('resources', {})})
-        common_tasks.update_operation(
-            api_id, operations.current_workflow_id(deployment),
-            deployment_status=statuses['deployment_status'],
-            status=statuses['operation_status'])
+        try:
+            statuses = deployment.get_statuses(bottle.request.environ['context'])
+            updates['resources'] = statuses['resources']
+            updates.update(
+                common_tasks.update_operation(
+                    api_id,
+                    operations.current_workflow_id(deployment),
+                    deployment_status=statuses['deployment_status'],
+                    status=statuses['operation_status'],
+                    check_only=True
+                )
+            )
+            updates['meta-data']['last-sync'] = utils.get_time_string()
+        finally:
+            db.get_driver(api_id=api_id).save_deployment(api_id, updates,
+                                                         partial=True)
         return utils.write_body(
-            statuses.get('resources'), bottle.request, bottle.response)
+            statuses['resources'], bottle.request, bottle.response)
 
     @utils.with_tenant
     def check_deployment(self, api_id, tenant_id=None):
         """Check instance statuses."""
         deployment = self._setup_deployment(api_id, tenant_id)
         statuses = deployment.get_statuses(bottle.request.environ['context'])
-        check_results = tasks.postback(
-            api_id, {'resources': statuses.get('resources')}, check_only=True)
         return utils.write_body(
-            utils.format_check(check_results), bottle.request, bottle.response)
+            utils.format_check(deployment.get('resources')),
+            bottle.request,
+            bottle.response
+        )
 
     @utils.with_tenant
     def deploy_deployment(self, api_id, tenant_id=None):
