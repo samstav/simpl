@@ -16,7 +16,7 @@
         <cm-tree-view data="parsed_deployment_tree" width="640" height="480"></cm-tree-view>
       </pane>
 
-      <pane heading="Blueprint Options">
+      <pane heading="Preview Blueprint Options">
         <div class="entries">
           <form id='blueprint_options' name='blueprint_options'>
             <ng-include src="'/partials/blueprints/_options.html'"></ng-include>
@@ -24,7 +24,10 @@
         </div>
       </pane>
     </tabs>
+
+    <div class="row-fluid">
+      <a style="display:none;" ng-click="toggle_editor_type()">Toggle editor type</a>
+      <p style="display:none;">{{errors.conversion}}</p>
+    </div>
   </div>
-  <a ng-click="toggle_editor_type()">Toggle editor type</a>
-  <p>{{errors.conversion}}</p>
 </div>

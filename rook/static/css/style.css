@@ -653,14 +653,15 @@ tr:hover .off-table-left {
 }
 
 .editor_side_container .tabbable {
-  height: 100%;
+  height: 87%;
   margin-top: 12px;
 }
 
 .editor_side_container .tab-content {
-  height: 100%;
+  height: inherit;
+  border-bottom: solid grey 1px;
 }
 
 .editor_side_container .tab-pane {
-  padding-bottom: 96px;
+  padding-bottom: 32px;
 }
