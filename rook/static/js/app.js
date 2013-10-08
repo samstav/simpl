@@ -2922,6 +2922,19 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
     })
   };
 
+  $scope.group_resources = function(resources) {
+    var groups = {};
+
+    angular.forEach(resources, function(r) {
+      var name = r['dns-name'];
+      if (!groups[name]) groups[name] = [];
+
+      groups[name].push(r);
+    });
+
+    return groups;
+  }
+
   $scope.load = function() {
     console.log("Starting load");
     this.klass = $resource((checkmate_server_base || '') + $location.path() + '.json');
@@ -2934,6 +2947,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       if (data['operations-history'])
         $scope.operations_history = angular.copy(data['operations-history']).reverse();
       $scope.resources = _.values($scope.data.resources);
+      $scope.resource_groups = $scope.group_resources($scope.resources);
       $scope.showCommands = $scope.auth.is_current_tenant($scope.data.tenantId);
       $scope.abs_url = $location.absUrl();
       $scope.clippy_element = "#deployment_summary_clipping";
@@ -2989,8 +3003,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   };
 
   $scope.take_offline = function(deployment, resource) {
-    var resource_name = resource['dns-name'];
-    Deployment.take_offline(deployment, resource).then(
+    var application = Deployment.get_application(deployment, resource);
+    var resource_name = application['dns-name'];
+    Deployment.take_offline(deployment, application).then(
       function success(response) {
         $scope.notify(resource_name + ' will be taken offline');
         $scope.load();
@@ -3000,8 +3015,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   }
 
   $scope.bring_online = function(deployment, resource) {
-    var resource_name = resource['dns-name'];
-    Deployment.bring_online(deployment, resource).then(
+    var application = Deployment.get_application(deployment, resource);
+    var resource_name = application['dns-name'];
+    Deployment.bring_online(deployment, application).then(
       function success(response) {
         $scope.notify(resource_name + ' will be online shortly');
         $scope.load();

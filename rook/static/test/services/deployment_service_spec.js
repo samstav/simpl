@@ -178,4 +178,27 @@ describe('Deployment service', function(){
       expect(Deployment.available_services(deployment)).toEqual([]);
     });
   });
+
+  describe('#get_application', function() {
+    var deployment, resource;
+    beforeEach(function() {
+      resource = { type: 'application' };
+      deployment = { resources: {} };
+    });
+
+    it('should return resource if already of type application', function() {
+      var app_resource = Deployment.get_application(deployment, resource);
+      expect(app_resource.type).toEqual('application');
+    });
+
+    it('should get the application resource for that instance', function() {
+      resource.type = 'some instance';
+      resource.hosts = ['1'];
+      deployment.resources['1'] = { type: 'application', name: 'fake' };
+
+      var app_resource = Deployment.get_application(deployment, resource);
+      expect(app_resource.type).toEqual('application');
+      expect(app_resource.name).toEqual('fake');
+    });
+  });
 });

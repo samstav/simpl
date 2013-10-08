@@ -2,15 +2,22 @@
 
 <table class="table table-bordered table-condensed">
   <thead><tr><th>Name</th><th>Type</th><th>IP</th><th>Build Status</th></tr></thead>
-  <tbody>
+  <tbody ng-repeat="(name, resource) in resource_groups" ng-hide="name  === 'undefined'">
 
-    <tr ng-repeat="resource in resources" ng-hide="['application', 'key-pair', 'user', 'database', ''].indexOf(resource.type || '') > -1">
-      <td>
+    <tr>
+      <td rowspan=2>
         <ng-include src="'/partials/deployments/_resource_actions.html'"></ng-include>
       </td>
-      <td>{{resource.type}}{{resource.service | prepend: ' - '}}</td>
-      <td>{{resource.instance.public_ip}}</td>
-      <td>{{resource.status}} <span ng-show="resource['status-message']">({{resource['status-message']}})</span><span ng-show="resource['error-message']">({{resource['error-message']}})</span></td>
+      <td>{{resource[0].type}}{{resource[0].service | prepend: ' - '}}</td>
+      <td>{{resource[0].instance.public_ip}}</td>
+      <td>{{resource[0].status}} <span ng-show="resource[0]['status-message']">({{resource[0]['status-message']}})</span><span ng-show="resource[0]['error-message']">({{resource[0]['error-message']}})</span></td>
+    </tr>
+
+    <tr ng-if="resource[1] !== undefined">
+      <!-- rowspan padding here -->
+      <td>{{resource[1].type}}{{resource[1].service | prepend: ' - '}}</td>
+      <td>{{resource[1].instance.public_ip}}</td>
+      <td>{{resource[1].status}} <span ng-show="resource[1]['status-message']">({{resource[1]['status-message']}})</span><span ng-show="resource[1]['error-message']">({{resource[1]['error-message']}})</span></td>
     </tr>
 
   </tbody>

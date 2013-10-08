@@ -177,6 +177,27 @@ describe('DeploymentController', function(){
     });
   });
 
+  describe('#group_resources', function() {
+    it('should return an empty group if there are no resources', function() {
+      expect($scope.group_resources()).toEqual({});
+    });
+
+    it('should group resources by dns-name', function() {
+      var resources = {
+        0: { 'dns-name': 'dns0', name: 'alpha' },
+        1: { 'dns-name': 'dns1', name: 'beta' },
+        2: { 'dns-name': 'dns0', name: 'gama' },
+        3: { 'dns-name': 'dns1', name: 'delta' },
+      };
+      var groups = $scope.group_resources(resources);
+      expect(groups['dns0']).toContain({'dns-name': 'dns0', name: 'alpha'});
+      expect(groups['dns0']).toContain({'dns-name': 'dns0', name: 'gama'});
+
+      expect(groups['dns1']).toContain({'dns-name': 'dns1', name: 'beta'});
+      expect(groups['dns1']).toContain({'dns-name': 'dns1', name: 'delta'});
+    });
+  });
+
   describe('#load', function() {
     it('should get the resource', function() {
       var resource_result = { get: sinon.spy() };
@@ -516,6 +537,7 @@ describe('DeploymentController', function(){
 
       var deployment = 'fake deployment';
       var resource = { 'dns-name': 'fakename' };
+      Deployment.get_application = sinon.stub().returns(resource);
       $scope.take_offline(deployment, resource);
     }));
 
@@ -564,6 +586,7 @@ describe('DeploymentController', function(){
 
       var deployment = 'fake deployment';
       var resource = { 'dns-name': 'fakename' };
+      Deployment.get_application = sinon.stub().returns(resource);
       $scope.bring_online(deployment, resource);
     }));
 

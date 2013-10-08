@@ -2113,6 +2113,19 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
     parse.$save({tenantId: tenant_id}, success_callback, error_callback)
   }
 
+  scope.get_application = function(deployment, resource) {
+    if (resource.type == 'application')
+      return resource;
+
+    var hosted_resources = resource.hosts;
+    for (var i=0 ; i<hosted_resources.length ; i++) {
+      var idx = hosted_resources[i];
+      var current_resource = deployment.resources[idx];
+      if (current_resource.type == 'application')
+        return current_resource;
+    }
+  }
+
   return scope;
 }]);
 
