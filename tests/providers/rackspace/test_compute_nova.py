@@ -85,9 +85,6 @@ class TestNovaCompute(test.ProviderTester):
             },
         }
 
-        #Stub out postback call
-        # self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-
         #Create appropriate api mocks
         openstack_api_mock = mock.MagicMock()
         openstack_api_mock.servers = mock.MagicMock()
@@ -874,7 +871,6 @@ class TestNovaCompute(test.ProviderTester):
         mock_server = self.mox.CreateMockAnything()
         mock_server.status = 'DELETED'
         mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
-        # self.mox.StubOutWithMock(compute.cmdeps.resource_postback, 'delay')
         compute.cmdeps.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
         ret = compute.wait_on_delete_server(context, api=api)
