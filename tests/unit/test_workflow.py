@@ -670,6 +670,450 @@ class TestGetStatusInfo(unittest.TestCase):
                           'Please contact support'}, result)
 
 
+class TestBasicWorkflow(test.StubbedWorkflowBase):
+    def setUp(self):
+        test.StubbedWorkflowBase.setUp(self)
+        base.PROVIDER_CLASSES = {}
+        cmprov.register_providers(
+            [loadbalancer.Provider, test.TestProvider])
+        self.deployment = cmdep.Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: http
+                        constraints:
+                          - region: North
+                      relations:
+                        server: http
+                    server:
+                      component:
+                        resource_type: compute
+
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: http
+                            requires:
+                            - application: http
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            provides:
+                            - application: http
+                            - compute: linux
+            """))
+
+        self.context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
+        self.deployment['tenantId'] = "tenantId"
+        deployments.Manager.plan(self.deployment, self.context)
+
+    def test_workflow_task_generation_for_vip_load_balancer(self):
+        vip_deployment = cmdep.Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: vip
+                        constraints:
+                          - region: North
+                      relations:
+                        master:
+                          service: master
+                          interface: https
+                          attributes:
+                            inbound: http/80
+                            algorithm: round-robin
+                        web:
+                          service: web
+                          interface: http
+                          attributes:
+                            inbound: http/80
+                            algorithm: random
+                    master:
+                      component:
+                        type: application
+                        role: master
+                        name: wordpress
+                    web:
+                      component:
+                        type: application
+                        role: web
+                        name: wordpress
+                      relations:
+                        master: ssh
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: vip
+                            requires:
+                            - application: http
+                            - application: https
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http, https]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            roles:
+                            - master
+                            - web
+                            provides:
+                            - application: http
+                            - application: https
+                            - compute: linux
+            """))
+        vip_deployment['tenantId'] = "tenantId"
+        deployments.Manager.plan(vip_deployment, self.context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(self.context,
+                                                               vip_deployment)
+        wf = workflow.init_spiff_workflow(
+            wf_spec, vip_deployment, self.context, "w_id", "BUILD")
+
+        task_list = wf.spec.task_specs.keys()
+        expected = ['Root', 'Start',
+                    'Create Resource 3',
+                    'Create HTTP Loadbalancer (0)',
+                    'Wait for Loadbalancer 0 (lb) build',
+                    'Add monitor to Loadbalancer 0 (lb) build',
+                    'Create Resource 2',
+                    'Create HTTP Loadbalancer (1)',
+                    'Wait for Loadbalancer 1 (lb) build',
+                    'Add monitor to Loadbalancer 1 (lb) build',
+                    'Wait before adding 3 to LB 0',
+                    'Add Node 3 to LB 0',
+                    'Wait before adding 2 to LB 1',
+                    'Add Node 2 to LB 1'
+                    ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
+
+    def test_workflow_task_generation_with_allow_unencrypted_setting(self):
+        dep_with_allow_unencrypted = cmdep.Deployment(
+            utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: http
+                        constraints:
+                          - region: North
+                          - algorithm: round-robin
+                      relations:
+                        master: http
+                        web: http
+                    master:
+                      component:
+                        type: application
+                        role: master
+                        name: wordpress
+                    web:
+                      component:
+                        type: application
+                        role: web
+                        name: wordpress
+                inputs:
+                  blueprint:
+                    protocol: https
+                    allow_unencrypted: true
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: http
+                            requires:
+                            - application: http
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http, https]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            roles:
+                            - master
+                            - web
+                            provides:
+                            - application: http
+                            - compute: linux
+            """))
+        dep_with_allow_unencrypted['tenantId'] = 'tenantId'
+        deployments.Manager.plan(
+            dep_with_allow_unencrypted, self.context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(
+            self.context, dep_with_allow_unencrypted)
+        wf = workflow.init_spiff_workflow(
+            wf_spec, dep_with_allow_unencrypted, self.context, "w_id",
+            "BUILD")
+
+        task_list = wf.spec.task_specs.keys()
+        expected = [
+            'Root',
+            'Start',
+            'Create Resource 3',
+            'Create HTTPS Loadbalancer (0)',
+            'Wait for Loadbalancer 0 (lb) build',
+            'Add monitor to Loadbalancer 0 (lb) build',
+            'Create Resource 2',
+            'Create HTTP Loadbalancer (1)',
+            'Wait for Loadbalancer 1 (lb) build',
+            'Add monitor to Loadbalancer 1 (lb) build',
+            'Wait before adding 3 to LB 0',
+            'Wait before adding 2 to LB 0',
+            'Add Node 3 to LB 0',
+            'Add Node 3 to LB 1',
+            'Wait before adding 2 to LB 1',
+            'Wait before adding 3 to LB 1',
+            'Add Node 2 to LB 1',
+            'Add Node 2 to LB 0',
+        ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
+
+    def test_workflow_task_generation_caching(self):
+        """Verifies workflow tasks with caching enabled."""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: LB Test
+                  services:
+                    lb:
+                      component:
+                        resource_type: load-balancer
+                        interface: http
+                        constraints:
+                          - region: North
+                          - caching: true
+                      relations:
+                        server: http
+                    server:
+                      component:
+                        resource_type: compute
+
+                environment:
+                  name: test
+                  providers:
+                    load-balancer:
+                      vendor: rackspace
+                      catalog:
+                        load-balancer:
+                          rsCloudLB:
+                            provides:
+                            - load-balancer: http
+                            requires:
+                            - application: http
+                            options:
+                              protocol:
+                                type: list
+                                choice: [http]
+                    base:
+                      vendor: test
+                      catalog:
+                        compute:
+                          linux_instance:
+                            provides:
+                            - application: http
+                            - compute: linux
+        """))
+        deployment['tenantId'] = "tenantId"
+        deployments.Manager.plan(deployment, self.context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(self.context,
+                                                               deployment)
+        wf = workflow.init_spiff_workflow(wf_spec, deployment, self.context,
+                                          "w_id", "BUILD")
+
+        task_list = wf.spec.task_specs.keys()
+        expected = [
+            'Root',
+            'Start',
+            'Add Node 1 to LB 0',
+            'Create HTTP Loadbalancer (0)',
+            'Create Resource 1',
+            'Wait before adding 1 to LB 0',
+            'Add monitor to Loadbalancer 0 (lb) build',
+            'Wait for Loadbalancer 0 (lb) build',
+            'Enable content caching for Load balancer 0 (lb)'
+        ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected)
+
+    def test_workflow_task_generation(self):
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(
+            self.context, self.deployment)
+        wf = workflow.init_spiff_workflow(wf_spec, self.deployment,
+                                          self.context, "w_id", "BUILD")
+
+        task_list = wf.spec.task_specs.keys()
+        expected = [
+            'Root',
+            'Start',
+            'Add Node 1 to LB 0',
+            'Create HTTP Loadbalancer (0)',
+            'Create Resource 1',
+            'Wait before adding 1 to LB 0',
+            'Add monitor to Loadbalancer 0 (lb) build',
+            'Wait for Loadbalancer 0 (lb) build'
+        ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
+
+    def test_workflow_completion(self):
+        """Verify workflow sequence and data flow."""
+
+        expected = []
+
+        for key, resource in self.deployment['resources'].iteritems():
+            if resource.get('type') == 'compute':
+                expected.append({
+                    'call': 'checkmate.providers.test.create_resource',
+                    'args': [mox.IsA(dict), resource],
+                    'kwargs': None,
+                    'result': {
+                        'instance:%s' % key: {
+                            'id': 'server9',
+                            'status': 'ACTIVE',
+                            'ip': '4.4.4.1',
+                            'private_ip': '10.1.2.1',
+                            'addresses': {
+                                'public': [
+                                    {
+                                        'version': 4,
+                                        'addr': '4.4.4.1'
+                                    },
+                                    {
+                                        'version': 6,
+                                        'addr': '2001:babe::ff04:36c1'
+                                    }
+                                ],
+                                'private': [{
+                                    'version': 4,
+                                    'addr': '10.1.2.1'
+                                }]
+                            },
+                        }
+                    },
+                    'post_back_result': True,
+                })
+            elif resource.get('type') == 'load-balancer':
+
+                # Create Load Balancer
+
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer'
+                            '.tasks.create_loadbalancer',
+                    'args': [
+                        mox.IsA(dict),
+                        'lb01.checkmate.local',
+                        'PUBLIC',
+                        'HTTP',
+                    ],
+                    'kwargs': {
+                        'algorithm': 'ROUND_ROBIN',
+                        'port': None,
+                        'tags': {
+                            'RAX-CHECKMATE':
+                            'http://MOCK/TMOCK/deployments/'
+                            'DEP-ID-1000/resources/0'
+                        },
+                        'parent_lb': None,
+                    },
+                    'post_back_result': True,
+                    'result': {
+                        'instance:0': {
+                            'id': 121212,
+                            'public_ip': '8.8.8.8',
+                            'port': 80,
+                            'protocol': 'http',
+                            'status': 'ACTIVE'
+                        }
+                    },
+                    'resource': key,
+                })
+
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer'
+                            '.tasks.wait_on_build',
+                    'args': [mox.IsA(dict), 121212],
+                    'kwargs': None,
+                    'result': None,
+                    'resource': key,
+                })
+
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer'
+                            '.tasks.set_monitor',
+                    'args': [mox.IsA(dict), 121212, mox.IgnoreArg()],
+                    'kwargs': None,
+                    'result': None,
+                    'resource': key,
+                })
+
+                expected.append({
+                    'call': 'checkmate.providers.rackspace.loadbalancer'
+                            '.tasks.add_node',
+                    'args': [
+                        mox.IsA(dict),
+                        121212,
+                        '10.1.2.1',
+                    ],
+                    'kwargs': None,
+                    'result': None,
+                    'resource': key,
+                })
+
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
+
+        self.mox.ReplayAll()
+
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed(),
+                        'Workflow did not complete')
+
+        self.mox.VerifyAll()
+
+
 if __name__ == '__main__':
     import sys
     test.run_with_params(sys.argv[:])

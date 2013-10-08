@@ -43,9 +43,11 @@ class TestNovaCompute(test.ProviderTester):
         provider = compute.Provider({})
         self.assertEqual(provider.key, 'rackspace.nova')
 
-    def test_create_server(self):
+    @mock.patch.object(cm_deps.tasks, 'postback')
+    def test_create_server(self, postback):
+        self.maxDiff = None
         provider = compute.Provider({})
-        server = self.mox.CreateMockAnything()
+        server = mock.MagicMock()
         server.id = 'fake_server_id'
         server.status = 'BUILD'
         server.addresses = {
@@ -61,11 +63,11 @@ class TestNovaCompute(test.ProviderTester):
         server.adminPass = 'password'
 
         #Mock image
-        image = self.mox.CreateMockAnything()
+        image = mock.MagicMock()
         image.id = '00000000-0000-0000-0000-000000000000'
 
         #Mock flavor
-        flavor = self.mox.CreateMockAnything()
+        flavor = mock.MagicMock()
         flavor.id = '2'
 
         context = {
@@ -83,30 +85,33 @@ class TestNovaCompute(test.ProviderTester):
             },
         }
 
-        #Stub out postback call
-        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-
         #Create appropriate api mocks
-        openstack_api_mock = self.mox.CreateMockAnything()
-        openstack_api_mock.servers = self.mox.CreateMockAnything()
-        openstack_api_mock.images = self.mox.CreateMockAnything()
-        openstack_api_mock.flavors = self.mox.CreateMockAnything()
-        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock = mock.MagicMock()
+        openstack_api_mock.servers = mock.MagicMock()
+        openstack_api_mock.images = mock.MagicMock()
+        openstack_api_mock.flavors = mock.MagicMock()
+        openstack_api_mock.client = mock.MagicMock()
 
-        openstack_api_mock.images.find(id=image.id).AndReturn(image)
-        openstack_api_mock.flavors.find(id=flavor.id).AndReturn(flavor)
-        openstack_api_mock.servers.create(
-            'fake_server',
-            image,
-            flavor,
-            files=None,
-            meta={
-                'RAX-CHECKMATE':
-                'http://MOCK/TMOCK/deployments/DEP/resources/1'
-            },
-            disk_config='AUTO'
-        ).AndReturn(server)
+        openstack_api_mock.images.find.return_value = image
+        openstack_api_mock.flavors.find.return_value = flavor
+        openstack_api_mock.servers.create.return_value = server
+
         openstack_api_mock.client.region_name = "NORTH"
+
+        expected_resources = {
+            '1': {
+                'status': 'UNDEFINED',
+                'instance': {
+                'status': 'NEW',
+                'flavor': '2',
+                'error-message': '',
+                'image': '00000000-0000-0000-0000-000000000000',
+                'region': 'NORTH',
+                'password': 'password',
+                'id': 'fake_server_id',
+                'status-message': ''}
+            }
+        }
 
         expected = {
             'instance:1': {
@@ -119,24 +124,11 @@ class TestNovaCompute(test.ProviderTester):
                 'error-message': '',
                 'status-message': ''
             },
-            'resources': {
-                '1': {
-                    'index': '1',
-                    'instance': {},
-                    'desired-state': {
-                        'flavor': flavor.id,
-                        'image': image.id,
-                    },
-                },
-            },
+            'resources':  expected_resources,
         }
 
-        cm_deps.resource_postback.delay(context['deployment_id'],
-                                        expected).AndReturn(True)
-
-        self.mox.ReplayAll()
         results = compute.create_server(context, 'fake_server', "North",
-                                        api_object=openstack_api_mock,
+                                        api=openstack_api_mock,
                                         flavor='2', files=None,
                                         image=image.id,
                                         tags=provider.generate_resource_tag(
@@ -148,6 +140,21 @@ class TestNovaCompute(test.ProviderTester):
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
+
+        openstack_api_mock.flavors.find.assert_called_once_with(id=flavor.id)
+        openstack_api_mock.images.find.assert_called_once_with(id=image.id)
+        openstack_api_mock.servers.create.assert_called_once_with(
+            'fake_server', image, flavor, files=None,
+            meta={
+                'RAX-CHECKMATE':
+                'http://MOCK/TMOCK/deployments/DEP/resources/1'
+            },
+            disk_config='AUTO'
+        )
+
+        postback.assert_called_once_with('DEP', {
+            'resources': expected_resources
+        })
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     def test_create_server_connect_error(self, mock_utils):
@@ -163,9 +170,9 @@ class TestNovaCompute(test.ProviderTester):
         mock_api_obj.servers.create = mock.MagicMock(
             side_effect=requests.ConnectionError)
 
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.CheckmateException):
             compute.create_server({'deployment_id': '1', 'resource_key': '1'},
-                                  None, None, api_object=mock_api_obj)
+                                  None, None, api=mock_api_obj)
 
         compute.LOG.error.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
@@ -180,9 +187,9 @@ class TestNovaCompute(test.ProviderTester):
         mock_api_obj.images.find = mock.MagicMock(
             side_effect=mock_exception)
 
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.CheckmateException):
             compute.create_server({'deployment_id': '1', 'resource_key': '1'},
-                                  None, None, api_object=mock_api_obj)
+                                  None, None, api=mock_api_obj)
         mock_logger.assert_called_with('Connection error talking to '
                                        'test.local endpoint', exc_info=True)
 
@@ -267,8 +274,10 @@ class TestNovaCompute(test.ProviderTester):
                           server.id, 'North', [],
                           api_object=openstack_api_mock)
 
-    def test_wait_on_build_rackconnect_ready(self):
-        server = self.mox.CreateMockAnything()
+    @mock.patch.object(cm_deps.tasks, 'postback')
+    def test_wait_on_build_rackconnect_ready(self,
+                                             postback):
+        server = mock.MagicMock()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
         server.addresses = {
@@ -295,18 +304,46 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {'rackconnect_automation_status': 'DEPLOYED'}
         server.accessIPv4 = "8.8.8.8"
 
-        #Stub out postback call
-        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-
         #Create appropriate api mocks
-        openstack_api_mock = self.mox.CreateMockAnything()
-        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock = mock.MagicMock()
+        openstack_api_mock.client = mock.MagicMock
         openstack_api_mock.client.region_name = 'North'
-        openstack_api_mock.servers = self.mox.CreateMockAnything()
-        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
+        openstack_api_mock.servers = mock.MagicMock()
+        openstack_api_mock.servers.find.return_value = server
 
         context = dict(deployment_id='DEP', resource_key='1',
                        roles=['rack_connect'])
+
+        expected_resources = {
+            '1': {
+                'status': 'ACTIVE',
+                'instance': {
+                'status': 'ACTIVE',
+                'addresses': {
+                'public': [
+                    {
+                        'version': 4,
+                        'addr': '4.4.4.4'
+                    },
+                    {
+                        'version': 6,
+                        'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
+                    }],
+                'private': [
+                    {
+                        'version': 4,
+                        'addr': '10.10.10.10'
+                    }]},
+                'ip': '8.8.8.8',
+                'region': 'North',
+                'public_ip': '4.4.4.4',
+                'private_ip': '10.10.10.10',
+                'id': 'fake_server_id',
+                'status-message': '',
+                'rackconnect-automation-status': 'DEPLOYED'
+                }
+            }
+        }
 
         expected = {
             'instance:1': {
@@ -328,21 +365,21 @@ class TestNovaCompute(test.ProviderTester):
                 'id': 'fake_server_id',
                 'status-message': '',
                 'rackconnect-automation-status': 'DEPLOYED'
-            }
+            },
+            'resources': expected_resources
         }
 
-        cm_deps.resource_postback.delay(context['deployment_id'],
-                                        expected).AndReturn(True)
-
-        self.mox.ReplayAll()
         results = compute.wait_on_build(context, server.id, 'North',
-                                        api_object=openstack_api_mock)
+                                        api=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
-        self.mox.VerifyAll()
+        openstack_api_mock.servers.find.assert_called_once_with(id=server.id)
+        postback.assert_called_once_with("DEP",
+                                         {"resources": expected_resources})
 
-    def test_wait_on_build_rackconnect_failed(self):
-        server = self.mox.CreateMockAnything()
+    @mock.patch.object(cm_deps.tasks, 'postback')
+    def test_wait_on_build_rackconnect_failed(self, postback):
+        server = mock.MagicMock()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
         server.addresses = {
@@ -365,21 +402,17 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {'rackconnect_automation_status': 'FAILED'}
         server.accessIPv4 = "8.8.8.8"
 
-        #Stub out postback call
-        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-
         #Create appropriate api mocks
-        openstack_api_mock = self.mox.CreateMockAnything()
-        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock = mock.MagicMock()
+        openstack_api_mock.client = mock.MagicMock()
         openstack_api_mock.client.region_name = 'North'
-        openstack_api_mock.servers = self.mox.CreateMockAnything()
-        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
-
+        openstack_api_mock.servers = mock.MagicMock()
+        openstack_api_mock.servers.find.return_value = server
         context = dict(deployment_id='DEP', resource_key='1',
                        roles=['rack_connect'])
-
-        expected = {
-            'instance:1': {
+        expected_resource = {
+            'status': 'ERROR',
+            'instance': {
                 'status': 'ERROR',
                 'addresses': {
                     'public': [
@@ -408,18 +441,21 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        cm_deps.resource_postback.delay(context['deployment_id'],
-                                        expected).AndReturn(True)
-        self.mox.ReplayAll()
         try:
             compute.wait_on_build(context, server.id, 'North',
-                                  api_object=openstack_api_mock)
+                                  api=openstack_api_mock)
             self.fail("Should have thrown a Checkmate Exception!")
         except exceptions.CheckmateException:
-            self.mox.VerifyAll()
+            pass
+        postback.assert_called_once_with("DEP",
+                                         {"resources": {
+                                             "1": expected_resource}})
+        openstack_api_mock.servers.find.assert_called_once_with(
+            id=server.id)
 
-    def test_wait_on_build_rackconnect_unprocessed(self):
-        server = self.mox.CreateMockAnything()
+    @mock.patch.object(cm_deps.tasks, 'postback')
+    def test_wait_on_build_rackconnect_unprocessed(self, postback):
+        server = mock.MagicMock()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
         server.addresses = {
@@ -442,21 +478,52 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {'rackconnect_automation_status': 'UNPROCESSABLE'}
         server.accessIPv4 = "8.8.8.8"
 
-        #Stub out postback call
-        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-
         #Create appropriate api mocks
-        openstack_api_mock = self.mox.CreateMockAnything()
-        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock = mock.MagicMock()
+        openstack_api_mock.client = mock.MagicMock()
         openstack_api_mock.client.region_name = 'North'
-        openstack_api_mock.servers = self.mox.CreateMockAnything()
-        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
+        openstack_api_mock.servers = mock.MagicMock()
+        openstack_api_mock.servers.find.return_value = server
 
         context = dict(deployment_id='DEP',
                        resource_key='1',
                        roles=['rack_connect'])
 
-        expected = {
+        expected_resource = {
+            '1': {
+                'status': 'ACTIVE',
+                'instance': {
+                    'status': 'ACTIVE',
+                    'addresses': {
+                        'public': [
+                            {
+                                'version': 4,
+                                'addr': '4.4.4.4'
+                            },
+                            {
+                                'version': 6,
+                                'addr': '2001:4800:780e:0510'
+                                        ':d87b:9cbc:ff04:513a'
+                            }
+                        ],
+                        'private': [
+                            {
+                                'version': 4,
+                                'addr': '10.10.10.10'
+                            }]
+                    },
+                    'ip': '8.8.8.8',
+                    'region': 'North',
+                    'public_ip': '4.4.4.4',
+                    'private_ip': '10.10.10.10',
+                    'id': 'fake_server_id',
+                    'status-message': '',
+                    'rackconnect-automation-status': 'UNPROCESSABLE'
+                }
+            }
+        }
+
+        expected_result = {
             'instance:1': {
                 'status': 'ACTIVE',
                 'addresses': {
@@ -483,21 +550,22 @@ class TestNovaCompute(test.ProviderTester):
                 'id': 'fake_server_id',
                 'status-message': '',
                 'rackconnect-automation-status': 'UNPROCESSABLE'
-            }
+            },
+            'resources': expected_resource
         }
 
-        cm_deps.resource_postback.delay(context['deployment_id'],
-                                        expected).AndReturn(True)
-        self.mox.ReplayAll()
         results = compute.wait_on_build(context, server.id,
                                         'North',
-                                        api_object=openstack_api_mock)
+                                        api=openstack_api_mock)
 
-        self.assertDictEqual(results, expected)
-        self.mox.VerifyAll()
+        self.assertDictEqual(results, expected_result)
+        postback.assert_called_once_with("DEP",
+                                         {"resources": expected_resource})
+        openstack_api_mock.servers.find.assert_called_once_with(id=server.id)
 
-    def test_wait_on_build(self):
-        server = self.mox.CreateMockAnything()
+    @mock.patch.object(cm_deps.tasks, 'postback')
+    def test_wait_on_build(self, postback):
+        server = mock.MagicMock()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
         server.addresses = {
@@ -524,18 +592,48 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {}
         server.accessIPv4 = "4.4.4.4"
 
-        #Stub out postback call
-        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-
         #Create appropriate api mocks
-        openstack_api_mock = self.mox.CreateMockAnything()
-        openstack_api_mock.client = self.mox.CreateMockAnything()
+        openstack_api_mock = mock.MagicMock()
+        openstack_api_mock.client = mock.MagicMock()
         openstack_api_mock.client.region_name = 'North'
-        openstack_api_mock.servers = self.mox.CreateMockAnything()
-        openstack_api_mock.servers.find(id=server.id).AndReturn(server)
-        openstack_api_mock.images = self.mox.CreateMockAnything()
+        openstack_api_mock.servers = mock.MagicMock()
+        openstack_api_mock.servers.find.return_value = server
+        openstack_api_mock.images = mock.MagicMock()
 
         context = dict(deployment_id='DEP', resource_key='1', roles=[])
+
+        expected_resources = {
+            '1': {
+                "status": "ACTIVE",
+                "instance": {
+                    'status': 'ACTIVE',
+                    'addresses': {
+                        'public': [
+                            {
+                                'version': 4,
+                                'addr': '4.4.4.4'
+                            },
+                            {
+                                'version': 6,
+                                'addr': '2001:4800:780e:0510:'
+                                        'd87b:9cbc:ff04:513a'
+                            }],
+                        'private': [
+                            {
+                                'version': 4,
+                                'addr': '10.10.10.10'
+                            }
+                        ]
+                    },
+                'ip': '4.4.4.4',
+                'region': 'North',
+                'public_ip': '4.4.4.4',
+                'private_ip': '10.10.10.10',
+                'id': 'fake_server_id',
+                'status-message': ''
+                }
+            }
+        }
 
         expected = {
             'instance:1': {
@@ -556,18 +654,18 @@ class TestNovaCompute(test.ProviderTester):
                 'private_ip': '10.10.10.10',
                 'id': 'fake_server_id',
                 'status-message': ''
-            }
+            },
+            'resources': expected_resources
         }
 
-        cm_deps.resource_postback.delay(context['deployment_id'],
-                                        expected).AndReturn(True)
-
-        self.mox.ReplayAll()
         results = compute.wait_on_build(
-            context, server.id, 'North', api_object=openstack_api_mock)
+            context, server.id, 'North', api=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
-        self.mox.VerifyAll()
+
+        openstack_api_mock.servers.find.assert_called_once_with(id=server.id)
+        postback.assert_called_once_with("DEP", {"resources":
+                                                 expected_resources})
 
     def test_verify_ssh_connection_for_linux(self):
         server = self.mox.CreateMockAnything()
@@ -638,13 +736,15 @@ class TestNovaCompute(test.ProviderTester):
         context = dict(deployment_id='DEP', resource_key='1', roles=[])
 
         self.mox.ReplayAll()
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.CheckmateException):
             compute.wait_on_build(
-                context, server.id, 'North', [], api_object=openstack_api_mock)
+                context, server.id, 'North', [], api=openstack_api_mock)
 
         self.mox.VerifyAll()
 
-    def test_delete_server(self):
+    @mock.patch.object(cm_deps.tasks, 'postback')
+    @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
+    def test_delete_server(self, resource_postback, dep_postback):
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -664,24 +764,38 @@ class TestNovaCompute(test.ProviderTester):
                 'status': 'DELETING',
                 "status-message": "Waiting on resource deletion"
             },
-            'instance:0': {
-                'status': 'DELETING',
-                'status-message': 'Host 1 is being deleted.'
+            "resources": {
+                "1": {
+                    'status': "DELETING",
+                    "instance": {
+                        "status": "DELETING",
+                        "status-message": "Waiting on resource deletion"
+                    }
+                }
             }
         }
-        api = self.mox.CreateMockAnything()
-        mock_servers = self.mox.CreateMockAnything()
+        api = mock.MagicMock()
+        mock_servers = mock.MagicMock()
         api.servers = mock_servers
-        mock_server = self.mox.CreateMockAnything()
+        mock_server = mock.MagicMock()
         mock_server.status = 'ACTIVE'
-        mock_server.delete().AndReturn(True)
-        mock_servers.get('abcdef-ghig-1234').AndReturn(mock_server)
-        self.mox.StubOutWithMock(compute.cmdeps.resource_postback, 'delay')
-        compute.cmdeps.resource_postback.delay('1234', expect).AndReturn(None)
-        self.mox.ReplayAll()
+
+        mock_server.delete.return_value = True
+        mock_servers.get.return_value = mock_server
+
+        resource_postback.return_value = None
+
         ret = compute.delete_server_task(context, api=api)
+
         self.assertDictEqual(expect, ret)
-        self.mox.VerifyAll()
+        mock_server.delete.assert_called_once_with()
+        mock_servers.get.assert_called_once_with('abcdef-ghig-1234')
+        resource_postback.assert_called_once_with('1234', {
+            "instance:0": {
+                "status": "DELETING",
+                "status-message": "Host 1 is being deleted."
+            }}
+        )
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
@@ -694,7 +808,7 @@ class TestNovaCompute(test.ProviderTester):
         mock_api.servers.get = mock.MagicMock(
             side_effect=requests.ConnectionError)
 
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.CheckmateException):
             compute.delete_server_task(mock_context, api=mock_api)
 
         compute.LOG.error.assert_called_with(
@@ -711,13 +825,15 @@ class TestNovaCompute(test.ProviderTester):
         mock_api.servers.get = mock.MagicMock(
             side_effect=requests.ConnectionError)
 
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.CheckmateException):
             compute.delete_server_task(mock_context, api=mock_api)
 
         compute.LOG.error.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
-    def test_wait_on_delete(self):
+    @mock.patch.object(cm_deps.tasks, 'postback')
+    @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
+    def test_wait_on_delete(self, resource_postback, dep_postback):
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -737,23 +853,47 @@ class TestNovaCompute(test.ProviderTester):
                 'status': 'DELETED',
                 'status-message': ''
             },
-            'instance:0': {
-                'status': 'DELETED',
-                'status-message': ''
+            "resources": {
+                "1": {
+                    "status": "DELETED",
+                    "instance": {
+                        "status": "DELETED",
+                        "status-message": ""
+                    }
+                }
             }
+
         }
+
         api = self.mox.CreateMockAnything()
         mock_servers = self.mox.CreateMockAnything()
         api.servers = mock_servers
         mock_server = self.mox.CreateMockAnything()
         mock_server.status = 'DELETED'
         mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
-        self.mox.StubOutWithMock(compute.cmdeps.resource_postback, 'delay')
         compute.cmdeps.resource_postback.delay('1234', expect).AndReturn(None)
         self.mox.ReplayAll()
         ret = compute.wait_on_delete_server(context, api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
+        resource_postback.assert_called_with('1234', {
+            "instance:0": {
+                'status': 'DELETED',
+                'status-message': ''
+            },
+        })
+        dep_postback.assert_called_once_with('1234', {
+            "resources": {
+                "1": {
+                    "status": "DELETED",
+                    "instance": {
+                        "status": "DELETED",
+                        "status-message": ""
+
+                    }
+                }
+            }
+        })
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
@@ -766,7 +906,7 @@ class TestNovaCompute(test.ProviderTester):
         mock_api.servers.find = mock.MagicMock(
             side_effect=requests.ConnectionError)
 
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.CheckmateException):
             compute.wait_on_delete_server(mock_context, api=mock_api)
 
         compute.LOG.error.assert_called_with(

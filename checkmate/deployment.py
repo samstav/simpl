@@ -1258,7 +1258,8 @@ class Deployment(morpheus.MorpheusDict):
         :param target: dict -- optional for writing to other than this
                        deployment
         """
-        target = target or self
+        if target is None:
+            target = self
 
         if not isinstance(contents, dict):
             raise exceptions.CheckmateException(

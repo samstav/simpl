@@ -90,7 +90,10 @@ class TestWorkflowSpec(unittest.TestCase):
 
     def test_create_take_offline_spec(self):
         context = mock.Mock()
-        source_resource = {'provider': 'load-balancer'}
+        source_resource = {
+            'provider': 'load-balancer',
+            'relations': {'lb-web-1': {'target': '1'}}
+        }
         dest_resource = {
             'relations': {
                 'lb-web-0': {
@@ -122,11 +125,14 @@ class TestWorkflowSpec(unittest.TestCase):
         mock_environment.get_provider.assert_called_once_with('load-balancer')
         mock_provider.disable_connection_tasks.assert_called_once_with(
             mock.ANY, deployment, context, source_resource, dest_resource,
-            'lb-web')
+            {'target': '1'})
 
     def test_create_bring_online_spec(self):
         context = mock.Mock()
-        source_resource = {'provider': 'load-balancer'}
+        source_resource = {
+            'provider': 'load-balancer',
+            'relations': {'lb-web-1': {'target': '1'}}
+        }
         dest_resource = {
             'relations': {
                 'lb-web-0': {
@@ -158,7 +164,7 @@ class TestWorkflowSpec(unittest.TestCase):
         mock_environment.get_provider.assert_called_once_with('load-balancer')
         mock_provider.enable_connection_tasks.assert_called_once_with(
             mock.ANY, deployment, context, source_resource, dest_resource,
-            'lb-web')
+            {'target': '1'})
 
 
 if __name__ == '__main__':

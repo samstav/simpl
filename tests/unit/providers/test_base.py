@@ -103,13 +103,24 @@ class TestProviderTask(unittest.TestCase):
                 'status': 'BLOCKED'
             }
         }
-        do_something.callback = mock.MagicMock(return_value=True)
+        do_something.callback = mock.MagicMock(return_value={})
         results = do_something(context, 'test', api='test_api')
 
         do_something.callback.assert_called_with(
             context, expected['instance:1'])
         self.assertEqual(results, expected)
         assert do_something.partial, 'Partial attr should be set'
+
+    def test_provider_task_success_with_no_data(self):
+        context = middleware.RequestContext(**{'region': 'ORD',
+                                            'resource_key': '1',
+                                            'deployment': {}})
+
+        do_nothing.callback = mock.MagicMock(return_value=True)
+        results = do_nothing(context, 'test', api='test_api')
+
+        self.assertFalse(do_nothing.callback.called)
+        self.assertIsNone(results)
 
     def test_provider_task_retry(self):
         context = {'region': 'ORD', 'resource': 1, 'deployment': {}}
@@ -130,16 +141,6 @@ class TestProviderTask(unittest.TestCase):
         except cmexc.CheckmateException as exc:
             self.assertEqual(str(exc), "Context passed into ProviderTask is "
                              "an unsupported type <type 'str'>.")
-
-    def test_provider_task_context_region_kwargs(self):
-        context = middleware.RequestContext(**{})
-        do_something.run = mock.Mock()
-        do_something.callback = mock.MagicMock(return_value=True)
-
-        do_something(context, 'test', api='api', region='ORD')
-        self.assertEqual(context.region, 'ORD')
-        do_something.run.assert_called_with(context, 'test',
-                                            api='api', region='ORD')
 
     @mock.patch('checkmate.deployments.tasks')
     def test_provider_task_callback(self, mocked_lib):
@@ -167,6 +168,43 @@ class TestProviderTask(unittest.TestCase):
 
         mocked_lib.postback.assert_called_with('DEP_ID', expected_postback)
 
+    @mock.patch('checkmate.deployments.tasks')
+    def test_provider_task_callback_with_no_data(self, mocked_lib):
+        context = {
+            'region': 'ORD',
+            'resource_key': 1,
+            'deployment_id': 'DEP_ID'
+        }
+        mocked_lib.postback = mock.MagicMock()
+
+        do_nothing(context, 'test', api='test_api')
+
+        self.assertFalse(mocked_lib.postback.called)
+
+
+class TestRackspaceProviderTask(unittest.TestCase):
+    """Tests ProviderTask functionality."""
+
+    def setUp(self):
+        self._run = rackspace_provider_task.run
+        self._retry = rackspace_provider_task.retry
+        self._callback = rackspace_provider_task.callback
+
+    def tearDown(self):
+        rackspace_provider_task.run = self._run
+        rackspace_provider_task.retry = self._retry
+        rackspace_provider_task.callback = self._callback
+
+    def test_rackspace_provider_task_context_region_kwargs(self):
+        context = middleware.RequestContext(**{})
+        rackspace_provider_task.run = mock.Mock()
+        rackspace_provider_task.callback = mock.MagicMock(return_value={})
+
+        rackspace_provider_task(context, 'test', api='api', region='ORD')
+        self.assertEqual(context.region, 'ORD')
+        rackspace_provider_task.run.assert_called_with(context, 'test',
+                                                       api='api', region='ORD')
+
 
 @celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
 def do_something(context, name, api, region=None):
@@ -175,6 +213,22 @@ def do_something(context, name, api, region=None):
         'name': name,
         'api2': api,
         'status': 'BLOCKED'
+    }
+
+
+@celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
+def do_nothing(context, name, api, region=None):
+    return
+
+
+@celery.task.task(base=cm_base.RackspaceProviderTask,
+                  provider=database.Provider)
+def rackspace_provider_task(context, name, api, region=None):
+    return {
+        'context': context,
+        'region': region,
+        'name': name,
+        'api': api
     }
 
 

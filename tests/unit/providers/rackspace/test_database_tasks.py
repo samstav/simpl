@@ -172,8 +172,7 @@ class TestDatabaseTasks(unittest.TestCase):
         results = database.create_instance(context, 'test_instance', '1', '1',
                                            None, 'DFW')
 
-        mock_provider.connect.assert_called_with(
-            context, 'DFW')
+        mock_provider.connect.assert_called_with(context)
         api.create.assert_called_with('test_instance', flavor=1, volume=1,
                                       databases=[])
         partial.assert_called_with({'id': 1234})
@@ -244,8 +243,7 @@ class TestDatabaseTasks(unittest.TestCase):
         results = database.create_instance(context, 'test_instance', '1', '1',
                                            databases, 'DFW')
 
-        mock_provider.connect.assert_called_with(
-            context, 'DFW')
+        mock_provider.connect.assert_called_with(context)
         api.create.assert_called_with('test_instance', volume=1, flavor=1,
                                       databases=databases)
         partial.assert_called_with({'id': 1234})
@@ -256,6 +254,7 @@ class TestDatabaseTasks(unittest.TestCase):
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_invalid_api(self, mock_reset):
         context = {'resource': '0', 'deployment': 0}
+        context = middleware.RequestContext(**context)
         try:
             database.create_instance(context, 'test_instance', '1', '1',
                                      None, 'DFW', api='invalid')
@@ -1036,7 +1035,7 @@ class TestCreateDatabase(unittest.TestCase):
         results = database.create_database(self.context, self.name,
                                            self.region)
 
-        mock_connect.assert_called_once_with(self.context, self.region)
+        mock_connect.assert_called_once_with(self.context)
 
         mock_create.assert_called_once_with(self.name+'_instance', '1', 1,
                                             [{'name': self.name}],
@@ -1084,7 +1083,7 @@ class TestCreateDatabase(unittest.TestCase):
         results = database.create_database(self.context, self.name,
                                            self.region, character_set='latin')
 
-        mock_connect.assert_called_once_with(self.context, self.region)
+        mock_connect.assert_called_once_with(self.context)
 
         mock_create.assert_called_with(self.name+'_instance', '1', 1,
                                        [{'name': self.name,
@@ -1132,7 +1131,7 @@ class TestCreateDatabase(unittest.TestCase):
         results = database.create_database(self.context, self.name,
                                            self.region, character_set='latin')
 
-        mock_connect.assert_called_once_with(self.context, self.region)
+        mock_connect.assert_called_once_with(self.context)
 
         mock_create.assert_called_with(self.name+'_instance', '1', 1,
                                        [{'name': self.name,
@@ -1179,7 +1178,7 @@ class TestCreateDatabase(unittest.TestCase):
                                            self.region,
                                            instance_attributes=attrs)
 
-        mock_connect.assert_called_once_with(self.context, self.region)
+        mock_connect.assert_called_once_with(self.context)
 
         mock_create.assert_called_with(self.name+'_instance', '3', 5,
                                        [{'name': self.name}], self.context,

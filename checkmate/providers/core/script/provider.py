@@ -128,7 +128,7 @@ class Provider(providers.ProviderBase):
                                                      'relation': relation}})
 
     @staticmethod
-    def connect(context, *args):
+    def connect(context):
         """Returns API connection object for rempte calls.
 
         :param context: the call context from checkmate

@@ -51,16 +51,16 @@ class ProviderBaseWorkflowMixIn(object):
 
     # pylint: disable=W0613,R0913
     def disable_connection_tasks(self, wf_spec, deployment, context,
-                                 source_resource, target_resource,
-                                 relation_name):
+                                 resource, related_resource,
+                                 relation):
         """Add any tasks that are needed for disabling the connection from
         source to destination resource
         :param wf_spec: the SpiffWorkflow WorkflowSpec we are building
         :param deployment: deployment
         :param context: request context
-        :param source_resource: connection source resource
-        :param target_resource: connection destination resource
-        :param relation_name: relation between source and destination resource
+        :param resource: connection source resource
+        :param related_resource: connection destination resource
+        :param relation: relation between source and destination resource
         :returns: a hash (dict) of relevant tasks. The hash keys are:
                 'root': the root task in the sequence
                 'final': the task that signifies readiness (work is done)
@@ -69,16 +69,16 @@ class ProviderBaseWorkflowMixIn(object):
                   "implemented", self.vendor, self.name)
 
     def enable_connection_tasks(self, wf_spec, deployment, context,
-                                source_resource, target_resource,
-                                relation_name):
+                                resource, related_resource,
+                                relation):
         """Add any tasks that are needed for disabling the connection from
         source to destination resource
         :param wf_spec: the SpiffWorkflow WorkflowSpec we are building
         :param deployment: deployment
         :param context: request context
-        :param source_resource: connection source resource
-        :param target_resource: connection destination resource
-        :param relation_name: relation between source and destination resource
+        :param resource: connection source resource
+        :param related_resource: connection destination resource
+        :param relation: relation between source and destination resource
         :returns: a hash (dict) of relevant tasks. The hash keys are:
                 'root': the root task in the sequence
                 'final': the task that signifies readiness (work is done)
@@ -640,13 +640,12 @@ class ProviderTask(celery.Task):
             raise exceptions.CheckmateException(
                 'Context passed into ProviderTask is an unsupported type %s.'
                 % type(context))
-        # TODO(zns): remove region - this is specific to Rackspace provider
-        if context.region is None and 'region' in kwargs:
-            context.region = kwargs.get('region')
 
         try:
-            self.api = kwargs.get('api') or self.provider.connect(
-                context, context.region)
+            if context.simulation:
+                self.api = "simulation api"
+            else:
+                self.api = kwargs.get('api') or self.provider.connect(context)
         # TODO(Nate): Generalize exception raised in providers connect
         except exceptions.CheckmateValidationException:
             raise
@@ -664,14 +663,22 @@ class ProviderTask(celery.Task):
                 return self.retry(exc=exc)
             else:
                 raise exc
-        self.callback(context, data)
-        return {'instance:%s' % context["resource_key"]: data}
+        if data:
+            resources = self.callback(context, data)
+            results = {
+                'instance:%s' % context["resource_key"]: data
 
-    def callback(self, context, data):
+            }
+            results.update(resources)
+            return results
+
+    def callback(self, context, data, resource_key=None):
         """Calls postback with instance.id to ensure posted to resource."""
+        if not data:
+            return
         from checkmate.deployments import tasks as deployment_tasks
         # TODO(Paul/Nate): Added here to get around circular dep issue.
-        resource_index = context['resource_key']
+        resource_index = resource_key or context['resource_key']
         results = {
             'resources': {
                 resource_index: {
@@ -683,8 +690,25 @@ class ProviderTask(celery.Task):
             status = data['status']
             results['resources'][resource_index]['status'] = \
                 self.provider.translate_status(status)
-            if status == "ERROR":
-                results['status'] = "FAILED"
 
         deployment_tasks.postback(context.get('deployment_id') or
                                   context['deployment'], results)
+
+        return results
+
+
+class RackspaceProviderTask(ProviderTask):
+    abstract = True
+
+    def __call__(self, context, *args, **kwargs):
+        if isinstance(context, dict):
+            context = middleware.RequestContext(**context)
+        elif not isinstance(context, middleware.RequestContext):
+            raise exceptions.CheckmateException(
+                'Context passed into ProviderTask is an unsupported type %s.'
+                % type(context))
+
+        if context.region is None and 'region' in kwargs:
+            context.region = kwargs.get('region')
+        return super(RackspaceProviderTask, self).__call__(context, *args,
+                                                           **kwargs)

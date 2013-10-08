@@ -1,4 +1,4 @@
-# pylint: disable=W0613
+# pylint: disable=W0613,R0913
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -20,15 +20,102 @@ from celery import task
 
 from checkmate.common import statsd
 from checkmate.providers import base
-from checkmate.providers.rackspace.loadbalancer import manager
+from checkmate.providers.rackspace.loadbalancer.manager import Manager
 from checkmate.providers.rackspace.loadbalancer import provider
 
 
-@task.task(base=base.ProviderTask, default_retry_delay=10, max_retries=2,
-           provider=provider.Provider)
+@task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
+           max_retries=2, provider=provider.Provider)
 @statsd.collect
-def enable_content_caching(context, lbid, api=None, callback=None):
+def enable_content_caching(context, lb_id, api=None):
     """Task to enable loadbalancer content caching."""
-    return manager.Manager.enable_content_caching(lbid,
-                                                  enable_content_caching.api,
-                                                  context.simulation)
+    return Manager.enable_content_caching(lb_id, enable_content_caching.api,
+                                          context.simulation)
+
+
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider)
+@statsd.collect
+def create_loadbalancer(context, name, vip_type, protocol, region=None,
+                        api=None, port=None, algorithm='ROUND_ROBIN',
+                        tags=None, parent_lb=None):
+    """Task to create a loadbalancer."""
+    return Manager.create_loadbalancer(
+        context, name, vip_type,  protocol, create_loadbalancer.api,
+        create_loadbalancer.partial, port=port, algorithm=algorithm,
+        tags=tags, parent_lb=parent_lb, simulate=context.simulation)
+
+
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider,
+           default_retry_delay=30, max_retries=120, acks_late=True)
+@statsd.collect
+def wait_on_build(context, lb_id, region=None, api=None):
+    """Task to wait for loadbalancer build completion."""
+    return Manager.wait_on_build(lb_id, wait_on_build.api,
+                                 wait_on_build.partial, context.simulation)
+
+
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider)
+@statsd.collect
+def collect_record_data(context, record):
+    """Task to collect dns record data."""
+    return Manager.collect_record_data(record)
+
+
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider)
+@statsd.collect
+def delete_lb_task(context, lb_id, region=None, api=None):
+    """Task to delete a loadbalancer."""
+    return Manager.delete_lb_task(lb_id, delete_lb_task.api,
+                                  context.simulation)
+
+
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider,
+           default_retry_delay=2, max_retries=60)
+@statsd.collect
+def wait_on_lb_delete_task(context, lb_id, region=None, api=None):
+    """Task to wait for loadbalancer delete."""
+    return Manager.wait_on_lb_delete_task(lb_id, wait_on_lb_delete_task.api,
+                                          context.simulation)
+
+
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider,
+           default_retry_delay=10, max_retries=10)
+@statsd.collect
+def add_node(context, lb_id, ipaddr, region=None, api=None):
+    """Task to add node to loadbalancer."""
+    return Manager.add_node(lb_id, ipaddr, add_node.api, context.simulation)
+
+
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider,
+           default_retry_delay=10, max_retries=10)
+@statsd.collect
+def delete_node(context, lb_id, ipaddr, region=None, api=None):
+    """Task to delete a node from loadbalancer."""
+    return Manager.delete_node(lb_id, ipaddr, delete_node.api,
+                               context.simulation)
+
+
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider,
+           default_retry_delay=10, max_retries=10)
+@statsd.collect
+def set_monitor(context, lb_id, mon_type, region=None, path='/', delay=10,
+                timeout=10, attempts=3, body='(.*)',
+                status='^[234][0-9][0-9]$', api=None):
+    """Task to set monitor for a loadbalancer."""
+    return Manager.set_monitor(lb_id, mon_type, set_monitor.api,
+                               path=path, delay=delay, timeout=timeout,
+                               attempts=attempts, body=body, status=status,
+                               simulate=context.simulation)
+
+
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider,
+           default_retry_delay=10, max_retries=10)
+@statsd.collect
+def update_node_status(context, relation, lb_id, ip_address, node_status,
+                       resource_status, api=None):
+    """Task to update loadbalancer node status."""
+    return Manager.update_node_status(context, lb_id, ip_address,
+                                      node_status, resource_status, relation,
+                                      update_node_status.partial,
+                                      update_node_status.api,
+                                      context.simulation)

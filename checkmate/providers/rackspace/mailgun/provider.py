@@ -152,5 +152,5 @@ class Provider(rsbase.RackspaceProviderBase):
     @staticmethod
     def connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
-        return getattr(rsbase.RackspaceProviderBase._connect(context),
+        return getattr(rsbase.RackspaceProviderBase._connect(context, region),
                        Provider.method)

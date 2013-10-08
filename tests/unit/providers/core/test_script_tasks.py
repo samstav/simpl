@@ -32,7 +32,7 @@ class TestScriptTasks(unittest.TestCase):
     def test_create_resource_simulation(self):
         api = mock.Mock()
         tasks.create_resource.provider = mock.Mock(return_value=api)
-        tasks.create_resource.callback = mock.Mock(return_value=None)
+        tasks.create_resource.callback = mock.Mock(return_value={})
         context = {
             'simulation': True,
             'region': 'NOOP',

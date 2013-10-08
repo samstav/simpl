@@ -375,16 +375,17 @@ class Manager(object):
         if not isinstance(contents, dict):
             raise CheckmateValidationException("Postback contents is not "
                                                "type dictionary")
-        dep.on_postback(contents)
+        updates = {}
+        dep.on_postback(contents, updates)
 
         if not check_only:
-            body, secrets = utils.extract_sensitive_data(dep)
+            body, secrets = utils.extract_sensitive_data(updates)
             db.get_driver(api_id=dep_id).save_deployment(
                 dep_id, body, secrets, partial=True,
                 tenant_id=dep['tenantId']
             )
             LOG.debug("Updated deployment %s with postback", dep_id,
-                      extra=dict(data=contents))
+                      extra=dict(data=updates))
         return dep.get('resources')
 
     def plan_add_nodes(self, deployment, context, service_name, count,
