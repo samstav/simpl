@@ -41,7 +41,7 @@
   </li>
 
   <li>
-    <a ng-click="open_modal('check_warning'); check(data)" tooltip="Check the currect deployment for common errors" tooltip-placement="right">
+    <a ng-click="open_modal('check_warning'); wrap_admin_call(data['created-by'], check, data)" tooltip="Check the currect deployment for common errors" tooltip-placement="right">
       <i class="icon-check"></i>
       Check for errors
     </a>
