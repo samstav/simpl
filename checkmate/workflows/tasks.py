@@ -67,16 +67,19 @@ class WorkflowEventHandlerTask(celeryglobal.SingleTask):
                       "permissible retries!", w_id)
         else:
             error = exc.__repr__()
-        if kwargs.get('apply_callbacks'):
+        if (kwargs.get('apply_callbacks') is None or kwargs.get(
+                'apply_callbacks')):
             update_deployment.delay(args[0], error=error)
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
         self.on_success(None, task_id, args, kwargs)
 
     def on_success(self, retval, task_id, args, kwargs):
-        if kwargs.get('apply_callbacks'):
+        if (kwargs.get('apply_callbacks') is None or kwargs.get(
+                'apply_callbacks')):
             update_deployment.delay(args[0])
 #pylint: enable=R0904,R0913
+
 
 @celtask.task(default_retry_delay=10, max_retries=10, ignore_result=True)
 @statsd.collect
@@ -146,9 +149,9 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
     workflow = MANAGERS['workflows'].get_workflow(w_id, with_secrets=True)
     serializer = DictionarySerializer()
     d_wf = Workflow.deserialize(serializer, workflow)
-    initial_wf_dump = cmwf.get_dump(d_wf, state=Task.WAITING)
+    initial_wf_dump = cmwf.get_dump(d_wf, state=(Task.WAITING | Task.READY))
     d_wf.complete_all()
-    final_wf_dump = cmwf.get_dump(d_wf, state=Task.WAITING)
+    final_wf_dump = cmwf.get_dump(d_wf, state=(Task.WAITING | Task.READY))
 
     if initial_wf_dump != final_wf_dump:
         workflow_state = cmwf.update_workflow_status(d_wf)
