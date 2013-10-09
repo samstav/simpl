@@ -5,7 +5,7 @@ This document explains how to install Checkmate
 
 ## Automated Install Using Vagrant
 
-You can install a Checkmate environment automatically using [vagrant](https://github.rackspace.com/checkmate/checkmate/blob/master/vagrant/README.md).
+You can install a Checkmate environment automatically using [vagrant](https://github.rackspace.com/checkmate/checkmate/blob/master/docs/vagrant.md).
 
 
 ## Manual Installation
