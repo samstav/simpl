@@ -1685,8 +1685,7 @@ class TestChefMap(unittest.TestCase):
                 - source: requirements://database:mysql/username
             ''')
         self.assertTrue(map.has_requirement_mapping('test', 'name'))
-        self.assertTrue(map.has_requirement_mapping('test',
-                                                         'database:mysql'))
+        self.assertTrue(map.has_requirement_mapping('test', 'database:mysql'))
         self.assertFalse(map.has_requirement_mapping('test', 'other'))
 
     def test_has_requirement_mapping_negative(self):
@@ -1781,7 +1780,8 @@ class TestChefMap(unittest.TestCase):
         self.assertListEqual(result, maps, msg=expect)
 
         expect = "Should return all maps"
-        result = chef_map.ChefMap.filter_maps_by_schemes(maps, target_schemes=[])
+        result = chef_map.ChefMap.filter_maps_by_schemes(maps,
+                                                         target_schemes=[])
         self.assertListEqual(result, maps, msg=expect)
 
 

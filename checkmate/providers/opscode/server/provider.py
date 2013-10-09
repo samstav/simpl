@@ -27,7 +27,7 @@ class Provider(ProviderBase):
     name = 'chef-server'
     vendor = 'opscode'
 
-    def provides(self, resource_type=None, interface=None):
+    def provides(self, context, resource_type=None, interface=None):
         return [dict(application='http'), dict(database='mysql')]
 
     def prep_environment(self, wfspec, deployment, context):
@@ -103,7 +103,7 @@ class Provider(ProviderBase):
         return {'root': register_node_task, 'final': bootstrap_task}
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
-                             wfspec, deployment):
+                             wfspec, deployment, context):
         target = deployment['resources'][relation['target']]
         interface = relation['interface']
 
@@ -111,8 +111,9 @@ class Provider(ProviderBase):
             #Take output from Create DB task and write it into
             # the 'override' dict to be available to future tasks
 
-            db_final = self.find_resource_task(wfspec, relation['target'],
-                                               target['provider'], 'final')
+            db_final = wfspec.find_task_specs(relation=relation['target'],
+                                              provider=target['provider'],
+                                              tag='final')
 
             compile_override = specs.Transform(
                 wfspec,
@@ -157,8 +158,9 @@ class Provider(ProviderBase):
                 name="Wait on Environment and Settings:%s" % key
             )
 
-            config_final = self.find_resource_task(wfspec, key, self.key,
-                                                   'final')
+            config_final = wfspec.find_task_specs(relation=key,
+                                                  provider=self.key,
+                                                  tag='final')
             # Assuming input is join
             assert isinstance(config_final.inputs[0], specs.Merge)
             set_overrides.connect(config_final.inputs[0])

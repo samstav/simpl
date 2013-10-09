@@ -1,3 +1,5 @@
+# pylint: disable=W0613,C0103,C0111,R0913
+
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -58,7 +60,7 @@ def bootstrap(
     identity_file=None, run_roles=None, run_recipes=None,
     distro='chef-full', environment=None
 ):
-    LOG.debug('Bootstraping %s (%s:%d)' % (name, ip, port))
+    LOG.debug('Bootstraping %s (%s:%d)', name, ip, port)
     run_roles_recipes = create_role_recipe_string(roles=run_roles,
                                                   recipes=run_recipes)
     params = ['knife', 'bootstrap', ip, '-x', username, '-N', name]
@@ -136,17 +138,13 @@ def manage_role(deployment, name, desc=None, run_list=None,
         LOG.debug(
             "Role %s updated. runlist set to %s. Default attributes set "
             "to %s. Override attributes set to %s. Environment run lists "
-            "set to %s." % (
-                name, run_list, default_attributes,
-                override_attributes, env_run_lists
-            )
-        )
+            "set to %s.", name, run_list, default_attributes,
+            override_attributes, env_run_lists)
     except chef.ChefError, exc:
-        LOG.debug(
-            'Role management failed. Chef Error: %s. Retrying.' % exc)
+        LOG.debug('Role management failed. Chef Error: %s. Retrying.', exc)
         manage_role.retry(exc=exc)
     except Exception, exc:
-        LOG.debug('Role management failed. Error: %s. Retrying.' % exc)
+        LOG.debug('Role management failed. Error: %s. Retrying.', exc)
         manage_role.retry(exc=exc)
 
 
@@ -171,20 +169,15 @@ def manage_env(deployment, name, desc=None, versions=None,
         LOG.debug(
             "Environment %s updated. Description set to %s "
             "Versions set to %s. Default attributes set to %s. Override "
-            "attributes set to %s." % (
-                name, desc, versions,
-                default_attributes, override_attributes
-            )
-        )
+            "attributes set to %s.", name, desc, versions,
+            default_attributes, override_attributes)
         return True
     except chef.ChefError, exc:
-        LOG.debug(
-            'Environment management failed. Chef Error: %s. Retrying.' % exc)
+        LOG.debug('Environment management failed. Chef Error: %s. Retrying.',
+                  exc)
         manage_env.retry(exc=exc)
     except Exception, exc:
-        LOG.debug(
-            'Environment management failed. Error: %s. Retrying.' % exc
-        )
+        LOG.debug('Environment management failed. Error: %s. Retrying.', exc)
         manage_env.retry(exc=exc)
 
 

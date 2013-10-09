@@ -1,4 +1,4 @@
-# pylint: disable=C0302
+# pylint: disable=R0912,R0913,R0914,R0915
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -29,8 +29,8 @@ from checkmate import common
 from checkmate.common import schema
 from checkmate import exceptions
 from checkmate import keys
-from checkmate.providers import ProviderBase
 from checkmate.providers.opscode.solo.chef_map import ChefMap
+from checkmate.providers import ProviderBase
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
@@ -61,8 +61,8 @@ class Provider(ProviderBase):
 
         # Create Celery Task
         settings = deployment.settings()
-        keys = settings.get('keys', {})
-        deployment_keys = keys.get('deployment', {})
+        all_keys = settings.get('keys', {})
+        deployment_keys = all_keys.get('deployment', {})
         public_key_ssh = deployment_keys.get('public_key_ssh')
         private_key = deployment_keys.get('private_key')
         secret_key = deployment.get_setting('secret_key')

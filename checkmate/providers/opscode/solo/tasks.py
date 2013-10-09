@@ -1,3 +1,5 @@
+# pylint: disable=R0912,R0913,R0914,R0915,W0613
+
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -719,8 +721,9 @@ def register_node(host, environment, resource, path=None, password=None,
         raise register_node.retry(exc=exc)
 
     if re.match('^Chef: [0-9]+.[0-9]+.[0-9]+', results['stdout']) is None:
-        exc = exceptions.CheckmateException("Check for chef install failed with "
-                                       "unexpected response '%s'" % results)
+        exc = exceptions.CheckmateException("Check for chef install failed "
+                                            "with unexpected response '%s'" %
+                                            results)
         raise register_node.retry(exc=exc)
 
     node_data = _write_node_attributes(node_path, attributes)
@@ -1238,4 +1241,3 @@ def _blueprint_exists(source, dest):
         if not os.path.exists(dest_file):
             return False
     return True
-
