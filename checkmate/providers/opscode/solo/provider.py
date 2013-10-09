@@ -69,7 +69,7 @@ class Provider(ProviderBase):
         source_repo = deployment.get_setting('source', provider_key=self.key)
         defines = {'provider': self.key}
         properties = {'estimated_duration': 10, 'task_tags': ['root']}
-        task_name = 'checkmate.providers.opscode.knife.create_environment'
+        task_name = 'checkmate.providers.opscode.solo.tasks.create_environment'
         self.prep_task = specs.Celery(wfspec,
                                       'Create Chef Environment', task_name,
                                       call_args=[deployment['id'], 'kitchen'],
@@ -84,7 +84,7 @@ class Provider(ProviderBase):
         return {'root': self.prep_task, 'final': self.prep_task}
 
     def cleanup_environment(self, wfspec, deployment):
-        call = 'checkmate.providers.opscode.knife.delete_environment'
+        call = 'checkmate.providers.opscode.solo.tasks.delete_environment'
         defines = {'provider': self.key}
         properties = {'estimated_duration': 1, 'task_tags': ['cleanup']}
         cleanup_task = specs.Celery(wfspec, 'Delete Chef Environment', call,
@@ -103,7 +103,7 @@ class Provider(ProviderBase):
                                                     tag='client-ready')
         final_tasks = wfspec.find_task_specs(provider=self.key, tag='final')
         client_ready_tasks.extend(final_tasks)
-        call = 'checkmate.providers.opscode.knife.delete_cookbooks'
+        call = 'checkmate.providers.opscode.solo.tasks.delete_cookbooks'
         cleanup_task = specs.Celery(wfspec, 'Delete Cookbooks', call,
                                     call_args=[deployment['id'], 'kitchen'],
                                     defines={'provider': self.key},
@@ -164,7 +164,7 @@ class Provider(ProviderBase):
         anchor_task = configure_task = specs.Celery(
             wfspec,
             'Configure %s: %s (%s)' % (component_id, key, service_name),
-            'checkmate.providers.opscode.knife.cook',
+            'checkmate.providers.opscode.solo.tasks.cook',
             call_args=[
                 instance_ip,
                 deployment['id'], resource
@@ -297,7 +297,8 @@ class Provider(ProviderBase):
         output = map_with_context.get_component_output_template(component_id)
         name = "%s Chef Data for %s" % (collect_tag.capitalize(),
                                         resource_key)
-        func = "checkmate.providers.opscode.solo.Transforms.collect_options"
+        func = "checkmate.providers.opscode.solo.transforms" \
+               ".Transforms.collect_options"
         collect_data = specs.SafeTransMerge(
             wfspec,
             name,
@@ -369,7 +370,7 @@ class Provider(ProviderBase):
                     resource['index'], collect_tag.capitalize())
             write_databag = specs.Celery(
                 wfspec, name,
-                'checkmate.providers.opscode.knife.write_databag',
+                'checkmate.providers.opscode.solo.tasks.write_databag',
                 call_args=[
                     deployment['id'], bag_name, item_name,
                     operators.PathAttrib(path), resource
@@ -432,7 +433,7 @@ class Provider(ProviderBase):
                     role_name, resource_key, collect_tag.capitalize())
             write_role = specs.Celery(
                 wfspec, name,
-                'checkmate.providers.opscode.knife.manage_role',
+                'checkmate.providers.opscode.solo.tasks.manage_role',
                 call_args=[role_name, deployment['id'], resource],
                 kitchen_name='kitchen',
                 override_attributes=operators.PathAttrib(path),
@@ -622,7 +623,7 @@ class Provider(ProviderBase):
                 'Register Server %s (%s)' % (
                     relation['target'], resource['service']
                 ),
-                'checkmate.providers.opscode.knife.register_node',
+                'checkmate.providers.opscode.solo.tasks.register_node',
                 call_args=[
                     operators.PathAttrib(
                         'instance:%s/ip' % relation['target']),
@@ -648,7 +649,7 @@ class Provider(ProviderBase):
                 'Pre-Configure Server %s (%s)' % (
                     relation['target'], service_name
                 ),
-                'checkmate.providers.opscode.knife.cook',
+                'checkmate.providers.opscode.solo.tasks.cook',
                 call_args=[
                     operators.PathAttrib(
                         'instance:%s/ip' % relation['target']),
@@ -767,7 +768,7 @@ class Provider(ProviderBase):
             reconfigure_task = specs.Celery(
                 wfspec,
                 name,
-                'checkmate.providers.opscode.knife.cook',
+                'checkmate.providers.opscode.solo.tasks.cook',
                 call_args=[
                     instance_ip,
                     deployment['id'], server

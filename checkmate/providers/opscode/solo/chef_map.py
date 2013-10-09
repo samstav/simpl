@@ -24,7 +24,6 @@ from yaml.scanner import ScannerError
 from checkmate.common import templating
 from checkmate import exceptions
 from checkmate.providers.opscode.solo import tasks
-from checkmate.providers.opscode.solo import SoloProviderNotReady
 from checkmate import utils
 
 
@@ -39,6 +38,11 @@ def register_scheme(scheme):
         getattr(urlparse, method).append(scheme)
 
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
+
+
+class SoloProviderNotReady(exceptions.CheckmateException):
+    """Expected data are not yet available."""
+    pass
 
 
 class ChefMap(object):

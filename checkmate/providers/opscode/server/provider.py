@@ -35,7 +35,7 @@ class Provider(ProviderBase):
         create_environment = specs.Celery(
             wfspec,
             'Create Chef Environment',
-            'checkmate.providers.opscode.server.manage_env',
+            'checkmate.providers.opscode.server.tasks.manage_env',
             call_args=[
                 operators.Attrib('context'),
                 deployment['id'],
@@ -51,7 +51,7 @@ class Provider(ProviderBase):
         register_node_task = specs.Celery(
             wfspec,
             'Register Server:%s (%s)' % (key, resource['service']),
-            'checkmate.providers.opscode.server.register_node',
+            'checkmate.providers.opscode.server.tasks.register_node',
             call_args=[
                 operators.Attrib('context'),
                 resource.get('dns-name'),
@@ -84,7 +84,7 @@ class Provider(ProviderBase):
         bootstrap_task = specs.Celery(
             wfspec,
             'Bootstrap Server:%s (%s)' % (key, resource['service']),
-            'checkmate.providers.opscode.server.bootstrap',
+            'checkmate.providers.opscode.server.tasks.bootstrap',
             call_args=[
                 operators.Attrib('context'),
                 resource.get('dns-name'),
@@ -137,7 +137,7 @@ class Provider(ProviderBase):
             set_overrides = specs.Celery(
                 wfspec,
                 "Write Database Settings",
-                'checkmate.providers.opscode.server.manage_env',
+                'checkmate.providers.opscode.server.tasks.manage_env',
                 call_args=[operators.Attrib('context'), deployment['id']],
                 desc='Checkmate Environment',
                 override_attributes=operators.Attrib('overrides'),
