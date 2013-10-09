@@ -1,4 +1,4 @@
-# pylint: disable= C0302
+# pylint: disable=C0302,R0913
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
