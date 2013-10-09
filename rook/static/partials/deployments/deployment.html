@@ -25,18 +25,7 @@ Priv Key: {{formatted_data.private_key}}
         <div>
           <h3 style="display: inline">
             {{data.name || data.blueprint.name}}
-          </h3>
-          <p>
-            <a ng-href="/deployments/new?blueprint={{get_blueprint_url(data)}}">
-              {{data.blueprint.name}}
-            </a>
-            <span ng-show="is_admin(true)">
-              by
-              <a ng-click="impersonate(data['created-by'])" ng-show="is_admin()" tooltip="Impersonate this user">
-                {{data['created-by']}}
-              </a>
-            </span>:
-            <span id="status" class="label" ng-class="{
+          </h3><span id="status" class="label" ng-class="{
               'label-info': data.status == 'PLANNED',
               'label-success': data.status == 'UP' || data.status == 'LAUNCHED' || data.status == 'ACTIVE',
               'label-warning': data.status == 'ALERT' || data.status == 'DELETING' || data.status == 'BUILD',
@@ -45,14 +34,21 @@ Priv Key: {{formatted_data.private_key}}
             }">
               {{data.display_status}}
             </span>
-            <br />
-
-            {{data.environment.name}}
-            <br />
-
+          <p>
+            Launched using the <a ng-href="/deployments/new?blueprint={{get_blueprint_url(data)}}">
+              {{data.blueprint.name}}
+            </a> blueprint
+            <span ng-show="is_admin(true)">
+              by
+              <a ng-click="impersonate(data['created-by'])" ng-show="is_admin()" tooltip="Impersonate this user">
+                {{data['created-by']}}
+              </a>
+            </span>
             <span class="cm-tips" tooltip="{{data.created | formattedFullDate}}" tooltip-placement="bottom">
               {{data.created | formattedDate}}
             </span>
+            <span ng-show="data.environment.name">in {{data.environment.name}}</span>.
+            <hr/>
           </p>
 
           <div class="progress" style="height: 5px">
