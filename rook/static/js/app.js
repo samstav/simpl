@@ -41,6 +41,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/blueprints/new.html',
     controller: BlueprintNewController
   })
+  .when('/:tenantId/blueprints/new', {
+    templateUrl: '/partials/blueprints/new.html',
+    controller: BlueprintNewController
+  })
   .when('/:tenantId/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: DeploymentNewRemoteController,
