@@ -302,7 +302,7 @@ class Router(object):
         """Parse and preview a deployment and its workflow."""
         deployment = _content_to_deployment(tenant_id=tenant_id)
         context = bottle.request.environ['context']
-        results = self.manager.plan(deployment, bottle.request.context)
+        results = self.manager.plan(deployment, context)
         spec = workflow_spec.WorkflowSpec.create_build_spec(
             results, context)
         serializer = DictionarySerializer()
