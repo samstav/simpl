@@ -792,7 +792,7 @@ angular.module('checkmate.directives').directive('cmPasswordManager', ['$rootSco
 
 angular.module('checkmate.directives').directive('markdown', [function() {
   var to_html = function(new_value, old_value, scope) {
-    var text = new_value || "";
+    var text = (new_value || "").toString();
     var html = scope.converter.makeHtml(text);
     scope.element.html(html);
   }
