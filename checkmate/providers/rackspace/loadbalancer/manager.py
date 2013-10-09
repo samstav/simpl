@@ -200,15 +200,15 @@ class Manager(object):
         except pyrax.exceptions.ClientException as response_error:
             if response_error.code == '422':
                 msg = ("Cannot modify load balancer %s. Will retry setting "
-                       "%s monitor (%s %s)" % (
-                       lb_id, type, response_error.code,
-                       response_error.message))
+                       "%s monitor (%s %s)" %
+                       (lb_id, mon_type, response_error.code,
+                        response_error.message))
                 LOG.debug(msg)
             else:
                 msg = ("Response error from load balancer %s. Will retry "
-                       "setting %s monitor (%s %s)" % (
-                       lb_id, type, response_error.code,
-                       response_error.message))
+                       "setting %s monitor (%s %s)" %
+                       (lb_id, mon_type, response_error.code,
+                        response_error.message))
                 LOG.debug(msg)
             raise exceptions.CheckmateException(
                 msg, options=exceptions.CAN_RESUME)
@@ -219,7 +219,7 @@ class Manager(object):
                 str(exc), options=exceptions.CAN_RESUME)
         except StandardError as exc:
             msg = ("Error setting %s monitor on load balancer %s. Error: %s. "
-                   "Retrying" % (type, lb_id, str(exc)))
+                   "Retrying" % (mon_type, lb_id, str(exc)))
             LOG.debug(msg)
             raise exceptions.CheckmateException(
                 msg, options=exceptions.CAN_RESUME)
@@ -241,7 +241,7 @@ class Manager(object):
                 node_to_delete.delete()
                 LOG.info('Removed %s from load balancer %s', ip_addr, lb_id)
             except pyrax.exceptions.ClientException as exc:
-                msg = ("Response error from load balancer %d. Will retry "
+                msg = ("Response error from load balancer %s. Will retry "
                        "deleting %s (%s %s)" % (lb_id, ip_addr, exc.code,
                                                 exc.message))
                 LOG.debug(msg)
@@ -293,7 +293,7 @@ class Manager(object):
                     node.condition = "ENABLED"
                     node.update()
                     new_node = node
-                    LOG.info("Updated %s:%d from load balancer %d",
+                    LOG.info("Updated %s:%s from load balancer %s",
                              node.address, node.port, lb_id)
                     # We return this at the end of the call
                 results = {'nodes': [node.id]}
@@ -326,14 +326,14 @@ class Manager(object):
                     raise exceptions.CheckmateException("Validation failed - "
                                                         "Node was not added")
             except pyrax.exceptions.ClientException as exc:
-                msg = ("Response error from load balancer %d. Will retry "
-                       "adding %s (%d %s)" % (lb_id, ip_addr, exc.code,
-                       exc.message))
+                msg = ("Response error from load balancer %s. Will retry "
+                       "adding %s (%s %s)" % (lb_id, ip_addr, exc.code,
+                                              exc.message))
                 LOG.debug(msg)
                 raise exceptions.CheckmateException(msg,
                                                     exceptions.CAN_RESUME)
             except StandardError as exc:
-                msg = ("Error adding %s behind load balancer %d. Error: %s. "
+                msg = ("Error adding %s behind load balancer %s. Error: %s. "
                        "Retrying" % (ip_addr, lb_id, str(exc)))
                 LOG.debug(msg)
                 raise exceptions.CheckmateException(msg,
@@ -483,7 +483,7 @@ class Manager(object):
                 LOG.info('Update %s to %s for load balancer %s', ip_address,
                          node_status, lb_id)
             except pyrax.exceptions.ClientException as exc:
-                msg = ("Response error from load balancer %d. Will retry "
+                msg = ("Response error from load balancer %s. Will retry "
                        "updating node %s (%s %s)" % (lb_id, ip_address,
                                                      exc.code,
                                                      exc.message))
