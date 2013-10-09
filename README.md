@@ -22,10 +22,10 @@ Tests
 -----
 
 * Ensure you have node installed (http://nodejs.org/)
-* Ensure you have karma installed (http://karma-runner.github.io/)
+* Ensure you have karma >= 0.9.3 installed (http://karma-runner.github.io/)
 * Ensure you have PhantomJS installed (http://phantomjs.org/)
-* In a separate window terminal, run <code>karma start rook/static/test/karma.conf</code>
-* Open chrome to http://localhost:9876
+* In a separate window terminal, run <code>karma start rook/static/test/karma.conf.js</code>
+* Tests will run using PhantomJS and run whenever you make code changes
 
 Your tests should now run whenever a file change occurs and display the
 output in your terminal window
