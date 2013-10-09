@@ -14,8 +14,9 @@ from checkmate import providers as cmprov
 
 from checkmate.common import caching
 from checkmate.common import config
-from checkmate.providers.rackspace import base
 from checkmate import deployments as cmdeps
+from checkmate import exceptions as cmexc
+from checkmate.providers.rackspace import base
 from checkmate import utils
 
 

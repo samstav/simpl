@@ -14,9 +14,9 @@ class TestGetApiInfo(unittest.TestCase):
         self.context = base.middleware.RequestContext(**{'region': 'SYD'})
         self.kwargs = {'region': 'iad'}
 
-    @mock.patch.object(compute.eventlet, 'GreenPile')
+    @mock.patch.object(compute.provider.eventlet, 'GreenPile')
     @mock.patch.object(compute.Provider, 'find_url')
-    @mock.patch.object(compute.CONFIG, 'eventlet')
+    @mock.patch.object(compute.provider.CONFIG, 'eventlet')
     def test_context_success(self, mock_config, mock_find_url, mock_eventlet):
         """Verifies method calls on success with context['region']."""
         mock_find_url.return_value = 'http://testurl.com'
@@ -61,9 +61,9 @@ class TestGetApiInfo(unittest.TestCase):
         mock_eventlet.assert_called_with(2)
         self.assertEqual(mock_jobs.spawn.call_count, 2)
 
-    @mock.patch.object(compute.eventlet, 'GreenPile')
+    @mock.patch.object(compute.provider.eventlet, 'GreenPile')
     @mock.patch.object(compute.Provider, 'find_url')
-    @mock.patch.object(compute.CONFIG, 'eventlet')
+    @mock.patch.object(compute.provider.CONFIG, 'eventlet')
     def test_kwargs_success(self, mock_config, mock_find_url, mock_eventlet):
         """Verifies method calls on success with kwargs['region']."""
         mock_find_url.return_value = 'http://testurl.com'
@@ -108,11 +108,11 @@ class TestGetApiInfo(unittest.TestCase):
         mock_eventlet.assert_called_with(2)
         self.assertEqual(mock_jobs.spawn.call_count, 2)
 
-    @mock.patch.object(compute.eventlet, 'GreenPile')
-    @mock.patch.object(compute.Provider, 'find_url')
-    @mock.patch.object(compute.Provider, 'get_regions')
-    @mock.patch.object(compute.LOG, 'warning')
-    @mock.patch.object(compute.CONFIG, 'eventlet')
+    @mock.patch.object(compute.provider.eventlet, 'GreenPile')
+    @mock.patch.object(compute.provider.Provider, 'find_url')
+    @mock.patch.object(compute.provider.Provider, 'get_regions')
+    @mock.patch.object(compute.provider.LOG, 'warning')
+    @mock.patch.object(compute.provider.CONFIG, 'eventlet')
     def test_no_region(self, mock_config, mock_logger, mock_get_regions,
                        mock_find_url, mock_eventlet):
         """Verifies method calls with no region and dicts merged."""
@@ -214,20 +214,20 @@ class TestGetApiInfo(unittest.TestCase):
         self.assertEqual(mock_jobs.spawn.call_count, 6)
         self.assertEqual(results, expected)
 
-    @mock.patch.object(compute.LOG, 'warning')
-    @mock.patch.object(compute.eventlet, 'GreenPile')
-    @mock.patch.object(compute.Provider, 'find_url')
+    @mock.patch.object(compute.provider.LOG, 'warning')
+    @mock.patch.object(compute.provider.eventlet, 'GreenPile')
+    @mock.patch.object(compute.provider.Provider, 'find_url')
     def test_no_urls(self, mock_find_url, mock_eventlet, mock_logger):
         """Verifies method calls when no urls returned."""
         mock_find_url.return_value = None
         mock_jobs = EventletGreenpile()
         mock_jobs.spawn = mock.Mock()
         mock_eventlet.return_value = mock_jobs
-        compute.Provider._get_api_info(self.context)
+        compute.provider.Provider._get_api_info(self.context)
         mock_logger.assert_called_with('Failed to find compute endpoint for '
                                        '%s in region %s', None, 'SYD')
 
-    @mock.patch.object(compute.CLIENT, 'Client')
+    @mock.patch.object(compute.provider.CLIENT, 'Client')
     def test_skip_snapshots(self, mock_client):
         """Verifies snapshots are ignored."""
         mock_snapshot = mock.Mock(id="A", metadata={'image_type': 'snapshot'})
@@ -251,13 +251,13 @@ class TestGetApiInfo(unittest.TestCase):
             },
         }
 
-        results = compute._get_images_and_types("localhost", "token")
+        results = compute.provider._get_images_and_types("localhost", "token")
         self.assertEqual(results, expected)
 
 
 class TestImageDetection(unittest.TestCase):
     def test_blank(self):
-        detected = compute.detect_image('')
+        detected = compute.provider.detect_image('')
         self.assertEqual(detected, {})
 
     def test_rackspace_metadata(self):
@@ -265,7 +265,7 @@ class TestImageDetection(unittest.TestCase):
             'os_distro': 'ubuntu',
             'os_version': '12.04',
         }
-        detected = compute.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image('', metadata=metadata)
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
@@ -274,7 +274,7 @@ class TestImageDetection(unittest.TestCase):
             'org.openstack__1__os_distro': 'org.ubuntu',
             'org.openstack__1__os_version': '12.04',
         }
-        detected = compute.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image('', metadata=metadata)
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
@@ -283,7 +283,7 @@ class TestImageDetection(unittest.TestCase):
             'org.openstack__1__os_distro': 'Org.Ubuntu',
             'org.openstack__1__os_version': '12.04',
         }
-        detected = compute.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image('', metadata=metadata)
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
@@ -292,7 +292,7 @@ class TestImageDetection(unittest.TestCase):
             'org.openstack__1__os_distro': 'org.microsoft.server',
             'org.openstack__1__os_version': '2008.2',
         }
-        detected = compute.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image('', metadata=metadata)
         self.assertEqual(detected['os'],
                          'Microsoft Windows Server 2008 R2 SP1')
         self.assertEqual(detected['type'], 'windows')
@@ -302,32 +302,33 @@ class TestImageDetection(unittest.TestCase):
             'org.openstack__1__os_distro': 'org.microsoft.server',
             'org.openstack__1__os_version': '2012',
         }
-        detected = compute.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image('', metadata=metadata)
         self.assertEqual(detected['os'], 'Microsoft Windows Server 2012')
         self.assertEqual(detected['type'], 'windows')
 
     def test_name_codename(self):
-        detected = compute.detect_image("My 'precise' image")
+        detected = compute.provider.detect_image("My 'precise' image")
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
     def test_name_fullname(self):
-        detected = compute.detect_image("Ubuntu 12.04 image")
+        detected = compute.provider.detect_image("Ubuntu 12.04 image")
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
     def test_known_name_version(self):
-        detected = compute.detect_image("vagrant-ubuntu-x64-13.10")
+        detected = compute.provider.detect_image("vagrant-ubuntu-x64-13.10")
         self.assertEqual(detected['os'], 'Ubuntu 13.10')
         self.assertEqual(detected['type'], 'linux')
 
     def test_rackspace_image(self):
-        detected = compute.detect_image("OtherOS 10.4 LTS (code red)")
+        detected = compute.provider.detect_image("OtherOS 10.4 LTS (code "
+                                                 "red)")
         self.assertEqual(detected['os'], 'OtherOS 10.4')
         self.assertEqual(detected['type'], 'linux')
 
     def test_inova_image(self):
-        detected = compute.detect_image("OtherOS 10.4 LTS")
+        detected = compute.provider.detect_image("OtherOS 10.4 LTS")
         self.assertEqual(detected['os'], 'OtherOS 10.4')
         self.assertEqual(detected['type'], 'linux')
 
