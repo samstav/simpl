@@ -527,6 +527,7 @@ text.nodetext {
 }
 
 /* Tree View */
+.deployment_tree { margin: auto; }
 .deployment_tree .edge {
   stroke-dasharray: 2, 5;
   stroke-width: 2px;
