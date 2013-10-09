@@ -44,6 +44,9 @@ Priv Key: {{formatted_data.private_key}}
                 {{data['created-by']}}
               </a>
             </span>
+            <span ng-hide="is_admin(true)">
+              by {{data['created-by']}}
+            </span>
             <span class="cm-tips" tooltip="{{data.created | formattedFullDate}}" tooltip-placement="bottom">
               {{data.created | formattedDate}}
             </span>
