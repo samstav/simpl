@@ -355,7 +355,7 @@ class Manager(object):
             self.save_deployment(deployment_body, api_id=deployment_id,
                                  partial=True)
 
-    def postback(self, dep_id, contents, check_only=False):
+    def postback(self, dep_id, contents):
         #TODO(any): we need to receive a context and check access?
         """This is a generic postback intended to handle all postback calls.
         Accepts back results from a remote call and updates the deployment with
@@ -377,15 +377,13 @@ class Manager(object):
                                                "type dictionary")
         updates = {}
         dep.on_postback(contents, updates)
-
-        if not check_only:
-            body, secrets = utils.extract_sensitive_data(updates)
-            db.get_driver(api_id=dep_id).save_deployment(
-                dep_id, body, secrets, partial=True,
-                tenant_id=dep['tenantId']
-            )
-            LOG.debug("Updated deployment %s with postback", dep_id,
-                      extra=dict(data=updates))
+        body, secrets = utils.extract_sensitive_data(updates)
+        db.get_driver(api_id=dep_id).save_deployment(
+            dep_id, body, secrets, partial=True,
+            tenant_id=dep['tenantId']
+        )
+        LOG.debug("Updated deployment %s with postback", dep_id,
+                  extra=dict(data=updates))
         return dep.get('resources')
 
     def plan_add_nodes(self, deployment, context, service_name, count,

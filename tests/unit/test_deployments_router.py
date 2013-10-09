@@ -670,16 +670,19 @@ class TestTimestampDeployments(TestDeploymentRouter):
 class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
     def setUp(self):
         self.statuses = {
-            "deployment_status": "DELETED",
-            "operation_status": "COMPLETE",
-            "resources": {
-                "instance:1": {"instance": {"status-message": ""}},
-                "instance:3": {"instance": {"status-message": ""}},
+            'deployment_status': 'DELETED',
+            'operation_status': 'COMPLETE',
+            'resources': {
+                '0': {
+                    'instance': {'flavor': '3'},
+                    'desired-state': {'flavor': '3', 'region': 'DFW'},
+                    'region': 'DFW'
+                }
             }
         }
         mock_dep = mock.Mock()
         mock_dep.get_statuses.return_value = self.statuses
-        mock_dep.get.return_value = {'status': 'UP'}
+        mock_dep.get.return_value = self.statuses['resources']
 
         setup_deployment_patcher = mock.patch.object(deployments.router.Router,
                                                      '_setup_deployment')
@@ -698,37 +701,21 @@ class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
         self.mock_write_body = write_body_patcher.start()
         self.addCleanup(write_body_patcher.stop)
 
-    @mock.patch.object(deployments.router.tasks, 'postback')
-    def test_sync_deployment(self, mock_postback):
+    @mock.patch.object(deployments.router.db, 'get_driver')
+    def test_sync_deployment(self, mock_driver):
         router = deployments.Router(mock.Mock(), mock.Mock())
         router.sync_deployment('dep_id')
         self.mock_write_body.assert_called_once_with(
             self.statuses['resources'], mock.ANY, mock.ANY)
-        mock_postback.assert_called_once_with(
-            'dep_id',
-            {
-                'resources': {
-                    'instance:1': {'instance': {'status-message': ''}},
-                    'instance:3': {'instance': {'status-message': ''}}
-                }
-            }
-        )
+        mock_driver.assert_called_once_with(api_id='dep_id')
 
-    @mock.patch.object(deployments.router.tasks, 'postback')
-    def test_check_deployment(self, mock_postback):
+    def test_check_deployment(self):
         expected = {'resources': {
             '0': [
                 {'message': 'flavor 3 is valid.', 'type': 'INFORMATION'},
                 {'message': 'region DFW is valid.', 'type': 'INFORMATION'}
             ]
         }}
-        mock_postback.return_value = {
-            '0': {
-                'desired-state': {'flavor': '3', 'region': 'DFW'},
-                'instance': {'flavor': '3'},
-                'region': 'DFW'
-            }
-        }
         router = deployments.Router(mock.Mock(), mock.Mock())
         router.check_deployment('dep_id')
         self.mock_write_body.assert_called_once_with(expected, mock.ANY,
