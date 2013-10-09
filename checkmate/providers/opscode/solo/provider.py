@@ -1,4 +1,4 @@
-# pylint: disable=C0302
+# pylint: disable=R0912,R0913,R0914,R0915
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -17,44 +17,24 @@
 import copy
 import logging
 import os
-import urlparse
 
-from SpiffWorkflow.operators import Attrib, PathAttrib
-from SpiffWorkflow.specs import Celery, SafeTransMerge
+from SpiffWorkflow import operators
+from SpiffWorkflow import specs
 import yaml
 from yaml.composer import ComposerError
 from yaml.parser import ParserError
 from yaml.scanner import ScannerError
 
+from checkmate import common
 from checkmate.common import schema
-from checkmate.common import templating
-from checkmate import utils
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateValidationException,
-)
-from checkmate.keys import hash_SHA512
-from checkmate.providers.opscode import knife
+from checkmate import exceptions
+from checkmate import keys
+from checkmate.providers.opscode.solo.chef_map import ChefMap
 from checkmate.providers import ProviderBase
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
                                  "10.24.0")
-
-
-def register_scheme(scheme):
-    """Use this to register a new scheme with urlparse and have it be
-    parsed in the same way as http is parsed
-    """
-    for method in [s for s in dir(urlparse) if s.startswith('uses_')]:
-        getattr(urlparse, method).append(scheme)
-
-register_scheme('git')  # without this, urlparse won't handle git:// correctly
-
-
-class SoloProviderNotReady(CheckmateException):
-    """Expected data are not yet available."""
-    pass
 
 
 class Provider(ProviderBase):
@@ -81,39 +61,35 @@ class Provider(ProviderBase):
 
         # Create Celery Task
         settings = deployment.settings()
-        keys = settings.get('keys', {})
-        deployment_keys = keys.get('deployment', {})
+        all_keys = settings.get('keys', {})
+        deployment_keys = all_keys.get('deployment', {})
         public_key_ssh = deployment_keys.get('public_key_ssh')
         private_key = deployment_keys.get('private_key')
         secret_key = deployment.get_setting('secret_key')
         source_repo = deployment.get_setting('source', provider_key=self.key)
         defines = {'provider': self.key}
         properties = {'estimated_duration': 10, 'task_tags': ['root']}
-        task_name = 'checkmate.providers.opscode.knife.create_environment'
-        self.prep_task = Celery(wfspec,
-                                'Create Chef Environment',
-                                task_name,
-                                call_args=[deployment['id'], 'kitchen'],
-                                public_key_ssh=public_key_ssh,
-                                private_key=private_key,
-                                secret_key=secret_key,
-                                source_repo=source_repo,
-                                provider=Provider.name,
-                                defines=defines,
-                                properties=properties)
+        task_name = 'checkmate.providers.opscode.solo.tasks.create_environment'
+        self.prep_task = specs.Celery(wfspec,
+                                      'Create Chef Environment', task_name,
+                                      call_args=[deployment['id'], 'kitchen'],
+                                      public_key_ssh=public_key_ssh,
+                                      private_key=private_key,
+                                      secret_key=secret_key,
+                                      source_repo=source_repo,
+                                      provider=Provider.name,
+                                      defines=defines,
+                                      properties=properties)
 
         return {'root': self.prep_task, 'final': self.prep_task}
 
     def cleanup_environment(self, wfspec, deployment):
-        call = 'checkmate.providers.opscode.knife.delete_environment'
+        call = 'checkmate.providers.opscode.solo.tasks.delete_environment'
         defines = {'provider': self.key}
         properties = {'estimated_duration': 1, 'task_tags': ['cleanup']}
-        cleanup_task = Celery(wfspec,
-                              'Delete Chef Environment',
-                              call,
-                              call_args=[deployment['id']],
-                              defines=defines,
-                              properties=properties)
+        cleanup_task = specs.Celery(wfspec, 'Delete Chef Environment', call,
+                                    call_args=[deployment['id']],
+                                    defines=defines, properties=properties)
 
         return {'root': cleanup_task, 'final': cleanup_task}
 
@@ -127,13 +103,11 @@ class Provider(ProviderBase):
                                                     tag='client-ready')
         final_tasks = wfspec.find_task_specs(provider=self.key, tag='final')
         client_ready_tasks.extend(final_tasks)
-        call = 'checkmate.providers.opscode.knife.delete_cookbooks'
-        cleanup_task = Celery(wfspec,
-                              'Delete Cookbooks',
-                              call,
-                              call_args=[deployment['id'], 'kitchen'],
-                              defines={'provider': self.key},
-                              properties={'estimated_duration': 1})
+        call = 'checkmate.providers.opscode.solo.tasks.delete_cookbooks'
+        cleanup_task = specs.Celery(wfspec, 'Delete Cookbooks', call,
+                                    call_args=[deployment['id'], 'kitchen'],
+                                    defines={'provider': self.key},
+                                    properties={'estimated_duration': 1})
         root = wfspec.wait_for(cleanup_task, client_ready_tasks,
                                name="Wait before deleting cookbooks",
                                provider=self.key)
@@ -186,20 +160,21 @@ class Provider(ProviderBase):
 
         resource = deployment['resources'][key]
         host_idx = resource.get('hosted_on', key)
-        instance_ip = PathAttrib("instance:%s/ip" % host_idx)
-        anchor_task = configure_task = Celery(
+        instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
+        anchor_task = configure_task = specs.Celery(
             wfspec,
             'Configure %s: %s (%s)' % (component_id, key, service_name),
-            'checkmate.providers.opscode.knife.cook',
+            'checkmate.providers.opscode.solo.tasks.cook',
             call_args=[
                 instance_ip,
                 deployment['id'], resource
             ],
-            password=PathAttrib(
+            password=operators.PathAttrib(
                 'instance:%s/password' % resource.get('hosted_on', key)
             ),
-            attributes=PathAttrib('chef_options/attributes:%s' % key),
-            identity_file=Attrib('private_key_path'),
+            attributes=operators.PathAttrib('chef_options/attributes:%s' %
+                                            key),
+            identity_file=operators.Attrib('private_key_path'),
             description="Push and apply Chef recipes on the server",
             defines=dict(resource=key, provider=self.key, task_tags=['final']),
             properties={'estimated_duration': 100},
@@ -285,11 +260,10 @@ class Provider(ProviderBase):
                                                  resource=resource_key,
                                                  tag=ready_tag)
             if not ready_tasks:
-                raise CheckmateException("'collect' task exists, but "
-                                         "'options-ready' is missing")
+                raise exceptions.CheckmateException(
+                    "'collect' task exists, but 'options-ready' is missing")
             return {'root': collect_tasks[0], 'final': ready_tasks[0]}
 
-        collect_data = None
         write_databag = None
         write_role = None
 
@@ -323,8 +297,9 @@ class Provider(ProviderBase):
         output = map_with_context.get_component_output_template(component_id)
         name = "%s Chef Data for %s" % (collect_tag.capitalize(),
                                         resource_key)
-        func = "checkmate.providers.opscode.solo.Transforms.collect_options"
-        collect_data = SafeTransMerge(
+        func = "checkmate.providers.opscode.solo.transforms" \
+               ".Transforms.collect_options"
+        collect_data = specs.SafeTransMerge(
             wfspec,
             name,
             function_name=func,
@@ -360,7 +335,7 @@ class Provider(ProviderBase):
                 if len(path_parts) < 1:
                     msg = ("Mapping target '%s' is invalid. It needs "
                            "a databag name and a databag item name")
-                    raise CheckmateValidationException(msg)
+                    raise exceptions.CheckmateValidationException(msg)
                 item_name = path_parts[0]
 
                 if bag_name not in databags:
@@ -393,12 +368,12 @@ class Provider(ProviderBase):
             else:
                 name = "Rewrite Data Bag for %s (%s)" % (
                     resource['index'], collect_tag.capitalize())
-            write_databag = Celery(
+            write_databag = specs.Celery(
                 wfspec, name,
-                'checkmate.providers.opscode.knife.write_databag',
+                'checkmate.providers.opscode.solo.tasks.write_databag',
                 call_args=[
                     deployment['id'], bag_name, item_name,
-                    PathAttrib(path), resource
+                    operators.PathAttrib(path), resource
                 ],
                 secret_file=secret_file,
                 merge=True,
@@ -456,12 +431,12 @@ class Provider(ProviderBase):
             else:
                 name = "Rewrite Role %s for %s (%s)" % (
                     role_name, resource_key, collect_tag.capitalize())
-            write_role = Celery(
+            write_role = specs.Celery(
                 wfspec, name,
-                'checkmate.providers.opscode.knife.manage_role',
+                'checkmate.providers.opscode.solo.tasks.manage_role',
                 call_args=[role_name, deployment['id'], resource],
                 kitchen_name='kitchen',
-                override_attributes=PathAttrib(path),
+                override_attributes=operators.PathAttrib(path),
                 run_list=run_list,
                 description="Take the JSON prepared earlier and write "
                             "it into the application role. It will be "
@@ -521,7 +496,7 @@ class Provider(ProviderBase):
                         pass  # default probably not a string type
                     defaults[key] = default
             kwargs['defaults'] = defaults
-        parsed = templating.parse(self.map_file.raw, **kwargs)
+        parsed = common.templating.parse(self.map_file.raw, **kwargs)
         return ChefMap(parsed=parsed)
 
     def get_resource_prepared_maps(self, resource, deployment, map_file=None):
@@ -592,7 +567,8 @@ class Provider(ProviderBase):
                 if resource.get('type') == 'user':
                     instance = resource.get('instance', {})
                     if 'password' in instance:
-                        instance['hash'] = hash_SHA512(instance['password'])
+                        instance['hash'] = keys.hash_SHA512(
+                            instance['password'])
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
@@ -632,8 +608,8 @@ class Provider(ProviderBase):
             # Wait on host to be ready
             wait_on = self.get_host_ready_tasks(resource, wfspec, deployment)
             if not wait_on:
-                raise CheckmateException("No host resource found for relation "
-                                         "'%s'" % relation_key)
+                raise exceptions.CheckmateException(
+                    "No host resource found for relation '%s'" % relation_key)
             attributes = map_with_context.get_attributes(resource['component'],
                                                          deployment)
             service_name = resource['service']
@@ -642,23 +618,24 @@ class Provider(ProviderBase):
                                                      service_name=service_name,
                                                      default=OMNIBUS_DEFAULT)
             # Create chef setup tasks
-            register_node_task = Celery(
+            register_node_task = specs.Celery(
                 wfspec,
                 'Register Server %s (%s)' % (
                     relation['target'], resource['service']
                 ),
-                'checkmate.providers.opscode.knife.register_node',
+                'checkmate.providers.opscode.solo.tasks.register_node',
                 call_args=[
-                    PathAttrib('instance:%s/ip' % relation['target']),
+                    operators.PathAttrib(
+                        'instance:%s/ip' % relation['target']),
                     deployment['id'], resource
                 ],
-                password=PathAttrib(
+                password=operators.PathAttrib(
                     'instance:%s/password' % relation['target']
                 ),
                 kitchen_name='kitchen',
                 attributes=attributes,
                 omnibus_version=omnibus_version,
-                identity_file=Attrib('private_key_path'),
+                identity_file=operators.Attrib('private_key_path'),
                 defines=dict(
                     resource=key, relation=relation_key, provider=self.key
                 ),
@@ -667,20 +644,21 @@ class Provider(ProviderBase):
                 properties=dict(estimated_duration=120)
             )
 
-            bootstrap_task = Celery(
+            bootstrap_task = specs.Celery(
                 wfspec,
                 'Pre-Configure Server %s (%s)' % (
                     relation['target'], service_name
                 ),
-                'checkmate.providers.opscode.knife.cook',
+                'checkmate.providers.opscode.solo.tasks.cook',
                 call_args=[
-                    PathAttrib('instance:%s/ip' % relation['target']),
+                    operators.PathAttrib(
+                        'instance:%s/ip' % relation['target']),
                     deployment['id'], resource
                 ],
-                password=PathAttrib(
+                password=operators.PathAttrib(
                     'instance:%s/password' % relation['target']
                 ),
-                identity_file=Attrib('private_key_path'),
+                identity_file=operators.Attrib('private_key_path'),
                 description="Install basic pre-requisites on %s"
                             % relation['target'],
                 defines=dict(
@@ -785,21 +763,22 @@ class Provider(ProviderBase):
             name = 'Reconfigure %s: client ready' % server['component']
             host_idx = server.get('hosted_on', server['index'])
             run_list = self._get_component_run_list(server_component)
-            instance_ip = PathAttrib("instance:%s/ip" % host_idx)
+            instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
 
-            reconfigure_task = Celery(
+            reconfigure_task = specs.Celery(
                 wfspec,
                 name,
-                'checkmate.providers.opscode.knife.cook',
+                'checkmate.providers.opscode.solo.tasks.cook',
                 call_args=[
                     instance_ip,
                     deployment['id'], server
                 ],
-                password=PathAttrib('instance:%s/password' % host_idx),
-                attributes=PathAttrib(
+                password=operators.PathAttrib(
+                    'instance:%s/password' % host_idx),
+                attributes=operators.PathAttrib(
                     'chef_options/attributes:%s' % server['index']
                 ),
-                identity_file=Attrib('private_key_path'),
+                identity_file=operators.Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
                 defines={
                     'resource': server['index'],
@@ -868,465 +847,11 @@ class Provider(ProviderBase):
             LOG.debug('Obtained remote catalog from %s', map_file.url)
         except ValueError:
             msg = 'Catalog source did not return parsable content'
-            raise CheckmateException(msg)
+            raise exceptions.CheckmateException(msg)
         except (ParserError, ScannerError) as exc:
-            raise CheckmateValidationException("Invalid YAML syntax in "
-                                               "Chefmap. Check:\n%s" % exc)
+            raise exceptions.CheckmateValidationException(
+                "Invalid YAML syntax in Chefmap. Check:\n%s" % exc)
         except ComposerError as exc:
-            raise CheckmateValidationException("Invalid YAML structure in "
-                                               "Chefmap. Check:\n%s" % exc)
+            raise exceptions.CheckmateValidationException(
+                "Invalid YAML structure in Chefmap. Check:\n%s" % exc)
         return catalog
-
-
-class Transforms(object):
-    """Class to hold transform functions.
-
-    We put them in a separate class to:
-    - access them from tests
-    - possible, in the future, use them as a library instead of passing the
-      actual code in to Spiff for better security
-    TODO(zns): Should separate them out into their own module (not class)
-    """
-    @staticmethod  # self will actually be a SpiffWorkflow.TaskSpec
-    def collect_options(self, my_task):  # pylint: disable=W0211
-        """Collect and write run-time options."""
-        try:
-            import copy  # pylint: disable=W0404,W0621
-            # pylint: disable=W0621
-            from checkmate.providers.opscode.solo import (ChefMap,
-                                                          SoloProviderNotReady)
-            # pylint: disable=W0621
-            from checkmate.deployments import resource_postback as postback
-            maps = self.get_property('chef_maps', [])
-            data = my_task.attributes
-
-            # Evaluate all maps and exit if any of them are not ready
-
-            queue = []
-            for mapping in maps:
-                try:
-                    result = ChefMap.evaluate_mapping_source(mapping, data)
-                    if ChefMap.is_writable_val(result):
-                        queue.append((mapping, result))
-                except SoloProviderNotReady:
-                    return False  # false means not done/not ready
-
-            # All maps are resolved, so combine them with the ones resolved at
-            # planning-time
-
-            results = self.get_property('chef_options', {})
-            for mapping, result in queue:
-                ChefMap.apply_mapping(mapping, result, results)
-
-            # Write to the task attributes and postback the desired output
-
-            output_template = self.get_property('chef_output')
-            if output_template:
-                output_template = copy.copy(output_template)
-            else:
-                output_template = {}
-            if results:
-
-                # outputs do not go into chef_options
-                outputs = results.pop('outputs', {})
-                # Use output_template as a template for outputs
-                if output_template:
-                    outputs = utils.merge_dictionary(
-                        copy.copy(output_template), outputs)
-
-                # Write chef_options for databag and role tasks
-                if results:
-                    if 'chef_options' not in my_task.attributes:
-                        my_task.attributes['chef_options'] = {}
-                    utils.merge_dictionary(my_task.attributes['chef_options'],
-                                           results, True)
-
-                # write outputs (into attributes and output_template)
-                if outputs:
-                    # Write results into attributes
-                    utils.merge_dictionary(my_task.attributes, outputs)
-                    # Be compatible and write without 'instance'
-                    compat = {}
-                    for key, value in outputs.iteritems():
-                        if isinstance(value, dict) and 'instance' in value:
-                            compat[key] = value['instance']
-                    if compat:
-                        utils.merge_dictionary(my_task.attributes, compat)
-
-                    # Write outputs into output template
-                    utils.merge_dictionary(output_template, outputs)
-            else:
-                if output_template:
-                    utils.merge_dictionary(my_task.attributes, output_template)
-
-            # postback output into deployment resource
-
-            if output_template:
-                dep = self.get_property('deployment')
-                if dep:
-                    LOG.debug("Writing task outputs: %s", output_template)
-                    postback.delay(dep, output_template)
-                else:
-                    LOG.warn("Deployment id not in task properties, "
-                             "cannot update deployment from chef-solo")
-
-            return True
-        except StandardError as exc:
-            import sys
-            import traceback
-            LOG.error("Error in transform: %s", exc)
-            tback = sys.exc_info()[2]
-            tb_info = traceback.extract_tb(tback)
-            mod, line = tb_info[-1][-2:]
-            raise Exception("%s %s in %s executing: %s" % (type(exc).__name__,
-                                                           exc, mod, line))
-
-
-class ChefMap(object):
-    """Retrieves and parses Chefmap files."""
-
-    def __init__(self, url=None, raw=None, parsed=None):
-        """Create a new Chefmap instance.
-
-        :param url: is the path to the root git repo. Supported protocols
-                       are http, https, and git. The .git extension is
-                       optional. Appending a branch name as a #fragment works::
-
-                map_file = ChefMap("http://github.com/user/repo")
-                map_file = ChefMap("https://github.com/org/repo.git")
-                map_file = ChefMap("git://github.com/user/repo#master")
-        :param raw: provide the raw content of the map file
-        :param parsed: provide parsed content of the map file
-
-        :return: solo.ChefMap
-
-        """
-        self.url = url
-        self._raw = raw
-        self._parsed = parsed
-
-    @property
-    def raw(self):
-        """Returns the raw file contents."""
-        if self._raw is None:
-            self._raw = self.get_map_file()
-        return self._raw
-
-    @property
-    def parsed(self):
-        """Returns the parsed file contents."""
-        if self._parsed is None:
-            self._parsed = templating.parse(self.raw)
-        return self._parsed
-
-    def get_map_file(self):
-        """Return the Chefmap file as a string."""
-        if self.url.startswith("file://"):
-            chefmap_dir = self.url[7:]  # strip off "file://"
-            chefmap_path = os.path.join(chefmap_dir, "Chefmap")
-            with open(chefmap_path) as chefmap:
-                return chefmap.read()
-        else:
-            knife._cache_blueprint(self.url)
-            repo_cache = knife._get_blueprints_cache_path(self.url)
-            if os.path.exists(os.path.join(repo_cache, "Chefmap")):
-                with open(os.path.join(repo_cache, "Chefmap")) as chefmap:
-                    return chefmap.read()
-            else:
-                error_message = "No Chefmap in repository %s" % repo_cache
-                raise CheckmateException(error_message)
-
-    @property
-    def components(self):
-        """The components in the map file."""
-        try:
-            result = [
-                c for c in yaml.safe_load_all(self.parsed) if 'id' in c
-            ]
-        except (ParserError, ScannerError) as exc:
-            raise CheckmateValidationException("Invalid YAML syntax in "
-                                               "Chefmap. Check:\n%s" % exc)
-        except ComposerError as exc:
-            raise CheckmateValidationException("Invalid YAML structure in "
-                                               "Chefmap. Check:\n%s" % exc)
-        return result
-
-    def has_mappings(self, component_id):
-        """Does the map file have any mappings for this component."""
-        for component in self.components:
-            if component_id == component['id']:
-                if component.get('maps') or component.get('output'):
-                    return True
-        return False
-
-    def has_requirement_mapping(self, component_id, requirement_key):
-        """Does the map file have any 'requirements' mappings for this
-        component's requirement_key requirement.
-        """
-        for component in self.components:
-            if component_id == component['id']:
-                for _map in component.get('maps', []):
-                    url = self.parse_map_uri(_map.get('source'))
-                    if url['scheme'] == 'requirements':
-                        if url['netloc'] == requirement_key:
-                            return True
-        return False
-
-    def has_client_mapping(self, component_id, provides_key):
-        """Does the map file have any 'clients' mappings for this
-        component's provides_key connection point.
-        """
-        for component in self.components:
-            if component_id == component['id']:
-                for _map in component.get('maps', []):
-                    url = self.parse_map_uri(_map.get('source'))
-                    if url['scheme'] == 'clients':
-                        if url['netloc'] == provides_key:
-                            return True
-        return False
-
-    @staticmethod
-    def is_writable_val(val):
-        """Determine if we should write the value."""
-        return val is not None and len(str(val)) > 0
-
-    def get_attributes(self, component_id, deployment):
-        """Parse maps and get attributes for a specific component that are
-        ready.
-        """
-        for component in self.components:
-            if component_id == component['id']:
-                maps = (m for m in component.get('maps', [])
-                        if any(target for target in m.get('targets', [])
-                               if (self.parse_map_uri(target)['scheme'] ==
-                                   'attributes')))
-                if maps:
-                    result = {}
-                    for _map in maps:
-                        value = None
-                        try:
-                            value = self.evaluate_mapping_source(_map,
-                                                                 deployment)
-                        except SoloProviderNotReady:
-                            LOG.debug("Map not ready yet: %s", _map)
-                            continue
-                        if ChefMap.is_writable_val(value):
-                            for target in _map.get('targets', []):
-                                url = self.parse_map_uri(target)
-                                if url['scheme'] == 'attributes':
-                                    utils.write_path(result, url['path'],
-                                                     value)
-                    return result
-
-    def get_component_maps(self, component_id):
-        """Get maps for a specific component."""
-        for component in self.components:
-            if component_id == component['id']:
-                return component.get('maps')
-
-    def get_component_output_template(self, component_id):
-        """Get output template for a specific component."""
-        for component in self.components:
-            if component_id == component['id']:
-                return component.get('output')
-
-    def get_component_run_list(self, component_id):
-        """Get run_list for a specific component."""
-        for component in self.components:
-            if component_id == component['id']:
-                return component.get('run_list')
-
-    def has_runtime_options(self, component_id):
-        """Check if a component has maps that can only be resolved at run-time.
-
-        Those would be items like:
-        - requirement sources where the required resource does not exist yet
-
-        :returns: boolean
-        """
-        for component in self.components:
-            if component_id == component['id']:
-                maps = (m for m in component.get('maps', [])
-                        if (self.parse_map_uri(
-                            m.get('source'))['scheme'] in ['requirements']))
-                if any(maps):
-                    return True
-        return False
-
-    @staticmethod
-    def filter_maps_by_schemes(maps, target_schemes=None):
-        """Returns the maps that have specific target schemes."""
-        if not maps or not target_schemes:
-            return maps
-        result = []
-        for mapping in maps:
-            for target in mapping.get('targets', []):
-                url = ChefMap.parse_map_uri(target)
-                if url['scheme'] in target_schemes:
-                    result.append(mapping)
-                    break
-        return result
-
-    @staticmethod
-    def resolve_map(mapping, data, output):
-        """Resolve mapping and write output."""
-        ChefMap.apply_mapping(
-            mapping,
-            ChefMap.evaluate_mapping_source(mapping, data),
-            output
-        )
-
-    @staticmethod
-    def apply_mapping(mapping, value, output):
-        """Applies the mapping value to all the targets.
-
-        :param mapping: dict of the mapping
-        :param value: the value of the mapping. This is evaluated elsewhere.
-        :param output: a dict to apply the mapping to
-        """
-        # FIXME: hack to get v0.5 out. Until we implement search() or Craig's
-        # ValueFilter. For now, just write arrays for all 'clients' mappings
-        if not ChefMap.is_writable_val(value):
-            return
-        write_array = False
-        if 'source' in mapping:
-            url = ChefMap.parse_map_uri(mapping['source'])
-            if url['scheme'] == 'clients':
-                write_array = True
-
-        for target in mapping.get('targets', []):
-            url = ChefMap.parse_map_uri(target)
-            if url['scheme'] == 'attributes':
-                if 'resource' not in mapping:
-                    message = 'Resource hint required in attribute mapping'
-                    raise CheckmateException(message)
-
-                path = '%s:%s' % (url['scheme'], mapping['resource'])
-                if path not in output:
-                    output[path] = {}
-                if write_array:
-                    existing = utils.read_path(output[path],
-                                               url['path'].strip('/'))
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                    value = existing
-                utils.write_path(output[path], url['path'].strip('/'), value)
-                LOG.debug("Wrote to target '%s': %s", target, value)
-            elif url['scheme'] == 'outputs':
-                if url['scheme'] not in output:
-                    output[url['scheme']] = {}
-                if write_array:
-                    existing = utils.read_path(output[url['scheme']],
-                                               url['path'].strip('/'))
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                    value = existing
-                utils.write_path(
-                    output[url['scheme']], url['path'].strip('/'), value
-                )
-                LOG.debug("Wrote to target '%s': %s", target, value)
-            elif url['scheme'] in ['databags', 'encrypted-databags', 'roles']:
-                if url['scheme'] not in output:
-                    output[url['scheme']] = {}
-                path = os.path.join(url['netloc'], url['path'].strip('/'))
-                if write_array:
-                    existing = utils.read_path(output[url['scheme']], path)
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                    value = existing
-                utils.write_path(output[url['scheme']], path, value)
-                LOG.debug("Wrote to target '%s': %s", target, value)
-            else:
-                raise NotImplementedError("Unsupported url scheme '%s' in url "
-                                          "'%s'" % (url['scheme'], target))
-
-    @staticmethod
-    def evaluate_mapping_source(mapping, data):
-        """Returns the mapping source value.
-
-        Raises a SoloProviderNotReady exception if the source is not yet
-        available
-
-        :param mapping: the mapping to resolved
-        :param data: the data to read from
-        :returns: the value
-        """
-        value = None
-        if 'source' in mapping:
-            url = ChefMap.parse_map_uri(mapping['source'])
-            if url['scheme'] in ['requirements', 'clients']:
-                path = mapping.get('path', url['netloc'])
-                try:
-                    value = utils.read_path(data, os.path.join(path,
-                                            url['path']))
-                except (KeyError, TypeError) as exc:
-                    LOG.debug("'%s' not yet available at '%s': %s",
-                              mapping['source'], path, exc,
-                              extra={'data': data})
-                    raise SoloProviderNotReady("Not ready")
-                LOG.debug("Resolved mapping '%s' to '%s'", mapping['source'],
-                          value)
-            else:
-                raise NotImplementedError("Unsupported url scheme '%s' in url "
-                                          "'%s'" % (url['scheme'],
-                                                    mapping['source']))
-        elif 'value' in mapping:
-            value = mapping['value']
-        else:
-            message = "Mapping has neither 'source' nor 'value'"
-            raise CheckmateException(message)
-        return value
-
-    @staticmethod
-    def resolve_ready_maps(maps, data, output):
-        """Parse and apply maps that are ready.
-
-        :param maps: a list of maps to attempt to resolve
-        :param data: the source of the data (a deployment)
-        :param output: a dict to write the output to
-        :returns: unresolved maps
-        """
-        unresolved = []
-        for mapping in maps:
-            value = None
-            try:
-                value = ChefMap.evaluate_mapping_source(mapping, data)
-            except SoloProviderNotReady:
-                unresolved.append(mapping)
-                continue
-            if value is not None:
-                ChefMap.apply_mapping(mapping, value, output)
-            else:
-                unresolved.append(mapping)
-        return unresolved
-
-    @staticmethod
-    def parse_map_uri(uri):
-        """Parses the URI format of a map.
-
-        :param uri: string uri based on map file supported sources and targets
-        :returns: dict
-        """
-        try:
-            parts = urlparse.urlparse(uri)
-        except AttributeError:
-            # probably a scalar
-            parts = urlparse.urlparse('')
-
-        result = {
-            'scheme': parts.scheme,
-            'netloc': parts.netloc,
-            'path': parts.path.strip('/'),
-            'query': parts.query,
-            'fragment': parts.fragment,
-        }
-        if parts.scheme in ['attributes', 'outputs']:
-            result['path'] = os.path.join(parts.netloc.strip('/'),
-                                          parts.path.strip('/')).strip('/')
-        return result

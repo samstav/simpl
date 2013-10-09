@@ -11,27 +11,4 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""OpsCode Providers
-
-Defined:
-chef-server  - configuration provider using Chef server
-
-Explanation:
-
-environment:
-  providers:
-    chef-server:
-      provides:
-      - application: wordpress
-      - application: drupal
-      vendor: opscode
-
-"""
-
-from checkmate.providers import register_providers
-
-
-def register():
-    from checkmate.providers.opscode.server import Provider as server
-    from checkmate.providers.opscode.solo import Provider as solo
-    register_providers([server, solo])
+"""Rackspace solo provider manager."""

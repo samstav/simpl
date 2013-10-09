@@ -258,7 +258,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     self.deployment.on_resource_postback(call['result'])
                     return
 
-        if args[0] == 'checkmate.providers.opscode.knife.write_databag':
+        if args[0] == 'checkmate.providers.opscode.solo.tasks.write_databag':
             args = kwargs['args']
             bag_name = args[1]
             item_name = args[2]

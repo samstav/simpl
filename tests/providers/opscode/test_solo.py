@@ -34,8 +34,10 @@ from checkmate import deployment as cm_dep
 from checkmate import deployments
 from checkmate import middleware
 from checkmate import providers
-from checkmate.providers.opscode import knife
 from checkmate.providers.opscode import solo
+from checkmate.providers.opscode.solo import chef_map
+from checkmate.providers.opscode.solo import tasks
+from checkmate.providers.opscode.solo import transforms
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
@@ -92,7 +94,7 @@ class TestChefSoloProvider(test.ProviderTester):
                             provides:
                             - compute: linux
             '''))
-        chef_map = solo.ChefMap(raw='''
+        map = chef_map.ChefMap(raw='''
             \n--- # foo component
                 id: foo
                 requires:
@@ -111,13 +113,13 @@ class TestChefSoloProvider(test.ProviderTester):
                   - attributes://clients
             ''')
         deployments.Manager.plan(deployment, middleware.RequestContext())
-        provider = deployment.environment().get_provider('chef-solo')
+        solo_provider = deployment.environment().get_provider('chef-solo')
 
         # Check requirement map
 
         resource = deployment['resources']['0']  # one of the mysql clients
-        result = provider.get_resource_prepared_maps(
-            resource, deployment, map_file=chef_map)
+        result = solo_provider.get_resource_prepared_maps(
+            resource, deployment, map_file=map)
         expected = [{'source': 'requirements://database:mysql/ip',
                      'targets': ['attributes://ip'],
                      'path': 'instance:2/interfaces/mysql',
@@ -128,8 +130,8 @@ class TestChefSoloProvider(test.ProviderTester):
         # Check client maps
 
         resource = deployment['resources']['2']  # mysql database w/ 2 clients
-        result = provider.get_resource_prepared_maps(
-            resource, deployment, map_file=chef_map)
+        result = solo_provider.get_resource_prepared_maps(
+            resource, deployment, map_file=map)
         expected = [
             {
                 'source': 'clients://database:mysql/ip',
@@ -147,7 +149,7 @@ class TestChefSoloProvider(test.ProviderTester):
         self.assertListEqual(result, expected)
 
     def test_get_map_with_context_defaults(self):
-        provider = solo.Provider({})
+        solo_provider = solo.Provider({})
         deployment = cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
@@ -170,7 +172,7 @@ class TestChefSoloProvider(test.ProviderTester):
                       constraint:
                       - source: dummy
             '''))
-        chefmap = solo.ChefMap(raw='''
+        chefmap = chef_map.ChefMap(raw='''
                 id: test
                 options:
                   password:
@@ -179,7 +181,7 @@ class TestChefSoloProvider(test.ProviderTester):
                   component: {{ setting('password') }}
                   blueprint: {{ setting('bp_password') }}
             ''')
-        provider.map_file = chefmap
+        solo_provider.map_file = chefmap
         component = chefmap.components[0]
 
         self.mox.StubOutWithMock(utils, 'evaluate')
@@ -192,9 +194,9 @@ class TestChefSoloProvider(test.ProviderTester):
             'provider': 'chef-solo',
         }
         self.mox.ReplayAll()
-        context = provider.get_map_with_context(component=component,
-                                                deployment=deployment,
-                                                resource=resource)
+        context = solo_provider.get_map_with_context(component=component,
+                                                     deployment=deployment,
+                                                     resource=resource)
         output = context.get_component_output_template("test")
         self.assertEqual(output['component'], "RandomPass")
         self.assertEqual(output['blueprint'], "randp2")
@@ -202,12 +204,13 @@ class TestChefSoloProvider(test.ProviderTester):
 
     def test_cleanup_environment(self):
         wf_spec = workflow_spec.WorkflowSpec()
-        provider = solo.Provider({})
-        cleanup_result = provider.cleanup_environment(wf_spec, {'id': 'DEP1'})
+        solo_provider = solo.Provider({})
+        cleanup_result = solo_provider.cleanup_environment(
+            wf_spec, {'id': 'DEP1'})
         cleanup_task_spec = cleanup_result['root']
         self.assertIsInstance(cleanup_task_spec, specs.Celery)
         self.assertEqual(cleanup_task_spec.args, ['DEP1'])
-        defines = {'provider': provider.key}
+        defines = {'provider': solo_provider.key}
         properties = {
             'estimated_duration': 1,
             'task_tags': ['cleanup'],
@@ -216,7 +219,7 @@ class TestChefSoloProvider(test.ProviderTester):
         self.assertDictEqual(cleanup_task_spec.defines, defines)
         self.assertDictEqual(cleanup_task_spec.properties, properties)
         self.assertEqual(
-            cleanup_task_spec.call, 'checkmate.providers.opscode.knife'
+            cleanup_task_spec.call, 'checkmate.providers.opscode.solo.tasks'
                                     '.delete_environment')
 
     def test_cleanup_temp_files(self):
@@ -225,24 +228,24 @@ class TestChefSoloProvider(test.ProviderTester):
         self.mox.StubOutWithMock(wf_spec, "wait_for")
         mock_task_spec = self.mox.CreateMock(specs.TaskSpec)
         mock_final_task_spec = self.mox.CreateMock(specs.TaskSpec)
-        provider = solo.Provider({})
+        solo_provider = solo.Provider({})
         wf_spec.find_task_specs(
-            provider=provider.key,
+            provider=solo_provider.key,
             tag='client-ready').AndReturn([mock_task_spec])
         wf_spec.find_task_specs(
-            provider=provider.key,
+            provider=solo_provider.key,
             tag='final').AndReturn([mock_final_task_spec])
         wf_spec.task_specs = dict()
         wf_spec.wait_for(mox.IgnoreArg(), [mock_task_spec,
                                            mock_final_task_spec],
                          name="Wait before deleting cookbooks",
-                         provider=provider.key)
+                         provider=solo_provider.key)
         self.mox.ReplayAll()
-        result = provider.cleanup_temp_files(wf_spec, {'id': 'DEP1'})
+        result = solo_provider.cleanup_temp_files(wf_spec, {'id': 'DEP1'})
         cleanup_task_spec = result['final']
         self.assertIsInstance(cleanup_task_spec, specs.Celery)
         self.assertEqual(cleanup_task_spec.args, ['DEP1', 'kitchen'])
-        defines = {'provider': provider.key}
+        defines = {'provider': solo_provider.key}
         properties = {
             'estimated_duration': 1,
         }
@@ -250,7 +253,7 @@ class TestChefSoloProvider(test.ProviderTester):
         self.assertDictEqual(cleanup_task_spec.defines, defines)
         self.assertDictEqual(cleanup_task_spec.properties, properties)
         self.assertEqual(
-            cleanup_task_spec.call, 'checkmate.providers.opscode.knife'
+            cleanup_task_spec.call, 'checkmate.providers.opscode.solo.tasks'
                                     '.delete_cookbooks')
 
 
@@ -275,8 +278,8 @@ class TestCeleryTasks(unittest.TestCase):
         node_path = os.path.join(kitchen_path, "nodes", "a.b.c.d.json")
 
         #Stub out checks for paths
-        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path(
+        self.mox.StubOutWithMock(tasks, '_get_root_environments_path')
+        tasks._get_root_environments_path(
             "env_test", None).AndReturn(root_path)
         self.mox.StubOutWithMock(os.path, 'exists')
         os.path.exists(kitchen_path).AndReturn(True)
@@ -316,21 +319,21 @@ class TestCeleryTasks(unittest.TestCase):
         params = ['knife', 'solo', 'cook', 'root@a.b.c.d',
                   '-c', os.path.join(kitchen_path, "solo.rb"),
                   '-p', '22']
-        self.mox.StubOutWithMock(knife, '_run_kitchen_command')
-        knife._run_kitchen_command(
+        self.mox.StubOutWithMock(tasks, '_run_kitchen_command')
+        tasks._run_kitchen_command(
             "env_test", kitchen_path, params).AndReturn("OK")
 
         #TODO(any): better test for postback?
         #Stub out call to resource_postback
-        self.mox.StubOutWithMock(knife.cmdeps.resource_postback, 'delay')
-        knife.cmdeps.resource_postback.delay(
+        self.mox.StubOutWithMock(tasks.deployments.resource_postback, 'delay')
+        tasks.deployments.resource_postback.delay(
             mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
-        knife.cmdeps.resource_postback.delay(
+        tasks.deployments.resource_postback.delay(
             mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
         resource = {'index': 1234, 'hosted_on': 'rack cloud'}
-        knife.cook(
+        tasks.cook(
             "a.b.c.d", "env_test", resource, roles=['role1'],
             recipes=['recipe1'], attributes={'id': 1}
         )
@@ -411,7 +414,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         expected.append({
             # Use chef-solo tasks for now
             # Use only one kitchen. Call it "kitchen" like we used to
-            'call': 'checkmate.providers.opscode.knife.create_environment',
+            'call': 'checkmate.providers.opscode.solo.tasks'
+                    '.create_environment',
             'args': [self.deployment['id'], 'kitchen'],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
@@ -433,7 +437,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             },
         })
         expected.append({
-            'call': 'checkmate.providers.opscode.knife.delete_cookbooks',
+            'call': 'checkmate.providers.opscode.solo.tasks.delete_cookbooks',
             'args': [self.deployment['id'], 'kitchen'],
             'result': None,
             'kwargs': None
@@ -468,7 +472,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'post_back_result': True,
                 })
                 expected.append({
-                    'call': 'checkmate.providers.opscode.knife.register_node',
+                    'call': 'checkmate.providers.opscode.solo.tasks'
+                            '.register_node',
                     'args': [
                         '4.4.4.1',
                         self.deployment['id'],
@@ -484,7 +489,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
                 # build-essential (now just cook with bootstrap.json)
                 expected.append({
-                    'call': 'checkmate.providers.opscode.knife.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
                     'args': [
                         '4.4.4.1',
                         self.deployment['id'],
@@ -506,7 +511,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
                 # Cook with cookbook (special mysql handling calls server role)
                 expected.append({
-                    'call': 'checkmate.providers.opscode.knife.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
                     'args': [
                         '4.4.4.1',
                         self.deployment['id'],
@@ -583,8 +588,8 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
             '''
 
     def test_workflow_task_generation(self):
-        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(mox.IgnoreArg())
+        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
+        chefmap = chef_map.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
@@ -716,8 +721,8 @@ interfaces/mysql/host
             '''
 
     def test_workflow_task_creation(self):
-        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(mox.IgnoreArg())
+        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
+        chefmap = chef_map.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
@@ -750,8 +755,8 @@ interfaces/mysql/host
         self.assertIn("hash", resources['admin']['instance'])
 
     def test_workflow_execution(self):
-        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(mox.IgnoreArg())
+        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
+        chefmap = chef_map.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
@@ -766,7 +771,8 @@ interfaces/mysql/host
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
         expected_calls = [{
             # Create Chef Environment
-            'call': 'checkmate.providers.opscode.knife.create_environment',
+            'call': 'checkmate.providers.opscode.solo.tasks'
+                    '.create_environment',
             'args': [self.deployment['id'], 'kitchen'],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
@@ -784,7 +790,7 @@ interfaces/mysql/host
                 test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
             }
         }, {
-            'call': 'checkmate.providers.opscode.knife.delete_cookbooks',
+            'call': 'checkmate.providers.opscode.solo.tasks.delete_cookbooks',
             'args': [self.deployment['id'], 'kitchen'],
             'result': None,
             'kwargs': None
@@ -823,7 +829,8 @@ interfaces/mysql/host
                     {
                         # Register host - knife prepare
                         'call':
-                        'checkmate.providers.opscode.knife.register_node',
+                        'checkmate.providers.opscode.solo.tasks'
+                        '.register_node',
                         'args': [
                             "4.4.4.4",
                             self.deployment['id'],
@@ -839,7 +846,7 @@ interfaces/mysql/host
                     },
                     {
                         # Prep host - bootstrap.json means no recipes passed in
-                        'call': 'checkmate.providers.opscode.knife.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
                             '4.4.4.4',
                             self.deployment['id'],
@@ -860,7 +867,7 @@ interfaces/mysql/host
             elif resource.get('type') == 'database':
                 expected_calls.extend([{
                     # Cook mysql
-                    'call': 'checkmate.providers.opscode.knife.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
                     'args': [
                         '4.4.4.4',
                         self.deployment['id'],
@@ -919,7 +926,7 @@ interfaces/mysql/host
 def do_nothing(self, my_task):
     """Mock method."""
     call_me = 'dep.on_resource_postback(output_template) #'
-    source = utils.get_source_body(solo.Transforms.collect_options)
+    source = utils.get_source_body(transforms.Transforms.collect_options)
     source = source.replace('postback.', call_me)
     tabbed_code = '\n    '.join(source.split('\n'))
     func_name = "trans_%s" % uuid.uuid4().hex[0:8]
@@ -1038,8 +1045,8 @@ interfaces/mysql/database_name
             '''
 
     def test_workflow_task_creation(self):
-        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(mox.IgnoreArg())
+        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
+        chefmap = chef_map.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         self.mox.ReplayAll()
@@ -1170,8 +1177,8 @@ interfaces/mysql/database_name
         self.assertListEqual(role.kwargs['run_list'], expected)
 
     def test_workflow_execution(self):
-        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(mox.IgnoreArg())
+        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
+        chefmap = chef_map.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(self.map_file)
 
         # Plan deployment
@@ -1187,7 +1194,8 @@ interfaces/mysql/database_name
 
         expected_calls = [{
             # Create Chef Environment
-            'call': 'checkmate.providers.opscode.knife.create_environment',
+            'call': 'checkmate.providers.opscode.solo.tasks'
+                    '.create_environment',
             'args': [self.deployment['id'], 'kitchen'],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
@@ -1205,7 +1213,7 @@ interfaces/mysql/database_name
                 test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
             }
         }, {
-            'call': 'checkmate.providers.opscode.knife.delete_cookbooks',
+            'call': 'checkmate.providers.opscode.solo.tasks.delete_cookbooks',
             'args': [self.deployment['id'], 'kitchen'],
             'result': None,
             'kwargs': None
@@ -1215,9 +1223,9 @@ interfaces/mysql/database_name
             if resource.get('type') == 'compute':
                 expected_calls.extend([
                     {
-                        # Register foo - knife prepare
                         'call':
-                        'checkmate.providers.opscode.knife.register_node',
+                        'checkmate.providers.opscode.solo.tasks'
+                        '.register_node',
                         'args': [
                             "4.4.4.4",
                             self.deployment['id'],
@@ -1236,7 +1244,7 @@ interfaces/mysql/database_name
                     },
                     {
                         # Prep foo - bootstrap.json
-                        'call': 'checkmate.providers.opscode.knife.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
                             '4.4.4.4',
                             self.deployment['id'],
@@ -1282,7 +1290,8 @@ interfaces/mysql/database_name
                     {
                         # Write foo databag item
                         'call':
-                        'checkmate.providers.opscode.knife.write_databag',
+                        'checkmate.providers.opscode.solo.tasks'
+                        '.write_databag',
                         'args': [
                             'DEP-ID-1000', 'app_bag', 'mysql',
                             {'db_name': 'foo-db'}, mox.IgnoreArg()
@@ -1296,7 +1305,7 @@ interfaces/mysql/database_name
                     {
                         # Write foo-master role
                         'call':
-                        'checkmate.providers.opscode.knife.manage_role',
+                        'checkmate.providers.opscode.solo.tasks.manage_role',
                         'args': ['foo-master', 'DEP-ID-1000', mox.IgnoreArg()],
                         'kwargs': {
                             'run_list': ['recipe[apt]', 'recipe[foo::server]'],
@@ -1307,7 +1316,7 @@ interfaces/mysql/database_name
                     },
                     {
                         # Cook foo - run using runlist
-                        'call': 'checkmate.providers.opscode.knife.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
                             '4.4.4.4',
                             self.deployment['id'],
@@ -1340,7 +1349,7 @@ interfaces/mysql/database_name
                 expected_calls.extend([
                     {
                         # Cook bar
-                        'call': 'checkmate.providers.opscode.knife.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
                             None,
                             self.deployment['id'],
@@ -1359,7 +1368,7 @@ interfaces/mysql/database_name
                     },
                     {
                         # Re-cook bar
-                        'call': 'checkmate.providers.opscode.knife.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
                             None,
                             self.deployment['id'],
@@ -1433,8 +1442,8 @@ interfaces/mysql/database_name
 class TestChefMap(unittest.TestCase):
     def setUp(self):
         self.mox = mox.Mox()
-        knife.CONFIG = self.mox.CreateMockAnything()
-        knife.CONFIG.deployments_path = '/tmp/checkmate-chefmap'
+        tasks.CONFIG = self.mox.CreateMockAnything()
+        tasks.CONFIG.deployments_path = '/tmp/checkmate-chefmap'
         self.local_path = '/tmp/checkmate-chefmap'
         self.url = 'https://github.com/checkmate/app.git'
         self.cache_path = self.local_path + "/cache/blueprints/" + \
@@ -1465,7 +1474,7 @@ class TestChefMap(unittest.TestCase):
 
         # Make sure cache_expire_time is set to something that
         # shouldn't cause a cache miss
-        chefmap = solo.ChefMap()
+        chefmap = chef_map.ChefMap()
         os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "3600"
 
         chefmap.url = self.url
@@ -1496,7 +1505,7 @@ class TestChefMap(unittest.TestCase):
         with file(self.chef_map_path, 'a') as the_file:
             the_file.write(TEMPLATE)
 
-        chefmap = solo.ChefMap()
+        chefmap = chef_map.ChefMap()
         # Make sure the expire time is set to something that WILL
         # cause a cache miss
         os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "0"
@@ -1522,7 +1531,7 @@ class TestChefMap(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_get_map_file_no_cache(self):
-        chefmap = solo.ChefMap()
+        chefmap = chef_map.ChefMap()
 
         def fake_clone(url=None, path=None, branch=None):
             """Helper method to fake a git clone."""
@@ -1556,13 +1565,13 @@ class TestChefMap(unittest.TestCase):
             the_file.write(TEMPLATE)
 
         url = "file://" + blueprint
-        chefmap = solo.ChefMap(url=url)
+        chefmap = chef_map.ChefMap(url=url)
         map_file = chefmap.get_map_file()
 
         self.assertEqual(map_file, TEMPLATE)
 
     def test_map_uri_parser(self):
-        fxn = solo.ChefMap.parse_map_uri
+        fxn = chef_map.ChefMap.parse_map_uri
         cases = [
             {
                 'name': 'requirement from short form',
@@ -1641,72 +1650,71 @@ class TestChefMap(unittest.TestCase):
                                  "wrong in %s" % (case['name'], key, uri))
 
     def test_map_uri_parser_netloc(self):
-        result = solo.ChefMap.parse_map_uri("attributes://only/path")
+        result = chef_map.ChefMap.parse_map_uri("attributes://only/path")
         self.assertEqual(result['path'], 'only/path')
 
-        result = solo.ChefMap.parse_map_uri("attributes://only")
+        result = chef_map.ChefMap.parse_map_uri("attributes://only")
         self.assertEqual(result['path'], 'only')
 
-        result = solo.ChefMap.parse_map_uri("outputs://only/path")
+        result = chef_map.ChefMap.parse_map_uri("outputs://only/path")
         self.assertEqual(result['path'], 'only/path')
 
-        result = solo.ChefMap.parse_map_uri("outputs://only")
+        result = chef_map.ChefMap.parse_map_uri("outputs://only")
         self.assertEqual(result['path'], 'only')
 
     def test_has_mapping_positive(self):
-        chef_map = solo.ChefMap(raw='''
+        map = chef_map.ChefMap(raw='''
                 id: test
                 maps:
                 - source: 1
             ''')
-        self.assertTrue(chef_map.has_mappings('test'))
+        self.assertTrue(map.has_mappings('test'))
 
     def test_has_mapping_negative(self):
-        chef_map = solo.ChefMap(raw='''
+        map = chef_map.ChefMap(raw='''
                 id: test
                 maps: {}
             ''')
-        self.assertFalse(chef_map.has_mappings('test'))
+        self.assertFalse(map.has_mappings('test'))
 
     def test_has_requirement_map_positive(self):
-        chef_map = solo.ChefMap(raw='''
+        map = chef_map.ChefMap(raw='''
                 id: test
                 maps:
                 - source: requirements://name/path
                 - source: requirements://database:mysql/username
             ''')
-        self.assertTrue(chef_map.has_requirement_mapping('test', 'name'))
-        self.assertTrue(chef_map.has_requirement_mapping('test',
-                                                         'database:mysql'))
-        self.assertFalse(chef_map.has_requirement_mapping('test', 'other'))
+        self.assertTrue(map.has_requirement_mapping('test', 'name'))
+        self.assertTrue(map.has_requirement_mapping('test', 'database:mysql'))
+        self.assertFalse(map.has_requirement_mapping('test', 'other'))
 
     def test_has_requirement_mapping_negative(self):
-        chef_map = solo.ChefMap(raw='''
+        map = chef_map.ChefMap(raw='''
                 id: test
                 maps: {}
             ''')
-        self.assertFalse(chef_map.has_requirement_mapping('test', 'name'))
+        self.assertFalse(map.has_requirement_mapping('test', 'name'))
 
     def test_has_client_map_positive(self):
-        chef_map = solo.ChefMap(raw='''
+        map = chef_map.ChefMap(raw='''
                 id: test
                 maps:
                 - source: clients://name/path
                 - source: clients://database:mysql/ip
             ''')
-        self.assertTrue(chef_map.has_client_mapping('test', 'name'))
-        self.assertTrue(chef_map.has_client_mapping('test', 'database:mysql'))
-        self.assertFalse(chef_map.has_client_mapping('test', 'other'))
+        self.assertTrue(map.has_client_mapping('test', 'name'))
+        self.assertTrue(map.has_client_mapping('test', 'database:mysql'))
+        self.assertFalse(map.has_client_mapping('test', 'other'))
 
     def test_has_client_mapping_negative(self):
-        chef_map = solo.ChefMap(raw='''
+        map = chef_map.ChefMap(raw='''
                 id: test
                 maps: {}
             ''')
-        self.assertFalse(chef_map.has_client_mapping('test', 'name'))
+        self.assertFalse(map.has_client_mapping('test', 'name'))
 
     def test_get_attributes(self):
-        chef_map = solo.ChefMap(raw='''
+        map = chef_map.ChefMap(raw='''
                 id: foo
                 maps:
                 - value: 1
@@ -1719,12 +1727,12 @@ class TestChefMap(unittest.TestCase):
                   targets:
                   - databags://mybag/there
             ''')
-        self.assertDictEqual(chef_map.get_attributes('foo', None), {'here': 1})
-        self.assertDictEqual(chef_map.get_attributes('bar', None), {})
-        self.assertIsNone(chef_map.get_attributes('not there', None))
+        self.assertDictEqual(map.get_attributes('foo', None), {'here': 1})
+        self.assertDictEqual(map.get_attributes('bar', None), {})
+        self.assertIsNone(map.get_attributes('not there', None))
 
     def test_has_runtime_options(self):
-        chef_map = solo.ChefMap(raw='''
+        map = chef_map.ChefMap(raw='''
                 id: foo
                 maps:
                 - source: requirements://database:mysql/
@@ -1732,9 +1740,9 @@ class TestChefMap(unittest.TestCase):
                 id: bar
                 maps: {}
                 ''')
-        self.assertTrue(chef_map.has_runtime_options('foo'))
-        self.assertFalse(chef_map.has_runtime_options('bar'))
-        self.assertFalse(chef_map.has_runtime_options('not there'))
+        self.assertTrue(map.has_runtime_options('foo'))
+        self.assertFalse(map.has_runtime_options('bar'))
+        self.assertFalse(map.has_runtime_options('not there'))
 
     def test_filter_maps_by_schemes(self):
         maps = utils.yaml_to_dict('''
@@ -1751,28 +1759,29 @@ class TestChefMap(unittest.TestCase):
                 ''')
         expect = "Should detect all maps with databags target"
         schemes = ['databags']
-        result = solo.ChefMap.filter_maps_by_schemes(
+        result = chef_map.ChefMap.filter_maps_by_schemes(
             maps, target_schemes=schemes)
         self.assertListEqual(result, maps[0:2], msg=expect)
 
         expect = "Should detect only map with roles target"
         schemes = ['roles']
-        result = solo.ChefMap.filter_maps_by_schemes(
+        result = chef_map.ChefMap.filter_maps_by_schemes(
             maps, target_schemes=schemes)
         self.assertListEqual(result, [maps[1]], msg=expect)
 
         expect = "Should detect all maps once"
         schemes = ['databags', 'attributes', 'roles']
-        result = solo.ChefMap.filter_maps_by_schemes(
+        result = chef_map.ChefMap.filter_maps_by_schemes(
             maps, target_schemes=schemes)
         self.assertListEqual(result, maps, msg=expect)
 
         expect = "Should return all maps"
-        result = solo.ChefMap.filter_maps_by_schemes(maps)
+        result = chef_map.ChefMap.filter_maps_by_schemes(maps)
         self.assertListEqual(result, maps, msg=expect)
 
         expect = "Should return all maps"
-        result = solo.ChefMap.filter_maps_by_schemes(maps, target_schemes=[])
+        result = chef_map.ChefMap.filter_maps_by_schemes(maps,
+                                                         target_schemes=[])
         self.assertListEqual(result, maps, msg=expect)
 
 
@@ -1791,7 +1800,7 @@ class TestTransform(unittest.TestCase):
                   - attributes://widgets
                   resource: '0'
             ''')
-        fxn = solo.Transforms.collect_options
+        fxn = transforms.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
         spec.get_property('chef_maps', []).AndReturn(maps)
@@ -1817,7 +1826,7 @@ class TestTransform(unittest.TestCase):
             ''')
 
         self.mox.StubOutWithMock(deployments.resource_postback, "delay")
-        fxn = solo.Transforms.collect_options
+        fxn = transforms.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
         spec.get_property('chef_maps', []).AndReturn([])
@@ -1845,12 +1854,12 @@ class TestTransform(unittest.TestCase):
 
 class TestChefMapEvaluator(unittest.TestCase):
     def test_scalar_evaluation(self):
-        chefmap = solo.ChefMap(parsed="")
+        chefmap = chef_map.ChefMap(parsed="")
         result = chefmap.evaluate_mapping_source({'value': 10}, None)
         self.assertEqual(result, 10)
 
     def test_requirement_evaluation(self):
-        chefmap = solo.ChefMap(parsed="")
+        chefmap = chef_map.ChefMap(parsed="")
         mapping = {
             'source': 'requirements://host/ip',
             'path': 'instance:1'
@@ -1860,7 +1869,7 @@ class TestChefMapEvaluator(unittest.TestCase):
         self.assertEqual(result, '4.4.4.4')
 
     def test_client_evaluation(self):
-        chefmap = solo.ChefMap(parsed="")
+        chefmap = chef_map.ChefMap(parsed="")
         mapping = {
             'source': 'clients://host/ip',
             'path': 'instance:1'
@@ -1872,7 +1881,7 @@ class TestChefMapEvaluator(unittest.TestCase):
 
 class TestChefMapApplier(unittest.TestCase):
     def test_output_writing(self):
-        chefmap = solo.ChefMap(parsed="")
+        chefmap = chef_map.ChefMap(parsed="")
         mapping = {'targets': ['outputs://ip']}
         result = {}
         chefmap.apply_mapping(mapping, '4.4.4.4', result)
@@ -1904,7 +1913,7 @@ class TestChefMapResolver(unittest.TestCase):
                       value: 8
                 ''')
         result = {}
-        unresolved = solo.ChefMap.resolve_ready_maps(maps, data, result)
+        unresolved = chef_map.ChefMap.resolve_ready_maps(maps, data, result)
         expected = {'attributes:0': {'ready': 8, 'simple': 1}}
         self.assertDictEqual(result, expected)
         self.assertListEqual(unresolved, [maps[2]])
@@ -1919,18 +1928,18 @@ class TestCatalog(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_remote_catalog_sourcing(self):
-        provider = \
+        solo_provider = \
             solo.Provider(utils.yaml_to_dict('''
                 vendor: opscode
                 constraints:
                 - source: git://gh.acme.com/user/repo.git#branch
                 '''))
-        self.mox.StubOutWithMock(solo.ChefMap, "get_map_file")
-        chefmap = solo.ChefMap(mox.IgnoreArg())
+        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
+        chefmap = chef_map.ChefMap(mox.IgnoreArg())
         chefmap.get_map_file().AndReturn(TEMPLATE)
         self.mox.ReplayAll()
 
-        response = provider.get_catalog(middleware.RequestContext())
+        response = solo_provider.get_catalog(middleware.RequestContext())
 
         self.assertListEqual(
             response.keys(), ['application', 'database'])
@@ -1948,8 +1957,8 @@ class TestMapTemplating(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_parsing_scalar(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = '''
+        map = chef_map.ChefMap('')
+        map._raw = '''
             {% set id = 'foo' %}
             id: {{ id }}
             maps:
@@ -1957,11 +1966,11 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://{{ 'here' }}
         '''
-        self.assertDictEqual(chef_map.get_attributes('foo', None), {'here': 1})
+        self.assertDictEqual(map.get_attributes('foo', None), {'here': 1})
 
     def test_parsing_functions_parse_url(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = '''
+        map = chef_map.ChefMap('')
+        map._raw = '''
             id: foo
             maps:
             - value: {{ 1 }}
@@ -1984,7 +1993,7 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://fragment
         '''
-        result = chef_map.get_attributes('bar', None)
+        result = map.get_attributes('bar', None)
         expected = {
             'scheme': 'http',
             'netloc': 'github.com',
@@ -1995,8 +2004,8 @@ class TestMapTemplating(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_parse_url_Input(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = '''
+        map = chef_map.ChefMap('')
+        map._raw = '''
             id: foo
             maps:
             - value: {{ 1 }}
@@ -2014,7 +2023,7 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://protocol_target/scheme
         '''
-        result = chef_map.get_attributes('bar', None)
+        result = map.get_attributes('bar', None)
         expected = {
             'protocol_target': {
                 'scheme': 'http',
@@ -2054,8 +2063,8 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
             },
             'blueprint': {},
         })
-        chef_map = solo.ChefMap('')
-        chef_map._raw = '''
+        map = chef_map.ChefMap('')
+        map._raw = '''
             id: foo
             maps:
             - value: |
@@ -2066,13 +2075,13 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
               targets:
               - attributes://protocol_target/scheme
         '''
-        result = templating.parse(chef_map.raw, deployment=deployment)
+        result = templating.parse(map.raw, deployment=deployment)
         data = yaml.safe_load(result)
         self.assertEqual(data['maps'][0]['value'], cert)
 
     def test_parsing_functions_hash(self):
-        chef_map = solo.ChefMap('')
-        chef_map._raw = '''
+        map = chef_map.ChefMap('')
+        map._raw = '''
             id: foo
             maps:
             - value: {{ hash('password', salt='ahem1234') }}
@@ -2080,7 +2089,7 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
               - attributes://here
         '''
         self.assertDictEqual(
-            chef_map.get_attributes('foo', None),
+            map.get_attributes('foo', None),
             {
                 'here':
                 '$6$rounds=60000$ahem1234$6SJb7IPwxFdrqAKZIK4Q3yAxkHc'

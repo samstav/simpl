@@ -24,13 +24,12 @@ import subprocess
 import unittest
 import uuid
 
-from celery import exceptions as celexc
 import mock
 import mox
 
 from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
-from checkmate.providers.opscode import knife
+from checkmate.providers.opscode.solo import tasks
 
 LOG = logging.getLogger(__name__)
 TEST_PATH = '/tmp/checkmate/test'
@@ -42,21 +41,21 @@ class TestKnife(unittest.TestCase):
         self.mox = mox.Mox()
         self.orignal_dir = os.getcwd()  # our knife calls will change it
         self.deploymentId = uuid.uuid4().hex
-        knife.CONFIG = self.mox.CreateMockAnything()
-        knife.CONFIG.deployments_path = TEST_PATH
+        tasks.CONFIG = self.mox.CreateMockAnything()
+        tasks.CONFIG.deployments_path = TEST_PATH
         if not os.path.exists(TEST_PATH):
             shutil.os.makedirs(TEST_PATH)
             LOG.info("Created '%s'", TEST_PATH)
 
         # Fake a call to create_environment
         url = 'https://example.com/checkmate/app.git'
-        cache_path = knife._get_blueprints_cache_path(url)
+        cache_path = tasks._get_blueprints_cache_path(url)
         self.environment_path = os.path.join(TEST_PATH, self.deploymentId)
         self.kitchen_path = os.path.join(self.environment_path, 'kitchen')
 
         if not os.path.exists(self.kitchen_path):
             os.makedirs(self.kitchen_path)
-            knife._create_kitchen(self.deploymentId, 'kitchen',
+            tasks._create_kitchen(self.deploymentId, 'kitchen',
                                   self.environment_path)
             LOG.info("Created kitchen '%s'", self.kitchen_path)
 
@@ -84,7 +83,7 @@ class TestKnife(unittest.TestCase):
         self.mox.StubOutWithMock(shutil, "rmtree")
         shutil.rmtree(self.environment_path)
         self.mox.ReplayAll()
-        knife.delete_environment(self.deploymentId)
+        tasks.delete_environment(self.deploymentId)
 
     def test_delete_environment_exception_handling(self):
         self.mox.StubOutWithMock(shutil, "rmtree")
@@ -92,11 +91,11 @@ class TestKnife(unittest.TestCase):
             cmexc.CheckmateException("", ""))
         self.mox.ReplayAll()
         self.assertRaises(cmexc.CheckmateException,
-                          knife.delete_environment,
+                          tasks.delete_environment,
                           self.deploymentId, path="/tmp/foo")
 
-    @mock.patch.object(knife, 'LOG')
-    @mock.patch.object(knife, '_get_root_environments_path')
+    @mock.patch.object(tasks, 'LOG')
+    @mock.patch.object(tasks, '_get_root_environments_path')
     def test_delete_environment_skip_retry(self, path_mock, log_mock):
         """Don't retry if already deleted."""
         path_mock.return_value = "/tmp/foo"
@@ -105,14 +104,14 @@ class TestKnife(unittest.TestCase):
         shutil.rmtree("/tmp/foo/%s" % self.deploymentId).AndRaise(
             OSError(errno.ENOENT, "Does not exist"))
         self.mox.ReplayAll()
-        knife.delete_environment(self.deploymentId, path="/tmp/foo")
+        tasks.delete_environment(self.deploymentId, path="/tmp/foo")
         log_mock.warn.assert_called_with(
             "Environment directory %s does not exist",
             "/tmp/foo/%s" % self.deploymentId,
             exc_info=True)
         self.mox.VerifyAll()
 
-    @mock.patch.object(knife, '_get_root_environments_path')
+    @mock.patch.object(tasks, '_get_root_environments_path')
     def test_delete_environment_retry(self, path_mock):
         path_mock.return_value = "/tmp/foo"
         self.mox.StubOutWithMock(shutil, "rmtree")
@@ -120,7 +119,7 @@ class TestKnife(unittest.TestCase):
             cmexc.CheckmateException("boom!"))
         self.mox.ReplayAll()
         self.assertRaises(cmexc.CheckmateException,
-                          knife.delete_environment,
+                          tasks.delete_environment,
                           self.deploymentId, path="/tmp/foo")
         self.mox.VerifyAll()
 
@@ -129,7 +128,7 @@ class TestKnife(unittest.TestCase):
         shutil.rmtree(os.path.join(self.kitchen_path, "cookbooks"))
         shutil.rmtree(os.path.join(self.kitchen_path, "site-cookbooks"))
         self.mox.ReplayAll()
-        knife.delete_cookbooks(self.deploymentId, 'kitchen')
+        tasks.delete_cookbooks(self.deploymentId, 'kitchen')
 
     def test_databag_create(self):
         """Test databag item creation (with checkmate filling in ID)."""
@@ -149,10 +148,10 @@ class TestKnife(unittest.TestCase):
         }
         bag = uuid.uuid4().hex
         self.mox.StubOutWithMock(cmdeps.resource_postback, 'delay')
-        knife.write_databag(self.deploymentId, bag, 'test', original, resource)
+        tasks.write_databag(self.deploymentId, bag, 'test', original, resource)
         params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                   'json']
-        stored = knife._run_kitchen_command("dep_id", "/tmp/checkmate/test/"
+        stored = tasks._run_kitchen_command("dep_id", "/tmp/checkmate/test/"
                                             "%s/kitchen/" % self.deploymentId,
                                             params)
         self.assertDictEqual(json.loads(stored), original)
@@ -192,12 +191,12 @@ class TestKnife(unittest.TestCase):
             'hosted_on': "rackspace"
         }
         self.mox.StubOutWithMock(cmdeps.resource_postback, 'delay')
-        knife.write_databag(self.deploymentId, bag, 'test', original, resource)
-        knife.write_databag(self.deploymentId, bag, 'test', merge, resource,
+        tasks.write_databag(self.deploymentId, bag, 'test', original, resource)
+        tasks.write_databag(self.deploymentId, bag, 'test', merge, resource,
                             merge=True)
         params = ['knife', 'solo', 'data', 'bag', 'show', bag, 'test', '-F',
                   'json']
-        stored = knife._run_kitchen_command('test', "/tmp/checkmate/test/"
+        stored = tasks._run_kitchen_command('test', "/tmp/checkmate/test/"
                                             "%s/kitchen/" % self.deploymentId,
                                             params)
         self.assertDictEqual(json.loads(stored),
@@ -210,7 +209,7 @@ class TestKnife(unittest.TestCase):
         }
         resource = {'index': 1234}
         bag = uuid.uuid4().hex
-        self.assertRaises(cmexc.CheckmateException, knife.write_databag,
+        self.assertRaises(cmexc.CheckmateException, tasks.write_databag,
                           self.deploymentId, bag, 'test', original, resource)
 
     def test_create_environment(self):
@@ -221,14 +220,14 @@ class TestKnife(unittest.TestCase):
         #Stub out checks for paths
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0o770).AndReturn(True)
-        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path("test", path).AndReturn(path)
-        self.mox.StubOutWithMock(knife, '_create_environment_keys')
-        knife._create_environment_keys("test", fullpath, private_key="PPP",
+        self.mox.StubOutWithMock(tasks, '_get_root_environments_path')
+        tasks._get_root_environments_path("test", path).AndReturn(path)
+        self.mox.StubOutWithMock(tasks, '_create_environment_keys')
+        tasks._create_environment_keys("test", fullpath, private_key="PPP",
                                        public_key_ssh="SSH")\
              .AndReturn(dict(keys="keys"))
-        self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen("test", service, fullpath, secret_key="SSS",
+        self.mox.StubOutWithMock(tasks, '_create_kitchen')
+        tasks._create_kitchen("test", service, fullpath, secret_key="SSS",
                               source_repo="git://ggg")\
              .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
@@ -242,7 +241,7 @@ class TestKnife(unittest.TestCase):
         expected = {'environment': '/fake_path/test',
                     'keys': 'keys',
                     'kitchen': 'kitchen_path'}
-        self.assertDictEqual(knife.create_environment("test",
+        self.assertDictEqual(tasks.create_environment("test",
                                                       service, path=path,
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
@@ -259,14 +258,14 @@ class TestKnife(unittest.TestCase):
         #Stub out checks for paths
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0o770).AndReturn(True)
-        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path("test", path).AndReturn(path)
-        self.mox.StubOutWithMock(knife, '_create_environment_keys')
-        knife._create_environment_keys("test", fullpath, private_key="PPP",
+        self.mox.StubOutWithMock(tasks, '_get_root_environments_path')
+        tasks._get_root_environments_path("test", path).AndReturn(path)
+        self.mox.StubOutWithMock(tasks, '_create_environment_keys')
+        tasks._create_environment_keys("test", fullpath, private_key="PPP",
                                        public_key_ssh="SSH")\
              .AndReturn(dict(keys="keys"))
-        self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen("test", service, fullpath, secret_key="SSS",
+        self.mox.StubOutWithMock(tasks, '_create_kitchen')
+        tasks._create_kitchen("test", service, fullpath, secret_key="SSS",
                               source_repo="git://ggg")\
              .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
@@ -289,7 +288,7 @@ class TestKnife(unittest.TestCase):
         expected = {'environment': '/fake_path/test',
                     'keys': 'keys',
                     'kitchen': 'kitchen_path'}
-        self.assertDictEqual(knife.create_environment("test",
+        self.assertDictEqual(tasks.create_environment("test",
                                                       service, path=path,
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
@@ -310,18 +309,18 @@ class TestKnife(unittest.TestCase):
         fullpath = os.path.join(path, "test")
         service = "test_service"
         #Stub out checks for paths
-        self.mox.StubOutWithMock(knife, "_ensure_berkshelf_environment")
-        knife._ensure_berkshelf_environment().AndReturn(True)
+        self.mox.StubOutWithMock(tasks, "_ensure_berkshelf_environment")
+        tasks._ensure_berkshelf_environment().AndReturn(True)
         self.mox.StubOutWithMock(os, 'mkdir')
         os.mkdir(fullpath, 0o770).AndReturn(True)
-        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path('test', path).AndReturn(path)
-        self.mox.StubOutWithMock(knife, '_create_environment_keys')
-        knife._create_environment_keys("test", fullpath, private_key="PPP",
+        self.mox.StubOutWithMock(tasks, '_get_root_environments_path')
+        tasks._get_root_environments_path('test', path).AndReturn(path)
+        self.mox.StubOutWithMock(tasks, '_create_environment_keys')
+        tasks._create_environment_keys("test", fullpath, private_key="PPP",
                                        public_key_ssh="SSH")\
              .AndReturn(dict(keys="keys"))
-        self.mox.StubOutWithMock(knife, '_create_kitchen')
-        knife._create_kitchen("test", service, fullpath, secret_key="SSS",
+        self.mox.StubOutWithMock(tasks, '_create_kitchen')
+        tasks._create_kitchen("test", service, fullpath, secret_key="SSS",
                               source_repo="git://ggg")\
              .AndReturn(dict(kitchen="kitchen_path"))
         kitchen_path = os.path.join(fullpath, service)
@@ -346,7 +345,7 @@ class TestKnife(unittest.TestCase):
         expected = {'environment': '/fake_path/test',
                     'keys': 'keys',
                     'kitchen': 'kitchen_path'}
-        self.assertDictEqual(knife.create_environment("test",
+        self.assertDictEqual(tasks.create_environment("test",
                                                       service, path=path,
                                                       private_key="PPP",
                                                       public_key_ssh="SSH",
@@ -366,7 +365,7 @@ class TestKnife(unittest.TestCase):
         node_path = os.path.join(self.kitchen_path, 'nodes', 'localhost.json')
 
         # Validate writing to blank
-        knife._write_node_attributes(node_path, original)
+        tasks._write_node_attributes(node_path, original)
         with file(node_path, 'r') as node_file_r:
             self.assertEqual(json.load(node_file_r), expected)
 
@@ -404,7 +403,7 @@ class TestKnife(unittest.TestCase):
             json.dump(original, node_file_w)
 
         # Validate merging
-        knife._write_node_attributes(node_path, merge)
+        tasks._write_node_attributes(node_path, merge)
         with file(node_path, 'r') as merged_file_r:
             self.assertEqual(json.load(merged_file_r), expected)
 
@@ -426,20 +425,20 @@ class TestKnifeTasks(unittest.TestCase):
         fake_attrs = {'id': 'X'}
 
         # Stub first call to postback
-        self.mox.StubOutWithMock(knife.cmdeps.resource_postback, 'delay')
-        postback_mock = knife.cmdeps.resource_postback.delay
+        self.mox.StubOutWithMock(tasks.deployments.resource_postback, 'delay')
+        postback_mock = tasks.deployments.resource_postback.delay
         postback_mock(ignore, ignore).AndReturn(None)
 
         # Stub out path checks
-        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path("test", None).AndReturn(path)
+        self.mox.StubOutWithMock(tasks, '_get_root_environments_path')
+        tasks._get_root_environments_path("test", None).AndReturn(path)
 
         self.mox.StubOutWithMock(os.path, 'exists')
         os.path.exists(kitchen_path).AndReturn(True)
 
         # Stubout mkdir ssh call
-        self.mox.StubOutWithMock(knife.ssh, 'remote_execute')
-        knife.ssh.remote_execute('localhost', ignore, ignore,
+        self.mox.StubOutWithMock(tasks.ssh, 'remote_execute')
+        tasks.ssh.remote_execute('localhost', ignore, ignore,
                                  identity_file=None, password=None)\
             .AndReturn(True)
 
@@ -447,21 +446,21 @@ class TestKnifeTasks(unittest.TestCase):
         os.path.exists(node_path).AndReturn(False)
 
         # Stubout chef run
-        self.mox.StubOutWithMock(knife, '_run_kitchen_command')
+        self.mox.StubOutWithMock(tasks, '_run_kitchen_command')
         params = ['knife', 'solo', 'prepare', 'root@localhost', '-c',
                   '/fake_path/test/test_service/solo.rb']
-        knife._run_kitchen_command("test", kitchen_path, params)\
+        tasks._run_kitchen_command("test", kitchen_path, params)\
             .AndReturn(None)
 
         # Stubout check for installed chef
         res = {'stderr': '', 'stdout': 'Chef: 10.12.0\n'}
-        knife.ssh.remote_execute('localhost', "knife -v", 'root',
+        tasks.ssh.remote_execute('localhost', "knife -v", 'root',
                                  identity_file=None, password=None)\
             .AndReturn(res)
 
         # Stub out call to write node attributes
-        self.mox.StubOutWithMock(knife, '_write_node_attributes')
-        knife._write_node_attributes(node_path, fake_attrs).AndReturn(
+        self.mox.StubOutWithMock(tasks, '_write_node_attributes')
+        tasks._write_node_attributes(node_path, fake_attrs).AndReturn(
             fake_attrs)
 
         # Stub out update to node
@@ -474,7 +473,7 @@ class TestKnifeTasks(unittest.TestCase):
 
         resource = {'hosted_on': '1', 'index': '0'}
         self.mox.ReplayAll()
-        knife.register_node('localhost', 'test', resource,
+        tasks.register_node('localhost', 'test', resource,
                             kitchen_name=service, attributes=fake_attrs)
         self.mox.VerifyAll()
 
@@ -487,20 +486,20 @@ class TestKnifeTasks(unittest.TestCase):
         node_path = os.path.join(kitchen_path, 'nodes', 'localhost.json')
 
         # Stub frst call to postback
-        self.mox.StubOutWithMock(knife.cmdeps.resource_postback, 'delay')
-        postback_mock = knife.cmdeps.resource_postback.delay
+        self.mox.StubOutWithMock(tasks.deployments.resource_postback, 'delay')
+        postback_mock = tasks.deployments.resource_postback.delay
         postback_mock(ignore, ignore).AndReturn(None)
 
         # Stub out path checks
-        self.mox.StubOutWithMock(knife, '_get_root_environments_path')
-        knife._get_root_environments_path("test", None).AndReturn(path)
+        self.mox.StubOutWithMock(tasks, '_get_root_environments_path')
+        tasks._get_root_environments_path("test", None).AndReturn(path)
 
         self.mox.StubOutWithMock(os.path, 'exists')
         os.path.exists(kitchen_path).AndReturn(True)
 
         # Stubout mkdir ssh call
-        self.mox.StubOutWithMock(knife.ssh, 'remote_execute')
-        knife.ssh.remote_execute('localhost', ignore, ignore,
+        self.mox.StubOutWithMock(tasks.ssh, 'remote_execute')
+        tasks.ssh.remote_execute('localhost', ignore, ignore,
                                  identity_file=None, password=None)\
             .AndReturn(True)
 
@@ -508,20 +507,20 @@ class TestKnifeTasks(unittest.TestCase):
         os.path.exists(node_path).AndReturn(False)
 
         # Stubout chef run
-        self.mox.StubOutWithMock(knife, '_run_kitchen_command')
-        knife._run_kitchen_command("test", kitchen_path, ignore)\
+        self.mox.StubOutWithMock(tasks, '_run_kitchen_command')
+        tasks._run_kitchen_command("test", kitchen_path, ignore)\
             .AndReturn(None)
 
         # Stubout check for installed chef
         res = {'stderr': 'bash: chef-solo: command not found\n', 'stdout': ''}
-        knife.ssh.remote_execute('localhost', "knife -v", 'root',
+        tasks.ssh.remote_execute('localhost', "knife -v", 'root',
                                  identity_file=None, password=None)\
             .AndReturn(res)
 
         resource = {'hosted_on': '1', 'index': '0'}
         self.mox.ReplayAll()
         with self.assertRaisesRegexp(cmexc.CheckmateException, "Check for*"):
-            knife.register_node('localhost', 'test', resource,
+            tasks.register_node('localhost', 'test', resource,
                                 kitchen_name=service)
         self.mox.VerifyAll()
 
