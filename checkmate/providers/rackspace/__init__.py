@@ -37,7 +37,7 @@ from checkmate.providers import register_providers as rps
 
 def register():
     """Register Provider classes."""
-    from checkmate.providers.rackspace.compute import (
+    from checkmate.providers.rackspace.compute.provider import (
         Provider as nova)
     from checkmate.providers.rackspace.compute_legacy import (
         Provider as legacy)

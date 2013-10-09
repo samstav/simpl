@@ -15,7 +15,7 @@ class TestGetCatalog(unittest.TestCase):
     def setUp(self):
         """Sets up context for reuse in get_catalog testing."""
         self.context = {'region': 'SYD'}
-        self.base = compute.RackspaceComputeProviderBase({})
+        self.base = compute.provider.RackspaceComputeProviderBase({})
 
     @mock.patch.object(base.ProviderBase, 'get_catalog')
     def test_ProviderBase_catalog_injection(self, mock_get_catalog):

@@ -26,7 +26,8 @@ from SpiffWorkflow import specs
 from checkmate import exceptions as cmexc
 from checkmate.common import statsd
 from checkmate.deployments import resource_postback
-from checkmate.providers.rackspace.compute import RackspaceComputeProviderBase
+from checkmate.providers.rackspace.compute.provider import \
+    RackspaceComputeProviderBase
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)

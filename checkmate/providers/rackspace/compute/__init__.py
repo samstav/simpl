@@ -30,18 +30,13 @@ from checkmate.common import statsd
 from checkmate import deployments as cmdeps, utils
 from checkmate import exceptions as cmexc
 
-from checkmate import middleware as cmmid
-from checkmate import providers as cmprov
-from checkmate.providers.rackspace import base
-from checkmate.providers import RackspaceProviderTask
-from checkmate import rdp
-from checkmate import ssh
-from checkmate.providers.rackspace.compute.provider import RackspaceComputeProviderBase
 from checkmate.providers.rackspace.compute.provider import Provider
+from checkmate.providers import RackspaceProviderTask
 from checkmate import rdp
 from checkmate import ssh
 
 LOG = logging.getLogger(__name__)
+
 
 def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
     """Handle task failure."""
@@ -320,8 +315,8 @@ def delete_server_task(context, api=None):
             msg = ("Connection error talking to %s endpoint" %
                    (api.client.management_url))
             LOG.error(msg, exc_info=True)
-            raise exception.CheckmateException(message=msg,
-                                               options=cmexc.CAN_RESUME)
+            raise cmexc.CheckmateException(message=msg,
+                                           options=cmexc.CAN_RESUME)
     else:
         msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
                % server.status)
