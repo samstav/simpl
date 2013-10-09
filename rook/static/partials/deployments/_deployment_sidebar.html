@@ -105,20 +105,25 @@
     </div>
   </li>
 
-  <!-- WORKFLOWS -->
+  <!-- WORKFLOW -->
   <li class="nav-header">
-    Workflows
+    Current Workflow
   </li>
+  <li>
+    <a ng-show="data.operation.link" href="{{data.operation.link}}">
+      <i class="icon-tasks"></i> {{data.operation.type | capitalize}}
+    </a>
+  </li>
+  <!-- WORKFLOW HISTORY -->
+  <li class="nav-header">
+    Workflow History
+  </li>
+
   <li ng-repeat="operation in operations_history | filter:{ link: '!canvas' }">
     <a href="{{operation.link}}">
       <i class="icon-list"></i>
       {{operation.type | capitalize}}
     </a>
   </li>
-  <li>
-    <a ng-show="data.operation.link" href="{{data.operation.link}}">
-      <i class="icon-tasks"></i>
-      {{data.operation.type | capitalize}}
-    </a>
-  </li>
+
 </ul>
