@@ -397,13 +397,17 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
       if (!('data' in error) && ('description' in error))
         error.data = {description: error.description};
     }
+    if (!('data' in error) && ('message' in error) && 'reason' in error)
+      error.data = {error: error.message, description: error.reason};
 
     var info = {data: error.data,
                 status: error.status,
                 title: "Error",
                 message: "There was an error executing your request:"};
-    if (typeof error.data == "object" && 'description' in error.data)
-        info.message = error.data.description;
+    if (typeof error.data == "object" && 'description' in error.data) {
+      info.message = error.data.description;
+      delete error.data.description;
+    }
     $scope.$root.error = info;
     $scope.open_modal('error');
     mixpanel.track("Error", {'error': info.message});
@@ -2615,7 +2619,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       return;
     $scope.submitting = true;
     var url = '/:tenantId/deployments';
-    if ((action !== undefined) && action)
+    if (action)
       url += '/' + action;
     var Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
     var deployment = new Deployment({});
@@ -2671,29 +2675,15 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     }
 
     if ($scope.auth.identity.loggedIn) {
-        mixpanel.track("Deployment Launched", {'action': action});
-        deployment.$save(function(returned, getHeaders){
+      mixpanel.track("Deployment Launched", {'action': action});
+      deployment.$save(function(returned, getHeaders){
         if (action == '+preview') {
-            workflow.preview = returned;
-            $location.path('/' + $scope.auth.context.tenantId + '/workflows/+preview');
+          workflow.preview = returned;
+          $location.path('/' + $scope.auth.context.tenantId + '/workflows/+preview');
         } else {
-            var deploymentId = getHeaders('location').split('/')[3];
-            console.log("Posted deployment", deploymentId);
-            $location.path(getHeaders('location'));
-            /*  -- old workflow logic
-            //Hack to get link
-            try {
-              var workflowId = getHeaders('link').split(';')[0]; //Get first part
-              workflowId = workflowId.split('/'); //split URL
-              workflowId = workflowId[workflowId.length - 1].trim(); //get ID
-              workflowId = workflowId.substr(0, workflowId.length - 1);  //trim
-              $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + workflowId + '/status');
-            } catch(err) {
-              //Fail-safe to old logic of deploymentId=workflowId
-              console.log("Error processing link header", err);
-              $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + deploymentId + '/status');
-            }
-            */
+          var deploymentId = getHeaders('location').split('/')[3];
+          console.log("Posted deployment", deploymentId);
+          $location.path(getHeaders('location'));
         }
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
@@ -3433,7 +3423,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
-function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github, options) {
+function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github, options, $location, $resource, workflow) {
   var empty_deployment = {
     "blueprint": {"name": "your blueprint name"},
     "inputs": {},
@@ -3509,6 +3499,48 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
       }
     );
   };
+
+  $scope.submit = function(action){
+    if ($scope.submitting === true)
+      return;
+    $scope.submitting = true;
+
+    var deployment_obj;
+    try {
+      deployment_obj = jsyaml.safeLoad($scope.deployment_json);
+    } catch(err) {
+      $scope.show_error(err);
+      console.log('Could not parse the blueprint');
+      $scope.submitting = false;
+      return;
+    }
+
+    var url = '/:tenantId/deployments';
+    if (action)
+      url += '/' + action;
+
+    var Dep = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+    var deployment = new Dep(deployment_obj);
+
+    mixpanel.track("Deployment Launched", {'action': action});
+    deployment.$save(
+      function success(returned, getHeaders){
+        if (action == '+preview') {
+          workflow.preview = returned;
+          $location.path('/' + $scope.auth.context.tenantId + '/workflows/+preview');
+        } else {
+          var deploymentId = getHeaders('location').split('/')[3];
+          console.log("Posted deployment", deploymentId);
+          $location.path(getHeaders('location'));
+        }
+      },
+      function error(error) {
+        $scope.show_error(error);
+        $scope.submitting = false;
+        mixpanel.track("Deployment Launch Failed", {'status': error.status, 'data': error.data});
+      }
+    );
+  }
 
   $scope.newBlueprintCodemirrorLoaded = function(_editor){
     $scope.inputs = {};

@@ -25,7 +25,12 @@
       </pane>
     </tabs>
 
-    <div class="row-fluid">
+    <div class="row-fluid form-actions">
+      <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
+      <button ng-show="simulator" ng-click="submit('simulate')" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
+      <button ng-click="submit('+preview')" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Preview It</button>
+      <button ng-click="loginPrompt()" class="btn" ng-hide="auth.identity.loggedIn">Log in to execute this workflow</button>
+
       <a style="display:none;" ng-click="toggle_editor_type()">Toggle editor type</a>
       <p style="display:none;">{{errors.conversion}}</p>
     </div>
