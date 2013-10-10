@@ -157,12 +157,13 @@ class TestNovaCompute(test.ProviderTester):
         })
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
-    def test_create_server_connect_error(self, mock_utils):
+    @mock.patch('checkmate.providers.rackspace.compute.manager.LOG')
+    def test_create_server_connect_error(self, log, mock_utils):
         mock_image = mock.Mock()
         mock_image.name = 'image'
         mock_flavor = mock.Mock()
         mock_flavor.name = 'flavor'
-        compute.LOG.error = mock.Mock()
+        log.error = mock.MagicMock()
         mock_api_obj = mock.Mock()
         mock_api_obj.client.management_url = 'http://test/'
         mock_api_obj.flavors.find.return_value = mock_flavor
@@ -174,10 +175,10 @@ class TestNovaCompute(test.ProviderTester):
             compute.create_server({'deployment_id': '1', 'resource_key': '1'},
                                   None, None, api=mock_api_obj)
 
-        compute.LOG.error.assert_called_with(
+        log.error.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
-    @mock.patch.object(compute.LOG, 'error')
+    @mock.patch.object(compute.manager.LOG, 'error')
     @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
     def test_create_server_images_connect_error(self, mock_postback,
                                                 mock_logger):

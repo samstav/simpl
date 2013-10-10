@@ -390,7 +390,7 @@ class Provider(RackspaceComputeProviderBase):
             region=desired['region'], resource=resource)
         create_server_task = specs.Celery(
             wfspec, 'Create Server %s (%s)' % (key, resource['service']),
-            'checkmate.providers.rackspace.compute.create_server',
+            'checkmate.providers.rackspace.compute.tasks.create_server',
             call_args=[
                 queued_task_dict,
                 resource.get('dns-name'),
