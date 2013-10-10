@@ -388,6 +388,19 @@ class TestSecrets(unittest.TestCase):
         self.assertIn('value', outputs['Public Key'])
         self.driver.get_deployment.assert_called_with('1', with_secrets=False)
 
+    def test_get_deployment_shows_secrets(self):
+        """Check that GET deployment responds with secrets."""
+        self.driver.get_deployment = mock.Mock(return_value=self.deployment)
+        dep = self.manager.get_deployment('1', tenant_id="T1000",
+                                          with_secrets=True)
+
+        self.assertEqual(dep['id'], '1')
+        self.assertIn('display-outputs', dep)
+        outputs = dep['display-outputs']
+        self.assertIn('value', outputs['Locked Password'])
+        self.assertIn('value', outputs['New Password'])
+        self.driver.get_deployment.assert_called_with('1', with_secrets=True)
+
     def test_locked_secrets_not_returned(self):
         """Check that locked secrets are not returned."""
         self.driver.get_deployment = mock.Mock(return_value=self.deployment)
