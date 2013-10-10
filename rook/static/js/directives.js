@@ -814,6 +814,28 @@ angular.module('checkmate.directives').directive('markdown', [function() {
   };
 }]);
 
+// TODO This is a temp hack due to an incompatibility between ui-bootstrap 0.3.0 and
+// AngularJS 1.2.0-rc2.  This directive can be removed once ui-bootstrap is updated
+// to no longer depend on ngBindHtmlUnsafe
+// See: https://github.com/angular-ui/bootstrap/issues/813
+angular.module('checkmate.directives').directive('ngBindHtmlUnsafe', ['$sce', function($sce){
+  return {
+    scope: {
+      ngBindHtmlUnsafe: '=',
+    },
+    template: "<div ng-bind-html='trustedHtml'></div>",
+    link: function($scope, iElm, iAttrs, controller) {
+      $scope.updateView = function() {
+        $scope.trustedHtml = $sce.trustAsHtml($scope.ngBindHtmlUnsafe);
+      }
+
+      $scope.$watch('ngBindHtmlUnsafe', function(newVal, oldVal) {
+        $scope.updateView(newVal);
+      });
+    }
+  };
+}]);
+
 // Extend ui-bootstrap to use HTML popovers
 directives.directive( 'popoverHtmlUnsafePopup', function () {
   return {
