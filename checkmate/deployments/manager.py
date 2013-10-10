@@ -151,8 +151,7 @@ class Manager(object):
                                     workflow_id=deployment['id'])
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
-        """Get a single deployment by id.
-        """
+        """Get a single deployment by id."""
         entity = db.get_driver(api_id=api_id).get_deployment(api_id,
                                                              with_secrets=
                                                              with_secrets)
@@ -162,23 +161,24 @@ class Manager(object):
         # Strip secrets
         # FIXME(zns): this is not the place to do this / temp HACK to prove API
         try:
-            status = "NO SECRETS"
-            outputs = entity.get('display-outputs')
-            if outputs:
-                for _, value in outputs.items():
-                    if value.get('is-secret', False) is True:
-                        if value.get('status') == "AVAILABLE":
-                            status = "AVAILABLE"
-                        elif value.get('status') == "LOCKED":
-                            if status == "NO SECRETS":
-                                status = "LOCKED"
-                        elif value.get('status') == "GENERATING":
-                            if status != "NO SECRETS":  # some AVAILABLE
-                                status = "GENERATING"
+            status_msg = "NO SECRETS"
+            outputs = entity.get('display-outputs') or {}
+            for _, value in outputs.items():
+                status = value.get('status')
+                if value.get('is-secret', False) is not True:
+                    continue
 
-                        if with_secrets is False and 'value' in value:
-                            del value['value']
-            entity['secrets'] = status
+                if status == "AVAILABLE":
+                    status_msg = "AVAILABLE"
+                elif status == "LOCKED" and status_msg == "NO SECRETS":
+                    status_msg = "LOCKED"
+                elif status == "GENERATING" and status_msg != "NO SECRETS":
+                    # some AVAILABLE
+                    status_msg = "GENERATING"
+
+                if with_secrets is False and 'value' in value:
+                    del value['value']
+            entity['secrets'] = status_msg
         except StandardError as exc:
             # Skip errors in exprimental code
             LOG.exception(exc)
