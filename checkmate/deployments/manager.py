@@ -175,10 +175,9 @@ class Manager(object):
                         elif value.get('status') == "GENERATING":
                             if status != "NO SECRETS":  # some AVAILABLE
                                 status = "GENERATING"
-                        try:
+
+                        if with_secrets is False and 'value' in value:
                             del value['value']
-                        except KeyError:
-                            pass
             entity['secrets'] = status
         except StandardError as exc:
             # Skip errors in exprimental code
