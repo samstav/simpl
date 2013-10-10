@@ -427,7 +427,8 @@ class Provider(RackspaceComputeProviderBase):
 
         task_name = 'Wait for Server %s (%s) build' % (key,
                                                        resource['service'])
-        celery_call = 'checkmate.providers.rackspace.compute.wait_on_build'
+        celery_call = 'checkmate.providers.rackspace.compute.' \
+                      'tasks.wait_on_build'
         build_wait_task = specs.Celery(
             wfspec, task_name, celery_call, **kwargs)
         create_server_task.connect(build_wait_task)

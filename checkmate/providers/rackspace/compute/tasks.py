@@ -22,3 +22,14 @@ def create_server(context, name, region, api=None, flavor="2",
     create_server.update_state(state="PROGRESS",
                                meta={"server.id": data["id"]})
     return data
+
+@task(base=RackspaceProviderTask, default_retry_delay=15,
+      max_retries=40, provider=Provider)
+@statsd.collect
+def wait_on_build(context, server_id, region, ip_address_type='public',
+                  api=None):
+    data = Manager.wait_on_build(context, server_id, region,
+                                 wait_on_build.partial,
+                                 wait_on_build.update_state,
+                                 ip_address_type=ip_address_type, api=api)
+    return data
