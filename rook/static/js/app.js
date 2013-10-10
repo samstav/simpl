@@ -41,6 +41,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/blueprints/new.html',
     controller: BlueprintNewController
   })
+  .when('/:tenantId/blueprints/new', {
+    templateUrl: '/partials/blueprints/new.html',
+    controller: BlueprintNewController
+  })
   .when('/:tenantId/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: DeploymentNewRemoteController,
@@ -397,13 +401,17 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
       if (!('data' in error) && ('description' in error))
         error.data = {description: error.description};
     }
+    if (!('data' in error) && ('message' in error) && 'reason' in error)
+      error.data = {error: error.message, description: error.reason};
 
     var info = {data: error.data,
                 status: error.status,
                 title: "Error",
                 message: "There was an error executing your request:"};
-    if (typeof error.data == "object" && 'description' in error.data)
-        info.message = error.data.description;
+    if (typeof error.data == "object" && 'description' in error.data) {
+      info.message = error.data.description;
+      delete error.data.description;
+    }
     $scope.$root.error = info;
     $scope.open_modal('error');
     mixpanel.track("Error", {'error': info.message});
@@ -2615,7 +2623,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       return;
     $scope.submitting = true;
     var url = '/:tenantId/deployments';
-    if ((action !== undefined) && action)
+    if (action)
       url += '/' + action;
     var Deployment = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
     var deployment = new Deployment({});
@@ -2671,29 +2679,15 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     }
 
     if ($scope.auth.identity.loggedIn) {
-        mixpanel.track("Deployment Launched", {'action': action});
-        deployment.$save(function(returned, getHeaders){
+      mixpanel.track("Deployment Launched", {'action': action});
+      deployment.$save(function(returned, getHeaders){
         if (action == '+preview') {
-            workflow.preview = returned;
-            $location.path('/' + $scope.auth.context.tenantId + '/workflows/+preview');
+          workflow.preview = returned;
+          $location.path('/' + $scope.auth.context.tenantId + '/workflows/+preview');
         } else {
-            var deploymentId = getHeaders('location').split('/')[3];
-            console.log("Posted deployment", deploymentId);
-            $location.path(getHeaders('location'));
-            /*  -- old workflow logic
-            //Hack to get link
-            try {
-              var workflowId = getHeaders('link').split(';')[0]; //Get first part
-              workflowId = workflowId.split('/'); //split URL
-              workflowId = workflowId[workflowId.length - 1].trim(); //get ID
-              workflowId = workflowId.substr(0, workflowId.length - 1);  //trim
-              $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + workflowId + '/status');
-            } catch(err) {
-              //Fail-safe to old logic of deploymentId=workflowId
-              console.log("Error processing link header", err);
-              $location.path('/' + $scope.auth.context.tenantId + '/workflows/' + deploymentId + '/status');
-            }
-            */
+          var deploymentId = getHeaders('location').split('/')[3];
+          console.log("Posted deployment", deploymentId);
+          $location.path(getHeaders('location'));
         }
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
@@ -3433,32 +3427,34 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
-function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github, options) {
-  var empty_deployment = {
+function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github, options, $location, $resource, workflow) {
+  $scope.deployment = {
     "blueprint": {"name": "your blueprint name"},
     "inputs": {},
     "environment": {},
     "name": {}
   };
-  $scope.deployment_json = jsyaml.safeDump(empty_deployment, null, 2);
+  $scope.deployment_string = jsyaml.safeDump($scope.deployment, null, 2);
   $scope.parsed_deployment_tree = DeploymentTree.build({});
   $scope.errors = {};
 
   var _to_yaml = function() {
-    $scope.deployment_json = jsyaml.safeDump(JSON.parse($scope.deployment_json));
+    $scope.deployment_string = jsyaml.safeDump(JSON.parse($scope.deployment_string));
     $scope.codemirror_options.lint = false;
     $scope.codemirror_options.mode = 'text/x-yaml';
     $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
   }
 
   var _to_json = function() {
-    $scope.deployment_json = JSON.stringify(jsyaml.safeLoad($scope.deployment_json), null, 2);
+    $scope.deployment_string = JSON.stringify(jsyaml.safeLoad($scope.deployment_string), null, 2);
     $scope.codemirror_options.lint = true;
     $scope.codemirror_options.mode = 'application/json';
     $scope.foldFunc= CodeMirror.newFoldFunction(CodeMirror.fold.brace);
   }
 
   $scope.toggle_editor_type = function() {
+    var current_mode = $scope.codemirror_options.mode;
+
     try {
       if ($scope.codemirror_options.mode == 'application/json') {
         _to_yaml();
@@ -3466,7 +3462,7 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
         _to_json();
       }
     } catch(err) {
-      $scope.errors.conversion = "Ooops!";
+      $scope.show_error(err);
     }
   }
 
@@ -3476,7 +3472,7 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
       var remote = github.parse_url(url);
       github.get_blueprint(remote).then(
         function(blueprint) {
-          $scope.deployment_json = jsyaml.safeDump(blueprint);
+          $scope.deployment_string = jsyaml.safeDump(blueprint);
         },
         function(response) {
           console.log(response);
@@ -3486,16 +3482,15 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   }
 
   $scope.parse_deployment = function(newValue, oldValue) {
-    var deployment;
     var parse_func = ($scope.codemirror_options.mode == 'application/json') ? JSON.parse : jsyaml.safeLoad;
     try {
-      deployment = parse_func(newValue);
+      $scope.deployment = parse_func(newValue);
     } catch(err) {
       console.log("Invalid JSON/YAML. Will not try to parse deployment.")
       return;
     }
 
-    Deployment.parse(deployment, $scope.auth.context.tenantId, function(response) {
+    Deployment.parse($scope.deployment, $scope.auth.context.tenantId, function(response) {
       $scope.parsed_deployment_tree = DeploymentTree.build(response);
     })
   };
@@ -3509,6 +3504,48 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
       }
     );
   };
+
+  $scope.submit = function(action){
+    if ($scope.submitting === true)
+      return;
+    $scope.submitting = true;
+
+    var deployment_obj;
+    try {
+      deployment_obj = jsyaml.safeLoad($scope.deployment_string);
+    } catch(err) {
+      $scope.show_error(err);
+      console.log('Could not parse the blueprint');
+      $scope.submitting = false;
+      return;
+    }
+
+    var url = '/:tenantId/deployments';
+    if (action)
+      url += '/' + action;
+
+    var Dep = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+    var deployment = new Dep(deployment_obj);
+
+    mixpanel.track("Deployment Launched", {'action': action});
+    deployment.$save(
+      function success(returned, getHeaders){
+        if (action == '+preview') {
+          workflow.preview = returned;
+          $location.path('/' + $scope.auth.context.tenantId + '/workflows/+preview');
+        } else {
+          var deploymentId = getHeaders('location').split('/')[3];
+          console.log("Posted deployment", deploymentId);
+          $location.path(getHeaders('location'));
+        }
+      },
+      function error(error) {
+        $scope.show_error(error);
+        $scope.submitting = false;
+        mixpanel.track("Deployment Launch Failed", {'status': error.status, 'data': error.data});
+      }
+    );
+  }
 
   $scope.newBlueprintCodemirrorLoaded = function(_editor){
     $scope.inputs = {};
@@ -3533,7 +3570,7 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
     var _update_options = function() {
       var blueprint;
       try {
-        blueprint = jsyaml.safeLoad($scope.deployment_json);
+        blueprint = jsyaml.safeLoad($scope.deployment_string);
       } catch(err) {
         blueprint = {};
         console.log('Could not parse blueprint');
@@ -3577,7 +3614,7 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
     gutters: ['CodeMirror-lint-markers']
   };
 
-  $scope.$watch('deployment_json', $scope.refresh_parse_deployment);
+  $scope.$watch('deployment_string', $scope.refresh_parse_deployment);
 }
 
 /*
