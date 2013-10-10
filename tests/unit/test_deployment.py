@@ -193,8 +193,8 @@ class TestDeployments(unittest.TestCase):
 
         expected = {
             'resources': {'0': {'status': 'DELETED'}},
-            'deployment_status': 'DELETED',
-            'operation_status': 'COMPLETE',
+            'status': 'DELETED',
+            'operation': {'status': 'COMPLETE'}
         }
         self.assertDictEqual(expected,
                              self.deployment.get_statuses(self.context))
@@ -211,8 +211,8 @@ class TestDeployments(unittest.TestCase):
 
         expected = {
             'resources': {'0': {'status': 'ACTIVE'}},
-            'deployment_status': 'UP',
-            'operation_status': 'COMPLETE',
+            'status': 'UP',
+            'operation': {'status': 'COMPLETE'}
         }
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)
@@ -227,8 +227,8 @@ class TestDeployments(unittest.TestCase):
 
         expected = {
             'resources': {'0': {'status': 'NEW'}},
-            'deployment_status': 'PLANNED',
-            'operation_status': 'NEW',
+            'status': 'PLANNED',
+            'operation': {'status': 'NEW'}
         }
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)
@@ -238,8 +238,8 @@ class TestDeployments(unittest.TestCase):
         self.provider.get_resource_status.return_value = {}
         expected = {
             'resources': {},
-            'deployment_status': 'NEW',
-            'operation_status': 'NEW',
+            'status': 'NEW',
+            'operation': {'status': 'NEW'}
         }
         self.assertDictEqual(self.deployment.get_statuses(self.context),
                              expected)

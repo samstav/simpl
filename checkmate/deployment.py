@@ -415,8 +415,8 @@ class Deployment(morpheus.MorpheusDict):
             #     deployment_status = "ALERT"
             #     operation_status = 'ABORTED'
 
-        return {'deployment_status': deployment_status,
-                'operation_status': operation_status}
+        return {'status': deployment_status,
+                'operation': {'status': operation_status}}
 
     def environment(self):
         """Initialize environment from Deployment."""

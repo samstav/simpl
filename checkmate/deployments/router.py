@@ -615,15 +615,14 @@ class Router(object):
         updates = {'meta-data': {'requested-sync': utils.get_time_string()}}
         deployment = self._setup_deployment(api_id, tenant_id)
         try:
-            statuses = deployment.get_statuses(
-                bottle.request.environ['context'])
-            updates['resources'] = statuses['resources']
+            updates.update(deployment.get_statuses(
+                bottle.request.environ['context']))
             updates.update(
                 common_tasks.update_operation(
                     api_id,
                     operations.current_workflow_id(deployment),
-                    deployment_status=statuses['deployment_status'],
-                    status=statuses['operation_status'],
+                    deployment_status=updates['status'],
+                    status=updates['operation']['status'],
                     check_only=True
                 )
             )
@@ -632,7 +631,7 @@ class Router(object):
             db.get_driver(api_id=api_id).save_deployment(api_id, updates,
                                                          partial=True)
         return utils.write_body(
-            statuses['resources'], bottle.request, bottle.response)
+            updates['resources'], bottle.request, bottle.response)
 
     @utils.with_tenant
     def check_deployment(self, api_id, tenant_id=None):

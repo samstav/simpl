@@ -670,8 +670,8 @@ class TestTimestampDeployments(TestDeploymentRouter):
 class TestSyncDeploymentAndCheckDeployment(unittest.TestCase):
     def setUp(self):
         self.statuses = {
-            'deployment_status': 'DELETED',
-            'operation_status': 'COMPLETE',
+            'status': 'DELETED',
+            'operation': {'status': 'COMPLETE'},
             'resources': {
                 '0': {
                     'instance': {'flavor': '3'},
