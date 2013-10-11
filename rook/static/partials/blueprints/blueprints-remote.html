@@ -39,8 +39,11 @@
                 <span class="caret"></span>
               </button>
               <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel">
-                <li ng-repeat="url in remotes_used">
-                  <a href="#" ng-click="$parent.remote.url=url; reload_blueprints();">{{url}}</a>
+                <li ng-repeat="url in remotes_used | filter: remote.url">
+                  <a ng-click="remote.url=url; reload_blueprints();">{{url}}</a>
+                </li>
+                <li ng-show="(remotes_used | filter: remote.url).length == 0">
+                  <a>No results</a>
                 </li>
               </ul>
             </div>

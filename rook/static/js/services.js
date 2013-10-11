@@ -610,10 +610,10 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   //Parse URL and returns a promise back with the github components (org, user, repo)
   scope.parse_org_url = function(url) {
     var remote = scope.parse_url(url);
-    var api_call = remote.api.url + 'orgs/' + remote.owner;
-    var headers = get_config(remote.api.server);
+    var api_url = remote.api.url + 'orgs/' + remote.owner;
+    var config = get_config(remote.api.server);
 
-    return $http({method: 'HEAD', url: api_call, headers: headers}).
+    return $http.head(api_url, config).
       then(
         function(response) { // If orgs call is successful
           return set_remote_owner_type(remote, 'org');

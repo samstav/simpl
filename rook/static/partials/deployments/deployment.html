@@ -67,8 +67,10 @@ Priv Key: {{formatted_data.private_key}}
           </div>
 
           <div class="span5" style="position: relative;">
-            <ng-include src="'/partials/deployments/_edit_nodes.html'"
-                        ng-show="available_services(data).length > 0"></ng-include>
+            <!-- broken in angularjs-v1.2.0-rc2: ng-show not working with ng-include -->
+            <div ng-show="true ||  available_services(data).length > 0">
+              <ng-include src="'/partials/deployments/_edit_nodes.html'"></ng-include>
+            </div>
 
             <cm-tree-view data="tree_data"
                           select-node="toggle_selected_node"
