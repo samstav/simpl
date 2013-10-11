@@ -16,8 +16,8 @@ import logging
 import os
 import shutil
 
-from checkmate import exceptions, utils
 from checkmate.common import config
+from checkmate import exceptions
 from checkmate.providers.opscode.solo.chef_environment import ChefEnvironment
 
 CONFIG = config.current()
@@ -95,4 +95,3 @@ class Manager(object):
         results.update(key_data)
         LOG.debug("create_environment returning: %s", results)
         return results
-

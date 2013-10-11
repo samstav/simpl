@@ -1,4 +1,4 @@
-# pylint: disable=C0103
+# pylint: disable=C0103,R0801,R0803
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -315,4 +315,3 @@ class TestFetchCookbooks(unittest.TestCase):
             ['install', '--path', "%s/cookbooks" % self.kitchen_path],
             lock=True)
         self.assertTrue(ChefEnvironment._ensure_berkshelf_environment.called)
-
