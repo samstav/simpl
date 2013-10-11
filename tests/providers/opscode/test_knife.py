@@ -79,57 +79,6 @@ class TestKnife(unittest.TestCase):
         os.chdir(self.orignal_dir)  # restore what knife may have changed
         shutil.rmtree(self.environment_path)
 
-    def test_delete_environment(self):
-        self.mox.StubOutWithMock(shutil, "rmtree")
-        shutil.rmtree(self.environment_path)
-        self.mox.ReplayAll()
-        tasks.delete_environment(self.deploymentId)
-
-    def test_delete_environment_exception_handling(self):
-        self.mox.StubOutWithMock(shutil, "rmtree")
-        shutil.rmtree("/tmp/foo/%s" % self.deploymentId).AndRaise(
-            cmexc.CheckmateException("", ""))
-        self.mox.ReplayAll()
-        self.assertRaises(cmexc.CheckmateException,
-                          tasks.delete_environment,
-                          self.deploymentId, path="/tmp/foo")
-
-    @mock.patch.object(tasks, 'LOG')
-    @mock.patch.object(tasks, '_get_root_environments_path')
-    def test_delete_environment_skip_retry(self, path_mock, log_mock):
-        """Don't retry if already deleted."""
-        path_mock.return_value = "/tmp/foo"
-        log_mock.warn.return_value = None
-        self.mox.StubOutWithMock(shutil, "rmtree")
-        shutil.rmtree("/tmp/foo/%s" % self.deploymentId).AndRaise(
-            OSError(errno.ENOENT, "Does not exist"))
-        self.mox.ReplayAll()
-        tasks.delete_environment(self.deploymentId, path="/tmp/foo")
-        log_mock.warn.assert_called_with(
-            "Environment directory %s does not exist",
-            "/tmp/foo/%s" % self.deploymentId,
-            exc_info=True)
-        self.mox.VerifyAll()
-
-    @mock.patch.object(tasks, '_get_root_environments_path')
-    def test_delete_environment_retry(self, path_mock):
-        path_mock.return_value = "/tmp/foo"
-        self.mox.StubOutWithMock(shutil, "rmtree")
-        shutil.rmtree("/tmp/foo/%s" % self.deploymentId).AndRaise(
-            cmexc.CheckmateException("boom!"))
-        self.mox.ReplayAll()
-        self.assertRaises(cmexc.CheckmateException,
-                          tasks.delete_environment,
-                          self.deploymentId, path="/tmp/foo")
-        self.mox.VerifyAll()
-
-    def test_delete_cookbooks(self):
-        self.mox.StubOutWithMock(shutil, "rmtree")
-        shutil.rmtree(os.path.join(self.kitchen_path, "cookbooks"))
-        shutil.rmtree(os.path.join(self.kitchen_path, "site-cookbooks"))
-        self.mox.ReplayAll()
-        tasks.delete_cookbooks(self.deploymentId, 'kitchen')
-
     def test_databag_create(self):
         """Test databag item creation (with checkmate filling in ID)."""
         original = {

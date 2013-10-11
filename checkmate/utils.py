@@ -36,6 +36,7 @@ import uuid
 
 import bottle
 from Crypto.Random import random
+import errno
 from eventlet.green import threading
 import functools
 import yaml
@@ -1168,3 +1169,55 @@ def format_check(data):
                     )
                 })
     return body
+
+
+def run_ruby_command(path, command, params, lock=True):
+    """Runs a knife-like command (ex. librarian-chef).
+
+    Since knife-ike command errors are returned to stderr, we need to
+    capture stderr and check for errors.
+
+    That needs to be run in a kitchen, so we move curdir and need to make
+    sure we stay there, so I added some synchronization code while that
+    takes place. However, if code calls in that already has a lock,
+    the optional lock param can be set to false so this code does not
+    lock.
+    """
+    params.insert(0, command)
+    LOG.debug("Running: '%s' in path '%s'", ' '.join(params), path)
+    if lock:
+        path_lock = threading.Lock()
+        path_lock.acquire()
+        try:
+            if path:
+                os.chdir(path)
+            result = subprc.check_output(params)
+        except OSError as exc:
+            if exc.errno == errno.ENOENT:
+                # Check if command is installed
+                output = None
+                try:
+                    output = subprc.check_output(['which', command])
+                except subprc.CalledProcessError:
+                    pass
+                if not output:
+                    msg = ("'%s' is not installed or not accessible on "
+                           "the server" % command)
+                    raise cmexc.CheckmateException(msg)
+            raise exc
+        except subprc.CalledProcessError as exc:
+            #retry and pass ex
+            # CalledProcessError cannot be serialized using Pickle,
+            # so raising it would fail in celery; we wrap the exception in
+            # something  Pickle-able.
+            msg = exc.output
+            raise cmexc.CheckmateCalledProcessError(exc.returncode, exc.cmd,
+                                                    output=msg)
+        finally:
+            path_lock.release()
+    else:
+        if path:
+            os.chdir(path)
+        result = subprc.check_output(params)
+    LOG.debug(result)
+    return result
