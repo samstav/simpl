@@ -19,7 +19,6 @@ import time
 import mock
 import unittest
 
-
 from checkmate.providers.opscode.solo.blueprint_cache import BlueprintCache
 from checkmate import utils, exceptions
 

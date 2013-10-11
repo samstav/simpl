@@ -274,3 +274,45 @@ class TestDeleteEnvironment(unittest.TestCase):
         self.assertRaises(exceptions.CheckmateException,
                           self.env.delete)
         shutil.rmtree.assert_called_once_with("/var/local/checkmate/DEP_ID")
+
+
+class TestFetchCookbooks(unittest.TestCase):
+    def setUp(self):
+        self.path = "/var/local/checkmate"
+        self.env_name = "DEP_ID"
+        self.kitchen_name = "kitchen"
+        self.kitchen_path = "%s/%s/%s" % (self.path, self.env_name,
+                                          self.kitchen_name)
+        self.env = ChefEnvironment(self.env_name, self.path,
+                                   kitchen_name=self.kitchen_name)
+
+    def test_fetch_with_chef_file(self):
+        os.path.exists = mock.Mock(side_effect=[False, True])
+        utils.run_ruby_command = mock.Mock()
+
+        self.env.fetch_cookbooks()
+
+        path_exists_call = [
+            mock.call("%s/Berksfile" % self.kitchen_path),
+            mock.call("%s/Cheffile" % self.kitchen_path),
+        ]
+        os.path.exists.assert_has_calls(path_exists_call)
+        utils.run_ruby_command.assert_called_once_with(self.kitchen_path,
+                                                       'librarian-chef',
+                                                       ['install'], lock=True)
+
+    def test_fetch_with_berks_file(self):
+        os.path.exists = mock.Mock(return_value=True)
+        utils.run_ruby_command = mock.Mock()
+        ChefEnvironment._ensure_berkshelf_environment = mock.Mock()
+
+        self.env.fetch_cookbooks()
+
+        os.path.exists.assert_called_once_with("%s/Berksfile" %
+                                               self.kitchen_path)
+        utils.run_ruby_command.assert_called_once_with(
+            self.kitchen_path, 'berks',
+            ['install', '--path', "%s/cookbooks" % self.kitchen_path],
+            lock=True)
+        self.assertTrue(ChefEnvironment._ensure_berkshelf_environment.called)
+

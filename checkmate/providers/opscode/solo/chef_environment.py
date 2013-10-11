@@ -12,6 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Chef Environment domain object."""
+import errno
 import json
 import logging
 import os
@@ -20,7 +21,6 @@ import subprocess
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
-import errno
 
 from checkmate.common import config
 from checkmate import exceptions, utils
@@ -43,6 +43,7 @@ class ChefEnvironment(object):
         self._private_key_path = os.path.join(self._env_path,
                                               PRIVATE_KEY_NAME)
         self._public_key_path = os.path.join(self._env_path, PUBLIC_KEY_NAME)
+        self._knife = Knife(self._kitchen_path)
         # if not os.path.exists(path):
         #     error_message = "Invalid path: %s" % path
         #     raise exceptions.CheckmateException(error_message)
@@ -76,6 +77,21 @@ class ChefEnvironment(object):
             else:
                 msg = "Could not create environment %s" % self._env_path
                 raise exceptions.CheckmateException(msg)
+
+    def fetch_cookbooks(self):
+        if os.path.exists(os.path.join(self._kitchen_path, 'Berksfile')):
+            ChefEnvironment._ensure_berkshelf_environment()
+            utils.run_ruby_command(self._kitchen_path, 'berks',
+                                   ['install', '--path', os.path.join(
+                                       self._kitchen_path,
+                                       'cookbooks')], lock=True)
+            LOG.debug("Ran 'berks install' in: %s", self._kitchen_path)
+        elif os.path.exists(os.path.join(self._kitchen_path, 'Cheffile')):
+            utils.run_ruby_command(self._kitchen_path,
+                                   'librarian-chef', ['install'],
+                                   lock=True)
+            LOG.debug("Ran 'librarian-chef install' in: %s",
+                      self._kitchen_path)
 
     def delete_cookbooks(self):
         cookbook_config_exists = (
@@ -152,9 +168,8 @@ class ChefEnvironment(object):
         # we don't pass the config file here because we're creating the
         # kitchen for the first time and knife will overwrite our config
         # file
-        knife = Knife(self._kitchen_path)
-        knife.init_solo()
-        secret_key_path = knife.write_solo_config()
+        self._knife.init_solo()
+        secret_key_path = self._knife.write_solo_config()
 
         # Create bootstrap.json in the kitchen
         bootstrap_path = os.path.join(self._kitchen_path, 'bootstrap.json')
@@ -200,7 +215,7 @@ class ChefEnvironment(object):
         if os.path.exists(knife_file):
             LOG.debug("Knife.rb already exists: %s", knife_file)
         else:
-            os.link(knife.solo_config_path, knife_file)
+            os.link(self._knife.solo_config_path, knife_file)
             LOG.debug("Linked knife.rb: %s", knife_file)
 
         # Copy blueprint files to kitchen
@@ -261,3 +276,19 @@ class ChefEnvironment(object):
             LOG.debug("Wrote environment public key: %s",
                       self._public_key_path)
         return self._public_key_path, public_key_ssh
+
+    @staticmethod
+    def _ensure_berkshelf_environment():
+        """Checks the Berkshelf environment and sets it up if necessary."""
+        berkshelf_path = CONFIG.berkshelf_path
+        if not berkshelf_path:
+            local_path = CONFIG.deployments_path
+            berkshelf_path = os.path.join(os.path.dirname(local_path), "cache")
+            LOG.warning("BERKSHELF_PATH variable not set. Defaulting "
+                        "to %s", berkshelf_path)
+        if 'BERKSHELF_PATH' not in os.environ:
+            # Berkshelf relies on this being set as an environent variable
+            os.environ["BERKSHELF_PATH"] = berkshelf_path
+        if not os.path.exists(berkshelf_path):
+            os.makedirs(berkshelf_path)
+            LOG.info("Created berkshelf_path: %s", berkshelf_path)
