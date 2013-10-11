@@ -304,11 +304,13 @@ class Manager(object):
 
         # we might not get an ip right away, so wait until its populated
         if 'ip' not in results:
-            raise cmexec.CheckmateException(message="Could not find IP "
-                                                    "of server %s'" % server_id,
-                                           options=cmexec.CAN_RESUME)
+            raise cmexec.CheckmateException(
+                message="Could not find IP of server %s'" % server_id,
+                options=cmexec.CAN_RESUME)
         results['status'] = "ACTIVE"
         results['status-message'] = ''
+
+        return results
 
     @staticmethod
     def get_rackconnect_error_reason(metadata):
