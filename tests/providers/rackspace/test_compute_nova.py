@@ -225,7 +225,8 @@ class TestNovaCompute(test.ProviderTester):
             exc, task_id, args, kwargs, einfo, "deleting", "method")
         self.mox.VerifyAll()
 
-    def test_wait_on_build_rackconnect_pending(self):
+    @mock.patch.object(cm_deps.tasks, 'postback')
+    def test_wait_on_build_rackconnect_pending(self, postback):
         server = self.mox.CreateMockAnything()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
@@ -273,11 +274,10 @@ class TestNovaCompute(test.ProviderTester):
         self.assertRaises(exceptions.CheckmateException,
                           compute.wait_on_build, context,
                           server.id, 'North', [],
-                          api_object=openstack_api_mock)
+                          api=openstack_api_mock)
 
     @mock.patch.object(cm_deps.tasks, 'postback')
-    def test_wait_on_build_rackconnect_ready(self,
-                                             postback):
+    def test_wait_on_build_rackconnect_ready(self, postback):
         server = mock.MagicMock()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
