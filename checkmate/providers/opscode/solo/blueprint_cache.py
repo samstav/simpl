@@ -38,6 +38,7 @@ class BlueprintCache(object):
 
     @property
     def cache_path(self):
+        """Cache path for blueprint."""
         return self._cache_path
 
     def update(self):
@@ -99,5 +100,4 @@ class BlueprintCache(object):
                 raise exceptions.CheckmateException(error_message)
             tags = utils.git_tags(self.cache_path)
             if branch in tags:
-                tag = branch
-                utils.git_checkout(self.cache_path, tag)
+                utils.git_checkout(self.cache_path, branch)
