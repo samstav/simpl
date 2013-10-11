@@ -49,12 +49,12 @@ class ChefEnvironment(object):
 
     @property
     def kitchen_path(self):
-        """Read only property for kitchen path"""
+        """Read only property for kitchen path."""
         return self._kitchen_path
 
     @property
     def path(self):
-        """Read only property for kitchen path"""
+        """Read only property for kitchen path."""
         return self._env_path
 
     @property

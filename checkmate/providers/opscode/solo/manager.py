@@ -12,7 +12,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Rackspace solo provider manager."""
-import errno
 import logging
 import os
 import shutil

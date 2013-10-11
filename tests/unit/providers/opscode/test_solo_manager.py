@@ -13,14 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Tests for solo manager."""
-import os
-import shutil
-import errno
-
-import mock
 import unittest
 
-from checkmate import exceptions
 from checkmate.providers.opscode.solo.manager import Manager
 
 

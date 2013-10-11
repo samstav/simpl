@@ -56,7 +56,8 @@ class Knife(object):
                             "'-c' flag is a strong safeguard in case knife "
                             "runs in the wrong directory. Consider adding it "
                             "and pointing to solo.rb")
-                LOG.debug("Defaulting to config file '%s'", self.solo_config_path)
+                LOG.debug("Defaulting to config file '%s'",
+                          self.solo_config_path)
                 params.extend(['-c', self.solo_config_path])
         result = utils.run_ruby_command(self.kitchen_path, params[0],
                                         params[1:], lock=lock)

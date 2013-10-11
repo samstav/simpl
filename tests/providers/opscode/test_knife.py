@@ -15,7 +15,6 @@
 #    under the License.
 
 """Tests for knife (Chef)."""
-import errno
 import json
 import logging
 import os
@@ -24,7 +23,6 @@ import subprocess
 import unittest
 import uuid
 
-import mock
 import mox
 
 from checkmate import deployments as cmdeps
