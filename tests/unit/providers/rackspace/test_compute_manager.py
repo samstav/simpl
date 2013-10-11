@@ -158,10 +158,10 @@ class TestCreateServer(unittest.TestCase):
             self.assertTrue(exc.options, cmexc.CAN_RESUME)
 
         mock_api.servers.create.assert_called_once_with("Name", mock_image,
-                                                       mock_flavor,
-                                                       meta="SERVER_TAG",
-                                                       files=None,
-                                                       disk_config='AUTO')
+                                                        mock_flavor,
+                                                        meta="SERVER_TAG",
+                                                        files=None,
+                                                        disk_config='AUTO')
 
 class TestWaitOnBuild(unittest.TestCase):
 
