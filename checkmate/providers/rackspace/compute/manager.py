@@ -220,7 +220,7 @@ class Manager(object):
             #    countdown = 15  # progress is not accurate. Allow at least 15s
             #           # wait
             update_task_state(state='PROGRESS', meta=results)
-            # progress indicate shows percentage, give no inidication of seconds
+            # progress indicate shows percentage, give no indication of seconds
             # left to build.
             # It often, if not usually takes at least 30 seconds after a server
             # hits 100% before it will be "ACTIVE".  We used to use % left as a
@@ -248,7 +248,7 @@ class Manager(object):
         rackconnected = utils.is_rackconnect_account(context)
         if rackconnected:
             if 'rackconnect_automation_status' not in server.metadata:
-                msg = ("Rack Connect server still does not have the "
+                msg = ("RackConnect server still does not have the "
                        "'rackconnect_automation_status' metadata tag")
                 results['status-message'] = msg
                 callback(results)
@@ -279,11 +279,11 @@ class Manager(object):
                         server.metadata)
                     msg = ("RackConnect server "
                            "metadata has 'rackconnect_automation_status' is "
-                           "set to %s.%s RackConnect will  not be enabled for "
-                           "this server(#%s) . " % (rc_automation_status,
+                           "set to %s.%s RackConnect will not be enabled for "
+                           "this server(#%s)." % (rc_automation_status,
                                                     reason,
                            server_id))
-                    LOG.debug(msg)
+                    LOG.warn(msg)
                     results["rackconnect-automation-status"] = rc_automation_status
                 else:
                     msg = ("Rack Connect server 'rackconnect_automation_status' "
@@ -305,7 +305,7 @@ class Manager(object):
         # we might not get an ip right away, so wait until its populated
         if 'ip' not in results:
             raise cmexec.CheckmateException(
-                message="Could not find IP of server %s'" % server_id,
+                message="Could not find IP of server %s" % server_id,
                 options=cmexec.CAN_RESUME)
         results['status'] = "ACTIVE"
         results['status-message'] = ''

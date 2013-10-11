@@ -21,7 +21,9 @@ import unittest
 import logging
 from novaclient.exceptions import OverLimit
 from requests import ConnectionError
-from checkmate import exceptions as cmexc
+from checkmate import exceptions as cmexc, utils
+from checkmate.exceptions import CheckmateException
+from checkmate.providers.rackspace import compute
 
 from checkmate.providers.rackspace.compute.manager import Manager
 from checkmate.providers.rackspace.compute.provider import Provider
@@ -29,7 +31,7 @@ from checkmate.providers.rackspace.compute.provider import Provider
 LOG = logging.getLogger(__name__)
 
 
-class TestComputeManager(unittest.TestCase):
+class TestCreateServer(unittest.TestCase):
 
     @mock.patch.object(Provider, "connect")
     def test_create_server(self, connect):
@@ -160,3 +162,417 @@ class TestComputeManager(unittest.TestCase):
                                                        meta="SERVER_TAG",
                                                        files=None,
                                                        disk_config='AUTO')
+
+class TestWaitOnBuild(unittest.TestCase):
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(utils, "get_ips_from_server")
+    def test_wait_on_build_active(self, ips_from_server, connect):
+        context = {
+            "resource_key": "0",
+            "roles": {}
+        }
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        mock_server.status = "ACTIVE"
+        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
+        connect.return_value = mock_api
+
+        ips_from_server.return_value = {
+            'ip': 'SOME_IP_ADDRESS',
+            'public_ip': 'PUBLIC_IP_ADDRESS'
+        }
+
+        mock_api.servers.find.return_value = mock_server
+        mock_api.client.region_name = "ORD"
+
+        results = Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                      callback, update_task, "IP_ADDRESS",
+                                      api=None)
+
+        self.assertDictEqual(results,{
+            "id": "SERVER_ID",
+            "status": "ACTIVE",
+            "addresses": ["127.0.0.1", "192.168.412.11"],
+            "region": "ORD",
+            "ip": "SOME_IP_ADDRESS",
+            "public_ip": "PUBLIC_IP_ADDRESS",
+            "status": "ACTIVE",
+            "status-message": ''
+        })
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+
+    @mock.patch.object(Provider, "connect")
+    def test_wait_on_build_error(self, connect):
+        context = {
+            "resource_key": "0",
+            "roles": {}
+        }
+
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        mock_server.status = "ERROR"
+        connect.return_value = mock_api
+
+        mock_api.servers.find.return_value = mock_server
+
+        try:
+            Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                      callback, update_task, "IP_ADDRESS",
+                                      api=None)
+            self.fail("Should have thrown an exception!")
+        except cmexc.CheckmateException as exception:
+            self.assertEquals(exception.options, cmexc.CAN_RESET)
+        callback.assert_called_once_with({
+            "status": "ERROR",
+            "status-message": 'Server SERVER_ID build failed'
+        })
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+
+    @mock.patch.object(Provider, "connect")
+    def test_wait_on_build_build(self, connect):
+        context = {
+            "resource_key": "0",
+            "roles": {}
+        }
+
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        mock_server.status = "BUILD"
+        mock_server.progress = "72"
+        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
+
+        connect.return_value = mock_api
+
+        mock_api.servers.find.return_value = mock_server
+        mock_api.client.region_name = "ORD"
+
+        try:
+            Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                  callback, update_task, "IP_ADDRESS",
+                                  api=None)
+            self.fail("Should have thrown an exception!")
+        except cmexc.CheckmateException as exception:
+            self.assertEquals(exception.options, cmexc.CAN_RESUME)
+        callback.assert_called_once_with({
+            "id": "SERVER_ID",
+            "status": "BUILD",
+            "addresses": ["127.0.0.1", "192.168.412.11"],
+            "region": "ORD",
+            "progress": "72",
+            "status-message": '72% Complete'
+        })
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+        update_task.assert_called_once_with(state="PROGRESS", meta={
+            'id': "SERVER_ID",
+            "status": "BUILD",
+            "addresses": ["127.0.0.1", "192.168.412.11"],
+            "region": "ORD",
+            "progress": "72",
+            "status-message": '72% Complete'
+        })
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(utils, "get_ips_from_server")
+    @mock.patch.object(utils, "is_rackconnect_account")
+    def test_wait_on_build_rackconnect_ready(self, is_rackconnect_account,
+                                             ips_from_server, connect):
+        context = {
+            "resource_key": "0",
+        }
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        is_rackconnect_account.return_value = True
+        mock_server.status = "ACTIVE"
+        mock_server.metadata = {'rackconnect_automation_status': 'DEPLOYED'}
+        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
+        connect.return_value = mock_api
+
+        ips_from_server.return_value = {
+            'ip': 'SOME_IP_ADDRESS',
+            'public_ip': 'PUBLIC_IP_ADDRESS'
+        }
+
+        mock_api.servers.find.return_value = mock_server
+        mock_api.client.region_name = "ORD"
+
+        results = Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                        callback, update_task, "IP_ADDRESS",
+                                        api=None)
+
+        self.assertDictEqual(results, {
+            "id": "SERVER_ID",
+            "status": "ACTIVE",
+            "addresses": ["127.0.0.1", "192.168.412.11"],
+            "region": "ORD",
+            "ip": "SOME_IP_ADDRESS",
+            "public_ip": "PUBLIC_IP_ADDRESS",
+            "status-message": '',
+            "rackconnect-automation-status": "DEPLOYED"
+        })
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(utils, "get_ips_from_server")
+    @mock.patch.object(utils, "is_rackconnect_account")
+    def test_wait_on_build_rackconnect_failed(self, is_rackconnect_account,
+                                              ips_from_server, connect):
+        context = {
+            "resource_key": "0",
+        }
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        is_rackconnect_account.return_value = True
+        mock_server.status = "ACTIVE"
+        mock_server.metadata = {'rackconnect_automation_status': 'FAILED'}
+        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
+        connect.return_value = mock_api
+
+        ips_from_server.return_value = {
+            'ip': 'SOME_IP_ADDRESS',
+            'public_ip': 'PUBLIC_IP_ADDRESS'
+        }
+
+        mock_api.servers.find.return_value = mock_server
+        mock_api.client.region_name = "ORD"
+
+        try:
+            Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                  callback, update_task, "IP_ADDRESS",
+                                  api=None)
+            self.fail("Should have thrown an exception!")
+        except cmexc.CheckmateException as exc:
+            self.assertEquals(exc.options, 0)
+
+        callback.assert_called_once_with({
+            "id": "SERVER_ID",
+            "status": "ERROR",
+            "addresses": ["127.0.0.1", "192.168.412.11"],
+            "region": "ORD",
+            "status-message": "Rackconnect server metadata has "
+                              "\'rackconnect_automation_status\' set to "
+                              "FAILED.",
+            "rackconnect-automation-status": "FAILED",
+        })
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(utils, "get_ips_from_server")
+    @mock.patch.object(utils, "is_rackconnect_account")
+    @mock.patch.object(compute.manager.LOG, "warn")
+    def test_wait_on_build_rackconnect_unprocessable(self,
+                                                     logger,
+                                                     is_rackconnect_account,
+                                                     ips_from_server,
+                                                     connect):
+        context = {
+            "resource_key": "0",
+        }
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        is_rackconnect_account.return_value = True
+        mock_server.status = "ACTIVE"
+        mock_server.metadata = {'rackconnect_automation_status':
+                                    'UNPROCESSABLE',
+                                'rackconnect_unprocessable_reason':
+                                    'Somewhere something went very wrong'
+        }
+        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
+        connect.return_value = mock_api
+
+        ips_from_server.return_value = {
+            'ip': 'SOME_IP_ADDRESS',
+            'public_ip': 'PUBLIC_IP_ADDRESS'
+        }
+
+        mock_api.servers.find.return_value = mock_server
+        mock_api.client.region_name = "ORD"
+
+        results = Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                        callback, update_task, "IP_ADDRESS",
+                                        api=None)
+
+        self.assertDictEqual(results, {
+            "id": "SERVER_ID",
+            "status": "ACTIVE",
+            "addresses": ["127.0.0.1", "192.168.412.11"],
+            "region": "ORD",
+            'ip': 'SOME_IP_ADDRESS',
+            'public_ip': 'PUBLIC_IP_ADDRESS',
+            "status-message": "",
+            "rackconnect-automation-status": "UNPROCESSABLE",
+        })
+        logger.assert_called_once_with("RackConnect server metadata has "
+                                      "'rackconnect_automation_status' is "
+                                      "set to UNPROCESSABLE. "
+                                      "Reason: Somewhere something went very "
+                                      "wrong. RackConnect will not be enabled"
+                                      " for this server(#SERVER_ID).")
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(utils, "get_ips_from_server")
+    @mock.patch.object(utils, "is_rackconnect_account")
+    @mock.patch.object(compute.manager.LOG, "warn")
+    def test_wait_on_build_rackconnect_unprocessable(self,
+                                                     logger,
+                                                     is_rackconnect_account,
+                                                     ips_from_server,
+                                                     connect):
+        context = {
+            "resource_key": "0",
+        }
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        is_rackconnect_account.return_value = True
+        mock_server.status = "ACTIVE"
+        mock_server.metadata = {
+            'rackconnect_automation_status':
+                'STATUS'
+        }
+        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
+        connect.return_value = mock_api
+
+        ips_from_server.return_value = {
+            'ip': 'SOME_IP_ADDRESS',
+            'public_ip': 'PUBLIC_IP_ADDRESS'
+        }
+
+        mock_api.servers.find.return_value = mock_server
+        mock_api.client.region_name = "ORD"
+
+        try:
+            Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                        callback, update_task, "IP_ADDRESS",
+                                        api=None)
+            self.fail("Should have thrown an exception!")
+        except CheckmateException as exc:
+            self.assertEquals(exc.options, cmexc.CAN_RESUME)
+        callback.assert_called_once_with({
+            "id": "SERVER_ID",
+            "status": "ACTIVE",
+            "addresses": ["127.0.0.1", "192.168.412.11"],
+            "region": "ORD",
+            "status-message": "Rack Connect server "
+                              "'rackconnect_automation_status' metadata tag "
+                              "is still not 'DEPLOYED'. It is "
+                              "'STATUS'",
+        })
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(utils, "get_ips_from_server")
+    @mock.patch.object(utils, "is_rackconnect_account")
+    def test_wait_on_build_rackconnect_waiting_for_tag(
+            self, is_rackconnect_account, ips_from_server, connect):
+        context = {
+            "resource_key": "0",
+        }
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        is_rackconnect_account.return_value = True
+        mock_server.status = "ACTIVE"
+        mock_server.metadata = {}
+        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
+        connect.return_value = mock_api
+
+        ips_from_server.return_value = {
+            'ip': 'SOME_IP_ADDRESS',
+            'public_ip': 'PUBLIC_IP_ADDRESS'
+        }
+
+        mock_api.servers.find.return_value = mock_server
+        mock_api.client.region_name = "ORD"
+
+        try:
+            Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                        callback, update_task, "IP_ADDRESS",
+                                        api=None)
+            self.fail("Should have thrown an exception")
+        except CheckmateException as exc:
+            self.assertEquals(exc.options, cmexc.CAN_RESUME)
+        callback.assert_called_once_with({
+            "id": "SERVER_ID",
+            "status": "ACTIVE",
+            "addresses": ["127.0.0.1", "192.168.412.11"],
+            "region": "ORD",
+            "status-message": "RackConnect server still does not have the "
+                              "'rackconnect_automation_status' metadata tag",
+        })
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(utils, "get_ips_from_server")
+    def test_wait_on_build_ip_is_not_available(
+            self, ips_from_server, connect):
+        context = {
+            "resource_key": "0",
+            "roles": []
+        }
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        mock_server.status = "ACTIVE"
+        mock_server.metadata = {}
+        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
+        connect.return_value = mock_api
+
+        ips_from_server.return_value = {
+            'public_ip': 'PUBLIC_IP_ADDRESS'
+        }
+
+        mock_api.servers.find.return_value = mock_server
+        mock_api.client.region_name = "ORD"
+
+        try:
+            Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                        callback, update_task, "IP_ADDRESS",
+                                        api=None)
+            self.fail("Should have thrown an exception")
+        except CheckmateException as exc:
+            self.assertEquals(exc.options, cmexc.CAN_RESUME)
+            self.assertEquals(exc.message, "Could not find IP of server "
+                                           "SERVER_ID")
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+
+
+
