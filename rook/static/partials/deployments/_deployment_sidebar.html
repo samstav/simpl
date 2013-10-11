@@ -15,7 +15,7 @@
   <li>
   <a class="controls" ng-switch="data.secrets" ng-class="{muted: data.secrets != 'AVAILABLE'}" ng-click="showSecrets()">
       <i class="icon-lock"></i>
-      <span ng-switch-when="AVAILABLE" style="display: inline-block">Secrets available</span>
+      <span ng-switch-when="AVAILABLE">Secrets available</span>
       <span ng-switch-when="LOCKED">Secrets Dismissed</span>
       <span ng-switch-when="GENERATING">available soon</span>
       <span ng-switch-default>No secrets</span>
