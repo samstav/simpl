@@ -258,84 +258,11 @@ def delete_server_task(context, api=None):
     return results
 
 
-@ctask.task(base=RackspaceProviderTask, default_retry_delay=30,
-            max_retries=120, provider=Provider)
+@ctask.task
 @statsd.collect
 def wait_on_delete_server(context, api=None):
     """Wait for a server resource to be deleted."""
-    utils.match_celery_logging(LOG)
-    assert "deployment_id" in context, "No deployment id in context"
-    assert "resource_key" in context, "No resource key in context"
-    assert "region" in context, "No region provided"
-    assert 'resource' in context, "No resource definition provided"
-
-    def on_failure(exc, task_id, args, kwargs, einfo):
-        """Handles task failure."""
-        action = "while waiting on"
-        method = "wait_on_delete_server"
-        _on_failure(exc, task_id, args, kwargs, einfo, action, method)
-
-    wait_on_delete_server.on_failure = on_failure
-
-    if api is None and context.get('simulation') is not True:
-        api = Provider.connect(context, region=context.get("region"))
-
-    resource = context.get('resource')
-    server = None
-    inst_id = context.get("instance_id")
-
-    resource_key = context.get('resource_key')
-    deployment_id = context.get('deployment_id')
-
-    if inst_id is None:
-        msg = ("Instance ID is not available for Compute Instance, "
-               "skipping wait_on_delete_task for resource %s in deployment %s"
-               % (resource_key, deployment_id))
-        LOG.info(msg)
-        results = {
-            'status': 'DELETED',
-            'status-message': msg
-        }
-        return results
-
-    results = {}
-    try:
-        if context.get('simulation') is not True:
-            server = api.servers.find(id=inst_id)
-    except (ncexc.NotFound, ncexc.NoUniqueMatch):
-        pass
-    except requests.ConnectionError:
-        msg = ("Connection error talking to %s endpoint" %
-               (api.client.management_url))
-        LOG.error(msg, exc_info=True)
-        raise cmexc.CheckmateException(message=msg,
-                                       options=cmexc.CAN_RESUME)
-    if (not server) or (server.status == "DELETED"):
-        results = {
-            'status': 'DELETED',
-            'status-message': ''
-        }
-        if 'hosts' in resource:
-            hosted_resources = {}
-            for hosted in resource.get('hosts', []):
-                hosted_resources.update({
-                    'instance:%s' % hosted: {
-                        'status': 'DELETED',
-                        'status-message': ''
-                    }
-                })
-            cmdeps.resource_postback.delay(context.get("deployment_id"),
-                                           hosted_resources)
-    else:
-        msg = ('Instance is in state %s. Waiting on DELETED resource.'
-               % server.status)
-        results = {
-            'status': 'DELETING',
-            'status-message': msg
-        }
-        wait_on_delete_server.partial(results)
-        raise cmexc.CheckmateException(message=msg, options=cmexc.CAN_RESUME)
-    return results
+    return tasks.wait_on_delete_server(context, api=api)
 
 
 # max 60 minute wait

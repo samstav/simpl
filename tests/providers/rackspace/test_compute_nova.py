@@ -834,7 +834,8 @@ class TestNovaCompute(test.ProviderTester):
 
     @mock.patch.object(cm_deps.tasks, 'postback')
     @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
-    def test_wait_on_delete(self, resource_postback, dep_postback):
+    def test_wait_on_delete(self, resource_postback,
+                            dep_postback):
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -877,28 +878,30 @@ class TestNovaCompute(test.ProviderTester):
         ret = compute.wait_on_delete_server(context, api=api)
         self.assertDictEqual(expect, ret)
         self.mox.VerifyAll()
-        resource_postback.assert_called_with('1234', {
-            "instance:0": {
-                'status': 'DELETED',
-                'status-message': ''
-            },
-        })
-        dep_postback.assert_called_once_with('1234', {
+        calls = [mock.call('1234', {
             "resources": {
-                "1": {
-                    "status": "DELETED",
-                    "instance": {
-                        "status": "DELETED",
-                        "status-message": ""
-
+                '0': {
+                    'status': 'DELETED',
+                    'instance': {
+                        'status': 'DELETED',
+                        'status-message': ''}}}}),
+                mock.call('1234', {
+                    "resources": {
+                        "1": {
+                            "status": "DELETED",
+                            "instance": {
+                                "status": "DELETED",
+                                "status-message": ""
+                            }
+                        }
                     }
-                }
-            }
-        })
+                })]
+        dep_postback.assert_has_calls(calls)
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
-    def test_wait_on_delete_connect_error(self, mock_cmdeps, mock_utils):
+    @mock.patch.object(compute.manager.LOG, 'error')
+    def test_wait_on_delete_connect_error(self, log, mock_cmdeps, mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
@@ -910,7 +913,7 @@ class TestNovaCompute(test.ProviderTester):
         with self.assertRaises(exceptions.CheckmateException):
             compute.wait_on_delete_server(mock_context, api=mock_api)
 
-        compute.LOG.error.assert_called_with(
+        log.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
     def test_find_url(self):
