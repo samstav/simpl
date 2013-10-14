@@ -704,3 +704,123 @@ class TestVerifySSHConnectivity(unittest.TestCase):
             self.assertEquals(exc.options, cmexc.CAN_RESUME)
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+
+class TestWaitOnDelete(unittest.TestCase):
+
+    def test_wait_on_delete_instance_not_available(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {},
+        }
+
+        data = manager.Manager.wait_on_delete_server(context, None, None)
+        self.assertDictEqual({"status": "DELETED",
+                              "status-message":
+                                  "Instance ID is not available for Compute"
+                                  " Instance, skipping wait_on_delete_task "
+                                  "for resource 1 in deployment DEP_ID"},
+                             data)
+
+    def test_connection_error(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {},
+            "instance_id": "INST_ID"
+        }
+        mock_api = mock.MagicMock()
+
+        mock_api.servers.find.side_effect = requests.ConnectionError
+
+        try:
+            manager.Manager.wait_on_delete_server(context, mock_api, None)
+            self.fail("Should have thrown an exception!")
+        except cmexc.CheckmateException as exc:
+            self.assertEqual(exc.options, cmexc.CAN_RESUME)
+
+        mock_api.servers.find.assert_called_once_with(id="INST_ID")
+
+    def test_server_already_deleted(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {},
+            "instance_id": "INST_ID"
+        }
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_server.status = "DELETED"
+
+        mock_api.servers.find.return_value = mock_server
+
+        data = manager.Manager.wait_on_delete_server(context, mock_api, None)
+
+        self.assertDictEqual({"status": "DELETED",
+                              "status-message": ""}, data)
+
+    def test_resource_has_hosts(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {"hosts": [3, 5]},
+            "instance_id": "INST_ID"
+        }
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_callback = mock.MagicMock()
+
+        mock_server.status = "DELETED"
+
+        mock_api.servers.find.return_value = mock_server
+
+        data = manager.Manager.wait_on_delete_server(context, mock_api,
+                                                     mock_callback)
+
+        self.assertEquals(mock_callback.call_count, 2)
+
+        first_call = mock_callback.mock_calls[0]
+        second_call = mock_callback.mock_calls[1]
+        self.assertEquals("call({'status': 'DELETED', 'status-message': ''}, "
+                          "resource_key=3)", first_call.__str__())
+        self.assertEquals("call({'status': 'DELETED', 'status-message': ''}, "
+                          "resource_key=5)", second_call.__str__())
+        self.assertDictEqual({"status": "DELETED",
+                              "status-message": ""}, data)
+
+        mock_api.servers.find.assert_called_once_with(id="INST_ID")
+
+    def test_server_wait_for_delete_status(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {"hosts": [3, 5]},
+            "instance_id": "INST_ID"
+         }
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_callback = mock.MagicMock()
+
+        mock_server.status = 'ACTIVE'
+
+        mock_api.servers.find.return_value = mock_server
+
+        try:
+            manager.Manager.wait_on_delete_server(context, mock_api,
+                                                         mock_callback)
+            self.fail("Should have thrown an exception!")
+        except cmexc.CheckmateException as exc:
+            self.assertEquals(cmexc.CAN_RESUME, exc.options)
+
+        mock_callback.assert_called_once_with({
+            'status': 'DELETING',
+            'status-message': 'Instance is in state ACTIVE. Waiting on '
+                              'DELETED resource.'
+        })
+        mock_api.servers.find.assert_called_once_with(id="INST_ID")

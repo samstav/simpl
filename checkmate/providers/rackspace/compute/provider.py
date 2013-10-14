@@ -542,7 +542,8 @@ class Provider(RackspaceComputeProviderBase):
         wait_on_delete = specs.Celery(
             wf_spec,
             'Wait on Delete Server (%s)' % key,
-            'checkmate.providers.rackspace.compute.wait_on_delete_server',
+            'checkmate.providers.rackspace.compute.tasks'
+            '.wait_on_delete_server',
             call_args=[context],
             properties={
                 'estimated_duration': 10,

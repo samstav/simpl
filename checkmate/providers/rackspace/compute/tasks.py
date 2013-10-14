@@ -28,12 +28,12 @@ def create_server(context, name, region=None, api=None, flavor="2",
 @statsd.collect
 def wait_on_build(context, server_id, region=None, ip_address_type='public',
                   api=None):
-    data = Manager.wait_on_build(context, server_id,
+    return Manager.wait_on_build(context, server_id,
                                  wait_on_build.partial,
                                  wait_on_build.update_state,
                                  ip_address_type=ip_address_type,
                                  api=wait_on_build.api)
-    return data
+
 
 @task(base=RackspaceProviderTask, default_retry_delay=15,
       max_retries=40, provider=Provider)
@@ -70,4 +70,15 @@ def verify_ssh_connection(context, server_id, server_ip, region=None,
                 })
                 raise cmexc.CheckmateException(options=cmexc.CAN_RESUME)
 
+
+@task(base=RackspaceProviderTask, default_retry_delay=30,
+      max_retries=120, provider=Provider)
+@statsd.collect
+def wait_on_delete_server(context, api=None):
+    on_failure = Manager.get_on_failure("while waiting on",
+                                        "wait_on_delete_server")
+    wait_on_delete_server.on_failure = on_failure
+
+    return Manager.wait_on_delete_server(
+        context, wait_on_delete_server.api, wait_on_delete_server.partial)
 

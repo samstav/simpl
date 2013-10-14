@@ -379,7 +379,68 @@ class Manager(object):
         }
 
 
+    @staticmethod
+    def wait_on_delete_server(context, api, callback):
+        """Wait for a server resource to be deleted."""
+        utils.match_celery_logging(LOG)
+        assert "deployment_id" in context, "No deployment id in context"
+        assert "resource_key" in context, "No resource key in context"
+        assert "region" in context, "No region provided"
+        assert 'resource' in context, "No resource definition provided"
 
+        resource = context.get('resource')
+        server = None
+        inst_id = context.get("instance_id")
+
+        resource_key = context.get('resource_key')
+        deployment_id = context.get('deployment_id')
+
+        if inst_id is None:
+            msg = ("Instance ID is not available for Compute Instance, "
+                   "skipping wait_on_delete_task for resource %s in "
+                   "deployment %s"
+                   % (resource_key, deployment_id))
+            LOG.info(msg)
+            results = {
+                'status': 'DELETED',
+                'status-message': msg
+            }
+            return results
+
+        results = {}
+        try:
+            if context.get('simulation') is not True:
+                server = api.servers.find(id=inst_id)
+        except (ncexc.NotFound, ncexc.NoUniqueMatch):
+            pass
+        except requests.ConnectionError:
+            msg = ("Connection error talking to %s endpoint" %
+                   api.client.management_url)
+            LOG.error(msg, exc_info=True)
+            raise cmexec.CheckmateException(message=msg,
+                                            options=cmexec.CAN_RESUME)
+        if (not server) or (server.status == "DELETED"):
+            results = {
+                'status': 'DELETED',
+                'status-message': ''
+            }
+
+            if 'hosts' in resource:
+                for hosted in resource.get('hosts', []):
+                    callback({'status': 'DELETED',
+                              'status-message': ''},
+                             resource_key=hosted)
+        else:
+            msg = ('Instance is in state %s. Waiting on DELETED resource.'
+                   % server.status)
+            results = {
+                'status': 'DELETING',
+                'status-message': msg
+            }
+            callback(results)
+            raise cmexec.CheckmateException(message=msg,
+                                            options=cmexec.CAN_RESUME)
+        return results
 
     @staticmethod
     def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
