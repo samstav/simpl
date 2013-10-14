@@ -210,7 +210,7 @@ class TestChefSoloProvider(test.ProviderTester):
         cleanup_task_spec = cleanup_result['root']
         self.assertIsInstance(cleanup_task_spec, specs.Celery)
         self.assertEqual(cleanup_task_spec.args, ['DEP1'])
-        defines = {'provider': solo_provider.key}
+        defines = {'provider': solo_provider.key, 'resource': 'workspace'}
         properties = {
             'estimated_duration': 1,
             'task_tags': ['cleanup'],
@@ -236,16 +236,16 @@ class TestChefSoloProvider(test.ProviderTester):
             provider=solo_provider.key,
             tag='final').AndReturn([mock_final_task_spec])
         wf_spec.task_specs = dict()
+        defines = {'provider': solo_provider.key, 'resource': 'workspace'}
         wf_spec.wait_for(mox.IgnoreArg(), [mock_task_spec,
                                            mock_final_task_spec],
                          name="Wait before deleting cookbooks",
-                         provider=solo_provider.key)
+                         defines=defines)
         self.mox.ReplayAll()
         result = solo_provider.cleanup_temp_files(wf_spec, {'id': 'DEP1'})
         cleanup_task_spec = result['final']
         self.assertIsInstance(cleanup_task_spec, specs.Celery)
         self.assertEqual(cleanup_task_spec.args, ['DEP1', 'kitchen'])
-        defines = {'provider': solo_provider.key}
         properties = {
             'estimated_duration': 1,
         }
