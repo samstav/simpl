@@ -126,6 +126,9 @@ class Manager(object):
             else:
                 instance = api.create(instance_name, flavor=flavor,
                                       volume=size, databases=databases)
+        except cdb_errors.OverLimit as exc:
+            raise cmexc.CheckmateException(str(exc), friendly_message=str(exc),
+                                           options=cmexc.CAN_RETRY)
         except cdb_errors.ClientException as exc:
             raise cmexc.CheckmateException(str(exc), options=cmexc.CAN_RETRY)
         except Exception as exc:

@@ -617,3 +617,8 @@ class TestUpdateNodeStatus(unittest.TestCase):
         self.assertFalse(mock_callback.update.called)
         self.assertEqual(mock_node.condition, "ENABLED")
         mock_api.get.assert_called_once_with(1234)
+
+
+if __name__ == '__main__':
+    from checkmate import test
+    test.run_with_params()
