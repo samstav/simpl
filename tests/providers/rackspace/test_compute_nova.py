@@ -45,7 +45,6 @@ class TestNovaCompute(test.ProviderTester):
 
     @mock.patch.object(cm_deps.tasks, 'postback')
     def test_create_server(self, postback):
-        self.maxDiff = None
         provider = compute.Provider({})
         server = mock.MagicMock()
         server.id = 'fake_server_id'
@@ -687,7 +686,7 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
         context = dict(deployment_id='DEP', resource_key='1')
-        ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
+        ssh.test_connection(mox.IgnoreArg(), "4.4.4.4", "root", timeout=10,
                             password=None, identity_file=None, port=22,
                             private_key=None).AndReturn(True)
 
@@ -716,7 +715,8 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
         context = dict(deployment_id='DEP', resource_key='1')
-        rdp.test_connection(context, "4.4.4.4", timeout=10,).AndReturn(True)
+        rdp.test_connection(mox.IgnoreArg(), "4.4.4.4", timeout=10,
+                            ).AndReturn(True)
 
         self.mox.ReplayAll()
         compute.verify_ssh_connection(context, server.id, 'North', "4.4.4.4",

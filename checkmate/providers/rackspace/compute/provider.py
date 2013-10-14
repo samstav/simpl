@@ -386,15 +386,16 @@ class Provider(RackspaceComputeProviderBase):
                 files = {path: windows_firewall_script}
 
         queued_task_dict = context.get_queued_task_dict(
-            deployment_id=deployment['id'], resource_key=key,
-            region=desired['region'], resource=resource)
+            deployment_id=deployment['id'],
+            resource_key=key,
+            region=desired['region'],
+            resource=resource)
         create_server_task = specs.Celery(
             wfspec, 'Create Server %s (%s)' % (key, resource['service']),
             'checkmate.providers.rackspace.compute.tasks.create_server',
             call_args=[
                 queued_task_dict,
                 resource.get('dns-name'),
-                desired['region']
             ],
             image=desired.get('image'),
             flavor=desired.get('flavor', "2"),
@@ -415,7 +416,6 @@ class Provider(RackspaceComputeProviderBase):
             call_args=[
                 queued_task_dict,
                 swops.PathAttrib('instance:%s/id' % key),
-                resource['region'],
             ],
             properties={'estimated_duration': 150,
                         'auto_retry_count': 3},
@@ -441,7 +441,6 @@ class Provider(RackspaceComputeProviderBase):
             call_args=[
                 queued_task_dict,
                 swops.PathAttrib('instance:%s/id' % key),
-                resource['region'],
                 swops.PathAttrib('instance:%s/ip' % key)
             ],
             password=swops.PathAttrib('instance:%s/password' % key),

@@ -36,7 +36,7 @@ class Manager(object):
     """Contains logic for Compute provider logic."""
 
     @staticmethod
-    def create_server(context, name, region, api=None, flavor="2",
+    def create_server(context, name, api=None, flavor="2",
                       files=None, image=None, tags=None):
         """Create a Rackspace Cloud server using novaclient.
 
@@ -78,9 +78,6 @@ class Manager(object):
 
         LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor, name,
                   files)
-
-        if api is None:
-            api = Provider.connect(context, region)
 
         try:
             # Check image and flavor IDs (better descriptions if we error here)
@@ -134,7 +131,7 @@ class Manager(object):
         return result
 
     @staticmethod
-    def wait_on_build(context, server_id, region, callback, update_task_state,
+    def wait_on_build(context, server_id, callback, update_task_state,
                       ip_address_type='public', api=None):
         """Checks build is complete.
 
@@ -180,9 +177,6 @@ class Manager(object):
         assert server_id, "ID must be provided"
         LOG.debug("Getting server %s", server_id)
 
-        if api is None:
-            api = Provider.connect(context, region)
-
         try:
             server = api.servers.find(id=server_id)
         except (ncexc.NotFound, ncexc.NoUniqueMatch):
@@ -209,7 +203,6 @@ class Manager(object):
                 'status-message': "Server %s build failed" % server_id,
             }
 
-            context["instance_id"] = server_id
             callback(results)
             raise cmexec.CheckmateException(
                 results['status-message'],
@@ -326,14 +319,13 @@ class Manager(object):
         return "" if not reason else " Reason: %s." % reason
 
     @staticmethod
-    def verify_ssh_connection(context, server_id, region, server_ip,
+    def verify_ssh_connection(context, server_id, server_ip,
                               username='root', timeout=10, password=None,
-                              identity_file=None, port=22, api_object=None,
+                              identity_file=None, port=22, api=None,
                               private_key=None):
         """Verifies the ssh connection to a server
         :param context: context data
         :param server_id: server id
-        :param region: region where the server exists
         :param server_ip: ip of the server
         :param username: username for ssh
         :param timeout: timeout for ssh
@@ -351,23 +343,20 @@ class Manager(object):
         if context.get('simulation') is True:
             return
 
-        if api_object is None:
-            api_object = Provider.connect(context, region)
-
         try:
-            server = api_object.servers.find(id=server_id)
+            server = api.servers.find(id=server_id)
         except (ncexc.NotFound, ncexc.NoUniqueMatch):
             msg = "No server matching id %s" % server_id
             LOG.error(msg, exc_info=True)
             raise cmexec.CheckmateException(msg)
         except requests.ConnectionError as exc:
             msg = ("Connection error talking to %s endpoint" %
-                   api_object.client.management_url)
+                   api.client.management_url)
             LOG.error(msg, exc_info=True)
             raise cmexec.CheckmateException(message=msg,
                                             options=cmexec.CAN_RESUME)
 
-        image_details = api_object.images.find(id=server.image['id'])
+        image_details = api.images.find(id=server.image['id'])
         metadata = image_details.metadata
         if ((metadata and metadata['os_type'] == 'linux') or
                 ('windows' not in image_details.name.lower())):
