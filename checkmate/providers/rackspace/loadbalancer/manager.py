@@ -272,11 +272,11 @@ class Manager(object):
         if loadbalancer.status != "ACTIVE":
             raise exceptions.CheckmateException(
                 "Loadbalancer %s cannot be modified while status is %s" %
-                (lb_id, loadbalancer.status), exceptions.CAN_RESUME)
+                (lb_id, loadbalancer.status), options=exceptions.CAN_RESUME)
         if not (loadbalancer and loadbalancer.port):
             raise exceptions.CheckmateBadState("Could not retrieve data for "
                                                "load balancer %s" % lb_id,
-                                               exceptions.CAN_RESUME)
+                                               options=exceptions.CAN_RESUME)
         results = None
         port = loadbalancer.port
 
@@ -330,14 +330,14 @@ class Manager(object):
                        "adding %s (%s %s)" % (lb_id, ip_addr, exc.code,
                                               exc.message))
                 LOG.debug(msg)
-                raise exceptions.CheckmateException(msg,
-                                                    exceptions.CAN_RESUME)
+                raise exceptions.CheckmateException(
+                    msg, options=exceptions.CAN_RESUME)
             except StandardError as exc:
                 msg = ("Error adding %s behind load balancer %s. Error: %s. "
                        "Retrying" % (ip_addr, lb_id, str(exc)))
                 LOG.debug(msg)
-                raise exceptions.CheckmateException(msg,
-                                                    exceptions.CAN_RESUME)
+                raise exceptions.CheckmateException(
+                    msg, options=exceptions.CAN_RESUME)
 
         # Delete placeholder
         if placeholder:
@@ -389,6 +389,7 @@ class Manager(object):
             return results
 
         dlb = None
+        status = None
         try:
             dlb = api.get(lb_id)
         except pyrax.exceptions.NotFound:
@@ -404,6 +405,10 @@ class Manager(object):
                 LOG.debug('Deleting Load balancer %s.', lb_id)
                 dlb.delete()
                 status_message = 'Waiting on resource deletion'
+            elif dlb.status == "DELETED":
+                LOG.debug("Load balancer %s is already deleted", lb_id)
+                status = "DELETED"
+                status_message = ''
             else:
                 status_message = ("Cannot delete LoadBalancer %s, as it "
                                   "currently is in %s state. Waiting for "
@@ -413,7 +418,7 @@ class Manager(object):
                 raise exceptions.CheckmateException(
                     status_message, options=exceptions.CAN_RESUME)
             results = {
-                'status': 'DELETING',
+                'status': status or 'DELETING',
                 'status-message': status_message
             }
         return results

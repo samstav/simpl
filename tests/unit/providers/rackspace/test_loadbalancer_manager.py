@@ -492,6 +492,18 @@ class TestDeleteLbTask(unittest.TestCase):
         self.assertDictEqual(actual, expected)
         mock_api.get.assert_called_once_with(1234)
 
+    def test_for_deleted_lb(self):
+        mock_api = mock.Mock()
+        mock_lb = mock.Mock(status="DELETED")
+        mock_api.get.return_value = mock_lb
+        expected = {
+            'status': 'DELETED',
+            'status-message': ''
+        }
+        actual = manager.Manager.delete_lb_task(1234, mock_api)
+        self.assertDictEqual(actual, expected)
+        mock_api.get.assert_called_once_with(1234)
+
 
 class TestCollectRecordData(unittest.TestCase):
     def test_success(self):
