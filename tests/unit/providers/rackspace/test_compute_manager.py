@@ -19,9 +19,9 @@ Module for testing loadbalancer manager
 import mock
 import unittest
 import logging
-from novaclient.exceptions import OverLimit
+from novaclient.exceptions import OverLimit, NotFound
 from requests import ConnectionError
-from checkmate import exceptions as cmexc, utils
+from checkmate import exceptions as cmexc, utils, ssh, rdp
 from checkmate.exceptions import CheckmateException
 from checkmate.providers.rackspace import compute
 
@@ -573,6 +573,167 @@ class TestWaitOnBuild(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
+class TestVerifySSHConnectivity(unittest.TestCase):
 
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(ssh, "test_connection")
+    def test_verify_ssh_connectivity_linux(self, ssh, connect):
+        context = {}
 
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_image_details = mock.MagicMock()
 
+        mock_server.image = {"id": "IMAGE_ID"}
+
+        connect.return_value = mock_api
+        mock_api.servers.find.return_value = mock_server
+        mock_image_details.metadata = {"os_type": "linux"}
+        mock_api.images.find.return_value = mock_image_details
+
+        ssh.return_value = True
+
+        is_up = Manager.verify_ssh_connection(context, "SERVER_ID",
+                                                   "REGION", "SERVER_IP")
+
+        self.assertEquals(True, is_up["status"])
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+        mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
+        ssh.assert_called_once_with(context, "SERVER_IP",
+                                                    "root", timeout=10,
+                                                    password=None,
+                                                    identity_file=None,
+                                                    port=22,
+                                                    private_key=None)
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(rdp, "test_connection")
+    def test_verify_ssh_connectivity_windows(self, rdp,  connect):
+        context = {}
+
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_image_details = mock.MagicMock()
+
+        mock_server.image = {"id": "IMAGE_ID"}
+
+        connect.return_value = mock_api
+        mock_api.servers.find.return_value = mock_server
+        mock_image_details.metadata = None
+        mock_image_details.name = "WindowsNT"
+        mock_api.images.find.return_value = mock_image_details
+
+        rdp.return_value = True
+
+        is_up = Manager.verify_ssh_connection(context, "SERVER_ID",
+                                              "REGION", "SERVER_IP")
+
+        self.assertEquals(True, is_up["status"])
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+        mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
+        rdp.assert_called_once_with(context, "SERVER_IP", timeout=10)
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(ssh, "test_connection")
+    def test_verify_ssh_connectivity_linux_failure(self, ssh, connect):
+        context = {}
+
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_image_details = mock.MagicMock()
+
+        mock_server.image = {"id": "IMAGE_ID"}
+
+        connect.return_value = mock_api
+        mock_api.servers.find.return_value = mock_server
+        mock_image_details.metadata = {"os_type": "linux"}
+        mock_api.images.find.return_value = mock_image_details
+
+        ssh.return_value = False
+
+        result = Manager.verify_ssh_connection(context, "SERVER_ID",
+                                                   "REGION", "SERVER_IP")
+
+        self.assertEquals(False, result["status"])
+        self.assertEquals("Server 'SERVER_ID' is ACTIVE but 'ssh "
+                          "root@SERVER_IP -p 22' is failing to connect.",
+                          result["status-message"])
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+        mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
+        ssh.assert_called_once_with(context, "SERVER_IP",
+                                                    "root", timeout=10,
+                                                    password=None,
+                                                    identity_file=None,
+                                                    port=22,
+                                                    private_key=None)
+
+    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(rdp, "test_connection")
+    def test_verify_ssh_connectivity_windows_failure(
+            self, rdp, connect):
+        context = {}
+
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_image_details = mock.MagicMock()
+
+        mock_server.image = {"id": "IMAGE_ID"}
+
+        connect.return_value = mock_api
+        mock_api.servers.find.return_value = mock_server
+        mock_image_details.metadata = None
+        mock_image_details.name = "WindowsNT"
+        mock_api.images.find.return_value = mock_image_details
+
+        rdp.return_value = False
+
+        result = Manager.verify_ssh_connection(context, "SERVER_ID",
+                                               "REGION", "SERVER_IP")
+
+        self.assertEquals(False, result["status"])
+        self.assertEquals("Server 'SERVER_ID' is ACTIVE but is not "
+                          "responding to ping attempts",
+                          result["status-message"])
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+        mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
+        rdp.assert_called_once_with(context, "SERVER_IP", timeout=10)
+
+    @mock.patch.object(Provider, "connect")
+    def test_verify_ssh_connectivity_server_not_found(self, connect):
+        context = {}
+
+        mock_api = mock.MagicMock()
+        connect.return_value = mock_api
+
+        mock_api.servers.find.side_effect = NotFound(None)
+
+        try:
+            Manager.verify_ssh_connection(context, "SERVER_ID", "REGION",
+                                          "SERVER_IP")
+            self.fail("Should have thrown an exception")
+        except CheckmateException as exc:
+            self.assertEquals(exc.options, 0)
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+    @mock.patch.object(Provider, "connect")
+    def test_verify_ssh_connectivity_no_connectivity(self, connect):
+        context = {}
+
+        mock_api = mock.MagicMock()
+        connect.return_value = mock_api
+
+        mock_api.servers.find.side_effect = ConnectionError
+
+        try:
+            Manager.verify_ssh_connection(context, "SERVER_ID", "REGION",
+                                          "SERVER_IP")
+            self.fail("Should have thrown an exception")
+        except CheckmateException as exc:
+            self.assertEquals(exc.options, cmexc.CAN_RESUME)
+
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")

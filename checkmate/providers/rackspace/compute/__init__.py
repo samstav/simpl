@@ -376,60 +376,8 @@ def verify_ssh_connection(context, server_id, region, server_ip,
     :param private_key: private key
     :return:
     """
-    utils.match_celery_logging(LOG)
-    deployment_id = context["deployment_id"]
-    instance_key = 'instance:%s' % context['resource_key']
-
-    if context.get('simulation') is True:
-        return
-
-    if api_object is None:
-        api_object = Provider.connect(context, region)
-
-    try:
-        server = api_object.servers.find(id=server_id)
-    except (ncexc.NotFound, ncexc.NoUniqueMatch):
-        msg = "No server matching id %s" % server_id
-        LOG.error(msg, exc_info=True)
-        raise cmexc.CheckmateException(msg)
-    except requests.ConnectionError as exc:
-        msg = ("Connection error talking to %s endpoint" %
-               api_object.client.management_url)
-        LOG.error(msg, exc_info=True)
-        raise verify_ssh_connection.retry(exc=exc)
-
-    image_details = api_object.images.find(id=server.image['id'])
-    metadata = image_details.metadata
-    if ((metadata and metadata['os_type'] == 'linux') or
-            ('windows' not in image_details.name.lower())):
-        msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
-              "to connect." % (server_id, username, server_ip, port)
-        is_up = ssh.test_connection(context, server_ip, username,
-                                    timeout=timeout,
-                                    password=password,
-                                    identity_file=identity_file,
-                                    port=port,
-                                    private_key=private_key)
-    else:
-        msg = "Server '%s' is ACTIVE but is not responding to ping " \
-              " attempts" % server_id
-        is_up = rdp.test_connection(context, server_ip, timeout=timeout)
-
-    if not is_up:
-        if (verify_ssh_connection.max_retries ==
-                verify_ssh_connection.request.retries):
-            exception = cmexc.CheckmateException(
-                "SSH verification task has failed",
-                friendly_message="Could not verify that SSH connectivity is "
-                                 "working",
-                options=cmexc.CAN_RESET)
-            cmdeps.resource_postback.delay(deployment_id, {
-                instance_key: {'status': 'ERROR',
-                               'status-message': 'SSH verification has failed'}
-            })
-            raise exception
-        else:
-            cmdeps.resource_postback.delay(deployment_id, {
-                instance_key: {'status-message': msg}}
-            )
-            verify_ssh_connection.retry()
+    tasks.verify_ssh_connection(context, server_id, region, server_ip,
+                                username=username, timeout=timeout,
+                                password=password,
+                                identity_file=identity_file, port=port,
+                                api_object=api_object, private_key=private_key)

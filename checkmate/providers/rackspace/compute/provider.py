@@ -436,7 +436,8 @@ class Provider(RackspaceComputeProviderBase):
         verify_ssh_task = specs.Celery(
             wfspec, 'Verify server %s (%s) ssh connection' % (
                 key, resource['service']),
-            'checkmate.providers.rackspace.compute.verify_ssh_connection',
+            'checkmate.providers.rackspace.compute'
+            '.tasks.verify_ssh_connection',
             call_args=[
                 queued_task_dict,
                 swops.PathAttrib('instance:%s/id' % key),
