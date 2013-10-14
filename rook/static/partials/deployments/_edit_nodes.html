@@ -27,28 +27,9 @@
 
 <div class='pull-right'>
   <i class="icon-question-sign muted" ng-hide="tree.count" tooltip="Select some nodes first"></i>
-  <button class="dropdown-toggle btn" ng-click="open_modal('delete_nodes_warning')" ng-disabled="tree.count == 0 || data.status != 'UP'">
+  <button class="dropdown-toggle btn" ng-click="open_modal_with_scope('/partials/deployments/_delete_nodes_warning.html')" ng-disabled="tree.count == 0 || data.status != 'UP'">
       <i class="icon-minus-sign action action-delete"></i>
       Delete Selected Nodes
   </button>
-
-  <!-- delete_nodes_warning -->
-  <div modal="modal_window.delete_nodes_warning" close="close_modal('delete_nodes_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="warning_title" aria-hidden="true">
-    <div class="modal-header">
-      <h3 id="warning_title" class="alert alert-danger">Warning! Data Destructive Task</h3>
-    </div>
-    <div class="modal-body">
-      The following resources will be deleted:
-      <div class="checkbox" ng-repeat="resource in tree.selected_nodes" ng-show="is_scalable_service(resource, data) && resource.status != 'DELETED'">
-        {{resource['dns-name']}}
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" ng-click="delete_nodes(data, tree.selected_nodes); close_modal('delete_nodes_warning');">
-        Go ahead and Delete these nodes
-      </button>
-      <button class="btn" ng-click="close_modal('delete_nodes_warning')">Cancel</button>
-    </div>
-  </div>
 </div>
 

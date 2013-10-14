@@ -41,68 +41,23 @@
   </li>
 
   <li>
-    <a ng-click="open_modal('check_warning'); wrap_admin_call(data['created-by'], check, data)" tooltip="Check the currect deployment for common errors" tooltip-placement="right">
+    <a ng-click="open_modal_with_scope('/partials/deployments/_check_warning.html'); wrap_admin_call(data['created-by'], check, data)" tooltip="Check the currect deployment for common errors" tooltip-placement="right">
       <i class="icon-check"></i>
       Check for errors
     </a>
-    <!-- check_warning -->
-    <div modal="modal_window.check_warning" close="close_modal('check_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="warning_title" aria-hidden="true">
-      <div class="modal-header">
-        <h3 id="warning_title" class="alert">Deployment Check Results</h3>
-      </div>
-      <div class="modal-body">
-        <div ng-show="loading.check">
-          <img class="loading" src="/img/ajax-loader.gif" />
-          Please wait while we check your deployment for errors...
-        </div>
-        <div ng-hide="loading.check">
-          <ng-include src="'/partials/deployments/_check_results.html'"></ng-incude>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" ng-click="close_modal('check_warning')">OK</button>
-      </div>
-    </div>
   </li>
 
   <li>
-    <a ng-click="open_modal('delete_warning')" tooltip="Delete Resources and Deployment" tooltip-placement="right">
+    <a ng-click="open_modal_with_scope('/partials/deployments/_delete_warning.html')" tooltip="Delete Resources and Deployment" tooltip-placement="right">
       <i class="icon-remove"></i>
       Delete
     </a>
-    <!-- delete_warning -->
-    <div modal="modal_window.delete_warning" close="close_modal('delete_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="warning_title" aria-hidden="true">
-      <div class="modal-header">
-        <h3 id="warning_title" class="alert alert-danger">Warning! Data Destructive Task</h3>
-      </div>
-      <div class="modal-body">
-        <p>Deleting the deployment will also delete all resources and data in it.</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" ng-click="wrap_admin_call(data['created-by'], delete_deployment)">Go ahead and Delete</button>
-        <button class="btn" ng-click="close_modal('delete_warning')">Cancel</button>
-      </div>
-    </div>
   </li>
 
   <li>
-    <a ng-click="open_modal('force_delete_warning')" tooltip="Delete Resources and Deployment even if status does not allow it" tooltip-placement="right">
+  <a ng-click="open_modal_with_scope('/partials/deployments/_force_delete_warning.html')" tooltip="Delete Resources and Deployment even if status does not allow it" tooltip-placement="right">
       <i class="icon-remove"></i> Force Delete
     </a>
-    <!-- forceDeleteWarning -->
-    <div modal="modal_window.force_delete_warning" close="close_modal('force_delete_warning')" options="modal_opts" tabindex="-1" role="dialog" aria-labelledby="forceDeleteWarningLabel" aria-hidden="true">
-      <div class="modal-header">
-        <h3 id="forceDeleteWarningLabel" class="alert alert-danger">Warning! Data Destructive Task</h3>
-      </div>
-      <div class="modal-body">
-        <p>Deleting the deployment will also delete all resources and data in it.</p>
-        <p>A forced delete may also result in a deployment that is broken and in an indeterminate state.</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" href='#' ng-click="wrap_admin_call(data['created-by'], delete_deployment, '1')">Go ahead and Force Delete</button>
-        <button class="btn" ng-click="close_modal('force_delete_warning')">Cancel</button>
-      </div>
-    </div>
   </li>
 
   <!-- WORKFLOW -->

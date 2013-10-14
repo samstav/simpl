@@ -277,8 +277,22 @@ function AutoLoginController($scope, $window, $cookies, $log, auth) {
   };
 }
 
+function ModalInstanceController($scope, $modalInstance, data) {
+  angular.forEach(data, function(value, key) {
+    $scope[key] = value;
+  });
+
+  $scope.close = function(response) {
+    return $modalInstance.close(response);
+  }
+
+  $scope.dismiss = function(response) {
+    return $modalInstance.dismiss(response);
+  }
+}
+
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth, $route, $q, webengage) {
+function AppController($scope, $http, $location, $resource, auth, $route, $q, webengage, $modal) {
   $scope.init_webengage = webengage.init;
   $scope.showHeader = true;
   $scope.showStatus = false;
@@ -408,12 +422,9 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
                 status: error.status,
                 title: "Error",
                 message: "There was an error executing your request:"};
-    if (typeof error.data == "object" && 'description' in error.data) {
-      info.message = error.data.description;
-      delete error.data.description;
-    }
-    $scope.$root.error = info;
-    $scope.open_modal('error');
+    if (typeof error.data == "object" && 'description' in error.data)
+        info.message = error.data.description;
+    $scope.open_modal('/partials/app/_error.html', {error: info});
     mixpanel.track("Error", {'error': info.message});
   };
 
@@ -441,13 +452,19 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     backdropFade: false,
     dialogFade: false
   };
-  $scope.modal_window = {};
-  $scope.open_modal = function(window_name) {
-    console.log("opening modal...");
-    $scope.modal_window[window_name] = true;
-  };
-  $scope.close_modal = function(window_name) {
-    $scope.modal_window[window_name] = false;
+  $scope.open_modal = function(template_name, data, scope) {
+    var config = {
+      templateUrl: template_name,
+      controller: ModalInstanceController,
+      scope: scope || $scope,
+      resolve: {
+        data: function() {
+          return data;
+        }
+      }
+    };
+    var modal_instance = $modal.open(config);
+    return modal_instance.result;
   };
 
   $scope.hidden_alerts = {};
@@ -575,13 +592,13 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
 
   $scope.on_impersonate_error = function(response) {
     mixpanel.track("Impersonation Failed");
-    $scope.$root.error = {
+    var error = {
       data: response.data,
       status: response.status,
       title: "Error Impersonating User",
       message: "There was an error during impersonation:"
     };
-    $scope.open_modal('error');
+    $scope.open_modal('/partials/app/_error.html', {error: error});
   }
 
   $scope.impersonation = { username: "" };
@@ -1007,6 +1024,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     triggered: 0
   };
 
+  $scope.open_modal_with_scope = function(template, data){
+    $scope.open_modal(template, data, $scope);
+  }
+
   $scope.hide_task_traceback = {
     failure: true,
     retry: true
@@ -1139,10 +1160,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             $scope.all_data = all_data.join('\n');
 
           }, function(error) {
-            console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
-            $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
-                    message: "There was an error loading your deployment:"};
-            $scope.open_modal('error');
+            var error = {data: error.data, status: error.status, title: "Error loading deployment",
+                         message: "There was an error loading your deployment:"};
+            $scope.open_modal('/partials/app/_error.html', {error: error});
           });
         }
       } else if ($location.hash().length > 1) {
@@ -1161,9 +1181,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                     message: "There was an error loading your data:"};
         if (error !== undefined && 'description' in error)
             info.message = error.description;
-        $scope.$root.error = info;
       if ($location.path().indexOf('deployments') == -1)
-        $scope.open_modal('error');  //don't show error when in deployment screen
+        $scope.open_modal('/partials/app/_error.html', {error: info});
       deferred.reject(response);
     });
 
@@ -1241,9 +1260,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.notify('Saved');
           mixpanel.track("Task Spec Saved");
         }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $scope.open_modal('error');
+          var info = {data: error.data, status: error.status, title: "Error Saving",
+                      message: "There was an error saving your JSON:"};
+          $scope.open_modal('/partials/app/_error.html', {error: info});
         });
     } else {
       $scope.loginPrompt().then($scope.save_spec);
@@ -1284,9 +1303,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.notify('Saved');
           mixpanel.track("Task Saved");
         }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $scope.open_modal('error');
+          var info = {data: error.data, status: error.status, title: "Error Saving",
+                      message: "There was an error saving your JSON:"};
+          $scope.open_modal('/partials/app/_error.html', {error: info});
         });
     } else {
       $scope.loginPrompt().then($scope.save_task);
@@ -1378,7 +1397,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.reset_task = function() {
-    $scope.close_modal('reset_warning');
     return $scope.task_action($scope.current_task.id, 'reset');
   };
 
@@ -2111,9 +2129,9 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   }
 
   $scope.sync_failure = function(error){
-    $scope.$root.error = {data: error.data, status: error.status, title: "Error Syncing",
-                          message: "There was an error syncing your deployment"};
-    $scope.open_modal('error');
+    var info = {data: error.data, status: error.status, title: "Error Syncing",
+                message: "There was an error syncing your deployment"};
+    $scope.open_modal('/partials/app/_error.html', {error: info});
   }
 
   // This also exists on DeploymentController - can be refactored
@@ -2692,9 +2710,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
         console.log(deployment);
-        $scope.$root.error = {data: error.data, status: error.status, title: "Error Creating Deployment",
-                message: "There was an error creating your deployment:"};
-        $scope.open_modal('error');
+        var info = {data: error.data, status: error.status, title: "Error Creating Deployment",
+                    message: "There was an error creating your deployment:"};
+        $scope.open_modal('/partials/app/_error.html', {error: info});
         $scope.submitting = false;
         mixpanel.track("Deployment Launch Failed", {'status': error.status, 'data': error.data});
       });
@@ -2723,9 +2741,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 }
 
 //Handles an existing deployment
-function SecretsController($scope, $location, $resource, $routeParams, dialog) {
-  $scope.dialog = dialog;
-
+function SecretsController($scope, $location, $resource, $routeParams, $modalInstance) {
   $scope.load = function() {
     console.log("Starting load");
     $scope.loading = { secrets: true };
@@ -2738,6 +2754,14 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
       });
     });
   };
+
+  $scope.close = function(response) {
+    return $modalInstance.close(response);
+  }
+
+  $scope.dismiss = function(response) {
+    return $modalInstance.dismiss(response);
+  }
 
   $scope.secrests_dismissed = false;
   $scope.dismissSecrets = function() {
@@ -2761,7 +2785,7 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow, DeploymentTree) {
+function DeploymentController($scope, $location, $resource, $routeParams, $modal, deploymentDataParser, $http, urlBuilder, Deployment, workflow, DeploymentTree) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -2863,11 +2887,11 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   $scope.showSecrets = function() {
     if ($scope.data.secrets != 'AVAILABLE') return;
 
-    $scope.secretsDialog = $dialog.dialog({
-        resolve: {
-            dialog: function() {return $scope.secretsDialog;}
-        }
-    }).open('/partials/deployments/_secrets.html', 'SecretsController');
+    var options = {
+      templateUrl: '/partials/deployments/_secrets.html',
+      controller: 'SecretsController',
+    };
+    $modal.open(options);
   };
 
   $scope.shouldDisplayWorkflowStatus = function() {
@@ -3075,25 +3099,24 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.data_json = JSON.stringify(returned, null, 2);
           $scope.notify('Saved');
         }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $scope.open_modal('error');
+          var info = {data: error.data, status: error.status, title: "Error Saving",
+                      message: "There was an error saving your JSON:"};
+          $scope.open_modal('/partials/app/_error.html', {error: info});
         });
     } else {
       $scope.loginPrompt().then($scope.save);
     }
   };
 
+  $scope.open_modal_with_scope = function(template, data){
+    $scope.open_modal(template, data, $scope);
+  }
+
   $scope.delete_deployment = function(force) {
     var retry = function() {
       $scope.delete_deployment(force);
     };
 
-    if (force == '1') {
-      $scope.close_modal('force_delete_warning');
-    } else {
-      $scope.close_modal('delete_warning');
-    }
     if ($scope.auth.is_logged_in()) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'save': {method:'PUT'}});
       var thang = new klass();
@@ -3107,9 +3130,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.notify('Deleting deployment');
           $scope.delayed_refresh();
         }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
-                  message: "There was an error deleting your deployment"};
-          $scope.open_modal('error');
+          var info = {data: error.data, status: error.status, title: "Error Deleting",
+                      message: "There was an error deleting your deployment"};
+          $scope.open_modal('/partials/app/_error.html', {error: info});
         });
     } else {
       $scope.loginPrompt().then(retry);
@@ -3123,9 +3146,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   }
 
   $scope.sync_failure = function(error){
-    $scope.$root.error = {data: error.data, status: error.status, title: "Error Syncing",
-                          message: "There was an error syncing your deployment"};
-    $scope.open_modal('error');
+    var info = {data: error.data, status: error.status, title: "Error Syncing",
+                message: "There was an error syncing your deployment"};
+    $scope.open_modal('/partials/app/_error.html', {error: info});
   }
 
   // This also exists on DeploymentListController - can be refactored
@@ -3256,6 +3279,10 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
     database: false
   };
 
+  $scope.open_modal_with_scope = function(template, data){
+    $scope.open_modal(template, data, $scope);
+  }
+
   $scope.add_to_deployment = function(decorated_resource){
     var resource_list = $scope.resources_by_provider[decorated_resource.object.provider];
     $scope.selected_resources.push(decorated_resource);
@@ -3375,9 +3402,9 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   }
 
   $scope.sync_failure = function(error){
-    $scope.$root.error = {data: error.data, status: error.status, title: "Error Syncing",
-                          message: "There was an error syncing your deployment"};
-    $scope.open_modal('error');
+    var info = {data: error.data, status: error.status, title: "Error Syncing",
+                message: "There was an error syncing your deployment"};
+    $scope.open_modal('/partials/app/_error.html', {error: info});
   }
 
   $scope.submit = function(){
