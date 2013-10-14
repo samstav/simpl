@@ -457,7 +457,7 @@ def delete_cookbooks(name, service_name, path=None):
                  "deleted")
 
 
-@task
+@task(max_retries=3)
 @statsd.collect
 def create_environment(name, service_name, path=None, private_key=None,
                        public_key_ssh=None, secret_key=None, source_repo=None,
@@ -512,7 +512,9 @@ def create_environment(name, service_name, path=None, private_key=None,
                      exc_info=True)
         else:
             msg = "Could not create environment %s" % fullpath
-            raise exceptions.CheckmateException(msg)
+            exception = exceptions.CheckmateException(str(ose),
+                                                      friendly_message=msg)
+            raise create_environment.retry(exc=exception)
 
     results = {"environment": fullpath}
 
