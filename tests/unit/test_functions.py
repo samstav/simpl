@@ -249,5 +249,4 @@ class TestPathing(unittest.TestCase):
 
 if __name__ == '__main__':
     from checkmate import test
-    import sys
-    test.run_with_params(sys.argv[:])
+    test.run_with_params()
