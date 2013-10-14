@@ -68,7 +68,8 @@ class Provider(ProviderBase):
         secret_key = deployment.get_setting('secret_key')
         source_repo = deployment.get_setting('source', provider_key=self.key)
         defines = {'provider': self.key}
-        properties = {'estimated_duration': 10, 'task_tags': ['root']}
+        properties = {'estimated_duration': 30, 'task_tags': ['root'],
+                      'resource': 'workspace'}
         task_name = 'checkmate.providers.opscode.solo.tasks.create_environment'
         self.prep_task = specs.Celery(wfspec,
                                       'Create Chef Environment', task_name,
@@ -85,7 +86,7 @@ class Provider(ProviderBase):
 
     def cleanup_environment(self, wfspec, deployment):
         call = 'checkmate.providers.opscode.solo.tasks.delete_environment'
-        defines = {'provider': self.key}
+        defines = {'provider': self.key, 'resource': 'workspace'}
         properties = {'estimated_duration': 1, 'task_tags': ['cleanup']}
         cleanup_task = specs.Celery(wfspec, 'Delete Chef Environment', call,
                                     call_args=[deployment['id']],
@@ -104,13 +105,14 @@ class Provider(ProviderBase):
         final_tasks = wfspec.find_task_specs(provider=self.key, tag='final')
         client_ready_tasks.extend(final_tasks)
         call = 'checkmate.providers.opscode.solo.tasks.delete_cookbooks'
+        defines = {'resource': 'workspace', 'provider': self.key}
         cleanup_task = specs.Celery(wfspec, 'Delete Cookbooks', call,
                                     call_args=[deployment['id'], 'kitchen'],
-                                    defines={'provider': self.key},
+                                    defines=defines,
                                     properties={'estimated_duration': 1})
         root = wfspec.wait_for(cleanup_task, client_ready_tasks,
                                name="Wait before deleting cookbooks",
-                               provider=self.key)
+                               defines=defines)
 
         return {'root': root, 'final': cleanup_task}
 
