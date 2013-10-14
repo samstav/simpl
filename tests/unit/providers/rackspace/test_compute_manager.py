@@ -16,26 +16,27 @@
 """
 Module for testing loadbalancer manager
 """
-import mock
-import unittest
 import logging
-from novaclient.exceptions import OverLimit, NotFound
-from requests import ConnectionError
-from checkmate import exceptions as cmexc, utils, ssh, rdp
-from checkmate.exceptions import CheckmateException
-from checkmate.providers.rackspace import compute
+import mock
+import requests
+import unittest
 
-from checkmate.providers.rackspace.compute.manager import Manager
-from checkmate.providers.rackspace.compute.provider import Provider
+from checkmate import exceptions as cmexc
+from checkmate.providers.rackspace import compute
+from checkmate.providers.rackspace.compute import manager as manager
+from checkmate.providers.rackspace.compute import provider as provider
+from checkmate import rdp
+from checkmate import ssh
+from checkmate import utils
+from novaclient import exceptions as nvexc
+
 
 LOG = logging.getLogger(__name__)
 
 
 class TestCreateServer(unittest.TestCase):
-
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     def test_create_server(self, connect):
-        manager = Manager()
         context = {
             "deployment_id": "DEP1001",
             "resource_key": "0",
@@ -59,11 +60,11 @@ class TestCreateServer(unittest.TestCase):
         mock_api.servers.create = mock.MagicMock(return_value=mock_server)
         mock_api.client.region_name = "REGION"
 
-        results = manager.create_server(
+        results = manager.Manager.create_server(
             context, "Name", "ORD", api=None, image="image_id",
             flavor="flavor_id", tags="SERVER_TAG")
 
-        self.assertDictEqual(results,{
+        self.assertDictEqual(results, {
             "id": "SERVER_ID",
             "password": "PASSWORD",
             "status": "NEW",
@@ -77,54 +78,13 @@ class TestCreateServer(unittest.TestCase):
         mock_api.images.find.assert_called_once_with(id="image_id")
         mock_api.flavors.find.assert_called_once_with(id="flavor_id")
         mock_api.servers.create.assert_called_once_with("Name", mock_image,
-                                                       mock_flavor,
-                                                       meta="SERVER_TAG",
-                                                       files=None,
-                                                       disk_config='AUTO')
+                                                        mock_flavor,
+                                                        meta="SERVER_TAG",
+                                                        files=None,
+                                                        disk_config='AUTO')
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     def test_create_server_overlimit_error(self, connect):
-        manager = Manager()
-        context = {
-            "deployment_id": "DEP1001",
-            "resource_key": "0",
-            "simulation": False,
-        }
-        mock_api = mock.MagicMock()
-
-        mock_image = mock.MagicMock()
-        mock_image.name = "IMAGE"
-
-        mock_flavor = mock.MagicMock()
-        mock_flavor.name = "FLAVOR"
-
-        mock_server = mock.MagicMock()
-        mock_server.id = "SERVER_ID"
-        mock_server.adminPass = "PASSWORD"
-
-        connect.return_value = mock_api
-        mock_api.images.find = mock.MagicMock(return_value=mock_image)
-        mock_api.flavors.find = mock.MagicMock(return_value=mock_flavor)
-        mock_api.servers.create = mock.MagicMock(side_effect=OverLimit("",""))
-        mock_api.client.region_name = "REGION"
-
-        try:
-            manager.create_server(context, "Name", "ORD", api=None,
-                                  image="image_id",flavor="flavor_id",
-                                  tags="SERVER_TAG")
-            self.fail("Should have thrown an exception!")
-        except cmexc.CheckmateException as exc:
-            self.assertTrue(exc.options, cmexc.CAN_RESET)
-
-        mock_api.servers.create.assert_called_once_with("Name", mock_image,
-                                                       mock_flavor,
-                                                       meta="SERVER_TAG",
-                                                       files=None,
-                                                       disk_config='AUTO')
-
-    @mock.patch.object(Provider, "connect")
-    def test_create_server_connection_error(self, connect):
-        manager = Manager()
         context = {
             "deployment_id": "DEP1001",
             "resource_key": "0",
@@ -146,13 +106,53 @@ class TestCreateServer(unittest.TestCase):
         mock_api.images.find = mock.MagicMock(return_value=mock_image)
         mock_api.flavors.find = mock.MagicMock(return_value=mock_flavor)
         mock_api.servers.create = mock.MagicMock(
-            side_effect=ConnectionError())
+            side_effect=nvexc.OverLimit("", ""))
         mock_api.client.region_name = "REGION"
 
         try:
-            manager.create_server(context, "Name", "ORD", api=None,
-                                  image="image_id",flavor="flavor_id",
-                                  tags="SERVER_TAG")
+            manager.Manager.create_server(context, "Name", "ORD", api=None,
+                                          image="image_id", flavor="flavor_id",
+                                          tags="SERVER_TAG")
+            self.fail("Should have thrown an exception!")
+        except cmexc.CheckmateException as exc:
+            self.assertTrue(exc.options, cmexc.CAN_RESET)
+
+        mock_api.servers.create.assert_called_once_with("Name", mock_image,
+                                                        mock_flavor,
+                                                        meta="SERVER_TAG",
+                                                        files=None,
+                                                        disk_config='AUTO')
+
+    @mock.patch.object(provider.Provider, "connect")
+    def test_create_server_connection_error(self, connect):
+        context = {
+            "deployment_id": "DEP1001",
+            "resource_key": "0",
+            "simulation": False,
+        }
+        mock_api = mock.MagicMock()
+
+        mock_image = mock.MagicMock()
+        mock_image.name = "IMAGE"
+
+        mock_flavor = mock.MagicMock()
+        mock_flavor.name = "FLAVOR"
+
+        mock_server = mock.MagicMock()
+        mock_server.id = "SERVER_ID"
+        mock_server.adminPass = "PASSWORD"
+
+        connect.return_value = mock_api
+        mock_api.images.find = mock.MagicMock(return_value=mock_image)
+        mock_api.flavors.find = mock.MagicMock(return_value=mock_flavor)
+        mock_api.servers.create = mock.MagicMock(
+            side_effect=nvexc.ConnectionError())
+        mock_api.client.region_name = "REGION"
+
+        try:
+            manager.Manager.create_server(context, "Name", "ORD", api=None,
+                                          image="image_id", flavor="flavor_id",
+                                          tags="SERVER_TAG")
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exc:
             self.assertTrue(exc.options, cmexc.CAN_RESUME)
@@ -163,9 +163,10 @@ class TestCreateServer(unittest.TestCase):
                                                         files=None,
                                                         disk_config='AUTO')
 
+
 class TestWaitOnBuild(unittest.TestCase):
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(utils, "get_ips_from_server")
     def test_wait_on_build_active(self, ips_from_server, connect):
         context = {
@@ -189,11 +190,12 @@ class TestWaitOnBuild(unittest.TestCase):
         mock_api.servers.find.return_value = mock_server
         mock_api.client.region_name = "ORD"
 
-        results = Manager.wait_on_build(context, "SERVER_ID", "REGION",
-                                      callback, update_task, "IP_ADDRESS",
-                                      api=None)
+        results = manager.Manager.wait_on_build(context, "SERVER_ID",
+                                                "REGION", callback,
+                                                update_task,
+                                                "IP_ADDRESS", api=None)
 
-        self.assertDictEqual(results,{
+        self.assertDictEqual(results, {
             "id": "SERVER_ID",
             "status": "ACTIVE",
             "addresses": ["127.0.0.1", "192.168.412.11"],
@@ -206,8 +208,7 @@ class TestWaitOnBuild(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
-
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     def test_wait_on_build_error(self, connect):
         context = {
             "resource_key": "0",
@@ -225,9 +226,9 @@ class TestWaitOnBuild(unittest.TestCase):
         mock_api.servers.find.return_value = mock_server
 
         try:
-            Manager.wait_on_build(context, "SERVER_ID", "REGION",
-                                      callback, update_task, "IP_ADDRESS",
-                                      api=None)
+            manager.Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                          callback, update_task, "IP_ADDRESS",
+                                          api=None)
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exception:
             self.assertEquals(exception.options, cmexc.CAN_RESET)
@@ -238,8 +239,7 @@ class TestWaitOnBuild(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
-
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     def test_wait_on_build_build(self, connect):
         context = {
             "resource_key": "0",
@@ -261,9 +261,9 @@ class TestWaitOnBuild(unittest.TestCase):
         mock_api.client.region_name = "ORD"
 
         try:
-            Manager.wait_on_build(context, "SERVER_ID", "REGION",
-                                  callback, update_task, "IP_ADDRESS",
-                                  api=None)
+            manager.Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                          callback, update_task,
+                                          "IP_ADDRESS", api=None)
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exception:
             self.assertEquals(exception.options, cmexc.CAN_RESUME)
@@ -286,7 +286,7 @@ class TestWaitOnBuild(unittest.TestCase):
             "status-message": '72% Complete'
         })
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(utils, "get_ips_from_server")
     @mock.patch.object(utils, "is_rackconnect_account")
     def test_wait_on_build_rackconnect_ready(self, is_rackconnect_account,
@@ -313,9 +313,9 @@ class TestWaitOnBuild(unittest.TestCase):
         mock_api.servers.find.return_value = mock_server
         mock_api.client.region_name = "ORD"
 
-        results = Manager.wait_on_build(context, "SERVER_ID", "REGION",
-                                        callback, update_task, "IP_ADDRESS",
-                                        api=None)
+        results = manager.Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                                callback, update_task,
+                                                "IP_ADDRESS", api=None)
 
         self.assertDictEqual(results, {
             "id": "SERVER_ID",
@@ -330,7 +330,7 @@ class TestWaitOnBuild(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(utils, "get_ips_from_server")
     @mock.patch.object(utils, "is_rackconnect_account")
     def test_wait_on_build_rackconnect_failed(self, is_rackconnect_account,
@@ -358,9 +358,9 @@ class TestWaitOnBuild(unittest.TestCase):
         mock_api.client.region_name = "ORD"
 
         try:
-            Manager.wait_on_build(context, "SERVER_ID", "REGION",
-                                  callback, update_task, "IP_ADDRESS",
-                                  api=None)
+            manager.Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                          callback, update_task, "IP_ADDRESS",
+                                          api=None)
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exc:
             self.assertEquals(exc.options, 0)
@@ -378,65 +378,7 @@ class TestWaitOnBuild(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
-    @mock.patch.object(Provider, "connect")
-    @mock.patch.object(utils, "get_ips_from_server")
-    @mock.patch.object(utils, "is_rackconnect_account")
-    @mock.patch.object(compute.manager.LOG, "warn")
-    def test_wait_on_build_rackconnect_unprocessable(self,
-                                                     logger,
-                                                     is_rackconnect_account,
-                                                     ips_from_server,
-                                                     connect):
-        context = {
-            "resource_key": "0",
-        }
-        mock_api = mock.MagicMock()
-        callback = mock.MagicMock()
-        update_task = mock.MagicMock()
-        mock_server = mock.MagicMock()
-
-        is_rackconnect_account.return_value = True
-        mock_server.status = "ACTIVE"
-        mock_server.metadata = {'rackconnect_automation_status':
-                                    'UNPROCESSABLE',
-                                'rackconnect_unprocessable_reason':
-                                    'Somewhere something went very wrong'
-        }
-        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
-        connect.return_value = mock_api
-
-        ips_from_server.return_value = {
-            'ip': 'SOME_IP_ADDRESS',
-            'public_ip': 'PUBLIC_IP_ADDRESS'
-        }
-
-        mock_api.servers.find.return_value = mock_server
-        mock_api.client.region_name = "ORD"
-
-        results = Manager.wait_on_build(context, "SERVER_ID", "REGION",
-                                        callback, update_task, "IP_ADDRESS",
-                                        api=None)
-
-        self.assertDictEqual(results, {
-            "id": "SERVER_ID",
-            "status": "ACTIVE",
-            "addresses": ["127.0.0.1", "192.168.412.11"],
-            "region": "ORD",
-            'ip': 'SOME_IP_ADDRESS',
-            'public_ip': 'PUBLIC_IP_ADDRESS',
-            "status-message": "",
-            "rackconnect-automation-status": "UNPROCESSABLE",
-        })
-        logger.assert_called_once_with("RackConnect server metadata has "
-                                      "'rackconnect_automation_status' is "
-                                      "set to UNPROCESSABLE. "
-                                      "Reason: Somewhere something went very "
-                                      "wrong. RackConnect will not be enabled"
-                                      " for this server(#SERVER_ID).")
-        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
-
-
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(utils, "get_ips_from_server")
     @mock.patch.object(utils, "is_rackconnect_account")
     @mock.patch.object(compute.manager.LOG, "warn")
@@ -456,8 +398,62 @@ class TestWaitOnBuild(unittest.TestCase):
         is_rackconnect_account.return_value = True
         mock_server.status = "ACTIVE"
         mock_server.metadata = {
-            'rackconnect_automation_status':
-                'STATUS'
+            'rackconnect_automation_status': 'UNPROCESSABLE',
+            'rackconnect_unprocessable_reason': 'Somewhere something went '
+                                                'very wrong'
+        }
+        mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
+        connect.return_value = mock_api
+
+        ips_from_server.return_value = {
+            'ip': 'SOME_IP_ADDRESS',
+            'public_ip': 'PUBLIC_IP_ADDRESS'
+        }
+
+        mock_api.servers.find.return_value = mock_server
+        mock_api.client.region_name = "ORD"
+
+        results = manager.Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                                callback, update_task,
+                                                "IP_ADDRESS", api=None)
+
+        self.assertDictEqual(results, {
+            "id": "SERVER_ID",
+            "status": "ACTIVE",
+            "addresses": ["127.0.0.1", "192.168.412.11"],
+            "region": "ORD",
+            'ip': 'SOME_IP_ADDRESS',
+            'public_ip': 'PUBLIC_IP_ADDRESS',
+            "status-message": "",
+            "rackconnect-automation-status": "UNPROCESSABLE",
+        })
+        logger.assert_called_once_with("RackConnect server metadata has "
+                                       "'rackconnect_automation_status' is "
+                                       "set to UNPROCESSABLE. "
+                                       "Reason: Somewhere something went "
+                                       "very wrong. RackConnect will not be"
+                                       "enabled for this server(#SERVER_ID).")
+        mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
+
+    @mock.patch.object(provider.Provider, "connect")
+    @mock.patch.object(utils, "get_ips_from_server")
+    @mock.patch.object(utils, "is_rackconnect_account")
+    @mock.patch.object(compute.manager.LOG, "warn")
+    def test_wait_on_build_rackconnect_not_deployed(self, logger,
+                                                    is_rackconnect_account,
+                                                    ips_from_server, connect):
+        context = {
+            "resource_key": "0",
+        }
+        mock_api = mock.MagicMock()
+        callback = mock.MagicMock()
+        update_task = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
+        is_rackconnect_account.return_value = True
+        mock_server.status = "ACTIVE"
+        mock_server.metadata = {
+            'rackconnect_automation_status': 'STATUS'
         }
         mock_server.addresses = ["127.0.0.1", "192.168.412.11"]
         connect.return_value = mock_api
@@ -471,11 +467,11 @@ class TestWaitOnBuild(unittest.TestCase):
         mock_api.client.region_name = "ORD"
 
         try:
-            Manager.wait_on_build(context, "SERVER_ID", "REGION",
-                                        callback, update_task, "IP_ADDRESS",
-                                        api=None)
+            manager.Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                          callback, update_task, "IP_ADDRESS",
+                                          api=None)
             self.fail("Should have thrown an exception!")
-        except CheckmateException as exc:
+        except cmexc.CheckmateException as exc:
             self.assertEquals(exc.options, cmexc.CAN_RESUME)
         callback.assert_called_once_with({
             "id": "SERVER_ID",
@@ -490,8 +486,7 @@ class TestWaitOnBuild(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
-
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(utils, "get_ips_from_server")
     @mock.patch.object(utils, "is_rackconnect_account")
     def test_wait_on_build_rackconnect_waiting_for_tag(
@@ -519,11 +514,11 @@ class TestWaitOnBuild(unittest.TestCase):
         mock_api.client.region_name = "ORD"
 
         try:
-            Manager.wait_on_build(context, "SERVER_ID", "REGION",
-                                        callback, update_task, "IP_ADDRESS",
-                                        api=None)
+            manager.Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                          callback, update_task, "IP_ADDRESS",
+                                          api=None)
             self.fail("Should have thrown an exception")
-        except CheckmateException as exc:
+        except cmexc.CheckmateException as exc:
             self.assertEquals(exc.options, cmexc.CAN_RESUME)
         callback.assert_called_once_with({
             "id": "SERVER_ID",
@@ -536,7 +531,7 @@ class TestWaitOnBuild(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(utils, "get_ips_from_server")
     def test_wait_on_build_ip_is_not_available(
             self, ips_from_server, connect):
@@ -562,20 +557,21 @@ class TestWaitOnBuild(unittest.TestCase):
         mock_api.client.region_name = "ORD"
 
         try:
-            Manager.wait_on_build(context, "SERVER_ID", "REGION",
-                                        callback, update_task, "IP_ADDRESS",
-                                        api=None)
+            manager.Manager.wait_on_build(context, "SERVER_ID", "REGION",
+                                          callback, update_task, "IP_ADDRESS",
+                                          api=None)
             self.fail("Should have thrown an exception")
-        except CheckmateException as exc:
+        except cmexc.CheckmateException as exc:
             self.assertEquals(exc.options, cmexc.CAN_RESUME)
             self.assertEquals(exc.message, "Could not find IP of server "
                                            "SERVER_ID")
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
+
 class TestVerifySSHConnectivity(unittest.TestCase):
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(ssh, "test_connection")
     def test_verify_ssh_connectivity_linux(self, ssh, connect):
         context = {}
@@ -593,21 +589,22 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
         ssh.return_value = True
 
-        is_up = Manager.verify_ssh_connection(context, "SERVER_ID",
-                                                   "REGION", "SERVER_IP")
+        is_up = manager.Manager.verify_ssh_connection(context, "SERVER_ID",
+                                                      "REGION", "SERVER_IP")
 
         self.assertEquals(True, is_up["status"])
+        self.assertEquals("", is_up["status-message"])
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
         ssh.assert_called_once_with(context, "SERVER_IP",
-                                                    "root", timeout=10,
-                                                    password=None,
-                                                    identity_file=None,
-                                                    port=22,
-                                                    private_key=None)
+                                    "root", timeout=10,
+                                    password=None,
+                                    identity_file=None,
+                                    port=22,
+                                    private_key=None)
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(rdp, "test_connection")
     def test_verify_ssh_connectivity_windows(self, rdp,  connect):
         context = {}
@@ -626,16 +623,17 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
         rdp.return_value = True
 
-        is_up = Manager.verify_ssh_connection(context, "SERVER_ID",
-                                              "REGION", "SERVER_IP")
+        is_up = manager.Manager.verify_ssh_connection(context, "SERVER_ID",
+                                                      "REGION", "SERVER_IP")
 
         self.assertEquals(True, is_up["status"])
+        self.assertEquals("", is_up["status-message"])
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
         rdp.assert_called_once_with(context, "SERVER_IP", timeout=10)
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(ssh, "test_connection")
     def test_verify_ssh_connectivity_linux_failure(self, ssh, connect):
         context = {}
@@ -653,8 +651,8 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
         ssh.return_value = False
 
-        result = Manager.verify_ssh_connection(context, "SERVER_ID",
-                                                   "REGION", "SERVER_IP")
+        result = manager.Manager.verify_ssh_connection(context, "SERVER_ID",
+                                                       "REGION", "SERVER_IP")
 
         self.assertEquals(False, result["status"])
         self.assertEquals("Server 'SERVER_ID' is ACTIVE but 'ssh "
@@ -664,13 +662,13 @@ class TestVerifySSHConnectivity(unittest.TestCase):
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
         ssh.assert_called_once_with(context, "SERVER_IP",
-                                                    "root", timeout=10,
-                                                    password=None,
-                                                    identity_file=None,
-                                                    port=22,
-                                                    private_key=None)
+                                    "root", timeout=10,
+                                    password=None,
+                                    identity_file=None,
+                                    port=22,
+                                    private_key=None)
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     @mock.patch.object(rdp, "test_connection")
     def test_verify_ssh_connectivity_windows_failure(
             self, rdp, connect):
@@ -690,8 +688,8 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
         rdp.return_value = False
 
-        result = Manager.verify_ssh_connection(context, "SERVER_ID",
-                                               "REGION", "SERVER_IP")
+        result = manager.Manager.verify_ssh_connection(context, "SERVER_ID",
+                                                       "REGION", "SERVER_IP")
 
         self.assertEquals(False, result["status"])
         self.assertEquals("Server 'SERVER_ID' is ACTIVE but is not "
@@ -702,38 +700,38 @@ class TestVerifySSHConnectivity(unittest.TestCase):
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
         rdp.assert_called_once_with(context, "SERVER_IP", timeout=10)
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     def test_verify_ssh_connectivity_server_not_found(self, connect):
         context = {}
 
         mock_api = mock.MagicMock()
         connect.return_value = mock_api
 
-        mock_api.servers.find.side_effect = NotFound(None)
+        mock_api.servers.find.side_effect = nvexc.NotFound(None)
 
         try:
-            Manager.verify_ssh_connection(context, "SERVER_ID", "REGION",
-                                          "SERVER_IP")
+            manager.Manager.verify_ssh_connection(context, "SERVER_ID",
+                                                  "REGION", "SERVER_IP")
             self.fail("Should have thrown an exception")
-        except CheckmateException as exc:
+        except cmexc.CheckmateException as exc:
             self.assertEquals(exc.options, 0)
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
-    @mock.patch.object(Provider, "connect")
+    @mock.patch.object(provider.Provider, "connect")
     def test_verify_ssh_connectivity_no_connectivity(self, connect):
         context = {}
 
         mock_api = mock.MagicMock()
         connect.return_value = mock_api
 
-        mock_api.servers.find.side_effect = ConnectionError
+        mock_api.servers.find.side_effect = requests.ConnectionError
 
         try:
-            Manager.verify_ssh_connection(context, "SERVER_ID", "REGION",
-                                          "SERVER_IP")
+            manager.Manager.verify_ssh_connection(context, "SERVER_ID",
+                                                  "REGION", "SERVER_IP")
             self.fail("Should have thrown an exception")
-        except CheckmateException as exc:
+        except cmexc.CheckmateException as exc:
             self.assertEquals(exc.options, cmexc.CAN_RESUME)
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")

@@ -388,24 +388,7 @@ class Manager(object):
             "status": is_up,
             "status-message": "" if is_up else msg
         }
-        #if not is_up:
-        #    if (verify_ssh_connection.max_retries ==
-        #            verify_ssh_connection.request.retries):
-        #        exception = cmexc.CheckmateException(
-        #            "SSH verification task has failed",
-        #            friendly_message="Could not verify that SSH connectivity is "
-        #                             "working",
-        #            options=cmexc.CAN_RESET)
-        #        cmdeps.resource_postback.delay(deployment_id, {
-        #            instance_key: {'status': 'ERROR',
-        #                           'status-message': 'SSH verification has failed'}
-        #        })
-        #        raise exception
-        #    else:
-        #        cmdeps.resource_postback.delay(deployment_id, {
-        #            instance_key: {'status-message': msg}}
-        #        )
-        #        verify_ssh_connection.retry()
+
 
 
 
