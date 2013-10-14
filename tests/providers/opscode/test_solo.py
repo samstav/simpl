@@ -2201,6 +2201,4 @@ output:
 
 
 if __name__ == '__main__':
-    import sys
-
-    test.run_with_params(sys.argv[:])
+    test.run_with_params()

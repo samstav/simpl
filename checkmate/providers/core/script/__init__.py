@@ -44,7 +44,7 @@ environment:
                 verify: "ls /opt/devstack"
                 delete:
                     parameters:
-                      node_ip:
+                      node_ip: resources://0/instance/ip
                     template:
                       "rm -rf /opt/devstack"
 

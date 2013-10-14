@@ -373,6 +373,8 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by 
     POST/GET /:tid/deployments/:id/+deploy
     POST/GET /:tid/deployments/:id/+clone
     POST/GET /:tid/deployments/:id/+sync
+    POST/GET /:tid/deployments/:id/+add-nodes
+    POST/GET /:tid/deployments/:id/+delete-nodes
     PUT/GET/POST /:tid/deployments/:id
     DELETE /:tid/deployments/:id[?force=1]
     GET /:tid/deployments/:id/status

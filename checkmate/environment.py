@@ -11,31 +11,27 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+"""Environment"""
 
 import eventlet
 import logging
 
 from checkmate.component import Component
-from checkmate.exceptions import (
-    BLUEPRINT_ERROR,
-    CheckmateException,
-)
+from checkmate import exceptions
 from checkmate.providers import get_provider_class
 
 LOG = logging.getLogger(__name__)
 API_POOL = eventlet.GreenPool()
 
-"""Environment"""
-
 
 class Environment(object):
+    """Environment class."""
     def __init__(self, environment):
         self.dict = environment
         self.providers = None
 
     def select_provider(self, context, resource=None, interface=None):
-        """Return a provider for a given resource and (optional) interface
-        """
+        """Return a provider for a given resource and (optional) interface."""
         providers = self.get_providers(context)
         for provider in providers.values():
             for entry in provider.provides(context, resource_type=resource,
@@ -71,16 +67,16 @@ class Environment(object):
         providers = self.dict.get('providers', None)
         if not providers:
             error_message = "Environment does not have providers"
-            raise CheckmateException(error_message,
-                                     friendly_message=BLUEPRINT_ERROR)
+            raise exceptions.CheckmateException(
+                error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
         common = providers.get('common', {})
 
         provider = providers[key]
         vendor = provider.get('vendor', common.get('vendor', None))
         if not vendor:
             error_message = "No vendor specified for '%s'" % key
-            raise CheckmateException(error_message,
-                                     friendly_message=BLUEPRINT_ERROR)
+            raise exceptions.CheckmateException(
+                error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
         provider_class = get_provider_class(vendor, key)
         return provider_class(provider, key=key)
 
@@ -105,9 +101,7 @@ class Environment(object):
         if 'type' in params:
             del params['type']
         params['resource_type'] = resource_type
-
         interface = params.get("interface")
-
         if API_POOL.free() < 10:
             LOG.warning("Threadpool for calling provider APIs is running low: "
                         "%s free of %s", API_POOL.free(), API_POOL.running())
@@ -116,9 +110,9 @@ class Environment(object):
             pile.spawn(provider.get_catalog, context)
 
         for provider in providers.values():
-            if (not (resource_type or interface))\
+            if ((not (resource_type or interface))
                     or provider.provides(context, resource_type=resource_type,
-                                         interface=interface):
+                                         interface=interface)):
                 these_matches = provider.find_components(context, **params)
                 if these_matches:
                     for match in these_matches:
