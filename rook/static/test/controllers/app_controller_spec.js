@@ -6,23 +6,27 @@ describe('AppController', function(){
       auth,
       $route,
       $q,
+      $modal,
       webengage,
       controller,
       api_stub;
 
-  beforeEach(function(){
+  beforeEach(module('checkmate'));
+
+  beforeEach(inject(function($injector) {
     scope = { $on: sinon.stub(), $root: {} };
     http = {};
     location = {};
     resource = function(){ return api_stub; };
-    auth = {};
+    auth = $injector.get('auth');
     $route = {};
     $q = { defer: sinon.stub().returns( { promise: "fakepromise", reject: sinon.spy() } ) };
+    $modal = $injector.get('$modal');
     api_stub = { get: emptyFunction };
     webengage = { init: emptyFunction };
-    controller = new AppController(scope, http, location, resource, auth, $route, $q, webengage);
+    controller = new AppController(scope, http, location, resource, auth, $route, $q, webengage, $modal);
     mixpanel = { track: sinon.spy() }; // TODO: We are dependent on this being a global var
-  });
+  }));
 
   it('should display the header', function(){
     expect(scope.showHeader).toBe(true);
@@ -206,7 +210,10 @@ describe('AppController', function(){
 
   describe('#on_impersonate_error', function() {
     beforeEach(function() {
-      var response = {};
+      var response = {
+        data: 'fake_data',
+        status: 'fake_status'
+      };
       scope.open_modal = sinon.spy();
       scope.on_impersonate_error(response);
     });
@@ -220,7 +227,13 @@ describe('AppController', function(){
     });
 
     it('should show an error modal', function() {
-      expect(scope.open_modal).toHaveBeenCalledWith('error');
+      var template = '/partials/app/_error.html';
+      expect(scope.open_modal).toHaveBeenCalled('error');
+      var call_template = scope.open_modal.getCall(0).args[0];
+      var call_error = scope.open_modal.getCall(0).args[1];
+      expect(call_template).toEqual(template)
+      expect(call_error.error.data).toEqual('fake_data');
+      expect(call_error.error.status).toEqual('fake_status');
     });
   });
 
@@ -298,12 +311,12 @@ describe('AppController', function(){
       });
 
       it('should reimpersonate the current tenant if impersonating', function() {
-        auth.is_impersonating = sinon.stub().returns(true);
+        spyOn(auth, 'is_impersonating').andReturn(true);
         var impersonation_callbacks = sinon.spy();
         scope.impersonate.andReturn( { then: impersonation_callbacks } );
         scope.check_token_validity();
         expect(scope.impersonate).toHaveBeenCalled();
-        expect(impersonation_callbacks).toHaveBeenCalledWith(scope.on_impersonate_success, scope.on_auth_failed);
+        expect(impersonation_callbacks).toHaveBeenCalledWith(scope.on_impersonate_success, scope.on_impersonate_error);
       });
 
       describe('if not impersonating', function() {
@@ -333,207 +346,20 @@ describe('AppController', function(){
         it('should bind username to login form', function() {
           expect(scope.bound_creds.username).not.toBeFalsy();
         });
-
-        it('should set force logout flag to true', function() {
-          expect(scope.force_logout).toBe(true);
-        });
-
-        it('should bind #check_permissions to login modal box', function() {
-          modalAuth.trigger('hide');
-          expect(scope.$apply).toHaveBeenCalledWith(scope.check_permissions);
-        });
       });
-    });
-  });
-
-  describe('#check_permissions', function() {
-    beforeEach(function() {
-      spyOn(scope, 'logOut');
-    });
-
-    describe('if flag is true', function() {
-      beforeEach(function() {
-        scope.force_logout = true;
-        scope.check_permissions();
-      });
-
-      it('should force user to log out', function() {
-        expect(scope.logOut).toHaveBeenCalled();
-      });
-
-      it('should unset the flag', function() {
-        expect(scope.force_logout).toBe(false);
-      });
-
-      it('should reset bound username', function() {
-        expect(scope.bound_creds.username).toBe('');
-      });
-    });
-
-    it('should do nothing if flag is not set or is set to false', function() {
-      scope.force_logout = false;
-      scope.check_permissions();
-      expect(scope.logOut).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('#on_auth_success', function() {
-    var deferred_login;
-    beforeEach(function() {
-      deferred_login = { resolve: sinon.spy() };
-      scope.deferred_login = deferred_login;
-      spyOn(scope, 'close_login_prompt');
-      auth.identity = { username: "fakeusername" };
-      $route.reload = sinon.spy();
-      scope.on_auth_success();
-    });
-
-    it('should reset bound username', function() {
-      expect(scope.bound_creds.username).toBeFalsy();
-    });
-
-    it('should reset bound password', function() {
-      expect(scope.bound_creds.password).toBeFalsy();
-    });
-
-    it('should reset bound apikey', function() {
-      expect(scope.bound_creds.apikey).toBeFalsy();
-    });
-
-    it('should clear auth error message', function() {
-      expect(auth.error_message).toBeFalsy();
-    });
-
-    it('should resolve the deferred login promise', function() {
-      expect(deferred_login.resolve).toHaveBeenCalledWith({ logged_in: true });
-    });
-
-    it('should erase the deferred login promise', function() {
-      expect(scope.deferred_login).toBe(null);
-    });
-
-    it('should close the login prompt', function() {
-      expect(scope.close_login_prompt).toHaveBeenCalled();
-    });
-
-    it('should reload the current route', function() {
-      expect($route.reload).toHaveBeenCalled();
-    });
-  });
-
-  describe('#on_auth_failed', function() {
-    beforeEach(function() {
-      var response = { status: "fakestatustext" };
-      scope.on_auth_failed(response);
-    });
-
-    it('should log response to mixpanel', function() {
-      expect(mixpanel.track).toHaveBeenCalledWith('Log In Failed', { problem: "fakestatustext" });
-    });
-
-    it('should add an error message to auth service', function() {
-      expect(auth.error_message).toEqual("fakestatustext. Check that you typed in the correct credentials.");
-    });
-  });
-
-  describe('login_prompt_opts', function() {
-    it('should set backdropFade to true', function() {
-      expect(scope.login_prompt_opts.backdropFade).toBe(true);
-    });
-
-    it('should set dialogFade to true', function() {
-      expect(scope.login_prompt_opts.dialogFade).toBe(true);
-    });
-  });
-
-  describe('display_login_prompt', function() {
-    it('should default to false', function() {
-      expect(scope.display_login_prompt).toBe(false);
     });
   });
 
   describe('#loginPrompt', function() {
     var deferred_login_promise;
     beforeEach(function() {
-      deferred_login_promise = scope.loginPrompt();
+      scope.open_modal = sinon.spy();
     });
 
-    it('should set display_login_prompt to true', function() {
-      expect(scope.display_login_prompt).toBe(true);
-    });
-
-    it('should return a deferred login promise', function() {
-      expect(deferred_login_promise).toEqual("fakepromise");
-    });
-  });
-
-  describe('#clear_login_form', function() {
-    beforeEach(function() {
-      auth.error_message = 'fakeerror';
-      scope.bound_creds.username = 'asdf';
-      scope.bound_creds.password = 'qwer';
-      scope.bound_creds.apikey   = 'zxcv';
-      scope.clear_login_form();
-    });
-
-    it('should clear username form field', function() {
-      expect(scope.bound_creds.username).toEqual(null);
-    });
-
-    it('should clear password form field', function() {
-      expect(scope.bound_creds.username).toEqual(null);
-    });
-
-    it('should clear API Key form field', function() {
-      expect(scope.bound_creds.username).toEqual(null);
-    });
-
-    it('should clear error messages', function() {
-      expect(auth.error_message).toEqual(null);
-    });
-  });
-
-  describe('#close_login_prompt', function() {
-    it('should set display_login_prompt to false', function() {
-      scope.close_login_prompt();
-      expect(scope.display_login_prompt).toBe(false);
-    });
-
-    it('should reject the login promise if it has not been cleared', function() {
-      scope.deferred_login = $q.defer();
-      scope.close_login_prompt();
-      expect(scope.deferred_login.reject).toHaveBeenCalledWith({ logged_in: false, reason: 'dismissed' });
-    });
-  });
-
-  describe('#logIn', function() {
-    beforeEach(function() {
-      auth.authenticate = sinon.stub().returns({ then: emptyFunction });
-      scope.get_selected_endpoint = sinon.stub().returns({ uri: "fakeendpoint" });
-      scope.logIn();
-    });
-
-    it('should reset force_logout flag', function() {
-      expect(scope.force_logout).toBe(false);
-    });
-
-    it('should call try to authenticate the user', function() {
-      expect(auth.authenticate).toHaveBeenCalled();
-    });
-  });
-
-  describe('#logOut', function() {
-    beforeEach(function() {
-      auth.logOut = sinon.spy();
-      scope.logOut();
-    });
-
-    it('should clear auth error message', function() {
-      expect(auth.error_message).toBeFalsy();
-    });
-
-    it('should call auth#logOut', function() {
-      expect(auth.logOut).toHaveBeenCalled();
+    it('should open the login prompt partial with empty data', function() {
+      var template = '/partials/app/login_prompt.html';
+      scope.loginPrompt();
+      expect(scope.open_modal).toHaveBeenCalledWith(template, {}, scope, LoginModalController);
     });
   });
 
@@ -547,24 +373,20 @@ describe('AppController', function(){
     });
   });
 
-  describe('modal_window', function() {
-    it('should default to empty object', function() {
-      expect(scope.modal_window).toEqual({});
-    });
-  });
-
   describe('#open_modal', function() {
-    it('should set modal flag to true', function() {
-      scope.open_modal('fakemodal');
-      expect(scope.modal_window.fakemodal).toBe(true);
+    beforeEach(function() {
+      spyOn($modal, 'open');
     });
-  });
 
-  describe('#close_modal', function() {
-    it('should set modal flag to false', function() {
-      scope.close_modal('fakemodal');
-      expect(scope.modal_window.fakemodal).toBe(false);
+    it('should setup the template name', function() {
     });
+    it('should setup the data for the modal', function() {});
+    it('should pass in the given scope', function() {});
+    it('should use the current scope if no scope is given', function() {});
+    it('should pass in the given controller', function() {});
+    it('should use ModalInstanceController if no controller is given', function() {});
+    it('should open the modal window', function() {});
+    it('should return a promise', function() {});
   });
 
   describe('hidden_alerts', function() {
@@ -595,9 +417,13 @@ describe('AppController', function(){
     var entries_elements;
     beforeEach(function() {
       entries_elements = { on: sinon.spy() };
-      spyOn(angular, 'element').andReturn(entries_elements);
+      sinon.stub(angular, 'element').returns(entries_elements)
       scope.add_popover_listeners();
     });
+
+    afterEach(function(){
+      angular.element.restore();
+    })
 
     it('should add callback to scroll events on .entries', function() {
       expect(angular.element).toHaveBeenCalledWith('.entries');
@@ -621,9 +447,13 @@ describe('AppController', function(){
     beforeEach(function() {
       inner_scope = {tt_isOpen: "somevalue"};
       popover_element = { remove: sinon.spy(), siblings: sinon.stub().returns([{}]), scope: sinon.stub().returns(inner_scope) };
-      spyOn(angular, 'element').andReturn(popover_element);
+      sinon.stub(angular, 'element').returns(popover_element)
       scope.remove_popovers();
     });
+
+    afterEach(function(){
+      angular.element.restore();
+    })
 
     it('should remove .popover from DOM', function() {
       expect(popover_element.remove).toHaveBeenCalled();
