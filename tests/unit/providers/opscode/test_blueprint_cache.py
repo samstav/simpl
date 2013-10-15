@@ -61,17 +61,19 @@ class TestUpdate(unittest.TestCase):
         mock_clone.assert_called_once_with(self.cache.cache_path,
                                            self.source_repo, branch='master')
 
+    @mock.patch('os.environ.get')
     @mock.patch('os.path.getmtime')
     @mock.patch('time.time')
     @mock.patch('os.path.isfile')
     @mock.patch('os.path.exists')
     def test_cache_hit(self, mock_path_exists, mock_is_file, mock_time,
-                       mock_mtime):
+                       mock_mtime, mock_environ_get):
         head_file_path = "%s/.git/FETCH_HEAD" % self.cache.cache_path
         mock_path_exists.return_value = True
         mock_is_file.return_value = True
         mock_time.return_value = 100
         mock_mtime.return_value = 50
+        mock_environ_get.return_value = None
 
         self.cache.update()
 
@@ -79,6 +81,8 @@ class TestUpdate(unittest.TestCase):
         mock_is_file.assert_called_once_with(head_file_path)
         self.assertTrue(time.time.called)
         mock_mtime.assert_called_once_with(head_file_path)
+        mock_environ_get.assert_called_once_with(
+            "CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
 
     @mock.patch('checkmate.utils.git_checkout')
     @mock.patch('checkmate.utils.git_tags')
