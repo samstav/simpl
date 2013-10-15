@@ -791,16 +791,16 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(expect, ret)
         mock_server.delete.assert_called_once_with()
         mock_servers.get.assert_called_once_with('abcdef-ghig-1234')
-        resource_postback.assert_called_once_with('1234', {
-            "instance:0": {
-                "status": "DELETING",
-                "status-message": "Host 1 is being deleted."
-            }}
-        )
+
+
+
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
-    def test_delete_server_get_connect_error(self, mock_cmdeps, mock_utils):
+    @mock.patch.object(compute.manager.LOG, 'error')
+
+    def test_delete_server_get_connect_error(self, log, mock_cmdeps,
+                                             mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
@@ -812,12 +812,14 @@ class TestNovaCompute(test.ProviderTester):
         with self.assertRaises(exceptions.CheckmateException):
             compute.delete_server_task(mock_context, api=mock_api)
 
-        compute.LOG.error.assert_called_with(
+        log.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
-    def test_delete_server_delete_connect_error(self, mock_cmdeps, mock_utils):
+    @mock.patch.object(compute.manager.LOG, 'error')
+    def test_delete_server_delete_connect_error(self, log, mock_cmdeps,
+                                                mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
@@ -829,7 +831,7 @@ class TestNovaCompute(test.ProviderTester):
         with self.assertRaises(exceptions.CheckmateException):
             compute.delete_server_task(mock_context, api=mock_api)
 
-        compute.LOG.error.assert_called_with(
+        log.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
     @mock.patch.object(cm_deps.tasks, 'postback')

@@ -82,3 +82,11 @@ def wait_on_delete_server(context, api=None):
     return Manager.wait_on_delete_server(
         context, wait_on_delete_server.api, wait_on_delete_server.partial)
 
+@task(base=RackspaceProviderTask, default_retry_delay=30,
+      max_retries=120, provider=Provider)
+@statsd.collect
+def delete_server_task(context, api=None):
+    delete_server_task.on_failure = Manager.get_on_failure("deleting",
+                                                           "delete_server_task")
+    return Manager.delete_server_task(context, delete_server_task.api,
+                                      delete_server_task.partial)

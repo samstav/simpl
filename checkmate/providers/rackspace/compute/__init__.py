@@ -155,107 +155,11 @@ def sync_resource_task(context, resource, resource_key, api=None):
             raise cmexc.CheckmateNoTokenError("Auth token expired")
 
 
-@ctask.task(base=RackspaceProviderTask, default_retry_delay=30,
-            max_retries=120, provider=Provider)
+@ctask.task
 @statsd.collect
 def delete_server_task(context, api=None):
     """Celery Task to delete a Nova compute instance."""
-    utils.match_celery_logging(LOG)
-
-    assert "deployment_id" in context or "deployment" in context, \
-        "No deployment id in context"
-    assert "resource_key" in context, "No resource key in context"
-    assert "region" in context, "No region provided"
-    assert 'resource' in context, "No resource definition provided"
-
-    def on_failure(exc, task_id, args, kwargs, einfo):
-        """Handles task failure."""
-        action = "deleting"
-        method = "delete_server_task"
-        _on_failure(exc, task_id, args, kwargs, einfo, action, method)
-
-    delete_server_task.on_failure = on_failure
-
-    if api is None and context.get('simulation') is not True:
-        api = Provider.connect(context, region=context.get("region"))
-
-    server = None
-    inst_id = context.get("instance_id")
-    resource = context.get('resource')
-    resource_key = context.get('resource_key')
-    deployment_id = context.get("deployment_id", context.get("deployment"))
-
-    if inst_id is None:
-        msg = ("Instance ID is not available for Compute Instance, skipping "
-               "delete_server_task for resource %s in deployment %s" %
-               (resource_key, deployment_id))
-        LOG.info(msg)
-        results = {
-            'status': 'DELETED',
-            'status-message': msg
-        }
-        return results
-
-    results = {}
-    try:
-        if context.get('simulation') is not True:
-            server = api.servers.get(inst_id)
-    except (ncexc.NotFound, ncexc.NoUniqueMatch):
-        LOG.warn("Server %s already deleted", inst_id)
-    except requests.ConnectionError:
-        msg = ("Connection error talking to %s endpoint" %
-               (api.client.management_url))
-        LOG.error(msg, exc_info=True)
-        raise cmexc.CheckmateException(message=msg,
-                                       options=cmexc.CAN_RESUME)
-    if (not server) or (server.status == 'DELETED'):
-        results = {
-            'status': 'DELETED',
-            'status-message': ''
-        }
-        if 'hosts' in resource:
-            hosts_results = {}
-            for comp_key in resource.get('hosts', []):
-                hosts_results.update({
-                    'instance:%s' % comp_key: {
-                        'status': 'DELETED',
-                        'status-message': ''
-                    }
-                })
-            cmdeps.resource_postback.delay(deployment_id, hosts_results)
-    elif server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
-        results = {
-            'status': 'DELETING',
-            'status-message': 'Waiting on resource deletion'
-        }
-        if 'hosts' in resource:
-            hosts_results = {}
-            for comp_key in resource.get('hosts', []):
-                hosts_results.update({
-                    'instance:%s' % comp_key: {
-                        'status': 'DELETING',
-                        'status-message': 'Host %s is being deleted.' %
-                                          resource_key
-                    }
-                })
-            cmdeps.resource_postback.delay(deployment_id, hosts_results)
-        try:
-            server.delete()
-        except requests.ConnectionError:
-            msg = ("Connection error talking to %s endpoint" %
-                   (api.client.management_url))
-            LOG.error(msg, exc_info=True)
-            raise cmexc.CheckmateException(message=msg,
-                                           options=cmexc.CAN_RESUME)
-    else:
-        msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
-               % server.status)
-        delete_server_task.partial({
-            'status': 'DELETING',
-            'status-message': msg
-        })
-        raise cmexc.CheckmateException(message=msg, options=cmexc.CAN_RESUME)
-    return results
+    return tasks.delete_server_task(context, api=api)
 
 
 @ctask.task

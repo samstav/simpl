@@ -827,3 +827,163 @@ class TestWaitOnDelete(unittest.TestCase):
                               'DELETED resource.'
         })
         mock_api.servers.find.assert_called_once_with(id="INST_ID")
+
+
+class TestDeleteServer(unittest.TestCase):
+
+    def test_wait_on_delete_instance_not_available(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {},
+        }
+
+        data = manager.Manager.delete_server_task(context, None, None)
+        self.assertDictEqual({"status": "DELETED",
+                              "status-message":
+                                  "Instance ID is not available for Compute"
+                                  " Instance, skipping delete_server_task "
+                                  "for resource 1 in deployment DEP_ID"},
+                             data)
+
+    def test_connection_error(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {},
+            "instance_id": "INST_ID"
+        }
+        mock_api = mock.MagicMock()
+
+        mock_api.servers.get.side_effect = requests.ConnectionError
+
+        try:
+            manager.Manager.delete_server_task(context, mock_api, None)
+            self.fail("Should have thrown an exception!")
+        except cmexc.CheckmateException as exc:
+            self.assertEqual(exc.options, cmexc.CAN_RESUME)
+
+        mock_api.servers.get.assert_called_once_with("INST_ID")
+
+    def test_server_already_deleted(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {},
+            "instance_id": "INST_ID"
+        }
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_server.status = "DELETED"
+
+        mock_api.servers.get.return_value = mock_server
+
+        data = manager.Manager.delete_server_task(context, mock_api, None)
+
+        self.assertDictEqual({"status": "DELETED",
+                              "status-message": ""}, data)
+
+    def test_resource_has_hosts(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {"hosts": [3, 5]},
+            "instance_id": "INST_ID"
+        }
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_callback = mock.MagicMock()
+
+        mock_server.status = "DELETED"
+
+        mock_api.servers.get.return_value = mock_server
+
+        results = manager.Manager.delete_server_task(context, mock_api,
+                                                     mock_callback)
+
+        self.assertEquals(mock_callback.call_count, 2)
+
+        expected_calls = [mock.call({'status': 'DELETED',
+                                     'status-message': ''},
+                                    resource_key=3),
+                          mock.call({
+                              'status': 'DELETED',
+                              'status-message': ''
+                          }, resource_key=5)]
+
+        mock_callback.assert_has_calls(expected_calls)
+        self.assertDictEqual({"status": "DELETED",
+                              "status-message": ""}, results)
+
+        mock_api.servers.get.assert_called_once_with("INST_ID")
+
+    def test_server_is_in_active_status(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {"hosts": [3, 5]},
+            "instance_id": "INST_ID"
+         }
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_callback = mock.MagicMock()
+
+        mock_server.status = 'ACTIVE'
+
+        mock_api.servers.get.return_value = mock_server
+
+        results = manager.Manager.delete_server_task(context, mock_api,
+                                               mock_callback)
+
+        expected_calls = [mock.call({'status': 'DELETING',
+                                     'status-message':
+                                         'Host 1 is being deleted.'},
+                                    resource_key=5),
+                          mock.call({
+                              'status': 'DELETING',
+                              'status-message': 'Host 1 is being deleted.'
+                          }, resource_key=3)]
+
+        mock_callback.assert_has_calls(expected_calls, any_order=True)
+        self.assertDictEqual({'status': 'DELETING',
+                              'status-message':
+                              'Waiting on resource deletion'},
+                             results)
+        mock_api.servers.get.assert_called_once_with("INST_ID")
+        self.assertEquals(True, mock_server.delete.called)
+
+    def test_server_is_in_active_status(self):
+        context = {
+            "deployment_id": "DEP_ID",
+            "resource_key": "1",
+            "region": "ORD",
+            "resource": {},
+            "instance_id": "INST_ID"
+         }
+        mock_api = mock.MagicMock()
+        mock_server = mock.MagicMock()
+        mock_callback = mock.MagicMock()
+
+        mock_server.status = 'BUILD'
+
+        mock_api.servers.get.return_value = mock_server
+
+        try:
+            manager.Manager.delete_server_task(context, mock_api,
+                                               mock_callback)
+            self.fail("Should have thrown an exception")
+        except cmexc.CheckmateException as exc:
+            self.assertEquals(exc.options, cmexc.CAN_RESUME)
+        mock_callback.assert_called_once_with({
+            'status': 'DELETING',
+            'status-message': 'Instance is in state BUILD. Waiting on ACTIVE '
+                              'resource.'})
+
+
+
+

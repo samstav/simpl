@@ -337,8 +337,6 @@ class Manager(object):
         :return:
         """
         utils.match_celery_logging(LOG)
-        #deployment_id = context["deployment_id"]
-        #instance_key = 'instance:%s' % context['resource_key']
 
         if context.get('simulation') is True:
             return
@@ -377,6 +375,88 @@ class Manager(object):
             "status": is_up,
             "status-message": "" if is_up else msg
         }
+
+    @staticmethod
+    def delete_server_task(context, api, callback):
+        """Celery Task to delete a Nova compute instance."""
+        utils.match_celery_logging(LOG)
+
+        assert "deployment_id" in context or "deployment" in context, \
+            "No deployment id in context"
+        assert "resource_key" in context, "No resource key in context"
+        assert "region" in context, "No region provided"
+        assert 'resource' in context, "No resource definition provided"
+
+        server = None
+        inst_id = context.get("instance_id")
+        resource = context.get('resource')
+        resource_key = context.get('resource_key')
+        deployment_id = context.get("deployment_id", context.get("deployment"))
+
+        if inst_id is None:
+            msg = ("Instance ID is not available for Compute Instance, skipping "
+                   "delete_server_task for resource %s in deployment %s" %
+                   (resource_key, deployment_id))
+            LOG.info(msg)
+            results = {
+                'status': 'DELETED',
+                'status-message': msg
+            }
+            return results
+
+        results = {}
+        try:
+            if context.get('simulation') is not True:
+                server = api.servers.get(inst_id)
+        except (ncexc.NotFound, ncexc.NoUniqueMatch):
+            LOG.warn("Server %s already deleted", inst_id)
+        except requests.ConnectionError:
+            msg = ("Connection error talking to %s endpoint" %
+                   (api.client.management_url))
+            LOG.error(msg, exc_info=True)
+            raise cmexec.CheckmateException(message=msg,
+                                           options=cmexec.CAN_RESUME)
+        if (not server) or (server.status == 'DELETED'):
+            results = {
+                'status': 'DELETED',
+                'status-message': ''
+            }
+            if 'hosts' in resource:
+                for comp_key in resource.get('hosts', []):
+                    callback({'status': 'DELETED',
+                              'status-message': ''},
+                             resource_key=comp_key)
+        elif server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
+            results = {
+                'status': 'DELETING',
+                'status-message': 'Waiting on resource deletion'
+            }
+            if 'hosts' in resource:
+                #hosts_results = {}
+                for comp_key in resource.get('hosts', []):
+                    callback({
+                        'status': 'DELETING',
+                        'status-message': 'Host %s is being deleted.' %
+                                          resource_key
+                    }, resource_key=comp_key)
+            try:
+                server.delete()
+            except requests.ConnectionError:
+                msg = ("Connection error talking to %s endpoint" %
+                       (api.client.management_url))
+                LOG.error(msg, exc_info=True)
+                raise cmexec.CheckmateException(message=msg,
+                                                options=cmexec.CAN_RESUME)
+        else:
+            msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
+                   % server.status)
+            callback({
+                'status': 'DELETING',
+                'status-message': msg
+            })
+            raise cmexec.CheckmateException(message=msg,
+                                            options=cmexec.CAN_RESUME)
+        return results
 
 
     @staticmethod
