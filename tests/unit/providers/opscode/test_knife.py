@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Test knife.py"""
-import os
-
 import mock
 import unittest
 
