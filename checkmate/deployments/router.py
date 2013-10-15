@@ -461,31 +461,30 @@ class Router(object):
         """Add nodes to deployment identified by api_id."""
         if utils.is_simulation(api_id):
             bottle.request.environ['context'].simulation = True
-        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id,
-                                                 with_secrets=True)
-        if not deployment:
+        existing_deployment = self.manager.get_deployment(api_id,
+                                                          tenant_id=tenant_id,
+                                                          with_secrets=True)
+        if not existing_deployment:
             raise exceptions.CheckmateDoesNotExist(
                 "No deployment with id %s" % api_id)
-        deployment = cmdeploy.Deployment(deployment)
         body = utils.read_body(bottle.request)
-        if 'service_name' in body:
-            service_name = body['service_name']
-        if 'count' in body:
-            count = int(body['count'])
+        service_name = body.get('service_name')
+        count = int(body.get('count', 0))
 
-        LOG.debug("Add %s nodes for service %s", count, service_name)
-
-        #Should error out if the deployment is building
-        if not service_name or not count:
+        if not service_name or count <= 0:
             bottle.abort(400, "Invalid input, service_name and count is not "
                               "provided in the request body")
+
+        LOG.debug("Add %s nodes for service %s", count, service_name)
         context = bottle.request.environ['context']
-        deployment = self.manager.plan_add_nodes(deployment,
-                                                 context,
-                                                 service_name,
-                                                 count)
+        planned_deployment = self.manager.plan_add_nodes(
+            cmdeploy.Deployment(existing_deployment),
+            context,
+            service_name,
+            count
+        )
         operation = self.manager.deploy_workflow(context,
-                                                 deployment,
+                                                 planned_deployment,
                                                  tenant_id, "SCALE UP")
         add_nodes_wf_id = operation['workflow-id']
         wf_tasks.cycle_workflow.delay(add_nodes_wf_id,
@@ -503,7 +502,8 @@ class Router(object):
         bottle.response.set_header("Location", location)
 
         bottle.response.status = 202  # Accepted (i.e. not done yet)
-        return utils.write_body(deployment, bottle.request, bottle.response)
+        return utils.write_body(planned_deployment,
+                                bottle.request, bottle.response)
 
     @utils.with_tenant
     def delete_deployment(self, api_id, tenant_id=None):
