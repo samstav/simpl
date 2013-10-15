@@ -779,19 +779,22 @@ class TestWaitOnDelete(unittest.TestCase):
 
         mock_api.servers.find.return_value = mock_server
 
-        data = manager.Manager.wait_on_delete_server(context, mock_api,
+        results = manager.Manager.wait_on_delete_server(context, mock_api,
                                                      mock_callback)
 
         self.assertEquals(mock_callback.call_count, 2)
 
-        first_call = mock_callback.mock_calls[0]
-        second_call = mock_callback.mock_calls[1]
-        self.assertEquals("call({'status': 'DELETED', 'status-message': ''}, "
-                          "resource_key=3)", first_call.__str__())
-        self.assertEquals("call({'status': 'DELETED', 'status-message': ''}, "
-                          "resource_key=5)", second_call.__str__())
+        expected_calls = [mock.call({'status': 'DELETED',
+                                     'status-message': ''},
+                                    resource_key=3),
+                          mock.call({
+                              'status': 'DELETED',
+                              'status-message': ''
+                          }, resource_key=5)]
+
+        mock_callback.assert_has_calls(expected_calls)
         self.assertDictEqual({"status": "DELETED",
-                              "status-message": ""}, data)
+                              "status-message": ""}, results)
 
         mock_api.servers.find.assert_called_once_with(id="INST_ID")
 
