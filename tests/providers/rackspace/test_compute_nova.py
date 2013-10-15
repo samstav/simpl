@@ -833,9 +833,7 @@ class TestNovaCompute(test.ProviderTester):
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
     @mock.patch.object(cm_deps.tasks, 'postback')
-    @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
-    def test_wait_on_delete(self, resource_postback,
-                            dep_postback):
+    def test_wait_on_delete(self, dep_postback):
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -867,35 +865,41 @@ class TestNovaCompute(test.ProviderTester):
 
         }
 
-        api = self.mox.CreateMockAnything()
-        mock_servers = self.mox.CreateMockAnything()
+        api = mock.MagicMock()
+        mock_servers = mock.MagicMock()
+        mock_server = mock.MagicMock()
+
         api.servers = mock_servers
-        mock_server = self.mox.CreateMockAnything()
         mock_server.status = 'DELETED'
-        mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
-        compute.cmdeps.resource_postback.delay('1234', expect).AndReturn(None)
-        self.mox.ReplayAll()
+        mock_server.find.return_value = mock_server
+        mock_servers.find.return_value = mock_server
+
         ret = compute.wait_on_delete_server(context, api=api)
+
         self.assertDictEqual(expect, ret)
-        self.mox.VerifyAll()
-        calls = [mock.call('1234', {
-            "resources": {
-                '0': {
-                    'status': 'DELETED',
-                    'instance': {
+        calls = [
+            mock.call('1234', {
+                "resources": {
+                    '0': {
                         'status': 'DELETED',
-                        'status-message': ''}}}}),
-                mock.call('1234', {
-                    "resources": {
-                        "1": {
+                        'instance': {
+                            'status': 'DELETED',
+                            'status-message': ''}
+                    }
+                }}
+            ),
+            mock.call('1234', {
+                "resources": {
+                    '1': {
+                        "status": "DELETED",
+                        "instance": {
                             "status": "DELETED",
-                            "instance": {
-                                "status": "DELETED",
-                                "status-message": ""
-                            }
+                            "status-message": ""
                         }
                     }
-                })]
+                }}
+            )
+        ]
         dep_postback.assert_has_calls(calls)
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
