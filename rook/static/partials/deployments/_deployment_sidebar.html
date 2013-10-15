@@ -41,21 +41,21 @@
   </li>
 
   <li>
-    <a ng-click="open_modal_with_scope('/partials/deployments/_check_warning.html'); wrap_admin_call(data['created-by'], check, data)" tooltip="Check the currect deployment for common errors" tooltip-placement="right">
+    <a ng-click="open_modal('/partials/deployments/_check_warning.html', {}, this); wrap_admin_call(data['created-by'], check, data)" tooltip="Check the currect deployment for common errors" tooltip-placement="right">
       <i class="icon-check"></i>
       Check for errors
     </a>
   </li>
 
   <li>
-    <a ng-click="open_modal_with_scope('/partials/deployments/_delete_warning.html')" tooltip="Delete Resources and Deployment" tooltip-placement="right">
+    <a ng-click="open_modal('/partials/deployments/_delete_warning.html', {}, this)" tooltip="Delete Resources and Deployment" tooltip-placement="right">
       <i class="icon-remove"></i>
       Delete
     </a>
   </li>
 
   <li>
-  <a ng-click="open_modal_with_scope('/partials/deployments/_force_delete_warning.html')" tooltip="Delete Resources and Deployment even if status does not allow it" tooltip-placement="right">
+    <a ng-click="open_modal('/partials/deployments/_force_delete_warning.html', {}, this)" tooltip="Delete Resources and Deployment even if status does not allow it" tooltip-placement="right">
       <i class="icon-remove"></i> Force Delete
     </a>
   </li>

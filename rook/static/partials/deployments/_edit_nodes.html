@@ -27,7 +27,7 @@
 
 <div class='pull-right'>
   <i class="icon-question-sign muted" ng-hide="tree.count" tooltip="Select some nodes first"></i>
-  <button class="dropdown-toggle btn" ng-click="open_modal_with_scope('/partials/deployments/_delete_nodes_warning.html')" ng-disabled="tree.count == 0 || data.status != 'UP'">
+  <button class="dropdown-toggle btn" ng-click="open_modal('/partials/deployments/_delete_nodes_warning.html', {}, this)" ng-disabled="tree.count == 0 || data.status != 'UP'">
       <i class="icon-minus-sign action action-delete"></i>
       Delete Selected Nodes
   </button>

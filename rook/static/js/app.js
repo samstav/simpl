@@ -1003,10 +1003,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     triggered: 0
   };
 
-  $scope.open_modal_with_scope = function(template, data){
-    $scope.open_modal(template, data, $scope);
-  }
-
   $scope.hide_task_traceback = {
     failure: true,
     retry: true
@@ -3087,10 +3083,6 @@ function DeploymentController($scope, $location, $resource, $routeParams, $modal
     }
   };
 
-  $scope.open_modal_with_scope = function(template, data){
-    $scope.open_modal(template, data, $scope);
-  }
-
   $scope.delete_deployment = function(force) {
     var retry = function() {
       $scope.delete_deployment(force);
@@ -3257,10 +3249,6 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
     'load-balancer': false,
     database: false
   };
-
-  $scope.open_modal_with_scope = function(template, data){
-    $scope.open_modal(template, data, $scope);
-  }
 
   $scope.add_to_deployment = function(decorated_resource){
     var resource_list = $scope.resources_by_provider[decorated_resource.object.provider];
