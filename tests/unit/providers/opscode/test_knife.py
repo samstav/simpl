@@ -27,28 +27,32 @@ class TestKnife(unittest.TestCase):
         self.kitchen_path = "/tmp/dep/kitchen"
         self.knife = Knife(self.kitchen_path)
 
+    @mock.patch('os.path.exists')
     @mock.patch('checkmate.utils.run_ruby_command')
-    def test_run_command(self, mock_run):
-        os.path.exists = mock.Mock(return_value=True)
+    def test_run_command(self, mock_run, mock_path_exists):
+        mock_path_exists.return_value = True
         mock_run.return_value = "foo\nbar"
 
         result = self.knife.run_command(['knife', 'test'])
 
         self.assertEqual(result, mock_run.return_value)
-        os.path.exists.asser_called_once_with("%s/solo.rb" % self.kitchen_path)
+        mock_path_exists.assert_called_once_with("%s/solo.rb" %
+                                                 self.kitchen_path)
         mock_run.assert_called_once_with(
             self.kitchen_path, 'knife',
             ['test', '-c', "%s/solo.rb" % self.kitchen_path], lock=True)
 
+    @mock.patch('os.path.exists')
     @mock.patch('checkmate.utils.run_ruby_command')
-    def test_run_command_error_handling(self, mock_run):
-        os.path.exists = mock.Mock(return_value=True)
+    def test_run_command_error_handling(self, mock_run, mock_path_exists):
+        mock_path_exists.return_value = True
         mock_run.return_value = "ERROR:KnifeSolo::::Error:KnifeError\nbar"
 
         self.assertRaises(exceptions.CheckmateCalledProcessError,
                           self.knife.run_command, ['knife', 'test'])
 
-        os.path.exists.asser_called_once_with("%s/solo.rb" % self.kitchen_path)
+        mock_path_exists.assert_called_once_with("%s/solo.rb" %
+                                                 self.kitchen_path)
         mock_run.assert_called_once_with(
             self.kitchen_path, 'knife',
             ['test', '-c', "%s/solo.rb" % self.kitchen_path], lock=True)

@@ -12,7 +12,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Test Blueprints cache."""
-import os
 import subprocess
 import time
 
@@ -20,7 +19,7 @@ import mock
 import unittest
 
 from checkmate.providers.opscode.solo.blueprint_cache import BlueprintCache
-from checkmate import utils, exceptions
+from checkmate import exceptions
 
 
 class TestUpdate(unittest.TestCase):
@@ -28,89 +27,109 @@ class TestUpdate(unittest.TestCase):
         self.source_repo = "https://foo.com/checkmate/wordpress.git"
         self.cache = BlueprintCache(self.source_repo)
 
-    def test_non_existing_cache(self):
-        os.path.exists = mock.Mock(return_value=False)
-        os.makedirs = mock.Mock()
-        utils.git_clone = mock.Mock()
-        utils.git_tags = mock.Mock(return_value=['master', 'working'])
-        utils.git_checkout = mock.Mock()
+    @mock.patch('checkmate.utils.git_checkout')
+    @mock.patch('checkmate.utils.git_tags')
+    @mock.patch('checkmate.utils.git_clone')
+    @mock.patch('os.makedirs')
+    @mock.patch('os.path.exists')
+    def test_non_existing_cache(self, mock_path_exists, mock_make_dirs,
+                                mock_clone, mock_tags, mock_checkout):
+        mock_path_exists.return_value = False
+        mock_tags.return_value = ['master', 'working']
 
         self.cache.update()
 
-        os.path.exists.assert_called_once_with(self.cache.cache_path)
-        os.makedirs.assert_called_once_with(self.cache.cache_path)
-        utils.git_clone.assert_called_once_with(self.cache.cache_path,
-                                                self.source_repo,
-                                                branch='master')
-        utils.git_tags.assert_called_once_with(self.cache.cache_path)
-        utils.git_checkout.assert_called_once_with(self.cache.cache_path,
-                                                   'master')
+        mock_path_exists.assert_called_once_with(self.cache.cache_path)
+        mock_make_dirs.assert_called_once_with(self.cache.cache_path)
+        mock_clone.assert_called_once_with(self.cache.cache_path,
+                                           self.source_repo, branch='master')
+        mock_tags.assert_called_once_with(self.cache.cache_path)
+        mock_checkout.assert_called_once_with(self.cache.cache_path, 'master')
 
-    def test_non_existing_cache_exc_handling(self):
-        os.path.exists = mock.Mock(return_value=False)
-        os.makedirs = mock.Mock()
-        utils.git_clone = mock.Mock(
-            side_effect=subprocess.CalledProcessError(1, "cmd"))
+    @mock.patch('checkmate.utils.git_clone')
+    @mock.patch('os.makedirs')
+    @mock.patch('os.path.exists')
+    def test_non_existing_cache_exc_handling(self, mock_path_exists,
+                                             mock_make_dirs, mock_clone):
+        mock_path_exists.return_value = False
+        mock_clone.side_effect = subprocess.CalledProcessError(1, "cmd")
 
         self.assertRaises(exceptions.CheckmateException, self.cache.update)
 
-        os.path.exists.assert_called_once_with(self.cache.cache_path)
-        os.makedirs.assert_called_once_with(self.cache.cache_path)
-        utils.git_clone.assert_called_once_with(self.cache.cache_path,
-                                                self.source_repo,
-                                                branch='master')
+        mock_path_exists.assert_called_once_with(self.cache.cache_path)
+        mock_make_dirs.assert_called_once_with(self.cache.cache_path)
+        mock_clone.assert_called_once_with(self.cache.cache_path,
+                                           self.source_repo, branch='master')
 
-    def test_cache_hit(self):
+    @mock.patch('os.path.getmtime')
+    @mock.patch('time.time')
+    @mock.patch('os.path.isfile')
+    @mock.patch('os.path.exists')
+    def test_cache_hit(self, mock_path_exists, mock_is_file, mock_time,
+                       mock_mtime):
         head_file_path = "%s/.git/FETCH_HEAD" % self.cache.cache_path
-        os.path.exists = mock.Mock(return_value=True)
-        os.path.isfile = mock.Mock(return_value=True)
-        time.time = mock.Mock(return_value=100)
-        os.path.getmtime = mock.Mock(return_value=50)
+        mock_path_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_time.return_value = 100
+        mock_mtime.return_value = 50
 
         self.cache.update()
 
-        os.path.exists.assert_called_once_with(self.cache.cache_path)
-        os.path.isfile.assert_called_once_with(head_file_path)
+        mock_path_exists.assert_called_once_with(self.cache.cache_path)
+        mock_is_file.assert_called_once_with(head_file_path)
         self.assertTrue(time.time.called)
-        os.path.getmtime.assert_called_once_with(head_file_path)
+        mock_mtime.assert_called_once_with(head_file_path)
 
-    def test_cache_miss_for_default_branch(self):
+    @mock.patch('checkmate.utils.git_checkout')
+    @mock.patch('checkmate.utils.git_tags')
+    @mock.patch('checkmate.utils.git_fetch')
+    @mock.patch('os.path.getmtime')
+    @mock.patch('time.time')
+    @mock.patch('os.path.isfile')
+    @mock.patch('os.path.exists')
+    def test_cache_miss_for_default_branch(self, mock_path_exists,
+                                           mock_is_file, mock_time,
+                                           mock_mtime, mock_fetch, mock_tags,
+                                           mock_checkout):
         head_file_path = "%s/.git/FETCH_HEAD" % self.cache.cache_path
-        os.path.exists = mock.Mock(return_value=True)
-        os.path.isfile = mock.Mock(return_value=True)
-        time.time = mock.Mock(return_value=4000)
-        os.path.getmtime = mock.Mock(return_value=50)
-        utils.git_tags = mock.Mock(return_value=['master'])
-        utils.git_fetch = mock.Mock()
-        utils.git_checkout = mock.Mock()
+        mock_path_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_time.return_value = 4000
+        mock_mtime.return_value = 50
+        mock_tags.return_value = ['master']
 
         self.cache.update()
 
-        os.path.exists.assert_called_once_with(self.cache.cache_path)
-        os.path.isfile.assert_called_once_with(head_file_path)
+        mock_path_exists.assert_called_once_with(self.cache.cache_path)
+        mock_is_file.assert_called_once_with(head_file_path)
         self.assertTrue(time.time.called)
-        os.path.getmtime.assert_called_once_with(head_file_path)
-        utils.git_tags.assert_called_once_with(self.cache.cache_path)
-        utils.git_fetch.assert_called_once_with(
+        mock_mtime.assert_called_once_with(head_file_path)
+        mock_tags.assert_called_once_with(self.cache.cache_path)
+        mock_fetch.assert_called_once_with(
             self.cache.cache_path, "refs/tags/master:refs/tags/master")
-        utils.git_checkout.assert_called_once_with(self.cache.cache_path,
-                                                   'master')
+        mock_checkout.assert_called_once_with(self.cache.cache_path, 'master')
 
-    def test_cache_miss_for_missing_tag(self):
+    @mock.patch('checkmate.utils.git_tags')
+    @mock.patch('checkmate.utils.git_pull')
+    @mock.patch('os.path.getmtime')
+    @mock.patch('time.time')
+    @mock.patch('os.path.isfile')
+    @mock.patch('os.path.exists')
+    def test_cache_miss_for_missing_tag(self, mock_path_exists,
+                                        mock_is_file, mock_time, mock_mtime,
+                                        mock_pull, mock_tags):
         head_file_path = "%s/.git/FETCH_HEAD" % self.cache.cache_path
-        os.path.exists = mock.Mock(return_value=True)
-        os.path.isfile = mock.Mock(return_value=True)
-        time.time = mock.Mock(return_value=4000)
-        os.path.getmtime = mock.Mock(return_value=50)
-        utils.git_tags = mock.Mock(return_value=[])
-        utils.git_pull = mock.Mock()
+        mock_path_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_time.return_value = 4000
+        mock_mtime.return_value = 50
+        mock_tags.return_value = []
 
         self.cache.update()
 
-        os.path.exists.assert_called_once_with(self.cache.cache_path)
-        os.path.isfile.assert_called_once_with(head_file_path)
+        mock_path_exists.assert_called_once_with(self.cache.cache_path)
+        mock_is_file.assert_called_once_with(head_file_path)
         self.assertTrue(time.time.called)
-        os.path.getmtime.assert_called_once_with(head_file_path)
-        utils.git_tags.assert_called_once_with(self.cache.cache_path)
-        utils.git_pull.assert_called_once_with(self.cache.cache_path,
-                                               'master')
+        mock_mtime.assert_called_once_with(head_file_path)
+        mock_tags.assert_called_once_with(self.cache.cache_path)
+        mock_pull.assert_called_once_with(self.cache.cache_path, 'master')

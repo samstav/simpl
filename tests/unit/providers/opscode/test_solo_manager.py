@@ -13,8 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Tests for solo manager."""
-import shutil
-
 import mock
 import unittest
 
@@ -34,19 +32,19 @@ class TestCreateEnvironment(unittest.TestCase):
                                              simulation=True)
         self.assertEqual(results, expected)
 
+    @mock.patch('shutil.copy')
     @mock.patch.object(ChefEnvironment, 'fetch_cookbooks')
     @mock.patch.object(ChefEnvironment, 'create_kitchen')
     @mock.patch.object(ChefEnvironment, 'create_environment_keys')
     @mock.patch.object(ChefEnvironment, 'create_env_dir')
     def test_success(self, mock_create_env, mock_create_keys,
-                     mock_create_kitchen, mock_fetch_cookbooks):
+                     mock_create_kitchen, mock_fetch_cookbooks, mock_copy):
         mock_create_keys.return_value = {
             'public_key': '1234'
         }
         mock_create_kitchen.return_value = {
             'kitchen_path': '/tmp'
         }
-        shutil.copy = mock.Mock()
 
         expected = {
             'environment': '/tmp/DEP_ID',
@@ -67,7 +65,7 @@ class TestCreateEnvironment(unittest.TestCase):
             private_key="private_key", public_key_ssh="public_key_ssh")
         mock_create_kitchen.assert_called_once_with(
             secret_key="secret_key", source_repo="source_repo")
-        shutil.copy.assert_called_once_with(
+        mock_copy.assert_called_once_with(
             "/tmp/DEP_ID/checkmate.pub",
             "/tmp/DEP_ID/kitchen/certificates/checkmate-environment.pub")
         self.assertTrue(mock_fetch_cookbooks.called)
