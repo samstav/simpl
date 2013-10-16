@@ -14,11 +14,14 @@
 """Rackspace solo provider manager."""
 import logging
 import os
+import re
 import shutil
+import subprocess
 
 from checkmate.common import config
 from checkmate import exceptions
 from checkmate.providers.opscode.solo.chef_environment import ChefEnvironment
+from checkmate import ssh
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)
@@ -95,3 +98,93 @@ class Manager(object):
         results.update(key_data)
         LOG.debug("create_environment returning: %s", results)
         return results
+
+    @staticmethod
+    def register_node(context, host, environment, callback, path=None,
+                      password=None, omnibus_version=None, attributes=None,
+                      identity_file=None, kitchen_name='kitchen',
+                      simulate=False):
+        """Register a node in Chef.
+
+        Using 'knife prepare' we will:
+        - update apt caches on Ubuntu by default (which bootstrap does not do)
+        - install chef on the client
+        - register the node by creating as .json file for it in /nodes/
+
+        Note: Maintaining same 'register_node' name as chefserver.py
+
+        :param host: the public IP of the host (that's how knife solo tracks
+        the nodes)
+        :param environment: the ID of the environment/deployment
+        :param path: an optional override for path to the environment root
+        :param password: the node's password
+        :param omnibus_version: override for knife bootstrap (default=latest)
+        :param attributes: attributes to set on node (dict)
+        :param identity_file: private key file to use to connect to the node
+        """
+        instance_key = 'instance:%s' % context['resource_key']
+        results = {'status': "BUILD"}
+        if simulate:
+            # Update status of current resource to BUILD
+            if attributes:
+                node = {'run_list': []}  # default
+                node.update(attributes)
+                results.update({'node-attributes': node})
+            results = {instance_key: results}
+            return results
+
+        res = {}
+
+        results = {instance_key: results}
+        res.update(results)
+
+        callback(res)
+
+        env = ChefEnvironment(environment, root_path=path,
+                              kitchen_name=kitchen_name)
+
+        # Rsync problem with creating path (missing -p so adding it ourselves)
+        # and doing this before the complex prepare work
+        ssh.remote_execute(host, "mkdir -p %s" % env.kitchen_path, 'root',
+                           password=password, identity_file=identity_file)
+
+        try:
+            env.register_node(host, password=password,
+                              omnibus_version=omnibus_version,
+                              identity_file=identity_file)
+        except (subprocess.CalledProcessError,
+                exceptions.CheckmateCalledProcessError) as exc:
+            msg = "Knife prepare failed for %s. Retrying." % host
+            LOG.warn(msg)
+            raise exceptions.CheckmateException(message=str(exc),
+                                                options=exceptions.CAN_RESUME)
+        except StandardError as exc:
+            LOG.error("Knife prepare failed with an unhandled error '%s' for "
+                      "%s.", exc, host)
+            raise exc
+
+        try:
+            results = ssh.remote_execute(host, "knife -v", 'root',
+                                         password=password,
+                                         identity_file=identity_file)
+            LOG.debug("Chef install check results on %s: %s", host,
+                      results['stdout'])
+            if (re.match('^Chef: [0-9]+.[0-9]+.[0-9]+', results['stdout'])
+                    is None):
+                exc = exceptions.CheckmateException(
+                    "Check for chef install failed with unexpected response "
+                    "'%s'" % results, options=exceptions.CAN_RESUME)
+                raise exc
+        except StandardError as exc:
+            LOG.error("Chef install failed on %s: %s", host, exc)
+            raise exceptions.CheckmateException(str(exc),
+                                                options=exceptions.CAN_RESUME)
+
+        node_data = env.write_node_attributes(host, attributes)
+        if node_data:
+            results = {
+                instance_key: {
+                    'node-attributes': node_data
+                }
+            }
+            return results

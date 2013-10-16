@@ -13,9 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Tests for solo manager."""
+import subprocess
 import mock
 import unittest
 
+from checkmate import exceptions
 from checkmate.providers.opscode.solo.chef_environment import ChefEnvironment
 from checkmate.providers.opscode.solo.manager import Manager
 
@@ -69,6 +71,127 @@ class TestCreateEnvironment(unittest.TestCase):
             "/tmp/DEP_ID/checkmate.pub",
             "/tmp/DEP_ID/kitchen/certificates/checkmate-environment.pub")
         self.assertTrue(mock_fetch_cookbooks.called)
+
+
+class TestRegisterNode(unittest.TestCase):
+    def test_sim(self):
+        expected = {
+            'instance:1': {
+                'node-attributes': {
+                    'run_list': [],
+                    'foo': 'bar'
+                },
+                'status': 'BUILD'
+            }
+        }
+        results = Manager.register_node({"resource_key": "1"}, "1.1.1.1",
+                                        "DEP_ID", None,
+                                        attributes={"foo": "bar"},
+                                        simulate=True)
+        self.assertDictEqual(results, expected)
+
+    @mock.patch.object(ChefEnvironment, 'write_node_attributes')
+    @mock.patch.object(ChefEnvironment, 'register_node')
+    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch('checkmate.ssh.remote_execute')
+    def test_success(self, mock_ssh_execute, mock_kitchen_path,
+                     mock_register_node, mock_write_attribs):
+        expected_callback = {
+            'instance:1': {
+                'status': 'BUILD'
+            }
+        }
+        mock_ssh_execute.side_effect = [None, {"stdout": "Chef: 11.1.1"}]
+        mock_write_attribs.return_value = {"foo": "bar", "version": "1.1"}
+        mock_callback = mock.Mock()
+        expected = {
+            'instance:1': {
+                'node-attributes': {
+                    'foo': 'bar',
+                    'version': '1.1',
+                }
+            }
+        }
+
+        results = Manager.register_node({"resource_key": "1"}, "1.1.1.1",
+                                        "DEP_ID", mock_callback,
+                                        password="password",
+                                        identity_file="identity_file",
+                                        attributes={"foo": "bar"},
+                                        omnibus_version="1.1")
+
+        self.assertDictEqual(results, expected)
+        mock_callback.assert_called_once_with(expected_callback)
+        mock_register_node.assert_called_once_with(
+            "1.1.1.1", password="password", omnibus_version="1.1",
+            identity_file="identity_file")
+        ssh_calls = [mock.call("1.1.1.1", "mkdir -p %s" % mock_kitchen_path,
+                               "root", password="password",
+                               identity_file="identity_file"),
+                     mock.call("1.1.1.1", "knife -v", "root",
+                               password="password",
+                               identity_file="identity_file")]
+        mock_ssh_execute.assert_has_calls(ssh_calls)
+
+    @mock.patch.object(ChefEnvironment, 'register_node')
+    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch('checkmate.ssh.remote_execute')
+    def test_called_process_error(self, mock_ssh_execute, mock_kitchen_path,
+                                  mock_register_node):
+        expected_callback = {
+            'instance:1': {
+                'status': 'BUILD'
+            }
+        }
+        mock_register_node.side_effect = subprocess.CalledProcessError(
+            500, "cmd")
+        mock_callback = mock.Mock()
+
+        self.assertRaises(exceptions.CheckmateException,
+                          Manager.register_node, {"resource_key": "1"},
+                          "1.1.1.1", "DEP_ID", mock_callback,
+                          password="password",
+                          identity_file="identity_file",
+                          attributes={"foo": "bar"}, omnibus_version="1.1")
+
+        mock_callback.assert_called_once_with(expected_callback)
+        mock_register_node.assert_called_once_with(
+            "1.1.1.1", password="password", omnibus_version="1.1",
+            identity_file="identity_file")
+        mock_ssh_execute.assert_called_once_with(
+            "1.1.1.1", "mkdir -p %s" % mock_kitchen_path, "root",
+            password="password", identity_file="identity_file")
+
+    @mock.patch.object(ChefEnvironment, 'register_node')
+    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch('checkmate.ssh.remote_execute')
+    def test_chef_install_failure(self, mock_ssh_execute, mock_kitchen_path,
+                                  mock_register_node):
+        expected_callback = {
+            'instance:1': {
+                'status': 'BUILD'
+            }
+        }
+        mock_ssh_execute.side_effect = [None, {"stdout": "foo"}]
+        mock_callback = mock.Mock()
+
+        self.assertRaises(exceptions.CheckmateException,
+                          Manager.register_node, {"resource_key": "1"},
+                          "1.1.1.1", "DEP_ID", mock_callback,
+                          password="password", identity_file="identity_file",
+                          attributes={"foo": "bar"}, omnibus_version="1.1")
+
+        mock_callback.assert_called_once_with(expected_callback)
+        mock_register_node.assert_called_once_with(
+            "1.1.1.1", password="password", omnibus_version="1.1",
+            identity_file="identity_file")
+        ssh_calls = [mock.call("1.1.1.1", "mkdir -p %s" % mock_kitchen_path,
+                               "root", password="password",
+                               identity_file="identity_file"),
+                     mock.call("1.1.1.1", "knife -v", "root",
+                               password="password",
+                               identity_file="identity_file")]
+        mock_ssh_execute.assert_has_calls(ssh_calls)
 
 
 if __name__ == '__main__':

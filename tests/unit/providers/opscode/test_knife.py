@@ -59,7 +59,7 @@ class TestKnife(unittest.TestCase):
         self.knife.run_command = mock.Mock()
         self.knife.init_solo()
         self.knife.run_command.assert_called_once_with(
-            self.kitchen_path, ['knife', 'solo', 'init', '.'])
+            ['knife', 'solo', 'init', '.'])
 
     @mock.patch('__builtin__.file')
     def test_write_solo_config(self, mock_file):
@@ -82,6 +82,29 @@ class TestKnife(unittest.TestCase):
         self.assertEqual(result,
                          "%s/certificates/chef.pem" % self.kitchen_path)
         file_handle.write.assert_called_once_with(expected_config)
+
+    @mock.patch('os.path.exists')
+    def test_prepare_solo_success(self, mock_path_exists):
+        mock_path_exists.return_value = False
+        self.knife.run_command = mock.Mock()
+        self.knife.prepare_solo("1.1.1.1", password="password",
+                                omnibus_version="0.1",
+                                identity_file="identity_file")
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'prepare', 'root@1.1.1.1', '-c',
+             "%s/solo.rb" % self.kitchen_path, '-P', 'password',
+             '--omnibus-version', '0.1', '-i', 'identity_file'])
+        mock_path_exists.assert_called_once_with("%s/nodes/1.1.1.1.json" %
+                                                 self.kitchen_path)
+
+    @mock.patch('os.path.exists')
+    def test_prep_solo_registered_node(self, mock_path_exists):
+        mock_path_exists.return_value = True
+        self.knife.run_command = mock.Mock()
+        self.knife.prepare_solo("1.1.1.1")
+        self.assertFalse(self.knife.run_command.called)
+        mock_path_exists.assert_called_once_with("%s/nodes/1.1.1.1.json" %
+                                                 self.kitchen_path)
 
 
 if __name__ == '__main__':

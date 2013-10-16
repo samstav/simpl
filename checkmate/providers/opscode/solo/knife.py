@@ -14,6 +14,7 @@
 """Knife domain object."""
 import logging
 import os
+import subprocess
 
 from checkmate import exceptions, utils
 
@@ -35,7 +36,33 @@ class Knife(object):
         :return:
         """
         params = ['knife', 'solo', 'init', '.']
-        self.run_command(self.kitchen_path, params)
+        self.run_command(params)
+
+    def prepare_solo(self, host, password=None, omnibus_version=None,
+                     identity_file=None):
+        """Calls knife solo prepare to register a node and install chef
+        client on the node
+        :return:
+        """
+        # Calculate node path and check for prexistance
+        node_path = self.get_node_path(host)
+        if os.path.exists(node_path):
+            LOG.info("Node is already registered: %s", node_path)
+        else:
+            # Build and execute command 'knife prepare' command
+            params = ['knife', 'solo', 'prepare', 'root@%s' % host,
+                      '-c', os.path.join(self.kitchen_path, 'solo.rb')]
+            if password:
+                params.extend(['-P', password])
+            if omnibus_version:
+                params.extend(['--omnibus-version', omnibus_version])
+            if identity_file:
+                params.extend(['-i', identity_file])
+            self.run_command(params)
+
+    def get_node_path(self, host):
+        """Gets the node path for a host."""
+        return os.path.join(self.kitchen_path, 'nodes', '%s.json' % host)
 
     def run_command(self, params, lock=True):
         """Runs the 'knife xxx' command.

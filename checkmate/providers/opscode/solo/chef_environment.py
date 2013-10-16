@@ -21,6 +21,7 @@ import subprocess
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
+from eventlet.green import threading
 
 from checkmate.common import config
 from checkmate import exceptions, utils
@@ -67,6 +68,7 @@ class ChefEnvironment(object):
         return self._public_key_path
 
     def create_env_dir(self):
+        """Creates the environment directory."""
         try:
             os.mkdir(self._env_path, 0o770)
             LOG.debug("Created environment directory: %s", self.env_name)
@@ -76,9 +78,20 @@ class ChefEnvironment(object):
                          self._env_path, exc_info=True)
             else:
                 msg = "Could not create environment %s" % self._env_path
-                raise exceptions.CheckmateException(msg)
+                exception = exceptions.CheckmateException(
+                    str(ose), friendly_message=msg,
+                    options=exceptions.CAN_RESUME)
+                raise exception
+
+    def register_node(self, host, password=None, omnibus_version=None,
+                      identity_file=None):
+        """Registers a node in the environment."""
+        self._knife.prepare_solo(host, password=password,
+                                 omnibus_version=omnibus_version,
+                                 identity_file=identity_file)
 
     def fetch_cookbooks(self):
+        """Fetches cookbooks."""
         if os.path.exists(os.path.join(self._kitchen_path, 'Berksfile')):
             ChefEnvironment._ensure_berkshelf_environment()
             utils.run_ruby_command(self._kitchen_path, 'berks',
@@ -94,6 +107,7 @@ class ChefEnvironment(object):
                       self._kitchen_path)
 
     def delete_cookbooks(self):
+        """Deletes cookbooks."""
         cookbook_config_exists = (
             os.path.exists(os.path.join(self._kitchen_path, 'Berksfile'))
             or
@@ -228,7 +242,30 @@ class ChefEnvironment(object):
         LOG.debug("Finished creating kitchen: %s", self._kitchen_path)
         return {"kitchen": self._kitchen_path}
 
+    def write_node_attributes(self, host, attributes):
+        """Merge node attributes into existing ones in node file."""
+        node_path = self._knife.get_node_path(host)
+        if attributes:
+            lock = threading.Lock()
+            lock.acquire()
+            try:
+                node = {'run_list': []}  # default
+                if os.path.exists(node_path):
+                    with file(node_path, 'r') as node_file_r:
+                        node = json.load(node_file_r)
+                utils.merge_dictionary(node, attributes)
+                with file(node_path, 'w') as node_file_w:
+                    json.dump(node, node_file_w)
+                LOG.info("Node attributes written in %s", node_path,
+                         extra=dict(data=node))
+                return node
+            except StandardError as exc:
+                raise exc
+            finally:
+                lock.release()
+
     def _create_private_key(self, private_key):
+        """Creates the private key for an environment."""
         if os.path.exists(self._private_key_path):
             if private_key:
                 with file(self._private_key_path, 'r') as pk_file:
@@ -259,6 +296,7 @@ class ChefEnvironment(object):
         return self._private_key_path
 
     def _create_public_key(self, public_key_ssh):
+        """Creates the public key for an environment."""
         if os.path.exists(self._public_key_path):
             LOG.debug("Public key exists. Retrieving it from %s",
                       self._public_key_path)
