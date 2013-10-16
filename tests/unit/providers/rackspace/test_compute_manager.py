@@ -24,7 +24,6 @@ import unittest
 from checkmate import exceptions as cmexc
 from checkmate.providers.rackspace import compute
 from checkmate.providers.rackspace.compute import manager as manager
-from checkmate.providers.rackspace.compute import provider as provider
 from checkmate import rdp
 from checkmate import ssh
 from checkmate import utils
@@ -717,12 +716,12 @@ class TestWaitOnDelete(unittest.TestCase):
         }
 
         data = manager.Manager.wait_on_delete_server(context, None, None)
-        self.assertDictEqual({"status": "DELETED",
-                              "status-message":
-                                  "Instance ID is not available for Compute"
-                                  " Instance, skipping wait_on_delete_task "
-                                  "for resource 1 in deployment DEP_ID"},
-                             data)
+        self.assertDictEqual({
+            "status": "DELETED",
+            "status-message": "Instance ID is not available for Compute "
+                              "Instance, skipping wait_on_delete_task for "
+                              "resource 1 in deployment DEP_ID"
+        }, data)
 
     def test_connection_error(self):
         context = {
@@ -780,7 +779,7 @@ class TestWaitOnDelete(unittest.TestCase):
         mock_api.servers.find.return_value = mock_server
 
         results = manager.Manager.wait_on_delete_server(context, mock_api,
-                                                     mock_callback)
+                                                        mock_callback)
 
         self.assertEquals(mock_callback.call_count, 2)
 
@@ -805,7 +804,7 @@ class TestWaitOnDelete(unittest.TestCase):
             "region": "ORD",
             "resource": {"hosts": [3, 5]},
             "instance_id": "INST_ID"
-         }
+        }
         mock_api = mock.MagicMock()
         mock_server = mock.MagicMock()
         mock_callback = mock.MagicMock()
@@ -816,7 +815,7 @@ class TestWaitOnDelete(unittest.TestCase):
 
         try:
             manager.Manager.wait_on_delete_server(context, mock_api,
-                                                         mock_callback)
+                                                  mock_callback)
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exc:
             self.assertEquals(cmexc.CAN_RESUME, exc.options)
@@ -840,12 +839,12 @@ class TestDeleteServer(unittest.TestCase):
         }
 
         data = manager.Manager.delete_server_task(context, None, None)
-        self.assertDictEqual({"status": "DELETED",
-                              "status-message":
-                                  "Instance ID is not available for Compute"
-                                  " Instance, skipping delete_server_task "
-                                  "for resource 1 in deployment DEP_ID"},
-                             data)
+        self.assertDictEqual({
+            "status": "DELETED",
+            "status-message": "Instance ID is not available for Compute"
+                              " Instance, skipping delete_server_task "
+                              "for resource 1 in deployment DEP_ID"
+        }, data)
 
     def test_connection_error(self):
         context = {
@@ -928,7 +927,7 @@ class TestDeleteServer(unittest.TestCase):
             "region": "ORD",
             "resource": {"hosts": [3, 5]},
             "instance_id": "INST_ID"
-         }
+        }
         mock_api = mock.MagicMock()
         mock_server = mock.MagicMock()
         mock_callback = mock.MagicMock()
@@ -938,16 +937,18 @@ class TestDeleteServer(unittest.TestCase):
         mock_api.servers.get.return_value = mock_server
 
         results = manager.Manager.delete_server_task(context, mock_api,
-                                               mock_callback)
+                                                     mock_callback)
 
-        expected_calls = [mock.call({'status': 'DELETING',
-                                     'status-message':
-                                         'Host 1 is being deleted.'},
-                                    resource_key=5),
-                          mock.call({
-                              'status': 'DELETING',
-                              'status-message': 'Host 1 is being deleted.'
-                          }, resource_key=3)]
+        expected_calls = [
+            mock.call({
+                'status': 'DELETING',
+                'status-message': 'Host 1 is being deleted.'
+            }, resource_key=5),
+            mock.call({
+                'status': 'DELETING',
+                'status-message': 'Host 1 is being deleted.'
+            }, resource_key=3)
+        ]
 
         mock_callback.assert_has_calls(expected_calls, any_order=True)
         self.assertDictEqual({'status': 'DELETING',
@@ -957,14 +958,14 @@ class TestDeleteServer(unittest.TestCase):
         mock_api.servers.get.assert_called_once_with("INST_ID")
         self.assertEquals(True, mock_server.delete.called)
 
-    def test_server_is_in_active_status(self):
+    def test_server_is_in_build_status(self):
         context = {
             "deployment_id": "DEP_ID",
             "resource_key": "1",
             "region": "ORD",
             "resource": {},
             "instance_id": "INST_ID"
-         }
+        }
         mock_api = mock.MagicMock()
         mock_server = mock.MagicMock()
         mock_callback = mock.MagicMock()
@@ -983,7 +984,3 @@ class TestDeleteServer(unittest.TestCase):
             'status': 'DELETING',
             'status-message': 'Instance is in state BUILD. Waiting on ACTIVE '
                               'resource.'})
-
-
-
-

@@ -792,13 +792,9 @@ class TestNovaCompute(test.ProviderTester):
         mock_server.delete.assert_called_once_with()
         mock_servers.get.assert_called_once_with('abcdef-ghig-1234')
 
-
-
-
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
     @mock.patch.object(compute.manager.LOG, 'error')
-
     def test_delete_server_get_connect_error(self, log, mock_cmdeps,
                                              mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',

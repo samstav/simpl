@@ -24,17 +24,13 @@ import logging
 
 from celery import task as ctask
 from novaclient import exceptions as ncexc
-import requests
 
 from checkmate.common import statsd
-from checkmate import deployments as cmdeps, utils
+from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
-from checkmate.providers.base import RackspaceProviderTask
 from checkmate.providers.rackspace.compute.provider import Provider
 from checkmate.providers.rackspace.compute import tasks
-
-from checkmate import rdp
-from checkmate import ssh
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -116,7 +112,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
         }
 
     if api is None:
-        api = Provider.connect(context, resource.get("region"))
+        api = provider.Provider.connect(context, resource.get("region"))
     try:
         instance = resource.get("instance") or {}
         instance_id = instance.get("id")
@@ -127,7 +123,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
         try:
             if "RAX-CHECKMATE" not in server.metadata.keys():
-                checkmate_tag = Provider.generate_resource_tag(
+                checkmate_tag = provider.Provider.generate_resource_tag(
                     context['base_url'], context['tenant'],
                     context['deployment'], resource['index']
                 )

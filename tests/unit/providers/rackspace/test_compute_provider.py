@@ -1,3 +1,18 @@
+# pylint: disable=C0103,C0302,E1101,E1103,R0904,R0201,W0212,W0613
+
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
 import mock
 import unittest
@@ -15,7 +30,7 @@ class TestGetApiInfo(unittest.TestCase):
         self.kwargs = {'region': 'iad'}
 
     @mock.patch.object(compute.provider.eventlet, 'GreenPile')
-    @mock.patch.object(compute.Provider, 'find_url')
+    @mock.patch.object(compute.provider.Provider, 'find_url')
     @mock.patch.object(compute.provider.CONFIG, 'eventlet')
     def test_context_success(self, mock_config, mock_find_url, mock_eventlet):
         """Verifies method calls on success with context['region']."""
@@ -62,7 +77,7 @@ class TestGetApiInfo(unittest.TestCase):
         self.assertEqual(mock_jobs.spawn.call_count, 2)
 
     @mock.patch.object(compute.provider.eventlet, 'GreenPile')
-    @mock.patch.object(compute.Provider, 'find_url')
+    @mock.patch.object(compute.provider.Provider, 'find_url')
     @mock.patch.object(compute.provider.CONFIG, 'eventlet')
     def test_kwargs_success(self, mock_config, mock_find_url, mock_eventlet):
         """Verifies method calls on success with kwargs['region']."""
@@ -102,7 +117,8 @@ class TestGetApiInfo(unittest.TestCase):
             }
         }
         self.context['region'] = None
-        results = compute.Provider._get_api_info(self.context, **self.kwargs)
+        results = compute.provider.Provider._get_api_info(
+            self.context, **self.kwargs)
         self.assertEqual(results, expected)
         mock_find_url.assert_called_with(None, self.kwargs['region'].upper())
         mock_eventlet.assert_called_with(2)
@@ -203,7 +219,8 @@ class TestGetApiInfo(unittest.TestCase):
             mock.call(None, 'DFW'),
             mock.call(None, 'IAD')
         ]
-        results = compute.Provider._get_api_info(self.context, **self.kwargs)
+        results = compute.provider.Provider._get_api_info(
+            self.context, **self.kwargs)
         mock_eventlet.assert_called_with(6)
         mock_get_regions.assert_called_with(
             None, resource_type='compute',

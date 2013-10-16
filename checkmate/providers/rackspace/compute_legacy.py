@@ -23,9 +23,9 @@ from openstack.compute.exceptions import OverLimit
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
-from checkmate import exceptions as cmexc
 from checkmate.common import statsd
 from checkmate.deployments import resource_postback
+from checkmate import exceptions as cmexc
 from checkmate.providers.rackspace.compute.provider import \
     RackspaceComputeProviderBase
 from checkmate import utils

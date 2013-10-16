@@ -17,17 +17,15 @@
 Rackspace Compute provider manager.
 """
 import logging
-import checkmate.utils
 import requests
 
 from novaclient import exceptions as ncexc
 
+from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexec
-from checkmate.providers.rackspace.compute.provider import Provider
-from checkmate import deployments as cmdeps, utils
-
 from checkmate import rdp
 from checkmate import ssh
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -40,9 +38,9 @@ class Manager(object):
                       files=None, image=None, tags=None):
         """Create a Rackspace Cloud server using novaclient.
 
-        Note: Nova server creation requests are asynchronous. The IP address of the
-        server is not available when thios call returns. A separate operation must
-        poll for that data.
+        Note: Nova server creation requests are asynchronous. The IP address
+        of the server is not available when thios call returns. A separate
+        operation must poll for that data.
 
         :param context: the context information
         :type context: dict
@@ -70,21 +68,24 @@ class Manager(object):
         deployment_id = context["deployment_id"]
         resource_key = context['resource_key']
         if context.get('simulation') is True:
-            results = {'id': str(1000 + int(resource_key)),
-                       'status': "BUILD",
-                       'password': 'RandomPass'}
+            results = {
+                'id': str(1000 + int(resource_key)),
+                'status': "BUILD",
+                'password': 'RandomPass'
+            }
             return results
         utils.match_celery_logging(LOG)
 
-        LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor, name,
-                  files)
+        LOG.debug('Image=%s, Flavor=%s, Name=%s, Files=%s', image, flavor,
+                  name, files)
 
         try:
             # Check image and flavor IDs (better descriptions if we error here)
             image_object = api.images.find(id=image)
             LOG.debug("Image id %s found. Name=%s", image, image_object.name)
             flavor_object = api.flavors.find(id=str(flavor))
-            LOG.debug("Flavor id %s found. Name=%s", flavor, flavor_object.name)
+            LOG.debug("Flavor id %s found. Name=%s", flavor,
+                      flavor_object.name)
         except requests.ConnectionError as exc:
             msg = ("Connection error talking to %s endpoint" %
                    (api.client.management_url))
@@ -101,7 +102,7 @@ class Manager(object):
                                         disk_config='AUTO')
         except ncexc.OverLimit as exc:
             raise cmexec.CheckmateException(
-                message =str(exc),
+                message=str(exc),
                 friendly_message="You have reached the maximum number of "
                                  "servers that can be spun up using this "
                                  "account. Please delete some servers to "
@@ -119,15 +120,16 @@ class Manager(object):
         LOG.info('Created server %s (%s) for deployment %s.', name, server.id,
                  deployment_id)
 
-        result = {'id': server.id,
-                  'password': server.adminPass,
-                  'region': api.client.region_name,
-                  'status': 'NEW',
-                  'flavor': flavor,
-                  'image': image,
-                  'error-message': '',
-                  'status-message': '',
-                  }
+        result = {
+            'id': server.id,
+            'password': server.adminPass,
+            'region': api.client.region_name,
+            'status': 'NEW',
+            'flavor': flavor,
+            'image': image,
+            'error-message': '',
+            'status-message': '',
+            }
         return result
 
     @staticmethod
@@ -188,7 +190,7 @@ class Manager(object):
                    api.client.management_url)
             LOG.error(msg, exc_info=True)
             raise cmexec.CheckmateException(message=msg,
-                                           options=cmexec.CAN_RESUME)
+                                            options=cmexec.CAN_RESUME)
 
         results = {
             'id': server_id,
@@ -240,7 +242,8 @@ class Manager(object):
             raise cmexec.CheckmateException(message=msg,
                                             options=cmexec.CAN_RESUME)
 
-        # if a rack_connect account, wait for rack_connect configuration to finish
+        # if a rack_connect account, wait for rack_connect configuration to
+        # finish
         rackconnected = utils.is_rackconnect_account(context)
         if rackconnected:
             if 'rackconnect_automation_status' not in server.metadata:
@@ -255,21 +258,23 @@ class Manager(object):
                     'rackconnect_automation_status']
                 if rc_automation_status == 'DEPLOYED':
                     LOG.debug("Rack Connect server ready. Metadata found'")
-                    results["rackconnect-automation-status"] = rc_automation_status
+                    results["rackconnect-automation-status"] = \
+                        rc_automation_status
                 elif rc_automation_status == 'FAILED':
                     msg = ("Rackconnect server metadata has "
                            "'rackconnect_automation_status' set to FAILED.")
                     LOG.debug(msg)
                     results['status'] = 'ERROR'
                     results['status-message'] = msg
-                    results["rackconnect-automation-status"] = rc_automation_status
+                    results["rackconnect-automation-status"] = \
+                        rc_automation_status
 
                     context["instance_id"] = server_id
                     callback(results)
 
                     raise cmexec.CheckmateException(message=msg,
-                                                   friendly_message=cmexec
-                                                   .UNEXPECTED_ERROR)
+                                                    friendly_message=
+                                                    cmexec.UNEXPECTED_ERROR)
                 elif rc_automation_status == 'UNPROCESSABLE':
                     reason = Manager.get_rackconnect_error_reason(
                         server.metadata)
@@ -277,13 +282,15 @@ class Manager(object):
                            "metadata has 'rackconnect_automation_status' is "
                            "set to %s.%s RackConnect will not be enabled for "
                            "this server(#%s)." % (rc_automation_status,
-                                                    reason,
+                                                  reason,
                            server_id))
                     LOG.warn(msg)
-                    results["rackconnect-automation-status"] = rc_automation_status
+                    results["rackconnect-automation-status"] = \
+                        rc_automation_status
                 else:
-                    msg = ("Rack Connect server 'rackconnect_automation_status' "
-                           "metadata tag is still not 'DEPLOYED'. It is '%s'" %
+                    msg = ("Rack Connect server "
+                           "'rackconnect_automation_status' metadata tag is "
+                           "still not 'DEPLOYED'. It is '%s'" %
                            rc_automation_status)
                     results['status-message'] = msg
 
@@ -347,7 +354,7 @@ class Manager(object):
             msg = "No server matching id %s" % server_id
             LOG.error(msg, exc_info=True)
             raise cmexec.CheckmateException(msg)
-        except requests.ConnectionError as exc:
+        except requests.ConnectionError:
             msg = ("Connection error talking to %s endpoint" %
                    api.client.management_url)
             LOG.error(msg, exc_info=True)
@@ -394,9 +401,9 @@ class Manager(object):
         deployment_id = context.get("deployment_id", context.get("deployment"))
 
         if inst_id is None:
-            msg = ("Instance ID is not available for Compute Instance, skipping "
-                   "delete_server_task for resource %s in deployment %s" %
-                   (resource_key, deployment_id))
+            msg = ("Instance ID is not available for Compute Instance, "
+                   "skipping delete_server_task for resource %s in deployment"
+                   " %s" % (resource_key, deployment_id))
             LOG.info(msg)
             results = {
                 'status': 'DELETED',
@@ -412,10 +419,10 @@ class Manager(object):
             LOG.warn("Server %s already deleted", inst_id)
         except requests.ConnectionError:
             msg = ("Connection error talking to %s endpoint" %
-                   (api.client.management_url))
+                   api.client.management_url)
             LOG.error(msg, exc_info=True)
             raise cmexec.CheckmateException(message=msg,
-                                           options=cmexec.CAN_RESUME)
+                                            options=cmexec.CAN_RESUME)
         if (not server) or (server.status == 'DELETED'):
             results = {
                 'status': 'DELETED',
@@ -423,16 +430,16 @@ class Manager(object):
             }
             if 'hosts' in resource:
                 for comp_key in resource.get('hosts', []):
-                    callback({'status': 'DELETED',
-                              'status-message': ''},
-                             resource_key=comp_key)
+                    callback({
+                        'status': 'DELETED',
+                        'status-message': ''
+                    }, resource_key=comp_key)
         elif server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
             results = {
                 'status': 'DELETING',
                 'status-message': 'Waiting on resource deletion'
             }
             if 'hosts' in resource:
-                #hosts_results = {}
                 for comp_key in resource.get('hosts', []):
                     callback({
                         'status': 'DELETING',
@@ -443,7 +450,7 @@ class Manager(object):
                 server.delete()
             except requests.ConnectionError:
                 msg = ("Connection error talking to %s endpoint" %
-                       (api.client.management_url))
+                       api.client.management_url)
                 LOG.error(msg, exc_info=True)
                 raise cmexec.CheckmateException(message=msg,
                                                 options=cmexec.CAN_RESUME)
@@ -457,7 +464,6 @@ class Manager(object):
             raise cmexec.CheckmateException(message=msg,
                                             options=cmexec.CAN_RESUME)
         return results
-
 
     @staticmethod
     def wait_on_delete_server(context, api, callback):
@@ -507,9 +513,10 @@ class Manager(object):
 
             if 'hosts' in resource:
                 for hosted in resource.get('hosts', []):
-                    callback({'status': 'DELETED',
-                              'status-message': ''},
-                             resource_key=hosted)
+                    callback({
+                        'status': 'DELETED',
+                        'status-message': ''
+                    }, resource_key=hosted)
         else:
             msg = ('Instance is in state %s. Waiting on DELETED resource.'
                    % server.status)
@@ -524,7 +531,7 @@ class Manager(object):
 
     @staticmethod
     def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
-        """Handle task failure."""
+        """Helper method to get failure handler."""
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -533,7 +540,8 @@ class Manager(object):
                 k: {
                     'status': 'ERROR',
                     'status-message': (
-                        'Unexpected error %s compute instance %s' % (action, key)
+                        'Unexpected error %s compute instance %s' %
+                        (action, key)
                     ),
                     'error-message': str(exc)
                 }
@@ -545,7 +553,8 @@ class Manager(object):
 
     @staticmethod
     def get_on_failure(action, method):
+        """Used by tasks for failure handlers."""
         def on_failure(exc, task_id, args, kwargs, einfo):
             Manager._on_failure(exc, task_id, args, kwargs, einfo, action,
-                             method)
+                                method)
         return on_failure
