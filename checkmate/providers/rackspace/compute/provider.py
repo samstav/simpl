@@ -43,7 +43,6 @@ from checkmate import exceptions as cmexc
 from checkmate.providers.rackspace import base
 from checkmate import utils
 
-
 CLIENT = eventlet.import_patched('novaclient.v1_1.client')
 CONFIG = config.current()
 IMAGE_MAP = {
@@ -500,6 +499,7 @@ class Provider(RackspaceComputeProviderBase):
 
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
+        from checkmate.providers.rackspace.compute import sync_resource_task
         result = super(Provider, self).get_resource_status(context,
                                                            deployment_id,
                                                            resource, key,
