@@ -12,12 +12,12 @@
   </div>
 
   <div class="span6 editor_side_container">
-    <tabs>
-      <pane heading="Documentation">
+    <tabset>
+      <tab heading="Documentation">
         <markdown text="help_display"></markdown>
-      </pane>
+      </tab>
 
-      <pane heading="Preview">
+      <tab heading="Preview">
         <div class="entries">
           <div class="row-fluid">
             <div class="control-group span12">
@@ -41,9 +41,9 @@
             </div>
           </div>
         </div>
-      </pane>
+      </tab>
 
-      <pane heading="About">
+      <tab heading="About">
         <markdown>
 ### Documentation
 
@@ -90,8 +90,8 @@ This editor currently supports the editing of either YAML or JSON.  You can togg
 **Important**: In order to toggle between the two formats, the JSON/YAML in the editor must be valid.
 
         </markdown>
-      </pane>
-    </tabs>
+      </tab>
+    </tabset>
 
     <div class="row-fluid form-actions">
       <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
