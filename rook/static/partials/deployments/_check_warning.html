@@ -1,0 +1,17 @@
+<div tabindex="-1" aria-labelledby="warning_title" aria-hidden="true">
+  <div class="modal-header">
+    <h3 id="warning_title" class="alert">Deployment Check Results</h3>
+  </div>
+  <div class="modal-body">
+    <div ng-show="loading.check">
+      <img class="loading" src="/img/ajax-loader.gif" />
+      Please wait while we check your deployment for errors...
+    </div>
+    <div ng-hide="loading.check">
+      <ng-include src="'/partials/deployments/_check_results.html'"></ng-include>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-primary" ng-click="close()">OK</button>
+  </div>
+</div>

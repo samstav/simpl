@@ -277,8 +277,65 @@ function AutoLoginController($scope, $window, $cookies, $log, auth) {
   };
 }
 
+function ModalInstanceController($scope, $modalInstance, data) {
+  angular.forEach(data, function(value, key) {
+    $scope[key] = value;
+  });
+
+  $scope.close = function(response) {
+    return $modalInstance.close(response);
+  }
+
+  $scope.dismiss = function(response) {
+    return $modalInstance.dismiss(response);
+  }
+}
+
+function LoginModalController($scope, $modalInstance, auth, $route) {
+
+  $scope.dismiss = function(response) {
+    return $modalInstance.dismiss({ logged_in: false, reason: 'dismissed' });
+  }
+
+  $scope.clear_login_form = function() {
+    $scope.bound_creds.username = null;
+    $scope.bound_creds.password = null;
+    $scope.bound_creds.apikey   = null;
+    auth.error_message = null;
+  }
+
+  $scope.on_auth_success = function() {
+    $modalInstance.close({ logged_in: true });
+    $route.reload();
+
+    mixpanel.track("Logged In", {'user': auth.identity.username});
+  };
+
+  $scope.on_auth_failed = function(response) {
+    mixpanel.track("Log In Failed", {'problem': response.status});
+    auth.error_message = response.status + ". Check that you typed in the correct credentials.";
+  };
+
+  // Log in using credentials delivered through bound_credentials
+  $scope.logIn = function() {
+    var username = $scope.bound_creds.username;
+    var password = $scope.bound_creds.password;
+    var apikey = $scope.bound_creds.apikey;
+    var pin_rsa = $scope.bound_creds.pin_rsa;
+    var endpoint = $scope.get_selected_endpoint();
+    auth.error_message = null;
+
+    return auth.authenticate(endpoint, username, apikey, password, null, pin_rsa, null)
+      .then($scope.on_auth_success, $scope.on_auth_failed);
+  };
+
+  $scope.auth_error_message = function() { return auth.error_message; };
+
+  $modalInstance.result.finally($scope.clear_login_form);
+}
+
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth, $route, $q, webengage) {
+function AppController($scope, $http, $location, $resource, auth, $route, $q, webengage, $modal) {
   $scope.init_webengage = webengage.init;
   $scope.showHeader = true;
   $scope.showStatus = false;
@@ -338,14 +395,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   }
   $scope.$on('$viewContentLoaded', $scope.add_popover_listeners);
 
-  $scope.check_permissions = function() {
-    if ($scope.force_logout) {
-      $scope.force_logout = false;
-      $scope.bound_creds.username = '';
-      $scope.logOut();
-    }
-  };
-
   $scope.check_token_validity = function(scope, next, current) {
     var token = auth.context.token;
     var now = new Date();
@@ -356,15 +405,13 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     if (context_expiration <= now) {
       if (auth.is_impersonating()) {
         $scope.impersonate(auth.context.username)
-          .then($scope.on_impersonate_success, $scope.on_auth_failed);
+          .then($scope.on_impersonate_success, $scope.on_impersonate_error);
       } else {
-        $('#modalAuth').one('hide', function(e) {
-          $scope.$apply($scope.check_permissions); // TODO: is there a better way of doing this?
-        });
-        $scope.force_logout = true;
-        $scope.bound_creds.username = auth.context.username;
+        var username = auth.context.username;
+        auth.logOut();
+        $scope.bound_creds.username = username;
         auth.error_message = "It seems your token has expired. Please log back in again.";
-        $scope.loginPrompt().then($route.reload);
+        $scope.loginPrompt();
       }
     }
   };
@@ -408,12 +455,9 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
                 status: error.status,
                 title: "Error",
                 message: "There was an error executing your request:"};
-    if (typeof error.data == "object" && 'description' in error.data) {
-      info.message = error.data.description;
-      delete error.data.description;
-    }
-    $scope.$root.error = info;
-    $scope.open_modal('error');
+    if (typeof error.data == "object" && 'description' in error.data)
+        info.message = error.data.description;
+    $scope.open_modal('/partials/app/_error.html', {error: info});
     mixpanel.track("Error", {'error': info.message});
   };
 
@@ -441,13 +485,20 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     backdropFade: false,
     dialogFade: false
   };
-  $scope.modal_window = {};
-  $scope.open_modal = function(window_name) {
-    console.log("opening modal...");
-    $scope.modal_window[window_name] = true;
-  };
-  $scope.close_modal = function(window_name) {
-    $scope.modal_window[window_name] = false;
+
+  $scope.open_modal = function(template_name, data, scope, controller) {
+    var config = {
+      templateUrl: template_name,
+      controller: controller || ModalInstanceController,
+      scope: scope || $scope,
+      resolve: {
+        data: function() {
+          return data || {};
+        }
+      }
+    };
+    var modal_instance = $modal.open(config);
+    return modal_instance.result;
   };
 
   $scope.hidden_alerts = {};
@@ -459,46 +510,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   };
 
   // Display log in prompt
-  $scope.deferred_login = null;
-  $scope.display_login_prompt = false;
-  $scope.login_prompt_opts = {
-    backdropFade: true,
-    dialogFade: true,
-  };
   $scope.loginPrompt = function() {
-    $scope.deferred_login = $q.defer();
-    $scope.display_login_prompt = true;
-    // TODO: focus on username field
-    return $scope.deferred_login.promise;
-  };
-  $scope.close_login_prompt = function() {
-    $scope.clear_login_form();
-    $scope.display_login_prompt = false;
-    if ($scope.deferred_login !== null) {
-      $scope.deferred_login.reject({ logged_in: false, reason: 'dismissed' });
-    }
-  };
-
-  $scope.clear_login_form = function() {
-    $scope.bound_creds.username = null;
-    $scope.bound_creds.password = null;
-    $scope.bound_creds.apikey   = null;
-    auth.error_message = null;
-  }
-
-  $scope.on_auth_success = function() {
-    $scope.close_login_prompt();
-    $scope.deferred_login.resolve({ logged_in: true });
-    $scope.deferred_login = null;
-    $route.reload();
-
-    mixpanel.track("Logged In", {'user': $scope.auth.identity.username});
-  };
-
-  $scope.auth_error_message = function() { return auth.error_message; };
-  $scope.on_auth_failed = function(response) {
-    mixpanel.track("Log In Failed", {'problem': response.status});
-    auth.error_message = response.status + ". Check that you typed in the correct credentials.";
+    var data = {};
+    var login_template = '/partials/app/login_prompt.html';
+    return $scope.open_modal(login_template, data, $scope, LoginModalController);
   };
 
   $scope.uses_pin_rsa = function(endpoint) {
@@ -537,25 +552,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     return JSON.parse(local_endpoint) || auth.selected_endpoint || auth.endpoints[0] || {};
   };
 
-  // Log in using credentials delivered through bound_credentials
-  $scope.logIn = function() {
-    $scope.force_logout = false; // TODO: is there a better way of doing this?
-    var username = $scope.bound_creds.username;
-    var password = $scope.bound_creds.password;
-    var apikey = $scope.bound_creds.apikey;
-    var pin_rsa = $scope.bound_creds.pin_rsa;
-    var endpoint = $scope.get_selected_endpoint();
-    auth.error_message = null;
-
-    return auth.authenticate(endpoint, username, apikey, password, null, pin_rsa, null)
-      .then($scope.on_auth_success, $scope.on_auth_failed);
-  };
-
-  $scope.logOut = function() {
-    auth.error_message = null;
-    auth.logOut();
-  };
-
   $scope.on_impersonate_success = function(response) {
     $scope.impersonation = { username: "" };
     var current_path = $location.path();
@@ -575,13 +571,13 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
 
   $scope.on_impersonate_error = function(response) {
     mixpanel.track("Impersonation Failed");
-    $scope.$root.error = {
+    var error = {
       data: response.data,
       status: response.status,
       title: "Error Impersonating User",
       message: "There was an error during impersonation:"
     };
-    $scope.open_modal('error');
+    $scope.open_modal('/partials/app/_error.html', {error: error});
   }
 
   $scope.impersonation = { username: "" };
@@ -1139,10 +1135,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
             $scope.all_data = all_data.join('\n');
 
           }, function(error) {
-            console.log("Error " + error.data + "(" + error.status + ") loading deployment.");
-            $scope.$root.error = {data: error.data, status: error.status, title: "Error loading deployment",
-                    message: "There was an error loading your deployment:"};
-            $scope.open_modal('error');
+            var error = {data: error.data, status: error.status, title: "Error loading deployment",
+                         message: "There was an error loading your deployment:"};
+            $scope.open_modal('/partials/app/_error.html', {error: error});
           });
         }
       } else if ($location.hash().length > 1) {
@@ -1161,9 +1156,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
                     message: "There was an error loading your data:"};
         if (error !== undefined && 'description' in error)
             info.message = error.description;
-        $scope.$root.error = info;
       if ($location.path().indexOf('deployments') == -1)
-        $scope.open_modal('error');  //don't show error when in deployment screen
+        $scope.open_modal('/partials/app/_error.html', {error: info});
       deferred.reject(response);
     });
 
@@ -1241,9 +1235,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.notify('Saved');
           mixpanel.track("Task Spec Saved");
         }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $scope.open_modal('error');
+          var info = {data: error.data, status: error.status, title: "Error Saving",
+                      message: "There was an error saving your JSON:"};
+          $scope.open_modal('/partials/app/_error.html', {error: info});
         });
     } else {
       $scope.loginPrompt().then($scope.save_spec);
@@ -1284,9 +1278,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           $scope.notify('Saved');
           mixpanel.track("Task Saved");
         }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $scope.open_modal('error');
+          var info = {data: error.data, status: error.status, title: "Error Saving",
+                      message: "There was an error saving your JSON:"};
+          $scope.open_modal('/partials/app/_error.html', {error: info});
         });
     } else {
       $scope.loginPrompt().then($scope.save_task);
@@ -1378,7 +1372,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   };
 
   $scope.reset_task = function() {
-    $scope.close_modal('reset_warning');
     return $scope.task_action($scope.current_task.id, 'reset');
   };
 
@@ -2111,9 +2104,9 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   }
 
   $scope.sync_failure = function(error){
-    $scope.$root.error = {data: error.data, status: error.status, title: "Error Syncing",
-                          message: "There was an error syncing your deployment"};
-    $scope.open_modal('error');
+    var info = {data: error.data, status: error.status, title: "Error Syncing",
+                message: "There was an error syncing your deployment"};
+    $scope.open_modal('/partials/app/_error.html', {error: info});
   }
 
   // This also exists on DeploymentController - can be refactored
@@ -2692,9 +2685,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
         console.log(deployment);
-        $scope.$root.error = {data: error.data, status: error.status, title: "Error Creating Deployment",
-                message: "There was an error creating your deployment:"};
-        $scope.open_modal('error');
+        var info = {data: error.data, status: error.status, title: "Error Creating Deployment",
+                    message: "There was an error creating your deployment:"};
+        $scope.open_modal('/partials/app/_error.html', {error: info});
         $scope.submitting = false;
         mixpanel.track("Deployment Launch Failed", {'status': error.status, 'data': error.data});
       });
@@ -2723,9 +2716,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
 }
 
 //Handles an existing deployment
-function SecretsController($scope, $location, $resource, $routeParams, dialog) {
-  $scope.dialog = dialog;
-
+function SecretsController($scope, $location, $resource, $routeParams, $modalInstance) {
   $scope.load = function() {
     console.log("Starting load");
     $scope.loading = { secrets: true };
@@ -2738,6 +2729,14 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
       });
     });
   };
+
+  $scope.close = function(response) {
+    return $modalInstance.close(response);
+  }
+
+  $scope.dismiss = function(response) {
+    return $modalInstance.dismiss(response);
+  }
 
   $scope.secrests_dismissed = false;
   $scope.dismissSecrets = function() {
@@ -2761,7 +2760,7 @@ function SecretsController($scope, $location, $resource, $routeParams, dialog) {
 }
 
 //Handles an existing deployment
-function DeploymentController($scope, $location, $resource, $routeParams, $dialog, deploymentDataParser, $http, urlBuilder, Deployment, workflow, DeploymentTree) {
+function DeploymentController($scope, $location, $resource, $routeParams, $modal, deploymentDataParser, $http, urlBuilder, Deployment, workflow, DeploymentTree) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = false;
@@ -2863,11 +2862,11 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   $scope.showSecrets = function() {
     if ($scope.data.secrets != 'AVAILABLE') return;
 
-    $scope.secretsDialog = $dialog.dialog({
-        resolve: {
-            dialog: function() {return $scope.secretsDialog;}
-        }
-    }).open('/partials/deployments/_secrets.html', 'SecretsController');
+    var options = {
+      templateUrl: '/partials/deployments/_secrets.html',
+      controller: 'SecretsController',
+    };
+    $modal.open(options);
   };
 
   $scope.shouldDisplayWorkflowStatus = function() {
@@ -3075,9 +3074,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.data_json = JSON.stringify(returned, null, 2);
           $scope.notify('Saved');
         }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Saving",
-                  message: "There was an error saving your JSON:"};
-          $scope.open_modal('error');
+          var info = {data: error.data, status: error.status, title: "Error Saving",
+                      message: "There was an error saving your JSON:"};
+          $scope.open_modal('/partials/app/_error.html', {error: info});
         });
     } else {
       $scope.loginPrompt().then($scope.save);
@@ -3089,11 +3088,6 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
       $scope.delete_deployment(force);
     };
 
-    if (force == '1') {
-      $scope.close_modal('force_delete_warning');
-    } else {
-      $scope.close_modal('delete_warning');
-    }
     if ($scope.auth.is_logged_in()) {
       var klass = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:id/.json', null, {'save': {method:'PUT'}});
       var thang = new klass();
@@ -3107,9 +3101,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
           $scope.notify('Deleting deployment');
           $scope.delayed_refresh();
         }, function(error) {
-          $scope.$root.error = {data: error.data, status: error.status, title: "Error Deleting",
-                  message: "There was an error deleting your deployment"};
-          $scope.open_modal('error');
+          var info = {data: error.data, status: error.status, title: "Error Deleting",
+                      message: "There was an error deleting your deployment"};
+          $scope.open_modal('/partials/app/_error.html', {error: info});
         });
     } else {
       $scope.loginPrompt().then(retry);
@@ -3123,9 +3117,9 @@ function DeploymentController($scope, $location, $resource, $routeParams, $dialo
   }
 
   $scope.sync_failure = function(error){
-    $scope.$root.error = {data: error.data, status: error.status, title: "Error Syncing",
-                          message: "There was an error syncing your deployment"};
-    $scope.open_modal('error');
+    var info = {data: error.data, status: error.status, title: "Error Syncing",
+                message: "There was an error syncing your deployment"};
+    $scope.open_modal('/partials/app/_error.html', {error: info});
   }
 
   // This also exists on DeploymentListController - can be refactored
@@ -3375,9 +3369,9 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   }
 
   $scope.sync_failure = function(error){
-    $scope.$root.error = {data: error.data, status: error.status, title: "Error Syncing",
-                          message: "There was an error syncing your deployment"};
-    $scope.open_modal('error');
+    var info = {data: error.data, status: error.status, title: "Error Syncing",
+                message: "There was an error syncing your deployment"};
+    $scope.open_modal('/partials/app/_error.html', {error: info});
   }
 
   $scope.submit = function(){
