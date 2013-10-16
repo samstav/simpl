@@ -371,3 +371,79 @@ class TestWriteNodeAttributes(TestChefEnvironment):
         mock_file.assert_any_call(node_path, 'w')
         mock_json_dump.assert_called_once_with(expected, file_handle)
         self.assertTrue(mock_lock.return_value.release.called)
+
+
+class TestWriteRole(TestChefEnvironment):
+    @mock.patch('json.dump')
+    @mock.patch('json.load')
+    @mock.patch('__builtin__.file')
+    @mock.patch('os.path.exists')
+    def test_update_role(self, mock_path_exists, mock_file, mock_json_load,
+                         mock_json_dump):
+        role_path = "%s/roles/web.json" % self.kitchen_path
+        mock_path_exists.return_value = True
+        mock_json_load.return_value = {'foo': 'bar'}
+        file_handle = mock_file.return_value.__enter__.return_value
+        expected = {
+            'foo': 'bar',
+            'run_list': 'run_list',
+            'default_attributes': 'default_attributes',
+            'override_attributes': 'override_attributes',
+            'env_run_lists': 'env_run_lists'
+        }
+
+        results = self.env.write_role(
+            "web", run_list="run_list",
+            default_attributes="default_attributes",
+            override_attributes="override_attributes",
+            env_run_lists="env_run_lists")
+
+        self.assertDictEqual(results, expected)
+        file.assert_any_call(role_path, 'r')
+        file.assert_any_call(role_path, 'w')
+        mock_json_load.assert_called_once_with(file_handle)
+        mock_json_dump.assert_called_once_with(expected, file_handle)
+
+    @mock.patch('json.dump')
+    @mock.patch('__builtin__.file')
+    @mock.patch('os.path.exists')
+    def test_create_role(self, mock_path_exists, mock_file, mock_json_dump):
+        role_path = "%s/roles/web.json" % self.kitchen_path
+        mock_path_exists.return_value = False
+        file_handle = mock_file.return_value.__enter__.return_value
+        expected = {
+            "name": "web",
+            "chef_type": "role",
+            "json_class": "Chef::Role",
+            "default_attributes": "default_attributes",
+            "description": "desc",
+            "run_list": "run_list",
+            "override_attributes": "override_attributes",
+            "env_run_lists": "env_run_lists"
+        }
+
+        results = self.env.write_role(
+            "web", run_list="run_list",
+            default_attributes="default_attributes",
+            override_attributes="override_attributes",
+            env_run_lists="env_run_lists", desc="desc")
+
+        self.assertDictEqual(results, expected)
+        file.assert_called_once_with(role_path, 'w')
+        mock_json_dump.assert_called_once_with(expected, file_handle)
+
+
+class TestRubyRoleExists(TestChefEnvironment):
+    @mock.patch('os.path.exists')
+    def test_success(self, mock_path_exists):
+        role_path = "%s/roles/web.rb" % self.kitchen_path
+        mock_path_exists.return_value = True
+        self.assertTrue(self.env.ruby_role_exists("web"))
+        mock_path_exists.assert_called_once_with(role_path)
+
+    @mock.patch('os.path.exists')
+    def test_failure(self, mock_path_exists):
+        role_path = "%s/roles/web.rb" % self.kitchen_path
+        mock_path_exists.return_value = False
+        self.assertFalse(self.env.ruby_role_exists("web"))
+        mock_path_exists.assert_called_once_with(role_path)

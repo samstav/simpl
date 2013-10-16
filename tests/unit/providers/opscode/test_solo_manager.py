@@ -195,6 +195,82 @@ class TestRegisterNode(unittest.TestCase):
         mock_ssh_execute.assert_has_calls(ssh_calls)
 
 
+class TestManageRole(unittest.TestCase):
+    def test_sim(self):
+        self.assertIsNone(Manager.manage_role({'resource_key': '1'}, "web",
+                                              "DEP_ID", None, simulate=True))
+
+    @mock.patch.object(ChefEnvironment, 'write_role')
+    @mock.patch.object(ChefEnvironment, 'ruby_role_exists')
+    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch('os.path.exists')
+    def test_success(self, mock_path_exists, mock_kitchen_path,
+                     mock_role_exists, mock_write_role):
+        mock_callback = mock.Mock()
+        mock_path_exists.return_value = True
+        mock_role_exists.return_value = False
+        mock_write_role.return_value = {'role': 'web'}
+        expected = {
+            'instance:1': {
+                'roles': {
+                    'web': {
+                        'role': 'web'
+                    }
+                }
+            }
+        }
+
+        results = Manager.manage_role({'resource_key': '1'}, "web",
+                                      "DEP_ID", mock_callback, "path", "desc",
+                                      "run_list", "attribs", "override",
+                                      "env_run_lists")
+
+        self.assertDictEqual(results, expected)
+        mock_path_exists.assert_called_once_with(mock_kitchen_path)
+        mock_role_exists.assert_called_once_with('web')
+        mock_write_role.assert_called_once_with(
+            'web', desc="desc", run_list="run_list",
+            default_attributes="attribs", override_attributes="override",
+            env_run_lists="env_run_lists")
+
+    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch('os.path.exists')
+    def test_env_existence(self, mock_path_exists, mock_kitchen_path):
+        mock_callback = mock.Mock()
+        mock_path_exists.return_value = False
+
+        self.assertRaises(exceptions.CheckmateException,
+                          Manager.manage_role, {'resource_key': '1'}, "web",
+                          "DEP_ID", mock_callback, "path", "desc",
+                          "run_list", "attribs", "override", "env_run_lists")
+
+        mock_path_exists.assert_called_once_with(mock_kitchen_path)
+
+    @mock.patch.object(ChefEnvironment, 'ruby_role_exists')
+    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch('os.path.exists')
+    def test_ruby_role_existence(self, mock_path_exists, mock_kitchen_path,
+                                 mock_role_exists):
+        mock_callback = mock.Mock()
+        mock_path_exists.return_value = True
+        mock_role_exists.return_value = True
+
+        self.assertRaises(exceptions.CheckmateException,
+                          Manager.manage_role, {'resource_key': '1'}, "web",
+                          "DEP_ID", mock_callback, "path", "desc",
+                          "run_list", "attribs", "override", "env_run_lists")
+
+        mock_path_exists.assert_called_once_with(mock_kitchen_path)
+        mock_role_exists.assert_called_once_with('web')
+        mock_callback.assert_called_once_with({
+            "instance:1": {
+                "status": "ERROR",
+                "error-message": "Encountered a chef role in Ruby. Only JSON"
+                                 " roles can be manipulated by Checkmate: web"
+            }
+        })
+
+
 if __name__ == '__main__':
     import sys
 

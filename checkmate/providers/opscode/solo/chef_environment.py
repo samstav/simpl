@@ -267,6 +267,46 @@ class ChefEnvironment(object):
             finally:
                 lock.release()
 
+    def ruby_role_exists(self, name):
+        """Checks if a ruby role file exists."""
+        ruby_role_path = os.path.join(self.kitchen_path, 'roles',
+                                      '%s.rb' % name)
+        return os.path.exists(ruby_role_path)
+
+    def write_role(self, name, desc=None, run_list=None,
+                   default_attributes=None, override_attributes=None,
+                   env_run_lists=None):
+        """Write/Update role."""
+        role_path = os.path.join(self.kitchen_path, 'roles', '%s.json' % name)
+
+        if os.path.exists(role_path):
+            with file(role_path, 'r') as role_file_r:
+                role = json.load(role_file_r)
+            if run_list is not None:
+                role['run_list'] = run_list
+            if default_attributes is not None:
+                role['default_attributes'] = default_attributes
+            if override_attributes is not None:
+                role['override_attributes'] = override_attributes
+            if env_run_lists is not None:
+                role['env_run_lists'] = env_run_lists
+        else:
+            role = {
+                "name": name,
+                "chef_type": "role",
+                "json_class": "Chef::Role",
+                "default_attributes": default_attributes or {},
+                "description": desc,
+                "run_list": run_list or [],
+                "override_attributes": override_attributes or {},
+                "env_run_lists": env_run_lists or {}
+            }
+
+        LOG.debug("Writing role '%s' to %s", name, role_path)
+        with file(role_path, 'w') as role_file_w:
+            json.dump(role, role_file_w)
+        return role
+
     def _create_private_key(self, private_key):
         """Creates the private key for an environment."""
         if os.path.exists(self._private_key_path):

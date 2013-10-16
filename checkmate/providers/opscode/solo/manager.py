@@ -12,6 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Rackspace solo provider manager."""
+import json
 import logging
 import os
 import re
@@ -188,3 +189,44 @@ class Manager(object):
                 }
             }
             return results
+
+    @staticmethod
+    def manage_role(context, name, environment, callback, path=None,
+                    desc=None, run_list=None, default_attributes=None,
+                    override_attributes=None, env_run_lists=None,
+                    kitchen_name='kitchen', simulate=False):
+        """Write/Update role."""
+        instance_key = 'instance:%s' % context['resource_key']
+        if simulate:
+            return
+
+        results = {}
+        env = ChefEnvironment(environment, root_path=path,
+                              kitchen_name=kitchen_name)
+
+        if not os.path.exists(env.kitchen_path):
+            raise exceptions.CheckmateException(
+                "Environment does not exist: %s" % env.kitchen_path,
+                options=exceptions.CAN_RESUME)
+
+        if env.ruby_role_exists(name):
+            msg = ("Encountered a chef role in Ruby. Only JSON "
+                   "roles can be manipulated by Checkmate: %s" % name)
+            results['status'] = "ERROR"
+            results['error-message'] = msg
+            results = {instance_key: results}
+            callback(results)
+            raise exceptions.CheckmateException(msg)
+
+        role = env.write_role(name, desc=desc, run_list=run_list,
+                              default_attributes=default_attributes,
+                              override_attributes=override_attributes,
+                              env_run_lists=env_run_lists)
+        results = {
+            instance_key: {
+                'roles': {
+                    name: role
+                }
+            }
+        }
+        return results
