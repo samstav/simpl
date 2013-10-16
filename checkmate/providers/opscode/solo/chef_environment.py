@@ -36,6 +36,7 @@ PUBLIC_KEY_NAME = 'checkmate.pub'
 
 
 class ChefEnvironment(object):
+    """Domain object for chef environment."""
     def __init__(self, env_name, root_path=None, kitchen_name="kitchen"):
         self.env_name = env_name
         self.root = root_path or CONFIG.deployments_path
@@ -61,10 +62,12 @@ class ChefEnvironment(object):
 
     @property
     def private_key_path(self):
+        """Read only property for private key path."""
         return self._private_key_path
 
     @property
     def public_key_path(self):
+        """Read only property for public key path."""
         return self._public_key_path
 
     def create_env_dir(self):

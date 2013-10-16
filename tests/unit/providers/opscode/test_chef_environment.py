@@ -1,4 +1,4 @@
-# pylint: disable=C0103,R0801
+# pylint: disable=C0103,R0801,R0904,E1101
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -29,16 +29,21 @@ from checkmate.providers.opscode.solo.chef_environment import ChefEnvironment
 from checkmate.providers.opscode.solo.knife import Knife
 
 
-class TestCreateEnvironmentKeys(unittest.TestCase):
+class TestChefEnvironment(unittest.TestCase):
     def setUp(self):
-        self.path = "/tmp"
+        self.path = "/var/local/checkmate"
         self.env_name = "DEP_ID"
         self.private_key_path = "%s/%s/private.pem" % (self.path,
                                                        self.env_name)
         self.public_key_path = "%s/%s/checkmate.pub" % (self.path,
                                                         self.env_name)
-        self.env = ChefEnvironment(self.env_name, self.path)
+        self.kitchen_name = "kitchen"
+        self.kitchen_path = "%s/%s/%s" % (self.path, self.env_name,
+                                          self.kitchen_name)
+        self.env = ChefEnvironment(self.env_name, self.path, self.kitchen_name)
 
+
+class TestCreateEnvironmentKeys(TestChefEnvironment):
     @mock.patch('subprocess.check_output')
     @mock.patch('os.chmod')
     @mock.patch('os.path.exists')
@@ -125,15 +130,7 @@ class TestCreateEnvironmentKeys(unittest.TestCase):
                           private_key="private_key")
 
 
-class TestCreateKitchen(unittest.TestCase):
-    def setUp(self):
-        self.path = "/tmp"
-        self.env_name = "DEP_ID"
-        self.kitchen_name = "kitchen"
-        self.kitchen_path = "%s/%s/%s" % (self.path, self.env_name,
-                                          self.kitchen_name)
-        self.env = ChefEnvironment(self.env_name, self.path)
-
+class TestCreateKitchen(TestChefEnvironment):
     @mock.patch('os.listdir')
     @mock.patch('os.path.exists')
     def test_existing_node_files(self, mock_path_exists, mock_list_dir):
@@ -215,16 +212,7 @@ class TestCreateKitchen(unittest.TestCase):
                                                    create_path=True)
 
 
-class TestDeleteCookbooks(unittest.TestCase):
-    def setUp(self):
-        self.path = "/var/local/checkmate"
-        self.env_name = "DEP_ID"
-        self.kitchen_name = "kitchen"
-        self.kitchen_path = "%s/%s/%s" % (self.path, self.env_name,
-                                          self.kitchen_name)
-        self.env = ChefEnvironment(self.env_name, self.path,
-                                   kitchen_name=self.kitchen_name)
-
+class TestDeleteCookbooks(TestChefEnvironment):
     @mock.patch('os.path.exists')
     def test_success(self, mock_path_exists):
         shutil.rmtree = mock.Mock()
@@ -262,16 +250,7 @@ class TestDeleteCookbooks(unittest.TestCase):
             "/var/local/checkmate/DEP_ID/kitchen/cookbooks")
 
 
-class TestDeleteEnvironment(unittest.TestCase):
-    def setUp(self):
-        self.path = "/var/local/checkmate"
-        self.env_name = "DEP_ID"
-        self.kitchen_name = "kitchen"
-        self.kitchen_path = "%s/%s/%s" % (self.path, self.env_name,
-                                          self.kitchen_name)
-        self.env = ChefEnvironment(self.env_name, self.path,
-                                   kitchen_name=self.kitchen_name)
-
+class TestDeleteEnvironment(TestChefEnvironment):
     @mock.patch('shutil.rmtree')
     def test_success(self, mock_rmtree):
         self.env.delete()
@@ -293,16 +272,7 @@ class TestDeleteEnvironment(unittest.TestCase):
         mock_rmtree.assert_called_once_with("/var/local/checkmate/DEP_ID")
 
 
-class TestFetchCookbooks(unittest.TestCase):
-    def setUp(self):
-        self.path = "/var/local/checkmate"
-        self.env_name = "DEP_ID"
-        self.kitchen_name = "kitchen"
-        self.kitchen_path = "%s/%s/%s" % (self.path, self.env_name,
-                                          self.kitchen_name)
-        self.env = ChefEnvironment(self.env_name, self.path,
-                                   kitchen_name=self.kitchen_name)
-
+class TestFetchCookbooks(TestChefEnvironment):
     @mock.patch('checkmate.utils.run_ruby_command')
     @mock.patch('os.path.exists')
     def test_fetch_with_chef_file(self, mock_path_exists, mock_run_command):
@@ -339,16 +309,7 @@ class TestFetchCookbooks(unittest.TestCase):
         self.assertTrue(mock_ensure_env.called)
 
 
-class TestRegisterNode(unittest.TestCase):
-    def setUp(self):
-        self.path = "/var/local/checkmate"
-        self.env_name = "DEP_ID"
-        self.kitchen_name = "kitchen"
-        self.kitchen_path = "%s/%s/%s" % (self.path, self.env_name,
-                                          self.kitchen_name)
-        self.env = ChefEnvironment(self.env_name, self.path,
-                                   kitchen_name=self.kitchen_name)
-
+class TestRegisterNode(TestChefEnvironment):
     @mock.patch.object(Knife, 'prepare_solo')
     def test_success(self, mock_prepare):
         self.env.register_node("1.1.1.1", password="password",
@@ -358,16 +319,7 @@ class TestRegisterNode(unittest.TestCase):
                                              identity_file="file")
 
 
-class TestWriteNodeAttributes(unittest.TestCase):
-    def setUp(self):
-        self.path = "/var/local/checkmate"
-        self.env_name = "DEP_ID"
-        self.kitchen_name = "kitchen"
-        self.kitchen_path = "%s/%s/%s" % (self.path, self.env_name,
-                                          self.kitchen_name)
-        self.env = ChefEnvironment(self.env_name, self.path,
-                                   kitchen_name=self.kitchen_name)
-
+class TestWriteNodeAttributes(TestChefEnvironment):
     @mock.patch("json.dump")
     @mock.patch("json.load")
     @mock.patch("__builtin__.file")

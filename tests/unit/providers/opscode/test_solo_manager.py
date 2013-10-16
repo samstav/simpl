@@ -14,6 +14,7 @@
 #    under the License.
 """Tests for solo manager."""
 import subprocess
+
 import mock
 import unittest
 

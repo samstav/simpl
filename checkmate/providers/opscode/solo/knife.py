@@ -14,7 +14,6 @@
 """Knife domain object."""
 import logging
 import os
-import subprocess
 
 from checkmate import exceptions, utils
 
