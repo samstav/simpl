@@ -331,8 +331,7 @@ function LoginModalController($scope, $modalInstance, auth, $route) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth, $route, $q, webengage, $modal) {
-  $scope.init_webengage = webengage.init;
+function AppController($scope, $http, $location, $resource, auth, $route, $q, $modal) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
