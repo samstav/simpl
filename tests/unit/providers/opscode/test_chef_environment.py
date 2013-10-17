@@ -1,4 +1,4 @@
-# pylint: disable=C0103,R0801,R0904,E1101
+# pylint: disable=C0103,R0801,R0904,E1101,W0201
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -30,7 +30,9 @@ from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
 
 
 class TestChefEnvironment(unittest.TestCase):
-    def setUp(self):
+    @mock.patch('os.path.exists')
+    def setUp(self, mock_path_exists):
+        mock_path_exists.return_value = True
         self.path = "/var/local/checkmate"
         self.env_name = "DEP_ID"
         self.private_key_path = "%s/%s/private.pem" % (self.path,
@@ -334,6 +336,7 @@ class TestWriteNodeAttributes(TestChefEnvironment):
         expected = {
             "foo": "bar",
             "version": "1.1",
+            "run_list": []
         }
         mock_json_dump.return_value = expected
 
@@ -348,29 +351,16 @@ class TestWriteNodeAttributes(TestChefEnvironment):
         mock_json_dump.assert_called_once_with(expected, file_handle)
         self.assertTrue(mock_lock.return_value.release.called)
 
-    @mock.patch("json.dump")
-    @mock.patch("__builtin__.file")
+
     @mock.patch("os.path.exists")
-    @mock.patch("eventlet.green.threading.Lock")
-    def test_new_node_write(self, mock_lock, mock_path_exists, mock_file,
-                            mock_json_dump):
-        mock_path_exists.return_value = False
-        file_handle = mock_file.return_value.__enter__.return_value
+    def test_exc_handling(self, mock_path_exists):
         node_path = "%s/nodes/1.1.1.1.json" % self.kitchen_path
-        expected = {
-            "foo": "bar",
-            "run_list": [],
-        }
-        mock_json_dump.return_value = expected
+        mock_path_exists.return_value = False
 
-        results = self.env.write_node_attributes("1.1.1.1", {"foo": "bar"})
-
-        self.assertDictEqual(results, expected)
-        self.assertTrue(mock_lock.called)
+        self.assertRaises(exceptions.CheckmateException,
+                          self.env.write_node_attributes, "1.1.1.1",
+                          {"foo": "bar"})
         mock_path_exists.assert_called_once_with(node_path)
-        mock_file.assert_any_call(node_path, 'w')
-        mock_json_dump.assert_called_once_with(expected, file_handle)
-        self.assertTrue(mock_lock.return_value.release.called)
 
 
 class TestWriteRole(TestChefEnvironment):
@@ -505,3 +495,16 @@ class TestWriteDataBag(TestChefEnvironment):
                                                      {"foo": "bar"},
                                                      secret_file="secret")
         self.assertTrue(mock_lock.return_value.release.called)
+
+
+class TestCook(TestChefEnvironment):
+    @mock.patch.object(KnifeSolo, 'cook')
+    def test_success(self, mock_cook):
+        self.env.cook("1.1.1.1", username="foo", password="password",
+                      identity_file="identity", port=200, run_list=['list'],
+                      attributes={"foo": "bar"})
+        mock_cook.assert_called_once_with("1.1.1.1", username="foo",
+                                          password="password",
+                                          identity_file="identity", port=200,
+                                          run_list=['list'],
+                                          attributes={"foo": "bar"})

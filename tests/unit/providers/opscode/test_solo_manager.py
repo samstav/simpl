@@ -1,4 +1,4 @@
-# pylint: disable=R0201,R0904
+# pylint: disable=R0201,R0904,W0201,C0103
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -77,16 +77,13 @@ class TestCreateEnvironment(unittest.TestCase):
 class TestRegisterNode(unittest.TestCase):
     def test_sim(self):
         expected = {
-            'instance:1': {
-                'node-attributes': {
-                    'run_list': [],
-                    'foo': 'bar'
-                },
-                'status': 'BUILD'
-            }
+            'node-attributes': {
+                'run_list': [],
+                'foo': 'bar'
+            },
+            'status': 'BUILD'
         }
-        results = Manager.register_node({"resource_key": "1"}, "1.1.1.1",
-                                        "DEP_ID", None,
+        results = Manager.register_node("1.1.1.1", "DEP_ID", None,
                                         attributes={"foo": "bar"},
                                         simulate=True)
         self.assertDictEqual(results, expected)
@@ -98,24 +95,19 @@ class TestRegisterNode(unittest.TestCase):
     def test_success(self, mock_ssh_execute, mock_kitchen_path,
                      mock_register_node, mock_write_attribs):
         expected_callback = {
-            'instance:1': {
-                'status': 'BUILD'
-            }
+            'status': 'BUILD'
         }
         mock_ssh_execute.side_effect = [None, {"stdout": "Chef: 11.1.1"}]
         mock_write_attribs.return_value = {"foo": "bar", "version": "1.1"}
         mock_callback = mock.Mock()
         expected = {
-            'instance:1': {
-                'node-attributes': {
-                    'foo': 'bar',
-                    'version': '1.1',
-                }
+            'node-attributes': {
+                'foo': 'bar',
+                'version': '1.1',
             }
         }
 
-        results = Manager.register_node({"resource_key": "1"}, "1.1.1.1",
-                                        "DEP_ID", mock_callback,
+        results = Manager.register_node("1.1.1.1", "DEP_ID", mock_callback,
                                         password="password",
                                         identity_file="identity_file",
                                         attributes={"foo": "bar"},
@@ -140,18 +132,15 @@ class TestRegisterNode(unittest.TestCase):
     def test_called_process_error(self, mock_ssh_execute, mock_kitchen_path,
                                   mock_register_node):
         expected_callback = {
-            'instance:1': {
-                'status': 'BUILD'
-            }
+            'status': 'BUILD'
         }
         mock_register_node.side_effect = subprocess.CalledProcessError(
             500, "cmd")
         mock_callback = mock.Mock()
 
         self.assertRaises(exceptions.CheckmateException,
-                          Manager.register_node, {"resource_key": "1"},
-                          "1.1.1.1", "DEP_ID", mock_callback,
-                          password="password",
+                          Manager.register_node,  "1.1.1.1", "DEP_ID",
+                          mock_callback, password="password",
                           identity_file="identity_file",
                           attributes={"foo": "bar"}, omnibus_version="1.1")
 
@@ -169,17 +158,15 @@ class TestRegisterNode(unittest.TestCase):
     def test_chef_install_failure(self, mock_ssh_execute, mock_kitchen_path,
                                   mock_register_node):
         expected_callback = {
-            'instance:1': {
-                'status': 'BUILD'
-            }
+            'status': 'BUILD'
         }
         mock_ssh_execute.side_effect = [None, {"stdout": "foo"}]
         mock_callback = mock.Mock()
 
         self.assertRaises(exceptions.CheckmateException,
-                          Manager.register_node, {"resource_key": "1"},
-                          "1.1.1.1", "DEP_ID", mock_callback,
-                          password="password", identity_file="identity_file",
+                          Manager.register_node, "1.1.1.1", "DEP_ID",
+                          mock_callback, password="password",
+                          identity_file="identity_file",
                           attributes={"foo": "bar"}, omnibus_version="1.1")
 
         mock_callback.assert_called_once_with(expected_callback)
@@ -207,26 +194,23 @@ class TestManageRole(unittest.TestCase):
     def test_success(self, mock_path_exists, mock_kitchen_path,
                      mock_role_exists, mock_write_role):
         mock_callback = mock.Mock()
-        mock_path_exists.return_value = True
+        mock_path_exists.side_effect = [True, True]
         mock_role_exists.return_value = False
         mock_write_role.return_value = {'role': 'web'}
         expected = {
-            'instance:1': {
-                'roles': {
-                    'web': {
-                        'role': 'web'
-                    }
+            'roles': {
+                'web': {
+                    'role': 'web'
                 }
             }
         }
 
-        results = Manager.manage_role({'resource_key': '1'}, "web",
-                                      "DEP_ID", mock_callback, "path", "desc",
-                                      "run_list", "attribs", "override",
-                                      "env_run_lists")
+        results = Manager.manage_role("web", "DEP_ID", mock_callback,
+                                      "path", "desc", "run_list", "attribs",
+                                      "override", "env_run_lists")
 
         self.assertDictEqual(results, expected)
-        mock_path_exists.assert_called_once_with(mock_kitchen_path)
+        mock_path_exists.assert_any_call(mock_kitchen_path)
         mock_role_exists.assert_called_once_with('web')
         mock_write_role.assert_called_once_with(
             'web', desc="desc", run_list="run_list",
@@ -237,14 +221,14 @@ class TestManageRole(unittest.TestCase):
     @mock.patch('os.path.exists')
     def test_env_existence(self, mock_path_exists, mock_kitchen_path):
         mock_callback = mock.Mock()
-        mock_path_exists.return_value = False
+        mock_path_exists.side_effect = [True, False]
 
         self.assertRaises(exceptions.CheckmateException,
-                          Manager.manage_role, {'resource_key': '1'}, "web",
-                          "DEP_ID", mock_callback, "path", "desc",
-                          "run_list", "attribs", "override", "env_run_lists")
+                          Manager.manage_role, "web", "DEP_ID",
+                          mock_callback, "path", "desc", "run_list",
+                          "attribs", "override", "env_run_lists")
 
-        mock_path_exists.assert_called_once_with(mock_kitchen_path)
+        mock_path_exists.assert_any_call(mock_kitchen_path)
 
     @mock.patch.object(ChefEnvironment, 'ruby_role_exists')
     @mock.patch.object(ChefEnvironment, 'kitchen_path')
@@ -252,69 +236,127 @@ class TestManageRole(unittest.TestCase):
     def test_ruby_role_existence(self, mock_path_exists, mock_kitchen_path,
                                  mock_role_exists):
         mock_callback = mock.Mock()
-        mock_path_exists.return_value = True
+        mock_path_exists.side_effect = [True, True]
         mock_role_exists.return_value = True
 
         self.assertRaises(exceptions.CheckmateException,
-                          Manager.manage_role, {'resource_key': '1'}, "web",
-                          "DEP_ID", mock_callback, "path", "desc",
-                          "run_list", "attribs", "override", "env_run_lists")
+                          Manager.manage_role, "web", "DEP_ID",
+                          mock_callback, "path", "desc", "run_list",
+                          "attribs", "override", "env_run_lists")
 
-        mock_path_exists.assert_called_once_with(mock_kitchen_path)
+        mock_path_exists.assert_any_call(mock_kitchen_path)
         mock_role_exists.assert_called_once_with('web')
         mock_callback.assert_called_once_with({
-            "instance:1": {
-                "status": "ERROR",
-                "error-message": "Encountered a chef role in Ruby. Only JSON"
-                                 " roles can be manipulated by Checkmate: web"
-            }
+            "status": "ERROR",
+            "error-message": "Encountered a chef role in Ruby. Only JSON"
+                             " roles can be manipulated by Checkmate: web"
         })
 
 
 class TestWriteDataBag(unittest.TestCase):
     def test_sim(self):
         expected = {
-            'instance:1': {
-                'data-bags': {
-                    'web': {
-                        'server': {
-                            'foo': 'bar'
-                        }
+            'data-bags': {
+                'web': {
+                    'server': {
+                        'foo': 'bar'
                     }
                 }
             }
         }
-        results = Manager.write_data_bag({'resource_key': '1'}, "DEP_ID",
-                                         "web", "server", {"foo": "bar"},
-                                         simulate=True)
+        results = Manager.write_data_bag("DEP_ID", "web", "server",
+                                         {"foo": "bar"}, simulate=True)
         self.assertDictEqual(results, expected)
 
     def test_no_contents(self):
-        results = Manager.write_data_bag({'resource_key': '1'}, "DEP_ID",
-                                         "web", "server", None)
+        results = Manager.write_data_bag("DEP_ID", "web", "server", None)
         self.assertIsNone(results)
 
+    @mock.patch('os.path.exists')
     @mock.patch.object(ChefEnvironment, 'write_data_bag')
-    def test_success(self, mock_write_bag):
+    def test_success(self, mock_write_bag, mock_path_exists):
+        mock_path_exists.return_value = True
         expected = {
-            'instance:1': {
-                'data-bags': {
-                    'web': {
-                        'server': {
-                            'foo': 'bar'
-                        }
+            'data-bags': {
+                'web': {
+                    'server': {
+                        'foo': 'bar'
                     }
                 }
             }
         }
-        results = Manager.write_data_bag({'resource_key': '1'}, "DEP_ID",
-                                         "web", "server", {"foo": "bar"},
-                                         path="path", kitchen_name="kitchen",
+        results = Manager.write_data_bag("DEP_ID", "web", "server",
+                                         {"foo": "bar"}, path="path",
+                                         kitchen_name="kitchen",
                                          secret_file="secret")
         self.assertDictEqual(results, expected)
         mock_write_bag.assert_called_once_with("web", "server",
                                                {"foo": "bar"},
                                                secret_file="secret")
+
+
+class TestCook(unittest.TestCase):
+    def test_sim(self):
+        expected = {
+            'status': 'ACTIVE',
+            'node-attributes': {
+                'foo': 'bar'
+            }
+        }
+        results = Manager.cook("1.1.1.1", "DEP_ID", None,
+                               attributes={'foo': 'bar'}, simulate=True)
+        self.assertDictEqual(results, expected)
+
+    @mock.patch.object(ChefEnvironment, 'cook')
+    @mock.patch.object(ChefEnvironment, 'write_node_attributes')
+    def test_success(self, mock_write_attribs, mock_cook):
+        mock_callback = mock.Mock()
+        mock_write_attribs.return_value = {'node': 'foo'}
+        expected = {
+            'status': 'ACTIVE',
+            'node-attributes': {
+                'node': 'foo'
+            }
+        }
+        run_list = ["role[admin]", "recipe[""recipe]"]
+
+        results = Manager.cook("1.1.1.1", "DEP_ID", mock_callback,
+                               recipes=["recipe"], roles=["admin"],
+                               username="admin", password="password",
+                               identity_file="identity", port=200,
+                               attributes={'foo': 'bar'})
+
+        self.assertDictEqual(results, expected)
+        mock_callback.assert_called_once_with({'status': 'BUILD'})
+        mock_write_attribs.assert_called_once_with(
+            "1.1.1.1", {"foo": "bar"}, run_list=run_list)
+        mock_cook.assert_called_once_with(
+            "1.1.1.1", username="admin", password="password",
+            identity_file="identity", port=200, run_list=run_list,
+            attributes={"foo": "bar"})
+
+    @mock.patch.object(ChefEnvironment, 'cook')
+    @mock.patch.object(ChefEnvironment, 'write_node_attributes')
+    def test_exc_handling(self, mock_write_attribs, mock_cook):
+        mock_callback = mock.Mock()
+        run_list = ["role[admin]", "recipe[""recipe]"]
+        mock_cook.side_effect = subprocess.CalledProcessError(500, "cmd")
+
+        self.assertRaises(exceptions.CheckmateException, Manager.cook,
+                          "1.1.1.1", "DEP_ID", mock_callback,
+                          recipes=["recipe"], roles=["admin"],
+                          username="admin", password="password",
+                          identity_file="identity", port=200,
+                          attributes={'foo': 'bar'})
+
+        mock_callback.assert_called_once_with({'status': 'BUILD'})
+        mock_write_attribs.assert_called_once_with(
+            "1.1.1.1", {"foo": "bar"}, run_list=run_list)
+        mock_cook.assert_called_once_with(
+            "1.1.1.1", username="admin", password="password",
+            identity_file="identity", port=200, run_list=run_list,
+            attributes={"foo": "bar"})
+
 
 if __name__ == '__main__':
     import sys

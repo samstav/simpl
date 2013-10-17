@@ -49,12 +49,10 @@ class KnifeSolo(object):
         client on the node
         :return:
         """
-        # Calculate node path and check for prexistance
         node_path = self.get_node_path(host)
         if os.path.exists(node_path):
             LOG.info("Node is already registered: %s", node_path)
         else:
-            # Build and execute command 'knife prepare' command
             params = ['knife', 'solo', 'prepare', 'root@%s' % host,
                       '-c', os.path.join(self.kitchen_path, 'solo.rb')]
             if password:
@@ -64,6 +62,22 @@ class KnifeSolo(object):
             if identity_file:
                 params.extend(['-i', identity_file])
             self.run_command(params)
+
+    def cook(self, host, username='root', password=None, identity_file=None,
+             port=22, run_list=None, attributes=None):
+        """Runs knife solo cook for a given host."""
+        params = ['knife', 'solo', 'cook', '%s@%s' % (username, host),
+                  '-c', self._config_path]
+        if not (run_list or attributes):
+            params.extend(['bootstrap.json'])
+        if identity_file:
+            params.extend(['-i', identity_file])
+        if password:
+            params.extend(['-P', password])
+        params.extend(['-p', str(port)])
+
+        self.run_command(params)
+        LOG.info("Knife cook succeeded for %s", host)
 
     def get_data_bags(self):
         """Gets all the databags for solo."""

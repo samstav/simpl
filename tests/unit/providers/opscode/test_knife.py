@@ -1,4 +1,4 @@
-# pylint: disable=R0904
+# pylint: disable=C0103,R0904,W0201
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -230,6 +230,27 @@ class TestKnife(unittest.TestCase):
         self.knife.get_data_bag.assert_called_once_with("web")
         self.knife.get_data_bag_item.assert_called_once_with(
             "web", "server", secret_file="secret_file")
+
+    def test_cook(self):
+        self.knife.run_command = mock.Mock()
+        self.knife.cook("1.1.1.1", username="foo", password="password",
+                        identity_file="identity", port=20,
+                        run_list=['list'], attributes={"foo": "bar"})
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'cook', 'foo@1.1.1.1', '-c',
+             self.knife.config_path, '-i', 'identity', '-P', 'password',
+             '-p', '20']
+        )
+
+    def test_cook_with_no_attribs(self):
+        self.knife.run_command = mock.Mock()
+        self.knife.cook("1.1.1.1", username="foo", password="password",
+                        identity_file="identity", port=20)
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'cook', 'foo@1.1.1.1', '-c',
+             self.knife.config_path, 'bootstrap.json', '-i', 'identity',
+             '-P', 'password', '-p', '20']
+        )
 
 
 if __name__ == '__main__':

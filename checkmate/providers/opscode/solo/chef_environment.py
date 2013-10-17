@@ -41,14 +41,13 @@ class ChefEnvironment(object):
         self.env_name = env_name
         self.root = root_path or CONFIG.deployments_path
         self._env_path = os.path.join(self.root, self.env_name)
+        if not os.path.exists(self.root):
+            raise exceptions.CheckmateException("Invalid path: %s" % self.root)
         self._kitchen_path = os.path.join(self._env_path, kitchen_name)
         self._private_key_path = os.path.join(self._env_path,
                                               PRIVATE_KEY_NAME)
         self._public_key_path = os.path.join(self._env_path, PUBLIC_KEY_NAME)
         self._knife = KnifeSolo(self._kitchen_path)
-        # if not os.path.exists(path):
-        #     error_message = "Invalid path: %s" % path
-        #     raise exceptions.CheckmateException(error_message)
 
     @property
     def kitchen_path(self):
@@ -90,8 +89,8 @@ class ChefEnvironment(object):
                       identity_file=None):
         """Registers a node in the environment."""
         self._knife.prepare(host, password=password,
-                                 omnibus_version=omnibus_version,
-                                 identity_file=identity_file)
+                            omnibus_version=omnibus_version,
+                            identity_file=identity_file)
 
     def fetch_cookbooks(self):
         """Fetches cookbooks."""
@@ -108,6 +107,13 @@ class ChefEnvironment(object):
                                    lock=True)
             LOG.debug("Ran 'librarian-chef install' in: %s",
                       self._kitchen_path)
+
+    def cook(self, host, username='root', password=None, identity_file=None,
+             port=22, run_list=None, attributes=None):
+        """Calls cooks for a host."""
+        self._knife.cook(host, username=username, password=password,
+                         identity_file=identity_file, port=port,
+                         run_list=run_list, attributes=attributes)
 
     def delete_cookbooks(self):
         """Deletes cookbooks."""
@@ -245,22 +251,32 @@ class ChefEnvironment(object):
         LOG.debug("Finished creating kitchen: %s", self._kitchen_path)
         return {"kitchen": self._kitchen_path}
 
-    def write_node_attributes(self, host, attributes):
+    def write_node_attributes(self, host, attributes, run_list=None):
         """Merge node attributes into existing ones in node file."""
         node_path = self._knife.get_node_path(host)
+        if not os.path.exists(node_path):
+            raise exceptions.CheckmateException(
+                "Node '%s' is not registered in %s" % (host,
+                                                       self._kitchen_path))
         if attributes:
             lock = threading.Lock()
             lock.acquire()
             try:
-                node = {'run_list': []}  # default
-                if os.path.exists(node_path):
-                    with file(node_path, 'r') as node_file_r:
-                        node = json.load(node_file_r)
-                utils.merge_dictionary(node, attributes)
+                with file(node_path, 'r') as node_file_r:
+                    node = json.load(node_file_r)
+                if 'run_list' not in node:
+                    node['run_list'] = []
+                if run_list:
+                    for entry in run_list:
+                        if entry not in node['run_list']:
+                            node['run_list'].append(entry)
+                if attributes:
+                    utils.merge_dictionary(node, attributes)
+
                 with file(node_path, 'w') as node_file_w:
                     json.dump(node, node_file_w)
-                LOG.info("Node attributes written in %s", node_path,
-                         extra=dict(data=node))
+                LOG.info("Node %s written in %s", node,
+                         node_path, extra=dict(data=node))
                 return node
             except StandardError as exc:
                 raise exc

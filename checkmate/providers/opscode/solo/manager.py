@@ -100,7 +100,7 @@ class Manager(object):
         return results
 
     @staticmethod
-    def register_node(context, host, environment, callback, path=None,
+    def register_node(host, environment, callback, path=None,
                       password=None, omnibus_version=None, attributes=None,
                       identity_file=None, kitchen_name='kitchen',
                       simulate=False):
@@ -122,7 +122,6 @@ class Manager(object):
         :param attributes: attributes to set on node (dict)
         :param identity_file: private key file to use to connect to the node
         """
-        instance_key = 'instance:%s' % context['resource_key']
         results = {'status': "BUILD"}
         if simulate:
             # Update status of current resource to BUILD
@@ -130,15 +129,9 @@ class Manager(object):
                 node = {'run_list': []}  # default
                 node.update(attributes)
                 results.update({'node-attributes': node})
-            results = {instance_key: results}
             return results
 
-        res = {}
-
-        results = {instance_key: results}
-        res.update(results)
-
-        callback(res)
+        callback(results)
 
         env = ChefEnvironment(environment, root_path=path,
                               kitchen_name=kitchen_name)
@@ -170,7 +163,7 @@ class Manager(object):
             LOG.debug("Chef install check results on %s: %s", host,
                       results['stdout'])
             if (re.match('^Chef: [0-9]+.[0-9]+.[0-9]+', results['stdout'])
-                    is None):
+                is None):
                 exc = exceptions.CheckmateException(
                     "Check for chef install failed with unexpected response "
                     "'%s'" % results, options=exceptions.CAN_RESUME)
@@ -183,23 +176,19 @@ class Manager(object):
         node_data = env.write_node_attributes(host, attributes)
         if node_data:
             results = {
-                instance_key: {
-                    'node-attributes': node_data
-                }
+                'node-attributes': node_data
             }
             return results
 
     @staticmethod
-    def manage_role(context, name, environment, callback, path=None,
+    def manage_role(name, environment, callback, path=None,
                     desc=None, run_list=None, default_attributes=None,
                     override_attributes=None, env_run_lists=None,
                     kitchen_name='kitchen', simulate=False):
         """Write/Update role."""
-        instance_key = 'instance:%s' % context['resource_key']
         if simulate:
             return
 
-        results = {}
         env = ChefEnvironment(environment, root_path=path,
                               kitchen_name=kitchen_name)
 
@@ -211,9 +200,10 @@ class Manager(object):
         if env.ruby_role_exists(name):
             msg = ("Encountered a chef role in Ruby. Only JSON "
                    "roles can be manipulated by Checkmate: %s" % name)
-            results['status'] = "ERROR"
-            results['error-message'] = msg
-            results = {instance_key: results}
+            results = {
+                'status': "ERROR",
+                'error-message': msg
+            }
             callback(results)
             raise exceptions.CheckmateException(msg)
 
@@ -222,16 +212,14 @@ class Manager(object):
                               override_attributes=override_attributes,
                               env_run_lists=env_run_lists)
         results = {
-            instance_key: {
-                'roles': {
-                    name: role
-                }
+            'roles': {
+                name: role
             }
         }
         return results
 
     @staticmethod
-    def write_data_bag(context, environment, bag_name, item_name, contents,
+    def write_data_bag(environment, bag_name, item_name, contents,
                        path=None, secret_file=None, kitchen_name='kitchen',
                        simulate=False):
         """Updates a data_bag or encrypted_data_bag
@@ -260,14 +248,55 @@ class Manager(object):
             env.write_data_bag(bag_name, item_name, contents,
                                secret_file=secret_file)
 
-        instance_key = "instance:%s" % context['resource_key']
         results = {
-            instance_key: {
-                'data-bags': {
-                    bag_name: {
-                        item_name: contents
-                    }
+            'data-bags': {
+                bag_name: {
+                    item_name: contents
                 }
             }
         }
+        return results
+
+    @staticmethod
+    def cook(host, environment, callback, recipes=None, roles=None, path=None,
+             username='root', password=None, identity_file=None, port=22,
+             attributes=None, kitchen_name='kitchen', simulate=False):
+        """Apply recipes/roles to a server."""
+        if simulate:
+            results = {'status': 'ACTIVE'}
+            if attributes:
+                results["node-attributes"] = attributes
+
+            return results
+
+        results = {'status': 'BUILD'}
+
+        callback(results)
+        env = ChefEnvironment(environment, root_path=path,
+                              kitchen_name=kitchen_name)
+
+        # Add any missing recipes to node settings
+        run_list = []
+        if roles:
+            run_list.extend(["role[%s]" % role for role in roles])
+        if recipes:
+            run_list.extend(["recipe[%s]" % recipe for recipe in recipes])
+
+        node = env.write_node_attributes(host, attributes, run_list=run_list)
+
+        try:
+            env.cook(host, username=username, password=password,
+                     identity_file=identity_file, port=port,
+                     run_list=run_list, attributes=attributes)
+            LOG.info("Knife cook succeeded for %s in %s", host, environment)
+        except (subprocess.CalledProcessError,
+                exceptions.CheckmateCalledProcessError) as exc:
+            LOG.warn("Knife cook failed for %s. Retrying.", host)
+            raise exceptions.CheckmateException(str(exc),
+                                                options=exceptions.CAN_RESUME)
+
+        results = {'status': "ACTIVE"}
+        if node:
+            results['node-attributes'] = node
+
         return results
