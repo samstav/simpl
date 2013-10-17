@@ -13,7 +13,6 @@ describe('AutoLoginController', function(){
     $log = $injector.get('$log');
     auth = {};
     controller = new AutoLoginController($scope, $window, $cookies, $log, auth);
-    mixpanel = { track: emptyFunction }; // TODO: We are dependent on this being a global var
   }));
 
   it('should assign autologin callbacks and method to the scope', function(){
@@ -27,14 +26,6 @@ describe('AutoLoginController', function(){
 
     beforeEach(function() {
       response = { status: 'faketext' };
-    });
-
-    it('should track the failure with mixpanel', function(){
-      sinon.spy(mixpanel, 'track');
-      $scope.auto_login_fail(response);
-
-      expect(mixpanel.track.getCall(0).args[0]).toEqual('Log In Failed');
-      expect(mixpanel.track.getCall(0).args[1]).toEqual({ 'problem': 'faketext' });
     });
 
     it('should set the window href', function(){

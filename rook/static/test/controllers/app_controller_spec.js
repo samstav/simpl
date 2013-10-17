@@ -25,7 +25,6 @@ describe('AppController', function(){
     api_stub = { get: emptyFunction };
     webengage = { init: emptyFunction };
     controller = new AppController(scope, http, location, resource, auth, $route, $q, webengage, $modal);
-    mixpanel = { track: sinon.spy() }; // TODO: We are dependent on this being a global var
   }));
 
   it('should display the header', function(){
@@ -170,10 +169,6 @@ describe('AppController', function(){
       scope.impersonate('fakeuser');
     }));
 
-    it('should log impersonation on mixpanel', function() {
-      expect(mixpanel.track).toHaveBeenCalledWith('Impersonation', {user: 'fakeracker', tenant: 'fakeuser'});
-    });
-
     it('should call the appropriate callback after impersonating user', function() {
       deferred.resolve('success');
       $rootScope.$apply();
@@ -216,10 +211,6 @@ describe('AppController', function(){
       };
       scope.open_modal = sinon.spy();
       scope.on_impersonate_error(response);
-    });
-
-    it('should log error to mixpanel', function() {
-      expect(mixpanel.track).toHaveBeenCalledWith('Impersonation Failed');
     });
 
     it('should set an error message', function() {

@@ -69,12 +69,7 @@ describe('LoginModalController', function() {
   describe('#on_auth_failed', function() {
     beforeEach(function() {
       var response = { status: "fakestatustext" };
-      spyOn(mixpanel, 'track');
       $scope.on_auth_failed(response);
-    });
-
-    it('should log response to mixpanel', function() {
-      expect(mixpanel.track).toHaveBeenCalledWith('Log In Failed', { problem: "fakestatustext" });
     });
 
     it('should add an error message to auth service', function() {
