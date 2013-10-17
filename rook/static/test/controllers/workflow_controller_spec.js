@@ -81,17 +81,12 @@ describe('WorkflowController', function(){
       var response = { config: { url: '/fakeurl/+fakeaction' } };
       $location.path = sinon.stub().returns('/fakeurl');
       $scope.notify = sinon.stub();
-      spyOn(mixpanel, 'track');
       spyOn($scope, 'load');
       $scope.workflow_action_success(response);
     });
 
     it('should notify action was successfull', function() {
       expect($scope.notify).toHaveBeenCalledWith("Command 'fakeaction' workflow executed");
-    });
-
-    it('should track action with mixpanel', function() {
-      expect(mixpanel.track).toHaveBeenCalledWith("Workflow Action", {'action': 'fakeaction'});
     });
 
     it('should reload scope', function() {
@@ -105,13 +100,8 @@ describe('WorkflowController', function(){
       response = { config: { url: '/fakeurl/+fakeaction' } };
       $location.path = sinon.stub().returns('/fakeurl');
       $scope.notify = sinon.stub();
-      spyOn(mixpanel, 'track');
       $scope.show_error = sinon.spy();
       $scope.workflow_action_error(response);
-    });
-
-    it('should track action with mixpanel', function() {
-      expect(mixpanel.track).toHaveBeenCalledWith("Workflow Action Failed", {'action': 'fakeaction'});
     });
 
     it('should display the error modal dialog', function() {

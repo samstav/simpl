@@ -256,7 +256,6 @@ function AutoLoginController($scope, $window, $cookies, $log, auth) {
   };
 
   $scope.auto_login_fail = function(response) {
-    mixpanel.track("Log In Failed", {'problem': response.status});
     $window.location.href = '/';
   };
 
@@ -307,12 +306,9 @@ function LoginModalController($scope, $modalInstance, auth, $route) {
   $scope.on_auth_success = function() {
     $modalInstance.close({ logged_in: true });
     $route.reload();
-
-    mixpanel.track("Logged In", {'user': auth.identity.username});
   };
 
   $scope.on_auth_failed = function(response) {
-    mixpanel.track("Log In Failed", {'problem': response.status});
     auth.error_message = response.status + ". Check that you typed in the correct credentials.";
   };
 
@@ -458,7 +454,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
     if (typeof error.data == "object" && 'description' in error.data)
         info.message = error.data.description;
     $scope.open_modal('/partials/app/_error.html', {error: info});
-    mixpanel.track("Error", {'error': info.message});
   };
 
   $scope.$on('logIn', function() {
@@ -570,7 +565,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
   };
 
   $scope.on_impersonate_error = function(response) {
-    mixpanel.track("Impersonation Failed");
     var error = {
       data: response.data,
       status: response.status,
@@ -582,7 +576,6 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, we
 
   $scope.impersonation = { username: "" };
   $scope.impersonate = function(username) {
-    mixpanel.track("Impersonation", { user: auth.identity.username, tenant: username });
     $scope.impersonation.username = "";
     return auth.impersonate(username)
       .then($scope.on_impersonate_success, $scope.on_impersonate_error);
@@ -799,11 +792,9 @@ function NavBarController($scope, $location, $http) {
         $scope.feedback = "";
         $('#feedback').val('');
         $("#feedback_error").hide();
-        mixpanel.track("Feedback Sent");
     }).error(function(response) {
       $("#feedback_error_text").html(response.statusText);
       $("#feedback_error").show();
-      mixpanel.track("Feedback Failed");
     });
   };
 }
@@ -1233,7 +1224,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
               $scope.current_spec[attr] = returned[attr];
           }
           $scope.notify('Saved');
-          mixpanel.track("Task Spec Saved");
         }, function(error) {
           var info = {data: error.data, status: error.status, title: "Error Saving",
                       message: "There was an error saving your JSON:"};
@@ -1276,7 +1266,6 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
               $scope.current_task[attr] = returned[attr];
           }
           $scope.notify('Saved');
-          mixpanel.track("Task Saved");
         }, function(error) {
           var info = {data: error.data, status: error.status, title: "Error Saving",
                       message: "There was an error saving your JSON:"};
@@ -1319,14 +1308,12 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
   $scope.workflow_action_success = function(response) {
     var action = response.config.url.replace($location.path() + '/+', '');
     $scope.notify("Command '" + action + "' workflow executed");
-    mixpanel.track("Workflow Action", {'action': action});
     $scope.load();
   }
 
   $scope.workflow_action_error = function(response) {
     $scope.show_error(response);
     var action = response.config.url.replace($location.path() + '/+', '');
-    mixpanel.track("Workflow Action Failed", {'action': action});
   }
 
   $scope.workflow_action = function(workflow_id, action) {
@@ -1357,10 +1344,8 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
           // this callback will be called asynchronously
           // when the response is available
           $scope.load();
-          mixpanel.track("Task Action", {'action': action});
         }).error(function(data) {
           $scope.show_error(data);
-          mixpanel.track("Task Action Failed", {'action': action});
         });
     } else {
       $scope.loginPrompt().then(retry);
@@ -1619,7 +1604,6 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
     $scope.selected = $scope.items[index];
 
     $scope.selected_key = $scope.selected.key;
-    mixpanel.track("Blueprint Selected", {'blueprint': $scope.selected.key});
   };
 
   for (var i=0;i<$scope.count;i++) {
@@ -2261,7 +2245,6 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
           $scope.notify('['+response.status+'] ' + 'Unable to find branch or tag "'+ref+'" of '+remote.repo.name+' from '+remote.server);
         }
       );
-    mixpanel.track("Remote Blueprint Requested", {'blueprint': repo_url});
   };
 
   //Default Environments
@@ -2672,7 +2655,6 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     }
 
     if ($scope.auth.identity.loggedIn) {
-      mixpanel.track("Deployment Launched", {'action': action});
       deployment.$save(function(returned, getHeaders){
         if (action == '+preview') {
           workflow.preview = returned;
@@ -2689,7 +2671,6 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
                     message: "There was an error creating your deployment:"};
         $scope.open_modal('/partials/app/_error.html', {error: info});
         $scope.submitting = false;
-        mixpanel.track("Deployment Launch Failed", {'status': error.status, 'data': error.data});
       });
     } else {
       $scope.submitting = false;
@@ -3051,13 +3032,11 @@ function DeploymentController($scope, $location, $resource, $routeParams, $modal
   $scope.retry = function() {
     var url = $scope.data.operation['retry-link'];
     $http.post(url);
-    mixpanel.track('Deployment::Retry', { deployment_id: $scope.data.id });
   }
 
   $scope.resume = function() {
     var url = $scope.data.operation['resume-link'];
     $http.post(url);
-    mixpanel.track('Deployment::Resume', { deployment_id: $scope.data.id });
   }
 
   $scope.save = function() {
@@ -3521,7 +3500,6 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
     var Dep = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
     var deployment = new Dep(deployment_obj);
 
-    mixpanel.track("Deployment Launched", {'action': action});
     deployment.$save(
       function success(returned, getHeaders){
         if (action == '+preview') {
@@ -3536,7 +3514,6 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
       function error(error) {
         $scope.show_error(error);
         $scope.submitting = false;
-        mixpanel.track("Deployment Launch Failed", {'status': error.status, 'data': error.data});
       }
     );
   }
