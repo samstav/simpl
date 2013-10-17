@@ -20,6 +20,7 @@ import unittest
 
 from SpiffWorkflow import Task
 
+from checkmate.deployment import Deployment
 from checkmate import exceptions as cmexc
 from checkmate import operations
 from checkmate import utils
@@ -201,19 +202,44 @@ class TestOperationsUpdateOperation(unittest.TestCase):
                                        mock_get_time_string,
                                        mock_getop):
         mock_get_driver.return_value = mock_db = mock.Mock()
-        mock_db.get_deployment.return_value = {}
+        mock_db.get_deployment.return_value = Deployment({})
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
         mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
         operations.update_operation('depid', 'wfid',
-                                    deployment_status='test_status',
+                                    deployment_status='PLANNED',
                                     test_kwarg='test')
         mock_db.save_deployment.assert_called_once_with(
             'depid',
             {'operation': {'test_kwarg': 'test',
                            'updated': '2013-03-31 17:49:51 +0000'},
-             'status': 'test_status',
+             'status': 'PLANNED',
              },
             partial=True
+        )
+
+    @mock.patch.object(operations, 'get_operation')
+    @mock.patch.object(utils, 'get_time_string')
+    @mock.patch('checkmate.operations.db.get_driver')
+    def test_include_deployment_status_not_permitted(self, mock_get_driver,
+                                                     mock_get_time_string,
+                                                     mock_getop):
+        mock_get_driver.return_value = mock_db = mock.Mock()
+        mock_deployment = Deployment({})
+        mock_deployment['status'] = 'FAILED'
+        mock_deployment['status'] = 'DELETED'
+        mock_db.get_deployment.return_value = mock_deployment
+        mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
+        mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
+        operations.update_operation('depid', 'wfid',
+                                    deployment_status='FAILED',
+                                    test_kwarg='test')
+        mock_db.save_deployment.assert_called_once_with(
+            'depid', {
+                'operation': {
+                    'test_kwarg': 'test',
+                    'updated': '2013-03-31 17:49:51 +0000'
+                },
+            }, partial=True
         )
 
     @mock.patch.object(operations, 'get_operation',
@@ -225,12 +251,12 @@ class TestOperationsUpdateOperation(unittest.TestCase):
         mock_db.get_deployment.return_value = {}
         mock_getop.return_value = ('operation', -1, {'status': 'BUILD'})
         operations.update_operation('depid', None,
-                                    deployment_status='test_status',
+                                    deployment_status='PLANNED',
                                     test_kwarg='test')
         mock_db.save_deployment.assert_called_once_with(
-            'depid',
-            {'status': 'test_status'},
-            partial=True
+            'depid', {
+                'status': 'PLANNED'
+            }, partial=True
         )
 
     @mock.patch.object(operations, 'get_operation')
