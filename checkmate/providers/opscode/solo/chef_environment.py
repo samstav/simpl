@@ -26,7 +26,7 @@ from eventlet.green import threading
 from checkmate.common import config
 from checkmate import exceptions, utils
 from checkmate.providers.opscode.solo.blueprint_cache import BlueprintCache
-from checkmate.providers.opscode.solo.knife import Knife
+from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
 
 
 CONFIG = config.current()
@@ -45,7 +45,7 @@ class ChefEnvironment(object):
         self._private_key_path = os.path.join(self._env_path,
                                               PRIVATE_KEY_NAME)
         self._public_key_path = os.path.join(self._env_path, PUBLIC_KEY_NAME)
-        self._knife = Knife(self._kitchen_path)
+        self._knife = KnifeSolo(self._kitchen_path)
         # if not os.path.exists(path):
         #     error_message = "Invalid path: %s" % path
         #     raise exceptions.CheckmateException(error_message)
@@ -89,7 +89,7 @@ class ChefEnvironment(object):
     def register_node(self, host, password=None, omnibus_version=None,
                       identity_file=None):
         """Registers a node in the environment."""
-        self._knife.prepare_solo(host, password=password,
+        self._knife.prepare(host, password=password,
                                  omnibus_version=omnibus_version,
                                  identity_file=identity_file)
 
@@ -185,8 +185,8 @@ class ChefEnvironment(object):
         # we don't pass the config file here because we're creating the
         # kitchen for the first time and knife will overwrite our config
         # file
-        self._knife.init_solo()
-        secret_key_path = self._knife.write_solo_config()
+        self._knife.init()
+        secret_key_path = self._knife.write_config()
 
         # Create bootstrap.json in the kitchen
         bootstrap_path = os.path.join(self._kitchen_path, 'bootstrap.json')
@@ -232,7 +232,7 @@ class ChefEnvironment(object):
         if os.path.exists(knife_file):
             LOG.debug("Knife.rb already exists: %s", knife_file)
         else:
-            os.link(self._knife.solo_config_path, knife_file)
+            os.link(self._knife.config_path, knife_file)
             LOG.debug("Linked knife.rb: %s", knife_file)
 
         # Copy blueprint files to kitchen
@@ -306,6 +306,28 @@ class ChefEnvironment(object):
         with file(role_path, 'w') as role_file_w:
             json.dump(role, role_file_w)
         return role
+
+    def write_data_bag(self, bag_name, item_name, contents, secret_file=None):
+        """Writes data bag to the environment."""
+        if not os.path.exists(self._knife.data_bags_path):
+            msg = ("Data bags path does not exist: %s" %
+                   self._knife.data_bags_path)
+            raise exceptions.CheckmateException(msg)
+
+        self._knife.create_data_bag(bag_name)
+
+        lock = threading.Lock()
+        lock.acquire()
+        try:
+            self._knife.create_data_bag_item(bag_name, item_name,
+                                             contents,
+                                             secret_file=secret_file)
+        except subprocess.CalledProcessError as exc:
+            raise exceptions.CheckmateCalledProcessError(exc.returncode,
+                                                         exc.cmd,
+                                                         output=str(exc))
+        finally:
+            lock.release()
 
     def _create_private_key(self, private_key):
         """Creates the private key for an environment."""

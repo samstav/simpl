@@ -271,6 +271,51 @@ class TestManageRole(unittest.TestCase):
         })
 
 
+class TestWriteDataBag(unittest.TestCase):
+    def test_sim(self):
+        expected = {
+            'instance:1': {
+                'data-bags': {
+                    'web': {
+                        'server': {
+                            'foo': 'bar'
+                        }
+                    }
+                }
+            }
+        }
+        results = Manager.write_data_bag({'resource_key': '1'}, "DEP_ID",
+                                         "web", "server", {"foo": "bar"},
+                                         simulate=True)
+        self.assertDictEqual(results, expected)
+
+    def test_no_contents(self):
+        results = Manager.write_data_bag({'resource_key': '1'}, "DEP_ID",
+                                         "web", "server", None)
+        self.assertIsNone(results)
+
+    @mock.patch.object(ChefEnvironment, 'write_data_bag')
+    def test_success(self, mock_write_bag):
+        expected = {
+            'instance:1': {
+                'data-bags': {
+                    'web': {
+                        'server': {
+                            'foo': 'bar'
+                        }
+                    }
+                }
+            }
+        }
+        results = Manager.write_data_bag({'resource_key': '1'}, "DEP_ID",
+                                         "web", "server", {"foo": "bar"},
+                                         path="path", kitchen_name="kitchen",
+                                         secret_file="secret")
+        self.assertDictEqual(results, expected)
+        mock_write_bag.assert_called_once_with("web", "server",
+                                               {"foo": "bar"},
+                                               secret_file="secret")
+
 if __name__ == '__main__':
     import sys
 

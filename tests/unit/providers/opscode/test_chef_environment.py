@@ -26,7 +26,7 @@ import unittest
 from checkmate import exceptions, utils
 from checkmate.providers.opscode.solo.blueprint_cache import BlueprintCache
 from checkmate.providers.opscode.solo.chef_environment import ChefEnvironment
-from checkmate.providers.opscode.solo.knife import Knife
+from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
 
 
 class TestChefEnvironment(unittest.TestCase):
@@ -152,11 +152,11 @@ class TestCreateKitchen(TestChefEnvironment):
     @mock.patch.object(BlueprintCache, 'cache_path')
     @mock.patch.object(utils, 'copy_contents')
     @mock.patch.object(BlueprintCache, 'update')
-    @mock.patch.object(Knife, 'solo_config_path')
+    @mock.patch.object(KnifeSolo, 'config_path')
     @mock.patch.object(json, 'dump')
     @mock.patch('__builtin__.file')
-    @mock.patch.object(Knife, 'write_solo_config')
-    @mock.patch.object(Knife, 'init_solo')
+    @mock.patch.object(KnifeSolo, 'write_config')
+    @mock.patch.object(KnifeSolo, 'init')
     def test_success(self, mock_init_solo, mock_write_solo_config,
                      mock_file, mock_dump, mock_solo_config,
                      mock_cache_update, mock_copy_contents, mock_cache_path,
@@ -310,7 +310,7 @@ class TestFetchCookbooks(TestChefEnvironment):
 
 
 class TestRegisterNode(TestChefEnvironment):
-    @mock.patch.object(Knife, 'prepare_solo')
+    @mock.patch.object(KnifeSolo, 'prepare')
     def test_success(self, mock_prepare):
         self.env.register_node("1.1.1.1", password="password",
                                omnibus_version="1.1", identity_file="file")
@@ -447,3 +447,61 @@ class TestRubyRoleExists(TestChefEnvironment):
         mock_path_exists.return_value = False
         self.assertFalse(self.env.ruby_role_exists("web"))
         mock_path_exists.assert_called_once_with(role_path)
+
+
+class TestWriteDataBag(TestChefEnvironment):
+    @mock.patch.object(KnifeSolo, 'create_data_bag_item')
+    @mock.patch.object(KnifeSolo, 'create_data_bag')
+    @mock.patch('eventlet.green.threading.Lock')
+    @mock.patch('os.path.exists')
+    def test_success(self, mock_path_exists, mock_lock, mock_create_bag,
+                     mock_create_bag_item):
+        data_bags_path = "%s/data_bags" % self.kitchen_path
+        mock_path_exists.return_value = True
+
+        self.env.write_data_bag("web", "server", {"foo": "bar"},
+                                secret_file="secret")
+
+        mock_path_exists.assert_called_once_with(data_bags_path)
+        self.assertTrue(mock_lock.called)
+        self.assertTrue(mock_lock.return_value.acquire.called)
+        mock_create_bag.assert_called_once_with("web")
+        mock_create_bag_item.assert_called_once_with("web", "server",
+                                                     {"foo": "bar"},
+                                                     secret_file="secret")
+        self.assertTrue(mock_lock.return_value.release.called)
+
+    @mock.patch('os.path.exists')
+    def test_data_bag_path_exists(self, mock_path_exists):
+        data_bags_path = "%s/data_bags" % self.kitchen_path
+        mock_path_exists.return_value = False
+
+        self.assertRaises(exceptions.CheckmateException,
+                          self.env.write_data_bag, "web", "server",
+                          {"foo": "bar"}, secret_file="secret")
+
+        mock_path_exists.assert_called_once_with(data_bags_path)
+
+    @mock.patch.object(KnifeSolo, 'create_data_bag_item')
+    @mock.patch.object(KnifeSolo, 'create_data_bag')
+    @mock.patch('eventlet.green.threading.Lock')
+    @mock.patch('os.path.exists')
+    def test_process_error_handling(self, mock_path_exists, mock_lock,
+                                    mock_create_bag, mock_create_bag_item):
+        data_bags_path = "%s/data_bags" % self.kitchen_path
+        mock_path_exists.return_value = True
+        mock_create_bag_item.side_effect = subprocess.CalledProcessError(
+            500, "cmd")
+
+        self.assertRaises(exceptions.CheckmateException,
+                          self.env.write_data_bag, "web", "server",
+                          {"foo": "bar"}, secret_file="secret")
+
+        mock_path_exists.assert_called_once_with(data_bags_path)
+        self.assertTrue(mock_lock.called)
+        self.assertTrue(mock_lock.return_value.acquire.called)
+        mock_create_bag.assert_called_once_with("web")
+        mock_create_bag_item.assert_called_once_with("web", "server",
+                                                     {"foo": "bar"},
+                                                     secret_file="secret")
+        self.assertTrue(mock_lock.return_value.release.called)

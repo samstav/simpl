@@ -17,13 +17,13 @@ import mock
 import unittest
 
 from checkmate import exceptions
-from checkmate.providers.opscode.solo.knife import Knife
+from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
 
 
 class TestKnife(unittest.TestCase):
     def setUp(self):
         self.kitchen_path = "/tmp/dep/kitchen"
-        self.knife = Knife(self.kitchen_path)
+        self.knife = KnifeSolo(self.kitchen_path)
 
     @mock.patch('os.path.exists')
     @mock.patch('checkmate.utils.run_ruby_command')
@@ -57,7 +57,7 @@ class TestKnife(unittest.TestCase):
 
     def test_init_solo(self):
         self.knife.run_command = mock.Mock()
-        self.knife.init_solo()
+        self.knife.init()
         self.knife.run_command.assert_called_once_with(
             ['knife', 'solo', 'init', '.'])
 
@@ -77,7 +77,7 @@ class TestKnife(unittest.TestCase):
     """ % (self.kitchen_path, self.kitchen_path, self.kitchen_path,
            self.kitchen_path, self.kitchen_path, self.kitchen_path,
            self.kitchen_path)
-        result = self.knife.write_solo_config()
+        result = self.knife.write_config()
 
         self.assertEqual(result,
                          "%s/certificates/chef.pem" % self.kitchen_path)
@@ -87,9 +87,9 @@ class TestKnife(unittest.TestCase):
     def test_prepare_solo_success(self, mock_path_exists):
         mock_path_exists.return_value = False
         self.knife.run_command = mock.Mock()
-        self.knife.prepare_solo("1.1.1.1", password="password",
-                                omnibus_version="0.1",
-                                identity_file="identity_file")
+        self.knife.prepare("1.1.1.1", password="password",
+                           omnibus_version="0.1",
+                           identity_file="identity_file")
         self.knife.run_command.assert_called_once_with(
             ['knife', 'solo', 'prepare', 'root@1.1.1.1', '-c',
              "%s/solo.rb" % self.kitchen_path, '-P', 'password',
@@ -101,10 +101,135 @@ class TestKnife(unittest.TestCase):
     def test_prep_solo_registered_node(self, mock_path_exists):
         mock_path_exists.return_value = True
         self.knife.run_command = mock.Mock()
-        self.knife.prepare_solo("1.1.1.1")
+        self.knife.prepare("1.1.1.1")
         self.assertFalse(self.knife.run_command.called)
         mock_path_exists.assert_called_once_with("%s/nodes/1.1.1.1.json" %
                                                  self.kitchen_path)
+
+    def test_get_data_bags(self):
+        self.knife.run_command = mock.Mock(return_value='{"foo": "bar"}')
+
+        results = self.knife.get_data_bags()
+
+        self.assertDictEqual(results, {'foo': 'bar'})
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'data', 'bag', 'list', '-F', 'json', '-c',
+             self.knife.config_path])
+
+    def test_get_empty_data_bags(self):
+        self.knife.run_command = mock.Mock(return_value=None)
+
+        results = self.knife.get_data_bags()
+
+        self.assertDictEqual(results, {})
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'data', 'bag', 'list', '-F', 'json', '-c',
+             self.knife.config_path])
+
+    def test_get_data_bag(self):
+        self.knife.run_command = mock.Mock(return_value='{"foo": "bar"}')
+
+        results = self.knife.get_data_bag("web")
+
+        self.assertDictEqual(results, {'foo': 'bar'})
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'data', 'bag', 'show', 'web', '-F', 'json', '-c',
+             self.knife.config_path])
+
+    def test_get_empty_data_bag(self):
+        self.knife.run_command = mock.Mock(return_value=None)
+
+        results = self.knife.get_data_bag("web")
+
+        self.assertDictEqual(results, {})
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'data', 'bag', 'show', 'web', '-F', 'json', '-c',
+             self.knife.config_path])
+
+    def test_get_data_bag_item(self):
+        self.knife.run_command = mock.Mock(return_value='{"foo": "bar"}')
+
+        results = self.knife.get_data_bag_item("web", "server", "secret_file")
+
+        self.assertDictEqual(results, {'foo': 'bar'})
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'data', 'bag', 'show', 'web', 'server', '-F',
+             'json', '-c', self.knife.config_path, '--secret-file',
+             'secret_file'])
+
+    def test_get_empty_data_bag_item(self):
+        self.knife.run_command = mock.Mock(return_value=None)
+
+        results = self.knife.get_data_bag_item("web", "server")
+
+        self.assertDictEqual(results, {})
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'data', 'bag', 'show', 'web', 'server', '-F',
+             'json', '-c', self.knife.config_path])
+
+    def test_create_data_bag(self):
+        self.knife.get_data_bags = mock.Mock(return_value={})
+        self.knife.run_command = mock.Mock(return_value=None)
+
+        self.knife.create_data_bag("web")
+
+        self.assertTrue(self.knife.get_data_bags.called)
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'data', 'bag', 'create', 'web', '-c',
+             self.knife.config_path])
+
+    def test_create_for_existing_data_bag(self):
+        self.knife.get_data_bags = mock.Mock(return_value={"web": {}})
+        self.knife.run_command = mock.Mock(return_value=None)
+
+        self.knife.create_data_bag("web")
+
+        self.assertTrue(self.knife.get_data_bags.called)
+        self.assertFalse(self.knife.run_command.called)
+
+    def test_create_data_bag_item(self):
+        self.knife.get_data_bag = mock.Mock(return_value={})
+        self.knife.run_command = mock.Mock()
+
+        self.knife.create_data_bag_item("web", "server", {"foo": "bar"},
+                                        "secret_file")
+
+        self.knife.get_data_bag.assert_called_once_with("web")
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'data', 'bag', 'create', "web", "server",
+             '-d', '-c', self.knife.config_path, '--json',
+             '{"foo": "bar", "id": "server"}', '--secret-file', 'secret_file']
+        )
+
+    def test_create_existing_data_bag_item(self):
+        self.knife.get_data_bag = mock.Mock(return_value={'server': {}})
+        self.knife.get_data_bag_item = mock.Mock(return_value={'item': 'data'})
+        self.knife.run_command = mock.Mock()
+
+        self.knife.create_data_bag_item("web", "server", {"foo": "bar"},
+                                        "secret_file")
+
+        self.knife.get_data_bag.assert_called_once_with("web")
+        self.knife.get_data_bag_item.assert_called_once_with(
+            "web", "server", secret_file="secret_file")
+        self.knife.run_command.assert_called_once_with(
+            ['knife', 'solo', 'data', 'bag', 'create', "web", "server",
+             '-d', '-c', self.knife.config_path, '--json',
+             '{"item": "data", "foo": "bar", "id": "server"}',
+             '--secret-file', 'secret_file']
+        )
+
+    def test_create_data_bag_with_id(self):
+        self.knife.get_data_bag = mock.Mock(return_value={'server': {}})
+        self.knife.get_data_bag_item = mock.Mock(return_value={'item': 'data'})
+
+        self.assertRaises(exceptions.CheckmateException,
+                          self.knife.create_data_bag_item, "web", "server",
+                          {"foo": "bar", "id": "xyz"}, "secret_file")
+
+        self.knife.get_data_bag.assert_called_once_with("web")
+        self.knife.get_data_bag_item.assert_called_once_with(
+            "web", "server", secret_file="secret_file")
 
 
 if __name__ == '__main__':

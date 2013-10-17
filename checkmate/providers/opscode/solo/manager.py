@@ -12,7 +12,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Rackspace solo provider manager."""
-import json
 import logging
 import os
 import re
@@ -226,6 +225,48 @@ class Manager(object):
             instance_key: {
                 'roles': {
                     name: role
+                }
+            }
+        }
+        return results
+
+    @staticmethod
+    def write_data_bag(context, environment, bag_name, item_name, contents,
+                       path=None, secret_file=None, kitchen_name='kitchen',
+                       simulate=False):
+        """Updates a data_bag or encrypted_data_bag
+
+        :param environment: the ID of the environment
+        :param bag_name: the name of the data bag (in solo, this ends up
+        being a directory)
+        :param item_name: the name of the item (in solo this ends up being a
+        .json file)
+        :param contents: this is a dict of attributes to write in to the
+        data bag
+        :param path: optional override to the default path where
+        environments live
+        :param secret_file: the path to a certificate used to encrypt a
+        data_bag
+        :param kitchen_name: Optional name of kitchen to write to.
+        """
+        if not contents:
+            LOG.debug("No contents provided to write_databag for '%s/%s'",
+                      environment, bag_name)
+            return
+
+        if not simulate:
+            env = ChefEnvironment(environment, root_path=path,
+                                  kitchen_name=kitchen_name)
+            env.write_data_bag(bag_name, item_name, contents,
+                               secret_file=secret_file)
+
+        instance_key = "instance:%s" % context['resource_key']
+        results = {
+            instance_key: {
+                'data-bags': {
+                    bag_name: {
+                        item_name: contents
+                    }
                 }
             }
         }
