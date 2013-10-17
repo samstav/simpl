@@ -7,7 +7,6 @@ describe('AppController', function(){
       $route,
       $q,
       $modal,
-      webengage,
       controller,
       api_stub;
 
@@ -23,8 +22,7 @@ describe('AppController', function(){
     $q = { defer: sinon.stub().returns( { promise: "fakepromise", reject: sinon.spy() } ) };
     $modal = $injector.get('$modal');
     api_stub = { get: emptyFunction };
-    webengage = { init: emptyFunction };
-    controller = new AppController(scope, http, location, resource, auth, $route, $q, webengage, $modal);
+    controller = new AppController(scope, http, location, resource, auth, $route, $q, $modal);
   }));
 
   it('should display the header', function(){
