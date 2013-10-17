@@ -33,6 +33,7 @@ LOG = logging.getLogger(__name__)
 @statsd.collect
 def create_server(context, name, region=None, api=None, flavor="2",
                   files=None, image=None, tags=None):
+    #pylint: disable=W0613
     """Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
@@ -79,6 +80,18 @@ def create_server(context, name, region=None, api=None, flavor="2",
 @statsd.collect
 def wait_on_build(context, server_id, region=None, ip_address_type='public',
                   api=None):
+    #pylint: disable=W0613
+    """Checks build is complete.
+
+    :param context: context data
+    :param server_id: server id of the server to wait for
+    :param region: region in which the server exists
+    :param ip_address_type: the type of IP address to return as 'ip' in the
+        response
+    :param api: api object for getting server details
+    :return: False when build not ready. Dict with ip addresses when done.
+    """
+
     return manager.Manager.wait_on_build(
         context, server_id, wait_on_build.partial, wait_on_build.update_state,
         ip_address_type=ip_address_type, api=wait_on_build.api)
@@ -91,36 +104,53 @@ def verify_ssh_connection(context, server_id, server_ip, region=None,
                           username='root', timeout=10, password=None,
                           identity_file=None, port=22, api=None,
                           private_key=None):
+    #pylint: disable=W0613
+    """Verifies the ssh connection to a server
+    :param context: context data
+    :param server_id: server id
+    :param region: region where the server exists
+    :param server_ip: ip of the server
+    :param username: username for ssh
+    :param timeout: timeout for ssh
+    :param password: password for ssh
+    :param identity_file: identity file for ssh
+    :param port: port fpr ssh
+    :param api_object: api object for getting server details
+    :param private_key: private key
+    :return:
+    """
+
     data = manager.Manager.verify_ssh_connection(
         context, server_id, server_ip, username=username, timeout=timeout,
         password=password, identity_file=identity_file, port=port,
         api=verify_ssh_connection.api, private_key=private_key)
     is_up = data["status"]
     if not is_up:
-            if (verify_ssh_connection.max_retries ==
-                    verify_ssh_connection.request.retries):
-                exception = cmexc.CheckmateException(
-                    message="SSH verification task has failed",
-                    friendly_message="Could not verify that SSH connectivity "
-                                     "is working",
-                    options=cmexc.CAN_RESET)
+        if (verify_ssh_connection.max_retries ==
+                verify_ssh_connection.request.retries):
+            exception = cmexc.CheckmateException(
+                message="SSH verification task has failed",
+                friendly_message="Could not verify that SSH connectivity "
+                                 "is working",
+                options=cmexc.CAN_RESET)
 
-                verify_ssh_connection.partial({
-                    'status': 'ERROR',
-                    'status-message': 'SSH verification has failed'
-                })
-                raise exception
-            else:
-                verify_ssh_connection.partial({
-                    'status-message': data["status-message"]
-                })
-                raise cmexc.CheckmateException(options=cmexc.CAN_RESUME)
+            verify_ssh_connection.partial({
+                'status': 'ERROR',
+                'status-message': 'SSH verification has failed'
+            })
+            raise exception
+        verify_ssh_connection.partial({
+            'status-message': data["status-message"]
+        })
+        raise cmexc.CheckmateException(options=cmexc.CAN_RESUME)
 
 
 @ctask.task(base=cprov.RackspaceProviderTask, default_retry_delay=30,
             max_retries=120, provider=provider.Provider)
 @statsd.collect
 def wait_on_delete_server(context, api=None):
+    #pylint: disable=W0613
+    """Wait for a server resource to be deleted."""
     wait_on_delete_server.on_failure = \
         _on_failure(action="while waiting on", method="wait_on_delete_server")
     return manager.Manager.wait_on_delete_server(
@@ -131,11 +161,14 @@ def wait_on_delete_server(context, api=None):
             max_retries=120, provider=provider.Provider)
 @statsd.collect
 def delete_server_task(context, api=None):
+    #pylint: disable=W0613
+    """Celery Task to delete a Nova compute instance."""
     delete_server_task.on_failure = _on_failure(action="deleting",
                                                 method="delete_server_task")
     return manager.Manager.delete_server_task(
         context, delete_server_task.api, delete_server_task.partial)
 
 
-def _on_failure(action="", method=""):
-    return manager.Manager.get_on_failure(action, method)
+def _on_failure(action="", method="", callback=lambda *_, **__: None):
+    """Gets a on_failure method from the Manager."""
+    return manager.Manager.get_on_failure(action, method, callback)

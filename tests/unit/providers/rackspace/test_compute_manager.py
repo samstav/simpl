@@ -1,4 +1,4 @@
-# pylint: disable=R0904,C0103,W0212,E1103
+# pylint: disable=R0904,C0103,C0302,W0212,E1103
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -188,7 +188,6 @@ class TestWaitOnBuild(unittest.TestCase):
 
         self.assertDictEqual(results, {
             "id": "SERVER_ID",
-            "status": "ACTIVE",
             "addresses": ["127.0.0.1", "192.168.412.11"],
             "region": "ORD",
             "ip": "SOME_IP_ADDRESS",
@@ -417,10 +416,8 @@ class TestWaitOnBuild(unittest.TestCase):
 
     @mock.patch.object(utils, "get_ips_from_server")
     @mock.patch.object(utils, "is_rackconnect_account")
-    @mock.patch.object(compute.manager.LOG, "warn")
-    def test_wait_on_build_rackconnect_not_deployed(self, logger,
-                                                    is_rackconnect_account,
-                                                    ips_from_server):
+    def test_wait_on_build_rackconnect_not_deployed(
+            self, is_rackconnect_account, ips_from_server):
         context = {
             "resource_key": "0",
         }
@@ -546,7 +543,7 @@ class TestWaitOnBuild(unittest.TestCase):
 class TestVerifySSHConnectivity(unittest.TestCase):
 
     @mock.patch.object(ssh, "test_connection")
-    def test_verify_ssh_connectivity_linux(self, ssh):
+    def test_verify_ssh_connectivity_linux(self, mock_ssh):
         context = {}
 
         mock_api = mock.MagicMock()
@@ -559,7 +556,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
         mock_image_details.metadata = {"os_type": "linux"}
         mock_api.images.find.return_value = mock_image_details
 
-        ssh.return_value = True
+        mock_ssh.return_value = True
 
         is_up = manager.Manager.verify_ssh_connection(context, "SERVER_ID",
                                                       "SERVER_IP",
@@ -570,7 +567,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
-        ssh.assert_called_once_with(context, "SERVER_IP",
+        mock_ssh.assert_called_once_with(context, "SERVER_IP",
                                     "root", timeout=10,
                                     password=None,
                                     identity_file=None,
@@ -578,7 +575,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
                                     private_key=None)
 
     @mock.patch.object(rdp, "test_connection")
-    def test_verify_ssh_connectivity_windows(self, rdp):
+    def test_verify_ssh_connectivity_windows(self, mock_rdp):
         context = {}
 
         mock_api = mock.MagicMock()
@@ -592,7 +589,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
         mock_image_details.name = "WindowsNT"
         mock_api.images.find.return_value = mock_image_details
 
-        rdp.return_value = True
+        mock_rdp.return_value = True
 
         is_up = manager.Manager.verify_ssh_connection(context, "SERVER_ID",
                                                       "SERVER_IP",
@@ -603,10 +600,10 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
-        rdp.assert_called_once_with(context, "SERVER_IP", timeout=10)
+        mock_rdp.assert_called_once_with(context, "SERVER_IP", timeout=10)
 
     @mock.patch.object(ssh, "test_connection")
-    def test_verify_ssh_connectivity_linux_failure(self, ssh):
+    def test_verify_ssh_connectivity_linux_failure(self, mock_ssh):
         context = {}
 
         mock_api = mock.MagicMock()
@@ -619,7 +616,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
         mock_image_details.metadata = {"os_type": "linux"}
         mock_api.images.find.return_value = mock_image_details
 
-        ssh.return_value = False
+        mock_ssh.return_value = False
 
         result = manager.Manager.verify_ssh_connection(context, "SERVER_ID",
                                                        "SERVER_IP",
@@ -632,7 +629,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
-        ssh.assert_called_once_with(context, "SERVER_IP",
+        mock_ssh.assert_called_once_with(context, "SERVER_IP",
                                     "root", timeout=10,
                                     password=None,
                                     identity_file=None,
@@ -641,7 +638,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
     @mock.patch.object(rdp, "test_connection")
     def test_verify_ssh_connectivity_windows_failure(
-            self, rdp):
+            self, mock_rdp):
         context = {}
 
         mock_api = mock.MagicMock()
@@ -655,7 +652,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
         mock_image_details.name = "WindowsNT"
         mock_api.images.find.return_value = mock_image_details
 
-        rdp.return_value = False
+        mock_rdp.return_value = False
 
         result = manager.Manager.verify_ssh_connection(context, "SERVER_ID",
                                                        "SERVER_IP",
@@ -668,7 +665,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
-        rdp.assert_called_once_with(context, "SERVER_IP", timeout=10)
+        mock_rdp.assert_called_once_with(context, "SERVER_IP", timeout=10)
 
     def test_verify_ssh_connectivity_server_not_found(self):
         context = {}
@@ -984,3 +981,25 @@ class TestDeleteServer(unittest.TestCase):
             'status': 'DELETING',
             'status-message': 'Instance is in state BUILD. Waiting on ACTIVE '
                               'resource.'})
+
+
+class TestOnFailure(unittest.TestCase):
+
+    def test_manager_on_failure(self):
+        callback = mock.MagicMock()
+        mock_context = {
+            "deployment_id": "1234",
+            "resource_key": 1
+        }
+
+        failure = manager.Manager.get_on_failure("action", "method",
+                                                 callback)
+        failure(Exception("Something has gone wrong"),
+                "TASK_ID", [mock_context], None, None)
+
+        self.assertEquals(True, callback.called)
+        callback.assert_called_with({
+            'status': 'ERROR',
+            'status-message': 'Unexpected error action compute instance 1',
+            'error-message': 'Something has gone wrong'
+        }, resource_key=1)

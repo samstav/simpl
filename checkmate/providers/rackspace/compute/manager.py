@@ -21,7 +21,6 @@ import requests
 
 from novaclient import exceptions as ncexc
 
-from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexec
 from checkmate import rdp
 from checkmate import ssh
@@ -36,6 +35,7 @@ class Manager(object):
     @staticmethod
     def create_server(context, name, api=None, flavor="2",
                       files=None, image=None, tags=None):
+        #pylint: disable=R0914
         """Create a Rackspace Cloud server using novaclient.
 
         Note: Nova server creation requests are asynchronous. The IP address
@@ -129,7 +129,7 @@ class Manager(object):
             'image': image,
             'error-message': '',
             'status-message': '',
-            }
+        }
         return result
 
     @staticmethod
@@ -530,31 +530,28 @@ class Manager(object):
         return results
 
     @staticmethod
-    def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
+    def _on_failure(exc, task_id, args, kwargs, einfo, action, method,
+                    callback):
+        #pylint: disable=W0613
         """Helper method to get failure handler."""
         dep_id = args[0].get('deployment_id')
-        key = args[0].get('resource_key')
-        if dep_id and key:
-            k = "instance:%s" % key
-            ret = {
-                k: {
-                    'status': 'ERROR',
-                    'status-message': (
-                        'Unexpected error %s compute instance %s' %
-                        (action, key)
-                    ),
-                    'error-message': str(exc)
-                }
-            }
-            cmdeps.resource_postback.delay(dep_id, ret)
+        resource_key = args[0].get('resource_key')
+
+        if dep_id and resource_key:
+            callback({
+                'status': 'ERROR',
+                'status-message': ('Unexpected error %s compute instance %s' %
+                                   (action, resource_key)),
+                'error-message': str(exc)
+            }, resource_key=resource_key)
         else:
-            LOG.error("Missing deployment id and/or resource key in "
+            LOG.error("Missing deployment id and/or resource resource_key in "
                       "%s error callback.", method)
 
     @staticmethod
-    def get_on_failure(action, method):
+    def get_on_failure(action, method, callback):
         """Used by tasks for failure handlers."""
         def on_failure(exc, task_id, args, kwargs, einfo):
             Manager._on_failure(exc, task_id, args, kwargs, einfo, action,
-                                method)
+                                method, callback)
         return on_failure

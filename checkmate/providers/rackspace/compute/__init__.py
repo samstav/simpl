@@ -1,4 +1,4 @@
-# pylint: disable=E1103, C0302
+# pylint: disable=E1103, C0302, R0913
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -35,25 +35,6 @@ from checkmate import utils
 LOG = logging.getLogger(__name__)
 
 
-def _on_failure(exc, task_id, args, kwargs, einfo, action, method):
-    """Handle task failure."""
-    dep_id = args[0].get('deployment_id')
-    key = args[0].get('resource_key')
-    if dep_id and key:
-        k = "instance:%s" % key
-        ret = {
-            k: {
-                'status': 'ERROR',
-                'status-message': (
-                    'Unexpected error %s compute instance %s' % (action, key)
-                ),
-                'error-message': str(exc)
-            }
-        }
-        cmdeps.resource_postback.delay(dep_id, ret)
-    else:
-        LOG.error("Missing deployment id and/or resource key in "
-                  "%s error callback.", method)
 #
 # Celery Tasks
 #
@@ -101,6 +82,7 @@ def create_server(context, name, region, api=None, flavor="2",
 @ctask.task
 @statsd.collect
 def sync_resource_task(context, resource, resource_key, api=None):
+    #pylint: disable=W0703
     """Syncs resource status with provider status."""
     utils.match_celery_logging(LOG)
     key = "instance:%s" % resource_key
@@ -112,7 +94,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
         }
 
     if api is None:
-        api = provider.Provider.connect(context, resource.get("region"))
+        api = Provider.connect(context, resource.get("region"))
     try:
         instance = resource.get("instance") or {}
         instance_id = instance.get("id")
@@ -123,7 +105,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
         try:
             if "RAX-CHECKMATE" not in server.metadata.keys():
-                checkmate_tag = provider.Provider.generate_resource_tag(
+                checkmate_tag = Provider.generate_resource_tag(
                     context['base_url'], context['tenant'],
                     context['deployment'], resource['index']
                 )

@@ -193,37 +193,6 @@ class TestNovaCompute(test.ProviderTester):
         mock_logger.assert_called_with('Connection error talking to '
                                        'test.local endpoint', exc_info=True)
 
-    def test_on_failure(self):
-        exc = self.mox.CreateMockAnything()
-        exc.__str__().AndReturn('some message')
-        task_id = "1234"
-        args = [{
-                'deployment_id': '4321',
-                'resource_key': '0'
-                }]
-        kwargs = {}
-        einfo = self.mox.CreateMockAnything()
-
-        #Stub out postback call
-        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-
-        expected = {
-            "instance:0": {
-                'status': 'ERROR',
-                'status-message': (
-                    "Unexpected error deleting compute "
-                    "instance 0"
-                ),
-                'error-message': 'some message',
-            }
-        }
-
-        cm_deps.resource_postback.delay("4321", expected).AndReturn(True)
-        self.mox.ReplayAll()
-        compute._on_failure(
-            exc, task_id, args, kwargs, einfo, "deleting", "method")
-        self.mox.VerifyAll()
-
     @mock.patch.object(cm_deps.tasks, 'postback')
     def test_wait_on_build_rackconnect_pending(self, postback):
         server = self.mox.CreateMockAnything()
