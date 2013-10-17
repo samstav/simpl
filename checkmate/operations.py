@@ -99,12 +99,12 @@ def update_operation(deployment_id, workflow_id, driver=None,
         return  # Nothing to do!
 
     delta = {}
-    if deployment_status:
-        delta['status'] = deployment_status
+
     driver = driver or db.get_driver(api_id=deployment_id)
     deployment_info = driver.get_deployment(deployment_id, with_secrets=True)
     deployment = cmdep.Deployment(deployment_info)
-
+    if deployment_status and deployment.fsm.permitted(deployment_status):
+        delta['status'] = deployment_status
     try:
         op_type, op_index, op_details = get_operation(deployment, workflow_id)
         op_status = op_details.get('status')
