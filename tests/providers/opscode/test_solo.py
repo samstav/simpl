@@ -318,6 +318,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_completion(self):
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
         expected = []
 
         # Create Chef Environment
@@ -326,7 +328,9 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             # Use only one kitchen. Call it "kitchen" like we used to
             'call': 'checkmate.providers.opscode.solo.tasks'
                     '.create_environment',
-            'args': [self.deployment['id'], 'kitchen'],
+            'args': [context.get_queued_task_dict(
+                    deployment_id=self.deployment['id']),
+                self.deployment['id'], 'kitchen'],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
                 mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
@@ -355,6 +359,9 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
         for key, resource in self.deployment['resources'].iteritems():
             if resource['type'] == 'compute':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=resource.get('hosts')[0])
                 expected.append({
                     'call': 'checkmate.providers.test.create_resource',
                     'args': [mox.IsA(dict), resource],
@@ -385,9 +392,9 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'call': 'checkmate.providers.opscode.solo.tasks'
                             '.register_node',
                     'args': [
+                        context_dict,
                         '4.4.4.1',
                         self.deployment['id'],
-                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
                     'kwargs': mox.And(
                         mox.In('password'),
@@ -401,9 +408,9 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 expected.append({
                     'call': 'checkmate.providers.opscode.solo.tasks.cook',
                     'args': [
+                        context_dict,
                         '4.4.4.1',
                         self.deployment['id'],
-                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
                     'kwargs': mox.And(
                         mox.In('password'),
@@ -418,14 +425,17 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'resource': key,
                 })
             else:
-
                 # Cook with cookbook (special mysql handling calls server role)
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
+
                 expected.append({
                     'call': 'checkmate.providers.opscode.solo.tasks.cook',
                     'args': [
+                        context_dict,
                         '4.4.4.1',
                         self.deployment['id'],
-                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
                     'kwargs': mox.And(
                         mox.In('password'),
@@ -439,7 +449,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'resource': key,
                 })
 
-        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
+        self.workflow = self._get_stubbed_out_workflow(
+            expected_calls=expected, context=context)
         self.mox.ReplayAll()
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(),
@@ -683,7 +694,10 @@ interfaces/mysql/host
             # Create Chef Environment
             'call': 'checkmate.providers.opscode.solo.tasks'
                     '.create_environment',
-            'args': [self.deployment['id'], 'kitchen'],
+            'args': [
+                context.get_queued_task_dict(
+                    deployment_id=self.deployment['id']),
+                self.deployment['id'], 'kitchen'],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
                 mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
@@ -708,6 +722,9 @@ interfaces/mysql/host
         ]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=resource.get('hosts')[0])
                 attributes = {
                     'username': 'u1',
                     'password': 'myPassW0rd',
@@ -742,9 +759,9 @@ interfaces/mysql/host
                         'checkmate.providers.opscode.solo.tasks'
                         '.register_node',
                         'args': [
+                            context_dict,
                             "4.4.4.4",
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -758,9 +775,9 @@ interfaces/mysql/host
                         # Prep host - bootstrap.json means no recipes passed in
                         'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
+                            context_dict,
                             '4.4.4.4',
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -775,13 +792,16 @@ interfaces/mysql/host
                     }
                 ])
             elif resource.get('type') == 'database':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
                 expected_calls.extend([{
                     # Cook mysql
                     'call': 'checkmate.providers.opscode.solo.tasks.cook',
                     'args': [
+                        context_dict,
                         '4.4.4.4',
                         self.deployment['id'],
-                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
                     'kwargs': mox.And(
                         mox.In('password'),
@@ -1106,7 +1126,10 @@ interfaces/mysql/database_name
             # Create Chef Environment
             'call': 'checkmate.providers.opscode.solo.tasks'
                     '.create_environment',
-            'args': [self.deployment['id'], 'kitchen'],
+            'args': [
+                context.get_queued_task_dict(
+                    deployment_id=self.deployment['id']),
+                self.deployment['id'], 'kitchen'],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
                 mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
@@ -1131,15 +1154,18 @@ interfaces/mysql/database_name
         ]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=resource.get('hosts')[0])
                 expected_calls.extend([
                     {
                         'call':
                         'checkmate.providers.opscode.solo.tasks'
                         '.register_node',
                         'args': [
+                            context_dict,
                             "4.4.4.4",
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -1156,9 +1182,9 @@ interfaces/mysql/database_name
                         # Prep foo - bootstrap.json
                         'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
+                            context_dict,
                             '4.4.4.4',
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -1196,6 +1222,9 @@ interfaces/mysql/database_name
                     }
                 ])
             elif resource.get('type') == 'application':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
                 expected_calls.extend([
                     {
                         # Write foo databag item
@@ -1203,11 +1232,10 @@ interfaces/mysql/database_name
                         'checkmate.providers.opscode.solo.tasks'
                         '.write_databag',
                         'args': [
-                            'DEP-ID-1000', 'app_bag', 'mysql',
-                            {'db_name': 'foo-db'}, mox.IgnoreArg()
+                            context_dict, 'DEP-ID-1000', 'app_bag', 'mysql',
+                            {'db_name': 'foo-db'}
                         ],
                         'kwargs': {
-                            'merge': True,
                             'secret_file': 'certificates/chef.pem'
                         },
                         'result': None
@@ -1216,7 +1244,7 @@ interfaces/mysql/database_name
                         # Write foo-master role
                         'call':
                         'checkmate.providers.opscode.solo.tasks.manage_role',
-                        'args': ['foo-master', 'DEP-ID-1000', mox.IgnoreArg()],
+                        'args': [context_dict, 'foo-master', 'DEP-ID-1000'],
                         'kwargs': {
                             'run_list': ['recipe[apt]', 'recipe[foo::server]'],
                             'override_attributes': {'how-many': 2},
@@ -1228,9 +1256,9 @@ interfaces/mysql/database_name
                         # Cook foo - run using runlist
                         'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
+                            context_dict,
                             '4.4.4.4',
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -1256,14 +1284,17 @@ interfaces/mysql/database_name
                     }
                 ])
             elif resource.get('type') == 'database':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
                 expected_calls.extend([
                     {
                         # Cook bar
                         'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
+                            context_dict,
                             None,
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -1280,9 +1311,9 @@ interfaces/mysql/database_name
                         # Re-cook bar
                         'call': 'checkmate.providers.opscode.solo.tasks.cook',
                         'args': [
+                            context_dict,
                             None,
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),

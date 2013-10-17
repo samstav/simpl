@@ -39,8 +39,7 @@ register_scheme('git')  # without this, urlparse won't handle git:// correctly
 @task(base=ProviderTask, provider=Provider)
 @statsd.collect
 def write_databag(context, environment, bag_name, item_name, contents,
-                  resource, path=None, secret_file=None, merge=True,
-                  kitchen_name='kitchen'):
+                  path=None, secret_file=None, kitchen_name='kitchen'):
     """Updates a data_bag or encrypted_data_bag
 
     :param environment: the ID of the environment
@@ -51,8 +50,6 @@ def write_databag(context, environment, bag_name, item_name, contents,
     :param contents: this is a dict of attributes to write in to the databag
     :param path: optional override to the default path where environments live
     :param secret_file: the path to a certificate used to encrypt a data_bag
-    :param merge: if True, the data will be merged in. If not, it will be
-            completely overwritten
     :param kitchen_name: Optional name of kitchen to write to.  default=kitchen
     """
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -72,7 +69,7 @@ def write_databag(context, environment, bag_name, item_name, contents,
 
 @task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
-def cook(context, host, environment, resource, recipes=None, roles=None,
+def cook(context, host, environment, recipes=None, roles=None,
          path=None, username='root', password=None, identity_file=None,
          port=22, attributes=None, kitchen_name='kitchen'):
     """Apply recipes/roles to a server"""
@@ -95,27 +92,25 @@ def cook(context, host, environment, resource, recipes=None, roles=None,
                         simulate=context.simulation)
 
 
-@task(base=ProviderTask, provider=Provider, default_retry_delay=10,
-      max_retries=6)
+@task(default_retry_delay=10, max_retries=6)
 @statsd.collect
-def delete_environment(context, name, path=None):
+def delete_environment(name, path=None):
     """Remove the chef environment from the file system."""
-    return Manager.delete_environment(name, path=path)
+    Manager.delete_environment(name, path=path)
 
 
-@task(base=ProviderTask, provider=Provider)
+@task
 @statsd.collect
-def delete_cookbooks(context, name, service_name, path=None):
+def delete_cookbooks(name, service_name, path=None):
     """Remove cookbooks directory and contents from the file system."""
-    return Manager.delete_cookbooks(name, service_name, path=path)
+    Manager.delete_cookbooks(name, service_name, path=path)
 
 
-@task(base=ProviderTask, provider=Provider, max_retries=3)
+@task(max_retries=3)
 @statsd.collect
 def create_environment(context, name, service_name, path=None,
-                       private_key=None,
-                       public_key_ssh=None, secret_key=None, source_repo=None,
-                       provider='chef-solo'):
+                       private_key=None, public_key_ssh=None,
+                       secret_key=None, source_repo=None):
     """Create a knife-solo environment
 
     The environment is a directory structure that is self-contained and
@@ -131,13 +126,12 @@ def create_environment(context, name, service_name, path=None,
     """
     def on_failure(exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
-        if kwargs and kwargs.get('provider'):
-            deployments.update_all_provider_resources.delay(
-                kwargs.get('provider'),
-                context['deployment_id'],
-                'ERROR',
-                message=('Error creating chef environment: %s' % exc.args[0])
-            )
+        deployments.update_all_provider_resources.delay(
+            Provider.name,
+            context['deployment_id'],
+            'ERROR',
+            message=('Error creating chef environment: %s' % exc.args[1])
+        )
 
     create_environment.on_failure = on_failure
     return Manager.create_environment(name, service_name, path=path,
@@ -145,16 +139,15 @@ def create_environment(context, name, service_name, path=None,
                                       public_key_ssh=public_key_ssh,
                                       secret_key=secret_key,
                                       source_repo=source_repo,
-                                      simulation=context.simulation)
+                                      simulation=context['simulation'])
 
 
 @task(base=ProviderTask, provider=Provider, max_retries=3,
       soft_time_limit=600)
 @statsd.collect
-def register_node(context, host, environment, resource, path=None,
-                  password=None,
-                  omnibus_version=None, attributes=None, identity_file=None,
-                  kitchen_name='kitchen'):
+def register_node(context, host, environment, path=None,
+                  password=None, omnibus_version=None, attributes=None,
+                  identity_file=None, kitchen_name='kitchen'):
     """Register a node in Chef.
 
     Using 'knife prepare' we will:
@@ -167,7 +160,6 @@ def register_node(context, host, environment, resource, path=None,
     :param host: the public IP of the host (that's how knife solo tracks the
         nodes)
     :param environment: the ID of the environment/deployment
-    :param resource: dict of resource information
     :param path: an optional override for path to the environment root
     :param password: the node's password
     :param omnibus_version: override for knife bootstrap (default=latest)
@@ -195,7 +187,7 @@ def register_node(context, host, environment, resource, path=None,
 
 @task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
-def manage_role(context, name, environment, resource, path=None, desc=None,
+def manage_role(context, name, environment, path=None, desc=None,
                 run_list=None, default_attributes=None,
                 override_attributes=None, env_run_lists=None,
                 kitchen_name='kitchen'):
