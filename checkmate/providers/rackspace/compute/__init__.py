@@ -26,7 +26,6 @@ from celery import task as ctask
 from novaclient import exceptions as ncexc
 
 from checkmate.common import statsd
-from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
 from checkmate.providers.rackspace.compute.provider import Provider
 from checkmate.providers.rackspace.compute import tasks

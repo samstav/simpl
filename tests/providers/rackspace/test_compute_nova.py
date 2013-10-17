@@ -178,8 +178,7 @@ class TestNovaCompute(test.ProviderTester):
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
     @mock.patch.object(compute.manager.LOG, 'error')
-    @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
-    def test_create_server_images_connect_error(self, mock_postback,
+    def test_create_server_images_connect_error(self,
                                                 mock_logger):
         mock_api_obj = mock.Mock()
         mock_api_obj.client.management_url = "test.local"
@@ -713,8 +712,7 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     @mock.patch.object(cm_deps.tasks, 'postback')
-    @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
-    def test_delete_server(self, resource_postback, dep_postback):
+    def test_delete_server(self, dep_postback):
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -753,8 +751,6 @@ class TestNovaCompute(test.ProviderTester):
         mock_server.delete.return_value = True
         mock_servers.get.return_value = mock_server
 
-        resource_postback.return_value = None
-
         ret = compute.delete_server_task(context, api=api)
 
         self.assertDictEqual(expect, ret)
@@ -762,9 +758,8 @@ class TestNovaCompute(test.ProviderTester):
         mock_servers.get.assert_called_once_with('abcdef-ghig-1234')
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
-    @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
     @mock.patch.object(compute.manager.LOG, 'error')
-    def test_delete_server_get_connect_error(self, log, mock_cmdeps,
+    def test_delete_server_get_connect_error(self, log,
                                              mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
@@ -781,9 +776,8 @@ class TestNovaCompute(test.ProviderTester):
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
-    @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
     @mock.patch.object(compute.manager.LOG, 'error')
-    def test_delete_server_delete_connect_error(self, log, mock_cmdeps,
+    def test_delete_server_delete_connect_error(self, log,
                                                 mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
@@ -870,9 +864,8 @@ class TestNovaCompute(test.ProviderTester):
         dep_postback.assert_has_calls(calls)
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
-    @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
     @mock.patch.object(compute.manager.LOG, 'error')
-    def test_wait_on_delete_connect_error(self, log, mock_cmdeps, mock_utils):
+    def test_wait_on_delete_connect_error(self, log, mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
