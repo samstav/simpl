@@ -76,6 +76,7 @@ class Provider(rsbase.RackspaceProviderBase):
     __status_mapping__ = {
         'ACTIVE': 'ACTIVE',
         'BUILD': 'BUILD',
+        'DELETING': 'DELETING',
         'DELETED': 'DELETED',
         'ERROR': 'ERROR',
         'PENDING_UPDATE': 'CONFIGURE',
