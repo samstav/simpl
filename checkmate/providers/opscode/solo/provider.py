@@ -42,6 +42,14 @@ class Provider(ProviderBase):
     name = 'chef-solo'
     vendor = 'opscode'
 
+    __status_mapping__ = {
+        'ACTIVE': 'ACTIVE',
+        'BUILD': 'BUILD',
+        'DELETED': 'DELETED',
+        'ERROR': 'ERROR',
+        'CONFIGURE': 'CONFIGURE',
+    }
+
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
 
@@ -81,7 +89,6 @@ class Provider(ProviderBase):
                                       private_key=private_key,
                                       secret_key=secret_key,
                                       source_repo=source_repo,
-                                      provider=Provider.name,
                                       defines=defines,
                                       properties=properties)
 

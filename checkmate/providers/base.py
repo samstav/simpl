@@ -48,6 +48,10 @@ class ProviderBaseWorkflowMixIn(object):
 
     This class is mixed in to the ProviderBase
     """
+    @staticmethod
+    def connect(context, **kwargs):
+        """Use context info to connect to API and return api object."""
+        LOG.debug("Provider connect was called, but was not implemented")
 
     # pylint: disable=W0613,R0913
     def disable_connection_tasks(self, wf_spec, deployment, context,

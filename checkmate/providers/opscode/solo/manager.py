@@ -150,7 +150,7 @@ class Manager(object):
                 exceptions.CheckmateCalledProcessError) as exc:
             msg = "Knife prepare failed for %s. Retrying." % host
             LOG.warn(msg)
-            raise exceptions.CheckmateException(message=str(exc),
+            raise exceptions.CheckmateException(message=exc.output,
                                                 options=exceptions.CAN_RESUME)
         except StandardError as exc:
             LOG.error("Knife prepare failed with an unhandled error '%s' for "
@@ -293,7 +293,7 @@ class Manager(object):
         except (subprocess.CalledProcessError,
                 exceptions.CheckmateCalledProcessError) as exc:
             LOG.warn("Knife cook failed for %s. Retrying.", host)
-            raise exceptions.CheckmateException(str(exc),
+            raise exceptions.CheckmateException(exc.output,
                                                 options=exceptions.CAN_RESUME)
 
         results = {'status': "ACTIVE"}
