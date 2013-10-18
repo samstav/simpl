@@ -179,7 +179,7 @@ class Manager(object):
             results = {
                 'node-attributes': node_data
             }
-            return results
+            callback(results)
 
     @staticmethod
     def manage_role(name, environment, callback, path=None,
@@ -220,7 +220,7 @@ class Manager(object):
         return results
 
     @staticmethod
-    def write_data_bag(environment, bag_name, item_name, contents,
+    def write_data_bag(environment, bag_name, item_name, contents, callback,
                        path=None, secret_file=None, kitchen_name='kitchen',
                        simulate=False):
         """Updates a data_bag or encrypted_data_bag
@@ -256,7 +256,7 @@ class Manager(object):
                 }
             }
         }
-        return results
+        callback(results)
 
     @staticmethod
     def cook(host, environment, callback, recipes=None, roles=None, path=None,

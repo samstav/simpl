@@ -62,7 +62,8 @@ def write_databag(context, environment, bag_name, item_name, contents,
 
     write_databag.on_failure = on_failure
     return Manager.write_data_bag(environment, bag_name, item_name, contents,
-                                  path=path, secret_file=secret_file,
+                                  write_databag.partial, path=path,
+                                  secret_file=secret_file,
                                   kitchen_name=kitchen_name,
                                   simulate=context.simulation)
 

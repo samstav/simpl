@@ -113,14 +113,14 @@ class TestRegisterNode(unittest.TestCase):
             }
         }
 
-        results = Manager.register_node("1.1.1.1", "DEP_ID", mock_callback,
-                                        password="password",
-                                        identity_file="identity_file",
-                                        attributes={"foo": "bar"},
-                                        omnibus_version="1.1")
+        Manager.register_node("1.1.1.1", "DEP_ID", mock_callback,
+                              password="password",
+                              identity_file="identity_file",
+                              attributes={"foo": "bar"},
+                              omnibus_version="1.1")
 
-        self.assertDictEqual(results, expected)
-        mock_callback.assert_called_once_with(expected_callback)
+        callback_calls = [mock.call(expected_callback), mock.call(expected)]
+        mock_callback.assert_has_calls(callback_calls)
         mock_register_node.assert_called_once_with(
             "1.1.1.1", password="password", omnibus_version="1.1",
             identity_file="identity_file")
@@ -265,6 +265,7 @@ class TestManageRole(unittest.TestCase):
 
 class TestWriteDataBag(unittest.TestCase):
     def test_sim(self):
+        mock_callback = mock.Mock()
         expected = {
             'data-bags': {
                 'web': {
@@ -274,18 +275,20 @@ class TestWriteDataBag(unittest.TestCase):
                 }
             }
         }
-        results = Manager.write_data_bag("DEP_ID", "web", "server",
-                                         {"foo": "bar"}, simulate=True)
-        self.assertDictEqual(results, expected)
+        Manager.write_data_bag("DEP_ID", "web", "server", {"foo": "bar"},
+                               mock_callback, simulate=True)
+        mock_callback.assert_called_once_with(expected)
 
     def test_no_contents(self):
-        results = Manager.write_data_bag("DEP_ID", "web", "server", None)
+        results = Manager.write_data_bag("DEP_ID", "web", "server", None,
+                                         None)
         self.assertIsNone(results)
 
     @mock.patch('os.path.exists')
     @mock.patch.object(ChefEnvironment, 'write_data_bag')
     def test_success(self, mock_write_bag, mock_path_exists):
         mock_path_exists.return_value = True
+        mock_callback = mock.Mock()
         expected = {
             'data-bags': {
                 'web': {
@@ -295,14 +298,14 @@ class TestWriteDataBag(unittest.TestCase):
                 }
             }
         }
-        results = Manager.write_data_bag("DEP_ID", "web", "server",
-                                         {"foo": "bar"}, path="path",
-                                         kitchen_name="kitchen",
+        Manager.write_data_bag("DEP_ID", "web", "server",
+                                         {"foo": "bar"}, mock_callback,
+                                         path="path", kitchen_name="kitchen",
                                          secret_file="secret")
-        self.assertDictEqual(results, expected)
         mock_write_bag.assert_called_once_with("web", "server",
                                                {"foo": "bar"},
                                                secret_file="secret")
+        mock_callback.assert_called_once_with(expected)
 
 
 class TestCook(unittest.TestCase):
