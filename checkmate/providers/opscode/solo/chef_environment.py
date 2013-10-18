@@ -259,7 +259,7 @@ class ChefEnvironment(object):
             raise exceptions.CheckmateException(
                 "Node '%s' is not registered in %s" % (host,
                                                        self._kitchen_path))
-        if attributes:
+        if attributes or run_list:
             lock = threading.Lock()
             lock.acquire()
             try:

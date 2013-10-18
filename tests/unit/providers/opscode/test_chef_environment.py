@@ -326,8 +326,8 @@ class TestWriteNodeAttributes(TestChefEnvironment):
     @mock.patch("__builtin__.file")
     @mock.patch("os.path.exists")
     @mock.patch("eventlet.green.threading.Lock")
-    def test_existing_node_write(self, mock_lock, mock_path_exists,
-                                 mock_file, mock_json_load, mock_json_dump):
+    def test_node_attribs_write(self, mock_lock, mock_path_exists,
+                                mock_file, mock_json_load, mock_json_dump):
         mock_path_exists.return_value = True
         file_handle = mock_file.return_value.__enter__.return_value
         mock_json_load.return_value = {"version": "1.1"}
@@ -340,6 +340,35 @@ class TestWriteNodeAttributes(TestChefEnvironment):
         mock_json_dump.return_value = expected
 
         results = self.env.write_node_attributes("1.1.1.1", {"foo": "bar"})
+
+        self.assertDictEqual(results, expected)
+        self.assertTrue(mock_lock.called)
+        mock_path_exists.assert_called_once_with(node_path)
+        mock_file.assert_any_call(node_path, 'r')
+        mock_file.assert_any_call(node_path, 'w')
+        mock_json_load.assert_called_once_with(file_handle)
+        mock_json_dump.assert_called_once_with(expected, file_handle)
+        self.assertTrue(mock_lock.return_value.release.called)
+
+    @mock.patch("json.dump")
+    @mock.patch("json.load")
+    @mock.patch("__builtin__.file")
+    @mock.patch("os.path.exists")
+    @mock.patch("eventlet.green.threading.Lock")
+    def test_node_run_list_write(self, mock_lock, mock_path_exists,
+                                 mock_file, mock_json_load, mock_json_dump):
+        mock_path_exists.return_value = True
+        file_handle = mock_file.return_value.__enter__.return_value
+        mock_json_load.return_value = {"version": "1.1"}
+        node_path = "%s/nodes/1.1.1.1.json" % self.kitchen_path
+        expected = {
+            "version": "1.1",
+            "run_list": ['foo']
+        }
+        mock_json_dump.return_value = expected
+
+        results = self.env.write_node_attributes("1.1.1.1", None,
+                                                 run_list=['foo'])
 
         self.assertDictEqual(results, expected)
         self.assertTrue(mock_lock.called)
