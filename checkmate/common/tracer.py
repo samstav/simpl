@@ -60,7 +60,7 @@ if '--trace-calls' in sys.argv or '-t' in sys.argv:
     def localtrace(frame, event, arg):
         if event == "return":
             global STACK_DEPTH  # pylint: disable=W0603
-            STACK_DEPTH = STACK_DEPTH - 1
+            STACK_DEPTH -= 1
         elif event == "exception":
             output_exception(frame, arg)
         return None
@@ -87,7 +87,7 @@ if '--trace-calls' in sys.argv or '-t' in sys.argv:
                 return
             output_call(frame, arg)
             global STACK_DEPTH  # pylint: disable=W0603
-            STACK_DEPTH = STACK_DEPTH + 1
+            STACK_DEPTH += 1
             return localtrace
         return
 
@@ -103,15 +103,14 @@ if '--trace-calls' in sys.argv or '-t' in sys.argv:
         line_no = frame.f_lineno
         func_filename = co.co_filename
         func_filename = func_filename.replace(POSSIBLE_TOPDIR, '')
-        sys.stdout.write('%s%sERROR: %s %s in %s of %s:%s%s\n'
-                              % (ConsoleColors.FAIL, '  ' * STACK_DEPTH,
-                                 exc_type.__name__, exc_value, func_name,
-                                 func_filename, line_no, ConsoleColors.ENDC))
+        sys.stdout.write('%s%sERROR: %s %s in %s of %s:%s%s\n' %
+                         (ConsoleColors.FAIL, '  ' * STACK_DEPTH,
+                          exc_type.__name__, exc_value, func_name,
+                          func_filename, line_no, ConsoleColors.ENDC))
         filename = co.co_filename
         if filename == "<stdin>":
             filename = "%s.py" % __file__
-        if (filename.endswith(".pyc") or
-            filename.endswith(".pyo")):
+        if filename.endswith(".pyc") or filename.endswith(".pyo"):
             filename = filename[:-1]
         line = linecache.getline(filename, line_no)
         name = frame.f_globals.get("__name__")
@@ -119,9 +118,8 @@ if '--trace-calls' in sys.argv or '-t' in sys.argv:
                          (ConsoleColors.HEADER, '  ' * STACK_DEPTH, name,
                           line_no, line.rstrip(), ConsoleColors.ENDC))
 
-        sys.stdout.write('%s    locals: %s\n'
-                              % ('  ' * STACK_DEPTH,
-                                 local_vars))
+        sys.stdout.write('%s    locals: %s\n' % ('  ' * STACK_DEPTH,
+                                                 local_vars))
 
     def output_call(frame, arg):
         caller = frame.f_back
@@ -136,12 +134,12 @@ if '--trace-calls' in sys.argv or '-t' in sys.argv:
             func_filename = func_filename.replace(POSSIBLE_TOPDIR, '')
             caller_line_no = caller.f_lineno
             caller_filename = caller.f_code.co_filename.replace(
-                                                        POSSIBLE_TOPDIR, '')
+                POSSIBLE_TOPDIR, '')
             if caller_filename == func_filename:
                 caller_filename = 'line'
             sys.stdout.write('%s%s::%s:%s      (from %s:%s)\n' %
-                ('  ' * STACK_DEPTH, func_filename, func_name, func_line_no,
-                 caller_filename, caller_line_no))
+                             ('  ' * STACK_DEPTH, func_filename, func_name,
+                              func_line_no, caller_filename, caller_line_no))
 
     sys.stdout.write('Starting call tracer\n')
     sys.settrace(selectivetrace)
