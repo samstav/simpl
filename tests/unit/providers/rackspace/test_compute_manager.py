@@ -43,6 +43,8 @@ class TestCreateServer(unittest.TestCase):
         }
         mock_api = mock.MagicMock()
 
+        mock_updatestate = mock.MagicMock()
+
         mock_image = mock.MagicMock()
         mock_image.name = "IMAGE"
 
@@ -59,7 +61,7 @@ class TestCreateServer(unittest.TestCase):
         mock_api.client.region_name = "REGION"
 
         results = manager.Manager.create_server(
-            context, "Name", image="image_id",
+            context, "Name", mock_updatestate, image="image_id",
             flavor="flavor_id", tags="SERVER_TAG", api=mock_api)
 
         self.assertDictEqual(results, {
@@ -73,6 +75,10 @@ class TestCreateServer(unittest.TestCase):
             "region": "REGION"
         })
 
+        mock_updatestate.assert_called_once_with(state="PROGRESS",
+                                                 meta={
+                                                     "server.id": "SERVER_ID"
+                                                 })
         mock_api.images.find.assert_called_once_with(id="image_id")
         mock_api.flavors.find.assert_called_once_with(id="flavor_id")
         mock_api.servers.create.assert_called_once_with("Name", mock_image,
@@ -88,6 +94,8 @@ class TestCreateServer(unittest.TestCase):
             "simulation": False,
         }
         mock_api = mock.MagicMock()
+
+        mock_updatestate = mock.MagicMock()
 
         mock_image = mock.MagicMock()
         mock_image.name = "IMAGE"
@@ -106,9 +114,11 @@ class TestCreateServer(unittest.TestCase):
         mock_api.client.region_name = "REGION"
 
         try:
-            manager.Manager.create_server(context, "Name", api=mock_api,
-                                          image="image_id", flavor="flavor_id",
+            manager.Manager.create_server(context, "Name", mock_updatestate,
+                                          api=mock_api, image="image_id",
+                                          flavor="flavor_id",
                                           tags="SERVER_TAG")
+
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exc:
             self.assertTrue(exc.options, cmexc.CAN_RESET)
@@ -127,6 +137,8 @@ class TestCreateServer(unittest.TestCase):
         }
         mock_api = mock.MagicMock()
 
+        mock_updatestate = mock.MagicMock()
+
         mock_image = mock.MagicMock()
         mock_image.name = "IMAGE"
 
@@ -144,7 +156,7 @@ class TestCreateServer(unittest.TestCase):
         mock_api.client.region_name = "REGION"
 
         try:
-            manager.Manager.create_server(context, "Name",
+            manager.Manager.create_server(context, "Name", mock_updatestate,
                                           image="image_id", flavor="flavor_id",
                                           tags="SERVER_TAG", api=mock_api)
             self.fail("Should have thrown an exception!")

@@ -33,7 +33,7 @@ class Manager(object):
     """Contains logic for Compute provider logic."""
 
     @staticmethod
-    def create_server(context, name, api=None, flavor="2",
+    def create_server(context, name, update_state, api=None, flavor="2",
                       files=None, image=None, tags=None):
         #pylint: disable=R0914
         """Create a Rackspace Cloud server using novaclient.
@@ -116,6 +116,9 @@ class Manager(object):
             LOG.error(msg, exc_info=True)
             raise cmexec.CheckmateException(
                 message=msg, options=cmexec.CAN_RESUME)
+
+        update_state(state="PROGRESS",
+                     meta={"server.id": server.id})
 
         LOG.info('Created server %s (%s) for deployment %s.', name, server.id,
                  deployment_id)

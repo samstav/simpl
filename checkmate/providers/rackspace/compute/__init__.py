@@ -132,14 +132,14 @@ def sync_resource_task(context, resource, resource_key, api=None):
             raise cmexc.CheckmateNoTokenError("Auth token expired")
 
 
-@ctask.task
+@ctask.task(default_retry_delay=30, max_retries=120)
 @statsd.collect
 def delete_server_task(context, api=None):
     """Celery Task to delete a Nova compute instance."""
     return tasks.delete_server_task(context, api=api)
 
 
-@ctask.task
+@ctask.task(default_retry_delay=30, max_retries=120)
 @statsd.collect
 def wait_on_delete_server(context, api=None):
     """Wait for a server resource to be deleted."""
@@ -147,7 +147,7 @@ def wait_on_delete_server(context, api=None):
 
 
 # max 60 minute wait
-@ctask.task
+@ctask.task(default_retry_delay=30, max_retries=120, acks_late=True)
 @statsd.collect
 def wait_on_build(context, server_id, region, ip_address_type='public',
                   api=None):

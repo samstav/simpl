@@ -67,11 +67,11 @@ def create_server(context, name, region=None, api=None, flavor="2",
     """
     create_server.on_failure = _on_failure(action="creating",
                                            method="create_server")
-    data = manager.Manager.create_server(context, name, api=create_server.api,
+    data = manager.Manager.create_server(context, name,
+                                         create_server.update_state,
+                                         api=create_server.api,
                                          flavor=flavor, files=files,
                                          image=image, tags=tags)
-    create_server.update_state(state="PROGRESS",
-                               meta={"server.id": data["id"]})
     return data
 
 
