@@ -1,4 +1,4 @@
-# pylint: disable=C0103,R0801,R0904,E1101,W0201
+# pylint: disable=C0103,R0801,R0904,E1101,W0201,R0913
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -15,7 +15,6 @@
 """Test Chef Environment domain object."""
 import errno
 import json
-import shutil
 import subprocess
 
 from Crypto.PublicKey import RSA
@@ -33,7 +32,7 @@ class TestChefEnvironment(unittest.TestCase):
     @mock.patch('os.path.exists')
     def setUp(self, mock_path_exists):
         mock_path_exists.return_value = True
-        self.path = "/var/local/checkmate"
+        self.path = "/tmp/local/checkmate"
         self.env_name = "DEP_ID"
         self.private_key_path = "%s/%s/private.pem" % (self.path,
                                                        self.env_name)
@@ -216,12 +215,12 @@ class TestCreateKitchen(TestChefEnvironment):
 
 class TestDeleteCookbooks(TestChefEnvironment):
     @mock.patch('os.path.exists')
-    def test_success(self, mock_path_exists):
-        shutil.rmtree = mock.Mock()
+    @mock.patch('shutil.rmtree')
+    def test_success(self, mock_rm_tree, mock_path_exists):
         mock_path_exists.return_value = True
         self.env.delete_cookbooks()
-        shutil.rmtree.assert_called_once_with(
-            "/var/local/checkmate/DEP_ID/kitchen/cookbooks")
+        mock_rm_tree.assert_called_once_with(
+            "/tmp/local/checkmate/DEP_ID/kitchen/cookbooks")
 
     @mock.patch('os.path.exists')
     @mock.patch('shutil.rmtree')
@@ -239,7 +238,7 @@ class TestDeleteCookbooks(TestChefEnvironment):
         mock_path_exists.return_value = True
         self.env.delete_cookbooks()
         mock_rmtree.assert_called_once_with(
-            "/var/local/checkmate/DEP_ID/kitchen/cookbooks")
+            "/tmp/local/checkmate/DEP_ID/kitchen/cookbooks")
 
     @mock.patch('os.path.exists')
     @mock.patch('shutil.rmtree')
@@ -249,14 +248,14 @@ class TestDeleteCookbooks(TestChefEnvironment):
         self.assertRaises(exceptions.CheckmateException,
                           self.env.delete_cookbooks)
         mock_rmtree.assert_called_once_with(
-            "/var/local/checkmate/DEP_ID/kitchen/cookbooks")
+            "/tmp/local/checkmate/DEP_ID/kitchen/cookbooks")
 
 
 class TestDeleteEnvironment(TestChefEnvironment):
     @mock.patch('shutil.rmtree')
     def test_success(self, mock_rmtree):
         self.env.delete()
-        mock_rmtree.assert_called_once_with("/var/local/checkmate/DEP_ID")
+        mock_rmtree.assert_called_once_with("/tmp/local/checkmate/DEP_ID")
 
     @mock.patch('shutil.rmtree')
     def test_dir_not_found_exc_handling(self, mock_rmtree):
@@ -264,14 +263,14 @@ class TestDeleteEnvironment(TestChefEnvironment):
         os_error.errno = errno.ENOENT
         mock_rmtree.side_effect = os_error
         self.env.delete()
-        mock_rmtree.assert_called_once_with("/var/local/checkmate/DEP_ID")
+        mock_rmtree.assert_called_once_with("/tmp/local/checkmate/DEP_ID")
 
     @mock.patch('shutil.rmtree')
     def test_os_error_exc_handling(self, mock_rmtree):
         mock_rmtree.side_effect = OSError()
         self.assertRaises(exceptions.CheckmateException,
                           self.env.delete)
-        mock_rmtree.assert_called_once_with("/var/local/checkmate/DEP_ID")
+        mock_rmtree.assert_called_once_with("/tmp/local/checkmate/DEP_ID")
 
 
 class TestFetchCookbooks(TestChefEnvironment):
@@ -350,7 +349,6 @@ class TestWriteNodeAttributes(TestChefEnvironment):
         mock_json_load.assert_called_once_with(file_handle)
         mock_json_dump.assert_called_once_with(expected, file_handle)
         self.assertTrue(mock_lock.return_value.release.called)
-
 
     @mock.patch("os.path.exists")
     def test_exc_handling(self, mock_path_exists):

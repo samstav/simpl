@@ -20,13 +20,13 @@ import os
 import shutil
 import unittest
 import urlparse
-from checkmate import utils
 
 import mox
 
 from checkmate.providers.opscode.solo import blueprint_cache
 from checkmate.providers.opscode.solo import chef_map
 from checkmate import test
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -255,58 +255,59 @@ class TestChefMap(unittest.TestCase):
         self.assertEqual(result['path'], 'only')
 
     def test_has_mapping_positive(self):
-        map = chef_map.ChefMap(raw='''
+        new_map = chef_map.ChefMap(raw='''
                 id: test
                 maps:
                 - source: 1
             ''')
-        self.assertTrue(map.has_mappings('test'))
+        self.assertTrue(new_map.has_mappings('test'))
 
     def test_has_mapping_negative(self):
-        map = chef_map.ChefMap(raw='''
+        new_map = chef_map.ChefMap(raw='''
                 id: test
                 maps: {}
             ''')
-        self.assertFalse(map.has_mappings('test'))
+        self.assertFalse(new_map.has_mappings('test'))
 
     def test_has_requirement_map_positive(self):
-        map = chef_map.ChefMap(raw='''
+        new_map = chef_map.ChefMap(raw='''
                 id: test
                 maps:
                 - source: requirements://name/path
                 - source: requirements://database:mysql/username
             ''')
-        self.assertTrue(map.has_requirement_mapping('test', 'name'))
-        self.assertTrue(map.has_requirement_mapping('test', 'database:mysql'))
-        self.assertFalse(map.has_requirement_mapping('test', 'other'))
+        self.assertTrue(new_map.has_requirement_mapping('test', 'name'))
+        self.assertTrue(new_map.has_requirement_mapping(
+            'test', 'database:mysql'))
+        self.assertFalse(new_map.has_requirement_mapping('test', 'other'))
 
     def test_has_requirement_mapping_negative(self):
-        map = chef_map.ChefMap(raw='''
+        new_map = chef_map.ChefMap(raw='''
                 id: test
                 maps: {}
             ''')
-        self.assertFalse(map.has_requirement_mapping('test', 'name'))
+        self.assertFalse(new_map.has_requirement_mapping('test', 'name'))
 
     def test_has_client_map_positive(self):
-        map = chef_map.ChefMap(raw='''
+        new_map = chef_map.ChefMap(raw='''
                 id: test
                 maps:
                 - source: clients://name/path
                 - source: clients://database:mysql/ip
             ''')
-        self.assertTrue(map.has_client_mapping('test', 'name'))
-        self.assertTrue(map.has_client_mapping('test', 'database:mysql'))
-        self.assertFalse(map.has_client_mapping('test', 'other'))
+        self.assertTrue(new_map.has_client_mapping('test', 'name'))
+        self.assertTrue(new_map.has_client_mapping('test', 'database:mysql'))
+        self.assertFalse(new_map.has_client_mapping('test', 'other'))
 
     def test_has_client_mapping_negative(self):
-        map = chef_map.ChefMap(raw='''
+        new_map = chef_map.ChefMap(raw='''
                 id: test
                 maps: {}
             ''')
-        self.assertFalse(map.has_client_mapping('test', 'name'))
+        self.assertFalse(new_map.has_client_mapping('test', 'name'))
 
     def test_get_attributes(self):
-        map = chef_map.ChefMap(raw='''
+        new_map = chef_map.ChefMap(raw='''
                 id: foo
                 maps:
                 - value: 1
@@ -319,12 +320,12 @@ class TestChefMap(unittest.TestCase):
                   targets:
                   - databags://mybag/there
             ''')
-        self.assertDictEqual(map.get_attributes('foo', None), {'here': 1})
-        self.assertDictEqual(map.get_attributes('bar', None), {})
-        self.assertIsNone(map.get_attributes('not there', None))
+        self.assertDictEqual(new_map.get_attributes('foo', None), {'here': 1})
+        self.assertDictEqual(new_map.get_attributes('bar', None), {})
+        self.assertIsNone(new_map.get_attributes('not there', None))
 
     def test_has_runtime_options(self):
-        map = chef_map.ChefMap(raw='''
+        new_map = chef_map.ChefMap(raw='''
                 id: foo
                 maps:
                 - source: requirements://database:mysql/
@@ -332,9 +333,9 @@ class TestChefMap(unittest.TestCase):
                 id: bar
                 maps: {}
                 ''')
-        self.assertTrue(map.has_runtime_options('foo'))
-        self.assertFalse(map.has_runtime_options('bar'))
-        self.assertFalse(map.has_runtime_options('not there'))
+        self.assertTrue(new_map.has_runtime_options('foo'))
+        self.assertFalse(new_map.has_runtime_options('bar'))
+        self.assertFalse(new_map.has_runtime_options('not there'))
 
     def test_filter_maps_by_schemes(self):
         maps = utils.yaml_to_dict('''

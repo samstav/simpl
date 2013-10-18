@@ -22,6 +22,7 @@ LOG = logging.getLogger(__name__)
 
 
 class KnifeSolo(object):
+    """Knife domain object."""
     def __init__(self, kitchen_path, solo_config_path=None):
         self.kitchen_path = kitchen_path
         self._config_path = solo_config_path or os.path.join(
@@ -30,10 +31,12 @@ class KnifeSolo(object):
 
     @property
     def config_path(self):
+        """Read only property for solo config path."""
         return self._config_path
 
     @property
     def data_bags_path(self):
+        """Read only property for data bags path."""
         return self._data_bags_path
 
     def init(self):
@@ -104,7 +107,8 @@ class KnifeSolo(object):
 
     def create_data_bag(self, bag_name):
         """Creates new databag for solo. Ignores the request if the data
-        bag already exists"""
+        bag already exists
+        """
         data_bags = self.get_data_bags()
         if bag_name not in data_bags:
             params = ['knife', 'solo', 'data', 'bag', 'create', bag_name,

@@ -1,4 +1,4 @@
-# pylint: disable=R0201,R0904,W0201,C0103
+# pylint: disable=R0201,R0904,W0201,C0103,R0913
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -40,8 +40,11 @@ class TestCreateEnvironment(unittest.TestCase):
     @mock.patch.object(ChefEnvironment, 'create_kitchen')
     @mock.patch.object(ChefEnvironment, 'create_environment_keys')
     @mock.patch.object(ChefEnvironment, 'create_env_dir')
-    def test_success(self, mock_create_env, mock_create_keys,
-                     mock_create_kitchen, mock_fetch_cookbooks, mock_copy):
+    @mock.patch('os.path.exists')
+    def test_success(self, mock_path_exists, mock_create_env,
+                     mock_create_keys, mock_create_kitchen,
+                     mock_fetch_cookbooks, mock_copy):
+        mock_path_exists.return_value = True
         mock_create_keys.return_value = {
             'public_key': '1234'
         }
@@ -92,11 +95,14 @@ class TestRegisterNode(unittest.TestCase):
     @mock.patch.object(ChefEnvironment, 'register_node')
     @mock.patch.object(ChefEnvironment, 'kitchen_path')
     @mock.patch('checkmate.ssh.remote_execute')
-    def test_success(self, mock_ssh_execute, mock_kitchen_path,
-                     mock_register_node, mock_write_attribs):
+    @mock.patch('os.path.exists')
+    def test_success(self, mock_path_exists, mock_ssh_execute,
+                     mock_kitchen_path, mock_register_node,
+                     mock_write_attribs):
         expected_callback = {
             'status': 'BUILD'
         }
+        mock_path_exists.return_value = True
         mock_ssh_execute.side_effect = [None, {"stdout": "Chef: 11.1.1"}]
         mock_write_attribs.return_value = {"foo": "bar", "version": "1.1"}
         mock_callback = mock.Mock()
@@ -129,11 +135,13 @@ class TestRegisterNode(unittest.TestCase):
     @mock.patch.object(ChefEnvironment, 'register_node')
     @mock.patch.object(ChefEnvironment, 'kitchen_path')
     @mock.patch('checkmate.ssh.remote_execute')
-    def test_called_process_error(self, mock_ssh_execute, mock_kitchen_path,
-                                  mock_register_node):
+    @mock.patch('os.path.exists')
+    def test_called_process_error(self, mock_path_exists, mock_ssh_execute,
+                                  mock_kitchen_path, mock_register_node):
         expected_callback = {
             'status': 'BUILD'
         }
+        mock_path_exists.return_value = True
         mock_register_node.side_effect = subprocess.CalledProcessError(
             500, "cmd")
         mock_callback = mock.Mock()
@@ -155,11 +163,13 @@ class TestRegisterNode(unittest.TestCase):
     @mock.patch.object(ChefEnvironment, 'register_node')
     @mock.patch.object(ChefEnvironment, 'kitchen_path')
     @mock.patch('checkmate.ssh.remote_execute')
-    def test_chef_install_failure(self, mock_ssh_execute, mock_kitchen_path,
-                                  mock_register_node):
+    @mock.patch('os.path.exists')
+    def test_chef_install_failure(self, mock_path_exists, mock_ssh_execute,
+                                  mock_kitchen_path, mock_register_node):
         expected_callback = {
             'status': 'BUILD'
         }
+        mock_path_exists.return_value = True
         mock_ssh_execute.side_effect = [None, {"stdout": "foo"}]
         mock_callback = mock.Mock()
 
@@ -309,7 +319,9 @@ class TestCook(unittest.TestCase):
 
     @mock.patch.object(ChefEnvironment, 'cook')
     @mock.patch.object(ChefEnvironment, 'write_node_attributes')
-    def test_success(self, mock_write_attribs, mock_cook):
+    @mock.patch('os.path.exists')
+    def test_success(self, mock_path_exists, mock_write_attribs, mock_cook):
+        mock_path_exists.return_value = True
         mock_callback = mock.Mock()
         mock_write_attribs.return_value = {'node': 'foo'}
         expected = {
@@ -337,7 +349,10 @@ class TestCook(unittest.TestCase):
 
     @mock.patch.object(ChefEnvironment, 'cook')
     @mock.patch.object(ChefEnvironment, 'write_node_attributes')
-    def test_exc_handling(self, mock_write_attribs, mock_cook):
+    @mock.patch('os.path.exists')
+    def test_exc_handling(self, mock_path_exists, mock_write_attribs,
+                          mock_cook):
+        mock_path_exists.return_value = True
         mock_callback = mock.Mock()
         run_list = ["role[admin]", "recipe[""recipe]"]
         mock_cook.side_effect = subprocess.CalledProcessError(500, "cmd")

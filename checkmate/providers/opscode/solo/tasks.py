@@ -21,8 +21,8 @@ from celery.task import task
 from checkmate.common import statsd
 from checkmate import deployments
 from checkmate.providers.opscode.solo.manager import Manager
-from checkmate.providers import ProviderTask
 from checkmate.providers.opscode.solo import Provider
+from checkmate.providers import ProviderTask
 
 
 def register_scheme(scheme):

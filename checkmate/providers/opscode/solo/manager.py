@@ -1,3 +1,4 @@
+# pylint: disable=R0913,R0914
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -163,7 +164,7 @@ class Manager(object):
             LOG.debug("Chef install check results on %s: %s", host,
                       results['stdout'])
             if (re.match('^Chef: [0-9]+.[0-9]+.[0-9]+', results['stdout'])
-                is None):
+                    is None):
                 exc = exceptions.CheckmateException(
                     "Check for chef install failed with unexpected response "
                     "'%s'" % results, options=exceptions.CAN_RESUME)
