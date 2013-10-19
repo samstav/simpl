@@ -45,7 +45,6 @@ class TestNovaCompute(test.ProviderTester):
 
     @mock.patch.object(cm_deps.tasks, 'postback')
     def test_create_server(self, postback):
-        self.maxDiff = None
         provider = compute.Provider({})
         server = mock.MagicMock()
         server.id = 'fake_server_id'
@@ -157,12 +156,13 @@ class TestNovaCompute(test.ProviderTester):
         })
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
-    def test_create_server_connect_error(self, mock_utils):
+    @mock.patch('checkmate.providers.rackspace.compute.manager.LOG')
+    def test_create_server_connect_error(self, log, mock_utils):
         mock_image = mock.Mock()
         mock_image.name = 'image'
         mock_flavor = mock.Mock()
         mock_flavor.name = 'flavor'
-        compute.LOG.error = mock.Mock()
+        log.error = mock.MagicMock()
         mock_api_obj = mock.Mock()
         mock_api_obj.client.management_url = 'http://test/'
         mock_api_obj.flavors.find.return_value = mock_flavor
@@ -174,12 +174,11 @@ class TestNovaCompute(test.ProviderTester):
             compute.create_server({'deployment_id': '1', 'resource_key': '1'},
                                   None, None, api=mock_api_obj)
 
-        compute.LOG.error.assert_called_with(
+        log.error.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
-    @mock.patch.object(compute.LOG, 'error')
-    @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
-    def test_create_server_images_connect_error(self, mock_postback,
+    @mock.patch.object(compute.manager.LOG, 'error')
+    def test_create_server_images_connect_error(self,
                                                 mock_logger):
         mock_api_obj = mock.Mock()
         mock_api_obj.client.management_url = "test.local"
@@ -193,38 +192,8 @@ class TestNovaCompute(test.ProviderTester):
         mock_logger.assert_called_with('Connection error talking to '
                                        'test.local endpoint', exc_info=True)
 
-    def test_on_failure(self):
-        exc = self.mox.CreateMockAnything()
-        exc.__str__().AndReturn('some message')
-        task_id = "1234"
-        args = [{
-                'deployment_id': '4321',
-                'resource_key': '0'
-                }]
-        kwargs = {}
-        einfo = self.mox.CreateMockAnything()
-
-        #Stub out postback call
-        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
-
-        expected = {
-            "instance:0": {
-                'status': 'ERROR',
-                'status-message': (
-                    "Unexpected error deleting compute "
-                    "instance 0"
-                ),
-                'error-message': 'some message',
-            }
-        }
-
-        cm_deps.resource_postback.delay("4321", expected).AndReturn(True)
-        self.mox.ReplayAll()
-        compute._on_failure(
-            exc, task_id, args, kwargs, einfo, "deleting", "method")
-        self.mox.VerifyAll()
-
-    def test_wait_on_build_rackconnect_pending(self):
+    @mock.patch.object(cm_deps.tasks, 'postback')
+    def test_wait_on_build_rackconnect_pending(self, postback):
         server = self.mox.CreateMockAnything()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
@@ -272,11 +241,10 @@ class TestNovaCompute(test.ProviderTester):
         self.assertRaises(exceptions.CheckmateException,
                           compute.wait_on_build, context,
                           server.id, 'North', [],
-                          api_object=openstack_api_mock)
+                          api=openstack_api_mock)
 
     @mock.patch.object(cm_deps.tasks, 'postback')
-    def test_wait_on_build_rackconnect_ready(self,
-                                             postback):
+    def test_wait_on_build_rackconnect_ready(self, postback):
         server = mock.MagicMock()
         server.id = 'fake_server_id'
         server.status = 'ACTIVE'
@@ -686,7 +654,7 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
         context = dict(deployment_id='DEP', resource_key='1')
-        ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
+        ssh.test_connection(mox.IgnoreArg(), "4.4.4.4", "root", timeout=10,
                             password=None, identity_file=None, port=22,
                             private_key=None).AndReturn(True)
 
@@ -715,7 +683,8 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
         context = dict(deployment_id='DEP', resource_key='1')
-        rdp.test_connection(context, "4.4.4.4", timeout=10,).AndReturn(True)
+        rdp.test_connection(mox.IgnoreArg(), "4.4.4.4", timeout=10,
+                            ).AndReturn(True)
 
         self.mox.ReplayAll()
         compute.verify_ssh_connection(context, server.id, 'North', "4.4.4.4",
@@ -743,8 +712,7 @@ class TestNovaCompute(test.ProviderTester):
         self.mox.VerifyAll()
 
     @mock.patch.object(cm_deps.tasks, 'postback')
-    @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
-    def test_delete_server(self, resource_postback, dep_postback):
+    def test_delete_server(self, dep_postback):
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -783,23 +751,16 @@ class TestNovaCompute(test.ProviderTester):
         mock_server.delete.return_value = True
         mock_servers.get.return_value = mock_server
 
-        resource_postback.return_value = None
-
         ret = compute.delete_server_task(context, api=api)
 
         self.assertDictEqual(expect, ret)
         mock_server.delete.assert_called_once_with()
         mock_servers.get.assert_called_once_with('abcdef-ghig-1234')
-        resource_postback.assert_called_once_with('1234', {
-            "instance:0": {
-                "status": "DELETING",
-                "status-message": "Host 1 is being deleted."
-            }}
-        )
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
-    @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
-    def test_delete_server_get_connect_error(self, mock_cmdeps, mock_utils):
+    @mock.patch.object(compute.manager.LOG, 'error')
+    def test_delete_server_get_connect_error(self, log,
+                                             mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
@@ -811,12 +772,13 @@ class TestNovaCompute(test.ProviderTester):
         with self.assertRaises(exceptions.CheckmateException):
             compute.delete_server_task(mock_context, api=mock_api)
 
-        compute.LOG.error.assert_called_with(
+        log.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
-    @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
-    def test_delete_server_delete_connect_error(self, mock_cmdeps, mock_utils):
+    @mock.patch.object(compute.manager.LOG, 'error')
+    def test_delete_server_delete_connect_error(self, log,
+                                                mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
@@ -828,12 +790,11 @@ class TestNovaCompute(test.ProviderTester):
         with self.assertRaises(exceptions.CheckmateException):
             compute.delete_server_task(mock_context, api=mock_api)
 
-        compute.LOG.error.assert_called_with(
+        log.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
     @mock.patch.object(cm_deps.tasks, 'postback')
-    @mock.patch.object(compute.cmdeps.resource_postback, 'delay')
-    def test_wait_on_delete(self, resource_postback, dep_postback):
+    def test_wait_on_delete(self, dep_postback):
         context = {
             'deployment_id': "1234",
             'resource_key': '1',
@@ -865,39 +826,46 @@ class TestNovaCompute(test.ProviderTester):
 
         }
 
-        api = self.mox.CreateMockAnything()
-        mock_servers = self.mox.CreateMockAnything()
-        api.servers = mock_servers
-        mock_server = self.mox.CreateMockAnything()
-        mock_server.status = 'DELETED'
-        mock_servers.find(id='abcdef-ghig-1234').AndReturn(mock_server)
-        compute.cmdeps.resource_postback.delay('1234', expect).AndReturn(None)
-        self.mox.ReplayAll()
-        ret = compute.wait_on_delete_server(context, api=api)
-        self.assertDictEqual(expect, ret)
-        self.mox.VerifyAll()
-        resource_postback.assert_called_with('1234', {
-            "instance:0": {
-                'status': 'DELETED',
-                'status-message': ''
-            },
-        })
-        dep_postback.assert_called_once_with('1234', {
-            "resources": {
-                "1": {
-                    "status": "DELETED",
-                    "instance": {
-                        "status": "DELETED",
-                        "status-message": ""
+        api = mock.MagicMock()
+        mock_servers = mock.MagicMock()
+        mock_server = mock.MagicMock()
 
+        api.servers = mock_servers
+        mock_server.status = 'DELETED'
+        mock_server.find.return_value = mock_server
+        mock_servers.find.return_value = mock_server
+
+        ret = compute.wait_on_delete_server(context, api=api)
+
+        self.assertDictEqual(expect, ret)
+        calls = [
+            mock.call('1234', {
+                "resources": {
+                    '0': {
+                        'status': 'DELETED',
+                        'instance': {
+                            'status': 'DELETED',
+                            'status-message': ''}
                     }
-                }
-            }
-        })
+                }}
+            ),
+            mock.call('1234', {
+                "resources": {
+                    '1': {
+                        "status": "DELETED",
+                        "instance": {
+                            "status": "DELETED",
+                            "status-message": ""
+                        }
+                    }
+                }}
+            )
+        ]
+        dep_postback.assert_has_calls(calls)
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
-    @mock.patch('checkmate.providers.rackspace.compute.cmdeps')
-    def test_wait_on_delete_connect_error(self, mock_cmdeps, mock_utils):
+    @mock.patch.object(compute.manager.LOG, 'error')
+    def test_wait_on_delete_connect_error(self, log, mock_utils):
         mock_context = {'deployment_id': '1', 'resource_key': '1',
                         'region': 'ORD', 'resource': {}, 'instance_id': '1'}
         compute.LOG.error = mock.Mock()
@@ -909,7 +877,7 @@ class TestNovaCompute(test.ProviderTester):
         with self.assertRaises(exceptions.CheckmateException):
             compute.wait_on_delete_server(mock_context, api=mock_api)
 
-        compute.LOG.error.assert_called_with(
+        log.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
 
     def test_find_url(self):
@@ -1027,13 +995,14 @@ class TestNovaCompute(test.ProviderTester):
                   'totalCoresUsed': cores_used,
                   'totalRAMUsed': ram_used}
         url = "https://dfw.servers.api.rackspacecloud.com/v2/680640"
-        self.mox.StubOutWithMock(compute, '_get_flavors')
-        self.mox.StubOutWithMock(compute, '_get_limits')
-        self.mox.StubOutWithMock(compute.Provider, 'find_url')
-        self.mox.StubOutWithMock(compute.Provider, 'find_a_region')
-        compute._get_flavors(
+        self.mox.StubOutWithMock(compute.provider, '_get_flavors')
+        self.mox.StubOutWithMock(compute.provider, '_get_limits')
+        self.mox.StubOutWithMock(compute.provider.Provider, 'find_url')
+        self.mox.StubOutWithMock(compute.provider.Provider, 'find_a_region')
+        compute.provider._get_flavors(
             mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(flavors)
-        compute._get_limits(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(limits)
+        compute.provider._get_limits(mox.IgnoreArg(),
+                                     mox.IgnoreArg()).AndReturn(limits)
         compute.Provider.find_url(
             mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(url)
         compute.Provider.find_a_region(mox.IgnoreArg()).AndReturn('DFW')
@@ -1228,8 +1197,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 
 
 class TestNovaProxy(unittest.TestCase):
-    @mock.patch('checkmate.providers.rackspace.compute.utils')
-    @mock.patch('checkmate.providers.rackspace.compute.pyrax')
+    @mock.patch('checkmate.providers.rackspace.compute.provider.utils')
+    @mock.patch('checkmate.providers.rackspace.compute.provider.pyrax')
     def test_get_resources_returns_compute_instances(self, mock_pyrax,
                                                      mock_utils):
         request = mock.Mock()
@@ -1246,7 +1215,7 @@ class TestNovaProxy(unittest.TestCase):
         mock_pyrax.connect_to_cloudservers.return_value = servers_response
         mock_pyrax.regions = ["ORD"]
 
-        result = compute.Provider.get_resources(request, 'tenant')
+        result = compute.provider.Provider.get_resources(request, 'tenant')
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['dns-name'], 'server_name')
         self.assertEqual(result[0]['status'], 'server_status')
@@ -1256,7 +1225,7 @@ class TestNovaProxy(unittest.TestCase):
 
     @mock.patch(
         'checkmate.providers.rackspace.compute.utils.get_ips_from_server')
-    @mock.patch('checkmate.providers.rackspace.compute.pyrax')
+    @mock.patch('checkmate.providers.rackspace.compute.provider.pyrax')
     def test_get_resources_merges_ip_info(self, mock_pyrax, mock_get_ips):
         request = mock.Mock()
         server = mock.Mock()
@@ -1293,7 +1262,7 @@ class TestNovaProxy(unittest.TestCase):
 
     @mock.patch(
         'checkmate.providers.rackspace.compute.utils.get_ips_from_server')
-    @mock.patch('checkmate.providers.rackspace.compute.pyrax')
+    @mock.patch('checkmate.providers.rackspace.compute.provider.pyrax')
     def test_get_resources_returns_servers_not_in_checkmate(self,
                                                             mock_pyrax,
                                                             mock_get_ips):

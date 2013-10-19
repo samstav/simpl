@@ -1,12 +1,25 @@
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+
 import mock
 import unittest
 
 from checkmate.providers import base
-from checkmate.providers.rackspace import (
-    compute,
-    base as rs_base,
-)
+from checkmate.providers.rackspace import base as rs_base
+from checkmate.providers.rackspace import compute
 
 
 class TestGetCatalog(unittest.TestCase):
@@ -15,7 +28,7 @@ class TestGetCatalog(unittest.TestCase):
     def setUp(self):
         """Sets up context for reuse in get_catalog testing."""
         self.context = {'region': 'SYD'}
-        self.base = compute.RackspaceComputeProviderBase({})
+        self.base = compute.provider.RackspaceComputeProviderBase({})
 
     @mock.patch.object(base.ProviderBase, 'get_catalog')
     def test_ProviderBase_catalog_injection(self, mock_get_catalog):
