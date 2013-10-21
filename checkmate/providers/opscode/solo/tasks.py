@@ -16,7 +16,7 @@
 """Rackspace solo provider tasks."""
 import urlparse
 
-from celery.task import task
+from celery import task as ctask
 
 from checkmate.common import statsd
 from checkmate import deployments
@@ -35,12 +35,13 @@ def register_scheme(scheme):
 
 register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
-@task
+
+@ctask.task
 @statsd.collect
 def write_databag(environment, bagname, itemname, contents, resource,
                   path=None, secret_file=None, merge=True,
                   kitchen_name='kitchen'):
-    """DEPRECATED: Use write_databag_v2"""
+    """DEPRECATED: Use write_databag_v2."""
     context = {
         'deployment_id': environment,
         'resource_key': resource
@@ -49,10 +50,11 @@ def write_databag(environment, bagname, itemname, contents, resource,
                      path=path, secret_file=secret_file,
                      kitchen_name=kitchen_name)
 
-@task(base=ProviderTask, provider=Provider)
+
+@ctask.task(base=ProviderTask, provider=Provider)
 @statsd.collect
 def write_databag_v2(context, environment, bag_name, item_name, contents,
-                  path=None, secret_file=None, kitchen_name='kitchen'):
+                     path=None, secret_file=None, kitchen_name='kitchen'):
     """Updates a data_bag or encrypted_data_bag
 
     :param environment: the ID of the environment
@@ -81,7 +83,7 @@ def write_databag_v2(context, environment, bag_name, item_name, contents,
                                   simulate=context.simulation)
 
 
-@task(countdown=20, max_retries=3)
+@ctask.task(countdown=20, max_retries=3)
 @statsd.collect
 def cook(host, environment, resource, recipes=None, roles=None, path=None,
          username='root', password=None, identity_file=None, port=22,
@@ -97,11 +99,11 @@ def cook(host, environment, resource, recipes=None, roles=None, path=None,
             kitchen_name=kitchen_name)
 
 
-@task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
+@ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
 def cook_v2(context, host, environment, recipes=None, roles=None,
-         path=None, username='root', password=None, identity_file=None,
-         port=22, attributes=None, kitchen_name='kitchen'):
+            path=None, username='root', password=None, identity_file=None,
+            port=22, attributes=None, kitchen_name='kitchen'):
     """Apply recipes/roles to a server"""
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -122,21 +124,21 @@ def cook_v2(context, host, environment, recipes=None, roles=None,
                         simulate=context.simulation)
 
 
-@task(default_retry_delay=10, max_retries=6)
+@ctask.task(default_retry_delay=10, max_retries=6)
 @statsd.collect
 def delete_environment(name, path=None):
     """Remove the chef environment from the file system."""
     Manager.delete_environment(name, path=path)
 
 
-@task
+@ctask.task
 @statsd.collect
 def delete_cookbooks(name, service_name, path=None):
     """Remove cookbooks directory and contents from the file system."""
     Manager.delete_cookbooks(name, service_name, path=path)
 
 
-@task(max_retries=3)
+@ctask.task(max_retries=3)
 @statsd.collect
 def create_environment(context, name, service_name, path=None,
                        private_key=None, public_key_ssh=None,
@@ -172,7 +174,7 @@ def create_environment(context, name, service_name, path=None,
                                       simulation=context['simulation'])
 
 
-@task(max_retries=3, soft_time_limit=600)
+@ctask.task(max_retries=3, soft_time_limit=600)
 @statsd.collect
 def register_node(host, environment, resource, path=None, password=None,
                   omnibus_version=None, attributes=None, identity_file=None,
@@ -187,12 +189,13 @@ def register_node(host, environment, resource, path=None, password=None,
                      attributes=attributes, identity_file=identity_file,
                      kitchen_name=kitchen_name)
 
-@task(base=ProviderTask, provider=Provider, max_retries=3,
-      soft_time_limit=600)
+
+@ctask.task(base=ProviderTask, provider=Provider, max_retries=3,
+            soft_time_limit=600)
 @statsd.collect
 def register_node_v2(context, host, environment, path=None,
-                  password=None, omnibus_version=None, attributes=None,
-                  identity_file=None, kitchen_name='kitchen'):
+                     password=None, omnibus_version=None, attributes=None,
+                     identity_file=None, kitchen_name='kitchen'):
     """Register a node in Chef.
 
     Using 'knife prepare' we will:
@@ -229,7 +232,8 @@ def register_node_v2(context, host, environment, path=None,
                                  kitchen_name=kitchen_name,
                                  simulate=context.simulation)
 
-@task(countdown=20, max_retries=3)
+
+@ctask.task(countdown=20, max_retries=3)
 @statsd.collect
 def manage_role(name, environment, resource, path=None, desc=None,
                 run_list=None, default_attributes=None,
@@ -245,12 +249,13 @@ def manage_role(name, environment, resource, path=None, desc=None,
                    override_attributes=override_attributes,
                    env_run_lists=env_run_lists, kitchen_name=kitchen_name)
 
-@task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
+
+@ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
 def manage_role_v2(context, name, environment, path=None, desc=None,
-                run_list=None, default_attributes=None,
-                override_attributes=None, env_run_lists=None,
-                kitchen_name='kitchen'):
+                   run_list=None, default_attributes=None,
+                   override_attributes=None, env_run_lists=None,
+                   kitchen_name='kitchen'):
     """Write/Update role."""
     return Manager.manage_role(name, environment, manage_role_v2.partial,
                                path=path, desc=desc, run_list=run_list,
