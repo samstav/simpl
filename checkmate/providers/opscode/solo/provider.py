@@ -176,7 +176,7 @@ class Provider(ProviderBase):
         anchor_task = configure_task = specs.Celery(
             wfspec,
             'Configure %s: %s (%s)' % (component_id, key, service_name),
-            'checkmate.providers.opscode.solo.tasks.cook',
+            'checkmate.providers.opscode.solo.tasks.cook_v2',
             call_args=[
                 context.get_queued_task_dict(
                     deployment_id=deployment['id'],
@@ -386,7 +386,7 @@ class Provider(ProviderBase):
                     resource['index'], collect_tag.capitalize())
             write_databag = specs.Celery(
                 wfspec, name,
-                'checkmate.providers.opscode.solo.tasks.write_databag',
+                'checkmate.providers.opscode.solo.tasks.write_databag_v2',
                 call_args=[context.get_queued_task_dict(
                     deployment_id=deployment['id'],
                     resource_key=resource_key),
@@ -450,7 +450,7 @@ class Provider(ProviderBase):
                     role_name, resource_key, collect_tag.capitalize())
             write_role = specs.Celery(
                 wfspec, name,
-                'checkmate.providers.opscode.solo.tasks.manage_role',
+                'checkmate.providers.opscode.solo.tasks.manage_role_v2',
                 call_args=[context.get_queued_task_dict(
                     deployment_id=deployment['id'],
                     resource_key=resource_key), role_name,
@@ -643,7 +643,7 @@ class Provider(ProviderBase):
                 'Register Server %s (%s)' % (
                     relation['target'], resource['service']
                 ),
-                'checkmate.providers.opscode.solo.tasks.register_node',
+                'checkmate.providers.opscode.solo.tasks.register_node_v2',
                 call_args=[context.get_queued_task_dict(
                     deployment_id=deployment['id'],
                     resource_key=key),
@@ -671,7 +671,7 @@ class Provider(ProviderBase):
                 'Pre-Configure Server %s (%s)' % (
                     relation['target'], service_name
                 ),
-                'checkmate.providers.opscode.solo.tasks.cook',
+                'checkmate.providers.opscode.solo.tasks.cook_v2',
                 call_args=[context.get_queued_task_dict(
                     deployment_id=deployment['id'],
                     resource_key=key),
@@ -793,7 +793,7 @@ class Provider(ProviderBase):
             reconfigure_task = specs.Celery(
                 wfspec,
                 name,
-                'checkmate.providers.opscode.solo.tasks.cook',
+                'checkmate.providers.opscode.solo.tasks.cook_v2',
                 call_args=[context.get_queued_task_dict(
                     deployment_id=deployment['id'],
                     resource_key=server['index']),

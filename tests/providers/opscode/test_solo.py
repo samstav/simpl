@@ -390,7 +390,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 })
                 expected.append({
                     'call': 'checkmate.providers.opscode.solo.tasks'
-                            '.register_node',
+                            '.register_node_v2',
                     'args': [
                         context_dict,
                         '4.4.4.1',
@@ -406,7 +406,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
                 # build-essential (now just cook with bootstrap.json)
                 expected.append({
-                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook_v2',
                     'args': [
                         context_dict,
                         '4.4.4.1',
@@ -431,7 +431,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     resource_key=key)
 
                 expected.append({
-                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook_v2',
                     'args': [
                         context_dict,
                         '4.4.4.1',
@@ -757,7 +757,7 @@ interfaces/mysql/host
                         # Register host - knife prepare
                         'call':
                         'checkmate.providers.opscode.solo.tasks'
-                        '.register_node',
+                        '.register_node_v2',
                         'args': [
                             context_dict,
                             "4.4.4.4",
@@ -773,7 +773,8 @@ interfaces/mysql/host
                     },
                     {
                         # Prep host - bootstrap.json means no recipes passed in
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
                             context_dict,
                             '4.4.4.4',
@@ -797,7 +798,7 @@ interfaces/mysql/host
                     resource_key=key)
                 expected_calls.extend([{
                     # Cook mysql
-                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook_v2',
                     'args': [
                         context_dict,
                         '4.4.4.4',
@@ -1161,7 +1162,7 @@ interfaces/mysql/database_name
                     {
                         'call':
                         'checkmate.providers.opscode.solo.tasks'
-                        '.register_node',
+                        '.register_node_v2',
                         'args': [
                             context_dict,
                             "4.4.4.4",
@@ -1180,7 +1181,8 @@ interfaces/mysql/database_name
                     },
                     {
                         # Prep foo - bootstrap.json
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
                             context_dict,
                             '4.4.4.4',
@@ -1230,7 +1232,7 @@ interfaces/mysql/database_name
                         # Write foo databag item
                         'call':
                         'checkmate.providers.opscode.solo.tasks'
-                        '.write_databag',
+                        '.write_databag_v2',
                         'args': [
                             context_dict, 'DEP-ID-1000', 'app_bag', 'mysql',
                             {'db_name': 'foo-db'}
@@ -1243,7 +1245,8 @@ interfaces/mysql/database_name
                     {
                         # Write foo-master role
                         'call':
-                        'checkmate.providers.opscode.solo.tasks.manage_role',
+                        'checkmate.providers.opscode.solo.tasks.'
+                        'manage_role_v2',
                         'args': [context_dict, 'foo-master', 'DEP-ID-1000'],
                         'kwargs': {
                             'run_list': ['recipe[apt]', 'recipe[foo::server]'],
@@ -1254,7 +1257,8 @@ interfaces/mysql/database_name
                     },
                     {
                         # Cook foo - run using runlist
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
                             context_dict,
                             '4.4.4.4',
@@ -1290,7 +1294,8 @@ interfaces/mysql/database_name
                 expected_calls.extend([
                     {
                         # Cook bar
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
                             context_dict,
                             None,
@@ -1309,7 +1314,8 @@ interfaces/mysql/database_name
                     },
                     {
                         # Re-cook bar
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
                             context_dict,
                             None,

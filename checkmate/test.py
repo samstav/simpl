@@ -258,7 +258,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                     self.deployment.on_resource_postback(call['result'])
                     return
 
-        if args[0] == 'checkmate.providers.opscode.solo.tasks.write_databag':
+        if args[0] == ('checkmate.providers.opscode.solo.tasks'
+                       '.write_databag_v2'):
             args = kwargs['args']
             bag_name = args[2]
             item_name = args[3]
@@ -378,7 +379,8 @@ class StubbedWorkflowBase(unittest.TestCase):
             True)
         ).lower() in ['true', '1', 'yes']:
             expected_calls.append({
-                'call': 'checkmate.providers.opscode.solo.tasks.write_databag',
+                'call': 'checkmate.providers.opscode.solo.tasks'
+                        '.write_databag',
                 'args': [IgnoreArg(), self.deployment['id'],
                         self.deployment['id'],
                         self.deployment.settings().get('app_id'),
@@ -538,7 +540,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 # Bootstrap Server with Chef
                 expected_calls.append({
                     'call': 'checkmate.providers.opscode.solo.tasks'
-                            'register_node',
+                            'register_node_v2',
                     'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
                              self.deployment['id']],
                     'kwargs': In('password'),
@@ -548,7 +550,7 @@ class StubbedWorkflowBase(unittest.TestCase):
 
                 # build-essential (now just cook with bootstrap.json)
                 expected_calls.append({
-                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook_v2',
                     'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
                              self.deployment['id']],
                     'kwargs': And(
@@ -566,7 +568,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                 # Cook with role
                 expected_calls.append(
                     {
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
                                  self.deployment['id']],
                         'kwargs': And(In('password'), ContainsKeyValue(
@@ -598,7 +601,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     expected_calls.append(
                         {
                             'call': 'checkmate.providers.opscode.solo.tasks'
-                                    '.cook',
+                                    '.cook_v2',
                             'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
                                      self.deployment['id']],
                             'kwargs': And(
@@ -621,7 +624,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     expected_calls.append(
                         {
                             'call': 'checkmate.providers.opscode.solo.tasks'
-                                    '.cook',
+                                    '.cook_v2',
                             'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
                                      self.deployment['id']],
                             'kwargs': And(
