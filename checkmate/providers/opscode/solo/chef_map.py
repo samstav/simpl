@@ -23,7 +23,7 @@ from yaml.scanner import ScannerError
 
 from checkmate.common import templating
 from checkmate import exceptions
-from checkmate.providers.opscode.solo import tasks
+from checkmate.providers.opscode.solo.blueprint_cache import BlueprintCache
 from checkmate import utils
 
 
@@ -90,13 +90,15 @@ class ChefMap(object):
             with open(chefmap_path) as chefmap:
                 return chefmap.read()
         else:
-            tasks._cache_blueprint(self.url)
-            repo_cache = tasks._get_blueprints_cache_path(self.url)
-            if os.path.exists(os.path.join(repo_cache, "Chefmap")):
-                with open(os.path.join(repo_cache, "Chefmap")) as chefmap:
+            cache = BlueprintCache(self.url)
+            cache.update()
+            if os.path.exists(os.path.join(cache.cache_path, "Chefmap")):
+                with open(os.path.join(cache.cache_path,
+                                       "Chefmap")) as chefmap:
                     return chefmap.read()
             else:
-                error_message = "No Chefmap in repository %s" % repo_cache
+                error_message = ("No Chefmap in repository %s" %
+                                 cache.cache_path)
                 raise exceptions.CheckmateException(error_message)
 
     @property

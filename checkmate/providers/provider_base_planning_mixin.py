@@ -15,8 +15,8 @@
 """
 Base Provider class mixin for planning
 """
-import os
 import logging
+import os
 
 LOG = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class ProviderBasePlanningMixIn(object):
     This class is mixed in to the ProviderBase
     """
     def prep_environment(self, wfspec, deployment, context):
-        """Implemented in the specific Provider classes"""
+        """Implemented in the specific Provider classes."""
         pass
 
     def get_resource_name(self, deployment, domain, index, service,
@@ -72,16 +72,16 @@ class ProviderBasePlanningMixIn(object):
     @staticmethod
     def generate_resource_tag(base_url=None, tenant_id=None,
                               deployment_id=None, resource_id=None):
-        """Builds the URL to a Resource used in RAX-CHECKMATE metadata"""
+        """Builds the URL to a Resource used in RAX-CHECKMATE metadata."""
         return {
             'RAX-CHECKMATE': "{}/{}/deployments/{}/resources/{}"
             .format(base_url, tenant_id, deployment_id, resource_id)
         }
 
     def verify_limits(self, context, resources):
-        """Implemented in the specific Provider classes"""
+        """Implemented in the specific Provider classes."""
         pass
 
     def verify_access(self, context):
-        """Implemented in the specific Provider classes"""
+        """Implemented in the specific Provider classes."""
         pass

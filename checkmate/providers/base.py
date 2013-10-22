@@ -1,3 +1,4 @@
+# pylint: disable=R0904,W0613
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -48,6 +49,10 @@ class ProviderBaseWorkflowMixIn(object):
 
     This class is mixed in to the ProviderBase
     """
+    @staticmethod
+    def connect(context, **kwargs):
+        """Use context info to connect to API and return api object."""
+        LOG.debug("Provider connect was called, but was not implemented")
 
     # pylint: disable=W0613,R0913
     def disable_connection_tasks(self, wf_spec, deployment, context,

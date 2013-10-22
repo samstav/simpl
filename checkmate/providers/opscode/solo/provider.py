@@ -42,6 +42,14 @@ class Provider(ProviderBase):
     name = 'chef-solo'
     vendor = 'opscode'
 
+    __status_mapping__ = {
+        'ACTIVE': 'ACTIVE',
+        'BUILD': 'BUILD',
+        'DELETED': 'DELETED',
+        'ERROR': 'ERROR',
+        'CONFIGURE': 'CONFIGURE',
+    }
+
     def __init__(self, provider, key=None):
         ProviderBase.__init__(self, provider, key=key)
 
@@ -73,12 +81,14 @@ class Provider(ProviderBase):
         task_name = 'checkmate.providers.opscode.solo.tasks.create_environment'
         self.prep_task = specs.Celery(wfspec,
                                       'Create Chef Environment', task_name,
-                                      call_args=[deployment['id'], 'kitchen'],
+                                      call_args=[
+                                          context.get_queued_task_dict(
+                                              deployment_id=deployment['id']),
+                                          deployment['id'], 'kitchen'],
                                       public_key_ssh=public_key_ssh,
                                       private_key=private_key,
                                       secret_key=secret_key,
                                       source_repo=source_repo,
-                                      provider=Provider.name,
                                       defines=defines,
                                       properties=properties)
 
@@ -166,10 +176,13 @@ class Provider(ProviderBase):
         anchor_task = configure_task = specs.Celery(
             wfspec,
             'Configure %s: %s (%s)' % (component_id, key, service_name),
-            'checkmate.providers.opscode.solo.tasks.cook',
+            'checkmate.providers.opscode.solo.tasks.cook_v2',
             call_args=[
+                context.get_queued_task_dict(
+                    deployment_id=deployment['id'],
+                    resource_key=key),
                 instance_ip,
-                deployment['id'], resource
+                deployment['id']
             ],
             password=operators.PathAttrib(
                 'instance:%s/password' % resource.get('hosted_on', key)
@@ -185,7 +198,7 @@ class Provider(ProviderBase):
 
         if self.map_file.has_mappings(component_id):
             collect_data_tasks = self.get_prep_tasks(wfspec, deployment, key,
-                                                     component)
+                                                     component, context)
             configure_task.follow(collect_data_tasks['final'])
             anchor_task = collect_data_tasks['root']
 
@@ -220,7 +233,8 @@ class Provider(ProviderBase):
                      (service_name, resource.get('hosted_on', key)))
 
     def get_prep_tasks(self, wfspec, deployment, resource_key, component,
-                       collect_tag='collect', ready_tag='options-ready'):
+                       context, collect_tag='collect',
+                       ready_tag='options-ready'):
         """Create (or get if they exist) tasks that collect and write map
         options.
 
@@ -372,13 +386,14 @@ class Provider(ProviderBase):
                     resource['index'], collect_tag.capitalize())
             write_databag = specs.Celery(
                 wfspec, name,
-                'checkmate.providers.opscode.solo.tasks.write_databag',
-                call_args=[
+                'checkmate.providers.opscode.solo.tasks.write_databag_v2',
+                call_args=[context.get_queued_task_dict(
+                    deployment_id=deployment['id'],
+                    resource_key=resource_key),
                     deployment['id'], bag_name, item_name,
-                    operators.PathAttrib(path), resource
+                    operators.PathAttrib(path)
                 ],
                 secret_file=secret_file,
-                merge=True,
                 defines={
                     'provider': self.key,
                     'resource': resource_key,
@@ -435,8 +450,11 @@ class Provider(ProviderBase):
                     role_name, resource_key, collect_tag.capitalize())
             write_role = specs.Celery(
                 wfspec, name,
-                'checkmate.providers.opscode.solo.tasks.manage_role',
-                call_args=[role_name, deployment['id'], resource],
+                'checkmate.providers.opscode.solo.tasks.manage_role_v2',
+                call_args=[context.get_queued_task_dict(
+                    deployment_id=deployment['id'],
+                    resource_key=resource_key), role_name,
+                    deployment['id']],
                 kitchen_name='kitchen',
                 override_attributes=operators.PathAttrib(path),
                 run_list=run_list,
@@ -603,7 +621,7 @@ class Provider(ProviderBase):
             # will pick up the values that it needs when these precursor
             # tasks signal they are complete.
             collect_tasks = self.get_prep_tasks(wfspec, deployment, key,
-                                                component)
+                                                component, context)
             wfspec.wait_for(collect_tasks['root'], tasks)
 
         if relation.get('relation') == 'host':
@@ -625,11 +643,13 @@ class Provider(ProviderBase):
                 'Register Server %s (%s)' % (
                     relation['target'], resource['service']
                 ),
-                'checkmate.providers.opscode.solo.tasks.register_node',
-                call_args=[
+                'checkmate.providers.opscode.solo.tasks.register_node_v2',
+                call_args=[context.get_queued_task_dict(
+                    deployment_id=deployment['id'],
+                    resource_key=key),
                     operators.PathAttrib(
                         'instance:%s/ip' % relation['target']),
-                    deployment['id'], resource
+                    deployment['id']
                 ],
                 password=operators.PathAttrib(
                     'instance:%s/password' % relation['target']
@@ -651,11 +671,13 @@ class Provider(ProviderBase):
                 'Pre-Configure Server %s (%s)' % (
                     relation['target'], service_name
                 ),
-                'checkmate.providers.opscode.solo.tasks.cook',
-                call_args=[
+                'checkmate.providers.opscode.solo.tasks.cook_v2',
+                call_args=[context.get_queued_task_dict(
+                    deployment_id=deployment['id'],
+                    resource_key=key),
                     operators.PathAttrib(
                         'instance:%s/ip' % relation['target']),
-                    deployment['id'], resource
+                    deployment['id']
                 ],
                 password=operators.PathAttrib(
                     'instance:%s/password' % relation['target']
@@ -703,7 +725,8 @@ class Provider(ProviderBase):
                 recon_tasks = self.get_reconfigure_tasks(wfspec, deployment,
                                                          client,
                                                          server,
-                                                         server_component)
+                                                         server_component,
+                                                         context)
                 recollect_task = recon_tasks['root']
 
                 final_tasks = wfspec.find_task_specs(resource=key,
@@ -727,7 +750,7 @@ class Provider(ProviderBase):
                     wfspec.wait_for(host_complete, [recon_tasks['final']])
 
     def get_reconfigure_tasks(self, wfspec, deployment, client, server,
-                              server_component):
+                              server_component, context):
         """Gets (creates if does not exist) a task to reconfigure a server when
         a client is ready.
 
@@ -770,10 +793,12 @@ class Provider(ProviderBase):
             reconfigure_task = specs.Celery(
                 wfspec,
                 name,
-                'checkmate.providers.opscode.solo.tasks.cook',
-                call_args=[
+                'checkmate.providers.opscode.solo.tasks.cook_v2',
+                call_args=[context.get_queued_task_dict(
+                    deployment_id=deployment['id'],
+                    resource_key=server['index']),
                     instance_ip,
-                    deployment['id'], server
+                    deployment['id']
                 ],
                 password=operators.PathAttrib(
                     'instance:%s/password' % host_idx),
@@ -795,8 +820,7 @@ class Provider(ProviderBase):
             if self.map_file.has_mappings(server['component']):
                 collect_tasks = self.get_prep_tasks(
                     wfspec, deployment, server['index'], server_component,
-                    collect_tag=collect_tag, ready_tag=ready_tag
-                )
+                    context, collect_tag=collect_tag, ready_tag=ready_tag)
                 reconfigure_task.follow(collect_tasks['final'])
                 result = {'root': collect_tasks['root'],
                           'final': reconfigure_task}

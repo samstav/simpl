@@ -15,14 +15,8 @@
 #    under the License.
 
 """Tests for Chef Solo."""
-import __builtin__
-import hashlib
-import json
 import logging
-import os
-import shutil
 import unittest
-import urlparse
 import uuid
 
 import mox
@@ -36,7 +30,6 @@ from checkmate import middleware
 from checkmate import providers
 from checkmate.providers.opscode import solo
 from checkmate.providers.opscode.solo import chef_map
-from checkmate.providers.opscode.solo import tasks
 from checkmate.providers.opscode.solo import transforms
 from checkmate import test
 from checkmate import utils
@@ -257,89 +250,6 @@ class TestChefSoloProvider(test.ProviderTester):
                                     '.delete_cookbooks')
 
 
-class TestCeleryTasks(unittest.TestCase):
-    def setUp(self):
-        self.mox = mox.Mox()
-        self.original_local_path = os.environ.get('CHECKMATE_CHEF_LOCAL_PATH')
-        os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = '/tmp/checkmate-chefmap'
-        self.local_path = '/tmp/checkmate-chefmap'
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
-        if os.path.exists(self.local_path):
-            shutil.rmtree('/tmp/checkmate-chefmap')
-        if self.original_local_path:
-            os.environ['CHECKMATE_CHEF_LOCAL_PATH'] = self.original_local_path
-
-    def test_cook(self):
-        root_path = os.environ['CHECKMATE_CHEF_LOCAL_PATH']
-        environment_path = os.path.join(root_path, "env_test")
-        kitchen_path = os.path.join(environment_path, "kitchen")
-        node_path = os.path.join(kitchen_path, "nodes", "a.b.c.d.json")
-
-        #Stub out checks for paths
-        self.mox.StubOutWithMock(tasks, '_get_root_environments_path')
-        tasks._get_root_environments_path(
-            "env_test", None).AndReturn(root_path)
-        self.mox.StubOutWithMock(os.path, 'exists')
-        os.path.exists(kitchen_path).AndReturn(True)
-        os.path.exists(node_path).AndReturn(True)
-
-        #Stub out file access
-        mock_file = self.mox.CreateMockAnything()
-        mock_file.__enter__().AndReturn(mock_file)
-        mock_file.__exit__(None, None, None).AndReturn(None)
-
-        #Stub out file reads
-        node = json.loads('{ "run_list": [] }')
-        self.mox.StubOutWithMock(json, 'load')
-        json.load(mock_file).AndReturn(node)
-
-        #Stub out file write
-        mock_file.__enter__().AndReturn(mock_file)
-        self.mox.StubOutWithMock(json, 'dump')
-        json.dump(
-            mox.And(
-                mox.ContainsKeyValue(
-                    'run_list',
-                    ['role[role1]', 'recipe[recipe1]']
-                ),
-                mox.ContainsKeyValue('id', 1)
-            ),
-            mock_file
-        ).AndReturn(None)
-        mock_file.__exit__(None, None, None).AndReturn(None)
-
-        #Stub out file opens
-        self.mox.StubOutWithMock(__builtin__, 'file')
-        __builtin__.file(node_path, 'r').AndReturn(mock_file)
-        __builtin__.file(node_path, 'w').AndReturn(mock_file)
-
-        #Stub out process call to knife
-        params = ['knife', 'solo', 'cook', 'root@a.b.c.d',
-                  '-c', os.path.join(kitchen_path, "solo.rb"),
-                  '-p', '22']
-        self.mox.StubOutWithMock(tasks, '_run_kitchen_command')
-        tasks._run_kitchen_command(
-            "env_test", kitchen_path, params).AndReturn("OK")
-
-        #TODO(any): better test for postback?
-        #Stub out call to resource_postback
-        self.mox.StubOutWithMock(tasks.deployments.resource_postback, 'delay')
-        tasks.deployments.resource_postback.delay(
-            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
-        tasks.deployments.resource_postback.delay(
-            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(True)
-
-        self.mox.ReplayAll()
-        resource = {'index': 1234, 'hosted_on': 'rack cloud'}
-        tasks.cook(
-            "a.b.c.d", "env_test", resource, roles=['role1'],
-            recipes=['recipe1'], attributes={'id': 1}
-        )
-        self.mox.VerifyAll()
-
-
 class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
     """Test that cookbooks can be used without a map file (only catalog)
 
@@ -408,6 +318,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         self.assertListEqual(task_list, expected, msg=task_list)
 
     def test_workflow_completion(self):
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
         expected = []
 
         # Create Chef Environment
@@ -416,7 +328,9 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             # Use only one kitchen. Call it "kitchen" like we used to
             'call': 'checkmate.providers.opscode.solo.tasks'
                     '.create_environment',
-            'args': [self.deployment['id'], 'kitchen'],
+            'args': [context.get_queued_task_dict(
+                    deployment_id=self.deployment['id']),
+                self.deployment['id'], 'kitchen'],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
                 mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
@@ -445,6 +359,9 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
         for key, resource in self.deployment['resources'].iteritems():
             if resource['type'] == 'compute':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=resource.get('hosts')[0])
                 expected.append({
                     'call': 'checkmate.providers.test.create_resource',
                     'args': [mox.IsA(dict), resource],
@@ -473,11 +390,11 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 })
                 expected.append({
                     'call': 'checkmate.providers.opscode.solo.tasks'
-                            '.register_node',
+                            '.register_node_v2',
                     'args': [
+                        context_dict,
                         '4.4.4.1',
                         self.deployment['id'],
-                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
                     'kwargs': mox.And(
                         mox.In('password'),
@@ -489,11 +406,11 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
                 # build-essential (now just cook with bootstrap.json)
                 expected.append({
-                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook_v2',
                     'args': [
+                        context_dict,
                         '4.4.4.1',
                         self.deployment['id'],
-                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
                     'kwargs': mox.And(
                         mox.In('password'),
@@ -508,14 +425,17 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'resource': key,
                 })
             else:
-
                 # Cook with cookbook (special mysql handling calls server role)
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
+
                 expected.append({
-                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook_v2',
                     'args': [
+                        context_dict,
                         '4.4.4.1',
                         self.deployment['id'],
-                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
                     'kwargs': mox.And(
                         mox.In('password'),
@@ -529,7 +449,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'resource': key,
                 })
 
-        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
+        self.workflow = self._get_stubbed_out_workflow(
+            expected_calls=expected, context=context)
         self.mox.ReplayAll()
         self.workflow.complete_all()
         self.assertTrue(self.workflow.is_completed(),
@@ -773,7 +694,10 @@ interfaces/mysql/host
             # Create Chef Environment
             'call': 'checkmate.providers.opscode.solo.tasks'
                     '.create_environment',
-            'args': [self.deployment['id'], 'kitchen'],
+            'args': [
+                context.get_queued_task_dict(
+                    deployment_id=self.deployment['id']),
+                self.deployment['id'], 'kitchen'],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
                 mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
@@ -798,6 +722,9 @@ interfaces/mysql/host
         ]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=resource.get('hosts')[0])
                 attributes = {
                     'username': 'u1',
                     'password': 'myPassW0rd',
@@ -830,11 +757,11 @@ interfaces/mysql/host
                         # Register host - knife prepare
                         'call':
                         'checkmate.providers.opscode.solo.tasks'
-                        '.register_node',
+                        '.register_node_v2',
                         'args': [
+                            context_dict,
                             "4.4.4.4",
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -846,11 +773,12 @@ interfaces/mysql/host
                     },
                     {
                         # Prep host - bootstrap.json means no recipes passed in
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
+                            context_dict,
                             '4.4.4.4',
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -865,13 +793,16 @@ interfaces/mysql/host
                     }
                 ])
             elif resource.get('type') == 'database':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
                 expected_calls.extend([{
                     # Cook mysql
-                    'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                    'call': 'checkmate.providers.opscode.solo.tasks.cook_v2',
                     'args': [
+                        context_dict,
                         '4.4.4.4',
                         self.deployment['id'],
-                        mox.ContainsKeyValue('index', mox.IgnoreArg())
                     ],
                     'kwargs': mox.And(
                         mox.In('password'),
@@ -1196,7 +1127,10 @@ interfaces/mysql/database_name
             # Create Chef Environment
             'call': 'checkmate.providers.opscode.solo.tasks'
                     '.create_environment',
-            'args': [self.deployment['id'], 'kitchen'],
+            'args': [
+                context.get_queued_task_dict(
+                    deployment_id=self.deployment['id']),
+                self.deployment['id'], 'kitchen'],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
                 mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
@@ -1221,15 +1155,18 @@ interfaces/mysql/database_name
         ]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=resource.get('hosts')[0])
                 expected_calls.extend([
                     {
                         'call':
                         'checkmate.providers.opscode.solo.tasks'
-                        '.register_node',
+                        '.register_node_v2',
                         'args': [
+                            context_dict,
                             "4.4.4.4",
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -1244,11 +1181,12 @@ interfaces/mysql/database_name
                     },
                     {
                         # Prep foo - bootstrap.json
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
+                            context_dict,
                             '4.4.4.4',
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -1286,18 +1224,20 @@ interfaces/mysql/database_name
                     }
                 ])
             elif resource.get('type') == 'application':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
                 expected_calls.extend([
                     {
                         # Write foo databag item
                         'call':
                         'checkmate.providers.opscode.solo.tasks'
-                        '.write_databag',
+                        '.write_databag_v2',
                         'args': [
-                            'DEP-ID-1000', 'app_bag', 'mysql',
-                            {'db_name': 'foo-db'}, mox.IgnoreArg()
+                            context_dict, 'DEP-ID-1000', 'app_bag', 'mysql',
+                            {'db_name': 'foo-db'}
                         ],
                         'kwargs': {
-                            'merge': True,
                             'secret_file': 'certificates/chef.pem'
                         },
                         'result': None
@@ -1305,8 +1245,9 @@ interfaces/mysql/database_name
                     {
                         # Write foo-master role
                         'call':
-                        'checkmate.providers.opscode.solo.tasks.manage_role',
-                        'args': ['foo-master', 'DEP-ID-1000', mox.IgnoreArg()],
+                        'checkmate.providers.opscode.solo.tasks.'
+                        'manage_role_v2',
+                        'args': [context_dict, 'foo-master', 'DEP-ID-1000'],
                         'kwargs': {
                             'run_list': ['recipe[apt]', 'recipe[foo::server]'],
                             'override_attributes': {'how-many': 2},
@@ -1316,11 +1257,12 @@ interfaces/mysql/database_name
                     },
                     {
                         # Cook foo - run using runlist
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
+                            context_dict,
                             '4.4.4.4',
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -1346,14 +1288,18 @@ interfaces/mysql/database_name
                     }
                 ])
             elif resource.get('type') == 'database':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
                 expected_calls.extend([
                     {
                         # Cook bar
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
+                            context_dict,
                             None,
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -1368,11 +1314,12 @@ interfaces/mysql/database_name
                     },
                     {
                         # Re-cook bar
-                        'call': 'checkmate.providers.opscode.solo.tasks.cook',
+                        'call': 'checkmate.providers.opscode.solo.tasks'
+                                '.cook_v2',
                         'args': [
+                            context_dict,
                             None,
                             self.deployment['id'],
-                            mox.ContainsKeyValue('index', mox.IgnoreArg())
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
@@ -1437,352 +1384,6 @@ interfaces/mysql/database_name
                          "Foo attribute not written")
 
         self.mox.VerifyAll()
-
-
-class TestChefMap(unittest.TestCase):
-    def setUp(self):
-        self.mox = mox.Mox()
-        tasks.CONFIG = self.mox.CreateMockAnything()
-        tasks.CONFIG.deployments_path = '/tmp/checkmate-chefmap'
-        self.local_path = '/tmp/checkmate-chefmap'
-        self.url = 'https://github.com/checkmate/app.git'
-        self.cache_path = self.local_path + "/cache/blueprints/" + \
-            hashlib.md5(self.url).hexdigest()
-        self.fetch_head_path = os.path.join(self.cache_path, ".git",
-                                            "FETCH_HEAD")
-        self.chef_map_path = os.path.join(self.cache_path, "Chefmap")
-
-        # Clean up from previous failed run
-        if os.path.exists(self.local_path):
-            shutil.rmtree(self.local_path)
-            LOG.info("Removed '%s'", self.local_path)
-
-    def tearDown(self):
-        self.mox.UnsetStubs()
-        if os.path.exists(self.local_path):
-            shutil.rmtree('/tmp/checkmate-chefmap')
-
-    def test_get_map_file_hit_cache(self):
-        os.makedirs(os.path.join(self.cache_path, ".git"))
-        LOG.info("Created '%s'", self.cache_path)
-
-        # Create a dummy Chefmap and .git/FETCH_HEAD
-        with file(self.fetch_head_path, 'a'):
-            os.utime(self.fetch_head_path, None)
-        with file(self.chef_map_path, 'a') as the_file:
-            the_file.write(TEMPLATE)
-
-        # Make sure cache_expire_time is set to something that
-        # shouldn't cause a cache miss
-        chefmap = chef_map.ChefMap()
-        os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "3600"
-
-        chefmap.url = self.url
-        map_file = chefmap.get_map_file()
-
-        def update_map(repo_dir=None, head=None):
-            """Helper method to mock update_map."""
-            with open(self.chef_map_path, 'a') as the_file:
-                the_file.write("new information")
-        utils.git_pull = self.mox.CreateMockAnything()
-        utils.git_pull(
-            mox.IgnoreArg(), mox.IgnoreArg()).WithSideEffects(update_map)
-        self.assertEqual(map_file, TEMPLATE)
-
-        # Catch the exception that mox will throw when it doesn't get
-        # the call to repository
-        with self.assertRaises(mox.ExpectedMethodCallsError):
-            self.mox.VerifyAll()
-
-    def test_get_map_file_miss_cache(self):
-        os.makedirs(os.path.join(self.cache_path, ".git"))
-        LOG.info("Created '%s'", self.cache_path)
-
-        # Create a dummy Chefmap and .git/FETCH_HEAD
-        with file(self.fetch_head_path, 'a'):
-            os.utime(self.fetch_head_path, None)
-        self.chef_map_path = os.path.join(self.cache_path, "Chefmap")
-        with file(self.chef_map_path, 'a') as the_file:
-            the_file.write(TEMPLATE)
-
-        chefmap = chef_map.ChefMap()
-        # Make sure the expire time is set to something that WILL
-        # cause a cache miss
-        os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "0"
-
-        def update_map(repo_dir=None, head=None):
-            """Helper method to fake an update."""
-            with open(self.chef_map_path, 'a') as the_file:
-                the_file.write("new information")
-        utils.git_tags = self.mox.CreateMockAnything()
-        utils.git_tags(mox.IgnoreArg()).AndReturn(["master"])
-        utils.git_fetch = self.mox.CreateMockAnything()
-        utils.git_fetch(mox.IgnoreArg(), mox.IgnoreArg())
-        utils.git_checkout = self.mox.CreateMockAnything()
-        utils.git_checkout(
-            mox.IgnoreArg(), mox.IgnoreArg()).WithSideEffects(update_map)
-        self.mox.ReplayAll()
-
-        chefmap.url = self.url
-        map_file = chefmap.get_map_file()
-
-        self.assertNotEqual(map_file, TEMPLATE)
-        self.mox.VerifyAll()
-        self.mox.UnsetStubs()
-
-    def test_get_map_file_no_cache(self):
-        chefmap = chef_map.ChefMap()
-
-        def fake_clone(url=None, path=None, branch=None):
-            """Helper method to fake a git clone."""
-            os.makedirs(os.path.join(self.cache_path, ".git"))
-            with file(self.fetch_head_path, 'a'):
-                os.utime(self.fetch_head_path, None)
-            with open(self.chef_map_path, 'w') as the_file:
-                the_file.write(TEMPLATE)
-
-        utils.git_clone = self.mox.CreateMockAnything()
-        utils.git_clone(mox.IgnoreArg(), mox.IgnoreArg(),
-                        branch=mox.IgnoreArg()).WithSideEffects(fake_clone)
-        utils.git_tags = self.mox.CreateMockAnything()
-        utils.git_tags(mox.IgnoreArg()).AndReturn(["master"])
-        utils.git_checkout = self.mox.CreateMockAnything()
-        utils.git_checkout(mox.IgnoreArg(), mox.IgnoreArg())
-        self.mox.ReplayAll()
-
-        chefmap.url = self.url
-        map_file = chefmap.get_map_file()
-
-        self.assertEqual(map_file, TEMPLATE)
-        self.mox.VerifyAll()
-
-    def test_get_map_file_local(self):
-        blueprint = os.path.join(self.local_path, "blueprint")
-        os.makedirs(blueprint)
-
-        # Create a dummy Chefmap
-        with file(os.path.join(blueprint, "Chefmap"), 'a') as the_file:
-            the_file.write(TEMPLATE)
-
-        url = "file://" + blueprint
-        chefmap = chef_map.ChefMap(url=url)
-        map_file = chefmap.get_map_file()
-
-        self.assertEqual(map_file, TEMPLATE)
-
-    def test_map_uri_parser(self):
-        fxn = chef_map.ChefMap.parse_map_uri
-        cases = [
-            {
-                'name': 'requirement from short form',
-                'scheme': 'requirements',
-                'netloc': 'database:mysql',
-                'path': 'username',
-            },
-            {
-                'name': 'requirement from long form',
-                'scheme': 'requirements',
-                'netloc': 'my_name',
-                'path': 'root/child',
-            },
-            {
-                'name': 'databag',
-                'scheme': 'databags',
-                'netloc': 'my_dbag',
-                'path': 'item/key',
-            },
-            {
-                'name': 'encrypted databag',
-                'scheme': 'encrypted-databags',
-                'netloc': 'secrets',
-                'path': 'item/key/with/long/path',
-            },
-            {
-                'name': 'attributes',
-                'scheme': 'attributes',
-                'netloc': '',
-                'path': 'item/key/with/long/path',
-            },
-            {
-                'name': 'clients',
-                'scheme': 'clients',
-                'netloc': 'provides_key',
-                'path': 'item/key/with/long/path',
-            },
-            {
-                'name': 'roles',
-                'scheme': 'roles',
-                'netloc': 'role-name',
-                'path': 'item/key/with/long/path',
-            },
-            {
-                'name': 'output',
-                'scheme': 'outputs',
-                'netloc': '',
-                'path': 'item/key/with/long/path',
-            },
-            {
-                'name': 'path check for output',
-                'scheme': 'outputs',
-                'netloc': '',
-                'path': 'only/path',
-            },
-            {
-                'name': 'only path check for attributes',
-                'scheme': 'attributes',
-                'netloc': '',
-                'path': 'only/path',
-            }
-        ]
-
-        for case in cases:
-            uri = urlparse.urlunparse((
-                case['scheme'],
-                case['netloc'],
-                case['path'],
-                None,
-                None,
-                None
-            ))
-            result = fxn(uri)
-            for key, value in result.iteritems():
-                self.assertEqual(value, case.get(key, ''), msg="'%s' got '%s' "
-                                 "wrong in %s" % (case['name'], key, uri))
-
-    def test_map_uri_parser_netloc(self):
-        result = chef_map.ChefMap.parse_map_uri("attributes://only/path")
-        self.assertEqual(result['path'], 'only/path')
-
-        result = chef_map.ChefMap.parse_map_uri("attributes://only")
-        self.assertEqual(result['path'], 'only')
-
-        result = chef_map.ChefMap.parse_map_uri("outputs://only/path")
-        self.assertEqual(result['path'], 'only/path')
-
-        result = chef_map.ChefMap.parse_map_uri("outputs://only")
-        self.assertEqual(result['path'], 'only')
-
-    def test_has_mapping_positive(self):
-        map = chef_map.ChefMap(raw='''
-                id: test
-                maps:
-                - source: 1
-            ''')
-        self.assertTrue(map.has_mappings('test'))
-
-    def test_has_mapping_negative(self):
-        map = chef_map.ChefMap(raw='''
-                id: test
-                maps: {}
-            ''')
-        self.assertFalse(map.has_mappings('test'))
-
-    def test_has_requirement_map_positive(self):
-        map = chef_map.ChefMap(raw='''
-                id: test
-                maps:
-                - source: requirements://name/path
-                - source: requirements://database:mysql/username
-            ''')
-        self.assertTrue(map.has_requirement_mapping('test', 'name'))
-        self.assertTrue(map.has_requirement_mapping('test', 'database:mysql'))
-        self.assertFalse(map.has_requirement_mapping('test', 'other'))
-
-    def test_has_requirement_mapping_negative(self):
-        map = chef_map.ChefMap(raw='''
-                id: test
-                maps: {}
-            ''')
-        self.assertFalse(map.has_requirement_mapping('test', 'name'))
-
-    def test_has_client_map_positive(self):
-        map = chef_map.ChefMap(raw='''
-                id: test
-                maps:
-                - source: clients://name/path
-                - source: clients://database:mysql/ip
-            ''')
-        self.assertTrue(map.has_client_mapping('test', 'name'))
-        self.assertTrue(map.has_client_mapping('test', 'database:mysql'))
-        self.assertFalse(map.has_client_mapping('test', 'other'))
-
-    def test_has_client_mapping_negative(self):
-        map = chef_map.ChefMap(raw='''
-                id: test
-                maps: {}
-            ''')
-        self.assertFalse(map.has_client_mapping('test', 'name'))
-
-    def test_get_attributes(self):
-        map = chef_map.ChefMap(raw='''
-                id: foo
-                maps:
-                - value: 1
-                  targets:
-                  - attributes://here
-                \n--- # component bar
-                id: bar
-                maps:
-                - value: 1
-                  targets:
-                  - databags://mybag/there
-            ''')
-        self.assertDictEqual(map.get_attributes('foo', None), {'here': 1})
-        self.assertDictEqual(map.get_attributes('bar', None), {})
-        self.assertIsNone(map.get_attributes('not there', None))
-
-    def test_has_runtime_options(self):
-        map = chef_map.ChefMap(raw='''
-                id: foo
-                maps:
-                - source: requirements://database:mysql/
-                \n---
-                id: bar
-                maps: {}
-                ''')
-        self.assertTrue(map.has_runtime_options('foo'))
-        self.assertFalse(map.has_runtime_options('bar'))
-        self.assertFalse(map.has_runtime_options('not there'))
-
-    def test_filter_maps_by_schemes(self):
-        maps = utils.yaml_to_dict('''
-                - value: 1
-                  targets:
-                  - databags://bag/item
-                - value: 2
-                  targets:
-                  - databags://bag/item
-                  - roles://bag/item
-                - value: 3
-                  targets:
-                  - attributes://id
-                ''')
-        expect = "Should detect all maps with databags target"
-        schemes = ['databags']
-        result = chef_map.ChefMap.filter_maps_by_schemes(
-            maps, target_schemes=schemes)
-        self.assertListEqual(result, maps[0:2], msg=expect)
-
-        expect = "Should detect only map with roles target"
-        schemes = ['roles']
-        result = chef_map.ChefMap.filter_maps_by_schemes(
-            maps, target_schemes=schemes)
-        self.assertListEqual(result, [maps[1]], msg=expect)
-
-        expect = "Should detect all maps once"
-        schemes = ['databags', 'attributes', 'roles']
-        result = chef_map.ChefMap.filter_maps_by_schemes(
-            maps, target_schemes=schemes)
-        self.assertListEqual(result, maps, msg=expect)
-
-        expect = "Should return all maps"
-        result = chef_map.ChefMap.filter_maps_by_schemes(maps)
-        self.assertListEqual(result, maps, msg=expect)
-
-        expect = "Should return all maps"
-        result = chef_map.ChefMap.filter_maps_by_schemes(maps,
-                                                         target_schemes=[])
-        self.assertListEqual(result, maps, msg=expect)
 
 
 class TestTransform(unittest.TestCase):

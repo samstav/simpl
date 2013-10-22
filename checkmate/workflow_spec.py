@@ -150,8 +150,7 @@ class WorkflowSpec(specs.WorkflowSpec):
 
         for provider_key in provider_keys:
             provider = providers[provider_key]
-            cleanup_result = provider.cleanup_environment(wf_spec,
-                                                          deployment)
+            cleanup_result = provider.cleanup_environment(wf_spec, deployment)
             # Wire up tasks if not wired in somewhere
             if cleanup_result and not cleanup_result['root'].inputs:
                 wf_spec.start.connect(cleanup_result['root'])

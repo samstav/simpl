@@ -1,5 +1,17 @@
-'''
-    A WSGI middleware application that automatically gzips output
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+"""A WSGI middleware application that automatically gzips output
     to the client.
     Before doing any gzipping, it first checks the environ to see if
     the client can even support gzipped output. If not, it immediately
@@ -87,7 +99,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Source: https://code.google.com/p/ibkon-wsgi-gzip-middleware/source/browse/
         trunk/gzip_middleware.py
         Modified: ZNS 2013-05-31
-'''
+"""
 
 
 from gzip import GzipFile
@@ -98,9 +110,9 @@ __version__ = '1.0.1'
 
 
 def compress(data, compression_level):
-    ''' The `gzip` module didn't provide a way to gzip just a string.
+    """The `gzip` module didn't provide a way to gzip just a string.
         Had to hack together this. I know, it isn't pretty.
-    '''
+    """
     _buffer = cStringIO.StringIO()
     gz_file = GzipFile(None, 'wb', compression_level, _buffer)
     gz_file.write(data)
@@ -109,9 +121,9 @@ def compress(data, compression_level):
 
 
 def parse_encoding_header(header):
-    ''' Break up the `HTTP_ACCEPT_ENCODING` header into a dict of
+    """Break up the `HTTP_ACCEPT_ENCODING` header into a dict of
         the form, {'encoding-name':qvalue}.
-    '''
+    """
     encodings = {'identity': 1.0}
     for encoding in header.split(','):
         if encoding.find(';') > -1:
@@ -128,10 +140,10 @@ def parse_encoding_header(header):
 
 
 def client_wants_gzip(accept_encoding_header):
-    ''' Check to see if the client can accept gzipped output, and whether
+    """Check to see if the client can accept gzipped output, and whether
         or not it is even the preferred method. If `identity` is higher, then
         no gzipping should occur.
-    '''
+    """
     encodings = parse_encoding_header(accept_encoding_header)
     if 'gzip' in encodings:
         return encodings['gzip'] >= encodings['identity']
@@ -158,9 +170,9 @@ DEFAULT_COMPRESSABLES = set(
 
 
 class Gzipper(object):
-    ''' WSGI middleware to wrap around and gzip all output.
+    """WSGI middleware to wrap around and gzip all output.
         This automatically adds the content-encoding header.
-    '''
+    """
     def __init__(self, app, content_types=None, compresslevel=6):
         self.app = app
         if content_types is None:
@@ -170,10 +182,10 @@ class Gzipper(object):
         self.compresslevel = compresslevel
 
     def __call__(self, environ, start_response):
-        ''' Do the actual work. If the host doesn't support gzip
+        """Do the actual work. If the host doesn't support gzip
             as a proper encoding,then simply pass over to the
             next app on the wsgi stack.
-        '''
+        """
         if not client_wants_gzip(environ.get('HTTP_ACCEPT_ENCODING', '')):
             return self.app(environ, start_response)
 
