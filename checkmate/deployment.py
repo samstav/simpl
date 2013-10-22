@@ -269,8 +269,8 @@ class Deployment(morpheus.MorpheusDict):
     ]
 
     FSM_TRANSITIONS = {
-        'NEW': {'PLANNED', 'FAILED'},
-        'PLANNED': {'UP', 'FAILED'},
+        'NEW': {'PLANNED', 'FAILED', 'DELETED'},
+        'PLANNED': {'UP', 'FAILED', 'DELETED'},
         'UP': {'ALERT', 'UNREACHABLE', 'DOWN', 'DELETED'},
         'FAILED': {'DELETED'},
         'ALERT': {'DELETED', 'UP'},
