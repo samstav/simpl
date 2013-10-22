@@ -349,7 +349,10 @@ class Manager(object):
         utils.match_celery_logging(LOG)
 
         if context.get('simulation') is True:
-            return
+            return {
+                "status": True,
+                "status-message": "verify_ssh_connection is simulated"
+            }
 
         try:
             server = api.servers.find(id=server_id)
