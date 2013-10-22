@@ -408,7 +408,7 @@ class Deployment(morpheus.MorpheusDict):
             if all(status == 'DELETED' for status in statuses):
                 deployment_status = 'DELETED'
                 operation_status = 'COMPLETE'
-            elif (all(status == 'ACTIVE' for status in statuses) and 
+            elif (all(status == 'ACTIVE' for status in statuses) and
                     all_tasks_complete):
                 deployment_status = 'UP'
                 operation_status = 'COMPLETE'
