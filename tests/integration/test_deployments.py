@@ -1355,19 +1355,18 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_bad_status(self):
         manager = self._mox.CreateMockAnything()
         router = cmdeps.Router(bottle.default_app(), manager)
-        manager.get_deployment('1234').AndReturn(self._deployment)
+        manager.get_deployment(
+            '1234', with_secrets=True).AndReturn(self._deployment)
         manager.save_deployment('1234', mox.IgnoreArg(), tenant_id=None,
                                 partial=False).AndReturn(None)
 
         self._mox.ReplayAll()
         try:
-            router.delete_deployment('1234')
-            self.fail("Delete deployment with bad status did not raise "
-                      "exception")
-        except bottle.HTTPError as exc:
-            self.assertEqual(400, exc.status_code)
-            self.assertIn("Deployment 1234 cannot be deleted while in status "
-                          "PLANNED", exc.output)
+            router.plan_deployment('1234')
+            self.fail("Attempt to change from PLANNED to NEW should fail.")
+        except exceptions.CheckmateBadState as exc:
+            self.assertIn("Deployment '1234' is in 'PLANNED' status and must "
+                          "be in 'NEW' to be planned", str(exc))
 
     def test_not_found(self):
         manager = self._mox.CreateMockAnything()

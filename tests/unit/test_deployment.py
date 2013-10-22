@@ -319,7 +319,7 @@ class TestDeployments(unittest.TestCase):
         self.assertRaises(cmexc.CheckmateBadState,
                           deployment.__setitem__,
                           'status',
-                          'DELETED')
+                          'NEW')
 
     def test_invalid_status_rejected(self):
         self.assertRaises(cmexc.CheckmateValidationException,
