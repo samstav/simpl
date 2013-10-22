@@ -396,7 +396,10 @@ class Deployment(morpheus.MorpheusDict):
         """
         statuses = []
         deployment_status = self['status']
-        operation_status = self.get('operation', {}).get('status')
+        operation = self.get('operation', {})
+        operation_status = operation.get('status')
+        all_tasks_complete = (
+            operation.get('tasks', 0) == operation.get('complete', 0))
 
         for value in resources.values():
             statuses.append(value['status'])
@@ -405,7 +408,8 @@ class Deployment(morpheus.MorpheusDict):
             if all(status == 'DELETED' for status in statuses):
                 deployment_status = 'DELETED'
                 operation_status = 'COMPLETE'
-            elif all(status == 'ACTIVE' for status in statuses):
+            elif (all(status == 'ACTIVE' for status in statuses) and
+                    all_tasks_complete):
                 deployment_status = 'UP'
                 operation_status = 'COMPLETE'
             elif all(status == 'NEW' for status in statuses):
