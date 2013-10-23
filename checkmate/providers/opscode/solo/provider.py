@@ -633,17 +633,15 @@ class Provider(ProviderBase):
             attributes = map_with_context.get_attributes(resource['component'],
                                                          deployment)
             service_name = resource['service']
-            bootstrap_version = deployment.get_setting('bootstrap-version',
-                                                     provider_key=self.key,
-                                                     service_name=service_name,
-                                                     default=OMNIBUS_DEFAULT)
+            bootstrap_version = deployment.get_setting(
+                'bootstrap-version', provider_key=self.key,
+                service_name=service_name, default=OMNIBUS_DEFAULT)
             if not bootstrap_version:
-                bootstrap_version = deployment.get_setting('omnibus-version',
-                                                      provider_key=self.key,
-                                                      service_name=service_name,
-                                                      default=OMNIBUS_DEFAULT)
-                LOG.warning("'omnibus-version' is depricated. Please update the"
-                            "blueprint to use 'bootstrap-version'")
+                bootstrap_version = deployment.get_setting(
+                    'omnibus-version', provider_key=self.key,
+                    service_name=service_name, default=OMNIBUS_DEFAULT)
+                LOG.warning("'omnibus-version' is deprecated. Please update "
+                            "the blueprint to use 'bootstrap-version'")
 
             # Create chef setup tasks
             register_node_task = specs.Celery(

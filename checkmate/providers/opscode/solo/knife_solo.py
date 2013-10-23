@@ -57,7 +57,7 @@ class KnifeSolo(object):
             LOG.info("Node is already registered: %s", node_path)
         else:
             params = ['knife', 'solo', 'prepare', 'root@%s' % host,
-                      '-c', os.path.join(self.kitchen_path, '.chef', 'knife.rb')]
+                      '-c', self._config_path]
             if password:
                 params.extend(['-P', password])
             if bootstrap_version:

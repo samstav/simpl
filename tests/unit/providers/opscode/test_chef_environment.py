@@ -165,7 +165,6 @@ class TestCreateKitchen(TestChefEnvironment):
         nodes_path = "%s/nodes" % self.kitchen_path
         bootstrap_path = "%s/bootstrap.json" % self.kitchen_path
         certs_path = "%s/certificates" % self.kitchen_path
-        knife_file_path = "%s/.chef/knife.rb" % self.kitchen_path
         secret_key_path = "secret_key_path"
         source_repo = "http://foo.git"
 
