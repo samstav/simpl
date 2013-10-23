@@ -177,7 +177,7 @@ def create_environment(context, name, service_name, path=None,
 @ctask.task(max_retries=3, soft_time_limit=600)
 @statsd.collect
 def register_node(host, environment, resource, path=None, password=None,
-                  omnibus_version=None, attributes=None, identity_file=None,
+                  bootstrap_version=None, attributes=None, identity_file=None,
                   kitchen_name='kitchen'):
     """DEPRECATED: Use register_node_v2."""
     context = {
@@ -185,7 +185,7 @@ def register_node(host, environment, resource, path=None, password=None,
         'resource_key': resource
     }
     register_node_v2(context, host, environment, path=path,
-                     password=password, omnibus_version=omnibus_version,
+                     password=password, bootstrap_version=bootstrap_version,
                      attributes=attributes, identity_file=identity_file,
                      kitchen_name=kitchen_name)
 
@@ -194,7 +194,7 @@ def register_node(host, environment, resource, path=None, password=None,
             soft_time_limit=600)
 @statsd.collect
 def register_node_v2(context, host, environment, path=None,
-                     password=None, omnibus_version=None, attributes=None,
+                     password=None, bootstrap_version=None, attributes=None,
                      identity_file=None, kitchen_name='kitchen'):
     """Register a node in Chef.
 
@@ -210,7 +210,7 @@ def register_node_v2(context, host, environment, path=None,
     :param environment: the ID of the environment/deployment
     :param path: an optional override for path to the environment root
     :param password: the node's password
-    :param omnibus_version: override for knife bootstrap (default=latest)
+    :param bootstrap_version: override for knife bootstrap (default=latest)
     :param attributes: attributes to set on node (dict)
     :param identity_file: private key file to use to connect to the node
     """
@@ -226,7 +226,7 @@ def register_node_v2(context, host, environment, path=None,
     register_node_v2.on_failure = on_failure
     return Manager.register_node(host, environment, register_node_v2.partial,
                                  path=path, password=password,
-                                 omnibus_version=omnibus_version,
+                                 bootstrap_version=bootstrap_version,
                                  attributes=attributes,
                                  identity_file=identity_file,
                                  kitchen_name=kitchen_name,

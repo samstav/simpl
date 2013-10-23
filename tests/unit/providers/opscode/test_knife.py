@@ -34,11 +34,11 @@ class TestKnife(unittest.TestCase):
         result = self.knife.run_command(['knife', 'test'])
 
         self.assertEqual(result, mock_run.return_value)
-        mock_path_exists.assert_called_once_with("%s/solo.rb" %
+        mock_path_exists.assert_called_once_with("%s/.chef/knife.rb" %
                                                  self.kitchen_path)
         mock_run.assert_called_once_with(
             self.kitchen_path, 'knife',
-            ['test', '-c', "%s/solo.rb" % self.kitchen_path], lock=True)
+            ['test', '-c', "%s/.chef/knife.rb" % self.kitchen_path], lock=True)
 
     @mock.patch('os.path.exists')
     @mock.patch('checkmate.utils.run_ruby_command')
@@ -49,11 +49,11 @@ class TestKnife(unittest.TestCase):
         self.assertRaises(exceptions.CheckmateCalledProcessError,
                           self.knife.run_command, ['knife', 'test'])
 
-        mock_path_exists.assert_called_once_with("%s/solo.rb" %
+        mock_path_exists.assert_called_once_with("%s/.chef/knife.rb" %
                                                  self.kitchen_path)
         mock_run.assert_called_once_with(
             self.kitchen_path, 'knife',
-            ['test', '-c', "%s/solo.rb" % self.kitchen_path], lock=True)
+            ['test', '-c', "%s/.chef/knife.rb" % self.kitchen_path], lock=True)
 
     def test_init_solo(self):
         self.knife.run_command = mock.Mock()
@@ -65,18 +65,13 @@ class TestKnife(unittest.TestCase):
     def test_write_solo_config(self, mock_file):
         file_handle = mock_file.return_value.__enter__.return_value
         expected_config = """# knife -c knife.rb
-    file_cache_path  "%s"
-    cookbook_path    ["%s/cookbooks", "%s/site-cookbooks"]
-    role_path  "%s/roles"
-    data_bag_path  "%s/data_bags"
-    log_level        :info
-    log_location     "%s/knife-solo.log"
-    verbose_logging  true
-    ssl_verify_mode  :verify_none
+    knife[:provisioning_path] = "%s"
+
+    cookbook_path    ["cookbooks", "site-cookbooks"]
+    role_path  "roles"
+    data_bag_path  "data_bags"
     encrypted_data_bag_secret "%s/certificates/chef.pem"
-    """ % (self.kitchen_path, self.kitchen_path, self.kitchen_path,
-           self.kitchen_path, self.kitchen_path, self.kitchen_path,
-           self.kitchen_path)
+    """ % (self.kitchen_path, self.kitchen_path)
         result = self.knife.write_config()
 
         self.assertEqual(result,
@@ -88,12 +83,12 @@ class TestKnife(unittest.TestCase):
         mock_path_exists.return_value = False
         self.knife.run_command = mock.Mock()
         self.knife.prepare("1.1.1.1", password="password",
-                           omnibus_version="0.1",
+                           bootstrap_version="0.1",
                            identity_file="identity_file")
         self.knife.run_command.assert_called_once_with(
             ['knife', 'solo', 'prepare', 'root@1.1.1.1', '-c',
-             "%s/solo.rb" % self.kitchen_path, '-P', 'password',
-             '--omnibus-version', '0.1', '-i', 'identity_file'])
+             "%s/.chef/knife.rb" % self.kitchen_path, '-P', 'password',
+             '--bootstrap-version', '0.1', '-i', 'identity_file'])
         mock_path_exists.assert_called_once_with("%s/nodes/1.1.1.1.json" %
                                                  self.kitchen_path)
 

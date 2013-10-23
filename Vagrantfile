@@ -65,11 +65,11 @@ Vagrant.configure("2") do |config|
               { 'name' => 'librarian',
                 'version' => '0.0.26'},
               { 'name' => 'berkshelf',
-                'version' => '2.0.4'},
+                'version' => '2.0.10'},
               { 'name' => 'knife-solo',
-                'version' => '0.2.0' },
+                'version' => '0.3.0' },
               { 'name' => 'knife-solo_data_bag',
-                'version' => '0.3.2' }
+                'version' => '0.4.0' }
             ]
           }
         }],

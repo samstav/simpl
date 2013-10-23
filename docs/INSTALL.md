@@ -135,21 +135,22 @@ server:
     # Install know good versions
     gem install bundler --no-rdoc --no-ri
     gem install chef --version 11.4.0 --no-rdoc --no-ri
-    gem install knife-solo --version 0.2.0 --no-rdoc --no-ri
-    gem install knife-solo_data_bag --version 0.3.2 --no-rdoc --no-ri
-    gem install librarian --version 0.0.26 --no-rdoc --no-ri
-    gem install berkshelf --version 2.0.4 --no-rdoc --no-ri
+    gem install knife-solo --version 0.3.0 --no-rdoc --no-ri
+    gem install knife-solo_data_bag --version 0.4.0 --no-rdoc --no-ri
+    gem install librarian-chef --version 0.0.2 --no-rdoc --no-ri
+    gem install berkshelf --version 2.0.10 --no-rdoc --no-ri
 
     # If this is a production system, install the same gems in global, because root from cron needs them
     rvm gemset use global
     gem install bundler --no-rdoc --no-ri
     gem install chef --version 11.4.0 --no-rdoc --no-ri
-    gem install knife-solo --version 0.2.0 --no-rdoc --no-ri
-    gem install knife-solo_data_bag --version 0.3.2 --no-rdoc --no-ri
-    gem install librarian --version 0.0.24 --no-rdoc --no-ri
+    gem install knife-solo --version 0.3.0 --no-rdoc --no-ri
+    gem install knife-solo_data_bag --version 0.4.0 --no-rdoc --no-ri
+    gem install librarian-chef --version 0.0.2 --no-rdoc --no-ri
+    gem install berkshelf --version 2.0.10 --no-rdoc --no-ri
     # Verify
     knife -v  # should show 'Chef: 11.4.0'
-    gem list knife  # should show solo at 0.2.0 and data_bag at 0.3.2
+    gem list knife  # should show solo at 0.3.0 and data_bag at 0.4.0
 
 ### MongoDB Installation
 
