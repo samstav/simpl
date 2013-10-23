@@ -1,5 +1,6 @@
 describe('DeploymentListController', function(){
   var scope,
+      $rootScope,
       $location,
       http,
       resource,
@@ -16,7 +17,7 @@ describe('DeploymentListController', function(){
       controller,
       emptyResponse;
 
-  beforeEach(function(){
+  beforeEach(inject(function($injector){
     scope = { $watch: emptyFunction };
     $location = { search: sinon.stub().returns({}), replace: emptyFunction, path: sinon.stub().returns('/1/deployments') };
     http = {};
@@ -26,7 +27,8 @@ describe('DeploymentListController', function(){
     navbar = { highlight: emptyFunction };
     pagination = { buildPaginator: sinon.stub().returns({ changed_params: sinon.spy() }) };
     auth = { context: {} };
-    $q = { all: sinon.stub().returns( sinon.spy() ), defer: sinon.stub() };
+    $q = $injector.get('$q');
+    $rootScope = $injector.get('$rootScope');
     cmTenant = {};
     Deployment = {};
     $timeout = sinon.stub().returns('fake promise');
@@ -34,7 +36,7 @@ describe('DeploymentListController', function(){
     $filter = sinon.stub();
     controller = new DeploymentListController(scope, $location, http, resource, scroll, items, navbar, pagination, auth, $q, cmTenant, Deployment, $timeout, $filter);
     emptyResponse = { get: emptyFunction };
-  });
+  }));
 
   describe('initialization', function(){
     describe('load', function(){
@@ -277,6 +279,11 @@ describe('DeploymentListController', function(){
   describe('#load_tenant_info', function() {
     beforeEach(function() {
       auth.is_admin = sinon.stub();
+      sinon.spy($q, 'all');
+    });
+
+    afterEach(function() {
+      $q.all.reset();
     });
 
     it('should not load tags if user is not an admin', function() {
@@ -288,7 +295,6 @@ describe('DeploymentListController', function(){
     describe('when user is admin', function() {
       beforeEach(function() {
         auth.is_admin.returns(true);
-        $q.defer.returns({ promise: 'fakepromise' });
         cmTenant.get = sinon.spy();
       });
 
@@ -349,12 +355,12 @@ describe('DeploymentListController', function(){
 
   describe('#is_selected', function() {
     it('should return true if any deployment has been selected', function() {
-      scope.selected_deployments = { 123: 'somedeployment' };
+      scope.selected_deployments = { all: false, 123: 'somedeployment' };
       expect(scope.is_selected()).toBeTruthy();
     });
 
     it('should return false if no deployment has been selected', function() {
-      scope.selected_deployments = {};
+      scope.selected_deployments = { all: false };
       expect(scope.is_selected()).toBeFalsy();
     });
   });
@@ -467,6 +473,7 @@ describe('DeploymentListController', function(){
         456: d2,
       };
       scope.sync_deployments();
+      $rootScope.$apply();
       expect(scope.wrap_admin_call).toHaveBeenCalledWith('asdf', scope.sync, d1);
       expect(scope.wrap_admin_call).toHaveBeenCalledWith('qwer', scope.sync, d2);
     });

@@ -358,18 +358,28 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
      the user's context will still be available at the time of subsequent
      requests. */
   $scope.wrap_admin_call = function(/* username, callback, args */) {
+    var deferred = $q.defer();
+
     var args = Array.prototype.slice.call(arguments);
     var username = args.shift();
     var callback = args.shift();
     if (auth.is_admin(true)) {
-      auth.impersonate(username, true).then(function() {
-        var result = callback.apply($scope, args);
-        auth.exit_impersonation();
-        return result;
-      });
+      auth.impersonate(username, true).then(
+        function(response) {
+          var result = callback.apply($scope, args);
+          auth.exit_impersonation();
+          return deferred.resolve(result);
+        },
+        function(response) {
+          return deferred.reject(response);
+        }
+      );
     } else {
-      return callback.apply($scope, args);
+      var result = callback.apply($scope, args);
+      return deferred.resolve(result);
     }
+
+    return deferred.promise;
   };
 
   $scope.is_impersonating = function() {
@@ -1984,7 +1994,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 
   $scope.is_selected = function() {
     var keys = Object.keys($scope.selected_deployments);
-    return keys.length != 0;
+    return keys.length != 1;
   }
 
   $scope.select_toggle = function(deployments, status) {
@@ -2010,12 +2020,23 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   }
 
   $scope.sync_deployments = function() {
+    var deferred = $q.defer();
+    var promise = deferred.promise;
+    var wrapped_call = function(deployment) {
+      return function() {
+        $scope.wrap_admin_call(deployment.created_by, $scope.sync, deployment);
+      }
+    };
+
     for (var id in $scope.selected_deployments) {
       var deployment = $scope.deployment_map[id];
       if (deployment) {
-        $scope.wrap_admin_call(deployment.created_by, $scope.sync, deployment);
+        promise = promise.finally(wrapped_call(deployment));
       }
     }
+
+    deferred.resolve();
+    return promise;
   }
 
   navbar.highlight("deployments");
@@ -2081,9 +2102,9 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
   };
 
 
-  $scope.sync_success = function(returned, getHeaders){
-    if (returned !== undefined)
-      $scope.notify(Object.keys(returned).length + ' resources synced');
+  $scope.sync_success = function(response){
+    if (response)
+      $scope.notify(response.data.length + ' resources synced');
   }
 
   $scope.sync_failure = function(error){
@@ -2099,7 +2120,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
     };
 
     if (auth.is_logged_in()) {
-      Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure)
+      Deployment.sync(deployment).then($scope.sync_success, $scope.sync_failure);
     } else {
       $scope.loginPrompt().then(retry);
     }
@@ -3088,10 +3109,10 @@ function DeploymentController($scope, $location, $resource, $routeParams, $modal
     }
   };
 
-  $scope.sync_success = function(returned, getHeaders){
+  $scope.sync_success = function(response){
     $scope.load();
-    if (returned !== undefined)
-        $scope.notify(Object.keys(returned).length + ' resources synced');
+    if (response)
+        $scope.notify(response.data.length + ' resources synced');
   }
 
   $scope.sync_failure = function(error){
@@ -3103,7 +3124,7 @@ function DeploymentController($scope, $location, $resource, $routeParams, $modal
   // This also exists on DeploymentListController - can be refactored
   $scope.sync = function() {
     if ($scope.auth.is_logged_in()) {
-      Deployment.sync($scope.data, $scope.sync_success, $scope.sync_failure)
+      Deployment.sync($scope.data).then($scope.sync_success, $scope.sync_failure)
     } else {
       $scope.loginPrompt().then($scope.sync);
     }
