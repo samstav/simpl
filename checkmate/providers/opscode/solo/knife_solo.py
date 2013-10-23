@@ -26,7 +26,7 @@ class KnifeSolo(object):
     def __init__(self, kitchen_path, solo_config_path=None):
         self.kitchen_path = kitchen_path
         self._config_path = solo_config_path or os.path.join(
-            self.kitchen_path, 'solo.rb')
+            self.kitchen_path, '.chef', 'knife.rb')
         self._data_bags_path = os.path.join(self.kitchen_path, 'data_bags')
 
     @property
@@ -46,7 +46,7 @@ class KnifeSolo(object):
         params = ['knife', 'solo', 'init', '.']
         self.run_command(params)
 
-    def prepare(self, host, password=None, omnibus_version=None,
+    def prepare(self, host, password=None, bootstrap_version=None,
                 identity_file=None):
         """Calls knife solo prepare to register a node and install chef
         client on the node
@@ -57,11 +57,11 @@ class KnifeSolo(object):
             LOG.info("Node is already registered: %s", node_path)
         else:
             params = ['knife', 'solo', 'prepare', 'root@%s' % host,
-                      '-c', os.path.join(self.kitchen_path, 'solo.rb')]
+                      '-c', os.path.join(self.kitchen_path, '.chef', 'knife.rb')]
             if password:
                 params.extend(['-P', password])
-            if omnibus_version:
-                params.extend(['--omnibus-version', omnibus_version])
+            if bootstrap_version:
+                params.extend(['--bootstrap-version', bootstrap_version])
             if identity_file:
                 params.extend(['-i', identity_file])
             self.run_command(params)
@@ -178,7 +178,7 @@ class KnifeSolo(object):
                 LOG.warning("Knife command called without a '-c' flag. The "
                             "'-c' flag is a strong safeguard in case knife "
                             "runs in the wrong directory. Consider adding it "
-                            "and pointing to solo.rb")
+                            "and pointing to knife.rb")
                 LOG.debug("Defaulting to config file '%s'",
                           self.config_path)
                 params.extend(['-c', self.config_path])
@@ -204,27 +204,18 @@ class KnifeSolo(object):
         return result
 
     def write_config(self):
-        """Writes a solo.rb config file and links a knife.rb file too."""
+        """Writes a knife.rb config file."""
         secret_key_path = os.path.join(self.kitchen_path, 'certificates',
                                        'chef.pem')
         knife_config = """# knife -c knife.rb
-    file_cache_path  "%s"
-    cookbook_path    ["%s", "%s"]
-    role_path  "%s"
-    data_bag_path  "%s"
-    log_level        :info
-    log_location     "%s"
-    verbose_logging  true
-    ssl_verify_mode  :verify_none
+    knife[:provisioning_path] = "%s"
+
+    cookbook_path    ["cookbooks", "site-cookbooks"]
+    role_path  "roles"
+    data_bag_path  "data_bags"
     encrypted_data_bag_secret "%s"
-    """ % (self.kitchen_path,
-           os.path.join(self.kitchen_path, 'cookbooks'),
-           os.path.join(self.kitchen_path, 'site-cookbooks'),
-           os.path.join(self.kitchen_path, 'roles'),
-           os.path.join(self.kitchen_path, 'data_bags'),
-           os.path.join(self.kitchen_path, 'knife-solo.log'),
-           secret_key_path)
-        # knife kitchen creates a default solo.rb, so the file already exists
+    """ % (self.kitchen_path, secret_key_path)
+        # knife kitchen creates a default knife.rb, so the file already exists
         with file(self.config_path, 'w') as handle:
             handle.write(knife_config)
         LOG.debug("Created solo file: %s", self.config_path)

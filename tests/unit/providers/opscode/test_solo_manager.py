@@ -117,12 +117,12 @@ class TestRegisterNode(unittest.TestCase):
                               password="password",
                               identity_file="identity_file",
                               attributes={"foo": "bar"},
-                              omnibus_version="1.1")
+                              bootstrap_version="1.1")
 
         callback_calls = [mock.call(expected_callback), mock.call(expected)]
         mock_callback.assert_has_calls(callback_calls)
         mock_register_node.assert_called_once_with(
-            "1.1.1.1", password="password", omnibus_version="1.1",
+            "1.1.1.1", password="password", bootstrap_version="1.1",
             identity_file="identity_file")
         ssh_calls = [mock.call("1.1.1.1", "mkdir -p %s" % mock_kitchen_path,
                                "root", password="password",
@@ -150,11 +150,11 @@ class TestRegisterNode(unittest.TestCase):
                           Manager.register_node,  "1.1.1.1", "DEP_ID",
                           mock_callback, password="password",
                           identity_file="identity_file",
-                          attributes={"foo": "bar"}, omnibus_version="1.1")
+                          attributes={"foo": "bar"}, bootstrap_version="1.1")
 
         mock_callback.assert_called_once_with(expected_callback)
         mock_register_node.assert_called_once_with(
-            "1.1.1.1", password="password", omnibus_version="1.1",
+            "1.1.1.1", password="password", bootstrap_version="1.1",
             identity_file="identity_file")
         mock_ssh_execute.assert_called_once_with(
             "1.1.1.1", "mkdir -p %s" % mock_kitchen_path, "root",
@@ -177,11 +177,11 @@ class TestRegisterNode(unittest.TestCase):
                           Manager.register_node, "1.1.1.1", "DEP_ID",
                           mock_callback, password="password",
                           identity_file="identity_file",
-                          attributes={"foo": "bar"}, omnibus_version="1.1")
+                          attributes={"foo": "bar"}, bootstrap_version="1.1")
 
         mock_callback.assert_called_once_with(expected_callback)
         mock_register_node.assert_called_once_with(
-            "1.1.1.1", password="password", omnibus_version="1.1",
+            "1.1.1.1", password="password", bootstrap_version="1.1",
             identity_file="identity_file")
         ssh_calls = [mock.call("1.1.1.1", "mkdir -p %s" % mock_kitchen_path,
                                "root", password="password",

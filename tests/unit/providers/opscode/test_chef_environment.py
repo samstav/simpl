@@ -147,7 +147,6 @@ class TestCreateKitchen(TestChefEnvironment):
 
     @mock.patch.object(RSA, 'generate')
     @mock.patch.object(Random, 'atfork')
-    @mock.patch('os.link')
     @mock.patch('os.mkdir')
     @mock.patch('os.path.exists')
     @mock.patch.object(BlueprintCache, 'cache_path')
@@ -161,12 +160,12 @@ class TestCreateKitchen(TestChefEnvironment):
     def test_success(self, mock_init_solo, mock_write_solo_config,
                      mock_file, mock_dump, mock_solo_config,
                      mock_cache_update, mock_copy_contents, mock_cache_path,
-                     mock_path_exists, mock_mkdir, mock_link, mock_fork,
+                     mock_path_exists, mock_mkdir, mock_fork,
                      mock_rsa_generate):
         nodes_path = "%s/nodes" % self.kitchen_path
         bootstrap_path = "%s/bootstrap.json" % self.kitchen_path
         certs_path = "%s/certificates" % self.kitchen_path
-        knife_file_path = "%s/knife.rb" % self.kitchen_path
+        knife_file_path = "%s/.chef/knife.rb" % self.kitchen_path
         secret_key_path = "secret_key_path"
         source_repo = "http://foo.git"
 
@@ -192,7 +191,6 @@ class TestCreateKitchen(TestChefEnvironment):
             mock.call(bootstrap_path),
             mock.call(certs_path),
             mock.call(secret_key_path),
-            mock.call(knife_file_path),
         ]
         mock_mkdir.assert_has_calls(mkdir_calls)
         mock_path_exists.assert_has_calls(path_exists_calls)
@@ -205,7 +203,6 @@ class TestCreateKitchen(TestChefEnvironment):
         mock_rsa_generate.assert_called_once_with(2048)
         mock_rsa_generate.return_value.exportKey.assert_called_once_with('PEM')
         file_handle.write.assert_called_once_with("secret_key")
-        mock_link.assert_called_once_with(mock_solo_config, knife_file_path)
         self.assertTrue(mock_cache_update.called)
         mock_copy_contents.assert_called_once_with(mock_cache_path,
                                                    self.kitchen_path,
@@ -314,9 +311,9 @@ class TestRegisterNode(TestChefEnvironment):
     @mock.patch.object(KnifeSolo, 'prepare')
     def test_success(self, mock_prepare):
         self.env.register_node("1.1.1.1", password="password",
-                               omnibus_version="1.1", identity_file="file")
+                               bootstrap_version="1.1", identity_file="file")
         mock_prepare.assert_called_once_with("1.1.1.1", password="password",
-                                             omnibus_version="1.1",
+                                             bootstrap_version="1.1",
                                              identity_file="file")
 
 

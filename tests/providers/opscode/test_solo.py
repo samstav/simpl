@@ -398,7 +398,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     ],
                     'kwargs': mox.And(
                         mox.In('password'),
-                        mox.ContainsKeyValue('omnibus_version', '10.24.0')
+                        mox.ContainsKeyValue('bootstrap_version', '10.24.0')
                     ),
                     'result': None,
                     'resource': key,
@@ -766,7 +766,7 @@ interfaces/mysql/host
                         'kwargs': mox.And(
                             mox.In('password'),
                             mox.ContainsKeyValue('attributes', attributes),
-                            mox.ContainsKeyValue('omnibus_version', '10.24.0')
+                            mox.ContainsKeyValue('bootstrap_version', '10.24.0')
                         ),
                         'result': None,
                         'resource': key,
@@ -1170,7 +1170,7 @@ interfaces/mysql/database_name
                         ],
                         'kwargs': mox.And(
                             mox.In('password'),
-                            mox.ContainsKeyValue('omnibus_version', '10.24.0'),
+                            mox.ContainsKeyValue('bootstrap_version', '10.24.0'),
                             mox.ContainsKeyValue(
                                 'attributes',
                                 {'connections': 10, 'widgets': 10}

@@ -102,7 +102,7 @@ class Manager(object):
 
     @staticmethod
     def register_node(host, environment, callback, path=None,
-                      password=None, omnibus_version=None, attributes=None,
+                      password=None, bootstrap_version=None, attributes=None,
                       identity_file=None, kitchen_name='kitchen',
                       simulate=False):
         """Register a node in Chef.
@@ -119,7 +119,7 @@ class Manager(object):
         :param environment: the ID of the environment/deployment
         :param path: an optional override for path to the environment root
         :param password: the node's password
-        :param omnibus_version: override for knife bootstrap (default=latest)
+        :param bootstrap_version: override for knife bootstrap (default=latest)
         :param attributes: attributes to set on node (dict)
         :param identity_file: private key file to use to connect to the node
         """
@@ -144,7 +144,7 @@ class Manager(object):
 
         try:
             env.register_node(host, password=password,
-                              omnibus_version=omnibus_version,
+                              bootstrap_version=bootstrap_version,
                               identity_file=identity_file)
         except (subprocess.CalledProcessError,
                 exceptions.CheckmateCalledProcessError) as exc:

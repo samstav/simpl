@@ -86,11 +86,11 @@ class ChefEnvironment(object):
                     options=exceptions.CAN_RESUME)
                 raise exception
 
-    def register_node(self, host, password=None, omnibus_version=None,
+    def register_node(self, host, password=None, bootstrap_version=None,
                       identity_file=None):
         """Registers a node in the environment."""
         self._knife.prepare(host, password=password,
-                            omnibus_version=omnibus_version,
+                            bootstrap_version=bootstrap_version,
                             identity_file=identity_file)
 
     def fetch_cookbooks(self):
@@ -231,16 +231,6 @@ class ChefEnvironment(object):
             with file(secret_key_path, 'w') as secret_key_file_w:
                 secret_key_file_w.write(secret_key)
             LOG.debug("Stored secrets file: %s", secret_key_path)
-
-        # Knife defaults to knife.rb, but knife-solo looks for solo.rb, so we
-        # link both files so that knife and knife-solo commands will work
-        # and anyone editing one will also change the other
-        knife_file = os.path.join(self._kitchen_path, 'knife.rb')
-        if os.path.exists(knife_file):
-            LOG.debug("Knife.rb already exists: %s", knife_file)
-        else:
-            os.link(self._knife.config_path, knife_file)
-            LOG.debug("Linked knife.rb: %s", knife_file)
 
         # Copy blueprint files to kitchen
         if source_repo:
