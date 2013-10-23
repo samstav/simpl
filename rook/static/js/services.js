@@ -2073,9 +2073,8 @@ angular.module('checkmate.services').factory('Deployment', ['$http', "$resource"
   }
 
   scope.sync =  function(deployment, success_callback, error_callback){
-    var Sync = $resource((checkmate_server_base || '') + '/:tenantId/deployments/:deployment_id/+sync.json', null, {'get': {method:'GET'}});
-    var sync = new Sync();
-    sync.$get({tenantId: deployment.tenantId, deployment_id: deployment['id']}, success_callback, error_callback)
+    var url = "/"+deployment.tenantId+"/deployments/"+deployment.id+"/+sync";
+    return $http.get(url);
   }
 
   scope.parse =  function(deployment, tenant_id, success_callback, error_callback){

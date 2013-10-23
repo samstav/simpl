@@ -1,5 +1,6 @@
 describe('AppController', function(){
   var scope,
+      $rootScope,
       http,
       location,
       resource,
@@ -19,7 +20,8 @@ describe('AppController', function(){
     resource = function(){ return api_stub; };
     auth = $injector.get('auth');
     $route = {};
-    $q = { defer: sinon.stub().returns( { promise: "fakepromise", reject: sinon.spy() } ) };
+    $q = $injector.get('$q');
+    $rootScope = $injector.get('$rootScope');
     $modal = $injector.get('$modal');
     api_stub = { get: emptyFunction };
     controller = new AppController(scope, http, location, resource, auth, $route, $q, $modal);
@@ -156,16 +158,15 @@ describe('AppController', function(){
   });
 
   describe('#impersonate', function() {
-    var $rootScope, deferred;
-    beforeEach(inject(function(_$rootScope_, $q) {
-      $rootScope = _$rootScope_;
+    var deferred;
+    beforeEach(function() {
       deferred = $q.defer();
       auth.identity = { username: 'fakeracker' };
       auth.impersonate = sinon.stub().returns(deferred.promise);
       scope.on_impersonate_error = sinon.stub();
       scope.on_impersonate_success = sinon.stub();
       scope.impersonate('fakeuser');
-    }));
+    });
 
     it('should call the appropriate callback after impersonating user', function() {
       deferred.resolve('success');
@@ -499,12 +500,8 @@ describe('AppController', function(){
     });
 
     describe('when admin', function() {
-      var deferred, $rootScope;
+      var deferred;
       beforeEach(function() {
-        angular.mock.inject(['$rootScope', '$q', function($rootScope_, $q_) {
-          $rootScope = $rootScope_;
-          $q = $q_;
-        }]);
         deferred = $q.defer();
         auth.impersonate = sinon.stub().returns(deferred.promise);
         auth.is_admin.returns(true);
