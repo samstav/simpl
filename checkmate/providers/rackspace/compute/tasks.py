@@ -65,8 +65,11 @@ def create_server(context, name, region=None, api=None, flavor="2",
     }
 
     """
-    create_server.on_failure = _on_failure(action="creating",
-                                           method="create_server")
+    create_server.on_failure = _on_failure(
+        action="creating",
+        method="create_server",
+        callback=create_server.partial
+    )
     data = manager.Manager.create_server(context, name,
                                          create_server.update_state,
                                          api=create_server.api,
@@ -124,6 +127,7 @@ def verify_ssh_connection(context, server_id, server_ip, region=None,
         context, server_id, server_ip, username=username, timeout=timeout,
         password=password, identity_file=identity_file, port=port,
         api=verify_ssh_connection.api, private_key=private_key)
+
     is_up = data["status"]
     if not is_up:
         if (verify_ssh_connection.max_retries ==
@@ -151,8 +155,11 @@ def verify_ssh_connection(context, server_id, server_ip, region=None,
 def wait_on_delete_server(context, api=None):
     #pylint: disable=W0613
     """Wait for a server resource to be deleted."""
-    wait_on_delete_server.on_failure = \
-        _on_failure(action="while waiting on", method="wait_on_delete_server")
+    wait_on_delete_server.on_failure = _on_failure(
+        action="while waiting on",
+        method="wait_on_delete_server",
+        callback=wait_on_delete_server.partial
+    )
     return manager.Manager.wait_on_delete_server(
         context, wait_on_delete_server.api, wait_on_delete_server.partial)
 
@@ -163,8 +170,11 @@ def wait_on_delete_server(context, api=None):
 def delete_server_task(context, api=None):
     #pylint: disable=W0613
     """Celery Task to delete a Nova compute instance."""
-    delete_server_task.on_failure = _on_failure(action="deleting",
-                                                method="delete_server_task")
+    delete_server_task.on_failure = _on_failure(
+        action="deleting",
+        method="delete_server_task",
+        callback=delete_server_task.partial
+    )
     return manager.Manager.delete_server_task(
         context, delete_server_task.api, delete_server_task.partial)
 

@@ -195,6 +195,7 @@ class Provider(RackspaceComputeProviderBase):
     name = 'nova'
 
     __status_mapping__ = {
+        'NEW': 'NEW',
         'ACTIVE': 'ACTIVE',
         'BUILD': 'BUILD',
         'DELETED': 'DELETED',
@@ -533,7 +534,7 @@ class Provider(RackspaceComputeProviderBase):
         delete_server = specs.Celery(
             wf_spec,
             'Delete Server (%s)' % key,
-            'checkmate.providers.rackspace.compute.delete_server_task',
+            'checkmate.providers.rackspace.compute.tasks.delete_server_task',
             call_args=[context],
             properties={
                 'estimated_duration': 5,
