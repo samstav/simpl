@@ -276,7 +276,6 @@ describe('auth Service', function(){
       this.auth.create_context(response, params);
       expect(this.auth.get_regions).toHaveBeenCalled();
     });
-
   });
 
   describe('#cache_tenant', function() {
@@ -784,6 +783,15 @@ describe('auth Service', function(){
       this.auth.cache_context(context);
       this.auth.cache.contexts[666].tenantId = 999;
       expect(context.tenantId).toEqual(666);
+    });
+
+    it('should trim the cache size', function() {
+      var first_context = {tenantId: 999};
+      for (var i=0 ; i<501 ; i++)
+        this.auth.cache_context({tenantId: i})
+      var cache_size = Object.keys(this.auth.cache.contexts).length;
+      expect(cache_size).toEqual(500);
+      expect(this.auth.cache.contexts[999]).toBe(undefined);
     });
   });
 

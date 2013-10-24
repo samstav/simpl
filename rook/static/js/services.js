@@ -1219,15 +1219,38 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     return context_expiration > now;
   }
 
+  var _trim_cache_size = function(cache_name, size) {
+    var cache_keys = cache_name + '_keys';
+    var cache_size = Object.keys(auth.cache.contexts).length;
+    if (!size || typeof size != 'number')
+      size = 500;
+
+    while (cache_size > size) {
+      var key = auth.cache[cache_keys].shift();
+      delete auth.cache[cache_name][key];
+      cache_size--;
+    }
+  }
+
   auth.cache_context = function(context) {
     if (!context) return;
 
     if (!auth.cache.contexts)
       auth.cache.contexts = {};
+    if (!auth.cache.contexts_keys)
+      auth.cache.contexts_keys = [];
 
     var cached_context = angular.copy(context);
-    if (context.username) auth.cache.contexts[context.username] = cached_context;
-    if (context.tenantId) auth.cache.contexts[context.tenantId] = cached_context;
+    if (context.username) {
+      auth.cache.contexts[context.username] = cached_context;
+      auth.cache.contexts_keys.push(context.username);
+    }
+    if (context.tenantId) {
+      auth.cache.contexts[context.tenantId] = cached_context;
+      auth.cache.contexts_keys.push(context.tenantId);
+    }
+
+    _trim_cache_size('contexts');
 
     return context;
   }
