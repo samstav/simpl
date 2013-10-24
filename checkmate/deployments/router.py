@@ -511,7 +511,7 @@ class Router(object):
         request_context = bottle.request.environ['context']
         if utils.is_simulation(api_id):
             request_context.simulation = True
-        deployment = self.manager.get_deployment(api_id)
+        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
         if not deployment:
             raise exceptions.CheckmateDoesNotExist(
                 "No deployment with id %s" % api_id)

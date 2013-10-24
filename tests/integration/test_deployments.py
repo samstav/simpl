@@ -1339,6 +1339,7 @@ class TestDeleteDeployments(unittest.TestCase):
         self._deployment = {
             'id': '1234',
             'status': 'PLANNED',
+            'tenantId': 'T1000',
             'environment': {},
             'blueprint': {
                 'meta-data': {
@@ -1371,7 +1372,7 @@ class TestDeleteDeployments(unittest.TestCase):
     def test_not_found(self):
         manager = self._mox.CreateMockAnything()
         router = cmdeps.Router(bottle.default_app(), manager)
-        manager.get_deployment('1234').AndReturn(None)
+        manager.get_deployment('1234', tenant_id=None).AndReturn(None)
         self._mox.ReplayAll()
         try:
             router.delete_deployment('1234')
