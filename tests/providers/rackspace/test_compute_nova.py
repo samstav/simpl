@@ -908,16 +908,6 @@ class TestNovaCompute(test.ProviderTester):
         calls = [
             mock.call('1234', {
                 "resources": {
-                    '0': {
-                        'status': 'DELETED',
-                        'instance': {
-                            'status': 'DELETED',
-                            'status-message': ''}
-                    }
-                }}
-            ),
-            mock.call('1234', {
-                "resources": {
                     '1': {
                         "status": "DELETED",
                         "instance": {

@@ -126,6 +126,19 @@ class Provider(ProviderBase):
 
         return {'root': root, 'final': cleanup_task}
 
+    def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
+                              key):
+        call = 'checkmate.providers.opscode.solo.tasks.delete_resource'
+        defines = {'resource': 'workspace', 'provider': self.key}
+        properties = {'estimated_duration': 1}
+        return specs.Celery(wf_spec, "Delete Host Resource %s" % key, call,
+                            call_args=[
+                                context.get_queued_task_dict(
+                                    deployment_id=deployment_id,
+                                    resource_key=key)],
+                            defines=defines,
+                            properties=properties)
+
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
         """Create and write settings, generate run_list, and call cook."""

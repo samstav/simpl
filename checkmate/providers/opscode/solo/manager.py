@@ -301,3 +301,10 @@ class Manager(object):
             results['node-attributes'] = node
 
         return results
+
+    @staticmethod
+    def delete_resource():
+        return {
+            'status': 'DELETED',
+            'status-message': ''
+        }

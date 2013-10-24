@@ -771,41 +771,6 @@ class TestWaitOnDelete(unittest.TestCase):
         self.assertDictEqual({"status": "DELETED",
                               "status-message": ""}, data)
 
-    def test_resource_has_hosts(self):
-        context = {
-            "deployment_id": "DEP_ID",
-            "resource_key": "1",
-            "region": "ORD",
-            "resource": {"hosts": [3, 5]},
-            "instance_id": "INST_ID"
-        }
-        mock_api = mock.MagicMock()
-        mock_server = mock.MagicMock()
-        mock_callback = mock.MagicMock()
-
-        mock_server.status = "DELETED"
-
-        mock_api.servers.find.return_value = mock_server
-
-        results = manager.Manager.wait_on_delete_server(context, mock_api,
-                                                        mock_callback)
-
-        self.assertEquals(mock_callback.call_count, 2)
-
-        expected_calls = [mock.call({'status': 'DELETED',
-                                     'status-message': ''},
-                                    resource_key=3),
-                          mock.call({
-                              'status': 'DELETED',
-                              'status-message': ''
-                          }, resource_key=5)]
-
-        mock_callback.assert_has_calls(expected_calls)
-        self.assertDictEqual({"status": "DELETED",
-                              "status-message": ""}, results)
-
-        mock_api.servers.find.assert_called_once_with(id="INST_ID")
-
     def test_server_wait_for_delete_status(self):
         context = {
             "deployment_id": "DEP_ID",
@@ -894,41 +859,6 @@ class TestDeleteServer(unittest.TestCase):
         self.assertDictEqual({"status": "DELETED",
                               "status-message": ""}, data)
 
-    def test_resource_has_hosts(self):
-        context = {
-            "deployment_id": "DEP_ID",
-            "resource_key": "1",
-            "region": "ORD",
-            "resource": {"hosts": [3, 5]},
-            "instance_id": "INST_ID"
-        }
-        mock_api = mock.MagicMock()
-        mock_server = mock.MagicMock()
-        mock_callback = mock.MagicMock()
-
-        mock_server.status = "DELETED"
-
-        mock_api.servers.get.return_value = mock_server
-
-        results = manager.Manager.delete_server_task(context, mock_api,
-                                                     mock_callback)
-
-        self.assertEquals(mock_callback.call_count, 2)
-
-        expected_calls = [mock.call({'status': 'DELETED',
-                                     'status-message': ''},
-                                    resource_key=3),
-                          mock.call({
-                              'status': 'DELETED',
-                              'status-message': ''
-                          }, resource_key=5)]
-
-        mock_callback.assert_has_calls(expected_calls)
-        self.assertDictEqual({"status": "DELETED",
-                              "status-message": ""}, results)
-
-        mock_api.servers.get.assert_called_once_with("INST_ID")
-
     def test_server_is_in_active_status(self):
         context = {
             "deployment_id": "DEP_ID",
@@ -948,18 +878,6 @@ class TestDeleteServer(unittest.TestCase):
         results = manager.Manager.delete_server_task(context, mock_api,
                                                      mock_callback)
 
-        expected_calls = [
-            mock.call({
-                'status': 'DELETING',
-                'status-message': 'Host 1 is being deleted.'
-            }, resource_key=5),
-            mock.call({
-                'status': 'DELETING',
-                'status-message': 'Host 1 is being deleted.'
-            }, resource_key=3)
-        ]
-
-        mock_callback.assert_has_calls(expected_calls, any_order=True)
         self.assertDictEqual({'status': 'DELETING',
                               'status-message':
                               'Waiting on resource deletion'},

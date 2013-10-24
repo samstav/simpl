@@ -308,6 +308,15 @@ class TestWriteDataBag(unittest.TestCase):
         mock_callback.assert_called_once_with(expected)
 
 
+class TestDeleteResource(unittest.TestCase):
+    def test_delete_resource(self):
+        expected = {
+            'status': 'DELETED',
+            'status-message': ''
+        }
+        self.assertEquals(expected, Manager.delete_resource())
+
+
 class TestCook(unittest.TestCase):
     def test_sim(self):
         expected = {
