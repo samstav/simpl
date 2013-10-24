@@ -45,6 +45,7 @@ class TestNovaCompute(test.ProviderTester):
 
     @mock.patch.object(cm_deps.tasks, 'postback')
     def test_create_server(self, postback):
+        self.maxDiff = None
         provider = compute.Provider({})
         server = mock.MagicMock()
         server.id = 'fake_server_id'
@@ -99,7 +100,7 @@ class TestNovaCompute(test.ProviderTester):
 
         expected_resources = {
             '1': {
-                'status': 'UNDEFINED',
+                'status': 'NEW',
                 'instance': {
                 'status': 'NEW',
                 'flavor': '2',
