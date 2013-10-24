@@ -511,14 +511,11 @@ class Router(object):
         request_context = bottle.request.environ['context']
         if utils.is_simulation(api_id):
             request_context.simulation = True
-        deployment = self.manager.get_deployment(api_id)
+        deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
         if not deployment:
             raise exceptions.CheckmateDoesNotExist(
                 "No deployment with id %s" % api_id)
         deployment = cmdeploy.Deployment(deployment)
-        if tenant_id is None or deployment.get('tenantId') != tenant_id:
-            bottle.abort(
-                401, "This user is not authorized to perform this action.")
         if bottle.request.query.get('force') != '1':
             if deployment.get('status') == "DELETED":
                 bottle.abort(400, "This deployment has already been deleted.")
