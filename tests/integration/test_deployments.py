@@ -1339,6 +1339,7 @@ class TestDeleteDeployments(unittest.TestCase):
         self._deployment = {
             'id': '1234',
             'status': 'PLANNED',
+            'tenantId': 'T1000',
             'environment': {},
             'blueprint': {
                 'meta-data': {
