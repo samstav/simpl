@@ -218,6 +218,20 @@ class TestSafety(unittest.TestCase):
         function = {'value': 'object://object'}
         self.assertEqual(functions.evaluate(function, **data), data)
 
+    def test_deep_evaluation(self):
+        data = {
+            'foo': {
+                'value': {
+                    'if': {
+                        'and': [True, False]
+                    }
+                }
+            },
+            'bar': {'value': {'or': [True]}}
+        }
+        result = functions.parse(data)
+        self.assertEqual(result, {'foo': False, 'bar': True})
+
 
 class TestPathing(unittest.TestCase):
     """Test URL evaluation."""
