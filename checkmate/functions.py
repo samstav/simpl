@@ -85,6 +85,14 @@ def is_pattern(value):
             value[-1] != ".")
 
 
+def parse(obj, **kwargs):
+    """Evaluates the passed in object's values using Checkmate syntax."""
+    if isinstance(obj, dict):
+        return {k: evaluate(v, **kwargs) for k, v in obj.iteritems()}
+    else:
+        return obj
+
+
 def get_from_path(path, **kwargs):
     """Find value using URL syntax."""
     if not path:
