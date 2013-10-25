@@ -324,8 +324,7 @@ class TestDeployments(unittest.TestCase):
     def test_invalid_status_rejected(self):
         self.assertRaises(cmexc.CheckmateValidationException,
                           cmdep.Deployment,
-                          {'status':
-                          'NOT VALID'})
+                          {'status': 'NOT VALID'})
 
     def test_convert_legacy_status(self):
         legacy_statuses = {
@@ -708,8 +707,5 @@ class TestCeleryTasks(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

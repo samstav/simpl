@@ -1694,8 +1694,8 @@ class TestDeploymentAddNodes(unittest.TestCase):
                                "service_name", 2).AndReturn(self._deployment)
         manager.deploy_workflow(bottle.request.environ['context'],
                                 self._deployment,
-                                "T1000", "SCALE UP").AndReturn(
-                                    {'workflow-id': 'w_id'})
+                                "T1000", "SCALE UP").AndReturn({'workflow-id':
+                                                                'w_id'})
         self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
         wf_tasks.cycle_workflow.delay(
             'w_id',
