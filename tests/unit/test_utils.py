@@ -493,6 +493,12 @@ class TestUtils(unittest.TestCase):
         with self.assertRaises(ValueError):
             utils._validate_range_values(bottle.request, 'limit', kwargs)
 
+    def test_value_too_large(self):
+        bottle.request.environ = {'QUERY_STRING': 'offset=20000000'}
+        kwargs = {}
+        with self.assertRaises(ValueError):
+            utils._validate_range_values(bottle.request, 'offset', kwargs)
+
     def test_nothing_provided_is_valid_but_none(self):
         bottle.request.environ = {'QUERY_STRING': ''}
         kwargs = {}
