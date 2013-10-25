@@ -36,6 +36,69 @@ from checkmate import test
 LOG = logging.getLogger(__name__)
 
 
+class TestOldNovaTasks(unittest.TestCase):
+
+    @mock.patch.object(compute.tasks.create_server, 'delay')
+    def test_create_server(self, task):
+        mock_api_obj = mock.MagicMock()
+        mock_tags = mock.MagicMock()
+        mock_image = mock.MagicMock()
+        context = {'deployment_id': '1', 'resource_key': '1'}
+        compute.create_server(context, "NAME", "ORD",
+                              api=mock_api_obj, files={},
+                              image=mock_image, tags=mock_tags)
+        task.assert_called_once_with(context, "NAME", region="ORD",
+                                     api=mock_api_obj, image=mock_image,
+                                     flavor='2', files={}, tags=mock_tags)
+
+    @mock.patch.object(compute.tasks.wait_on_build, 'delay')
+    def test_wait_on_build(self, task):
+        mock_context = mock.MagicMock()
+        mock_api = mock.MagicMock()
+        compute.wait_on_build(mock_context, "SERVER_ID", region="ORD",
+                              ip_address_type="IP_ADDRESS_TYPE",
+                              api=mock_api)
+        task.assert_called_once_with(mock_context, "SERVER_ID", region="ORD",
+                                     ip_address_type='IP_ADDRESS_TYPE',
+                                     api=mock_api)
+
+    @mock.patch.object(compute.tasks.verify_ssh_connection, 'delay')
+    def test_verify_ssh_connection(self, task):
+        mock_context = mock.MagicMock()
+        mock_identity_file = mock.MagicMock()
+        mock_api = mock.MagicMock()
+        private_key = mock.MagicMock()
+
+        compute.verify_ssh_connection(mock_context, "SERVER_ID", "ORD",
+                                      "SERVER_IP", username="USERNAME",
+                                      timeout=10, password="PASSWORD",
+                                      identity_file=mock_identity_file,
+                                      api_object=mock_api,
+                                      private_key=private_key)
+        task.assert_called_once_with(mock_context, "SERVER_ID", "SERVER_IP",
+                                     region="ORD", username="USERNAME",
+                                     timeout=10, password="PASSWORD",
+                                     identity_file=mock_identity_file,
+                                     port=22,
+                                     api=mock_api, private_key=private_key)
+
+    @mock.patch.object(compute.tasks.delete_server_task, 'delay')
+    def test_delete_server_task(self, task):
+        mock_context = mock.MagicMock()
+        mock_api = mock.MagicMock()
+
+        compute.delete_server_task(mock_context, api=mock_api)
+        task.assert_called_once_with(mock_context, api=mock_api)
+
+    @mock.patch.object(compute.tasks.wait_on_delete_server, 'delay')
+    def test_wait_on_delete_server_task(self, task):
+        mock_context = mock.MagicMock()
+        mock_api = mock.MagicMock()
+
+        compute.wait_on_delete_server(mock_context, api=mock_api)
+        task.assert_called_once_with(mock_context, api=mock_api)
+
+
 class TestNovaCompute(test.ProviderTester):
     klass = compute.Provider
 
