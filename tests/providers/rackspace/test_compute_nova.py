@@ -127,16 +127,17 @@ class TestNovaCompute(test.ProviderTester):
             'resources':  expected_resources,
         }
 
-        results = compute.create_server(context, 'fake_server', "North",
-                                        api=openstack_api_mock,
-                                        flavor='2', files=None,
-                                        image=image.id,
-                                        tags=provider.generate_resource_tag(
-                                            context['base_url'],
-                                            context['tenant'],
-                                            context['deployment_id'],
-                                            context['resource_key']
-                                        ))
+        results = compute.tasks.create_server(context, 'fake_server',
+                                              region="North",
+                                              api=openstack_api_mock,
+                                              flavor='2', files=None,
+                                              image=image.id,
+                                              tags=
+                                              provider.generate_resource_tag(
+                                                  context['base_url'],
+                                                  context['tenant'],
+                                                  context['deployment_id'],
+                                                  context['resource_key']))
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -172,8 +173,9 @@ class TestNovaCompute(test.ProviderTester):
             side_effect=requests.ConnectionError)
 
         with self.assertRaises(exceptions.CheckmateException):
-            compute.create_server({'deployment_id': '1', 'resource_key': '1'},
-                                  None, None, api=mock_api_obj)
+            compute.tasks.create_server({'deployment_id': '1',
+                                         'resource_key': '1'},
+                                        "NAME", api=mock_api_obj)
 
         log.error.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
@@ -188,8 +190,9 @@ class TestNovaCompute(test.ProviderTester):
             side_effect=mock_exception)
 
         with self.assertRaises(exceptions.CheckmateException):
-            compute.create_server({'deployment_id': '1', 'resource_key': '1'},
-                                  None, None, api=mock_api_obj)
+            compute.tasks.create_server({'deployment_id': '1',
+                                         'resource_key': '1'},
+                                        "NAME", api=mock_api_obj)
         mock_logger.assert_called_with('Connection error talking to '
                                        'test.local endpoint', exc_info=True)
 
@@ -240,8 +243,8 @@ class TestNovaCompute(test.ProviderTester):
 
         self.mox.ReplayAll()
         self.assertRaises(exceptions.CheckmateException,
-                          compute.wait_on_build, context,
-                          server.id, 'North', [],
+                          compute.tasks.wait_on_build, context,
+                          server.id,
                           api=openstack_api_mock)
 
     @mock.patch.object(cm_deps.tasks, 'postback')
@@ -338,8 +341,8 @@ class TestNovaCompute(test.ProviderTester):
             'resources': expected_resources
         }
 
-        results = compute.wait_on_build(context, server.id, 'North',
-                                        api=openstack_api_mock)
+        results = compute.tasks.wait_on_build(context, server.id,
+                                              api=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
         openstack_api_mock.servers.find.assert_called_once_with(id=server.id)
@@ -411,8 +414,8 @@ class TestNovaCompute(test.ProviderTester):
         }
 
         try:
-            compute.wait_on_build(context, server.id, 'North',
-                                  api=openstack_api_mock)
+            compute.tasks.wait_on_build(context, server.id,
+                                        api=openstack_api_mock)
             self.fail("Should have thrown a Checkmate Exception!")
         except exceptions.CheckmateException:
             pass
@@ -523,9 +526,8 @@ class TestNovaCompute(test.ProviderTester):
             'resources': expected_resource
         }
 
-        results = compute.wait_on_build(context, server.id,
-                                        'North',
-                                        api=openstack_api_mock)
+        results = compute.tasks.wait_on_build(context, server.id,
+                                              api=openstack_api_mock)
 
         self.assertDictEqual(results, expected_result)
         postback.assert_called_once_with("DEP",
@@ -627,8 +629,8 @@ class TestNovaCompute(test.ProviderTester):
             'resources': expected_resources
         }
 
-        results = compute.wait_on_build(
-            context, server.id, 'North', api=openstack_api_mock)
+        results = compute.tasks.wait_on_build(
+            context, server.id, api=openstack_api_mock)
 
         self.assertDictEqual(results, expected)
 
@@ -660,8 +662,8 @@ class TestNovaCompute(test.ProviderTester):
                             private_key=None).AndReturn(True)
 
         self.mox.ReplayAll()
-        compute.verify_ssh_connection(context, server.id, 'North', "4.4.4.4",
-                                      api_object=openstack_api_mock)
+        compute.tasks.verify_ssh_connection(context, server.id, "4.4.4.4",
+                                            api=openstack_api_mock)
         self.mox.VerifyAll()
 
     def test_verify_ssh_connection_for_windows(self):
@@ -684,12 +686,13 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
         context = dict(deployment_id='DEP', resource_key='1')
-        rdp.test_connection(mox.IgnoreArg(), "4.4.4.4", timeout=10,
-                            ).AndReturn(True)
+        rdp.test_connection(mox.IgnoreArg(), "4.4.4.4",
+                            timeout=10).AndReturn(True)
 
         self.mox.ReplayAll()
-        compute.verify_ssh_connection(context, server.id, 'North', "4.4.4.4",
-                                      api_object=openstack_api_mock)
+        compute.tasks.verify_ssh_connection(context, server.id, "4.4.4.4",
+                                            region="ORD",
+                                            api=openstack_api_mock)
         self.mox.VerifyAll()
 
     def test_wait_on_build_connect_error(self):
@@ -707,8 +710,8 @@ class TestNovaCompute(test.ProviderTester):
 
         self.mox.ReplayAll()
         with self.assertRaises(exceptions.CheckmateException):
-            compute.wait_on_build(
-                context, server.id, 'North', [], api=openstack_api_mock)
+            compute.tasks.wait_on_build(
+                context, server.id, api=openstack_api_mock)
 
         self.mox.VerifyAll()
 
@@ -752,7 +755,7 @@ class TestNovaCompute(test.ProviderTester):
         mock_server.delete.return_value = True
         mock_servers.get.return_value = mock_server
 
-        ret = compute.delete_server_task(context, api=api)
+        ret = compute.tasks.delete_server_task(context, api=api)
 
         self.assertDictEqual(expect, ret)
         mock_server.delete.assert_called_once_with()
@@ -771,7 +774,7 @@ class TestNovaCompute(test.ProviderTester):
             side_effect=requests.ConnectionError)
 
         with self.assertRaises(exceptions.CheckmateException):
-            compute.delete_server_task(mock_context, api=mock_api)
+            compute.tasks.delete_server_task(mock_context, api=mock_api)
 
         log.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
@@ -789,7 +792,7 @@ class TestNovaCompute(test.ProviderTester):
             side_effect=requests.ConnectionError)
 
         with self.assertRaises(exceptions.CheckmateException):
-            compute.delete_server_task(mock_context, api=mock_api)
+            compute.tasks.delete_server_task(mock_context, api=mock_api)
 
         log.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)
@@ -836,7 +839,7 @@ class TestNovaCompute(test.ProviderTester):
         mock_server.find.return_value = mock_server
         mock_servers.find.return_value = mock_server
 
-        ret = compute.wait_on_delete_server(context, api=api)
+        ret = compute.tasks.wait_on_delete_server(context, api=api)
 
         self.assertDictEqual(expect, ret)
         calls = [
@@ -876,7 +879,8 @@ class TestNovaCompute(test.ProviderTester):
             side_effect=requests.ConnectionError)
 
         with self.assertRaises(exceptions.CheckmateException):
-            compute.wait_on_delete_server(mock_context, api=mock_api)
+            compute.tasks.wait_on_delete_server(mock_context,
+                                                api=mock_api)
 
         log.assert_called_with(
             'Connection error talking to http://test/ endpoint', exc_info=True)

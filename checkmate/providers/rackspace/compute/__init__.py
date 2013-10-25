@@ -73,9 +73,9 @@ def create_server(context, name, region, api=None, flavor="2",
     }
 
     """
-    return tasks.create_server(context, name, region=region, api=api,
-                               flavor=flavor, files=files, image=image,
-                               tags=tags)
+    return tasks.create_server.delay(context, name, region=region, api=api,
+                                     flavor=flavor, files=files, image=image,
+                                     tags=tags)
 
 
 @ctask.task
@@ -136,14 +136,14 @@ def sync_resource_task(context, resource, resource_key, api=None):
 @statsd.collect
 def delete_server_task(context, api=None):
     """Celery Task to delete a Nova compute instance."""
-    return tasks.delete_server_task(context, api=api)
+    return tasks.delete_server_task.delay(context, api=api)
 
 
 @ctask.task(default_retry_delay=30, max_retries=120)
 @statsd.collect
 def wait_on_delete_server(context, api=None):
     """Wait for a server resource to be deleted."""
-    return tasks.wait_on_delete_server(context, api=api)
+    return tasks.wait_on_delete_server.delay(context, api=api)
 
 
 # max 60 minute wait
@@ -161,8 +161,8 @@ def wait_on_build(context, server_id, region, ip_address_type='public',
     :param api: api object for getting server details
     :return: False when build not ready. Dict with ip addresses when done.
     """
-    return tasks.wait_on_build(context, server_id, region=region,
-                               ip_address_type=ip_address_type, api=api)
+    return tasks.wait_on_build.delay(context, server_id, region=region,
+                                     ip_address_type=ip_address_type, api=api)
 
 
 @ctask.task(default_retry_delay=1, max_retries=30)
@@ -184,8 +184,8 @@ def verify_ssh_connection(context, server_id, region, server_ip,
     :param private_key: private key
     :return:
     """
-    tasks.verify_ssh_connection(context, server_id, server_ip, region=region,
-                                username=username, timeout=timeout,
-                                password=password,
-                                identity_file=identity_file, port=port,
-                                api=api_object, private_key=private_key)
+    tasks.verify_ssh_connection.delay(context, server_id, server_ip,
+                                      region=region, username=username,
+                                      timeout=timeout, password=password,
+                                      identity_file=identity_file, port=port,
+                                      api=api_object, private_key=private_key)
