@@ -273,6 +273,7 @@ choice:
 * _in_: a list of acceptable values (these could also be used by clients to display drop-downs)
 * _protocols_: unique to URL types. This lists allowed protocols in the URL. See also display-hints for `encrypted-protocols`
 * _regex_: do not use look-forward/behind. Keep these simple so they are supported in javascript (client) and python (server). While many of the above can also be written as regex rules, both are available to blueprint authors to use the one that suits them best.
+* _check_: evaluates a constraint using constructs like "if", "if-not", "and", etc...
 
 
 **....message**: you can add a message key/value pair to any of these constraints. Always add a message to regex constraints so it is easy to understand what they do when read and so clients (rook, etc) and the server can generate useful error messages and people reading the blueprint don't have to decipher the regexs. Ex. "must have 8-16 characters"
