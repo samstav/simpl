@@ -377,7 +377,7 @@ def _validate_range_values(request, label, kwargs):
     value = kwargs.get(label, request.query.get(label))
     if value:
         kwargs[label] = int(value)
-        if kwargs[label] < 0:
+        if kwargs[label] < 0 or kwargs[label] > 10000000:
             raise ValueError
 
 
