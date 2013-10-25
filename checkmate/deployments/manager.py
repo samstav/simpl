@@ -315,6 +315,10 @@ class Manager(object):
         if check_limits:
             deployment['check-limit-results'] = limits.wait()
 
+        # SECURITY: Someone could pass in a bazillion character name
+        if 'name' in deployment and len(deployment['name']) > 255:
+            deployment['name'] = deployment['name'][:255]
+
         # Save plan details for future rehydration/use
         deployment['plan'] = planner._data  # get dict so we can serialize it
 
