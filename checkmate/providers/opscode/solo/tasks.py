@@ -265,6 +265,7 @@ def manage_role_v2(context, name, environment, path=None, desc=None,
                                kitchen_name=kitchen_name,
                                simulate=context.simulation)
 
+
 @ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
 def delete_resource(context):

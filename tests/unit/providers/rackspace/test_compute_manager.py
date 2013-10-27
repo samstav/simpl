@@ -580,11 +580,10 @@ class TestVerifySSHConnectivity(unittest.TestCase):
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
         mock_ssh.assert_called_once_with(context, "SERVER_IP",
-                                    "root", timeout=10,
-                                    password=None,
-                                    identity_file=None,
-                                    port=22,
-                                    private_key=None)
+                                         "root", timeout=10,
+                                         password=None,
+                                         identity_file=None, port=22,
+                                         private_key=None)
 
     @mock.patch.object(rdp, "test_connection")
     def test_verify_ssh_connectivity_windows(self, mock_rdp):
@@ -641,12 +640,10 @@ class TestVerifySSHConnectivity(unittest.TestCase):
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
-        mock_ssh.assert_called_once_with(context, "SERVER_IP",
-                                    "root", timeout=10,
-                                    password=None,
-                                    identity_file=None,
-                                    port=22,
-                                    private_key=None)
+        mock_ssh.assert_called_once_with(context, "SERVER_IP", "root",
+                                         timeout=10, password=None,
+                                         identity_file=None, port=22,
+                                         private_key=None)
 
     @mock.patch.object(rdp, "test_connection")
     def test_verify_ssh_connectivity_windows_failure(

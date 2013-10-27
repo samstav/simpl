@@ -50,6 +50,7 @@ class ProviderFactory:
     def get_all_providers(self):
         return self.providers
 
+
 class WorkflowSpec(specs.WorkflowSpec):
     """Workflow Spec related methods."""
     @staticmethod
@@ -217,7 +218,7 @@ class WorkflowSpec(specs.WorkflowSpec):
 
     @staticmethod
     def get_host_delete_tasks(resource, deployment, factory, wf_spec,
-                          context):
+                              context):
         hosts = resource.get("hosts", [])
         host_resources = [deployment.get_non_deleted_resources()[i] for i in
                           hosts]
