@@ -158,21 +158,6 @@ class WorkflowSpec(specs.WorkflowSpec):
 
         factory = ProviderFactory(deployment, environment)
         all_providers = factory.get_all_providers()
-        #LOG.warn("[Providers] %s", all_providers)
-        #providers = {}
-        #
-        #non_deleted_resources = deployment.get_non_deleted_resources()
-        #for key, resource in non_deleted_resources.iteritems():
-        #    if (key not in ['connections', 'keys'] and 'provider' in
-        #            resource and resource['provider'] not in provider_keys):
-        #        provider = environment.get_provider(resource['provider'])
-        #        if not provider:
-        #            LOG.warn("Deployment %s resource %s has an unknown "
-        #                     "provider: %s", dep_id, key,
-        #                     resource.get("provider"))
-        #            continue
-        #        provider_keys.add(resource['provider'])
-        #        providers[provider.key] = provider
 
         LOG.debug("Obtained providers from resources: %s",
                   ', '.join(factory.get_all_providers().keys()))
