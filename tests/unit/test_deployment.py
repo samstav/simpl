@@ -117,6 +117,58 @@ class TestDeploymentStateTransitions(unittest.TestCase):
         mock_logger.assert_called_with('Tenant: %s - Deployment %s going from '
                                        '%s to %s', 9, 'test', 'NEW', 'PLANNED')
 
+    def test_deployment_status_initial_to_final(self):
+        operations = ['BUILD', 'SCALE UP', 'SCALE DOWN',
+                      'TAKE OFFLINE', 'BRING ONLINE']
+
+        for operation in operations:
+            op_map = cmdep.OPERATION_DEPLOYMENT_STATUS_MAP[operation]
+            initial_state = op_map.get('initial', 'UP')
+            final_state = op_map['final']
+
+            dep = cmdep.Deployment({
+                'id': 'test',
+                'status': initial_state,
+                'tenantId': 9}
+            )
+
+            dep['status'] = final_state
+
+    def test_deployment_status_initial_to_error_to_initial(self):
+        operations = ['BUILD', 'SCALE UP', 'SCALE DOWN',
+                      'TAKE OFFLINE', 'BRING ONLINE']
+
+        for operation in operations:
+            op_map = cmdep.OPERATION_DEPLOYMENT_STATUS_MAP[operation]
+            initial_state = op_map.get('initial', 'UP')
+            error_state = op_map['error']
+
+            dep = cmdep.Deployment({
+                'id': 'test',
+                'status': initial_state,
+                'tenantId': 9}
+            )
+
+            dep['status'] = error_state
+            dep['status'] = initial_state
+
+    def test_deployment_status_initial_to_error(self):
+        operations = ['BUILD', 'SCALE UP', 'SCALE DOWN',
+                      'TAKE OFFLINE', 'BRING ONLINE']
+
+        for operation in operations:
+            op_map = cmdep.OPERATION_DEPLOYMENT_STATUS_MAP[operation]
+            initial_state = op_map.get('initial', 'UP')
+            error_state = op_map['error']
+
+            dep = cmdep.Deployment({
+                'id': 'test',
+                'status': initial_state,
+                'tenantId': 9}
+            )
+
+            dep['status'] = error_state
+
 
 class TestDeployments(unittest.TestCase):
     def setUp(self):
