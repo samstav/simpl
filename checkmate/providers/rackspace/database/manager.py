@@ -84,10 +84,12 @@ class Manager(object):
         else:
             instance = resource.get("instance") or {}
             instance_id = instance.get("id")
+            if not api:
+                return {'status': 'DELETED'}
+            if not instance_id:
+                raise cmexc.CheckmateDoesNotExist("Instance is blank or "
+                                                  "has no ID.")
             try:
-                if not instance_id:
-                    raise cmexc.CheckmateDoesNotExist("Instance is blank or "
-                                                      "has no ID.")
                 database = api.get(instance_id)
                 LOG.info("Marking database instance %s as %s", instance_id,
                          database.status)
