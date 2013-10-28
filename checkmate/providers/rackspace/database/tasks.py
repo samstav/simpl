@@ -52,6 +52,8 @@ def wait_on_build(context, region, instance=None, api=None, callback=None):
 @statsd.collect
 def sync_resource_task(context, resource, api=None, callback=None):
     """Task to handle syncing remote status with checkmate status."""
+    if api is None:
+        api = Provider.connect(context, resource.get("region"))
     return Manager.sync_resource(resource, sync_resource_task.api,
                                  context.simulation)
 
