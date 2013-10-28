@@ -62,8 +62,6 @@ def wait_on_build(context, instance_id, region=None, api=None):
 def sync_resource_task(context, resource, resource_key, api=None):
     '''Celery task registration for backwards comp.'''
     assert context.__class__.__name__ == 'RequestContext'
-    if api is None:
-        api = Provider.connect(context, resource.get("region"))
     _sync_resource_task(context, resource, api=api)
 
 
