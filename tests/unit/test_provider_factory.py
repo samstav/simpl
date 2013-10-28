@@ -11,7 +11,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-# pylint: disable=R0903
+# pylint: disable=R0903,C0111,W0613,R0904
 
 import mock
 import unittest
