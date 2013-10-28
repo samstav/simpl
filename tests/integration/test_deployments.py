@@ -1174,7 +1174,7 @@ class TestDeploymentSettings(unittest.TestCase):
                           deployment.get_setting, '')
 
 
-class TestDynamicOptions(unittest.TestCase):
+class TestDynamicValues(unittest.TestCase):
 
     def test_options_static(self):
         """Make syure simple, static check works."""
@@ -1235,6 +1235,38 @@ class TestDynamicOptions(unittest.TestCase):
 
         deployment['inputs']['blueprint']['bar'] = False
         cmdep.validate_blueprint_options(deployment)
+
+    def test_constraints(self):
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+                id: test
+                environment:
+                  providers:
+                    base:
+                      vendor: test
+                      catalog:
+                        widget:
+                          bar: {}
+                blueprint:
+                  services:
+                    web:
+                      component:
+                        id: bar
+                  options:
+                    foo:
+                      constraints:
+                      - check:
+                          if:
+                            exists: inputs://blueprint/absent
+                inputs:
+                  blueprint:
+                    bar: 1
+            """))
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        with self.assertRaises(exceptions.CheckmateException):
+            cmdep.validate_input_constraints(deployment)
+
+        deployment['inputs']['blueprint']['absent'] = False
+        cmdep.validate_input_constraints(deployment)
 
 
 class TestDeploymentScenarios(unittest.TestCase):
@@ -1663,8 +1695,8 @@ class TestDeploymentAddNodes(unittest.TestCase):
                                "service_name", 2).AndReturn(self._deployment)
         manager.deploy_workflow(bottle.request.environ['context'],
                                 self._deployment,
-                                "T1000", "SCALE UP").AndReturn(
-                                    {'workflow-id': 'w_id'})
+                                "T1000", "SCALE UP").AndReturn({'workflow-id':
+                                                                'w_id'})
         self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
         wf_tasks.cycle_workflow.delay(
             'w_id',

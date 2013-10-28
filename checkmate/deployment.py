@@ -128,14 +128,15 @@ def validate_input_constraints(deployment):
     """
     blueprint = deployment['blueprint']
     if 'options' in blueprint:
+        options = blueprint['options']
         inputs = deployment.get('inputs', {})
         bp_inputs = inputs.get('blueprint', {})
-        for key, option in blueprint['options'].iteritems():
+        services = deployment.get('blueprint', {}).get('services')
+        resources = deployment.get('resources')
+        for key, option in options.iteritems():
             constraints = option.get('constraints')
             if constraints:
                 value = bp_inputs.get(key, option.get('default'))
-                if not value:
-                    continue
 
                 # Handle special defaults
                 if utils.is_evaluable(value):
@@ -143,7 +144,8 @@ def validate_input_constraints(deployment):
 
                 for entry in constraints:
                     constraint = cm_constraints.Constraint.from_constraint(
-                        entry)
+                        entry, options=options, services=services,
+                        resources=resources, inputs=inputs)
                     if not constraint.test(cm_inputs.Input(value)):
                         msg = ("The input for option '%s' did not pass "
                                "validation. The value was '%s'. The "

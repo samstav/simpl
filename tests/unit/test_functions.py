@@ -209,6 +209,20 @@ class TestSafety(unittest.TestCase):
         function = {'value': 'object://object'}
         self.assertEqual(functions.evaluate(function, **data), data)
 
+    def test_deep_evaluation(self):
+        data = {
+            'foo': {
+                'value': {
+                    'if': {
+                        'and': [True, False]
+                    }
+                }
+            },
+            'bar': {'value': {'or': [True]}}
+        }
+        result = functions.parse(data)
+        self.assertEqual(result, {'foo': False, 'bar': True})
+
 
 class TestPathing(unittest.TestCase):
     """Test URL evaluation."""
@@ -245,6 +259,27 @@ class TestPathing(unittest.TestCase):
         result = functions.get_from_path('deep://A/B/C', **self.data)
         expected = 'top'
         self.assertEqual(result, expected)
+
+
+class TestParse(unittest.TestCase):
+    def test_parsing(self):
+        data = {'test': {'value': {'and': [True, False]}}}
+        self.assertEqual(functions.parse(data), {'test': False})
+
+    def test_parsing_only_values(self):
+        data = {'value': {'value': False}}
+        self.assertEqual(functions.parse(data), {'value': False})
+
+    def test_plain_object(self):
+        self.assertEqual(functions.parse({}), {})
+        self.assertEqual(functions.parse({'A': 1}), {'A': 1})
+
+    def test_scalars(self):
+        self.assertEqual(functions.parse(1), 1)
+        self.assertEqual(functions.parse('A'), 'A')
+        self.assertEqual(functions.parse(''), '')
+        self.assertEqual(functions.parse(None), None)
+        self.assertEqual(functions.parse(False), False)
 
 
 if __name__ == '__main__':
