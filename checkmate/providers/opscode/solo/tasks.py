@@ -264,3 +264,11 @@ def manage_role_v2(context, name, environment, path=None, desc=None,
                                env_run_lists=env_run_lists,
                                kitchen_name=kitchen_name,
                                simulate=context.simulation)
+
+
+@ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
+@statsd.collect
+def delete_resource(context):
+    """Marks the resource as deleted."""
+    assert "resource_key" in context
+    return Manager.delete_resource()

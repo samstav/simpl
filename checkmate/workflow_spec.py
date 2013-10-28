@@ -25,6 +25,38 @@ from checkmate import exceptions
 LOG = logging.getLogger(__name__)
 
 
+class ProviderFactory:
+    """For a deployment, gives out the required provider for a given
+    resource"""
+    def __init__(self, deployment, environment):
+        self.providers = {}
+
+        non_deleted_resources = deployment.get_non_deleted_resources()
+        for key, resource in non_deleted_resources.iteritems():
+            if (key not in ['connections', 'keys'] and
+                    'provider' in resource and
+                    resource['provider'] not in self.providers.keys()):
+                provider = environment.get_provider(resource['provider'])
+                if not provider:
+                    LOG.warn("Deployment %s resource %s has an unknown "
+                             "provider: %s", deployment.get("id"), key,
+                             resource.get("provider"))
+                    continue
+                self.providers[resource['provider']] = provider
+
+    def get_provider(self, resource):
+        """Returns a provider suitable for the resource in the parameter
+        :param resource: Resource
+        :return provider matching resource
+        """
+        assert "provider" in resource
+        return self.providers[resource['provider']]
+
+    def get_all_providers(self):
+        """Returns a list of all providers for the deployment."""
+        return self.providers
+
+
 class WorkflowSpec(specs.WorkflowSpec):
     """Workflow Spec related methods."""
     @staticmethod
@@ -130,40 +162,39 @@ class WorkflowSpec(specs.WorkflowSpec):
                 properties={'estimated_duration': 10})
             wf_spec.start.connect(root_task)
 
-        provider_keys = set()
-        providers = {}
+        factory = ProviderFactory(deployment, environment)
+        all_providers = factory.get_all_providers()
 
-        non_deleted_resources = deployment.get_non_deleted_resources()
-        for key, resource in non_deleted_resources.iteritems():
-            if (key not in ['connections', 'keys'] and 'provider' in
-                    resource and resource['provider'] not in provider_keys):
-                provider = environment.get_provider(resource['provider'])
-                if not provider:
-                    LOG.warn("Deployment %s resource %s has an unknown "
-                             "provider: %s", dep_id, key,
-                             resource.get("provider"))
-                    continue
-                provider_keys.add(resource['provider'])
-                providers[provider.key] = provider
         LOG.debug("Obtained providers from resources: %s",
-                  ', '.join(provider_keys))
+                  ', '.join(factory.get_all_providers().keys()))
 
-        for provider_key in provider_keys:
-            provider = providers[provider_key]
-            cleanup_result = provider.cleanup_environment(wf_spec, deployment)
+        for provider in all_providers.values():
+            cleanup_result = provider.cleanup_environment(wf_spec,
+                                                          deployment)
             # Wire up tasks if not wired in somewhere
             if cleanup_result and not cleanup_result['root'].inputs:
                 wf_spec.start.connect(cleanup_result['root'])
 
-        for key, resource \
-                in deployment.get_non_deleted_resources().iteritems():
-            if key not in ['connections', 'keys'] and 'provider' in resource:
-                provider = providers[resource['provider']]
+        resources_to_del = deployment.get_non_deleted_resources().iteritems()
+        for key, resource in resources_to_del:
+            if (key not in ['connections', 'keys'] and
+                    'provider' in resource and
+                    'hosted_on' not in resource):
+                provider = factory.get_provider(resource)
+
+                host_del_tasks = []
+                if resource.get("hosts"):
+                    host_del_tasks = WorkflowSpec.get_host_delete_tasks(
+                        resource, deployment, factory, wf_spec, context
+                    )
+
                 del_tasks = provider.delete_resource_tasks(wf_spec, context,
                                                            dep_id, resource,
                                                            key)
                 if del_tasks:
                     tasks = del_tasks.get('root')
+                    for host_del_task in host_del_tasks:
+                        del_tasks['final'].connect(host_del_task)
                     if isinstance(tasks, list):
                         for task in tasks:
                             root_task.connect(task)
@@ -175,6 +206,30 @@ class WorkflowSpec(specs.WorkflowSpec):
             noop = specs.Simple(wf_spec, "end")
             wf_spec.start.connect(noop)
         return wf_spec
+
+    @staticmethod
+    def get_host_delete_tasks(resource, deployment, factory, wf_spec,
+                              context):
+        """For a given resource, gets all the hosted-resource deletion tasks
+
+        :param resource: resource
+        :param deployment: deployment
+        :param factory: A ProviderFactory
+        :param wf_spec: WorkflowSpec
+        :param context: Context
+        :return: A list of hosted-resource deletion tasks.
+        """
+
+        hosts = resource.get("hosts", [])
+        host_resources = [deployment.get_non_deleted_resources()[i] for i in
+                          hosts]
+        host_del_tasks = []
+        for resource in host_resources:
+            provider = factory.get_provider(resource)
+            host_del_tasks.append(provider.delete_resource_tasks(
+                                  wf_spec, context, deployment.get("id"),
+                                  resource, resource["index"]))
+        return host_del_tasks
 
     @staticmethod
     def create_reset_failed_resource_spec(context, deployment,

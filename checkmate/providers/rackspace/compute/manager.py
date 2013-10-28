@@ -402,22 +402,23 @@ class Manager(object):
 
         server = None
         inst_id = context.get("instance_id")
-        resource = context.get('resource')
         resource_key = context.get('resource_key')
         deployment_id = context.get("deployment_id", context.get("deployment"))
+
+        results = {
+            'status': 'DELETING',
+            'status-message': ''
+        }
 
         if inst_id is None:
             msg = ("Instance ID is not available for Compute Instance, "
                    "skipping delete_server_task for resource %s in deployment"
                    " %s" % (resource_key, deployment_id))
             LOG.info(msg)
-            results = {
-                'status': 'DELETED',
-                'status-message': msg
-            }
+            results['status'] = 'DELETED'
+            results['status-message'] = msg
             return results
 
-        results = {}
         try:
             if context.get('simulation') is not True:
                 server = api.servers.get(inst_id)
@@ -430,28 +431,10 @@ class Manager(object):
             raise cmexec.CheckmateException(message=msg,
                                             options=cmexec.CAN_RESUME)
         if (not server) or (server.status == 'DELETED'):
-            results = {
-                'status': 'DELETED',
-                'status-message': ''
-            }
-            if 'hosts' in resource:
-                for comp_key in resource.get('hosts', []):
-                    callback({
-                        'status': 'DELETED',
-                        'status-message': ''
-                    }, resource_key=comp_key)
+            results['status'] = 'DELETED'
+
         elif server.status in ['ACTIVE', 'ERROR', 'SHUTOFF']:
-            results = {
-                'status': 'DELETING',
-                'status-message': 'Waiting on resource deletion'
-            }
-            if 'hosts' in resource:
-                for comp_key in resource.get('hosts', []):
-                    callback({
-                        'status': 'DELETING',
-                        'status-message': 'Host %s is being deleted.' %
-                                          resource_key
-                    }, resource_key=comp_key)
+            results['status-message'] = 'Waiting on resource deletion'
             try:
                 server.delete()
             except requests.ConnectionError:
@@ -463,10 +446,8 @@ class Manager(object):
         else:
             msg = ('Instance is in state %s. Waiting on ACTIVE resource.'
                    % server.status)
-            callback({
-                'status': 'DELETING',
-                'status-message': msg
-            })
+            results['status-message'] = msg
+            callback(results)
             raise cmexec.CheckmateException(message=msg,
                                             options=cmexec.CAN_RESUME)
         return results
@@ -480,7 +461,6 @@ class Manager(object):
         assert "region" in context, "No region provided"
         assert 'resource' in context, "No resource definition provided"
 
-        resource = context.get('resource')
         server = None
         inst_id = context.get("instance_id")
 
@@ -517,12 +497,6 @@ class Manager(object):
                 'status-message': ''
             }
 
-            if 'hosts' in resource:
-                for hosted in resource.get('hosts', []):
-                    callback({
-                        'status': 'DELETED',
-                        'status-message': ''
-                    }, resource_key=hosted)
         else:
             msg = ('Instance is in state %s. Waiting on DELETED resource.'
                    % server.status)
