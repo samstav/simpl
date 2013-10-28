@@ -304,6 +304,7 @@ class Manager(object):
 
     @staticmethod
     def delete_resource():
+        """Marks a resource as DELETED."""
         return {
             'status': 'DELETED',
             'status-message': ''

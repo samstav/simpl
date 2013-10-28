@@ -461,7 +461,6 @@ class Manager(object):
         assert "region" in context, "No region provided"
         assert 'resource' in context, "No resource definition provided"
 
-        resource = context.get('resource')
         server = None
         inst_id = context.get("instance_id")
 

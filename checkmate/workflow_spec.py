@@ -26,7 +26,8 @@ LOG = logging.getLogger(__name__)
 
 
 class ProviderFactory:
-
+    """For a deployment, gives out the required provider for a given
+    resource"""
     def __init__(self, deployment, environment):
         self.providers = {}
 
@@ -44,10 +45,15 @@ class ProviderFactory:
                 self.providers[resource['provider']] = provider
 
     def get_provider(self, resource):
+        """Returns a provider suitable for the resource in the parameter
+        :param resource: Resource
+        :return provider matching resource
+        """
         assert "provider" in resource
         return self.providers[resource['provider']]
 
     def get_all_providers(self):
+        """Returns a list of all providers for the deployment."""
         return self.providers
 
 
@@ -204,6 +210,16 @@ class WorkflowSpec(specs.WorkflowSpec):
     @staticmethod
     def get_host_delete_tasks(resource, deployment, factory, wf_spec,
                               context):
+        """For a given resource, gets all the hosted-resource deletion tasks
+
+        :param resource: resource
+        :param deployment: deployment
+        :param factory: A ProviderFactory
+        :param wf_spec: WorkflowSpec
+        :param context: Context
+        :return: A list of hosted-resource deletion tasks.
+        """
+
         hosts = resource.get("hosts", [])
         host_resources = [deployment.get_non_deleted_resources()[i] for i in
                           hosts]
