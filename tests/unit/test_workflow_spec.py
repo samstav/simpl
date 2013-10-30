@@ -88,6 +88,34 @@ class TestWorkflowSpec(unittest.TestCase):
                                                           victim_list=["1"])
         self._mox.VerifyAll()
 
+    def test_get_host_delete_tasks(self):
+        resource = {"index": "INDEX",
+                    "hosts": [1, 2]}
+        deployment = mock.MagicMock()
+        deployment.get.return_value = "DEP_ID"
+        mock_provider = mock.MagicMock()
+        factory = mock.MagicMock()
+        mock_task = mock.MagicMock()
+        mock_wfspec = mock.MagicMock()
+        mock_context = mock.MagicMock()
+
+        deployment.get_non_deleted_resources.return_value = {1: {
+            "index": "INDEX"
+        }}
+        factory.get_provider.return_value = mock_provider
+        mock_provider.delete_resource_tasks.return_value = {
+            'root': mock_task, 'final': mock_task}
+
+        workflow_spec.WorkflowSpec.get_host_delete_tasks(resource,
+                                                         deployment, factory,
+                                                         mock_wfspec,
+                                                         mock_context)
+
+        mock_provider.delete_resource_tasks.assert_called_once_with(
+            mock_wfspec, mock_context, "DEP_ID",
+            {"index": "INDEX"}, "INDEX")
+        deployment.get.assert_called_once_with("id")
+
     def test_create_take_offline_spec(self):
         context = mock.Mock()
         source_resource = {

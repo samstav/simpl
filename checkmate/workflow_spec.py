@@ -221,14 +221,21 @@ class WorkflowSpec(specs.WorkflowSpec):
         """
 
         hosts = resource.get("hosts", [])
-        host_resources = [deployment.get_non_deleted_resources()[i] for i in
-                          hosts]
+        host_resources = []
+        for host in hosts:
+            host_resource = deployment.get_non_deleted_resources().get(host)
+            if not host_resource:
+                continue
+            host_resources.append(host_resource)
         host_del_tasks = []
-        for resource in host_resources:
-            provider = factory.get_provider(resource)
-            host_del_tasks.append(provider.delete_resource_tasks(
-                                  wf_spec, context, deployment.get("id"),
-                                  resource, resource["index"]))
+        for host_resource in host_resources:
+            provider = factory.get_provider(host_resource)
+            delete_task = provider.delete_resource_tasks(wf_spec, context,
+                                                   deployment.get("id"),
+                                                   host_resource,
+                                                   host_resource["index"])
+            if delete_task:
+                host_del_tasks.append(delete_task["root"])
         return host_del_tasks
 
     @staticmethod
