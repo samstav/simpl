@@ -27,7 +27,8 @@ LOG = logging.getLogger(__name__)
 
 class ProviderFactory:
     """For a deployment, gives out the required provider for a given
-    resource"""
+    resource
+    """
     def __init__(self, deployment, environment):
         self.providers = {}
 
@@ -230,10 +231,9 @@ class WorkflowSpec(specs.WorkflowSpec):
         host_del_tasks = []
         for host_resource in host_resources:
             provider = factory.get_provider(host_resource)
-            delete_task = provider.delete_resource_tasks(wf_spec, context,
-                                                   deployment.get("id"),
-                                                   host_resource,
-                                                   host_resource["index"])
+            delete_task = provider.delete_resource_tasks(
+                wf_spec, context, deployment.get("id"), host_resource,
+                host_resource["index"])
             if delete_task:
                 host_del_tasks.append(delete_task["root"])
         return host_del_tasks
