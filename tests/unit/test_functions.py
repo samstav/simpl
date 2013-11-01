@@ -247,27 +247,6 @@ class TestPathing(unittest.TestCase):
         self.assertEqual(result, expected)
 
 
-class TestParse(unittest.TestCase):
-    def test_parsing(self):
-        data = {'test': {'value': {'and': [True, False]}}}
-        self.assertEqual(functions.parse(data), {'test': False})
-
-    def test_parsing_only_values(self):
-        data = {'value': {'value': False}}
-        self.assertEqual(functions.parse(data), {'value': False})
-
-    def test_plain_object(self):
-        self.assertEqual(functions.parse({}), {})
-        self.assertEqual(functions.parse({'A': 1}), {'A': 1})
-
-    def test_scalars(self):
-        self.assertEqual(functions.parse(1), 1)
-        self.assertEqual(functions.parse('A'), 'A')
-        self.assertEqual(functions.parse(''), '')
-        self.assertEqual(functions.parse(None), None)
-        self.assertEqual(functions.parse(False), False)
-
-
 if __name__ == '__main__':
     from checkmate import test
     test.run_with_params()
