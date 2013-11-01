@@ -232,7 +232,7 @@ class TestStaticConstraint(unittest.TestCase):
     def test_constraint_tests(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[0])
         self.assertFalse(constraint.test(False))
-        self.assertFalse(constraint.test(True))  # value is ignored
+        self.assertTrue(constraint.test(True))
 
     def test_constraint_message(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[0])
