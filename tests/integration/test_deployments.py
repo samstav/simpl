@@ -1174,7 +1174,7 @@ class TestDeploymentSettings(unittest.TestCase):
                           deployment.get_setting, '')
 
 
-class TestDynamicValues(unittest.TestCase):
+class TestDynamicOptions(unittest.TestCase):
 
     def test_options_static(self):
         """Make syure simple, static check works."""
@@ -1235,38 +1235,6 @@ class TestDynamicValues(unittest.TestCase):
 
         deployment['inputs']['blueprint']['bar'] = False
         cmdep.validate_blueprint_options(deployment)
-
-    def test_constraints(self):
-        deployment = cmdep.Deployment(utils.yaml_to_dict("""
-                id: test
-                environment:
-                  providers:
-                    base:
-                      vendor: test
-                      catalog:
-                        widget:
-                          bar: {}
-                blueprint:
-                  services:
-                    web:
-                      component:
-                        id: bar
-                  options:
-                    foo:
-                      constraints:
-                      - check:
-                          if:
-                            exists: inputs://blueprint/absent
-                inputs:
-                  blueprint:
-                    bar: 1
-            """))
-        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
-        with self.assertRaises(exceptions.CheckmateException):
-            cmdep.validate_input_constraints(deployment)
-
-        deployment['inputs']['blueprint']['absent'] = False
-        cmdep.validate_input_constraints(deployment)
 
 
 class TestDeploymentScenarios(unittest.TestCase):

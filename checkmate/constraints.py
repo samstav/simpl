@@ -43,7 +43,7 @@ class Constraint(object):
 
         :param kwargs: accepts parameters for function evaluation
         """
-        constraint = functions.parse(constraint, **kwargs)
+        constraint = functions.evaluate(constraint, **kwargs)
         for klass in CONSTRAINT_CLASSES:
             if klass.is_syntax_valid(constraint):
                 return klass(constraint)
@@ -295,7 +295,8 @@ class StaticConstraint(Constraint):
     allowed_keys = ['check', 'message']
 
     def test(self, value):
-        return self.constraint.get('check')
+        import ipdb; ipdb.set_trace()
+        return value
 
 
 CONSTRAINT_CLASSES = [k for n, k in inspect.getmembers(sys.modules[__name__],
