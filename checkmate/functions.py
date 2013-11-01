@@ -27,14 +27,13 @@ from checkmate import utils
 
 
 def evaluate(obj, **kwargs):
-    """Evaluates the passed in object using Checkmate syntax."""
+    """Evaluates the passed in object using Checkmate sytnax."""
     if isinstance(obj, dict):
         for key, value in obj.iteritems():
-            value = evaluate(value, **kwargs)
             if key == 'if':
-                return value not in [False, None]
+                return evaluate(value, **kwargs) not in [False, None]
             elif key == 'if-not':
-                return value in [False, None]
+                return evaluate(value, **kwargs) in [False, None]
             elif key == 'or':
                 return any(evaluate(o, **kwargs) for o in value)
             elif key == 'and':
@@ -49,14 +48,6 @@ def evaluate(obj, **kwargs):
         return obj
     elif isinstance(obj, list):
         return [evaluate(o, **kwargs) for o in obj]
-    else:
-        return obj
-
-
-def parse(obj, **kwargs):
-    """Evaluates the passed in object's values using Checkmate syntax."""
-    if isinstance(obj, dict):
-        return {k: evaluate(v, **kwargs) for k, v in obj.iteritems()}
     else:
         return obj
 

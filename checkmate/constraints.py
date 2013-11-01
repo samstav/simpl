@@ -15,7 +15,7 @@ import re
 import sys
 
 from checkmate import exceptions
-from checkmate import functions
+
 
 LOG = logging.getLogger(__name__)
 
@@ -38,12 +38,8 @@ class Constraint(object):
         return True
 
     @classmethod
-    def from_constraint(cls, constraint, **kwargs):
-        """Instantiate correct constraint class based on constraint.
-
-        :param kwargs: accepts parameters for function evaluation
-        """
-        constraint = functions.parse(constraint, **kwargs)
+    def from_constraint(cls, constraint):
+        """Instantiate correct constraint class based on constraint."""
         for klass in CONSTRAINT_CLASSES:
             if klass.is_syntax_valid(constraint):
                 return klass(constraint)
@@ -58,8 +54,6 @@ class Constraint(object):
                                                           "constraint" %
                                                           constraint)
         self.constraint = constraint
-        if 'message' in constraint:
-            self.message = constraint['message']
 
     def test(self, value):
         return False
@@ -109,6 +103,8 @@ class RegExConstraint(Constraint):
                                                           " invalid regular "
                                                           "expression: %s" %
                                                           constraint['regex'])
+        if 'message' in constraint:
+            self.message = constraint['message']
 
     def test(self, value):
         return self.expression.match(value)
@@ -160,7 +156,7 @@ class InConstraint(Constraint):
     Syntax:
 
     - in: [list]
-      message: optional validation message
+    - message: optional validation message
 
     Notes:
 
@@ -187,6 +183,8 @@ class InConstraint(Constraint):
                                                           "supplied: %s" %
                                                           allowed)
         self.allowed = allowed
+        if 'message' in constraint:
+            self.message = constraint['message']
 
     def test(self, value):
         return value in self.allowed
@@ -270,32 +268,6 @@ class SimpleComparisonConstraint(Constraint):
 
     def test(self, value):
         return all(rule(value) for rule in self.rules)
-
-
-class StaticConstraint(Constraint):
-    """Constraint that is evaluated to true or false
-
-    Syntax:
-
-    - check: false
-      message: This will NEVER work
-    - check:
-        if:
-          and:
-          - value: inputs://one
-          - value: inputs://two
-      message: If you specify "one", then you also need "two"
-
-    Note: the evaluation of the "if:" construct above happens outside of the
-    constraint as it requires the deployment. The constraint class just
-    determines true/false. See deployment.py for the evaluation code.
-
-    """
-    required_keys = ['check']
-    allowed_keys = ['check', 'message']
-
-    def test(self, value):
-        return self.constraint.get('check')
 
 
 CONSTRAINT_CLASSES = [k for n, k in inspect.getmembers(sys.modules[__name__],
