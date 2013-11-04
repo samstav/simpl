@@ -23,7 +23,11 @@ Functions that can be used in blueprints:
 """
 import urlparse
 
+from checkmate.common import templating
+from checkmate import exceptions
 from checkmate import utils
+
+PATTERNS = {'patterns': templating.get_patterns()}
 
 
 def evaluate(obj, **kwargs):
@@ -56,6 +60,8 @@ def get_value(value, **kwargs):
     """Parse value entry (supports URIs)."""
     if is_uri(value):
         return get_from_path(value, **kwargs)
+    elif is_pattern(value, PATTERNS):
+        return get_pattern(value, PATTERNS)
     else:
         return value
 
@@ -70,6 +76,13 @@ def is_uri(value):
             except AttributeError:
                 return False
     return False
+
+
+def is_pattern(value, patterns=None):
+    """Quick check to see if we have a pattern from the pattern library."""
+    return (isinstance(value, basestring) and
+            value.startswith("patterns.") and
+            value[-1] != ".")
 
 
 def get_from_path(path, **kwargs):
@@ -104,3 +117,19 @@ def path_exists(path, **kwargs):
             return False
     except AttributeError:
         return False
+
+
+def get_pattern(value, patterns):
+    """Get pattern from pattern library."""
+    pattern = utils.read_path(patterns, value.replace('.', '/'))
+    if not isinstance(pattern, dict):
+        if pattern is None:
+            raise exceptions.CheckmateDoesNotExist(
+                "Pattern '%s' does not exist" % value)
+        else:
+            raise exceptions.CheckmateException(
+                "Pattern is not in valid format: %s" % value)
+    if 'value' not in pattern:
+        raise exceptions.CheckmateException(
+            "Pattern is missing 'value' entry: %s" % value)
+    return pattern['value']

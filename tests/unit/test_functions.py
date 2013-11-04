@@ -17,6 +17,9 @@
 """Tests for Blueprint Functions."""
 import unittest
 
+import mock
+
+from checkmate import exceptions
 from checkmate import functions
 
 
@@ -197,6 +200,12 @@ class TestObjectFunctions(unittest.TestCase):
         function = {'not-exists': 'inputs://nope'}
         self.assertTrue(functions.evaluate(function, **self.data))
 
+    @mock.patch.object(functions, "get_pattern")
+    def test_pattern(self, mock_get_pattern):
+        mock_get_pattern.return_value = "foo"
+        function = {'value': 'patterns.regex.linux_user.required'}
+        self.assertEqual(functions.evaluate(function, **self.data), "foo")
+
 
 class TestSafety(unittest.TestCase):
     """Test core blueprint functions for safety."""
@@ -261,6 +270,39 @@ class TestURIDetection(unittest.TestCase):
         self.assertFalse(functions.is_uri(''))
         self.assertFalse(functions.is_uri(None))
         self.assertFalse(functions.is_uri({}))
+
+
+class TestPatterns(unittest.TestCase):
+    """Test Pattern detection and parsing."""
+
+    def test_is_pattern(self):
+        self.assertTrue(functions.is_pattern("patterns.regex.linux_user"))
+
+    def test_is_pattern_not_there(self):
+        self.assertTrue(functions.is_pattern("patterns.foo"))
+
+    def test_is_pattern_negative(self):
+        self.assertFalse(functions.is_pattern("patterns"))
+        self.assertFalse(functions.is_pattern("patterns."))
+        self.assertFalse(functions.is_pattern(''))
+        self.assertFalse(functions.is_pattern(None))
+        self.assertFalse(functions.is_pattern({}))
+
+    def test_get_pattern_missing(self):
+        with self.assertRaises(exceptions.CheckmateDoesNotExist):
+            functions.get_pattern('patterns.foo', {'patterns': {'bar': 1}})
+
+    def test_get_pattern_bad_format(self):
+        with self.assertRaises(exceptions.CheckmateException):
+            functions.get_pattern('patterns.bar', {'patterns': {'bar': int()}})
+
+    def test_get_pattern_no_value(self):
+        with self.assertRaises(exceptions.CheckmateException):
+            functions.get_pattern('patterns.bar', {'patterns': {'bar': {}}})
+
+    def test_get_pattern(self):
+        patterns = {'patterns': {'foo': {'value': 'X'}}}
+        self.assertEqual(functions.get_pattern('patterns.foo', patterns), 'X')
 
 
 if __name__ == '__main__':
