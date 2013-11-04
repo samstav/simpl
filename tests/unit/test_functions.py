@@ -234,6 +234,12 @@ class TestPathing(unittest.TestCase):
 
     def test_path_blank(self):
         self.assertEqual(functions.get_from_path(''), '')
+        self.assertFalse(functions.path_exists(''))
+
+    def test_path_scheme_only(self):
+        self.assertEqual(functions.get_from_path('https://'), 'https://')
+        self.assertFalse(functions.path_exists('https://'))
+        self.assertFalse(functions.path_exists('foo://', foo=1))
 
     def test_path_scheme_only_scalar(self):
         result = functions.get_from_path('name://', **self.data)
@@ -254,6 +260,10 @@ class TestPathing(unittest.TestCase):
         result = functions.get_from_path('deep://A/B/C', **self.data)
         expected = 'top'
         self.assertEqual(result, expected)
+
+    def test_path_skip_invalid(self):
+        self.assertEqual(functions.get_from_path('blah'), 'blah')
+        self.assertEqual(functions.get_from_path('blah', a=1), 'blah')
 
 
 class TestURIDetection(unittest.TestCase):

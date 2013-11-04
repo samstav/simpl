@@ -60,7 +60,7 @@ def get_value(value, **kwargs):
     """Parse value entry (supports URIs)."""
     if is_uri(value):
         return get_from_path(value, **kwargs)
-    elif is_pattern(value, PATTERNS):
+    elif is_pattern(value):
         return get_pattern(value, PATTERNS)
     else:
         return value
@@ -78,7 +78,7 @@ def is_uri(value):
     return False
 
 
-def is_pattern(value, patterns=None):
+def is_pattern(value):
     """Quick check to see if we have a pattern from the pattern library."""
     return (isinstance(value, basestring) and
             value.startswith("patterns.") and
@@ -98,7 +98,7 @@ def get_from_path(path, **kwargs):
             return utils.read_path(focus, combined)
         else:
             return focus
-    except AttributeError:
+    except KeyError:
         return path
 
 
@@ -115,7 +115,7 @@ def path_exists(path, **kwargs):
             return utils.path_exists(focus, combined)
         else:
             return False
-    except AttributeError:
+    except KeyError:
         return False
 
 
