@@ -39,7 +39,7 @@ def evaluate(obj, **kwargs):
             elif key == 'and':
                 return all(evaluate(o, **kwargs) for o in value)
             elif key == 'value':
-                return get_from_path(value, **kwargs)
+                return get_value(value, **kwargs)
             elif key == 'exists':
                 return path_exists(value, **kwargs)
             elif key == 'not-exists':
@@ -50,6 +50,26 @@ def evaluate(obj, **kwargs):
         return [evaluate(o, **kwargs) for o in obj]
     else:
         return obj
+
+
+def get_value(value, **kwargs):
+    """Parse value entry (supports URIs)."""
+    if is_uri(value):
+        return get_from_path(value, **kwargs)
+    else:
+        return value
+
+
+def is_uri(value):
+    """Quick check to see if we have a URI."""
+    if isinstance(value, basestring):
+        if '://' in value:
+            try:
+                parsed = urlparse.urlparse(value)
+                return len(parsed.scheme) > 0
+            except AttributeError:
+                return False
+    return False
 
 
 def get_from_path(path, **kwargs):

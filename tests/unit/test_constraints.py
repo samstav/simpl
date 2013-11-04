@@ -134,9 +134,9 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
                                                     'greater-than': ''}))
 
     def test_constraint_detection(self):
-        for test in self.test_data:
-            constraint = cmcon.Constraint.from_constraint(test)
-            self.assertIsInstance(constraint, self.klass, msg=test)
+        for entry in self.test_data:
+            constraint = cmcon.Constraint.from_constraint(entry)
+            self.assertIsInstance(constraint, self.klass, msg=entry)
 
     def test_constraint_tests_less_than(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[0])
@@ -212,9 +212,15 @@ class TestInConstraint(unittest.TestCase):
         self.assertEquals(constraint.message, "Nope. Only http(s)")
 
 
+class TestConstraintPattern(unittest.TestCase):
+
+    test_data = utils.yaml_to_dict("""
+        - regex:
+            value: patterns.regex.linux_user.required
+          message: Nope. Only http(s)
+        """)
+
+
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

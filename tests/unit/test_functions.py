@@ -247,6 +247,22 @@ class TestPathing(unittest.TestCase):
         self.assertEqual(result, expected)
 
 
+class TestURIDetection(unittest.TestCase):
+    """Test URI detection."""
+
+    def test_is_uri(self):
+        self.assertTrue(functions.is_uri("http://test"))
+        self.assertTrue(functions.is_uri("options://region"))
+        self.assertTrue(functions.is_uri("resources://A/B/C"))
+
+    def test_is_uri_negative(self):
+        self.assertFalse(functions.is_uri("://test"))
+        self.assertFalse(functions.is_uri("://"))
+        self.assertFalse(functions.is_uri(''))
+        self.assertFalse(functions.is_uri(None))
+        self.assertFalse(functions.is_uri({}))
+
+
 if __name__ == '__main__':
     from checkmate import test
     test.run_with_params()
