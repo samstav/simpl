@@ -95,6 +95,13 @@ class TestCheckmateException(unittest.TestCase):
                            {'no': 'global'})
         self.assertEqual(rehydratred.__dict__, exc.__dict__)
 
+    def test_calls_superclass_with_correct_parameters(self):
+        exc = cmexc.CheckmateCalledProcessError(
+            "RETURN_CODE", "EXECUTED_COMMAND", output="OUTPUT_MESSAGE")
+        self.assertEquals("Call EXECUTED_COMMAND failed with return code "
+                          "RETURN_CODE: OUTPUT_MESSAGE", exc.message)
+        self.assertEquals(cmexc.UNEXPECTED_ERROR, exc.friendly_message)
+        self.assertFalse(exc.resumable)
 
 if __name__ == '__main__':
     from checkmate import test

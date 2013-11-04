@@ -171,7 +171,8 @@ class CheckmateCalledProcessError(CheckmateException):
                          self.output or '(No output)'))
         self.error_info = error_info
         super(CheckmateCalledProcessError, self).__init__(
-            returncode, cmd, output)
+            message=self._message,
+            friendly_message=UNEXPECTED_ERROR)
 
     def __repr__(self):
         if self.error_info:
