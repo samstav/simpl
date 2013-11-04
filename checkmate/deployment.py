@@ -142,6 +142,9 @@ def validate_input_constraints(deployment):
                 if utils.is_evaluable(value):
                     value = utils.evaluate(value[1:])
 
+                if value is None:
+                    continue  # don't validate null inputs
+
                 for entry in constraints:
                     parsed = functions.parse(
                         entry,

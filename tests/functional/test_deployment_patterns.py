@@ -92,8 +92,30 @@ class TestDeploymentValidation(unittest.TestCase):
         """))
 
         planner = cmdeps.Planner(deployment)
-        with self.assertRaises(exceptions.CheckmateValidationException):
-            planner.plan(middleware.RequestContext())
+        self.assertEqual(planner.plan(middleware.RequestContext()), {})
+
+    def test_regex_pattern_null_inputs(self):
+        """Test regex pattern skips if value is None."""
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+            id: test
+            blueprint:
+              services: {}
+              options:
+                test:
+                  type: string
+                  required: false
+                  constraints:
+                  - regex:
+                      value: patterns.regex.linux_user.required
+            environment:
+              providers: {}
+            inputs:
+              blueprint:
+                test: null
+        """))
+
+        planner = cmdeps.Planner(deployment)
+        self.assertEqual(planner.plan(middleware.RequestContext()), {})
 
 
 if __name__ == '__main__':
