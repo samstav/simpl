@@ -143,9 +143,14 @@ def validate_input_constraints(deployment):
                     value = utils.evaluate(value[1:])
 
                 for entry in constraints:
+                    parsed = functions.parse(
+                        entry,
+                        options=options,
+                        services=services,
+                        resources=resources,
+                        inputs=inputs)
                     constraint = cm_constraints.Constraint.from_constraint(
-                        entry, options=options, services=services,
-                        resources=resources, inputs=inputs)
+                        parsed)
                     if not constraint.test(cm_inputs.Input(value)):
                         msg = ("The input for option '%s' did not pass "
                                "validation. The value was '%s'. The "
