@@ -27,7 +27,6 @@ from checkmate import exceptions
 from checkmate import functions
 from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
-from checkmate import utils
 
 CODE_CACHE = {}
 LOG = logging.getLogger(__name__)
@@ -58,16 +57,6 @@ def do_prepend(value, param='/'):
         return '%s%s' % (param, value)
     else:
         return ''
-
-
-def evaluate(value):
-    """Handle defaults with functions."""
-    if isinstance(value, basestring):
-        if value.startswith('=generate'):
-            # TODO(zns): Optimize. Maybe have Deployment class handle
-            # it
-            value = utils.evaluate(value[1:])
-    return value
 
 
 def parse_url(value):
@@ -111,37 +100,8 @@ def parse(template, **kwargs):
     env.json = json
     env.globals['parse_url'] = parse_url
     env.globals['patterns'] = functions.get_patterns()
-    deployment = kwargs.get('deployment')
-    resource = kwargs.get('resource')
-    defaults = kwargs.get('defaults', {})
-    if deployment:
-        if resource:
-            fxn = lambda setting_name: evaluate(
-                utils.escape_yaml_simple_string(
-                    deployment.get_setting(
-                        setting_name,
-                        resource_type=resource['type'],
-                        provider_key=resource['provider'],
-                        service_name=resource['service'],
-                        default=defaults.get(setting_name, '')
-                    )
-                )
-            )
-        else:
-            fxn = lambda setting_name: evaluate(
-                utils.escape_yaml_simple_string(
-                    deployment.get_setting(
-                        setting_name, default=defaults.get(setting_name,
-                                                           '')
-                    )
-                )
-            )
-    else:
-        # noop
-        fxn = lambda setting_name: evaluate(
-            utils.escape_yaml_simple_string(
-                defaults.get(setting_name, '')))
-    env.globals['setting'] = fxn
+
+    env.globals['setting'] = functions.get_settings_fxn(**kwargs)
     env.globals['hash'] = hash_SHA512
 
     minimum_kwargs = {

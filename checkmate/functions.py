@@ -160,3 +160,47 @@ def get_pattern(value, patterns):
         raise exceptions.CheckmateException(
             "Pattern is missing 'value' entry: %s" % value)
     return pattern['value']
+
+
+def eval_blueprint_fxn(value):
+    """Handle defaults with functions."""
+    if isinstance(value, basestring):
+        if value.startswith('=generate'):
+            # TODO(zns): Optimize. Maybe have Deployment class handle
+            # it
+            value = utils.evaluate(value[1:])
+    return value
+
+
+def get_settings_fxn(**kwargs):
+    deployment = kwargs.get('deployment')
+    resource = kwargs.get('resource')
+    defaults = kwargs.get('defaults', {})
+    if deployment:
+        if resource:
+            fxn = lambda setting_name: eval_blueprint_fxn(
+                utils.escape_yaml_simple_string(
+                    deployment.get_setting(
+                        setting_name,
+                        resource_type=resource['type'],
+                        provider_key=resource['provider'],
+                        service_name=resource['service'],
+                        default=defaults.get(setting_name, '')
+                    )
+                )
+            )
+        else:
+            fxn = lambda setting_name: eval_blueprint_fxn(
+                utils.escape_yaml_simple_string(
+                    deployment.get_setting(
+                        setting_name, default=defaults.get(setting_name,
+                                                           '')
+                    )
+                )
+            )
+    else:
+        # noop
+        fxn = lambda setting_name: eval_blueprint_fxn(
+            utils.escape_yaml_simple_string(
+                defaults.get(setting_name, '')))
+    return fxn
