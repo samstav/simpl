@@ -97,7 +97,7 @@ setup(
     package_data={
         '': ['*.yaml'],
     },
-    data_files=[('checkmate', ['checkmate/common/patterns.yaml'])],
+    data_files=[('checkmate', ['checkmate/patterns.yaml'])],
     license='Apache License (2.0)',
     classifiers=["Programming Language :: Python"],
     url='https://rackspace.github.com/checkmate/checkmate'

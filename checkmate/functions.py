@@ -21,13 +21,31 @@ Functions that can be used in blueprints:
 - value: accepts URI-type values (ex. resoures://0/instance/ip)
 
 """
+import copy
+import os
 import urlparse
+import yaml
 
-from checkmate.common import templating
 from checkmate import exceptions
 from checkmate import utils
 
-PATTERNS = {'patterns': templating.get_patterns()}
+
+def get_patterns():
+    """Load regex patterns from patterns.yaml.
+
+    These are effectively macros for blueprint authors to use.
+
+    We cache this so we don't have to parse the yaml frequently. We always
+    return a copy so we don't share the mutable between calls (and clients).
+    """
+    if hasattr(get_patterns, 'cache'):
+        return copy.deepcopy(get_patterns.cache)
+    path = os.path.join(os.path.dirname(__file__), 'patterns.yaml')
+    patterns = yaml.safe_load(open(path, 'r'))
+    get_patterns.cache = patterns
+    return copy.deepcopy(patterns)
+
+PATTERNS = {'patterns': get_patterns()}
 
 
 def evaluate(obj, **kwargs):
