@@ -1260,9 +1260,10 @@ class TestDynamicValues(unittest.TestCase):
                 inputs:
                   blueprint:
                     bar: 1
+                    foo: 2
             """))
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
-        with self.assertRaises(exceptions.CheckmateException):
+        with self.assertRaises(exceptions.CheckmateValidationException):
             cmdep.validate_input_constraints(deployment)
 
         deployment['inputs']['blueprint']['absent'] = False
