@@ -19,7 +19,6 @@ import copy
 import json
 import logging
 import os
-import urlparse
 
 from jinja2 import BytecodeCache
 from jinja2 import DictLoader
@@ -50,16 +49,6 @@ def get_patterns():
     patterns = yaml.safe_load(open(path, 'r'))
     get_patterns.cache = patterns
     return copy.deepcopy(patterns)
-
-
-def register_scheme(scheme):
-    """Use this to register a new scheme with urlparse and have it be
-    parsed in the same way as http is parsed
-    """
-    for method in [s for s in dir(urlparse) if s.startswith('uses_')]:
-        getattr(urlparse, method).append(scheme)
-
-register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
 class CompilerCache(BytecodeCache):
