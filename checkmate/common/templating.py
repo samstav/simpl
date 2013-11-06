@@ -15,51 +15,21 @@
 """
 Script file templating and management module.
 """
-import copy
 import json
 import logging
-import os
-import urlparse
 
 from jinja2 import BytecodeCache
 from jinja2 import DictLoader
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from jinja2 import TemplateError
-import yaml
 
 from checkmate import exceptions
+from checkmate import functions
 from checkmate.inputs import Input
 from checkmate.keys import hash_SHA512
-from checkmate import utils
 
 CODE_CACHE = {}
 LOG = logging.getLogger(__name__)
-
-
-def get_patterns():
-    """Load regex patterns from patterns.yaml.
-
-    These are effectively macros for blueprint authors to use.
-
-    We cache this so we don't have to parse the yaml frequently. We always
-    return a copy so we don't share the mutable between calls (and clients).
-    """
-    if hasattr(get_patterns, 'cache'):
-        return copy.deepcopy(get_patterns.cache)
-    path = os.path.join(os.path.dirname(__file__), 'patterns.yaml')
-    patterns = yaml.safe_load(open(path, 'r'))
-    get_patterns.cache = patterns
-    return copy.deepcopy(patterns)
-
-
-def register_scheme(scheme):
-    """Use this to register a new scheme with urlparse and have it be
-    parsed in the same way as http is parsed
-    """
-    for method in [s for s in dir(urlparse) if s.startswith('uses_')]:
-        getattr(urlparse, method).append(scheme)
-
-register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
 class CompilerCache(BytecodeCache):
@@ -87,16 +57,6 @@ def do_prepend(value, param='/'):
         return '%s%s' % (param, value)
     else:
         return ''
-
-
-def evaluate(value):
-    """Handle defaults with functions."""
-    if isinstance(value, basestring):
-        if value.startswith('=generate'):
-            # TODO(zns): Optimize. Maybe have Deployment class handle
-            # it
-            value = utils.evaluate(value[1:])
-    return value
 
 
 def parse_url(value):
@@ -139,38 +99,9 @@ def parse(template, **kwargs):
     env.filters['preserve'] = preserve_linefeeds
     env.json = json
     env.globals['parse_url'] = parse_url
-    env.globals['patterns'] = get_patterns()
-    deployment = kwargs.get('deployment')
-    resource = kwargs.get('resource')
-    defaults = kwargs.get('defaults', {})
-    if deployment:
-        if resource:
-            fxn = lambda setting_name: evaluate(
-                utils.escape_yaml_simple_string(
-                    deployment.get_setting(
-                        setting_name,
-                        resource_type=resource['type'],
-                        provider_key=resource['provider'],
-                        service_name=resource['service'],
-                        default=defaults.get(setting_name, '')
-                    )
-                )
-            )
-        else:
-            fxn = lambda setting_name: evaluate(
-                utils.escape_yaml_simple_string(
-                    deployment.get_setting(
-                        setting_name, default=defaults.get(setting_name,
-                                                           '')
-                    )
-                )
-            )
-    else:
-        # noop
-        fxn = lambda setting_name: evaluate(
-            utils.escape_yaml_simple_string(
-                defaults.get(setting_name, '')))
-    env.globals['setting'] = fxn
+    env.globals['patterns'] = functions.get_patterns()
+
+    env.globals['setting'] = functions.get_settings_fxn(**kwargs)
     env.globals['hash'] = hash_SHA512
 
     minimum_kwargs = {

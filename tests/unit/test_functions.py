@@ -17,6 +17,9 @@
 """Tests for Blueprint Functions."""
 import unittest
 
+import mock
+
+from checkmate import exceptions
 from checkmate import functions
 
 
@@ -197,6 +200,12 @@ class TestObjectFunctions(unittest.TestCase):
         function = {'not-exists': 'inputs://nope'}
         self.assertTrue(functions.evaluate(function, **self.data))
 
+    @mock.patch.object(functions, "get_pattern")
+    def test_pattern(self, mock_get_pattern):
+        mock_get_pattern.return_value = "foo"
+        function = {'value': 'patterns.regex.linux_user.required'}
+        self.assertEqual(functions.evaluate(function, **self.data), "foo")
+
 
 class TestSafety(unittest.TestCase):
     """Test core blueprint functions for safety."""
@@ -208,6 +217,20 @@ class TestSafety(unittest.TestCase):
         data['object'] = data
         function = {'value': 'object://object'}
         self.assertEqual(functions.evaluate(function, **data), data)
+
+    def test_deep_evaluation(self):
+        data = {
+            'foo': {
+                'value': {
+                    'if': {
+                        'and': [True, False]
+                    }
+                }
+            },
+            'bar': {'value': {'or': [True]}}
+        }
+        result = functions.parse(data)
+        self.assertEqual(result, {'foo': False, 'bar': True})
 
 
 class TestPathing(unittest.TestCase):
@@ -225,6 +248,12 @@ class TestPathing(unittest.TestCase):
 
     def test_path_blank(self):
         self.assertEqual(functions.get_from_path(''), '')
+        self.assertFalse(functions.path_exists(''))
+
+    def test_path_scheme_only(self):
+        self.assertEqual(functions.get_from_path('https://'), 'https://')
+        self.assertFalse(functions.path_exists('https://'))
+        self.assertFalse(functions.path_exists('foo://', foo=1))
 
     def test_path_scheme_only_scalar(self):
         result = functions.get_from_path('name://', **self.data)
@@ -245,6 +274,80 @@ class TestPathing(unittest.TestCase):
         result = functions.get_from_path('deep://A/B/C', **self.data)
         expected = 'top'
         self.assertEqual(result, expected)
+
+    def test_path_skip_invalid(self):
+        self.assertEqual(functions.get_from_path('blah'), 'blah')
+        self.assertEqual(functions.get_from_path('blah', a=1), 'blah')
+
+
+class TestURIDetection(unittest.TestCase):
+    """Test URI detection."""
+
+    def test_is_uri(self):
+        self.assertTrue(functions.is_uri("http://test"))
+        self.assertTrue(functions.is_uri("options://region"))
+        self.assertTrue(functions.is_uri("resources://A/B/C"))
+
+    def test_is_uri_negative(self):
+        self.assertFalse(functions.is_uri("://test"))
+        self.assertFalse(functions.is_uri("://"))
+        self.assertFalse(functions.is_uri(''))
+        self.assertFalse(functions.is_uri(None))
+        self.assertFalse(functions.is_uri({}))
+
+
+class TestPatterns(unittest.TestCase):
+    """Test Pattern detection and parsing."""
+
+    def test_is_pattern(self):
+        self.assertTrue(functions.is_pattern("patterns.regex.linux_user"))
+
+    def test_is_pattern_not_there(self):
+        self.assertTrue(functions.is_pattern("patterns.foo"))
+
+    def test_is_pattern_negative(self):
+        self.assertFalse(functions.is_pattern("patterns"))
+        self.assertFalse(functions.is_pattern("patterns."))
+        self.assertFalse(functions.is_pattern(''))
+        self.assertFalse(functions.is_pattern(None))
+        self.assertFalse(functions.is_pattern({}))
+
+    def test_get_pattern_missing(self):
+        with self.assertRaises(exceptions.CheckmateDoesNotExist):
+            functions.get_pattern('patterns.foo', {'patterns': {'bar': 1}})
+
+    def test_get_pattern_bad_format(self):
+        with self.assertRaises(exceptions.CheckmateException):
+            functions.get_pattern('patterns.bar', {'patterns': {'bar': int()}})
+
+    def test_get_pattern_no_value(self):
+        with self.assertRaises(exceptions.CheckmateException):
+            functions.get_pattern('patterns.bar', {'patterns': {'bar': {}}})
+
+    def test_get_pattern(self):
+        patterns = {'patterns': {'foo': {'value': 'X'}}}
+        self.assertEqual(functions.get_pattern('patterns.foo', patterns), 'X')
+
+
+class TestParse(unittest.TestCase):
+    def test_parsing(self):
+        data = {'test': {'value': {'and': [True, False]}}}
+        self.assertEqual(functions.parse(data), {'test': False})
+
+    def test_parsing_only_values(self):
+        data = {'value': {'value': False}}
+        self.assertEqual(functions.parse(data), {'value': False})
+
+    def test_plain_object(self):
+        self.assertEqual(functions.parse({}), {})
+        self.assertEqual(functions.parse({'A': 1}), {'A': 1})
+
+    def test_scalars(self):
+        self.assertEqual(functions.parse(1), 1)
+        self.assertEqual(functions.parse('A'), 'A')
+        self.assertEqual(functions.parse(''), '')
+        self.assertEqual(functions.parse(None), None)
+        self.assertEqual(functions.parse(False), False)
 
 
 if __name__ == '__main__':

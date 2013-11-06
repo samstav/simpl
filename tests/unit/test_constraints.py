@@ -134,9 +134,9 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
                                                     'greater-than': ''}))
 
     def test_constraint_detection(self):
-        for test in self.test_data:
-            constraint = cmcon.Constraint.from_constraint(test)
-            self.assertIsInstance(constraint, self.klass, msg=test)
+        for entry in self.test_data:
+            constraint = cmcon.Constraint.from_constraint(entry)
+            self.assertIsInstance(constraint, self.klass, msg=entry)
 
     def test_constraint_tests_less_than(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[0])
@@ -212,9 +212,33 @@ class TestInConstraint(unittest.TestCase):
         self.assertEquals(constraint.message, "Nope. Only http(s)")
 
 
+class TestStaticConstraint(unittest.TestCase):
+
+    klass = cmcon.StaticConstraint
+    test_data = utils.yaml_to_dict("""
+        - check: false
+          message: 'No'
+        """)
+
+    def test_constraint_syntax_check(self):
+        self.assertTrue(self.klass.is_syntax_valid({'check': False}))
+        self.assertTrue(self.klass.is_syntax_valid({'check': True,
+                                                    'message': ''}))
+
+    def test_constraint_detection(self):
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
+        self.assertIsInstance(constraint, self.klass)
+
+    def test_constraint_tests(self):
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
+        self.assertFalse(constraint.test(False))
+        self.assertFalse(constraint.test(True))  # value is ignored
+
+    def test_constraint_message(self):
+        constraint = cmcon.Constraint.from_constraint(self.test_data[0])
+        self.assertEquals(constraint.message, "No")
+
+
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()

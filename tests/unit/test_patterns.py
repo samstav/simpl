@@ -28,7 +28,6 @@ class TestPatterns(unittest.TestCase):
                             os.path.pardir,  # tests
                             os.path.pardir,  # checkmate
                             'checkmate',
-                            'common',
                             'patterns.yaml')
         self.patterns = yaml.safe_load(open(path, 'r'))
 

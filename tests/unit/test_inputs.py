@@ -17,30 +17,30 @@
 """Tests for Input class."""
 import unittest
 
-from checkmate import inputs as cminp
+from checkmate import inputs
 
 
 class TestInput(unittest.TestCase):
     def test_init_method(self):
-        self.assertIsInstance(cminp.Input({}), cminp.Input)
+        self.assertIsInstance(inputs.Input({}), inputs.Input)
 
     def test_string_functionality(self):
-        self.assertEquals(cminp.Input('test'), 'test')
-        self.assertTrue(cminp.Input('test').startswith('t'))
-        self.assertEqual(cminp.Input('A') + cminp.Input('B'), 'AB')
+        self.assertEquals(inputs.Input('test'), 'test')
+        self.assertTrue(inputs.Input('test').startswith('t'))
+        self.assertEqual(inputs.Input('A') + inputs.Input('B'), 'AB')
 
     def test_integer_functionality(self):
-        self.assertEquals(cminp.Input('1'), '1')
-        self.assertIsInstance(cminp.Input(1), int)
-        self.assertEqual(cminp.Input('1') + cminp.Input('2'), '12')
-        self.assertEqual(cminp.Input(1) + cminp.Input(2), 3)
+        self.assertEquals(inputs.Input('1'), '1')
+        self.assertIsInstance(inputs.Input(1), int)
+        self.assertEqual(inputs.Input('1') + inputs.Input('2'), '12')
+        self.assertEqual(inputs.Input(1) + inputs.Input(2), 3)
 
     def test_url_handling(self):
         data = {
             'url': 'http://example.com',
             'certificate': '----- BEGIN ....',
         }
-        url = cminp.Input(data)
+        url = inputs.Input(data)
         self.assertEqual(url, 'http://example.com')
 
         self.assertTrue(hasattr(url, 'protocol'))
@@ -50,7 +50,7 @@ class TestInput(unittest.TestCase):
         self.assertEqual(url.certificate, '----- BEGIN ....')
 
     def test_url_parsing(self):
-        url = cminp.Input('https://example.com:80/path')
+        url = inputs.Input('https://example.com:80/path')
         url.parse_url()
         self.assertEqual(url, 'https://example.com:80/path')
 
@@ -67,14 +67,14 @@ class TestInput(unittest.TestCase):
         self.assertEqual(url.hostname, 'example.com')
 
     def test_attribute_availability(self):
-        url = cminp.Input({})
+        url = inputs.Input({})
         self.assertTrue(hasattr(url, 'url'))
         self.assertTrue(hasattr(url, 'certificate'))
         self.assertTrue(hasattr(url, 'private_key'))
         self.assertTrue(hasattr(url, 'intermediate_key'))
 
     def test_non_standard_urls(self):
-        url = cminp.Input('git://github.com')
+        url = inputs.Input('git://github.com')
         url.parse_url()
         self.assertTrue(hasattr(url, 'url'))
         self.assertEqual(url.url, 'git://github.com')
@@ -84,8 +84,5 @@ class TestInput(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    import sys
-
-    from checkmate import test as cmtest
-
-    cmtest.run_with_params(sys.argv[:])
+    from checkmate import test
+    test.run_with_params()
