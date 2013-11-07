@@ -203,6 +203,7 @@ class Provider(ProviderBase):
             ),
             attributes=operators.PathAttrib('chef_options/attributes:%s' %
                                             key),
+            merge_results=True,
             identity_file=operators.Attrib('private_key_path'),
             description="Push and apply Chef recipes on the server",
             defines=dict(resource=key, provider=self.key, task_tags=['final']),
@@ -712,6 +713,7 @@ class Provider(ProviderBase):
                 identity_file=operators.Attrib('private_key_path'),
                 description="Install basic pre-requisites on %s"
                             % relation['target'],
+                merge_results=True,
                 defines=dict(
                     resource=key, relation=relation_key, provider=self.key
                 ),
@@ -832,6 +834,7 @@ class Provider(ProviderBase):
                 attributes=operators.PathAttrib(
                     'chef_options/attributes:%s' % server['index']
                 ),
+                merge_results=True,
                 identity_file=operators.Attrib('private_key_path'),
                 description="Push and apply Chef recipes on the server",
                 defines={
