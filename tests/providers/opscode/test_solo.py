@@ -1108,6 +1108,24 @@ interfaces/mysql/database_name
         expected = ['recipe[apt]', 'recipe[foo::server]']
         self.assertListEqual(role.kwargs['run_list'], expected)
 
+    def test_manage_role_task_should_have_merge_results_set_to_true(self):
+        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
+        chefmap = chef_map.ChefMap(mox.IgnoreArg())
+        chefmap.get_map_file().AndReturn(self.map_file)
+
+        self.mox.ReplayAll()
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
+        deployments.Manager.plan(self.deployment, context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(context,
+                                                               self.deployment)
+        workflow = cm_wf.init_spiff_workflow(wf_spec,
+                                             self.deployment, context,
+                                             "w_id", "BUILD")
+        manage_role_task = workflow.spec.task_specs[
+            'Write Role foo-master for 0']
+        self.assertTrue(manage_role_task.merge_results)
+
     def test_cook_tasks_should_have_merge_results_set_to_true(self):
         self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
         chefmap = chef_map.ChefMap(mox.IgnoreArg())

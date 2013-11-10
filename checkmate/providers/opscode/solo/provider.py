@@ -477,6 +477,7 @@ class Provider(ProviderBase):
                             "it into the application role. It will be "
                             "used by the Chef recipe to access global "
                             "data",
+                merge_results=True,
                 defines={
                     'provider': self.key,
                     'resource': resource_key
