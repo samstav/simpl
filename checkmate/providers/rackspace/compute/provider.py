@@ -278,7 +278,9 @@ class Provider(RackspaceComputeProviderBase):
             if match == str(value['memory']):
                 LOG.debug("Mapping flavor from '%s' to '%s'", memory, key)
                 flavor = key
-                break
+                if key.lower().startswith('performance'):
+                    LOG.info("Using performance flavor %s.", key)
+                    break
         if not flavor:
             raise cmexc.CheckmateNoMapping(
                 "No flavor mapping for '%s' in '%s'" % (memory, self.key))
@@ -700,7 +702,7 @@ class Provider(RackspaceComputeProviderBase):
             servers += api.list()
 
         results = []
-        for idx, server in enumerate(servers):
+        for _, server in enumerate(servers):
             if 'RAX-CHECKMATE' in server.metadata:
                 continue
 
