@@ -155,7 +155,8 @@ class ChefEnvironment(object):
             else:
                 msg = ("Unable to delete environment %s. Reason '%s'. Error "
                        "Number %s" % (self._env_path, ose.strerror, ose.errno))
-                raise exceptions.CheckmateException(msg, exceptions.CAN_RESUME)
+                raise exceptions.CheckmateException(
+                    msg, options=exceptions.CAN_RESUME)
 
     def create_environment_keys(self, private_key=None, public_key_ssh=None):
         """Put keys in an existing environment
