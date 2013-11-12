@@ -174,7 +174,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                                                           deployment)
             # Wire up tasks if not wired in somewhere
             if cleanup_result and not cleanup_result['root'].inputs:
-                wf_spec.start.connect(cleanup_result['root'])
+                root_task.connect(cleanup_result['root'])
 
         resources_to_del = deployment.get_non_deleted_resources().iteritems()
         for key, resource in resources_to_del:
