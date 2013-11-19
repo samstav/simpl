@@ -249,8 +249,6 @@ class ChefMap(object):
         :param value: the value of the mapping. This is evaluated elsewhere.
         :param output: a dict to apply the mapping to
         """
-        # FIXME: hack to get v0.5 out. Until we implement search() or Craig's
-        # ValueFilter. For now, just write arrays for all 'clients' mappings
         if not ChefMap.is_writable_val(value):
             return
         write_array = False
@@ -261,7 +259,6 @@ class ChefMap(object):
 
         for target in mapping.get('targets', []):
             url = ChefMap.parse_map_uri(target)
-            existing = value
             if url['scheme'] == 'attributes':
                 if 'resource' not in mapping:
                     message = 'Resource hint required in attribute mapping'
@@ -271,44 +268,44 @@ class ChefMap(object):
                 if path not in output:
                     output[path] = {}
                 if write_array:
-                    existing = utils.read_path(output[path],
-                                               url['path'].strip('/'))
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                utils.write_path(
-                    output[path], url['path'].strip('/'), existing)
-                LOG.debug("Wrote to target '%s': %s", target, existing)
+                    value = ChefMap._concat_values(output[path],
+                                                   url['path'].strip('/'),
+                                                   value)
+                utils.write_path(output[path], url['path'].strip('/'), value)
+                LOG.debug("Wrote to target '%s': %s", target, value)
             elif url['scheme'] == 'outputs':
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
                 if write_array:
-                    existing = utils.read_path(output[url['scheme']],
-                                               url['path'].strip('/'))
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
+                    value = ChefMap._concat_values(output[url['scheme']],
+                                                   url['path'].strip('/'),
+                                                   value)
                 utils.write_path(
-                    output[url['scheme']], url['path'].strip('/'), existing
+                    output[url['scheme']], url['path'].strip('/'), value
                 )
-                LOG.debug("Wrote to target '%s': %s", target, existing)
+                LOG.debug("Wrote to target '%s': %s", target, value)
             elif url['scheme'] in ['databags', 'encrypted-databags', 'roles']:
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
                 path = os.path.join(url['netloc'], url['path'].strip('/'))
                 if write_array:
-                    existing = utils.read_path(output[url['scheme']], path)
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                utils.write_path(output[url['scheme']], path, existing)
-                LOG.debug("Wrote to target '%s': %s", target, existing)
+                    value = ChefMap._concat_values(output[url['scheme']],
+                                                   path,
+                                                   value)
+                utils.write_path(output[url['scheme']], path, value)
+                LOG.debug("Wrote to target '%s': %s", target, value)
             else:
                 raise NotImplementedError("Unsupported url scheme '%s' in url "
                                           "'%s'" % (url['scheme'], target))
+
+    @staticmethod
+    def _concat_values(scheme, path, value):
+        values = utils.read_path(scheme, path) or []
+        if isinstance(value, list):
+            values.extend(value)
+        else:
+            values.append(value)
+        return list(set(values))  # Eliminate duplicates
 
     @staticmethod
     def evaluate_mapping_source(mapping, data):
