@@ -300,6 +300,7 @@ class ChefMap(object):
 
     @staticmethod
     def _concat_values(scheme, path, value):
+        """Retrieves values from read path and adss 'value' to them."""
         values = utils.read_path(scheme, path) or []
         if isinstance(value, list):
             values.extend(value)
