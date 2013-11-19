@@ -261,6 +261,7 @@ class ChefMap(object):
 
         for target in mapping.get('targets', []):
             url = ChefMap.parse_map_uri(target)
+            existing = value
             if url['scheme'] == 'attributes':
                 if 'resource' not in mapping:
                     message = 'Resource hint required in attribute mapping'
@@ -276,9 +277,8 @@ class ChefMap(object):
                         existing = []
                     if value not in existing:
                         existing.append(value)
-                    value = existing
-                utils.write_path(output[path], url['path'].strip('/'), value)
-                LOG.debug("Wrote to target '%s': %s", target, value)
+                utils.write_path(output[path], url['path'].strip('/'), existing)
+                LOG.debug("Wrote to target '%s': %s", target, existing)
             elif url['scheme'] == 'outputs':
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
@@ -289,11 +289,10 @@ class ChefMap(object):
                         existing = []
                     if value not in existing:
                         existing.append(value)
-                    value = existing
                 utils.write_path(
-                    output[url['scheme']], url['path'].strip('/'), value
+                    output[url['scheme']], url['path'].strip('/'), existing
                 )
-                LOG.debug("Wrote to target '%s': %s", target, value)
+                LOG.debug("Wrote to target '%s': %s", target, existing)
             elif url['scheme'] in ['databags', 'encrypted-databags', 'roles']:
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
@@ -304,9 +303,8 @@ class ChefMap(object):
                         existing = []
                     if value not in existing:
                         existing.append(value)
-                    value = existing
-                utils.write_path(output[url['scheme']], path, value)
-                LOG.debug("Wrote to target '%s': %s", target, value)
+                utils.write_path(output[url['scheme']], path, existing)
+                LOG.debug("Wrote to target '%s': %s", target, existing)
             else:
                 raise NotImplementedError("Unsupported url scheme '%s' in url "
                                           "'%s'" % (url['scheme'], target))
