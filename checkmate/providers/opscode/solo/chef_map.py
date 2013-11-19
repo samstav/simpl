@@ -277,7 +277,8 @@ class ChefMap(object):
                         existing = []
                     if value not in existing:
                         existing.append(value)
-                utils.write_path(output[path], url['path'].strip('/'), existing)
+                utils.write_path(
+                    output[path], url['path'].strip('/'), existing)
                 LOG.debug("Wrote to target '%s': %s", target, existing)
             elif url['scheme'] == 'outputs':
                 if url['scheme'] not in output:
