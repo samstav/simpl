@@ -21,6 +21,8 @@ import logging
 from SpiffWorkflow import operators
 from SpiffWorkflow.specs import Celery
 
+from checkmate import exceptions
+from checkmate.providers.core.script import manager
 from checkmate import providers
 from checkmate import ssh
 
@@ -70,16 +72,31 @@ class Provider(providers.ProviderBase):
             resource, key, wfspec, deployment, context, wait_on)
         properties = component.get('properties') or {}
         scripts = properties.get('scripts') or {}
-        script_object = scripts.get('install')
-        if not script_object:
+        install_script = scripts.get('install')
+        if not install_script:
             return dict(root=None, final=None)
+        elif isinstance(install_script, basestring):
+            script_object = manager.Script({'body': install_script})
+        else:
+            script_object = manager.Script(install_script)
+            inputs = deployment.get('inputs') or {}
+            blueprint = deployment.get('blueprint') or {}
+            options = blueprint.get('options') or {}
+            services = blueprint.get('services') or {}
+            resources = deployment.get('resources') or {}
+            params = script_object.evaluate_parameters(inputs=inputs,
+                                                       options=options,
+                                                       services=services,
+                                                       resources=resources,
+                                                       deployment=deployment)
+            script_object.parameters = params
 
         timeout = deployment.get_setting('timeout', provider_key=self.key,
                                          default=300)
         host_id = resource['hosted_on']
         task_name = 'Execute Script %s (%s)' % (key, host_id)
-        host_ip_path = "instance:%s/public_ip" % host_id
-        password_path = 'instance:%s/password' % host_id
+        host_ip_path = "resources/%s/instance/public_ip" % host_id
+        password_path = 'resources/%s/instance/password' % host_id
         type_path = 'resources/%s/desired-state/os-type' % host_id
         private_key = deployment.settings().get('keys', {}).get(
             'deployment', {}).get('private_key')
@@ -97,7 +114,7 @@ class Provider(providers.ProviderBase):
                        "root"],
             password=operators.PathAttrib(password_path),
             private_key=private_key,
-            install_script=script_object,
+            install_script=script_object.body,
             host_os=operators.PathAttrib(type_path),
             timeout=timeout,
             properties={
