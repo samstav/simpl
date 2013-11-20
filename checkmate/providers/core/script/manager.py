@@ -149,8 +149,10 @@ class Script(object):
             return self._body
         else:
             parameters = self.evaluate_parameters() or {}
+            extra_globals = {'patterns': functions.get_patterns()}
             # pylint: disable=W0142
             return templating.parse(self.template,
+                                    extra_globals=extra_globals,
                                     **parameters)
 
     def detect_type(self):

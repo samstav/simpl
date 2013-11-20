@@ -86,10 +86,11 @@ def preserve_linefeeds(value):
     return value.replace("\n", "\\n").replace("\r", "")
 
 
-def parse(template, **kwargs):
+def parse(template, extra_globals=None, **kwargs):
     """Parse template.
 
     :param template: the template contents as a string
+    :param extra_globals: additional globals to include
     :param kwargs: extra arguments are passed to the renderer
     """
     template_map = {'template': template}
@@ -103,6 +104,8 @@ def parse(template, **kwargs):
 
     env.globals['setting'] = functions.get_settings_fxn(**kwargs)
     env.globals['hash'] = hash_SHA512
+    if extra_globals:
+        env.globals.update(extra_globals)
 
     minimum_kwargs = {
         'deployment': {'id': ''},
