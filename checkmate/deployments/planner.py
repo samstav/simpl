@@ -183,7 +183,7 @@ class Planner(classes.ExtensibleDict):
 
         # FIXME: we need to figure a way to make this happen in the providers
         # Set region to pick up the right images
-        if not context.region:
+        if not context['region']:
             region = self.deployment.get_setting('region')
             if region:
                 context.region = region

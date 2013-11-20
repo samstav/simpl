@@ -15,7 +15,6 @@
 #    under the License.
 
 """Tests for Blueprint Functions."""
-import copy
 import unittest
 
 import mock

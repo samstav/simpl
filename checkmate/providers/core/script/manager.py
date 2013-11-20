@@ -136,7 +136,10 @@ class Script(object):
         LOG.debug("Evaluating parameters: %s", self.parameters)
         results = copy.deepcopy(self.parameters)
         for key, value in self.parameters.iteritems():
-            result = functions.evaluate(value, **kwargs)
+            if isinstance(value, basestring):
+                result = functions.evaluate({'value': value}, **kwargs)
+            else:
+                result = functions.evaluate(value, **kwargs)
             if result != value:
                 results[key] = result
                 LOG.debug("Evaluated parameter: %s=%s", key, result)
