@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Blueprint Functions."""
+import copy
 import unittest
 
 import mock
@@ -205,6 +206,24 @@ class TestObjectFunctions(unittest.TestCase):
         mock_get_pattern.return_value = "foo"
         function = {'value': 'patterns.regex.linux_user.required'}
         self.assertEqual(functions.evaluate(function, **self.data), "foo")
+
+    def test_settings(self):
+        """Test that settings:// call deployment.get_setting."""
+        deployment = mock.Mock()
+        deployment.get_setting = mock.Mock(return_value="foo")
+        function = {'value': 'settings://region'}
+        self.assertEqual(functions.evaluate(function, deployment=deployment,
+                         resource={}, **self.data), "foo")
+
+    def test_settings_defaults(self):
+        """Test that settings:// call deployment.get_setting with default."""
+        deployment = mock.Mock()
+        deployment.get_setting = mock.Mock(return_value="bar")
+        function = {'value': 'settings://region'}
+        self.assertEqual(functions.evaluate(function, deployment=deployment,
+                         resource={}, defaults={'region': 'bar'}, **self.data),
+                         "bar")
+        deployment.get_setting.assert_called_with("region", default="bar")
 
 
 class TestSafety(unittest.TestCase):
