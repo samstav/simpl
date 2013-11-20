@@ -268,18 +268,26 @@ class ChefMap(object):
                 if path not in output:
                     output[path] = {}
                 if write_array:
-                    value = ChefMap._concat_values(output[path],
-                                                   url['path'].strip('/'),
-                                                   value)
+                    existing = utils.read_path(output[path],
+                                               url['path'].strip('/'))
+                    if not existing:
+                        existing = []
+                    if value not in existing:
+                        existing.append(value)
+                    value = existing
                 utils.write_path(output[path], url['path'].strip('/'), value)
                 LOG.debug("Wrote to target '%s': %s", target, value)
             elif url['scheme'] == 'outputs':
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
                 if write_array:
-                    value = ChefMap._concat_values(output[url['scheme']],
-                                                   url['path'].strip('/'),
-                                                   value)
+                    existing = utils.read_path(output[url['scheme']],
+                                               url['path'].strip('/'))
+                    if not existing:
+                        existing = []
+                    if value not in existing:
+                        existing.append(value)
+                    value = existing
                 utils.write_path(
                     output[url['scheme']], url['path'].strip('/'), value
                 )
@@ -289,24 +297,17 @@ class ChefMap(object):
                     output[url['scheme']] = {}
                 path = os.path.join(url['netloc'], url['path'].strip('/'))
                 if write_array:
-                    value = ChefMap._concat_values(output[url['scheme']],
-                                                   path,
-                                                   value)
+                    existing = utils.read_path(output[url['scheme']], path)
+                    if not existing:
+                        existing = []
+                    if value not in existing:
+                        existing.append(value)
+                    value = existing
                 utils.write_path(output[url['scheme']], path, value)
                 LOG.debug("Wrote to target '%s': %s", target, value)
             else:
                 raise NotImplementedError("Unsupported url scheme '%s' in url "
                                           "'%s'" % (url['scheme'], target))
-
-    @staticmethod
-    def _concat_values(scheme, path, value):
-        """Retrieves values from read path and adss 'value' to them."""
-        values = utils.read_path(scheme, path) or []
-        if isinstance(value, list):
-            values.extend(value)
-        else:
-            values.append(value)
-        return list(set(values))  # Eliminate duplicates
 
     @staticmethod
     def evaluate_mapping_source(mapping, data):
