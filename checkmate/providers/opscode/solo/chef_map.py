@@ -259,6 +259,9 @@ class ChefMap(object):
 
         for target in mapping.get('targets', []):
             url = ChefMap.parse_map_uri(target)
+            writable_value = value
+            writable_path = url['path'].strip('/')
+
             if url['scheme'] == 'attributes':
                 if 'resource' not in mapping:
                     message = 'Resource hint required in attribute mapping'
@@ -267,47 +270,29 @@ class ChefMap(object):
                 path = '%s:%s' % (url['scheme'], mapping['resource'])
                 if path not in output:
                     output[path] = {}
-                if write_array:
-                    existing = utils.read_path(output[path],
-                                               url['path'].strip('/'))
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                    value = existing
-                utils.write_path(output[path], url['path'].strip('/'), value)
-                LOG.debug("Wrote to target '%s': %s", target, value)
+                seed = output[path]
             elif url['scheme'] == 'outputs':
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
-                if write_array:
-                    existing = utils.read_path(output[url['scheme']],
-                                               url['path'].strip('/'))
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                    value = existing
-                utils.write_path(
-                    output[url['scheme']], url['path'].strip('/'), value
-                )
-                LOG.debug("Wrote to target '%s': %s", target, value)
+                seed = output[url['scheme']]
             elif url['scheme'] in ['databags', 'encrypted-databags', 'roles']:
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}
-                path = os.path.join(url['netloc'], url['path'].strip('/'))
-                if write_array:
-                    existing = utils.read_path(output[url['scheme']], path)
-                    if not existing:
-                        existing = []
-                    if value not in existing:
-                        existing.append(value)
-                    value = existing
-                utils.write_path(output[url['scheme']], path, value)
-                LOG.debug("Wrote to target '%s': %s", target, value)
+                seed = output[url['scheme']]
+                writable_path = os.path.join(url['netloc'], url['path'].strip(
+                    '/'))
             else:
                 raise NotImplementedError("Unsupported url scheme '%s' in url "
                                           "'%s'" % (url['scheme'], target))
+            if write_array:
+                existing = utils.read_path(seed, writable_path)
+                if not existing:
+                    existing = []
+                if writable_value not in existing:
+                    existing.append(writable_value)
+                writable_value = existing
+            utils.write_path(seed, writable_path, writable_value)
+            LOG.debug("Wrote to target '%s': %s", target, writable_value)
 
     @staticmethod
     def evaluate_mapping_source(mapping, data):
