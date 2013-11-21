@@ -300,11 +300,15 @@ class Router(object):
     @utils.with_tenant
     def preview_deployment(self, tenant_id=None):
         """Parse and preview a deployment and its workflow."""
-        deployment = _content_to_deployment(tenant_id=tenant_id)
+        try:
+            deployment = _content_to_deployment(bottle.request,
+                                                tenant_id=tenant_id)
+        except exceptions.CheckmateHOTTemplateException:
+            return self.stack_router.post_stack_compat(tenant_id=tenant_id)
+
         context = bottle.request.environ['context']
         results = self.manager.plan(deployment, context)
-        spec = workflow_spec.WorkflowSpec.create_build_spec(
-            results, context)
+        spec = workflow_spec.WorkflowSpec.create_build_spec(context, results)
         serializer = DictionarySerializer()
         serialized_spec = spec.serialize(serializer)
         results['workflow'] = dict(wf_spec=serialized_spec)
