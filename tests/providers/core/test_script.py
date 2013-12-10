@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# pylint: disable=R0904
+# pylint: disable=R0904,C0103
 
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
@@ -40,6 +40,7 @@ class TestScriptProvider(test.ProviderTester):
 
 
 class TestResources(unittest.TestCase):
+
     def setUp(self):
         providers.base.PROVIDER_CLASSES = {}
         providers.register_providers([script.Provider, test.TestProvider])
@@ -110,59 +111,59 @@ class TestScriptTasks(unittest.TestCase):
         providers.register_providers([script.Provider, test.TestProvider])
 
         self.deployment = deployment.Deployment(utils.yaml_to_dict("""
-                id: 'DEP-ID-1000'
-                tenantId: T1000
-                environment:
-                  name: Rackspace Open Cloud
-                  providers:
-                    script:
-                      vendor: core
-                      constraints:
-                      - timeout: 600
-                      catalog:
-                        application:
-                          openstack:
-                            provides:
-                            - application: http
-                            requires:
-                            - host: linux
-                            properties:
-                              scripts:
-                                install: |
-                                    apt-get update
-                                    apt-get install -y git
-                                    git clone git://github.com/openstack-dev/\
+            id: 'DEP-ID-1000'
+            tenantId: T1000
+            environment:
+              name: Rackspace Open Cloud
+              providers:
+                script:
+                  vendor: core
+                  constraints:
+                  - timeout: 600
+                  catalog:
+                    application:
+                      openstack:
+                        provides:
+                        - application: http
+                        requires:
+                        - host: linux
+                        properties:
+                          scripts:
+                            install: |
+                                apt-get update
+                                apt-get install -y git
+                                git clone git://github.com/openstack-dev/\
 devstack.git
-                                    cd devstack
-                                    echo 'DATABASE_PASSWORD=simple' > localrc
-                                    echo 'RABBIT_PASSWORD=simple' >> localrc
-                                    echo 'SERVICE_TOKEN=1111' >> localrc
-                                    echo 'SERVICE_PASSWORD=simple' >> localrc
-                                    echo 'ADMIN_PASSWORD=simple' >> localrc
-                                    ./stack.sh > stack.out
-                    base:
-                      vendor: test
-                      catalog:
-                        compute:
-                          linux_instance:
-                            id: linux_instance
-                            is: compute
-                            provides:
-                            - compute: linux
-                blueprint:
-                  name: "DevStack"
-                  description: "Simple Blueprint for deploying DevStack."
-                  services:
-                    devstack:
-                      component:
-                        interface: http
-                        type: application
-                        name: openstack
-                      constraints:
-                      - setting: memory
-                        resource_type: compute
-                        value: 2048
-            """))
+                                cd devstack
+                                echo 'DATABASE_PASSWORD=simple' > localrc
+                                echo 'RABBIT_PASSWORD=simple' >> localrc
+                                echo 'SERVICE_TOKEN=1111' >> localrc
+                                echo 'SERVICE_PASSWORD=simple' >> localrc
+                                echo 'ADMIN_PASSWORD=simple' >> localrc
+                                ./stack.sh > stack.out
+                base:
+                  vendor: test
+                  catalog:
+                    compute:
+                      linux_instance:
+                        id: linux_instance
+                        is: compute
+                        provides:
+                        - compute: linux
+            blueprint:
+              name: "DevStack"
+              description: "Simple Blueprint for deploying DevStack."
+              services:
+                devstack:
+                  component:
+                    interface: http
+                    type: application
+                    name: openstack
+                  constraints:
+                  - setting: memory
+                    resource_type: compute
+                    value: 2048
+        """))
 
     def test_install_script(self):
         """Verify workflow includes the supplied install script run."""
@@ -182,6 +183,72 @@ devstack.git
             .create_build_spec(self.context, self.deployment)
         spec = workflow_spec.task_specs['Execute Script 0 (1)']
         self.assertEqual(spec.kwargs['timeout'], 600)
+
+
+class TestScriptParameters(unittest.TestCase):
+    """Test script parameter resolution."""
+
+    def setUp(self):
+        self.context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                                 username='MOCK_USER')
+        providers.base.PROVIDER_CLASSES = {}
+        providers.register_providers([script.Provider, test.TestProvider])
+
+        self.deployment = deployment.Deployment(utils.yaml_to_dict("""
+            id: 'DEP-ID-1000'
+            tenantId: T1000
+            blueprint:
+              name: MySQL Database
+              services:
+                db:
+                  component:
+                    resource_type: database
+                    interface: mysql
+            environment:
+              name: test
+              providers:
+                script:
+                  vendor: core
+                  catalog:
+                    database:
+                      mysql:
+                        provides:
+                        - database: mysql
+                        requires:
+                        - host: linux
+                        properties:
+                          scripts:
+                            install:
+                              template: '{{something}}/{{test}}/{{seek}}'
+                              parameters:
+                                something:
+                                  value: 1
+                                test:
+                                  value: inputs://test
+                                seek:
+                                  value: settings://other
+                                # TODO:
+                                # host_ip:
+                                #   value: requirements://host/ip
+                base:
+                  vendor: test
+                  catalog:
+                    compute:
+                      linux_instance:
+                        provides:
+                        - compute: linux
+            inputs:
+              test: x
+              other: y
+        """))
+
+    def test_install_script(self):
+        """Verify workflow includes the supplied install script run."""
+        deployments.Manager.plan(self.deployment, self.context)
+        workflow_spec = cmwfspec.WorkflowSpec\
+            .create_build_spec(self.context, self.deployment)
+        spec = workflow_spec.task_specs['Execute Script 0 (1)']
+        self.assertEqual(spec.kwargs['install_script'], "1/x/y")
 
 
 class TestSingleWorkflow(test.StubbedWorkflowBase):
@@ -266,6 +333,4 @@ devstack.git
 
 
 if __name__ == '__main__':
-    import sys
-
-    test.run_with_params(sys.argv[:])
+    test.run_with_params()

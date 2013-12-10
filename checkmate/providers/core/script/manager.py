@@ -20,6 +20,7 @@ import logging
 
 from checkmate.common import templating
 from checkmate import exceptions
+from checkmate import functions
 
 LOG = logging.getLogger(__name__)
 
@@ -128,10 +129,34 @@ class Script(object):
         self.type = script.get('type') or self.detect_type()
         self.parameters = script.get('parameters') or {}
 
+    def evaluate_parameters(self, **kwargs):
+        """Returns an evaluated version of the parameters."""
+        if not self.parameters:
+            return
+        LOG.debug("Evaluating parameters: %s", self.parameters)
+        results = copy.deepcopy(self.parameters)
+        for key, value in self.parameters.iteritems():
+            if isinstance(value, basestring):
+                result = functions.evaluate({'value': value}, **kwargs)
+            else:
+                result = functions.evaluate(value, **kwargs)
+            if result != value:
+                results[key] = result
+                LOG.debug("Evaluated parameter: %s=%s", key, result)
+        return results
+
     @property
     def body(self):
         """Return body (evaluates it if it is a template."""
-        return self._body or templating.parse(self.template, **self.parameters)
+        if self._body:
+            return self._body
+        else:
+            parameters = self.evaluate_parameters() or {}
+            extra_globals = {'patterns': functions.get_patterns()}
+            # pylint: disable=W0142
+            return templating.parse(self.template,
+                                    extra_globals=extra_globals,
+                                    **parameters)
 
     def detect_type(self):
         """Detect script type based on properties such as the name or body."""

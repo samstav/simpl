@@ -118,7 +118,10 @@ def get_from_path(path, **kwargs):
         return path
     try:
         parsed = urlparse.urlparse(path)
-        focus = kwargs[parsed.scheme]
+        if parsed.scheme == 'settings':
+            focus = get_setting_dict(parsed.netloc or parsed.path, **kwargs)
+        else:
+            focus = kwargs[parsed.scheme]
         if parsed.netloc or parsed.path:
             combined = '%s/%s' % (parsed.netloc, parsed.path)
             combined = combined.replace('//', '/').strip('/')
@@ -170,6 +173,13 @@ def eval_blueprint_fxn(value):
             # it
             value = utils.evaluate(value[1:])
     return value
+
+
+def get_setting_dict(setting, **kwargs):
+    """Get setting from a deployment with resource context."""
+    fxn = get_settings_fxn(**kwargs)
+    value = fxn(setting)
+    return {setting: value}
 
 
 def get_settings_fxn(**kwargs):

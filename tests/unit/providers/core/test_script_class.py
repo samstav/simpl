@@ -104,7 +104,7 @@ class TestTemplating(unittest.TestCase):
         self.assertTrue(hasattr(script, "template"))
         self.assertEqual(script.body, '#!/bin/python\nprint "hello"')
 
-    def test_simple_parameter(self):
+    def test_static_parameter(self):
         """Static parameters gets passed to template."""
         data = {
             'template': '#!/bin/python\nprint "{{test}}"',
