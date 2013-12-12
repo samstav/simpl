@@ -97,8 +97,8 @@ class Provider(providers.ProviderBase):
         host_ip_path = "resources/%s/instance/public_ip" % host_id
         password_path = 'resources/%s/instance/password' % host_id
         desired_state = deployment['resources'][host_id].get('desired-state')
-        host_os = desired_state.get('host-os') or 'linux'
-        LOG.info('Script provider: host-os is %s', host_os)
+        host_os = desired_state.get('os-type') or 'linux'
+        LOG.info('Script provider: os-type is %s', host_os)
         private_key = deployment.settings().get('keys', {}).get(
             'deployment', {}).get('private_key')
         queued_task_dict = context.get_queued_task_dict(
