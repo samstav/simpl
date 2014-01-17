@@ -815,7 +815,8 @@ class Provider(ProviderBase):
                 root_task = reconfigure_task
             result = {'root': root_task, 'final': reconfigure_task}
         else:
-            name = 'Reconfigure %s: client ready' % server['component']
+            name = 'Reconfigure %s: client ready %s' % (server['component'],
+                                                        server['index'])
             host_idx = server.get('hosted_on', server['index'])
             run_list = self._get_component_run_list(server_component)
             instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
