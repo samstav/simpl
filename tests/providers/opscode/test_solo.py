@@ -1009,7 +1009,7 @@ interfaces/mysql/database_name
             'Write Role foo-master for 0',
             'Configure foo: 0 (frontend)',
             'Reconfig Chef Data for 2',
-            'Reconfigure bar: client ready',
+            'Reconfigure bar: client ready 2',
             'Wait before deleting cookbooks',
             'Delete Cookbooks',
         ]
@@ -1147,7 +1147,7 @@ interfaces/mysql/database_name
         self.assertTrue(workflow.spec.task_specs[
             "Configure foo: 0 (frontend)"].merge_results)
         self.assertTrue(workflow.spec.task_specs[
-            "Reconfigure bar: client ready"].merge_results)
+            "Reconfigure bar: client ready 2"].merge_results)
 
     def test_workflow_execution(self):
         self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
