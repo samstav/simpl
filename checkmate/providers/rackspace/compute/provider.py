@@ -656,11 +656,12 @@ class Provider(RackspaceComputeProviderBase):
             windows = results['compute']['windows_instance']
             if types:
                 for image in types.values():
-                    choice = dict(name=image['name'], value=image['os'])
-                    if image['type'] == 'windows':
-                        windows['options']['os']['choice'].append(choice)
-                    else:
-                        linux['options']['os']['choice'].append(choice)
+                    if 'pvhvm' not in image['name'].lower():
+                        choice = dict(name=image['name'], value=image['os'])
+                        if image['type'] == 'windows':
+                            windows['options']['os']['choice'].append(choice)
+                        else:
+                            linux['options']['os']['choice'].append(choice)
 
             if flavors:
                 for flavor in flavors.values():
