@@ -245,10 +245,12 @@ class Provider(RackspaceComputeProviderBase):
         if not utils.is_uuid(image):
             # Assume it is an OS name and find it
             for key, value in image_types.iteritems():
-                if image == value['name'] or image == value['os']:
-                    LOG.debug("Mapping image from '%s' to '%s'", image, key)
-                    image = key
-                    break
+                if 'pvhvm' not in value['name'].lower():
+                    if image == value['name'] or image == value['os']:
+                        LOG.debug(
+                            "Mapping image from '%s' to '%s'", image, key)
+                        image = key
+                        break
 
         if not utils.is_uuid(image):
             # Sounds like we did not match an image
