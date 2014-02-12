@@ -79,7 +79,7 @@ def create_server(context, name, region=None, api=None, flavor="2",
 
 
 @ctask.task(base=cprov.RackspaceProviderTask, default_retry_delay=15,
-            max_retries=40, provider=provider.Provider)
+            max_retries=80, provider=provider.Provider)
 @statsd.collect
 def wait_on_build(context, server_id, region=None, ip_address_type='public',
                   api=None):
