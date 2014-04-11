@@ -1104,10 +1104,9 @@ class Deployment(morpheus.MorpheusDict):
         elif parsed_url['scheme'] == 'services':
             return utils.read_path(kwargs['services'], parsed_url['path'])
         else:
-            raise exceptions.CheckmateValidationException(
-                "display-output scheme not supported: %s" %
-                parsed_url['scheme']
-            )
+            msg = "Unsupported display-output scheme: %s" % parsed_url['scheme']
+            LOG.info(msg)
+            raise exceptions.CheckmateValidationException(msg)
         return None
 
     def find_display_output_definitions(self):
@@ -1179,7 +1178,7 @@ class Deployment(morpheus.MorpheusDict):
                     if definition.get('is-secret', False) is True:
                         entry['status'] = 'AVAILABLE'
             except (KeyError, AttributeError) as exc:
-                LOG.debug("Error in display-output: %s in %s", exc, name)
+                LOG.info("Error in display-output: %s in %s", exc, name)
             if 'extra-sources' in definition:
                 for key, source in definition['extra-sources'].items():
                     try:
