@@ -833,7 +833,7 @@ def generate_password(min_length=None, max_length=None, required_chars=None,
     if max_length and min_length and max_length != min_length:
         password_length = random.randint(min_length, max_length)
     else:
-        password_length = max_length or min_length or 8
+        password_length = max_length or min_length or 12
 
     # If not specified, default valid_chars to letters and numbers
     valid_chars = valid_chars or ''.join([
