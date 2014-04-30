@@ -52,12 +52,12 @@ class TestGeneratePassword(unittest.TestCase):
 
     def test_generate_password_with_defaults(self):
         password = utils.generate_password()
-        self.assertEqual(8, len(password))
+        self.assertEqual(12, len(password))
         self.assertAllCharsAreValid(password, DEFAULT_VALID_CHARS)
 
     def test_generate_password_with_min_length(self):
-        password = utils.generate_password(min_length=12)
-        self.assertEqual(12, len(password))
+        password = utils.generate_password(min_length=8)
+        self.assertEqual(8, len(password))
 
     def test_generate_password_with_max_length(self):
         password = utils.generate_password(max_length=14)
