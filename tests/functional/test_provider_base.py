@@ -158,7 +158,7 @@ class TestProviderBase(unittest.TestCase):
         provider = cmbase.ProviderBase({})
         self.assertIsInstance(uuid.UUID(provider.evaluate("generate_uuid()")),
                               uuid.UUID)
-        self.assertEqual(len(provider.evaluate("generate_password()")), 8)
+        self.assertEqual(len(provider.evaluate("generate_password()")), 12)
         self.assertRaises(NameError, provider.evaluate, "unknown()")
 
     def test_get_setting(self):
