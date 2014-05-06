@@ -98,8 +98,7 @@ class Manager(object):
         meta = tags or context.get("metadata", None)
         try:
             server = api.servers.create(name, image_object, flavor_object,
-                                        meta=meta, files=files,
-                                        disk_config='AUTO')
+                                        meta=meta, files=files)
         except ncexc.OverLimit as exc:
             raise cmexec.CheckmateException(
                 message=str(exc),
