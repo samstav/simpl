@@ -212,8 +212,7 @@ class TestNovaCompute(test.ProviderTester):
             meta={
                 'RAX-CHECKMATE':
                 'http://MOCK/TMOCK/deployments/DEP/resources/1'
-            },
-            disk_config='AUTO'
+            }
         )
 
         postback.assert_called_once_with('DEP', {
