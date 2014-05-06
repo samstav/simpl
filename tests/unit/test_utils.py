@@ -572,11 +572,11 @@ class TestUtils(unittest.TestCase):
 
     def test_generate_password(self):
         password = utils.evaluate('generate_password()')
-        self.assertEqual(8, len(password))
+        self.assertEqual(12, len(password))
 
     def test_generate_12_character_password(self):
         password = utils.evaluate('generate_password(min_length=12)')
-        self.assertEqual(12, len(password))
+        self.assertEqual(8, len(password))
 
     def test_escape_yaml_simple_string_simple(self):
         self.assertEqual(utils.escape_yaml_simple_string('simple'), "simple")
