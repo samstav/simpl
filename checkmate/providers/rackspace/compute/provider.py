@@ -245,12 +245,10 @@ class Provider(RackspaceComputeProviderBase):
         if not utils.is_uuid(image):
             # Assume it is an OS name and find it
             for key, value in image_types.iteritems():
-                if 'pvhvm' not in value['name'].lower():
-                    if image == value['name'] or image == value['os']:
-                        LOG.debug(
-                            "Mapping image from '%s' to '%s'", image, key)
-                        image = key
-                        break
+                if image == value['name'] or image == value['os']:
+                    LOG.debug("Mapping image from '%s' to '%s'", image, key)
+                    image = key
+                    break
 
         if not utils.is_uuid(image):
             # Sounds like we did not match an image
@@ -658,12 +656,11 @@ class Provider(RackspaceComputeProviderBase):
             windows = results['compute']['windows_instance']
             if types:
                 for image in types.values():
-                    if 'pvhvm' not in image['name'].lower():
-                        choice = dict(name=image['name'], value=image['os'])
-                        if image['type'] == 'windows':
-                            windows['options']['os']['choice'].append(choice)
-                        else:
-                            linux['options']['os']['choice'].append(choice)
+                    choice = dict(name=image['name'], value=image['os'])
+                    if image['type'] == 'windows':
+                        windows['options']['os']['choice'].append(choice)
+                    else:
+                        linux['options']['os']['choice'].append(choice)
 
             if flavors:
                 for flavor in flavors.values():
