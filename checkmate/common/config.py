@@ -81,6 +81,7 @@ class Config(object):
 
     webhook = False
     github_api = None
+    github_token = None
     organization = None
     ref = 'stable'
     cache_dir = None
