@@ -14,6 +14,7 @@ from urlparse import urlparse
 
 import bottle
 
+from checkmate.common import config
 from checkmate.middleware import TokenAuthMiddleware, RequestContext
 from Crypto.Hash import MD5
 import eventlet
@@ -25,6 +26,7 @@ from webob.exc import HTTPUnauthorized, HTTPNotFound
 import rook
 
 LOG = logging.getLogger(__name__)
+CONFIG = config.current()
 
 from checkmate.utils import (
     HANDLERS,
@@ -346,6 +348,7 @@ def githubproxy(path=None):
 
     headers = {
         'Accept': bottle.request.get_header('Accept', ['application/json']),
+        'Authorization': 'token %s' % CONFIG.github_token,
         'Content-Type': bottle.request.get_header('Content-Type',
                                                   'application/json'),
     }
