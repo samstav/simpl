@@ -51,7 +51,7 @@ class TestRedisFunctionality(unittest.TestCase):
 
     def test_stores_ints(self):
         self.redis['A'] = 10
-        self.assertEqual(self.redis['A'], '10')
+        self.assertEqual(self.redis['A'], 10)
 
     def test_stores_strings(self):
         self.redis['A'] = 'B'
@@ -59,11 +59,11 @@ class TestRedisFunctionality(unittest.TestCase):
 
     def test_stores_lists(self):
         self.redis['A'] = [1, 2, 'A', {}]
-        self.assertEqual(self.redis['A'], "[1, 2, 'A', {}]")
+        self.assertEqual(self.redis['A'], [1, 2, 'A', {}])
 
     def test_stores_dicts(self):
         self.redis['A'] = {"A": 1, "B": {}}
-        self.assertEqual(self.redis['A'], "{'A': 1, 'B': {}}")
+        self.assertEqual(self.redis['A'], {'A': 1, 'B': {}})
 
 
 @unittest.skipIf(SKIP, REASON)
