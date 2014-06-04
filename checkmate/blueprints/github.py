@@ -80,7 +80,7 @@ class GitHubManager(object):
         """
         self._github_api_base = git_config.github_api
         if self._github_api_base:
-            self._github = github.Github(base_url=self._github_api_base)
+            self._github = github.Github(CONFIG.github_token, base_url=self._github_api_base)
             self._api_host = urlparse.urlparse(self._github_api_base).netloc
         self._repo_org = git_config.organization
         self._ref = git_config.ref
