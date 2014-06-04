@@ -68,6 +68,7 @@ scratch.xml
 *.sql
 *.sqlite
 *.db
+data
 
 # OS generated files #
 ######################
