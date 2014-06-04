@@ -15,11 +15,12 @@ pep8==1.4.5
 flake8
 hacking  # plugins for enforcement of HACKING.rst
 mock
-mongobox
 pylint==0.28.0
 nose
 nosexcover
 webtest
+# mongobox needs to be toward the end of the list to avoid dependency conflict
+mongobox
 virtualenv
 
 # pymox
