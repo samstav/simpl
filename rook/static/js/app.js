@@ -1738,6 +1738,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
                name: item.name,
                description: item.documentation.abstract,
                git_url: item.git_url,
+               ssh_url: item.ssh_url,
                selected: false,
                api_url: item.url,
                is_blueprint_repo: false };
