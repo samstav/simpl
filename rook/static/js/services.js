@@ -742,7 +742,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     var checkmate_yaml;
     var branch_name = _get_branch_name(remote);
     var sanitized_yaml = yaml_string
-                           .replace('%repo_url%', (remote.repo.git_url || remote.url) + '#' + branch_name)
+                           .replace('%repo_url%', (remote.repo.ssh_url || remote.url))
                            .replace('%username%', username || '%username%');
     checkmate_yaml = jsyaml.safeLoad(sanitized_yaml);
     return checkmate_yaml;
