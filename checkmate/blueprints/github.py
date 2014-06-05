@@ -681,8 +681,7 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
             if dep_file and dep_file.content:
                 dep_content = base64.b64decode(dep_file.content)
                 dep_content = dep_content.replace("%repo_url%",
-                                                  "%s#%s" %
-                                                  (str(repo.ssh_url), tag))
+                                                  "%s" % str(repo.ssh_url))
                 try:
                     ret = yaml.safe_load(dep_content)
                 except (yaml.scanner.ScannerError, yaml.parser.ParserError):
