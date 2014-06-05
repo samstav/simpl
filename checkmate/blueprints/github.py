@@ -682,7 +682,7 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
                 dep_content = base64.b64decode(dep_file.content)
                 dep_content = dep_content.replace("%repo_url%",
                                                   "%s#%s" %
-                                                  (str(repo.clone_url), tag))
+                                                  (str(repo.ssh_url), tag))
                 try:
                     ret = yaml.safe_load(dep_content)
                 except (yaml.scanner.ScannerError, yaml.parser.ParserError):
@@ -703,7 +703,7 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
 
                 parsed['repo_id'] = repo.id
                 parsed['blueprint']['source'] = {
-                    'repo-url': repo.clone_url,
+                    'repo-url': repo.ssh_url,
                     'sha': github_ref.object.sha,
                     'ref': github_ref.ref,
                 }
