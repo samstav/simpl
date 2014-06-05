@@ -46,6 +46,7 @@ class TestGitHubManager(unittest.TestCase):
         tag = self.config.ref
         repo = self.mox.CreateMock(gh.Repository.Repository)
         repo.clone_url = "https://clone"
+        repo.ssh_url = "https://ssh"
 
         self.mox.StubOutWithMock(self.manager, '_repo_find_ref')
         self.manager._repo_find_ref(repo, tag).AndReturn(mock.Mock())
@@ -64,6 +65,7 @@ class TestGitHubManager(unittest.TestCase):
         tag = self.config.ref
         repo = self.mox.CreateMock(gh.Repository.Repository)
         repo.clone_url = "https://clone"
+        repo.ssh_url = "https://ssh"
 
         self.mox.StubOutWithMock(self.manager, '_repo_find_ref')
         self.manager._repo_find_ref(repo, tag).AndReturn(mock.Mock())
@@ -83,6 +85,7 @@ class TestGitHubManager(unittest.TestCase):
         tag = self.config.ref
         repo = self.mox.CreateMock(gh.Repository.Repository)
         repo.clone_url = "https://clone"
+        repo.ssh_url = "https://ssh"
 
         self.mox.StubOutWithMock(self.manager, '_repo_find_ref')
         self.manager._repo_find_ref(repo, tag).AndReturn(mock.Mock())
