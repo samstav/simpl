@@ -281,12 +281,13 @@ class Deployment(morpheus.MorpheusDict):
     FSM_TRANSITIONS = {
         'NEW': {'PLANNED', 'FAILED', 'DELETED'},
         'PLANNED': {'UP', 'FAILED', 'DELETED'},
-        'UP': {'ALERT', 'UNREACHABLE', 'DOWN', 'DELETED'},
+        'UP': {'ALERT', 'UNREACHABLE', 'DOWN', 'DELETED', 'MIGRATED'},
         'FAILED': {'DELETED', 'PLANNED'},
         'ALERT': {'DELETED', 'UP'},
         'UNREACHABLE': {'DOWN', 'UP', 'ALERT'},
         'DOWN': {'UP', 'DELETED'},
-        'DELETED': {}
+        'DELETED': {},
+        'MIGRATED': {}
     }
 
     legacy_statuses = {  # TODO(any): remove these when old data is clean
@@ -362,6 +363,9 @@ class Deployment(morpheus.MorpheusDict):
                 non_deleted_resources.update(
                     {resource_key: resources[resource_key]})
         return non_deleted_resources
+
+    def is_migrated(self):
+        return self['status'] == 'MIGRATED'
 
     def get_statuses(self, context):
         """Get all statuses from a given context.

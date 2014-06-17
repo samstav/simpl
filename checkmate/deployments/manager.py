@@ -47,15 +47,18 @@ LOG = logging.getLogger(__name__)
 class Manager(object):
     """Contains Deployments Model and Logic for Accessing Deployments."""
 
+    def __init__(self, driver = None):
+        self._driver = driver or None
+
     def count(self, tenant_id=None, blueprint_id=None, status=None,
               query=None):
         """Return count of deployments filtered by passed in parameters."""
         # TODO(any): This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
-        deployments = db.get_driver().get_deployments(tenant_id=tenant_id,
-                                                      with_count=True,
-                                                      status=status,
-                                                      query=query)
+        deployments = self._driver or db.get_driver().get_deployments(tenant_id=tenant_id,
+                                                                      with_count=True,
+                                                                      status=status,
+                                                                      query=query)
         count = 0
         if blueprint_id:
             if not deployments:
@@ -77,7 +80,8 @@ class Manager(object):
     def get_deployments(self, tenant_id=None, offset=None, limit=None,
                         with_deleted=False, status=None, query=None):
         """Get existing deployments."""
-        results = db.get_driver().get_deployments(
+        driver = self._driver or db.get_driver()
+        results = driver.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
@@ -128,11 +132,9 @@ class Manager(object):
             assert tenant_id, "Tenant ID must be specified in deployment"
             deployment['tenantId'] = tenant_id
         body, secrets = utils.extract_sensitive_data(deployment)
-        return db.get_driver(api_id=api_id).save_deployment(api_id, body,
-                                                            secrets,
-                                                            tenant_id=
-                                                            tenant_id,
-                                                            partial=partial)
+        driver = self._driver or db.get_driver(api_id=api_id)
+        return driver.save_deployment(api_id, body, secrets,
+                                      tenant_id= tenant_id, partial=partial)
 
     def deploy(self, deployment, context):
         """Saves a new deployment and creates a deployment operation.
@@ -152,7 +154,8 @@ class Manager(object):
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
         """Get a single deployment by id."""
-        entity = db.get_driver(api_id=api_id).get_deployment(api_id,
+        driver = self._driver or db.get_driver(api_id=api_id)
+        entity = driver.get_deployment(api_id,
                                                              with_secrets=
                                                              with_secrets)
         if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
@@ -183,6 +186,29 @@ class Manager(object):
             # Skip errors in exprimental code
             LOG.exception(exc)
         return entity
+
+    def mark_as_migrated(self, api_id):
+        driver = self._driver or db.get_driver(api_id=api_id)
+        deployment_info = driver.get_deployment(api_id, with_secrets=True)
+        deployment = Deployment(deployment_info)
+        delta = {
+            'tenantId' : deployment['tenantId']
+        }
+        migrated = 'MIGRATED'
+        if deployment.is_migrated():
+            message = "Deployment is already Migrated!"
+            raise CheckmateBadState(
+                message=message, friendly_message=message, http_status=400)
+
+        elif not deployment.fsm.permitted(migrated):
+            message = ("Cannot change deployment (%s) status to MIGRATED" %
+                       api_id)
+            raise CheckmateBadState(message=message,
+                                    friendly_message=message, http_status=400)
+        else:
+            delta['status'] = 'MIGRATED'
+
+        self.save_deployment(delta, api_id=api_id, partial=True)
 
     def get_deployment_secrets(self, api_id, tenant_id=None):
         """Get the passwords and keys of a single deployment by id.
@@ -371,9 +397,9 @@ class Manager(object):
         - operation: dict containing operation data
         - resources: dict containing resources data
         """
+        driver = self._driver or db.get_driver(api_id=dep_id)
         dep = Deployment(
-            db.get_driver(api_id=dep_id).get_deployment(dep_id,
-                                                        with_secrets=True)
+            driver.get_deployment(dep_id, with_secrets=True)
         )
         if not isinstance(contents, dict):
             raise CheckmateValidationException("Postback contents is not "
@@ -381,7 +407,7 @@ class Manager(object):
         updates = {}
         dep.on_postback(contents, updates)
         body, secrets = utils.extract_sensitive_data(updates)
-        db.get_driver(api_id=dep_id).save_deployment(
+        driver.save_deployment(
             dep_id, body, secrets, partial=True,
             tenant_id=dep['tenantId']
         )
@@ -428,7 +454,7 @@ class Manager(object):
         :param kwargs:
         :return: operation created to handle the workflow
         """
-        driver = db.get_driver(api_id=deployment["id"])
+        driver = self._driver or db.get_driver(api_id=deployment["id"])
         attr_name = "create_%s_spec" % wf_type.lower().replace(' ', '_')
         spec_creator = getattr(workflow_spec.WorkflowSpec, attr_name)
         wf_spec = spec_creator(context, deployment, **kwargs)
