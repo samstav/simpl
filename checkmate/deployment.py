@@ -282,7 +282,7 @@ class Deployment(morpheus.MorpheusDict):
         'NEW': {'PLANNED', 'FAILED', 'DELETED'},
         'PLANNED': {'UP', 'FAILED', 'DELETED'},
         'UP': {'ALERT', 'UNREACHABLE', 'DOWN', 'DELETED', 'MIGRATED'},
-        'FAILED': {'DELETED', 'PLANNED'},
+        'FAILED': {'DELETED', 'PLANNED', 'MIGRATED'},
         'ALERT': {'DELETED', 'UP'},
         'UNREACHABLE': {'DOWN', 'UP', 'ALERT'},
         'DOWN': {'UP', 'DELETED'},
