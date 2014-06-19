@@ -29,6 +29,7 @@ import mox
 from SpiffWorkflow import Workflow
 
 from checkmate.common import tasks as common_tasks
+from checkmate import db
 from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps
 from checkmate import exceptions
@@ -1832,6 +1833,8 @@ class TestDeploymentMigrate(unittest.TestCase):
 
     def test_mark_deployment_as_migrated(self):
         mock_driver = self.mox.CreateMockAnything()
+        self.mox.StubOutWithMock(db, 'get_driver')
+        db.get_driver(api_id='test').AndReturn(mock_driver)
         deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
@@ -1847,16 +1850,19 @@ class TestDeploymentMigrate(unittest.TestCase):
             'status': 'MIGRATED',
             'tenantId': '1001',
             'id': 'test'
-        }, None, partial=True, tenant_id='1001')
+        }, None, partial=True, tenant_id='1001').AndReturn(None)
+        db.get_driver(api_id='test').AndReturn(mock_driver)
         self.mox.ReplayAll()
 
-        manager = cmdeps.Manager(mock_driver)
+        manager = cmdeps.Manager()
         manager.mark_as_migrated('test')
 
         self.mox.VerifyAll()
 
     def test_cannot_migrate_migrated_deployment(self):
         mock_driver = self.mox.CreateMockAnything()
+        self.mox.StubOutWithMock(db, 'get_driver')
+        db.get_driver(api_id='test').AndReturn(mock_driver)
         deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
@@ -1870,7 +1876,7 @@ class TestDeploymentMigrate(unittest.TestCase):
 
         self.mox.ReplayAll()
 
-        manager = cmdeps.Manager(mock_driver)
+        manager = cmdeps.Manager()
         with self.assertRaises(CheckmateBadState) as context:
             manager.mark_as_migrated('test')
 
@@ -1882,6 +1888,8 @@ class TestDeploymentMigrate(unittest.TestCase):
 
     def test_cannot_migrate_from_invalid_state(self):
         mock_driver = self.mox.CreateMockAnything()
+        self.mox.StubOutWithMock(db, 'get_driver')
+        db.get_driver(api_id='test').AndReturn(mock_driver)
         deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
@@ -1895,7 +1903,7 @@ class TestDeploymentMigrate(unittest.TestCase):
 
         self.mox.ReplayAll()
 
-        manager = cmdeps.Manager(mock_driver)
+        manager = cmdeps.Manager()
         with self.assertRaises(CheckmateBadState) as context:
             manager.mark_as_migrated('test')
 

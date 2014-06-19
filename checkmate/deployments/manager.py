@@ -47,15 +47,12 @@ LOG = logging.getLogger(__name__)
 class Manager(object):
     """Contains Deployments Model and Logic for Accessing Deployments."""
 
-    def __init__(self, driver = None):
-        self._driver = driver or None
-
     def count(self, tenant_id=None, blueprint_id=None, status=None,
               query=None):
         """Return count of deployments filtered by passed in parameters."""
         # TODO(any): This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
-        deployments = self._driver or db.get_driver().get_deployments(tenant_id=tenant_id,
+        deployments = db.get_driver().get_deployments(tenant_id=tenant_id,
                                                                       with_count=True,
                                                                       status=status,
                                                                       query=query)
@@ -80,7 +77,7 @@ class Manager(object):
     def get_deployments(self, tenant_id=None, offset=None, limit=None,
                         with_deleted=False, status=None, query=None):
         """Get existing deployments."""
-        driver = self._driver or db.get_driver()
+        driver = db.get_driver()
         results = driver.get_deployments(
             tenant_id=tenant_id,
             offset=offset,
@@ -132,7 +129,7 @@ class Manager(object):
             assert tenant_id, "Tenant ID must be specified in deployment"
             deployment['tenantId'] = tenant_id
         body, secrets = utils.extract_sensitive_data(deployment)
-        driver = self._driver or db.get_driver(api_id=api_id)
+        driver = db.get_driver(api_id=api_id)
         return driver.save_deployment(api_id, body, secrets,
                                       tenant_id= tenant_id, partial=partial)
 
@@ -154,7 +151,7 @@ class Manager(object):
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
         """Get a single deployment by id."""
-        driver = self._driver or db.get_driver(api_id=api_id)
+        driver = db.get_driver(api_id=api_id)
         entity = driver.get_deployment(api_id,
                                                              with_secrets=
                                                              with_secrets)
@@ -188,7 +185,7 @@ class Manager(object):
         return entity
 
     def mark_as_migrated(self, api_id):
-        driver = self._driver or db.get_driver(api_id=api_id)
+        driver = db.get_driver(api_id=api_id)
         deployment_info = driver.get_deployment(api_id, with_secrets=True)
         deployment = Deployment(deployment_info)
         delta = {
@@ -397,7 +394,7 @@ class Manager(object):
         - operation: dict containing operation data
         - resources: dict containing resources data
         """
-        driver = self._driver or db.get_driver(api_id=dep_id)
+        driver = db.get_driver(api_id=dep_id)
         dep = Deployment(
             driver.get_deployment(dep_id, with_secrets=True)
         )
@@ -454,7 +451,7 @@ class Manager(object):
         :param kwargs:
         :return: operation created to handle the workflow
         """
-        driver = self._driver or db.get_driver(api_id=deployment["id"])
+        driver = db.get_driver(api_id=deployment["id"])
         attr_name = "create_%s_spec" % wf_type.lower().replace(' ', '_')
         spec_creator = getattr(workflow_spec.WorkflowSpec, attr_name)
         wf_spec = spec_creator(context, deployment, **kwargs)
