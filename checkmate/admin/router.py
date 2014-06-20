@@ -75,7 +75,7 @@ class Router(object):
         app.route('/admin/tenants/<tenant_id>', 'POST', self.add_tenant_tags)
 
         app.route('/admin/deployments/<deployment_id>/migrate', 'POST',
-                  self.update_deployment)
+                  self.migrate_deployment)
 
         self.blueprints_manager = blueprints_manager
         if blueprints_manager:
@@ -86,7 +86,7 @@ class Router(object):
                       partial(self.not_loaded, "blueprints"))
 
     @utils.only_admins
-    def update_deployment(self, deployment_id):
+    def migrate_deployment(self, deployment_id):
         self.deployments_manager.mark_as_migrated(deployment_id)
 
     @staticmethod
