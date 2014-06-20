@@ -53,9 +53,9 @@ class Manager(object):
         # TODO(any): This should be a filter at the database layer. Example:
         # get_deployments(tenant_id=tenant_id, blueprint_id=blueprint_id)
         deployments = db.get_driver().get_deployments(tenant_id=tenant_id,
-                                                                      with_count=True,
-                                                                      status=status,
-                                                                      query=query)
+                                                      with_count=True,
+                                                      status=status,
+                                                      query=query)
         count = 0
         if blueprint_id:
             if not deployments:
@@ -77,8 +77,7 @@ class Manager(object):
     def get_deployments(self, tenant_id=None, offset=None, limit=None,
                         with_deleted=False, status=None, query=None):
         """Get existing deployments."""
-        driver = db.get_driver()
-        results = driver.get_deployments(
+        results = db.get_driver().get_deployments(
             tenant_id=tenant_id,
             offset=offset,
             limit=limit,
@@ -129,9 +128,11 @@ class Manager(object):
             assert tenant_id, "Tenant ID must be specified in deployment"
             deployment['tenantId'] = tenant_id
         body, secrets = utils.extract_sensitive_data(deployment)
-        driver = db.get_driver(api_id=api_id)
-        return driver.save_deployment(api_id, body, secrets,
-                                      tenant_id= tenant_id, partial=partial)
+        return db.get_driver(api_id=api_id).save_deployment(api_id, body,
+                                                            secrets,
+                                                            tenant_id=
+                                                            tenant_id,
+                                                            partial=partial)
 
     def deploy(self, deployment, context):
         """Saves a new deployment and creates a deployment operation.
@@ -151,8 +152,7 @@ class Manager(object):
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
         """Get a single deployment by id."""
-        driver = db.get_driver(api_id=api_id)
-        entity = driver.get_deployment(api_id,
+        entity = db.get_driver(api_id=api_id).get_deployment(api_id,
                                                              with_secrets=
                                                              with_secrets)
         if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
@@ -185,8 +185,8 @@ class Manager(object):
         return entity
 
     def mark_as_migrated(self, api_id):
-        driver = db.get_driver(api_id=api_id)
-        deployment_info = driver.get_deployment(api_id, with_secrets=True)
+        deployment_info = db.get_driver(api_id=api_id).get_deployment(
+            api_id, with_secrets=True)
         deployment = Deployment(deployment_info)
         delta = {
             'tenantId' : deployment['tenantId']
@@ -394,9 +394,9 @@ class Manager(object):
         - operation: dict containing operation data
         - resources: dict containing resources data
         """
-        driver = db.get_driver(api_id=dep_id)
         dep = Deployment(
-            driver.get_deployment(dep_id, with_secrets=True)
+            db.get_driver(api_id=dep_id).get_deployment(dep_id,
+                                                        with_secrets=True)
         )
         if not isinstance(contents, dict):
             raise CheckmateValidationException("Postback contents is not "
@@ -404,7 +404,7 @@ class Manager(object):
         updates = {}
         dep.on_postback(contents, updates)
         body, secrets = utils.extract_sensitive_data(updates)
-        driver.save_deployment(
+        db.get_driver(api_id=dep_id).save_deployment(
             dep_id, body, secrets, partial=True,
             tenant_id=dep['tenantId']
         )

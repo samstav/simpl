@@ -1893,7 +1893,7 @@ class TestDeploymentMigrate(unittest.TestCase):
         deployment = cmdep.Deployment({
             'id': 'test',
             'name': 'test',
-            'status': 'FAILED',
+            'status': 'ALERT',
             'created': '01-01-2014',
             'tenantId': '1001'
         })
