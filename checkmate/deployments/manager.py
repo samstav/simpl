@@ -191,13 +191,12 @@ class Manager(object):
         delta = {
             'tenantId' : deployment['tenantId']
         }
-        migrated = 'MIGRATED'
         if deployment.is_migrated():
             message = "Deployment is already Migrated!"
             raise CheckmateBadState(
                 message=message, friendly_message=message, http_status=400)
 
-        elif not deployment.fsm.permitted(migrated):
+        elif not deployment.fsm.permitted('MIGRATED'):
             message = ("Cannot change deployment (%s) status to MIGRATED" %
                        api_id)
             raise CheckmateBadState(message=message,
