@@ -184,6 +184,28 @@ class Manager(object):
             LOG.exception(exc)
         return entity
 
+    def mark_as_migrated(self, api_id):
+        deployment_info = db.get_driver(api_id=api_id).get_deployment(
+            api_id, with_secrets=True)
+        deployment = Deployment(deployment_info)
+        delta = {
+            'tenantId' : deployment['tenantId']
+        }
+        if deployment.is_migrated():
+            message = "Deployment is already Migrated!"
+            raise CheckmateBadState(
+                message=message, friendly_message=message, http_status=400)
+
+        elif not deployment.fsm.permitted('MIGRATED'):
+            message = ("Cannot change deployment (%s) status to MIGRATED" %
+                       api_id)
+            raise CheckmateBadState(message=message,
+                                    friendly_message=message, http_status=400)
+        else:
+            delta['status'] = 'MIGRATED'
+
+        self.save_deployment(delta, api_id=api_id, partial=True)
+
     def get_deployment_secrets(self, api_id, tenant_id=None):
         """Get the passwords and keys of a single deployment by id.
         """

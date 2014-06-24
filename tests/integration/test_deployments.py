@@ -18,6 +18,7 @@ import bottle
 import copy
 import json
 import logging
+from checkmate.exceptions import CheckmateBadState
 import os
 import time
 import unittest
@@ -28,6 +29,7 @@ import mox
 from SpiffWorkflow import Workflow
 
 from checkmate.common import tasks as common_tasks
+from checkmate import db
 from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps
 from checkmate import exceptions
@@ -1819,6 +1821,95 @@ class TestCeleryTasks(unittest.TestCase):
             }
         }
         cmdeps.resource_postback('1234', contents, driver=mock_db)
+        self.mox.VerifyAll()
+
+
+class TestDeploymentMigrate(unittest.TestCase):
+    def setUp(self):
+        self.mox = mox.Mox()
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_mark_deployment_as_migrated(self):
+        mock_driver = self.mox.CreateMockAnything()
+        self.mox.StubOutWithMock(db, 'get_driver')
+        db.get_driver(api_id='test').AndReturn(mock_driver)
+        deployment = cmdep.Deployment({
+            'id': 'test',
+            'name': 'test',
+            'status': 'UP',
+            'created': '01-01-2014',
+            'tenantId': '1001'
+        })
+
+        mock_driver.get_deployment('test', with_secrets=True).AndReturn(
+            deployment)
+
+        mock_driver.save_deployment('test', {
+            'status': 'MIGRATED',
+            'tenantId': '1001',
+            'id': 'test'
+        }, None, partial=True, tenant_id='1001').AndReturn(None)
+        db.get_driver(api_id='test').AndReturn(mock_driver)
+        self.mox.ReplayAll()
+
+        manager = cmdeps.Manager()
+        manager.mark_as_migrated('test')
+
+        self.mox.VerifyAll()
+
+    def test_cannot_migrate_migrated_deployment(self):
+        mock_driver = self.mox.CreateMockAnything()
+        self.mox.StubOutWithMock(db, 'get_driver')
+        db.get_driver(api_id='test').AndReturn(mock_driver)
+        deployment = cmdep.Deployment({
+            'id': 'test',
+            'name': 'test',
+            'status': 'MIGRATED',
+            'created': '01-01-2014',
+            'tenantId': '1001'
+        })
+
+        mock_driver.get_deployment('test', with_secrets=True).AndReturn(
+            deployment)
+
+        self.mox.ReplayAll()
+
+        manager = cmdeps.Manager()
+        with self.assertRaises(CheckmateBadState) as context:
+            manager.mark_as_migrated('test')
+
+        expected_message = "Deployment is already Migrated!"
+        self.assertEquals(context.exception.message, expected_message)
+
+        self.mox.VerifyAll()
+
+
+    def test_cannot_migrate_from_invalid_state(self):
+        mock_driver = self.mox.CreateMockAnything()
+        self.mox.StubOutWithMock(db, 'get_driver')
+        db.get_driver(api_id='test').AndReturn(mock_driver)
+        deployment = cmdep.Deployment({
+            'id': 'test',
+            'name': 'test',
+            'status': 'ALERT',
+            'created': '01-01-2014',
+            'tenantId': '1001'
+        })
+
+        mock_driver.get_deployment('test', with_secrets=True).AndReturn(
+            deployment)
+
+        self.mox.ReplayAll()
+
+        manager = cmdeps.Manager()
+        with self.assertRaises(CheckmateBadState) as context:
+            manager.mark_as_migrated('test')
+
+        expected_message = "Cannot change deployment (test) status to MIGRATED"
+        self.assertEquals(context.exception.message, expected_message)
+
         self.mox.VerifyAll()
 
 

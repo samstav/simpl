@@ -74,6 +74,9 @@ class Router(object):
         app.route('/admin/tenants/<tenant_id>', 'PUT', self.put_tenant)
         app.route('/admin/tenants/<tenant_id>', 'POST', self.add_tenant_tags)
 
+        app.route('/admin/deployments/<deployment_id>/migrate', 'POST',
+                  self.migrate_deployment)
+
         self.blueprints_manager = blueprints_manager
         if blueprints_manager:
             app.route('/admin/cache/blueprints', 'GET',
@@ -81,6 +84,10 @@ class Router(object):
         else:
             app.route('/admin/cache/blueprints', 'GET',
                       partial(self.not_loaded, "blueprints"))
+
+    @utils.only_admins
+    def migrate_deployment(self, deployment_id):
+        self.deployments_manager.mark_as_migrated(deployment_id)
 
     @staticmethod
     @utils.only_admins
