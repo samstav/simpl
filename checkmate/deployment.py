@@ -415,23 +415,24 @@ class Deployment(morpheus.MorpheusDict):
         all_tasks_complete = (
             operation.get('tasks', 0) == operation.get('complete', 0))
 
-        for value in resources.values():
-            statuses.append(value['status'])
+        if deployment_status != 'MIGRATED':  # don't touch migrated deployment
+            for value in resources.values():
+                statuses.append(value['status'])
 
-        if statuses:
-            if all(status == 'DELETED' for status in statuses):
-                deployment_status = 'DELETED'
-                operation_status = 'COMPLETE'
-            elif (all(status == 'ACTIVE' for status in statuses) and
-                    all_tasks_complete):
-                deployment_status = 'UP'
-                operation_status = 'COMPLETE'
-            elif all(status == 'NEW' for status in statuses):
-                deployment_status = 'PLANNED'
-                operation_status = 'NEW'
-            # elif any(status == 'DELETED' for status in statuses):
-            #     deployment_status = "ALERT"
-            #     operation_status = 'ABORTED'
+            if statuses:
+                if all(status == 'DELETED' for status in statuses):
+                    deployment_status = 'DELETED'
+                    operation_status = 'COMPLETE'
+                elif (all(status == 'ACTIVE' for status in statuses) and
+                        all_tasks_complete):
+                    deployment_status = 'UP'
+                    operation_status = 'COMPLETE'
+                elif all(status == 'NEW' for status in statuses):
+                    deployment_status = 'PLANNED'
+                    operation_status = 'NEW'
+                # elif any(status == 'DELETED' for status in statuses):
+                #     deployment_status = "ALERT"
+                #     operation_status = 'ABORTED'
 
         return {'status': deployment_status,
                 'operation': {'status': operation_status}}
