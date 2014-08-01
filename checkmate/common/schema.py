@@ -159,6 +159,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       udp:
       udp_stream:
       tcp_client_first:
+      tcp_stream:
       tcp:
       proxy:
         description: A proxy for other protocols; i.e. a load balancer or IDS
