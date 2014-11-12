@@ -20,16 +20,17 @@ TODO:
 - Check indeces; if we fix mapping do we still need an index on workflow.id?
 
 """
-import bson
 import copy
 import json
 import logging
-import pymongo
 import re
 import time
 import uuid
 
+import bson
 from SpiffWorkflow import util as swutil
+import pymongo
+from pymongo.son_manipulator import SONManipulator
 
 from checkmate import classes
 from checkmate.db import common
@@ -192,6 +193,21 @@ class Driver(common.DbBase):
         """Connects to and returns mongodb database object."""
         if self._database is None:
             self._database = self._get_client()[self.db_name]
+
+            # pymongo/database.py includes ObjectIdInjector manipulator
+            # by default. Here, we are resetting the manipulators b/c
+            # we don't want the ObjectIdInjector to add an `_id` to
+            # our modifiers.
+
+            for manip in self._database._Database__incoming_manipulators:
+                if isinstance(manip, pymongo.son_manipulator.ObjectIdInjector):
+                    self._database._Database__incoming_manipulators.remove(
+                        manip)
+                    LOG.debug("Disabling %s on mongodb connection to '%s'.",
+                              manip.__class__.__name__, self.db_name)
+                    break
+
+            self._database.add_son_manipulator(KeyTransform(".", "_dot_"))
             LOG.info("Connected to mongodb on %s (database=%s)",
                      cmutils.hide_url_password(self.connection_string),
                      self.db_name)
@@ -225,7 +241,7 @@ class Driver(common.DbBase):
             result = self.database()['locks'].update(
                 {'_id': key, 'expires_at': {'$lt': time.time()}},
                 {'_id': key, 'expires_at': (time.time() + timeout)},
-                multi=False, check_keys=False)
+                multi=False, check_keys=False, manipulate=True)
             if not result['updatedExisting']:
                 raise common.ObjectLockedError("Can't lock %s as it is "
                                                "already locked!" % key)
@@ -272,7 +288,7 @@ class Driver(common.DbBase):
         for result in results:
             if 'id' not in result and 'tenant_id' in result:
                 result['id'] = result.pop('tenant_id')
-            ret.update({result['id']: result})
+            ret.update({result['id']: result}, manipulate=True)
         return ret
 
     def get_tenant(self, tenant_id):
@@ -818,14 +834,105 @@ class Driver(common.DbBase):
             assert klass == 'blueprints' or tenant_id or 'tenantId' in body, (
                 "tenantId must be specified")
             body['_id'] = api_id
-            self.database()[klass].update({'_id': api_id}, body,
+            try:
+                self.database()[klass].update({'_id': api_id}, body,
                                           not merge_existing,  # Upsert new
-                                          False, check_keys=False)
+                                          manipulate=True, check_keys=False)
+            except Exception as exc:
+                import ipdb;ipdb.set_trace()
+                raise exc
             if secrets:
                 secrets['_id'] = api_id
                 self.database()['%s_secrets' % klass].update({'_id': api_id},
                                                              secrets, True,
-                                                             False)
+                                                             manipulate=True)
             del body['_id']
 
         return body
+
+
+class KeyTransform(SONManipulator):
+
+    """Transforms keys going to database and restores them coming out.
+
+    This allows keys with dots in them to be used (but does break searching on
+    them unless the find command also uses the transform).
+
+    Example & test:
+        # To allow `.` (dots) in keys
+        import pymongo
+        client = pymongo.MongoClient("mongodb://localhost")
+        db = client['delete_me']
+        db.add_son_manipulator(KeyTransform(".", "_dot_"))
+        db['mycol'].remove()
+        db['mycol'].update({'_id': 1}, {'127.0.0.1': 'localhost'}, upsert=True,
+                           manipulate=True)
+        print db['mycol'].list().next()
+        print db['mycol'].list({'127_dot_0_dot_0_dot_1': 'localhost'}).next()
+
+    Note: transformation could be easily extended to be more complex.
+    """
+
+    def __init__(self, replace, replacement):
+        """Initialize KeyTransform."""
+        self.replace = replace
+        self.replacement = replacement
+
+    def transform_key(self, key):
+        """Transform key for saving to database."""
+        return key.replace(self.replace, self.replacement)
+
+    def revert_key(self, key):
+        """Restore transformed key returning from database."""
+        return key.replace(self.replacement, self.replace)
+
+    def transform_incoming(self, son, collection):
+        """Recursively replace all keys that need transforming."""
+        return self._transform_incoming(copy.deepcopy(son), collection)
+
+    def _transform_incoming(self, son, collection, skip=0):
+        """Recursively replace all keys that need transforming."""
+        skip = 0 if skip < 0 else skip
+        if isinstance(son, dict):
+            for (key, value) in son.items():
+                if key.startswith('$'):
+                    if isinstance(value, dict):
+                        skip = 2
+                    else:
+                        pass  # allow mongo to complain
+                if self.replace in key:
+                    k = key if skip else self.transform_key(key)
+                    son[k] = self._transform_incoming(
+                        son.pop(key), collection, skip=skip-1)
+                elif isinstance(value, dict):  # recurse into sub-docs
+                    son[key] = self._transform_incoming(value, collection,
+                                                        skip=skip-1)
+                elif isinstance(value, (list, tuple)):
+                    son[key] = [self._transform_incoming(
+                                k, collection, skip=skip-1)
+                                for k in value]
+            return son
+        elif isinstance(son, (list, tuple)):
+            return [self._transform_incoming(item, collection, skip=skip-1)
+                    for item in son]
+        else:
+            return son
+
+    def transform_outgoing(self, son, collection):
+        """Recursively restore all transformed keys."""
+        if isinstance(son, dict):
+            for (key, value) in son.items():
+                if self.replacement in key:
+                    k = self.revert_key(key)
+                    son[k] = self.transform_outgoing(son.pop(key), collection)
+                elif isinstance(value, dict):  # recurse into sub-docs
+                    son[key] = self.transform_outgoing(value, collection)
+                elif isinstance(value, list):
+                    son[key] = [self.transform_outgoing(item, collection)
+                                for item in value]
+            return son
+        elif isinstance(son, list):
+            return [self.transform_outgoing(item, collection)
+                    for item in son]
+        else:
+            return son
