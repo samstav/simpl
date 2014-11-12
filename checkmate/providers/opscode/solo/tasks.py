@@ -158,11 +158,17 @@ def create_environment(context, name, service_name, path=None,
     """
     def on_failure(exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
+        if len(exc.args) > 1:
+            arg = exc.args[1]
+        elif len(exc.args) > 0:
+            arg = exc.args[0]
+        else:
+            arg = "No arguments supplied in exception"
         deployments.update_all_provider_resources.delay(
             Provider.name,
             context['deployment_id'],
             'ERROR',
-            message=('Error creating chef environment: %s' % exc.args[1])
+            message=('Error creating chef environment: %s' % arg)
         )
 
     create_environment.on_failure = on_failure
