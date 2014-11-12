@@ -14,4 +14,5 @@
 """Opscode chef solo provider and specs.Celery tasks."""
 from checkmate.providers.opscode.solo.provider import Provider
 from checkmate.providers.opscode.solo import tasks
-from checkmate.providers.opscode.solo import transforms
+from checkmate.providers.opscode import transforms
+from checkmate.providers.opscode import chef_map  # backwards compatible

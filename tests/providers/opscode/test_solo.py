@@ -29,8 +29,8 @@ from checkmate import deployments
 from checkmate import middleware
 from checkmate import providers
 from checkmate.providers.opscode import solo
-from checkmate.providers.opscode.solo import chef_map
-from checkmate.providers.opscode.solo import transforms
+from checkmate.providers.opscode import chef_map
+from checkmate.providers.opscode import transforms
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
@@ -87,7 +87,7 @@ class TestChefSoloProvider(test.ProviderTester):
                             provides:
                             - compute: linux
             '''))
-        map = chef_map.ChefMap(raw='''
+        chefmap = chef_map.ChefMap(raw='''
             \n--- # foo component
                 id: foo
                 requires:
@@ -111,8 +111,7 @@ class TestChefSoloProvider(test.ProviderTester):
         # Check requirement map
 
         resource = deployment['resources']['0']  # one of the mysql clients
-        result = solo_provider.get_resource_prepared_maps(
-            resource, deployment, map_file=map)
+        result = chefmap.get_resource_prepared_maps(resource, deployment)
         expected = [{'source': 'requirements://database:mysql/ip',
                      'targets': ['attributes://ip'],
                      'path': 'instance:2/interfaces/mysql',
@@ -123,8 +122,7 @@ class TestChefSoloProvider(test.ProviderTester):
         # Check client maps
 
         resource = deployment['resources']['2']  # mysql database w/ 2 clients
-        result = solo_provider.get_resource_prepared_maps(
-            resource, deployment, map_file=map)
+        result = chefmap.get_resource_prepared_maps(resource, deployment)
         expected = [
             {
                 'source': 'clients://database:mysql/ip',
@@ -187,9 +185,9 @@ class TestChefSoloProvider(test.ProviderTester):
             'provider': 'chef-solo',
         }
         self.mox.ReplayAll()
-        context = solo_provider.get_map_with_context(component=component,
-                                                     deployment=deployment,
-                                                     resource=resource)
+        context = chefmap.get_map_with_context(component=component,
+                                               deployment=deployment,
+                                               resource=resource)
         output = context.get_component_output_template("test")
         self.assertEqual(output['component'], "RandomPass")
         self.assertEqual(output['blueprint'], "randp2")

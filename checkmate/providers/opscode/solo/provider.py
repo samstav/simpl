@@ -14,7 +14,7 @@
 #    under the License.
 
 """Chef Solo configuration management provider."""
-import copy
+
 import logging
 import os
 
@@ -25,11 +25,10 @@ from yaml.composer import ComposerError
 from yaml.parser import ParserError
 from yaml.scanner import ScannerError
 
-from checkmate import common
 from checkmate.common import schema
 from checkmate import exceptions
 from checkmate import keys
-from checkmate.providers.opscode.solo.chef_map import ChefMap
+from checkmate.providers.opscode.chef_map import ChefMap
 from checkmate.providers import ProviderBase
 
 LOG = logging.getLogger(__name__)
@@ -149,30 +148,6 @@ class Provider(ProviderBase):
         self._add_component_tasks(wfspec, component, deployment, key,
                                   context, service_name)
 
-    def _get_component_run_list(self, component):
-        run_list = {}
-        component_id = component['id']
-        for mcomponent in self.map_file.components:
-            if mcomponent['id'] == component_id:
-                run_list = mcomponent.get('run-list', {})
-                assert isinstance(run_list, dict), ("component '%s' run-list "
-                                                    "is not a map" %
-                                                    component_id)
-        if not run_list:
-            if 'role' in component:
-                name = '%s::%s' % (component_id, component['role'])
-            else:
-                name = component_id
-                if name == 'mysql':
-                    # FIXME: hack (install server by default, not client)
-                    name += "::server"
-            if component_id.endswith('-role'):
-                run_list['roles'] = [name[0:-5]]  # trim the '-role'
-            else:
-                run_list['recipes'] = [name]
-        LOG.debug("Component run_list determined to be %s", run_list)
-        return run_list
-
     def _add_component_tasks(self, wfspec, component, deployment, key,
                              context, service_name):
         # Get component/role or recipe name
@@ -180,7 +155,7 @@ class Provider(ProviderBase):
         LOG.debug("Determining component from dict: %s", component_id,
                   extra=component)
 
-        kwargs = self._get_component_run_list(component)
+        kwargs = self.map_file.get_component_run_list(component)
 
         # Create the cook task
 
@@ -306,11 +281,10 @@ class Provider(ProviderBase):
         # Get a map file parsed with all the right objhects available in the
         # Jinja context. These objects had not been available until now.
 
-        map_with_context = self.get_map_with_context(deployment=deployment,
-                                                     resource=resource,
-                                                     component=component)
-        all_maps = self.get_resource_prepared_maps(resource, deployment,
-                                                   map_file=map_with_context)
+        map_with_context = self.map_file.get_map_with_context(
+            deployment=deployment, resource=resource, omponent=component)
+        all_maps = map_with_context.get_resource_prepared_maps(resource,
+                                                               deployment)
 
         chef_options = {}
 
@@ -515,87 +489,6 @@ class Provider(ProviderBase):
                 collect_data.properties['task_tags'].append('options-ready')
         return result
 
-    def get_map_with_context(self, **kwargs):
-        """Returns a map file that was parsed with real data in the context."""
-        # Add defaults if there is a component and no defaults specified
-        if kwargs and 'defaults' not in kwargs and 'component' in kwargs:
-            component = kwargs['component']
-            # used by setting() in Jinja context to return defaults
-            defaults = {}
-            for key, option in component.get('options', {}).iteritems():
-                if 'default' in option:
-                    default = option['default']
-                    try:
-                        if default.startswith('=generate'):
-                            default = self.evaluate(default[1:])
-                    except AttributeError:
-                        pass  # default probably not a string type
-                    defaults[key] = default
-            kwargs['defaults'] = defaults
-        parsed = common.templating.parse(self.map_file.raw, **kwargs)
-        return ChefMap(parsed=parsed)
-
-    def get_resource_prepared_maps(self, resource, deployment, map_file=None):
-        """Parse maps for a resource and identify paths for finding the map
-        data.
-
-        By looking at a requirement's key and finding the relations that
-        satisfy that key (using the requires-key attribute) and that have a
-        'target' attribute, we can identify the resource we need to get the
-        data from and provide the path to that resource as a hint to the
-        TransMerge task
-        """
-        if map_file is None:
-            map_file = self.map_file
-
-        maps = map_file.get_component_maps(resource['component'])
-        result = []
-        for mapping in maps or []:
-
-            # find paths for sources
-
-            if 'source' in mapping:
-                url = ChefMap.parse_map_uri(mapping['source'])
-                if url['scheme'] == 'requirements':
-                    key = url['netloc']
-                    relations = [
-                        r for r in resource['relations'].values()
-                        if (r.get('requires-key') == key and 'target' in r)
-                    ]
-                    if relations:
-                        target = relations[0]['target']
-                        #  account for host
-                        #  FIXME: This representation needs to be consistent!
-                        if relations[0].get('relation', '') != 'host':
-                            mapping['path'] = ('instance:%s/interfaces/%s'
-                                               % (target,
-                                                  relations[0]['interface']))
-                        else:
-                            mapping['path'] = 'instance:%s' % target
-                    result.append(mapping)
-                elif url['scheme'] == 'clients':
-                    key = url['netloc']
-                    for client in deployment['resources'].values():
-                        if 'relations' not in client:
-                            continue
-                        relations = [r for r in client['relations'].values()
-                                     if (r.get('requires-key') == key and
-                                         r.get('target') == resource['index'])
-                                     ]
-                        if relations:
-                            mapping['path'] = 'instance:%s' % client['index']
-                            result.append(copy.copy(mapping))
-                else:
-                    result.append(mapping)
-            else:
-                result.append(mapping)
-
-        # Write attribute hints
-        key = resource['index']
-        for mapping in result:
-            mapping['resource'] = key
-        return result
-
     def _hash_all_user_resource_passwords(self, deployment):
         """Chef needs all passwords to be a hash."""
         if 'resources' in deployment:
@@ -618,9 +511,8 @@ class Provider(ProviderBase):
         environment = deployment.environment()
         provider = environment.get_provider(resource['provider'])
         component = provider.get_component(context, resource['component'])
-        map_with_context = self.get_map_with_context(deployment=deployment,
-                                                     resource=resource,
-                                                     component=component)
+        map_with_context = self.map_file.get_map_with_context(
+            deployment=deployment, resource=resource, component=component)
 
         # Is this relation in one of our maps? If so, let's handle that
         tasks = []
@@ -817,7 +709,7 @@ class Provider(ProviderBase):
         else:
             name = 'Reconfigure %s: client ready' % server['component']
             host_idx = server.get('hosted_on', server['index'])
-            run_list = self._get_component_run_list(server_component)
+            run_list = self.map_file.get_component_run_list(server_component)
             instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
 
             reconfigure_task = specs.Celery(

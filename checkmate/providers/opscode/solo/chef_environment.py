@@ -26,7 +26,7 @@ from eventlet.green import threading
 
 from checkmate.common import config
 from checkmate import exceptions, utils
-from checkmate.providers.opscode.solo.blueprint_cache import BlueprintCache
+from checkmate.providers.opscode import blueprint_cache as BlueprintCache
 from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
 
 

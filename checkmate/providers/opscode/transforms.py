@@ -34,8 +34,8 @@ class Transforms(object):
             import copy  # pylint: disable=W0404,W0621
             # pylint: disable=W0621
             from checkmate.deployments import resource_postback as postback
-            from checkmate.providers.opscode.solo.chef_map import ChefMap
-            from checkmate.providers.opscode.solo.chef_map import \
+            from checkmate.providers.opscode.chef_map import ChefMap
+            from checkmate.providers.opscode.chef_map import \
                 SoloProviderNotReady
             # pylint: disable=W0621
             maps = self.get_property('chef_maps', [])
