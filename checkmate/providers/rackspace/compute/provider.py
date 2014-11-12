@@ -435,6 +435,7 @@ class Provider(RackspaceComputeProviderBase):
             wfspec, task_name, celery_call, **kwargs)
         create_server_task.connect(build_wait_task)
 
+        proxy_kwargs = self.get_bastion_kwargs()
         verify_ssh_task = specs.Celery(
             wfspec, 'Verify server %s (%s) ssh connection' % (
                 key, resource['service']),
@@ -454,7 +455,8 @@ class Provider(RackspaceComputeProviderBase):
                 resource=key,
                 provider=self.key,
                 task_tags=['final']
-            )
+            ),
+            **proxy_kwargs
         )
         build_wait_task.connect(verify_ssh_task)
 
@@ -480,7 +482,8 @@ class Provider(RackspaceComputeProviderBase):
                     resource=key,
                     provider=self.key,
                     task_tags=['complete']
-                )
+                ),
+                **proxy_kwargs
             )
             verify_ssh_task.connect(touch_complete)
 

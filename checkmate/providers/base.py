@@ -20,6 +20,7 @@ import logging
 import celery
 from celery import exceptions as celery_exceptions
 
+from checkmate.common import config
 from checkmate.common import schema
 from checkmate import component as cmcomp
 from checkmate import exceptions
@@ -28,6 +29,7 @@ from checkmate.providers.provider_base_planning_mixin import \
     ProviderBasePlanningMixIn
 from checkmate import utils
 
+CONFIG = config.current()
 LOG = logging.getLogger(__name__)
 PROVIDER_CLASSES = {}
 
@@ -593,6 +595,18 @@ class ProviderBase(ProviderBasePlanningMixIn,
                 resource.get("provider") != self.name):
             raise exceptions.CheckmateException("%s did not provide resource"
                                                 " %s" % (self.name, key))
+
+    @staticmethod
+    def get_bastion_kwargs():
+        """Return bastion address and creds if they are in config."""
+        address = None
+        credentials = {}
+        if CONFIG.bastion_address:
+            address = CONFIG.bastion_address
+            credentials['username'] = CONFIG.bastion_username
+            credentials['password'] = CONFIG.bastion_password
+            credentials['key_filename'] = CONFIG.bastion_key_filename
+        return {'proxy_address': address, 'proxy_credentials': credentials}
 
 
 def register_providers(providers):

@@ -41,6 +41,11 @@ ENV_MAP = {
     'CHECKMATE_BLUEPRINT_CACHE_EXPIRE': 'blueprint_cache_expiration',
     'CHECKMATE_GITHUB_TOKEN': 'github_token',
 
+    'CHECKMATE_BASTION_ADDRESS': 'bastion_address',
+    'CHECKMATE_BASTION_PKEY_FILE': 'bastion_key_filename',
+    'CHECKMATE_BASTION_USERNAME': 'bastion_username',
+    'CHECKMATE_BASTION_PASSWORD': 'bastion_password',
+
     # Chef Provider Options
     'CHECKMATE_CHEF_LOCAL_PATH': 'deployments_path',
     'CHECKMATE_CHEF_OMNIBUS_VERSION': 'omnibus_version',
@@ -88,6 +93,11 @@ class Config(object):
     preview_ref = 'master'
     preview_tenants = None
     group_refs = {}
+
+    bastion_address = None
+    bastion_key_filename = None
+    bastion_username = None
+    bastion_password = None
 
     deployments_path = '/var/local/checkmate/deployments'
     berkshelf_path = None  # let consumer calculate it from deployments_path

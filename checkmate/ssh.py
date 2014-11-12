@@ -8,6 +8,8 @@ import StringIO
 from celery.task.sets import subtask
 from celery.task import task
 import paramiko
+from satori import bash
+from satori import ssh
 
 from checkmate.common import statsd
 from checkmate import smb
@@ -27,11 +29,22 @@ class AcceptMissingHostKey(paramiko.client.MissingHostKeyPolicy):
         client._host_keys.add(hostname, key.get_name(), key)
 
 
+def get_gateway(address, username=None, password=None, private_key=None,
+                key_filename=None):
+    """Return a satori SSH client to use as an ssh gateway."""
+    options = {'StrictHostKeyChecking': False}
+    return ssh.connect(address, username=username,
+                       password=password,
+                       private_key=private_key,
+                       key_filename=key_filename,
+                       options=options)
+
+
 @task(default_retry_delay=10, max_retries=36)
 @statsd.collect
 def test_connection(context, ip, username, timeout=10, password=None,
                     identity_file=None, port=22, callback=None,
-                    private_key=None):
+                    private_key=None, proxy_address=None, proxy_creds=None):
     """Connect to an ssh server and verify that it responds
 
     ip:             the ip address or host name of the server
@@ -53,10 +66,14 @@ def test_connection(context, ip, username, timeout=10, password=None,
     match_celery_logging(LOG)
     LOG.debug("Checking for a response from ssh://%s@%s:%d.", username, ip,
               port)
+    if proxy_address:
+        gateway = get_gateway(proxy_address, **proxy_creds)
+    else:
+        gateway = None
     try:
         client = connect(ip, port=port, username=username, timeout=timeout,
                          private_key=private_key, identity_file=identity_file,
-                         password=password)
+                         password=password, gateway=gateway)
         client.close()
         LOG.debug("ssh://%s@%s:%d is up.", username, ip, port)
         if callback:
@@ -72,7 +89,8 @@ def test_connection(context, ip, username, timeout=10, password=None,
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def execute_2(context, ip_address, command, username, timeout=10,
-              password=None, identity_file=None, port=22, private_key=None):
+              password=None, identity_file=None, port=22, private_key=None,
+              proxy_address=None, proxy_creds=None):
     '''Execute function that takes a context and handles simulations.'''
     if context.get('simulation') is True:
         results = {
@@ -80,15 +98,20 @@ def execute_2(context, ip_address, command, username, timeout=10,
             'stderr': "DUMMY STDERR",
         }
         return results
+    if proxy_address:
+        gateway = get_gateway(proxy_address, **proxy_creds)
+    else:
+        gateway = None
     return execute(ip_address, command, username, timeout=timeout,
                    password=password, identity_file=identity_file, port=port,
-                   private_key=private_key)
+                   private_key=private_key, gateway=gateway)
 
 
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def execute(ip, command, username, timeout=10, password=None,
-            identity_file=None, port=22, callback=None, private_key=None):
+            identity_file=None, port=22, callback=None, private_key=None,
+            proxy_address=None, proxy_creds=None):
     """Executes an ssh command on a remote host and returns a dict with stdin
     and stdout of the call. Tries cert auth first and falls back to password
     auth if password provided
@@ -103,14 +126,20 @@ def execute(ip, command, username, timeout=10, password=None,
     callback:       a callback task to call on success
     private_key:    an RSA string for the private key to use (instead of using
                     a file)
+    proxy_address:  optional proxy server address
+    proxy_creds:    dict of username and password or private_key for proxy
     """
     match_celery_logging(LOG)
     LOG.debug("Executing '%s' on ssh://%s@%s:%s.", command, username, ip, port)
+    if proxy_address:
+        gateway = get_gateway(proxy_address, **proxy_creds)
+    else:
+        gateway = None
     try:
         results = remote_execute(ip, command, username, password=password,
                                  identity_file=identity_file,
                                  private_key=private_key, port=port,
-                                 timeout=timeout)
+                                 timeout=timeout, gateway=gateway)
         if callback is not None:
             subtask(callback).delay()
         return results
@@ -120,7 +149,7 @@ def execute(ip, command, username, timeout=10, password=None,
 
 
 def remote_execute(host, command, username, password=None, identity_file=None,
-                   private_key=None, port=22, timeout=10):
+                   private_key=None, port=22, timeout=10, gateway=None):
     '''Executes an ssh command on a remote host.
 
     Tries cert auth first and falls back to password auth if password provided
@@ -142,12 +171,8 @@ def remote_execute(host, command, username, password=None, identity_file=None,
     try:
         client = connect(host, port=port, username=username, timeout=timeout,
                          private_key=private_key, identity_file=identity_file,
-                         password=password)
-        _, stdout, stderr = client.exec_command(command)
-        results = {
-            'stdout': stdout.read(),
-            'stderr': stderr.read(),
-        }
+                         password=password, gateway=gateway)
+        results = client.execute(command)
         LOG.debug('ssh://%s@%s:%d responded.', username, host, port)
         return results
     except Exception as exc:
@@ -159,7 +184,61 @@ def remote_execute(host, command, username, password=None, identity_file=None,
 
 
 def connect(ip, port=22, username="root", timeout=10, identity_file=None,
-            private_key=None, password=None):
+            private_key=None, password=None, gateway=None):
+    """Attempts SSH connection and returns SSHClient object
+    ip:             the ip address or host name of the server
+    username:       the username to use
+    timeout:        timeout in seconds
+    password:       password to use for username/password auth
+    identity_file:  a private key file to use
+    port:           TCP IP port to use (ssh default is 22)
+    private_key:    an RSA string for the private key to use (instead of using
+                    a file)
+    """
+    try:
+        if private_key is not None:
+            file_obj = StringIO.StringIO(private_key)
+            pkey = paramiko.RSAKey.from_private_key(file_obj)
+            LOG.debug("Trying supplied private key string")
+            client = bash.RemoteShell(ip, timeout=timeout, port=port,
+                                      username=username, private_key=pkey,
+                                      gateway=gateway)
+        elif identity_file is not None:
+            LOG.debug("Trying key file: %s", os.path.expanduser(identity_file))
+            client = bash.RemoteShell(
+                ip, timeout=timeout, port=port, username=username,
+                key_filename=os.path.expanduser(identity_file),
+                gateway=gateway)
+        else:
+            client = bash.RemoteShell(ip, port=port, username=username,
+                                      password=password, gateway=gateway)
+            LOG.debug("Authentication for ssh://%s@%s:%d using "
+                      "password succeeded", username, ip, port)
+        LOG.debug("Connected to ssh://%s@%s:%d.", username, ip, port)
+        return client
+    except paramiko.PasswordRequiredException, exc:
+        #Looks like we have cert issues, so try password auth if we can
+        if password:
+            LOG.debug("Retrying with password credentials")
+            return connect(ip, username=username, timeout=timeout,
+                           password=password, port=port)
+        else:
+            raise exc
+    except paramiko.BadHostKeyException, exc:
+        msg = ("ssh://%s@%s:%d failed:  %s. You might have a bad key "
+               "entry on your server, but this is a security issue and won't "
+               "be handled automatically. To fix this you can remove the "
+               "host entry for this host from the /.ssh/known_hosts file" %
+               (username, ip, port, exc))
+        LOG.info(msg)
+        raise exc
+    except Exception, exc:
+        LOG.info('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
+        raise exc
+
+
+def old_connect(ip, port=22, username="root", timeout=10, identity_file=None,
+                private_key=None, password=None):
     """Attempts SSH connection and returns SSHClient object
     ip:             the ip address or host name of the server
     username:       the username to use
@@ -194,8 +273,8 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
         #Looks like we have cert issues, so try password auth if we can
         if password:
             LOG.debug("Retrying with password credentials")
-            return connect(ip, username=username, timeout=timeout,
-                           password=password, port=port)
+            return old_connect(ip, username=username, timeout=timeout,
+                               password=password, port=port)
         else:
             raise exc
     except paramiko.BadHostKeyException, exc:
@@ -212,7 +291,7 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
 
 
 def ps_execute(host, script, filename, username, password, port=445,
-               timeout=300):
+               timeout=300, gateway=None):
     """Make ps_exec available to be used as an api object in compute."""
     return smb.execute_script(host, script, filename, username, password,
-                              port=port, timeout=timeout)
+                              port=port, timeout=timeout, gateway=gateway)
