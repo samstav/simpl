@@ -21,6 +21,7 @@ import subprocess
 
 from checkmate.common import config
 from checkmate import exceptions
+from checkmate.providers import base
 from checkmate.providers.opscode.solo.chef_environment import ChefEnvironment
 from checkmate import ssh
 
@@ -139,8 +140,15 @@ class Manager(object):
 
         # Rsync problem with creating path (missing -p so adding it ourselves)
         # and doing this before the complex prepare work
+        proxy_kwargs = base.ProviderBase.get_bastion_kwargs()
+        if proxy_kwargs.get('proxy_address'):
+            gateway = ssh.get_gateway(proxy_kwargs['proxy_address'],
+                                      **proxy_kwargs['proxy_credentials'])
+        else:
+            gateway = None
         ssh.remote_execute(host, "mkdir -p %s" % env.kitchen_path, 'root',
-                           password=password, identity_file=identity_file)
+                           password=password, identity_file=identity_file,
+                           gateway=gateway)
 
         try:
             env.register_node(host, password=password,
@@ -160,7 +168,8 @@ class Manager(object):
         try:
             results = ssh.remote_execute(host, "knife -v", 'root',
                                          password=password,
-                                         identity_file=identity_file)
+                                         identity_file=identity_file,
+                                         gateway=gateway)
             LOG.debug("Chef install check results on %s: %s", host,
                       results['stdout'])
             if (re.match('^Chef: [0-9]+.[0-9]+.[0-9]+', results['stdout'])
