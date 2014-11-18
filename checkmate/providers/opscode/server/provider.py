@@ -11,28 +11,28 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Implements a Chef Server configuration management provider."""
-import logging
 
+"""Implements a Chef Server configuration management provider."""
+
+import logging
+import os
+
+import chef
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
-import yaml
-from yaml.composer import ComposerError
-from yaml.parser import ParserError
-from yaml.scanner import ScannerError
 
-from checkmate.common import schema
-from checkmate import exceptions
+from checkmate.providers.opscode import base
 from checkmate.providers import ProviderBase
-from checkmate.providers.opscode import solo
 from checkmate.providers.opscode.chef_map import ChefMap
 
 
 LOG = logging.getLogger(__name__)
 
 
-class Provider(ProviderBase):
+class Provider(base.BaseOpscodeProvider):
+
     """Implements a Chef Server configuration management provider."""
+
     name = 'chef-server'
     vendor = 'opscode'
 
@@ -54,83 +54,201 @@ class Provider(ProviderBase):
         else:
             # Create noop map file
             self.map_file = ChefMap(raw="")
+        self.server_credentials = {}
 
     def prep_environment(self, wfspec, deployment, context):
         ProviderBase.prep_environment(self, wfspec, deployment, context)
         if self.prep_task:
             return  # already prepped
+
+        self.server_credentials = {
+            'server_url': deployment.get_setting('server-url',
+                                                 provider_key=self.key),
+            'server_username': deployment.get_setting('server-username',
+                                                      provider_key=self.key),
+            'server_user_key': deployment.get_setting('server-user-key',
+                                                      provider_key=self.key),
+            'validator_pem': deployment.get_setting('validator-pem',
+                                                    provider_key=self.key),
+            'validator_username': deployment.get_setting('validator-username',
+                                                         provider_key=self.key)
+        }
+        source_repo = deployment.get_setting('source', provider_key=self.key)
+        create_workspace = specs.Celery(
+            wfspec,
+            'Create Workspace',
+            'checkmate.providers.opscode.server.tasks.create_kitchen',
+            call_args=[
+                context.get_queued_task_dict(deployment_id=deployment['id']),
+                deployment['id'],
+                'kitchen'
+            ],
+            source_repo=source_repo,
+            server_credentials=self.server_credentials,
+            defines={'resource': 'workspace', 'provider': self.key},
+            properties={'estimated_duration': 10, 'task_tags': ['root']}
+        )
         create_environment = specs.Celery(
             wfspec,
-            'Create Chef Environment',
-            'checkmate.providers.opscode.server.tasks.manage_env',
+            'Create Chef Server Environment',
+            'checkmate.providers.opscode.server.tasks.manage_environment',
             call_args=[
-                operators.Attrib('context'),
+                context.get_queued_task_dict(deployment_id=deployment['id']),
                 deployment['id'],
-                'Checkmate Environment'
+                deployment['id']  # environment name
             ],
-            defines=dict(resource='workspace', provider=self.key),
+            desc='Checkmate Environment',
+            defines={'resource': 'workspace', 'provider': self.key},
             properties={'estimated_duration': 10}
         )
-        self.prep_task = create_environment
-        return {'root': self.prep_task, 'final': self.prep_task}
+        create_environment.follow(create_workspace)
+
+        upload_environment = specs.Celery(
+            wfspec,
+            'Upload Cookbooks',
+            'checkmate.providers.opscode.server.tasks.upload_cookbooks',
+            call_args=[
+                context.get_queued_task_dict(deployment_id=deployment['id']),
+                deployment['id'],
+                deployment['id']  # environment name
+            ],
+            defines={'resource': 'workspace', 'provider': self.key},
+            properties={'estimated_duration': 60}
+        )
+        upload_environment.follow(create_environment)
+        self.prep_task = upload_environment
+        return {'root': create_workspace, 'final': self.prep_task}
+
+    def cleanup_environment(self, wfspec, deployment, context):
+        call = 'checkmate.providers.opscode.server.tasks.delete_environment'
+        defines = {'provider': self.key, 'resource': 'workspace'}
+        call_args = [
+            context.get_queued_task_dict(deployment_id=deployment['id']),
+            deployment['id'],
+        ]
+        properties = {'estimated_duration': 1, 'task_tags': ['cleanup']}
+        cleanup_task = specs.Celery(wfspec, 'Delete Chef Environment', call,
+                                    call_args=call_args,
+                                    defines=defines, properties=properties)
+
+        return {'root': cleanup_task, 'final': cleanup_task}
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
+        wait_on, service_name, component = self._add_resource_tasks_helper(
+            resource, key, wfspec, deployment, context, wait_on)
+        context_arg = context.get_queued_task_dict(
+            deployment_id=deployment['id'], resource_key=key)
+
+        # Get component/role or recipe name
+        component_id = component['id']
+        LOG.debug("Determining component from dict: %s", component_id,
+                  extra=component)
+
+        run_list = self.map_file.get_component_run_list(component)
+
         register_node_task = specs.Celery(
             wfspec,
             'Register Server:%s (%s)' % (key, resource['service']),
             'checkmate.providers.opscode.server.tasks.register_node',
             call_args=[
-                operators.Attrib('context'),
-                resource.get('dns-name'),
-                ['wordpress-web']
+                context_arg,
+                deployment['id'],
+                resource.get('dns-name')
             ],
             environment=deployment['id'],
-            defines=dict(resource=key, provider=self.key),
-            description="Register the node in the Chef Server. "
-                        "Nothing is done the node itself",
-            properties={'estimated_duration': 20}
+            defines={'resource': key, 'provider': self.key},
+            description=("Register the node in the Chef Server. "
+                         "Nothing is done the node itself"),
+            properties={'estimated_duration': 20},
+            **run_list
         )
         self.prep_task.connect(register_node_task)
 
+        resource = deployment['resources'][key]
+        host_idx = resource.get('hosted_on', key)
+        instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
+
+        proxy_kwargs = self.get_bastion_kwargs()
         ssh_apt_get_task = specs.Celery(
             wfspec,
             'Apt-get Fix:%s (%s)' % (key, resource['service']),
-            'checkmate.ssh.execute',
+            'checkmate.ssh.execute_2',
             call_args=[
-                operators.Attrib('ip'),
+                context_arg,
+                instance_ip,
                 "sudo apt-get update",
                 'root'
             ],
-            password=operators.Attrib('password'),
+            password=operators.PathAttrib(
+                'instance:%s/password' % resource.get('hosted_on', key)
+            ),
             identity_file=operators.Attrib('private_key_path'),
-            defines=dict(resource=key, provider=self.key),
-            properties={'estimated_duration': 100}
+            defines={'resource': key, 'provider': self.key},
+            properties={'estimated_duration': 100},
+            **proxy_kwargs
         )
         # TODO: stop assuming only one wait_on=create_server_task
         wait_on[0].connect(ssh_apt_get_task)
 
-        bootstrap_task = specs.Celery(
+        bootstrap_task = anchor_task = specs.Celery(
             wfspec,
             'Bootstrap Server:%s (%s)' % (key, resource['service']),
             'checkmate.providers.opscode.server.tasks.bootstrap',
             call_args=[
-                operators.Attrib('context'),
+                context_arg,
+                deployment['id'],
                 resource.get('dns-name'),
-                operators.Attrib('ip')
+                instance_ip
             ],
-            password=operators.Attrib('password'),
+            password=operators.PathAttrib(
+                'instance:%s/password' % resource.get('hosted_on', key)
+            ),
             identity_file=operators.Attrib('private_key_path'),
-            run_roles=['build', 'wordpress-web'],
             environment=deployment['id'],
-            defines=dict(resource=key, provider=self.key),
-            properties={'estimated_duration': 90}
+            defines={'resource': key, 'provider': self.key},
+            properties={'estimated_duration': 90},
+            **run_list
         )
-        wfspec.wait_for(bootstrap_task,
-                        [ssh_apt_get_task, register_node_task],
-                        name="Wait for Server Build:%s (%s)" % (
-                            key, resource['service']))
-        return {'root': register_node_task, 'final': bootstrap_task}
+
+        # Copied from solo
+        if self.map_file.has_mappings(component_id):
+            collect_data_tasks = self.get_prep_tasks(
+                wfspec, deployment, key, component, context,
+                provider='checkmate.providers.opscode.server')
+            bootstrap_task.follow(collect_data_tasks['final'])
+            anchor_task = collect_data_tasks['root']
+
+        # Collect dependencies
+        dependencies = [self.prep_task] if self.prep_task else []
+        dependencies.extend([ssh_apt_get_task, register_node_task])
+
+        # Wait for relations tasks to complete
+        for relation_key in resource.get('relations', {}).keys():
+            tasks = wfspec.find_task_specs(resource=key,
+                                           relation=relation_key, tag='final')
+            if tasks:
+                dependencies.extend(tasks)
+
+        server_id = resource.get('hosted_on', key)
+
+        wfspec.wait_for(
+            anchor_task, dependencies,
+            name="After server %s (%s) is registered and options are ready"
+                 % (server_id, service_name),
+            description="Before applying chef recipes, we need to know that "
+                        "the server has chef on it and that the overrides "
+                        "(ex. database settings) have been applied"
+        )
+
+        # if we have a host task marked 'complete', make that wait on configure
+        host_complete = self.get_host_complete_task(wfspec, resource)
+        if host_complete:
+            wfspec.wait_for(
+                host_complete,
+                [bootstrap_task],
+                name='Wait for %s to be configured before completing host %s' %
+                     (service_name, resource.get('hosted_on', key)))
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
@@ -140,14 +258,16 @@ class Provider(ProviderBase):
         if interface == 'mysql':
             #Take output from Create DB task and write it into
             # the 'override' dict to be available to future tasks
+            context_arg = context.get_queued_task_dict(
+                deployment_id=deployment['id'], resource_key=key)
 
-            db_final = wfspec.find_task_specs(relation=relation['target'],
-                                              provider=target['provider'],
-                                              tag='final')
+            tasks = wfspec.find_task_specs(relation=relation['target'],
+                                           provider=target['provider'],
+                                           tag='final')
 
             compile_override = specs.Transform(
                 wfspec,
-                "Prepare Overrides",
+                "Prepare Overrides:%s" % key,
                 transforms=[
                     "my_task.attributes['overrides']={'wordpress': {'db': "
                     "{'host': my_task.attributes['hostname'], "
@@ -163,13 +283,16 @@ class Provider(ProviderBase):
                     relation=relation_key, provider=self.key, task_tags=None
                 )
             )
-            db_final.connect(compile_override)
+            wfspec.wait_for(compile_override, tasks)
 
             set_overrides = specs.Celery(
                 wfspec,
-                "Write Database Settings",
+                "Write Database Settings:%s" % key,
                 'checkmate.providers.opscode.server.tasks.manage_env',
-                call_args=[operators.Attrib('context'), deployment['id']],
+                call_args=[
+                    context_arg,
+                    deployment['id']
+                ],
                 desc='Checkmate Environment',
                 override_attributes=operators.Attrib('overrides'),
                 description="Take the JSON prepared earlier and write it into"
@@ -192,8 +315,9 @@ class Provider(ProviderBase):
                                                   provider=self.key,
                                                   tag='final')
             # Assuming input is join
-            assert isinstance(config_final.inputs[0], specs.Merge)
-            set_overrides.connect(config_final.inputs[0])
+            if config_final:
+                assert isinstance(config_final.inputs[0], specs.Merge)
+                set_overrides.connect(config_final.inputs[0])
 
         else:
             LOG.warning(
@@ -201,59 +325,9 @@ class Provider(ProviderBase):
                 self.key, interface
             )
 
-    def get_catalog(self, context, type_filter=None):
-        """Return stored/override catalog if it exists, else connect, build,
-        and return one.
-
-        NOTE: copied in chef-server Provider
-        """
-        # TODO(zns): maybe implement this an on_get_catalog so we don't have to
-        #        do this for every provider
-        results = ProviderBase.get_catalog(self, context,
-                                           type_filter=type_filter)
-        if results:
-            # We have a prexisting or injected catalog stored. Use it.
-            return results
-
-        if self.source:
-            # Get remote catalog
-            catalog = self.get_remote_catalog()
-
-            # Validate and cache catalog
-            self.validate_catalog(catalog)
-            if type_filter is None:
-                self._dict['catalog'] = catalog
-            return catalog
-
-    def get_remote_catalog(self, source=None):
-        """Get the remote catalog from a repo by obtaining a Chefmap file, if
-        it exists, and parsing it.
-
-        NOTE: copied in chef-server Provider
-        """
-        if source:
-            map_file = ChefMap(url=source)
-        else:
-            map_file = self.map_file
-        catalog = {}
-        try:
-            for doc in yaml.safe_load_all(map_file.parsed):
-                if 'id' in doc:
-                    for key in doc.keys():
-                        if key not in schema.COMPONENT_SCHEMA:
-                            del doc[key]
-                    resource_type = doc.get('is', 'application')
-                    if resource_type not in catalog:
-                        catalog[resource_type] = {}
-                    catalog[resource_type][doc['id']] = doc
-            LOG.debug('Obtained remote catalog from %s', map_file.url)
-        except ValueError:
-            msg = 'Catalog source did not return parsable content'
-            raise exceptions.CheckmateException(msg)
-        except (ParserError, ScannerError) as exc:
-            raise exceptions.CheckmateValidationException(
-                "Invalid YAML syntax in Chefmap. Check:\n%s" % exc)
-        except ComposerError as exc:
-            raise exceptions.CheckmateValidationException(
-                "Invalid YAML structure in Chefmap. Check:\n%s" % exc)
-        return catalog
+    @staticmethod
+    def connect(context):
+        api = chef.autoconfigure(
+            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
+        )
+        return api

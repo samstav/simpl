@@ -15,36 +15,57 @@
 #    under the License.
 """Tasks for chef server provider."""
 import logging
-import os
-import subprocess
 
-from celery.task import task
+from celery import task as ctask
 import chef
 
 from checkmate.common import statsd
+from checkmate import deployments
+from checkmate.providers.opscode.server.manager import Manager
+from checkmate.providers.opscode.server import Provider
+from checkmate.providers import ProviderTask
 
 LOG = logging.getLogger(__name__)
 
 
-@task
+@ctask.task(base=ProviderTask, provider=Provider)
 @statsd.collect
-def register_node(deployment, name, runlist=None, attributes=None,
-                  environment=None):
-    '''Register node on chef server.'''
+def register_node(context, deployment, name, recipes=None, roles=None,
+                  attributes=None, environment=None, api=None):
+    """Register node on chef server."""
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        data = {
+            'status': 'ERROR',
+            'error-message': 'Error register node'
+        }
+        register_node.partial(data)
+    register_node.on_failure = on_failure
+
+    # Add any missing recipes to node settings
+    run_list = create_role_recipe_string(roles=roles, recipes=recipes)
+
+    if context.simulation:
+        LOG.info("Would register node %s with run_list=%s", name,
+                 run_list)
+        return
+
+    use_api = False
     try:
-        api = chef.autoconfigure(
-            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
-        )
-        n = chef.Node(name, api=api)
-        if runlist is not None:
-            n.run_list = runlist
-        if attributes is not None:
-            n.normal = attributes
-        if environment is not None:
-            n.chef_environment = environment
-        n.save()
-        LOG.debug('Registered %s with Chef Server. Setting runlist to %s',
-                  name, runlist)
+        if use_api:
+            n = chef.Node(name, api=api)
+            if run_list is not None:
+                n.run_list = run_list
+            if attributes is not None:
+                n.normal = attributes
+            if environment is not None:
+                n.chef_environment = environment
+            n.save()
+            LOG.debug('Registered %s with Chef Server. Setting runlist to %s',
+                      name, run_list)
+        else:
+            return True
     except chef.ChefError, exc:
         LOG.debug('Node registration failed. Chef Error: %s. Retrying.', exc)
         register_node.retry(exc=exc)
@@ -53,88 +74,110 @@ def register_node(deployment, name, runlist=None, attributes=None,
         register_node.retry(exc=exc)
 
 
-@task
+@ctask.task(base=ProviderTask, provider=Provider)
 @statsd.collect
-def bootstrap(
-    deployment, name, ip, username='root', password=None, port=22,
-    identity_file=None, run_roles=None, run_recipes=None,
-    distro='chef-full', environment=None
-):
-    LOG.debug('Bootstraping %s (%s:%d)', name, ip, port)
-    run_roles_recipes = create_role_recipe_string(roles=run_roles,
-                                                  recipes=run_recipes)
-    params = ['knife', 'bootstrap', ip, '-x', username, '-N', name]
-    if identity_file:
-        params.extend(['-i', identity_file])
-    if distro:
-        params.extend(['-d', distro])
-    if run_roles_recipes:
-        params.extend(['-r', run_roles_recipes])
-    if password:
-        params.extend(['-P', password])
-    if port:
-        params.extend(['-p', str(port)])
-    if environment:
-        params.extend(['-E', environment])
+def bootstrap(context, deployment, name, ip, username='root', password=None,
+              port=22, identity_file=None, roles=None, recipes=None,
+              distro='chef-full', environment=None, api=None):
 
-    path = os.environ.get('CHECKMATE_CHEF_PATH')
-    if path:
-        if os.path.exists(os.path.join(path, 'knife.rb')):
-            params.extend(['-c', os.path.join(path, 'knife.rb')])
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        data = {
+            'status': 'ERROR',
+            'error-message': 'Error bootstrap'
+        }
+        bootstrap.partial(data)
+    bootstrap.on_failure = on_failure
 
-    LOG.debug('Running: %s', ' '.join(params))
-    result = subprocess.check_output(params)
-    if 'FATAL' in result:
-        errors = [line for line in result.split('/n') if 'FATAL' in line]
-        LOG.debug("Bootstrap errors: %s", '/n'.join(errors))
-        raise subprocess.CalledProcessError('/n'.join(errors),
-                                            ' '.join(params))
+    LOG.info('Bootstraping %s on chef server (%s:%d)', name, ip, port)
+    run_list = create_role_recipe_string(roles=roles, recipes=recipes)
+    return Manager.bootstrap(context, deployment, name, ip,
+                             username=username, password=password,
+                             port=port, identity_file=identity_file,
+                             run_list=run_list, distro=distro,
+                             environment=environment,
+                             simulation=context.simulation,
+                             callback=bootstrap.partial)
+
+
+@ctask.task(base=ProviderTask, provider=Provider)
+@statsd.collect
+def write_databag(context, deployment, bagname, itemname, contents, api=None):
+    """Create/Edit Data Bag."""
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        data = {
+            'status': 'ERROR',
+            'error-message': 'Error modifying databag'
+        }
+        write_databag.partial(data)
+    write_databag.on_failure = on_failure
+
+    if context.simulation:
+        LOG.info("Would create databag: %s", bagname)
+        return
+
+    use_api = False
+    try:
+        if use_api:
+            bag = chef.DataBag(bagname, api=api)
+            bag.save()
+            item = chef.DataBagItem(bag, itemname)
+            for key, value in contents.iteritems():
+                item[key] = value
+            item.save()
+        else:
+            Manager.update_databag(deployment, bagname, itemname, contents)
+        LOG.debug('Databag %s item %s updated.', bagname, itemname)
+    except chef.ChefError, exc:
+        LOG.debug('Databag management failed. Chef Error: %s. Retrying.', exc)
+        write_databag.retry(exc=exc)
+    except Exception, exc:
+        LOG.debug('Databag management failed. Error: %s. Retrying.', exc)
+        write_databag.retry(exc=exc)
     return True
 
 
-@task
+@ctask.task(base=ProviderTask, provider=Provider)
 @statsd.collect
-def manage_databag(deployment, bagname, itemname, contents):
-    try:
-        api = chef.autoconfigure(
-            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
-        )
-        bag = chef.DataBag(bagname, api=api)
-        bag.save()
-        item = chef.DataBagItem(bag, itemname)
-        for key, value in contents.iteritems():
-            item[key] = value
-        item.save()
-        LOG.debug('Databag %s updated. Setting items to %s', bag, item)
-    except chef.ChefError, exc:
-        LOG.debug('Databag management failed. Chef Error: %s. Retrying.', exc)
-        manage_databag.retry(exc=exc)
-    except Exception, exc:
-        LOG.debug('Databag management failed. Error: %s. Retrying.', exc)
-        manage_databag.retry(exc=exc)
-
-
-@task
-@statsd.collect
-def manage_role(deployment, name, desc=None, run_list=None,
+def manage_role(context, deployment, name, desc=None, run_list=None,
                 default_attributes=None, override_attributes=None,
-                env_run_lists=None):
+                env_run_lists=None, api=None):
+    """Create/Edit Role."""
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        data = {
+            'status': 'ERROR',
+            'error-message': 'Error modifying role'
+        }
+        manage_role.partial(data)
+    manage_role.on_failure = on_failure
+
+    if context.simulation:
+        LOG.info("Would create role: %s", name)
+        return
+
+    use_api = False
     try:
-        api = chef.autoconfigure(
-            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
-        )
-        r = chef.Role(name, api=api)
-        if desc is not None:
-            r.description = desc
-        if run_list is not None:
-            r.run_list = run_list
-        if default_attributes is not None:
-            r.default_attributes = default_attributes
-        if override_attributes is not None:
-            r.override_attributes = override_attributes
-        if env_run_lists is not None:
-            r.env_run_lists = env_run_lists
-        r.save()
+        if use_api:
+            r = chef.Role(name, api=api)
+            if desc is not None:
+                r.description = desc
+            if run_list is not None:
+                r.run_list = run_list
+            if default_attributes is not None:
+                r.default_attributes = default_attributes
+            if override_attributes is not None:
+                r.override_attributes = override_attributes
+            if env_run_lists is not None:
+                r.env_run_lists = env_run_lists
+            r.save()
+        else:
+            Manager.update_role(name, deployment, desc=None,
+                                default_attributes=None,
+                                override_attributes=None)
         LOG.debug(
             "Role %s updated. runlist set to %s. Default attributes set "
             "to %s. Override attributes set to %s. Environment run lists "
@@ -146,39 +189,162 @@ def manage_role(deployment, name, desc=None, run_list=None,
     except Exception, exc:
         LOG.debug('Role management failed. Error: %s. Retrying.', exc)
         manage_role.retry(exc=exc)
+    return True
 
 
-@task
+@ctask.task(base=ProviderTask, provider=Provider, max_retries=3)
 @statsd.collect
-def manage_env(deployment, name, desc=None, versions=None,
-               default_attributes=None, override_attributes=None):
+def manage_environment(context, deployment, name, desc=None, versions=None,
+                       default_attributes=None, override_attributes=None,
+                       api=None):
+    """Create or modify a chef environment.
+
+    :param name: the name of the environment.
+    :param source_repo: provides cookbook repository in valid git syntax.
+    """
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        data = {
+            'status': 'ERROR',
+            'error-message': 'Error modifying chef environment'
+        }
+        manage_environment.partial(data)
+    manage_environment.on_failure = on_failure
+
+    if context.simulation:
+        LOG.info("Would modify environment: %s", name)
+        return True
+
+    use_api = False
     try:
-        api = chef.autoconfigure(
-            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
-        )
-        e = chef.Environment(name, api=api)
-        if desc is not None:
-            e.description = desc
-        if versions is not None:
-            e.cookbook_versions = versions
-        if default_attributes is not None:
-            e.default_attributes = default_attributes
-        if override_attributes is not None:
-            e.override_attributes = override_attributes
-        e.save()
+        if use_api:
+            e = chef.Environment(name, api=api)
+            if desc is not None:
+                e.description = desc
+            if versions is not None:
+                e.cookbook_versions = versions
+            if default_attributes is not None:
+                e.default_attributes = default_attributes
+            if override_attributes is not None:
+                e.override_attributes = override_attributes
+            e.save()
+        else:
+            Manager.update_environment(name, deployment, desc=None,
+                                       default_attributes=None,
+                                       override_attributes=None)
         LOG.debug(
-            "Environment %s updated. Description set to %s "
+            "Chef Environment %s updated. Description set to %s "
             "Versions set to %s. Default attributes set to %s. Override "
             "attributes set to %s.", name, desc, versions,
             default_attributes, override_attributes)
         return True
-    except chef.ChefError, exc:
+    except chef.ChefError as exc:
         LOG.debug('Environment management failed. Chef Error: %s. Retrying.',
                   exc)
-        manage_env.retry(exc=exc)
-    except Exception, exc:
+        manage_environment.retry(exc=exc)
+    except Exception as exc:
         LOG.debug('Environment management failed. Error: %s. Retrying.', exc)
-        manage_env.retry(exc=exc)
+        manage_environment.retry(exc=exc)
+
+
+@ctask.task(max_retries=3)
+@statsd.collect
+def create_kitchen(context, name, service_name, path=None,
+                   private_key=None, public_key_ssh=None,
+                   secret_key=None, source_repo=None,
+                   server_credentials=None):
+    """Create a folder with a configured knife.rb file on it.
+
+    The kitchen is a directory structure that is self-contained and
+    separate from other kitchens. It is used by this provider to run knife
+    and berks commands.
+
+    :param name: the name of the kitchen. This will be the directory name.
+    :param path: an override to the root path where to create this kitchen
+    :param private_key: PEM-formatted private key
+    :param public_key_ssh: SSH-formatted public key
+    :param secret_key: used for data bag encryption
+    :param source_repo: provides cookbook repository in valid git syntax
+    :param server_credentials: keys and info to connect to chef server
+    """
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        if len(exc.args) > 1:
+            arg = exc.args[1]
+        elif len(exc.args) > 0:
+            arg = exc.args[0]
+        else:
+            arg = "No arguments supplied in exception"
+        deployments.update_all_provider_resources.delay(
+            Provider.name,
+            context['deployment_id'],
+            'ERROR',
+            message=('Error creating chef kitchen: %s' % arg)
+        )
+
+    create_kitchen.on_failure = on_failure
+    return Manager.create_kitchen(name, service_name, path=path,
+                                  private_key=private_key,
+                                  public_key_ssh=public_key_ssh,
+                                  secret_key=secret_key,
+                                  source_repo=source_repo,
+                                  server_credentials=server_credentials,
+                                  simulation=context['simulation'])
+
+
+@ctask.task(max_retries=3)
+@statsd.collect
+def upload_cookbooks(context, deployment):
+    """Upload cookbooks using Berkshelf."""
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        if len(exc.args) > 1:
+            arg = exc.args[1]
+        elif len(exc.args) > 0:
+            arg = exc.args[0]
+        else:
+            arg = "No arguments supplied in exception"
+        deployments.update_all_provider_resources.delay(
+            Provider.name,
+            context['deployment_id'],
+            'ERROR',
+            message=('Error uploading cookbooks: %s' % arg)
+        )
+
+    upload_cookbooks.on_failure = on_failure
+    return Manager.upload(context, deployment,
+                          simulation=context['simulation'])
+
+
+@ctask.task(base=ProviderTask, provider=Provider)
+@statsd.collect
+def delete_environment(context, deployment, name, api=None):
+
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        data = {
+            'status': 'ERROR',
+            'error-message': 'Error deleting environment'
+        }
+        delete_environment.partial(data)
+    delete_environment.on_failure = on_failure
+
+    if context.simulation:
+        LOG.info("Would delete environment: %s", name)
+        return True
+
+    try:
+        e = chef.Environment(name, api=api)
+        e.delete()
+        LOG.info("Chef Environment %s deleted.", name)
+        return True
+    except chef.ChefError, exc:
+        LOG.debug('Environment deletion failed. Chef Error: %s. Retrying.',
+                  exc)
+        delete_environment.retry(exc=exc)
+    except Exception, exc:
+        LOG.debug('Environment deletion failed. Error: %s. Retrying.', exc)
+        delete_environment.retry(exc=exc)
 
 
 def create_role_recipe_string(roles=None, recipes=None):
@@ -186,9 +352,9 @@ def create_role_recipe_string(roles=None, recipes=None):
     recipe_string = ''
     if roles is not None:
         for role in roles:
-            recipe_string += 'role[%recipe_string], ' % role
+            recipe_string += 'role[%s], ' % role
     if recipes is not None:
         for recipe in recipes:
-            recipe_string += 'recipe[%recipe_string], ' % recipe
+            recipe_string += 'recipe[%s], ' % recipe
     # remove the trailing space and comma
     return recipe_string[:-2]
