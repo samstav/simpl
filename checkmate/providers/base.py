@@ -688,16 +688,19 @@ class ProviderTask(celery.Task):
                 'instance:%s' % context["resource_key"]: data
 
             }
-            results.update(resources)
+            if resources:
+                results.update(resources)
             return results
 
     def callback(self, context, data, resource_key=None):
         """Calls postback with instance.id to ensure posted to resource."""
-        if not data:
+        if (not data) or data is True:
             return
         from checkmate.deployments import tasks as deployment_tasks
         # TODO(Paul/Nate): Added here to get around circular dep issue.
         resource_index = resource_key or context['resource_key']
+        if not resource_index:
+            return
         results = {
             'resources': {
                 resource_index: {
@@ -705,7 +708,7 @@ class ProviderTask(celery.Task):
                 }
             }
         }
-        if 'status' in data:
+        if isinstance(data, dict) and 'status' in data:
             status = data['status']
             results['resources'][resource_index]['status'] = \
                 self.provider.translate_status(status)

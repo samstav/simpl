@@ -835,11 +835,11 @@ class Driver(common.DbBase):
                 "tenantId must be specified")
             body['_id'] = api_id
             try:
-                self.database()[klass].update({'_id': api_id}, body,
-                                          not merge_existing,  # Upsert new
-                                          manipulate=True, check_keys=False)
+                self.database()[klass].update(
+                    {'_id': api_id}, body, not merge_existing,  # Upsert new
+                    manipulate=True, check_keys=False)
             except Exception as exc:
-                import ipdb;ipdb.set_trace()
+                LOG.exception("MongoDB error")
                 raise exc
             if secrets:
                 secrets['_id'] = api_id
