@@ -194,10 +194,12 @@ class TestChefSoloProvider(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_cleanup_environment(self):
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
         wf_spec = workflow_spec.WorkflowSpec()
         solo_provider = solo.Provider({})
         cleanup_result = solo_provider.cleanup_environment(
-            wf_spec, {'id': 'DEP1'})
+            wf_spec, {'id': 'DEP1'}, context)
         cleanup_task_spec = cleanup_result['root']
         self.assertIsInstance(cleanup_task_spec, specs.Celery)
         self.assertEqual(cleanup_task_spec.args, ['DEP1'])
