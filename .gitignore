@@ -28,17 +28,13 @@ profiling/
 .vagrant.*
 
 # possible locations of chef-stockton repo
-checkmate/providers/opscode/chef-stockton
 chef/
-
 # virtual environments
 .venv
 venv-checkmate
-
 # scratch files
 scratch.json
 scratch.xml
-
 # Compiled source #
 ###################
 *.com
@@ -48,7 +44,6 @@ scratch.xml
 *.o
 *.so
 *.pyc
-
 # Packages #
 ############
 # it's better to unpack these files and commit the raw source
@@ -61,7 +56,6 @@ scratch.xml
 *.rar
 *.tar
 *.zip
-
 # Logs and databases #
 ######################
 *.log
@@ -69,49 +63,36 @@ scratch.xml
 *.sqlite
 *.db
 data
-
 # OS generated files #
-######################
 .DS_Store*
 ehthumbs.db
 Icon?
 Thumbs.db
-
 # Eclipse Project files #
 #########################
 .project
 .pydevproject
-
 # PyCharm project files #
-#########################
 .idea/
-
 # Generated reports #
 #####################
-coverage.xml
 tests/coverage.xml
-
 # Patches #
 ###########
 *.patch
 *.diff
-
 # Vagrant #
-###########
 .vagrant
 /vagrant/cookbooks
 /vagrant/tmp
-
 # Sublime Project Files #
-#########################
 *.sublime-project
 *.sublime-workspace
-
 # Komodo Project Files #
 ########################
 *.komodoproject
-
 # RVM #
 #######
 .rvmrc
 .ruby-gemset
+/cookbooks/

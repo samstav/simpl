@@ -276,7 +276,7 @@ class ProviderBase(ProviderBasePlanningMixIn,
     vendor = 'checkmate'
 
     def __init__(self, provider, key=None):
-        """Initialize provider
+        """Initialize provider.
 
         :param provider: an initialization dict (usually from the environment)
             includes:
@@ -309,8 +309,10 @@ class ProviderBase(ProviderBasePlanningMixIn,
         self._dict = provider or {}
 
     def provides(self, context, resource_type=None, interface=None):
-        """Returns a list of resources that this provider can provide or
-        validates that a specific type of resource or interface is provided.
+        """Returns a list of resources that this provider can provide.
+
+        Also validates that a specific type of resource or interface is
+        provided.
 
         :param resource_type: a string used to filter the list returned by
                 resource type
@@ -538,7 +540,7 @@ class ProviderBase(ProviderBasePlanningMixIn,
         Currently detects settings coming from the provider constraints.
 
         :param name: the name of the setting
-        :param default: optional default alue to return if the setting is not
+        :param default: optional default value to return if the setting is not
                         found
         """
         constraints = self._dict.get('constraints')
@@ -686,7 +688,6 @@ class ProviderTask(celery.Task):
             resources = self.callback(context, data)
             results = {
                 'instance:%s' % context["resource_key"]: data
-
             }
             if resources:
                 results.update(resources)

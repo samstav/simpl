@@ -140,7 +140,7 @@ CURRENT_CONFIG = Config()
 
 
 def current():
-    """Returns global current config object
+    """Return global current config object.
 
     Usage:
 

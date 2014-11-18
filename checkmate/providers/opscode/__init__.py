@@ -11,7 +11,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""OpsCode Providers
+
+"""OpsCode Providers.
 
 Defined:
 chef-server  - configuration provider using Chef server
@@ -25,7 +26,6 @@ environment:
       - application: wordpress
       - application: drupal
       vendor: opscode
-
 """
 
 import urlparse

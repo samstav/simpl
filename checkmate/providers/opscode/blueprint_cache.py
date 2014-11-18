@@ -30,7 +30,9 @@ LOG = logging.getLogger(__name__)
 
 
 class BlueprintCache(object):
+
     """Blueprints cache."""
+
     def __init__(self, source_repo):
         prefix = CONFIG.deployments_path
         suffix = hashlib.md5(source_repo).hexdigest()

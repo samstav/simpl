@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Chef Solo."""
+
 import logging
 import unittest
 import uuid

@@ -29,7 +29,9 @@ LOG = logging.getLogger(__name__)
 
 
 class Provider(providers.ProviderBase):
+
     """Implements a script configuration management provider."""
+
     name = 'script'
     vendor = 'core'
 
@@ -147,7 +149,7 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def connect(context):
-        """Returns API connection object for rempte calls.
+        """Returns API connection object for remote calls.
 
         :param context: the call context from checkmate
         :param *args: just there to handle region which leaked out of
