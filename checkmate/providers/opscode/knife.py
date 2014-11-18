@@ -80,8 +80,18 @@ class Knife(object):
                 # Don't raise on all errors. They don't all mean failure!
         return result
 
+    def ensure_config_path_exists(self):
+        """Check for or Create a new knife config path."""
+        path = os.path.dirname(self._config_path)
+        if not os.path.exists(path):
+            os.mkdir(path, 0o770)
+            LOG.debug("Created .chef directory: %s", path)
+        else:
+            LOG.debug(".chef directory exists: %s", path)
+
     def write_config(self):
         """Writes a knife.rb config file."""
+        self.ensure_config_path_exists()
         secret_key_path = os.path.join(self.kitchen_path, 'certificates',
                                        'chef.pem')
         knife_config = """# knife -c knife.rb
@@ -97,3 +107,31 @@ class Knife(object):
             handle.write(knife_config)
         LOG.debug("Created config file: %s", self.config_path)
         return secret_key_path
+
+    def update_config(self, **kwargs):
+        """Update a knife.rb file with new config values.
+
+        Any item with None as the value will be deleted from te file.
+        """
+        self.ensure_config_path_exists()
+        lines = []
+        config = {}
+        if os.path.exists(self.config_path):
+            with file(self.config_path, 'r') as handle:
+                lines = handle.readlines()
+        for line in lines:
+            parts = line.strip().split(' ')
+            key = parts[0]
+            value = ' '.join(parts[1:])
+            config[key] = value
+        for key, value in kwargs.items():
+            if value is None and key in config:
+                del config[key]
+            else:
+                config[key] = value
+        lines = []
+        for key, value in config.items():
+            lines.append("%s    %s" % (key, value))
+        with file(self.config_path, 'w') as handle:
+            handle.write("\n".join(lines))
+        LOG.debug("Updated config file: %s", self.config_path)

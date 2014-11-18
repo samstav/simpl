@@ -12,7 +12,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Chef Environment domain object."""
+
+"""Chef Kitchen domain object."""
+
 import errno
 import json
 import logging
@@ -22,12 +24,11 @@ import subprocess
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
-from eventlet.green import threading
 
 from checkmate.common import config
 from checkmate import exceptions, utils
-from checkmate.providers.opscode import blueprint_cache as BlueprintCache
-from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
+from checkmate.providers.opscode.blueprint_cache import BlueprintCache
+from checkmate.providers.opscode.knife import Knife
 
 
 CONFIG = config.current()
@@ -36,11 +37,18 @@ PRIVATE_KEY_NAME = 'private.pem'
 PUBLIC_KEY_NAME = 'checkmate.pub'
 
 
-class ChefEnvironment(object):
-    """Domain object for chef environment."""
+class ChefKitchen(object):
+
+    """Domain object for chef kitchen.
+
+    TODO(zns): still combines workspace directory and chef kitchen logic. Those
+    should be decoupled.
+    """
+
     def __init__(self, env_name, root_path=None, kitchen_name="kitchen"):
         self.env_name = env_name
         self.root = root_path or CONFIG.deployments_path
+        self.kitchen_name = kitchen_name
         self._env_path = os.path.join(self.root, self.env_name)
         if not os.path.exists(self.root):
             raise exceptions.CheckmateException("Invalid path: %s" % self.root)
@@ -48,7 +56,7 @@ class ChefEnvironment(object):
         self._private_key_path = os.path.join(self._env_path,
                                               PRIVATE_KEY_NAME)
         self._public_key_path = os.path.join(self._env_path, PUBLIC_KEY_NAME)
-        self._knife = KnifeSolo(self._kitchen_path)
+        self._knife = Knife(self._kitchen_path)
 
     @property
     def kitchen_path(self):
@@ -71,32 +79,24 @@ class ChefEnvironment(object):
         return self._public_key_path
 
     def create_env_dir(self):
-        """Creates the environment directory."""
+        """Creates the kitchen directory."""
         try:
             os.mkdir(self._env_path, 0o770)
-            LOG.debug("Created environment directory: %s", self.env_name)
+            LOG.debug("Created kitchen directory: %s", self.env_name)
         except OSError as ose:
             if ose.errno == errno.EEXIST:
-                LOG.warn("Environment directory %s already exists",
-                         self._env_path, exc_info=True)
+                LOG.warn("Kitchen directory %s already exists", self._env_path)
             else:
-                msg = "Could not create environment %s" % self._env_path
+                msg = "Could not create kitchen %s" % self._env_path
                 exception = exceptions.CheckmateException(
                     str(ose), friendly_message=msg,
                     options=exceptions.CAN_RESUME)
                 raise exception
 
-    def register_node(self, host, password=None, bootstrap_version=None,
-                      identity_file=None):
-        """Registers a node in the environment."""
-        self._knife.prepare(host, password=password,
-                            bootstrap_version=bootstrap_version,
-                            identity_file=identity_file)
-
     def fetch_cookbooks(self):
         """Fetches cookbooks."""
         if os.path.exists(os.path.join(self._kitchen_path, 'Berksfile')):
-            ChefEnvironment._ensure_berkshelf_environment()
+            self._ensure_berkshelf_kitchen()
             utils.run_ruby_command(self._kitchen_path, 'berks',
                                    ['install', '--path', os.path.join(
                                        self._kitchen_path,
@@ -144,22 +144,43 @@ class ChefEnvironment(object):
                      "deleted")
 
     def delete(self):
-        """Remove the chef environment from the file system."""
+        """Remove the chef kitchen from the file system."""
         try:
             shutil.rmtree(self._env_path)
-            LOG.debug("Removed environment directory: %s", self._env_path)
+            LOG.debug("Removed kitchen directory: %s", self._env_path)
         except OSError as ose:
             if ose.errno == errno.ENOENT:
-                LOG.warn("Environment directory %s does not exist",
+                LOG.warn("Kitchen directory %s does not exist",
                          self._env_path, exc_info=True)
             else:
-                msg = ("Unable to delete environment %s. Reason '%s'. Error "
+                msg = ("Unable to delete kitchen %s. Reason '%s'. Error "
                        "Number %s" % (self._env_path, ose.strerror, ose.errno))
                 raise exceptions.CheckmateException(
                     msg, options=exceptions.CAN_RESUME)
 
-    def create_environment_keys(self, private_key=None, public_key_ssh=None):
-        """Put keys in an existing environment
+    def write_file(self, relative_path, content):
+        """Write file to workspace."""
+        full_path = os.path.join(self._env_path, relative_path)
+        dir_path, file_name = os.path.split(full_path)
+        try:
+            os.makedirs(dir_path)
+            LOG.info("Created directory for %s", full_path)
+        except OSError as exc:
+            if exc.errno != errno.EEXIST:
+                raise exc
+            pass
+        with file(full_path, 'w') as handle:
+            LOG.info("Writing to %s", full_path)
+            handle.write(content)
+
+    def write_kitchen_file(self, relative_path, content):
+        """Write file to kitchen."""
+        kitchen_path = os.path.join(self.kitchen_name, relative_path)
+        return self.write_file(kitchen_path, content)
+
+    def create_kitchen_keys(self, private_key=None, public_key_ssh=None):
+        """Put keys in an existing kitchen.
+
         If none are provided, a new set of public/private keys are created
         """
         self._create_private_key(private_key)
@@ -169,31 +190,22 @@ class ChefEnvironment(object):
                     public_key_path=public_key_path,
                     private_key_path=self._private_key_path)
 
-    def create_kitchen(self, secret_key=None, source_repo=None):
-        """Creates a new knife-solo kitchen in path
-
-        Arguments:
-        - `source_repo`: URL of the git-hosted blueprint
-        - `secret_key`: PEM-formatted private key for data bag encryption
-        """
+    def ensure_kitchen_path_exists(self):
+        """Check for or Create a new knife kitchen path."""
         if not os.path.exists(self._kitchen_path):
             os.mkdir(self._kitchen_path, 0o770)
             LOG.debug("Created kitchen directory: %s", self._kitchen_path)
         else:
             LOG.debug("Kitchen directory exists: %s", self._kitchen_path)
 
-        nodes_path = os.path.join(self._kitchen_path, 'nodes')
-        if os.path.exists(nodes_path):
-            if any((f.endswith('.json') for f in os.listdir(nodes_path))):
-                msg = ("Kitchen already exists and seems to have nodes "
-                       "defined in it: %s" % nodes_path)
-                LOG.debug(msg)
-                return {"kitchen": self._kitchen_path}
+    def create_kitchen(self, secret_key=None, source_repo=None):
+        """Create a new knife kitchen in path.
 
-        # we don't pass the config file here because we're creating the
-        # kitchen for the first time and knife will overwrite our config
-        # file
-        self._knife.init()
+        Arguments:
+        - `source_repo`: URL of the git-hosted blueprint
+        - `secret_key`: PEM-formatted private key for data bag encryption
+        """
+        self.ensure_kitchen_path_exists()
         secret_key_path = self._knife.write_config()
 
         # Create bootstrap.json in the kitchen
@@ -243,108 +255,14 @@ class ChefEnvironment(object):
         LOG.debug("Finished creating kitchen: %s", self._kitchen_path)
         return {"kitchen": self._kitchen_path}
 
-    def write_node_attributes(self, host, attributes, run_list=None):
-        """Merge node attributes into existing ones in node file."""
-        node_path = self._knife.get_node_path(host)
-        if not os.path.exists(node_path):
-            raise exceptions.CheckmateException(
-                "Node '%s' is not registered in %s" % (host,
-                                                       self._kitchen_path))
-        if attributes or run_list:
-            lock = threading.Lock()
-            lock.acquire()
-            try:
-                with file(node_path, 'r') as node_file_r:
-                    node = json.load(node_file_r)
-                if 'run_list' not in node:
-                    node['run_list'] = []
-                if run_list:
-                    for entry in run_list:
-                        if entry not in node['run_list']:
-                            node['run_list'].append(entry)
-                if attributes:
-                    utils.merge_dictionary(node, attributes)
-
-                with file(node_path, 'w') as node_file_w:
-                    json.dump(node, node_file_w)
-                LOG.info("Node %s written in %s", node,
-                         node_path, extra=dict(data=node))
-                return node
-            except StandardError as exc:
-                raise exc
-            finally:
-                lock.release()
-
-    def ruby_role_exists(self, name):
-        """Checks if a ruby role file exists."""
-        ruby_role_path = os.path.join(self.kitchen_path, 'roles',
-                                      '%s.rb' % name)
-        return os.path.exists(ruby_role_path)
-
-    def write_role(self, name, desc=None, run_list=None,
-                   default_attributes=None, override_attributes=None,
-                   env_run_lists=None):
-        """Write/Update role."""
-        role_path = os.path.join(self.kitchen_path, 'roles', '%s.json' % name)
-
-        if os.path.exists(role_path):
-            with file(role_path, 'r') as role_file_r:
-                role = json.load(role_file_r)
-            if run_list is not None:
-                role['run_list'] = run_list
-            if default_attributes is not None:
-                role['default_attributes'] = default_attributes
-            if override_attributes is not None:
-                role['override_attributes'] = override_attributes
-            if env_run_lists is not None:
-                role['env_run_lists'] = env_run_lists
-        else:
-            role = {
-                "name": name,
-                "chef_type": "role",
-                "json_class": "Chef::Role",
-                "default_attributes": default_attributes or {},
-                "description": desc,
-                "run_list": run_list or [],
-                "override_attributes": override_attributes or {},
-                "env_run_lists": env_run_lists or {}
-            }
-
-        LOG.debug("Writing role '%s' to %s", name, role_path)
-        with file(role_path, 'w') as role_file_w:
-            json.dump(role, role_file_w)
-        return role
-
-    def write_data_bag(self, bag_name, item_name, contents, secret_file=None):
-        """Writes data bag to the environment."""
-        if not os.path.exists(self._knife.data_bags_path):
-            msg = ("Data bags path does not exist: %s" %
-                   self._knife.data_bags_path)
-            raise exceptions.CheckmateException(msg)
-
-        self._knife.create_data_bag(bag_name)
-
-        lock = threading.Lock()
-        lock.acquire()
-        try:
-            self._knife.create_data_bag_item(bag_name, item_name,
-                                             contents,
-                                             secret_file=secret_file)
-        except subprocess.CalledProcessError as exc:
-            raise exceptions.CheckmateCalledProcessError(exc.returncode,
-                                                         exc.cmd,
-                                                         output=str(exc))
-        finally:
-            lock.release()
-
     def _create_private_key(self, private_key):
-        """Creates the private key for an environment."""
+        """Creates the private key for an kitchen."""
         if os.path.exists(self._private_key_path):
             if private_key:
                 with file(self._private_key_path, 'r') as pk_file:
                     data = pk_file.read()
                 if data != private_key:
-                    msg = ("A private key already exists in environment %s "
+                    msg = ("A private key already exists in kitchen %s "
                            "and does not match the value provided" %
                            self._env_path)
                     raise exceptions.CheckmateException(msg)
@@ -352,14 +270,14 @@ class ChefEnvironment(object):
             if private_key:
                 with file(self._private_key_path, 'w') as pk_file:
                     pk_file.write(private_key)
-                LOG.debug("Wrote environment private key: %s",
+                LOG.debug("Wrote kitchen private key: %s",
                           self._private_key_path)
             else:
                 params = ['openssl', 'genrsa', '-out', self._private_key_path,
                           '2048']
                 result = subprocess.check_output(params)
                 LOG.debug(result)
-                LOG.debug("Generated environment private key: %s",
+                LOG.debug("Generated kitchen private key: %s",
                           self._private_key_path)
 
         # Secure private key
@@ -369,7 +287,7 @@ class ChefEnvironment(object):
         return self._private_key_path
 
     def _create_public_key(self, public_key_ssh):
-        """Creates the public key for an environment."""
+        """Creates the public key for an kitchen."""
         if os.path.exists(self._public_key_path):
             LOG.debug("Public key exists. Retrieving it from %s",
                       self._public_key_path)
@@ -379,18 +297,18 @@ class ChefEnvironment(object):
             if not public_key_ssh:
                 params = ['ssh-keygen', '-y', '-f', self._private_key_path]
                 public_key_ssh = subprocess.check_output(params)
-                LOG.debug("Generated environment public key: %s",
+                LOG.debug("Generated kitchen public key: %s",
                           self._public_key_path)
-                # Write it to environment
+                # Write it to kitchen
             with file(self._public_key_path, 'w') as public_key_file_w:
                 public_key_file_w.write(public_key_ssh)
-            LOG.debug("Wrote environment public key: %s",
+            LOG.debug("Wrote kitchen public key: %s",
                       self._public_key_path)
         return self._public_key_path, public_key_ssh
 
     @staticmethod
-    def _ensure_berkshelf_environment():
-        """Checks the Berkshelf environment and sets it up if necessary."""
+    def _ensure_berkshelf_kitchen():
+        """Checks the Berkshelf kitchen and sets it up if necessary."""
         berkshelf_path = CONFIG.berkshelf_path
         if not berkshelf_path:
             local_path = CONFIG.deployments_path

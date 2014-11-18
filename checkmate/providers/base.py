@@ -104,7 +104,7 @@ class ProviderBaseWorkflowMixIn(object):
         LOG.debug("%s.%s.prep_environment called, but was not implemented",
                   self.vendor, self.name)
 
-    def cleanup_environment(self, wfspec, deployment):
+    def cleanup_environment(self, wfspec, deployment, context):
         """Add any tasks that are needed for cleaning up environment
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
