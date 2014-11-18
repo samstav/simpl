@@ -331,7 +331,8 @@ class Manager(object):
     def verify_ssh_connection(context, server_id, server_ip,
                               username='root', timeout=10, password=None,
                               identity_file=None, port=22, api=None,
-                              private_key=None):
+                              private_key=None, proxy_address=None,
+                              proxy_credentials=None):
         """Verifies the ssh connection to a server
         :param context: context data
         :param server_id: server id
@@ -377,7 +378,9 @@ class Manager(object):
                                         password=password,
                                         identity_file=identity_file,
                                         port=port,
-                                        private_key=private_key)
+                                        private_key=private_key,
+                                        proxy_address=None,
+                                        proxy_credentials=None)
         else:
             msg = "Server '%s' is ACTIVE but is not responding to ping" \
                   " attempts" % server_id
