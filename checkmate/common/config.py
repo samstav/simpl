@@ -45,6 +45,7 @@ ENV_MAP = {
     'CHECKMATE_BASTION_PKEY_FILE': 'bastion_key_filename',
     'CHECKMATE_BASTION_USERNAME': 'bastion_username',
     'CHECKMATE_BASTION_PASSWORD': 'bastion_password',
+    'CHECKMATE_KNIFE_BASTION_SUFFIX': 'knife_bastion_suffix',
 
     # Chef Provider Options
     'CHECKMATE_CHEF_LOCAL_PATH': 'deployments_path',
@@ -98,6 +99,7 @@ class Config(object):
     bastion_key_filename = None
     bastion_username = None
     bastion_password = None
+    knife_bastion_suffix = None
 
     deployments_path = '/var/local/checkmate/deployments'
     berkshelf_path = None  # let consumer calculate it from deployments_path
@@ -314,6 +316,27 @@ def parse_arguments(args=None):
                         "--group-refs tester=master,prod=stable",
                         type=_comma_separated_key_value_pairs,
                         default=None)
+
+    # Netwroking
+    """TODO(zns): expose these once migrated to new config. Right now, exposing
+    these fails.
+    parser.add_argument("--bastion-address",
+                        help="Bastion address for SSH/NetBIOS commands",
+                        default=None)
+    parser.add_argument("--bastion-username",
+                        help="Username for bastion access",
+                        default=None)
+    parser.add_argument("--bastion-key-filename",
+                        help="SSH Key file for bastion access",
+                        default=None)
+    parser.add_argument("--bastion-password",
+                        help="SSH password for bastion access",
+                        default=None)
+    parser.add_argument("--knife-bastion-suffix",
+                        help="A suffix to add to host name to route knife "
+                        "calls through a ~/.ssh/config rule",
+                        default=None)
+    """
 
     if not args:
         args = sys.argv
