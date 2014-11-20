@@ -13,7 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Base Classes and functions for Providers"""
+"""Base Classes and functions for Providers."""
+
 import functools
 import logging
 

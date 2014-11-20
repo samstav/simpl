@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Rackspace Compute provider manager.
-"""
+"""Rackspace Compute provider manager."""
+
 import logging
 import requests
 
@@ -71,7 +70,11 @@ class Manager(object):
             results = {
                 'id': str(1000 + int(resource_key)),
                 'status': "BUILD",
-                'password': 'RandomPass'
+                'password': 'RandomPass',
+                'flavor': flavor,
+                'image': image,
+                'error-message': '',
+                'status-message': '',
             }
             return results
         utils.match_celery_logging(LOG)
