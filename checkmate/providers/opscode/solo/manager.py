@@ -12,44 +12,45 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Rackspace solo provider manager."""
+
+"""OpsCode Chef Solo provider manager."""
+
 import logging
 import os
 import re
 import shutil
 import subprocess
 
-from checkmate.common import config
 from checkmate import exceptions
 from checkmate.providers import base
-from checkmate.providers.opscode.solo.chef_environment import ChefEnvironment
+from checkmate.providers.opscode.solo.kitchen_solo import KitchenSolo
 from checkmate import ssh
 
-CONFIG = config.current()
 LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
-    """Contains loadbalancer provider model and logic for interaction."""
+
+    """Contains CHef Solo provider model and logic for interaction."""
 
     @staticmethod
     def delete_cookbooks(name, service_name, path=None):
         """Remove cookbooks directory and contents from the file system."""
-        environment = ChefEnvironment(name, root_path=path,
-                                      kitchen_name=service_name)
+        environment = KitchenSolo(name, root_path=path,
+                                  kitchen_name=service_name)
         environment.delete_cookbooks()
 
     @staticmethod
     def delete_environment(name, path=None):
         """Remove the chef environment from the file system."""
-        environment = ChefEnvironment(name, root_path=path)
+        environment = KitchenSolo(name, root_path=path)
         environment.delete()
 
     @staticmethod
     def create_environment(name, service_name, path=None, private_key=None,
                            public_key_ssh=None, secret_key=None,
                            source_repo=None, simulation=False):
-        """Create a knife-solo environment
+        """Create a knife-solo environment.
 
         The environment is a directory structure that is self-contained and
         separate from other environments. It is used by this provider to run
@@ -72,8 +73,8 @@ class Manager(object):
                 'public_key_path': '/var/tmp/%s/checkmate.pub' % name,
             }
 
-        environment = ChefEnvironment(name, root_path=path,
-                                      kitchen_name=service_name)
+        environment = KitchenSolo(name, root_path=path,
+                                  kitchen_name=service_name)
         environment.create_env_dir()
 
         key_data = environment.create_environment_keys(
@@ -135,8 +136,8 @@ class Manager(object):
 
         callback(results)
 
-        env = ChefEnvironment(environment, root_path=path,
-                              kitchen_name=kitchen_name)
+        env = KitchenSolo(environment, root_path=path,
+                          kitchen_name=kitchen_name)
 
         # Rsync problem with creating path (missing -p so adding it ourselves)
         # and doing this before the complex prepare work
@@ -199,8 +200,8 @@ class Manager(object):
         if simulate:
             return
 
-        env = ChefEnvironment(environment, root_path=path,
-                              kitchen_name=kitchen_name)
+        env = KitchenSolo(environment, root_path=path,
+                          kitchen_name=kitchen_name)
 
         if not os.path.exists(env.kitchen_path):
             raise exceptions.CheckmateException(
@@ -253,8 +254,8 @@ class Manager(object):
             return
 
         if not simulate:
-            env = ChefEnvironment(environment, root_path=path,
-                                  kitchen_name=kitchen_name)
+            env = KitchenSolo(environment, root_path=path,
+                              kitchen_name=kitchen_name)
             env.write_data_bag(bag_name, item_name, contents,
                                secret_file=secret_file)
 
@@ -282,8 +283,8 @@ class Manager(object):
         results = {'status': 'BUILD'}
 
         callback(results)
-        env = ChefEnvironment(environment, root_path=path,
-                              kitchen_name=kitchen_name)
+        env = KitchenSolo(environment, root_path=path,
+                          kitchen_name=kitchen_name)
 
         # Add any missing recipes to node settings
         run_list = []

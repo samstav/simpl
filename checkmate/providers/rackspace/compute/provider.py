@@ -424,7 +424,8 @@ class Provider(RackspaceComputeProviderBase):
             defines=dict(
                 resource=key,
                 provider=self.key,
-            )
+            ),
+            merge_results=True
         )
 
         task_name = 'Wait for Server %s (%s) build' % (key,

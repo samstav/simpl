@@ -13,9 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Rackspace Compute provider tasks.
-"""
+"""Rackspace Compute provider tasks."""
 
 import logging
 
@@ -106,7 +104,8 @@ def wait_on_build(context, server_id, region=None, ip_address_type='public',
 def verify_ssh_connection(context, server_id, server_ip, region=None,
                           username='root', timeout=10, password=None,
                           identity_file=None, port=22, api=None,
-                          private_key=None):
+                          private_key=None, proxy_address=None,
+                          proxy_credentials=None):
     #pylint: disable=W0613
     """Verifies the ssh connection to a server
     :param context: context data
@@ -126,7 +125,8 @@ def verify_ssh_connection(context, server_id, server_ip, region=None,
     data = manager.Manager.verify_ssh_connection(
         context, server_id, server_ip, username=username, timeout=timeout,
         password=password, identity_file=identity_file, port=port,
-        api=verify_ssh_connection.api, private_key=private_key)
+        api=verify_ssh_connection.api, private_key=private_key,
+        proxy_address=proxy_address, proxy_credentials=proxy_credentials)
 
     is_up = data["status"]
     if not is_up:

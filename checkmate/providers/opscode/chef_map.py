@@ -12,6 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 """Retrieves and parses Chefmap files."""
+import copy
 import logging
 import os
 import urlparse
@@ -23,7 +24,7 @@ from yaml.scanner import ScannerError
 
 from checkmate.common import templating
 from checkmate import exceptions
-from checkmate.providers.opscode.solo.blueprint_cache import BlueprintCache
+from checkmate.providers.opscode.blueprint_cache import BlueprintCache
 from checkmate import utils
 
 
@@ -100,6 +101,108 @@ class ChefMap(object):
                 error_message = ("No Chefmap in repository %s" %
                                  cache.cache_path)
                 raise exceptions.CheckmateException(error_message)
+
+    def get_map_with_context(self, **kwargs):
+        """Returns a map file that was parsed with real data in the context."""
+        # Add defaults if there is a component and no defaults specified
+        if kwargs and 'defaults' not in kwargs and 'component' in kwargs:
+            component = kwargs['component']
+            # used by setting() in Jinja context to return defaults
+            defaults = {}
+            for key, option in component.get('options', {}).iteritems():
+                if 'default' in option:
+                    default = option['default']
+                    try:
+                        if default.startswith('=generate'):
+                            default = utils.evaluate(default[1:])
+                    except AttributeError:
+                        pass  # default probably not a string type
+                    defaults[key] = default
+            kwargs['defaults'] = defaults
+        parsed = templating.parse(self.raw, **kwargs)
+        return ChefMap(parsed=parsed)
+
+    def get_component_run_list(self, component):
+        run_list = {}
+        component_id = component['id']
+        for mcomponent in self.components:
+            if mcomponent['id'] == component_id:
+                run_list = mcomponent.get('run-list', {})
+                assert isinstance(run_list, dict), ("component '%s' run-list "
+                                                    "is not a map" %
+                                                    component_id)
+        if not run_list:
+            if 'role' in component:
+                name = '%s::%s' % (component_id, component['role'])
+            else:
+                name = component_id
+                if name == 'mysql':
+                    # FIXME: hack (install server by default, not client)
+                    name += "::server"
+            if component_id.endswith('-role'):
+                run_list['roles'] = [name[0:-5]]  # trim the '-role'
+            else:
+                run_list['recipes'] = [name]
+        LOG.debug("Component run_list determined to be %s", run_list)
+        return run_list
+
+    def get_resource_prepared_maps(self, resource, deployment):
+        """Parse maps for a resource and identify paths for finding the map
+        data.
+
+        By looking at a requirement's key and finding the relations that
+        satisfy that key (using the requires-key attribute) and that have a
+        'target' attribute, we can identify the resource we need to get the
+        data from and provide the path to that resource as a hint to the
+        TransMerge task
+        """
+        maps = self.get_component_maps(resource['component'])
+        result = []
+        for mapping in maps or []:
+
+            # find paths for sources
+
+            if 'source' in mapping:
+                url = ChefMap.parse_map_uri(mapping['source'])
+                if url['scheme'] == 'requirements':
+                    key = url['netloc']
+                    relations = [
+                        r for r in resource['relations'].values()
+                        if (r.get('requires-key') == key and 'target' in r)
+                    ]
+                    if relations:
+                        target = relations[0]['target']
+                        #  account for host
+                        #  FIXME: This representation needs to be consistent!
+                        if relations[0].get('relation', '') != 'host':
+                            mapping['path'] = ('instance:%s/interfaces/%s'
+                                               % (target,
+                                                  relations[0]['interface']))
+                        else:
+                            mapping['path'] = 'instance:%s' % target
+                    result.append(mapping)
+                elif url['scheme'] == 'clients':
+                    key = url['netloc']
+                    for client in deployment['resources'].values():
+                        if 'relations' not in client:
+                            continue
+                        relations = [r for r in client['relations'].values()
+                                     if (r.get('requires-key') == key and
+                                         r.get('target') == resource['index'])
+                                     ]
+                        if relations:
+                            mapping['path'] = 'instance:%s' % client['index']
+                            result.append(copy.copy(mapping))
+                else:
+                    result.append(mapping)
+            else:
+                result.append(mapping)
+
+        # Write attribute hints
+        key = resource['index']
+        for mapping in result:
+            mapping['resource'] = key
+        return result
 
     @property
     def components(self):
@@ -194,12 +297,6 @@ class ChefMap(object):
         for component in self.components:
             if component_id == component['id']:
                 return component.get('output')
-
-    def get_component_run_list(self, component_id):
-        """Get run_list for a specific component."""
-        for component in self.components:
-            if component_id == component['id']:
-                return component.get('run_list')
 
     def has_runtime_options(self, component_id):
         """Check if a component has maps that can only be resolved at run-time.

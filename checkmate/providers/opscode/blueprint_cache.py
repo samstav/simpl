@@ -13,7 +13,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """Blueprints cache."""
+
 import hashlib
 import logging
 import os
@@ -30,7 +32,9 @@ LOG = logging.getLogger(__name__)
 
 
 class BlueprintCache(object):
+
     """Blueprints cache."""
+
     def __init__(self, source_repo):
         prefix = CONFIG.deployments_path
         suffix = hashlib.md5(source_repo).hexdigest()

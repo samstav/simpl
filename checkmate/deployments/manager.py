@@ -12,8 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Deployments Manager
+"""Deployments Manager.
 
 Handles deployment logic
 """
@@ -99,7 +98,7 @@ class Manager(object):
 
     def save_deployment(self, deployment, api_id=None, tenant_id=None,
                         partial=False):
-        """Sync ID and tenant and save deployment
+        """Sync ID and tenant and save deployment.
 
         :returns: saved deployment
         """
@@ -189,7 +188,7 @@ class Manager(object):
             api_id, with_secrets=True)
         deployment = Deployment(deployment_info)
         delta = {
-            'tenantId' : deployment['tenantId']
+            'tenantId': deployment['tenantId']
         }
         if deployment.is_migrated():
             message = "Deployment is already Migrated!"
@@ -441,7 +440,8 @@ class Manager(object):
     def deploy_workflow(self, context, deployment, tenant_id, wf_type,
                         workflow_id=None, **kwargs):
         """Creates a workflow and operation based in the passed in workflow
-        type
+        type.
+
         :param context: request context
         :param deployment: deployment
         :param tenant_id: tenant id

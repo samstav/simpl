@@ -13,8 +13,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Rackspace solo provider tasks."""
-import urlparse
+
+"""OpsCode Chef Solo provider tasks."""
 
 from celery import task as ctask
 
@@ -25,36 +25,10 @@ from checkmate.providers.opscode.solo import Provider
 from checkmate.providers import ProviderTask
 
 
-def register_scheme(scheme):
-    """Use this to register a new scheme with urlparse.
-
-    New schemes will be parsed in the same way as http is parsed
-    """
-    for method in filter(lambda s: s.startswith('uses_'), dir(urlparse)):
-        getattr(urlparse, method).append(scheme)
-
-register_scheme('git')  # without this, urlparse won't handle git:// correctly
-
-
-@ctask.task
-@statsd.collect
-def write_databag(environment, bagname, itemname, contents, resource,
-                  path=None, secret_file=None, merge=True,
-                  kitchen_name='kitchen'):
-    """DEPRECATED: Use write_databag_v2."""
-    context = {
-        'deployment_id': environment,
-        'resource_key': resource
-    }
-    write_databag_v2(context, environment, bagname, itemname, contents,
-                     path=path, secret_file=secret_file,
-                     kitchen_name=kitchen_name)
-
-
 @ctask.task(base=ProviderTask, provider=Provider)
 @statsd.collect
-def write_databag_v2(context, environment, bag_name, item_name, contents,
-                     path=None, secret_file=None, kitchen_name='kitchen'):
+def write_databag(context, environment, bag_name, item_name, contents,
+                  path=None, secret_file=None, kitchen_name='kitchen'):
     """Updates a data_bag or encrypted_data_bag
 
     :param environment: the ID of the environment
@@ -73,37 +47,21 @@ def write_databag_v2(context, environment, bag_name, item_name, contents,
             'status': 'ERROR',
             'error-message': 'Error writing software configuration'
         }
-        write_databag_v2.partial(data)
+        write_databag.partial(data)
 
-    write_databag_v2.on_failure = on_failure
+    write_databag.on_failure = on_failure
     return Manager.write_data_bag(environment, bag_name, item_name, contents,
-                                  write_databag_v2.partial, path=path,
+                                  write_databag.partial, path=path,
                                   secret_file=secret_file,
                                   kitchen_name=kitchen_name,
                                   simulate=context.simulation)
 
 
-@ctask.task(countdown=20, max_retries=3)
-@statsd.collect
-def cook(host, environment, resource, recipes=None, roles=None, path=None,
-         username='root', password=None, identity_file=None, port=22,
-         attributes=None, kitchen_name='kitchen'):
-    """DEPRECATED: Use cook_v2."""
-    context = {
-        'deployment_id': environment,
-        'resource_key': resource
-    }
-    cook_v2(context, host, environment, resource, recipes=recipes,
-            roles=roles, path=path, username=username, password=password,
-            identity_file=identity_file, port=port, attributes=attributes,
-            kitchen_name=kitchen_name)
-
-
 @ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
-def cook_v2(context, host, environment, recipes=None, roles=None,
-            path=None, username='root', password=None, identity_file=None,
-            port=22, attributes=None, kitchen_name='kitchen'):
+def cook(context, host, environment, recipes=None, roles=None,
+         path=None, username='root', password=None, identity_file=None,
+         port=22, attributes=None, kitchen_name='kitchen'):
     """Apply recipes/roles to a server"""
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -112,11 +70,11 @@ def cook_v2(context, host, environment, recipes=None, roles=None,
             'status': 'ERROR',
             'error-message': 'Error installing software'
         }
-        cook_v2.partial(data)
+        cook.partial(data)
 
-    cook_v2.on_failure = on_failure
+    cook.on_failure = on_failure
 
-    return Manager.cook(host, environment, cook_v2.partial, recipes=recipes,
+    return Manager.cook(host, environment, cook.partial, recipes=recipes,
                         roles=roles, path=path, username=username,
                         password=password, identity_file=identity_file,
                         port=port, attributes=attributes,
@@ -143,7 +101,7 @@ def delete_cookbooks(name, service_name, path=None):
 def create_environment(context, name, service_name, path=None,
                        private_key=None, public_key_ssh=None,
                        secret_key=None, source_repo=None):
-    """Create a knife-solo environment
+    """Create a knife-solo environment.
 
     The environment is a directory structure that is self-contained and
     separate from other environments. It is used by this provider to run knife
@@ -180,28 +138,12 @@ def create_environment(context, name, service_name, path=None,
                                       simulation=context['simulation'])
 
 
-@ctask.task(max_retries=3, soft_time_limit=600)
-@statsd.collect
-def register_node(host, environment, resource, path=None, password=None,
-                  bootstrap_version=None, attributes=None, identity_file=None,
-                  kitchen_name='kitchen'):
-    """DEPRECATED: Use register_node_v2."""
-    context = {
-        'deployment_id': environment,
-        'resource_key': resource
-    }
-    register_node_v2(context, host, environment, path=path,
-                     password=password, bootstrap_version=bootstrap_version,
-                     attributes=attributes, identity_file=identity_file,
-                     kitchen_name=kitchen_name)
-
-
 @ctask.task(base=ProviderTask, provider=Provider, max_retries=3,
             soft_time_limit=600)
 @statsd.collect
-def register_node_v2(context, host, environment, path=None,
-                     password=None, bootstrap_version=None, attributes=None,
-                     identity_file=None, kitchen_name='kitchen'):
+def register_node(context, host, environment, path=None,
+                  password=None, bootstrap_version=None, attributes=None,
+                  identity_file=None, kitchen_name='kitchen'):
     """Register a node in Chef.
 
     Using 'knife prepare' we will:
@@ -227,10 +169,10 @@ def register_node_v2(context, host, environment, path=None,
             'status': 'ERROR',
             'error-message': 'Error registering host %s' % host
         }
-        register_node_v2.partial(data)
+        register_node.partial(data)
 
-    register_node_v2.on_failure = on_failure
-    return Manager.register_node(host, environment, register_node_v2.partial,
+    register_node.on_failure = on_failure
+    return Manager.register_node(host, environment, register_node.partial,
                                  path=path, password=password,
                                  bootstrap_version=bootstrap_version,
                                  attributes=attributes,
@@ -239,31 +181,14 @@ def register_node_v2(context, host, environment, path=None,
                                  simulate=context.simulation)
 
 
-@ctask.task(countdown=20, max_retries=3)
+@ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
-def manage_role(name, environment, resource, path=None, desc=None,
+def manage_role(context, name, environment, path=None, desc=None,
                 run_list=None, default_attributes=None,
                 override_attributes=None, env_run_lists=None,
                 kitchen_name='kitchen'):
-    """DEPRECATED: use manage_role_v2."""
-    context = {
-        'deployment_id': environment,
-        'resource_key': resource
-    }
-    manage_role_v2(context, name, environment, path=path, desc=desc,
-                   run_list=run_list, default_attributes=default_attributes,
-                   override_attributes=override_attributes,
-                   env_run_lists=env_run_lists, kitchen_name=kitchen_name)
-
-
-@ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
-@statsd.collect
-def manage_role_v2(context, name, environment, path=None, desc=None,
-                   run_list=None, default_attributes=None,
-                   override_attributes=None, env_run_lists=None,
-                   kitchen_name='kitchen'):
     """Write/Update role."""
-    return Manager.manage_role(name, environment, manage_role_v2.partial,
+    return Manager.manage_role(name, environment, manage_role.partial,
                                path=path, desc=desc, run_list=run_list,
                                default_attributes=default_attributes,
                                override_attributes=override_attributes,

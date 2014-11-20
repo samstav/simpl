@@ -11,28 +11,26 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Knife domain object."""
+
+"""Knife Solo domain object."""
+
 import json
 import logging
 import os
 
 from checkmate import exceptions, utils
+from checkmate.providers.opscode import knife
 
 LOG = logging.getLogger(__name__)
 
 
-class KnifeSolo(object):
-    """Knife domain object."""
-    def __init__(self, kitchen_path, solo_config_path=None):
-        self.kitchen_path = kitchen_path
-        self._config_path = solo_config_path or os.path.join(
-            self.kitchen_path, '.chef', 'knife.rb')
-        self._data_bags_path = os.path.join(self.kitchen_path, 'data_bags')
+class KnifeSolo(knife.Knife):
 
-    @property
-    def config_path(self):
-        """Read only property for solo config path."""
-        return self._config_path
+    """Knife Solo domain object."""
+
+    def __init__(self, kitchen_path, solo_config_path=None):
+        super(KnifeSolo, self).__init__(kitchen_path,
+                                        config_path=solo_config_path)
 
     @property
     def data_bags_path(self):
@@ -159,64 +157,3 @@ class KnifeSolo(object):
     def get_node_path(self, host):
         """Gets the node path for a host."""
         return os.path.join(self.kitchen_path, 'nodes', '%s.json' % host)
-
-    def run_command(self, params, lock=True):
-        """Runs the 'knife xxx' command.
-
-        This also needs to handle knife command errors, which are returned to
-        stderr.
-
-        That needs to be run in a kitchen, so we move current dir and need to
-        make sure we stay there, so I added some synchronization code while
-        that takes place. However, if code calls in that already has a lock,
-        the optional lock param can be set to false so this code does not lock
-        """
-        LOG.debug("Running: '%s' in path '%s'", ' '.join(params),
-                  self.kitchen_path)
-        if '-c' not in params:
-            if os.path.exists(self.config_path):
-                LOG.warning("Knife command called without a '-c' flag. The "
-                            "'-c' flag is a strong safeguard in case knife "
-                            "runs in the wrong directory. Consider adding it "
-                            "and pointing to knife.rb")
-                LOG.debug("Defaulting to config file '%s'",
-                          self.config_path)
-                params.extend(['-c', self.config_path])
-        result = utils.run_ruby_command(self.kitchen_path, params[0],
-                                        params[1:], lock=lock)
-
-        # Knife succeeds even if there is an error. This code tries to parse
-        # the output to return a useful error.
-        last_error = ''
-        for line in result.split('\n'):
-            if 'ERROR:' in line:
-                LOG.error(line)
-                last_error = line
-        if last_error:
-            if 'KnifeSolo::::' in last_error:
-                # Get the string after a Knife-Solo error::
-                error = last_error.split('Error:')[-1]
-                if error:
-                    msg = "Knife error encountered: %s" % error
-                    raise exceptions.CheckmateCalledProcessError(
-                        1, ' '.join(params), output=msg)
-                # Don't raise on all errors. They don't all mean failure!
-        return result
-
-    def write_config(self):
-        """Writes a knife.rb config file."""
-        secret_key_path = os.path.join(self.kitchen_path, 'certificates',
-                                       'chef.pem')
-        knife_config = """# knife -c knife.rb
-    knife[:provisioning_path] = "%s"
-
-    cookbook_path    ["cookbooks", "site-cookbooks"]
-    role_path  "roles"
-    data_bag_path  "data_bags"
-    encrypted_data_bag_secret "%s"
-    """ % (self.kitchen_path, secret_key_path)
-        # knife kitchen creates a default knife.rb, so the file already exists
-        with file(self.config_path, 'w') as handle:
-            handle.write(knife_config)
-        LOG.debug("Created solo file: %s", self.config_path)
-        return secret_key_path

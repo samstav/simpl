@@ -27,6 +27,7 @@ LOG = logging.getLogger(__name__)
 
 # pylint: disable=R0903
 class Manager(object):
+
     """Contains script provider model and logic for interaction."""
 
     def __init__(self, api=None, callback=None, simulate=False):
@@ -35,7 +36,6 @@ class Manager(object):
         :param api: an api object used to make remote calls (ssh in this case)
         :param callback: a callable to use for sending updates
         :param simulate: True if this is just a simulation
-
         """
         self.api = api
         self.callback = callback
@@ -52,7 +52,6 @@ class Manager(object):
         :param install_script: a script string or dict
         :param host: the address of the compute host to create the resource on
         :param host_os: 'linux' or 'windows'
-
         """
         desired = resource.get('desired') or {}
         if self.simulate is True:
@@ -97,6 +96,7 @@ class Manager(object):
 
 
 class Script(object):
+
     """Handles script files."""
 
     __schema__ = ['body', 'template', 'parameters', 'type', 'name']

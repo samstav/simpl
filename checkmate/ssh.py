@@ -44,7 +44,8 @@ def get_gateway(address, username=None, password=None, private_key=None,
 @statsd.collect
 def test_connection(context, ip, username, timeout=10, password=None,
                     identity_file=None, port=22, callback=None,
-                    private_key=None, proxy_address=None, proxy_creds=None):
+                    private_key=None, proxy_address=None,
+                    proxy_credentials=None):
     """Connect to an ssh server and verify that it responds
 
     ip:             the ip address or host name of the server
@@ -67,7 +68,7 @@ def test_connection(context, ip, username, timeout=10, password=None,
     LOG.debug("Checking for a response from ssh://%s@%s:%d.", username, ip,
               port)
     if proxy_address:
-        gateway = get_gateway(proxy_address, **proxy_creds)
+        gateway = get_gateway(proxy_address, **proxy_credentials)
     else:
         gateway = None
     try:
@@ -90,49 +91,46 @@ def test_connection(context, ip, username, timeout=10, password=None,
 @statsd.collect
 def execute_2(context, ip_address, command, username, timeout=10,
               password=None, identity_file=None, port=22, private_key=None,
-              proxy_address=None, proxy_creds=None):
-    '''Execute function that takes a context and handles simulations.'''
+              proxy_address=None, proxy_credentials=None):
+    """Execute function that takes a context and handles simulations."""
     if context.get('simulation') is True:
         results = {
             'stdout': "DUMMY OUTPUT",
             'stderr': "DUMMY STDERR",
         }
         return results
-    if proxy_address:
-        gateway = get_gateway(proxy_address, **proxy_creds)
-    else:
-        gateway = None
     return execute(ip_address, command, username, timeout=timeout,
                    password=password, identity_file=identity_file, port=port,
-                   private_key=private_key, gateway=gateway)
+                   private_key=private_key, proxy_address=proxy_address,
+                   proxy_credentials=proxy_credentials)
 
 
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def execute(ip, command, username, timeout=10, password=None,
             identity_file=None, port=22, callback=None, private_key=None,
-            proxy_address=None, proxy_creds=None):
+            proxy_address=None, proxy_credentials=None):
     """Executes an ssh command on a remote host and returns a dict with stdin
     and stdout of the call. Tries cert auth first and falls back to password
     auth if password provided
 
-    ip:             the ip address or host name of the server
-    command:        shell command to execute
-    username:       the username to use
-    timeout:        timeout in seconds
-    password:       password to use for username/password auth
-    identity_file:  a private key file to use
-    port:           TCP IP port to use (ssh default is 22)
-    callback:       a callback task to call on success
-    private_key:    an RSA string for the private key to use (instead of using
-                    a file)
-    proxy_address:  optional proxy server address
-    proxy_creds:    dict of username and password or private_key for proxy
+    ip:                 the ip address or host name of the server
+    command:            shell command to execute
+    username:           the username to use
+    timeout:            timeout in seconds
+    password:           password to use for username/password auth
+    identity_file:      a private key file to use
+    port:               TCP IP port to use (ssh default is 22)
+    callback:           a callback task to call on success
+    private_key:        an RSA string for the private key to use (instead of
+                        using a file)
+    proxy_address:      optional proxy server address
+    proxy_credentials:  dict of username and password or private_key for proxy
     """
     match_celery_logging(LOG)
     LOG.debug("Executing '%s' on ssh://%s@%s:%s.", command, username, ip, port)
     if proxy_address:
-        gateway = get_gateway(proxy_address, **proxy_creds)
+        gateway = get_gateway(proxy_address, **proxy_credentials)
     else:
         gateway = None
     try:
@@ -150,7 +148,7 @@ def execute(ip, command, username, timeout=10, password=None,
 
 def remote_execute(host, command, username, password=None, identity_file=None,
                    private_key=None, port=22, timeout=10, gateway=None):
-    '''Executes an ssh command on a remote host.
+    """Executes an ssh command on a remote host.
 
     Tries cert auth first and falls back to password auth if password provided
 
@@ -164,7 +162,7 @@ def remote_execute(host, command, username, password=None, identity_file=None,
     :param port:           TCP IP port to use (ssh default is 22)
     :param timeout:        timeout in seconds
     :returns: a dict with stdin and stdout of the call.
-    '''
+    """
     LOG.debug("Executing '%s' on ssh://%s@%s:%s.", command, username, host,
               port)
     client = None
@@ -196,22 +194,24 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
                     a file)
     """
     try:
+        options = {'StrictHostKeyChecking': False}
         if private_key is not None:
             file_obj = StringIO.StringIO(private_key)
             pkey = paramiko.RSAKey.from_private_key(file_obj)
             LOG.debug("Trying supplied private key string")
             client = bash.RemoteShell(ip, timeout=timeout, port=port,
                                       username=username, private_key=pkey,
-                                      gateway=gateway)
+                                      gateway=gateway, options=options)
         elif identity_file is not None:
             LOG.debug("Trying key file: %s", os.path.expanduser(identity_file))
             client = bash.RemoteShell(
                 ip, timeout=timeout, port=port, username=username,
                 key_filename=os.path.expanduser(identity_file),
-                gateway=gateway)
+                gateway=gateway, options=options)
         else:
             client = bash.RemoteShell(ip, port=port, username=username,
-                                      password=password, gateway=gateway)
+                                      password=password, gateway=gateway,
+                                      options=options)
             LOG.debug("Authentication for ssh://%s@%s:%d using "
                       "password succeeded", username, ip, port)
         LOG.debug("Connected to ssh://%s@%s:%d.", username, ip, port)

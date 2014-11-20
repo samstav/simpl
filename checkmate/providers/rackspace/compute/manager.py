@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Rackspace Compute provider manager.
-"""
+"""Rackspace Compute provider manager."""
+
 import logging
 import requests
 
@@ -71,7 +70,11 @@ class Manager(object):
             results = {
                 'id': str(1000 + int(resource_key)),
                 'status': "BUILD",
-                'password': 'RandomPass'
+                'password': 'RandomPass',
+                'flavor': flavor,
+                'image': image,
+                'error-message': '',
+                'status-message': '',
             }
             return results
         utils.match_celery_logging(LOG)
@@ -331,7 +334,8 @@ class Manager(object):
     def verify_ssh_connection(context, server_id, server_ip,
                               username='root', timeout=10, password=None,
                               identity_file=None, port=22, api=None,
-                              private_key=None):
+                              private_key=None, proxy_address=None,
+                              proxy_credentials=None):
         """Verifies the ssh connection to a server
         :param context: context data
         :param server_id: server id
@@ -377,7 +381,9 @@ class Manager(object):
                                         password=password,
                                         identity_file=identity_file,
                                         port=port,
-                                        private_key=private_key)
+                                        private_key=private_key,
+                                        proxy_address=None,
+                                        proxy_credentials=None)
         else:
             msg = "Server '%s' is ACTIVE but is not responding to ping" \
                   " attempts" % server_id

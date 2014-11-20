@@ -13,7 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Base Classes and functions for Providers"""
+"""Base Classes and functions for Providers."""
+
 import functools
 import logging
 
@@ -104,7 +105,7 @@ class ProviderBaseWorkflowMixIn(object):
         LOG.debug("%s.%s.prep_environment called, but was not implemented",
                   self.vendor, self.name)
 
-    def cleanup_environment(self, wfspec, deployment):
+    def cleanup_environment(self, wfspec, deployment, context):
         """Add any tasks that are needed for cleaning up environment
 
         :param wfspec: the SpiffWorkflow WorkflowSpec we are building
@@ -276,7 +277,7 @@ class ProviderBase(ProviderBasePlanningMixIn,
     vendor = 'checkmate'
 
     def __init__(self, provider, key=None):
-        """Initialize provider
+        """Initialize provider.
 
         :param provider: an initialization dict (usually from the environment)
             includes:
@@ -309,8 +310,10 @@ class ProviderBase(ProviderBasePlanningMixIn,
         self._dict = provider or {}
 
     def provides(self, context, resource_type=None, interface=None):
-        """Returns a list of resources that this provider can provide or
-        validates that a specific type of resource or interface is provided.
+        """Returns a list of resources that this provider can provide.
+
+        Also validates that a specific type of resource or interface is
+        provided.
 
         :param resource_type: a string used to filter the list returned by
                 resource type
@@ -538,7 +541,7 @@ class ProviderBase(ProviderBasePlanningMixIn,
         Currently detects settings coming from the provider constraints.
 
         :param name: the name of the setting
-        :param default: optional default alue to return if the setting is not
+        :param default: optional default value to return if the setting is not
                         found
         """
         constraints = self._dict.get('constraints')
@@ -686,18 +689,20 @@ class ProviderTask(celery.Task):
             resources = self.callback(context, data)
             results = {
                 'instance:%s' % context["resource_key"]: data
-
             }
-            results.update(resources)
+            if resources:
+                results.update(resources)
             return results
 
     def callback(self, context, data, resource_key=None):
         """Calls postback with instance.id to ensure posted to resource."""
-        if not data:
+        if (not data) or data is True:
             return
         from checkmate.deployments import tasks as deployment_tasks
         # TODO(Paul/Nate): Added here to get around circular dep issue.
         resource_index = resource_key or context['resource_key']
+        if not resource_index:
+            return
         results = {
             'resources': {
                 resource_index: {
@@ -705,7 +710,7 @@ class ProviderTask(celery.Task):
                 }
             }
         }
-        if 'status' in data:
+        if isinstance(data, dict) and 'status' in data:
             status = data['status']
             results['resources'][resource_index]['status'] = \
                 self.provider.translate_status(status)

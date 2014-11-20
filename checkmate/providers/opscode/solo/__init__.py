@@ -11,7 +11,10 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Opscode chef solo provider and specs.Celery tasks."""
+
+"""OpsCode Chef Solo provider and specs.Celery tasks."""
+
 from checkmate.providers.opscode.solo.provider import Provider
 from checkmate.providers.opscode.solo import tasks
-from checkmate.providers.opscode.solo import transforms
+from checkmate.providers.opscode import transforms
+from checkmate.providers.opscode import chef_map  # backwards compatible

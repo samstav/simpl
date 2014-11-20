@@ -316,7 +316,7 @@ class Router(object):
         # Return any errors found
         errors = spec.validate()
         if errors:
-            results['messages'] = errors
+            results['error-messages'] = errors
 
         return utils.write_body(results, bottle.request, bottle.response)
 
