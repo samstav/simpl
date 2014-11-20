@@ -175,6 +175,7 @@ class Provider(base.BaseOpscodeProvider):
                 deployment['id'],
                 resource.get('dns-name')
             ],
+            merge_results=True,
             environment=deployment['id'],
             defines={'resource': key, 'provider': self.key},
             description=("Register the node in the Chef Server. "
@@ -200,7 +201,7 @@ class Provider(base.BaseOpscodeProvider):
                 'root'
             ],
             password=operators.PathAttrib(
-                'instance:%s/password' % resource.get('hosted_on', key)
+                'instance:%s/password' % host_idx
             ),
             identity_file=operators.Attrib('private_key_path'),
             defines={'resource': key, 'provider': self.key},
@@ -221,9 +222,10 @@ class Provider(base.BaseOpscodeProvider):
                 instance_ip
             ],
             password=operators.PathAttrib(
-                'instance:%s/password' % resource.get('hosted_on', key)
+                'instance:%s/password' % host_idx
             ),
             bootstrap_version=bootstrap_version,
+            merge_results=True,
             identity_file=operators.Attrib('private_key_path'),
             environment=deployment['id'],
             defines={'resource': key, 'provider': self.key},
