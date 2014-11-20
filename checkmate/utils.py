@@ -1171,7 +1171,7 @@ def format_check(data):
     return body
 
 
-def run_ruby_command(path, command, params, lock=True):
+def run_ruby_command(path, command, params, env=None, lock=True):
     """Runs a knife-like command (ex. librarian-chef).
 
     Since knife-ike command errors are returned to stderr, we need to
@@ -1191,7 +1191,7 @@ def run_ruby_command(path, command, params, lock=True):
         try:
             if path:
                 os.chdir(path)
-            result = subprc.check_output(params)
+            result = subprc.check_output(params, cwd=path, env=env)
         except OSError as exc:
             if exc.errno == errno.ENOENT:
                 # Check if command is installed

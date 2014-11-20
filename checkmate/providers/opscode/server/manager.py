@@ -230,34 +230,36 @@ class Manager(object):
         return data
 
     @staticmethod
-    def upload(context, deployment_id, simulation=False):
+    def upload(context, deployment_id, environment, simulation=False):
         """Berks upload cookbooks."""
         kitchen = ChefKitchen(deployment_id)
-        knife = kitchen._knife
 
         if simulation:
             LOG.info("Would run berks")
             return True
 
-        params = ['berks', 'install']
-        knife.run_command(params)
+        env = os.environ.copy()
+        env['BERKSHELF_CHEF_CONFIG'] = os.path.join(kitchen.kitchen_path,
+                                                    '.chef', 'knife.rb')
+        # Downloads cookbooks based on Berksfile.lock locked versions
+        utils.run_ruby_command(kitchen.kitchen_path, 'berks',
+                               ['install'], lock=True, env=env)
 
-        params = ['berks', 'update']
-        knife.run_command(params)
+        # Upload them to the server
+        utils.run_ruby_command(kitchen.kitchen_path, 'berks',
+                               ['upload'], lock=True, env=env)
 
-        params = ['berks', 'upload']
-        knife.run_command(params)
-
-        params = ['berks', 'apply', deployment_id]
-        knife.run_command(params)
+        # Pins cookbook versions in the environment
+        utils.run_ruby_command(kitchen.kitchen_path, 'berks',
+                               ['apply', environment], lock=True, env=env)
 
         return True
 
     @staticmethod
     def bootstrap(context, deployment_id, name, ip, username='root',
                   password=None, port=22, identity_file=None,
-                  run_list=None, distro='chef-full', environment=None,
-                  simulation=False, callback=None):
+                  run_list=None, distro='chef-full', bootstrap_version=None,
+                  environment=None, simulation=False, callback=None):
         """Bootstrap a node with knife."""
         kitchen = ChefKitchen(deployment_id)
         knife = kitchen._knife
@@ -280,6 +282,8 @@ class Manager(object):
             params.extend(['-p', str(port)])
         if environment:
             params.extend(['-E', environment])
+        if bootstrap_version:
+            params.extend(['--bootstrap-version', bootstrap_version])
 
         if simulation:
             results = {'status': 'ACTIVE'}

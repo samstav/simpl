@@ -78,7 +78,8 @@ def register_node(context, deployment, name, recipes=None, roles=None,
 @statsd.collect
 def bootstrap(context, deployment, name, ip, username='root', password=None,
               port=22, identity_file=None, roles=None, recipes=None,
-              distro='chef-full', environment=None, api=None):
+              distro='chef-full', environment=None, bootstrap_version=None,
+              api=None):
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
@@ -96,13 +97,15 @@ def bootstrap(context, deployment, name, ip, username='root', password=None,
                              port=port, identity_file=identity_file,
                              run_list=run_list, distro=distro,
                              environment=environment,
+                             bootstrap_version=bootstrap_version,
                              simulation=context.simulation,
                              callback=bootstrap.partial)
 
 
 @ctask.task(base=ProviderTask, provider=Provider)
 @statsd.collect
-def write_databag(context, deployment, bagname, itemname, contents, api=None):
+def write_databag(context, deployment, bagname, itemname, contents,
+                  secret_file=None, api=None):
     """Create/Edit Data Bag."""
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -294,7 +297,7 @@ def create_kitchen(context, name, service_name, path=None,
 
 @ctask.task(max_retries=3)
 @statsd.collect
-def upload_cookbooks(context, deployment):
+def upload_cookbooks(context, deployment, environment):
     """Upload cookbooks using Berkshelf."""
     def on_failure(exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
@@ -312,7 +315,7 @@ def upload_cookbooks(context, deployment):
         )
 
     upload_cookbooks.on_failure = on_failure
-    return Manager.upload(context, deployment,
+    return Manager.upload(context, deployment, environment,
                           simulation=context['simulation'])
 
 

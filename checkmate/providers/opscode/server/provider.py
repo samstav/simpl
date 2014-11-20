@@ -27,6 +27,8 @@ from checkmate.providers.opscode.chef_map import ChefMap
 
 
 LOG = logging.getLogger(__name__)
+OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
+                                 "10.24.0")
 
 
 class Provider(base.BaseOpscodeProvider):
@@ -145,6 +147,23 @@ class Provider(base.BaseOpscodeProvider):
         LOG.debug("Determining component from dict: %s", component_id,
                   extra=component)
 
+        bootstrap_version = deployment.get_setting(
+            'bootstrap-version', provider_key=self.key,
+            service_name=service_name)
+        if not bootstrap_version:
+            omnibus_version = deployment.get_setting(
+                'omnibus-version', provider_key=self.key,
+                service_name=service_name)
+            if omnibus_version:
+                bootstrap_version = omnibus_version
+                LOG.warning("'omnibus-version' is deprecated. Please "
+                            "update the blueprint to use "
+                            "'bootstrap-version'")
+            else:
+                bootstrap_version = deployment.get_setting(
+                    'bootstrap-version', provider_key=self.key,
+                    service_name=service_name, default=OMNIBUS_DEFAULT)
+
         run_list = self.map_file.get_component_run_list(component)
 
         register_node_task = specs.Celery(
@@ -204,6 +223,7 @@ class Provider(base.BaseOpscodeProvider):
             password=operators.PathAttrib(
                 'instance:%s/password' % resource.get('hosted_on', key)
             ),
+            bootstrap_version=bootstrap_version,
             identity_file=operators.Attrib('private_key_path'),
             environment=deployment['id'],
             defines={'resource': key, 'provider': self.key},

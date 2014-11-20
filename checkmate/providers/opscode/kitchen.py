@@ -96,11 +96,12 @@ class ChefKitchen(object):
     def fetch_cookbooks(self):
         """Fetches cookbooks."""
         if os.path.exists(os.path.join(self._kitchen_path, 'Berksfile')):
+            env = os.environ.copy()
+            env['BERKSHELF_CHEF_CONFIG'] = os.path.join(self.kitchen_path,
+                                                        '.chef', 'knife.rb')
             self._ensure_berkshelf_kitchen()
             utils.run_ruby_command(self._kitchen_path, 'berks',
-                                   ['install', '--path', os.path.join(
-                                       self._kitchen_path,
-                                       'cookbooks')], lock=True)
+                                   ['install'], env=env, lock=True)
             LOG.debug("Ran 'berks install' in: %s", self._kitchen_path)
         elif os.path.exists(os.path.join(self._kitchen_path, 'Cheffile')):
             utils.run_ruby_command(self._kitchen_path,
