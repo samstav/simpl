@@ -24,7 +24,7 @@ from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
 from checkmate.common import statsd
-from checkmate.deployments import resource_postback
+from checkmate.deployments.tasks import resource_postback
 from checkmate import exceptions as cmexc
 from checkmate.providers.rackspace.compute.provider import \
     RackspaceComputeProviderBase

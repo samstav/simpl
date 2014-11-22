@@ -19,6 +19,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Transforms(object):
+
     """Class to hold transform functions.
 
     We put them in a separate class to:
@@ -27,13 +28,15 @@ class Transforms(object):
       actual code in to Spiff for better security
     TODO(zns): Should separate them out into their own module (not class)
     """
+
     @staticmethod  # self will actually be a SpiffWorkflow.TaskSpec
     def collect_options(self, my_task):  # pylint: disable=W0211
         """Collect and write run-time options."""
         try:
             import copy  # pylint: disable=W0404,W0621
             # pylint: disable=W0621
-            from checkmate.deployments import resource_postback as postback
+            from checkmate.deployments.tasks import resource_postback \
+                as postback
             from checkmate.providers.opscode.chef_map import ChefMap
             from checkmate.providers.opscode.chef_map import \
                 SoloProviderNotReady

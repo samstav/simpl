@@ -24,80 +24,9 @@ import pyrax
 from checkmate.common import statsd
 from checkmate import exceptions
 from checkmate.providers.rackspace.loadbalancer.provider import Provider
-from checkmate.providers.rackspace.loadbalancer import tasks
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
-
-
-@task
-@statsd.collect
-def create_loadbalancer(context, name, vip_type, protocol, region, api=None,
-                        dns=False, port=None, algorithm='ROUND_ROBIN',
-                        tags=None,
-                        parent_lb=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.create_loadbalancer.delay(context, name, vip_type, protocol,
-                                    region=region, api=api, port=port,
-                                    algorithm=algorithm, tags=tags,
-                                    parent_lb=parent_lb)
-
-
-@task
-@statsd.collect
-def collect_record_data(deployment_id, resource_key, record):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    context = {
-        'deployment_id': deployment_id,
-        'resource_key': resource_key
-    }
-    tasks.collect_record_data.delay(context, record)
-
-
-@task
-@statsd.collect
-def delete_lb_task(context, key, lbid, region, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.delete_lb_task.delay(context, lbid, region=region, api=api)
-
-
-@task(default_retry_delay=2, max_retries=60)
-@statsd.collect
-def wait_on_lb_delete_task(context, key, lb_id, region, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.wait_on_lb_delete_task.delay(context, lb_id, region=region, api=api)
-
-
-@task(default_retry_delay=10, max_retries=10)
-@statsd.collect
-def add_node(context, lbid, ipaddr, region, resource, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.add_node.delay(context, lbid, ipaddr, region=region, api=api)
-
-
-@task(default_retry_delay=10, max_retries=10)
-@statsd.collect
-def delete_node(context, lbid, ipaddr, region, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.delete_node.delay(context, lbid, ipaddr, region=region, api=api)
-
-
-@task(default_retry_delay=10, max_retries=10)
-@statsd.collect
-def set_monitor(context, lbid, mon_type, region, path='/', delay=10,
-                timeout=10, attempts=3, body='(.*)',
-                status='^[234][0-9][0-9]$', api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.set_monitor.delay(context, lbid, mon_type, region=region, path=path,
-                            delay=delay, timeout=timeout, attempts=attempts,
-                            body=body, status=status, api=api)
-
-
-@task(default_retry_delay=30, max_retries=120, acks_late=True)
-@statsd.collect
-def wait_on_build(context, lbid, region, api=None):
-    """DEPRECATED: Please use loadbalancer/tasks."""
-    tasks.wait_on_build(context, lbid, region=region, api=api)
 
 
 def _fix_corrupted_data(data):

@@ -31,7 +31,7 @@ from .tasks import (
 )
 
 from checkmate.common import statsd
-from checkmate.deployments import resource_postback
+from checkmate.deployments.tasks import resource_postback
 from checkmate import exceptions
 from checkmate import utils
 
