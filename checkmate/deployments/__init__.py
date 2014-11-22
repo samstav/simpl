@@ -12,9 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-'''
-All the Deployments things
-'''
+"""All the Deployments things."""
+
 from checkmate.deployments.manager import Manager
 from checkmate.deployments.router import Router
 from checkmate.deployments.planner import Planner

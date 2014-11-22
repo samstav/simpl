@@ -12,14 +12,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Common tasks
+"""Common tasks.
 
 Tasks here generally:
 - are loaded by the engine
 - have access to the backend database
 - do not belong to a specific provider
-
 
 Tasks are wrapped by a base task class we create that will capture exceptions
 and retry the task. That allows the called function to raise exceptions without
@@ -43,7 +41,7 @@ LOCK_DB = db.get_lock_db_driver()
 @statsd.collect
 def update_operation(deployment_id, workflow_id, driver=None,
                      deployment_status=None, **kwargs):
-    """Exposes operations.update_operation as a task.
+    """Expose operations.update_operation as a task.
 
     :param deployment_id: Deployment Id
     :param driver: DB driver

@@ -13,13 +13,11 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
 
-Workflows Asynchronous tasks.
+"""Workflows Asynchronous tasks.
 
 TODO:
-- remove extra pylint disables:
-
+- remove extra pylint disables
 """
 
 import logging
@@ -55,7 +53,9 @@ MANAGERS = {'workflows': Manager()}
 
 #signature defined by celery - pylint: disable=R0904,R0913
 class WorkflowEventHandlerTask(celeryglobal.SingleTask):
+
     """"Celery Task Event Handlers for Workflows."""
+
     abstract = True
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
@@ -85,7 +85,8 @@ class WorkflowEventHandlerTask(celeryglobal.SingleTask):
 @statsd.collect
 def update_deployment(w_id, error=None):
     """Update the deployment progress and status depending on the status of
-    the workflow
+    the workflow.
+
     :param w_id: Workflow to update the deployment from
     :param error: Additional error that need to be updated
     """
@@ -204,7 +205,8 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
               lock_key="async_wf_writer:{args[0]}", lock_timeout=2,
               default_retry_delay=10, max_retries=10)
 def reset_task_tree(w_id, task_id):
-    """Resets the tree for a spiff task for it to rerun
+    """Reset the tree for a spiff task for it to rerun.
+
     :param w_id: workflow id
     :param task_id: task id
     :return:
@@ -223,6 +225,7 @@ def reset_task_tree(w_id, task_id):
 @statsd.collect
 def run_one_task(context, workflow_id, task_id, timeout=60):
     """Attempt to complete one task.
+
     returns True/False indicating if task completed
     """
     utils.match_celery_logging(LOG)
@@ -283,8 +286,9 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
               lock_key="async_wf_writer:{args[0]}")
 @statsd.collect
 def pause_workflow(w_id, driver=DB, retry_counter=0):
-    """Waits for all the waiting celery tasks to move to ready and then marks
-    the operation as paused
+    """Wait for all the waiting celery tasks to move to ready and then marks
+    the operation as paused.
+
     :param w_id: Workflow id
     :param driver: DB driver
     :return:
@@ -377,7 +381,8 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
 
 @celtask.task
 def revoke_task(task_id, terminate=False):
-    """Revoke a celery task
+    """Revoke a celery task.
+
     :param task_id: Task Id of the task to revoke
     :return:
     """

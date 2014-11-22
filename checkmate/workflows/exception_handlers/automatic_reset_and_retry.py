@@ -32,6 +32,7 @@ LOG = logging.getLogger(__name__)
 
 
 class AutomaticResetAndRetryHandler(base.ExceptionHandlerBase):
+
     """Handles a reset task tree exception."""
 
     @staticmethod

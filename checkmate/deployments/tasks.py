@@ -41,8 +41,8 @@ MANAGERS = {'deployments': Manager()}
 @task(base=celery.SingleTask, default_retry_delay=2, max_retries=10,
       lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}", lock_timeout=5)
 def reset_failed_resource_task(deployment_id, resource_id):
-    """Creates a copy of a failed resource and appends it at the end of
-        the resources collection.
+    """Create a copy of a failed resource and appends it at the end of the
+    resources collection.
 
     :param deployment_id:
     :param resource_id:
@@ -53,7 +53,8 @@ def reset_failed_resource_task(deployment_id, resource_id):
 
 @task(default_retry_delay=2, max_retries=50)
 def wait_for_resource_status(deployment_id, resource_id, expected_status):
-    """Wait for a deployment resource to move to expected_status
+    """Wait for a deployment resource to move to expected_status.
+
     :param deployment_id: deployment containing the resource
     :param resource_id: resource to check the status for
     :param expected_status: expected status
@@ -143,8 +144,8 @@ def delete_deployment_task(dep_id, driver=None):
 @task(default_retry_delay=0.25, max_retries=4)
 @statsd.collect
 def alt_resource_postback(contents, deployment_id, driver=None):
-    """This is just an argument shuffle to make it easier
-    to chain this with other tasks.
+    """This is just an argument shuffle to make it easier to chain this with
+    other tasks.
     """
     utils.match_celery_logging(LOG)
     driver = db.get_driver(api_id=deployment_id)
@@ -155,8 +156,8 @@ def alt_resource_postback(contents, deployment_id, driver=None):
 @statsd.collect
 def update_all_provider_resources(provider, deployment_id, status,
                                   message=None, trace=None, driver=None):
-    """Given a deployment, update all resources
-    associated with a given provider
+    """Given a deployment, update all resources associated with a given
+    provider.
     """
     utils.match_celery_logging(LOG)
     driver = db.get_driver(api_id=deployment_id)
@@ -178,7 +179,7 @@ def update_all_provider_resources(provider, deployment_id, status,
 @task(default_retry_delay=0.5, max_retries=6)
 @statsd.collect
 def postback(deployment_id, contents):
-    """Exposes DeploymentsManager.postback as a task."""
+    """Expose DeploymentsManager.postback as a task."""
     utils.match_celery_logging(LOG)
     return MANAGERS['deployments'].postback(deployment_id, contents)
 
@@ -187,7 +188,7 @@ def postback(deployment_id, contents):
 @statsd.collect
 def resource_postback(deployment_id, contents, driver=None):
     #FIXME: we need to receive a context and check access
-    """Accepts back results from a remote call and updates the deployment with
+    """Accept back results from a remote call and update the deployment with
     the result data for a specific resource.
 
     The data updated can be:

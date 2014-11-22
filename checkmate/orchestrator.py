@@ -13,6 +13,7 @@
 #    under the License.
 
 """Celery tasks to orchestrate a sophisticated deployment."""
+
 import logging
 import time
 

@@ -12,8 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Function Caching Decorators
+"""Function Caching Decorators.
 
 Usage:
 
@@ -85,8 +84,8 @@ The secondary cache is expected to be a Redis cache (uses setex)
 Note: avoid using arguments that cannot be used as a hash key (ex. an object)
       or the cache key generated for the call will never match other calls (or
       worse, will match an incorrect call by pure chance)
-
 """
+
 import copy
 import cPickle as pickle
 import hashlib
@@ -104,6 +103,7 @@ DEFAULT_TIMEOUT = 3600
 
 # catch generic exceptions and bypass caching - pylint: disable=W0703
 class Cache:
+
     """Cache a function."""
 
     def __init__(self, max_entries=1000, timeout=DEFAULT_TIMEOUT,

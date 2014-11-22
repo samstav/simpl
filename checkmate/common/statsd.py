@@ -72,13 +72,11 @@ def simple_decorator(decorator):
 @simple_decorator
 def collect(func):
     """Wraps a celery task with statsd collect code."""
-
     task_name = func.__name__
     stats_ns = func.__module__
 
     def collect_wrapper(*args, **kwargs):
-        """Replaces decorated function."""
-
+        """Replacement for decorated function."""
         if not CONFIG.statsd_host:
             start = time.time()
             try:

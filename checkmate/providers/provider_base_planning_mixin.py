@@ -12,9 +12,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-Base Provider class mixin for planning
-"""
+
+"""Base Provider class mixin for planning."""
+
 import logging
 import os
 
@@ -22,11 +22,13 @@ LOG = logging.getLogger(__name__)
 
 
 class ProviderBasePlanningMixIn(object):
+
     """The methods used by the deployment planning code (i.e. they need a
     deployment to work on)
 
     This class is mixed in to the ProviderBase
     """
+
     def prep_environment(self, wfspec, deployment, context):
         """Implemented in the specific Provider classes."""
         pass

@@ -13,13 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-
-Contains all Middleware used by the Checkmate Server
+"""Middleware used by the Checkmate Server.
 
 This needs to be changed so the middleware is loaded by configuration.
-
 """
+
 import base64
 import copy
 import json
@@ -89,10 +87,12 @@ webob.exc.WSGIHTTPException.generate_response = generate_response
 
 
 class TenantMiddleware(object):
+
     """Strips /tenant_id/ from path and puts it in context
 
     This is needed by the authz middleware too
     """
+
     def __init__(self, app, resources=None):
         """Init for TenantMiddleware.
         :param resources: REST resources that are NOT tenants
@@ -175,6 +175,7 @@ class TenantMiddleware(object):
 
 
 class PAMAuthMiddleware(object):
+
     """Authenticate basic auth calls to PAM and optionally mark user as admin
 
     - Authenticates any basic auth to PAM
@@ -184,6 +185,7 @@ class PAMAuthMiddleware(object):
     - Adds basic auth header to any returning calls so client knows basic
       auth is supported
     """
+
     def __init__(self, app, domain=None, all_admins=False):
         self.app = app
         self.domain = domain  # Which domain to authenticate in this instance
@@ -227,9 +229,9 @@ class PAMAuthMiddleware(object):
         return self.app(environ, start_response)
 
     def start_response_callback(self, start_response):
-        """Intercepts upstream start_response and adds our headers."""
+        """Intercept upstream start_response and adds our headers."""
         def callback(status, headers, exc_info=None):
-            """Intercepts upstream start_response and adds our headers."""
+            """Intercept upstream start_response and adds our headers."""
             # Add our headers to response
             headers.append(('WWW-Authenticate', self.auth_header))
             # Call upstream start_response
@@ -241,6 +243,7 @@ TOKEN_CACHE_TIMEOUT = 600
 
 
 class TokenAuthMiddleware(object):
+
     """Authenticate any tokens provided.
 
     - Appends www-authenticate headers to returning calls
@@ -248,6 +251,7 @@ class TokenAuthMiddleware(object):
         - 401s if invalid
         - Marks authenticated if valid and populates user and catalog data
     """
+
     def __init__(self, app, endpoint, anonymous_paths=None):
         self.app = app
         self.endpoint = endpoint
@@ -373,9 +377,9 @@ class TokenAuthMiddleware(object):
         return identity.auth_token_validate(auth_dict=auth_base)
 
     def start_response_callback(self, start_response):
-        """Intercepts upstream start_response and adds our headers."""
+        """Intercept upstream start_response and adds our headers."""
         def callback(status, headers, exc_info=None):
-            """Intercepts upstream start_response and adds our headers."""
+            """Intercept upstream start_response and adds our headers."""
             # Add our headers to response
             header = ('WWW-Authenticate', self.auth_header)
             if header not in headers:
@@ -386,6 +390,7 @@ class TokenAuthMiddleware(object):
 
 
 class AuthorizationMiddleware(object):
+
     """Checks that call is authenticated and authorized to access the resource
     requested.
 
@@ -395,6 +400,7 @@ class AuthorizationMiddleware(object):
     Note: calls authenticated with PAM will not have an auth_token. They will
           not be able to access calls that need an auth token
     """
+
     def __init__(self, app, anonymous_paths=None, admin_paths=None):
         self.app = app
         self.anonymous_paths = anonymous_paths
@@ -429,7 +435,7 @@ class AuthorizationMiddleware(object):
         return webexc.HTTPUnauthorized()(environ, start_response)
 
     def start_response_callback(self, start_response):
-        """Intercepts upstream start_response and adds auth-z headers."""
+        """Intercept upstream start_response and add auth-z headers."""
         def callback(status, headers, exc_info=None):
             """Call Back with headers."""
             # Add our headers to response
@@ -442,7 +448,9 @@ class AuthorizationMiddleware(object):
 
 
 class StripPathMiddleware(object):
+
     """Strips extra / at end of path."""
+
     def __init__(self, app):
         self.app = app
 
@@ -452,7 +460,9 @@ class StripPathMiddleware(object):
 
 
 class ExtensionsMiddleware(object):
+
     """Converts extensions to accept headers: yaml, json, wadl."""
+
     def __init__(self, app):
         self.app = app
 
@@ -473,11 +483,11 @@ class ExtensionsMiddleware(object):
 
 
 class DebugMiddleware(object):
+
     """Helper class for debugging a WSGI application.
 
     Can be inserted into any WSGI application chain to get information
     about the request and response.
-
     """
 
     def __init__(self, app):
@@ -518,6 +528,7 @@ class DebugMiddleware(object):
 
 
 class ExceptionMiddleware(object):
+
     """Formats errors correctly."""
 
     def __init__(self, app):
@@ -551,6 +562,7 @@ class ExceptionMiddleware(object):
 #
 # TODO(any): Get this from openstack common?
 class RequestContext(object):
+
     """Stores information about the security context under which the user
     accesses the system, as well as additional request information related to
     the current call, such as scope (which object, resource, etc).
@@ -602,7 +614,7 @@ class RequestContext(object):
         return result
 
     def allowed_to_access_tenant(self, tenant_id=None):
-        """Checks if a tenant can be accessed by this current session.
+        """Check if a tenant can be accessed by this current session.
 
         If no tenant is specified, the check will be done against the current
         context's tenant.
@@ -626,12 +638,12 @@ class RequestContext(object):
 
     @staticmethod
     def get_service_catalog(content):
-        """Returns Service Catalog."""
+        """Return Service Catalog."""
         return content['access'].get('serviceCatalog')
 
     @staticmethod
     def get_user_tenants(content):
-        """Returns a list of tenants from token and catalog."""
+        """Return a list of tenants from token and catalog."""
 
         user = content['access']['user']
         token = content['access']['token']
@@ -668,14 +680,14 @@ class RequestContext(object):
 
     @staticmethod
     def get_username(content):
-        """Returns username."""
+        """Return username."""
         # FIXME: when Global Auth implements name, remove the logic for 'id'
         user = content['access']['user']
         return user.get('name') or user.get('id')
 
     @staticmethod
     def get_roles(content):
-        """Returns roles for a given user."""
+        """Return roles for a given user."""
         user = content['access']['user']
         return [role['name'] for role in user.get('roles', [])]
 
@@ -704,7 +716,9 @@ class RequestContext(object):
 
 
 class ContextMiddleware(object):
+
     """Adds a call context to the call environ which holds authn+z data."""
+
     def __init__(self, app):
         self.app = app
 
@@ -735,7 +749,8 @@ class ContextMiddleware(object):
 
 
 class AuthTokenRouterMiddleware(object):
-    """Middleware that routes auth to multiple endpoints
+
+    """Middleware that routes auth to multiple endpoints.
 
     The list of available auth endpoints is always returned in the API HTTP
     response using standard HTTP WWW-Authorization headers. This is what
@@ -768,10 +783,11 @@ class AuthTokenRouterMiddleware(object):
     and the anonymous_paths as kwargs. Expecting _nit__ to support:
 
             Class(endpoint, anonymous_path=None).
-
     """
+
     def __init__(self, app, endpoints, anonymous_paths=None):
         """Init for AuthTokenRouterMiddleware.
+
         :param endpoints: an array of auth endpoint dicts which is the list of
                 endpoints to authenticate against.
                 Each entry should have the following keys:
@@ -875,7 +891,6 @@ class AuthTokenRouterMiddleware(object):
         This is to process its token auth calls. We'll route to it when
         appropriate
         """
-
         for endpoint in self.endpoints:
             if 'middleware_instance' not in endpoint:
                 middleware = utils.import_class(endpoint['middleware'])
@@ -896,7 +911,7 @@ class AuthTokenRouterMiddleware(object):
             )
 
     def start_response_intercept(self, start_response):
-        """Intercepts upstream start_response and remembers status."""
+        """Intercept upstream start_response and remembers status."""
         def callback(status, headers, exc_info=None):
             """Call Back Method."""
             self.last_status = status
@@ -907,7 +922,7 @@ class AuthTokenRouterMiddleware(object):
         return callback
 
     def start_response_callback(self, start_response):
-        """Intercepts upstream start_response and adds our headers."""
+        """Intercept upstream start_response and adds our headers."""
         def callback(status, headers, exc_info=None):
             """Call Back Method."""
             # Add our headers to response
@@ -920,7 +935,8 @@ class AuthTokenRouterMiddleware(object):
 
 
 class CatchAll404(object):
-    """Facilitates 404 responses for any path not defined elsewhere.
+
+    """Facilitate 404 responses for any path not defined elsewhere.
 
     Kept in separate class to facilitate adding gui before this catchall
     definition is added.

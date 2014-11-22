@@ -13,11 +13,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-""" General utility functions
+"""General utility functions.
 
 - handling content conversion (yaml/json)
-- handling templating (Jinja2)
 """
+
 import base64
 import collections
 import inspect
@@ -81,10 +81,12 @@ def get_debug_level(config):
 
 
 class DebugFormatter(logging.Formatter):
+
     """Log formatter.
 
     Outputs any 'data' values passed in the 'extra' parameter if provided.
     """
+
     def format(self, record):
         # Print out any 'extra' data provided in logs
         if hasattr(record, 'data'):
@@ -115,7 +117,7 @@ def get_debug_formatter(config):
 
 
 def find_console_handler(logger):
-    """Returns a stream handler, if it exists."""
+    """Return a stream handler, if it exists."""
     for handler in logger.handlers:
         if isinstance(handler, logging.StreamHandler) and \
                 handler.stream == sys.stderr:
@@ -164,7 +166,7 @@ def match_celery_logging(logger):
 
 
 def import_class(import_str):
-    """Returns a class from a string including module and class."""
+    """Return a class from a string including module and class."""
     mod_str, _, class_str = import_str.rpartition('.')
     try:
         __import__(mod_str)
@@ -175,7 +177,7 @@ def import_class(import_str):
 
 
 def import_object(import_str, *args, **kw):
-    """Returns an object including a module or module and class."""
+    """Return an object including a module or module and class."""
     try:
         __import__(import_str)
         return sys.modules[import_str]
@@ -185,7 +187,7 @@ def import_object(import_str, *args, **kw):
 
 
 def resolve_yaml_external_refs(document):
-    """Parses YAML and resolves any external references
+    """Parse YAML and resolves any external references
 
     :param document: a stream object
     :returns: an iterable
@@ -206,7 +208,7 @@ def resolve_yaml_external_refs(document):
 
 
 def read_body(request):
-    """Reads request body considering content-type and returns it as a dict."""
+    """Read request body considering content-type and returns it as a dict."""
     data = request.body
     if not data or getattr(data, 'len', -1) == 0:
         raise cmexc.CheckmateNoData("No data provided")
@@ -245,13 +247,13 @@ def read_body(request):
 
 
 def yaml_to_dict(data):
-    """Parses YAML to a dict using checkmate extensions."""
+    """Parse YAML to a dict using checkmate extensions."""
     return yaml.safe_load(yaml.emit(resolve_yaml_external_refs(data),
                                     Dumper=yaml.SafeDumper))
 
 
 def dict_to_yaml(data):
-    """Parses dict to YAML using checkmate extensions."""
+    """Parse dict to YAML using checkmate extensions."""
     return yaml.safe_dump(data, default_flow_style=False)
 
 
@@ -262,7 +264,7 @@ def write_yaml(data, request, response):
 
 
 def to_yaml(data):
-    """Writes python object to YAML.
+    """Write python object to YAML.
 
     Includes special handling for Checkmate objects derived from MutableMapping
     """
@@ -272,7 +274,7 @@ def to_yaml(data):
 
 
 def escape_yaml_simple_string(text):
-    """Renders a simple string as valid YAML string escaping where necessary.
+    """Render a simple string as valid YAML string escaping where necessary.
 
     Note: Skips formatting if value supplied is not a string or is a multi-line
           string and just returns the value unmodified
@@ -291,7 +293,7 @@ def write_json(data, request, response):
 
 
 def to_json(data):
-    """Writes out python object to JSON.
+    """Write out python object to JSON.
 
     Includes special handling for Checkmate objects derived from MutableMapping
     """
@@ -316,7 +318,7 @@ HANDLERS = {
 
 def formatted_response(uripath, with_pagination=False):
     """A function decorator that adds pagination information to the response
-    header of a route/get/post/put function
+    header of a route/get/post/put function.
     """
     def _formatted_response(fxn):
         """Add pagination (optional) and headers to response."""
@@ -437,6 +439,7 @@ def _write_pagination_headers(data, offset, limit, response,
 
 def write_body(data, request, response):
     """Write output with format based on accept header.
+
     This cycles through the global HANDLERs to match content type and then
     calls that handler. Additional handlers can be added to support Additional
     content types.
@@ -454,7 +457,7 @@ def write_body(data, request, response):
 
 
 def extract_sensitive_data(data, sensitive_keys=None):
-    """Parses the dict passed in, extracting all sensitive data.
+    """Parse the dict passed in, extracting all sensitive data.
 
     Extracted data is placed into another dict, and returns two dicts; one
     without the sensitive data and with only the sensitive data.
@@ -475,7 +478,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
         return False
 
     def recursive_split(data, sensitive_keys=None):
-        """Returns split dict or list if it contains any sensitive fields."""
+        """Return split dict or list if it contains any sensitive fields."""
         if sensitive_keys is None:  # Safer than default value
             sensitive_keys = []
         clean = None
@@ -562,7 +565,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
 
 
 def flatten(list_of_dict):
-    """Converts a list of dictionary to a single dictionary.
+    """Convert a list of dictionary to a single dictionary.
 
     If 2 or more dictionaries have the same key then the data from the last
     dictionary in the list will be taken.
@@ -599,7 +602,7 @@ def merge_dictionary(dst, src, extend_lists=False):
 
 
 def merge_lists(dest, source, extend_lists=False):
-    """Recursively merge two lists
+    """Recursively merge two lists.
 
     This applies merge_dictionary if any of the entries are dicts.
     Note: This updates dst.
@@ -634,7 +637,7 @@ def merge_lists(dest, source, extend_lists=False):
 
 
 def is_ssh_key(key):
-    """Checks if string looks like it is an ssh key."""
+    """Check if string looks like it is an ssh key."""
     if not key:
         return False
     if not isinstance(key, basestring):
@@ -765,7 +768,7 @@ def is_uuid(value):
 
 
 def write_path(target, path, value):
-    """Writes a value into a dict building any intermediate keys."""
+    """Write a value into a dict building any intermediate keys."""
     parts = path.split('/')
     current = target
     for part in parts[:-1]:
@@ -777,7 +780,7 @@ def write_path(target, path, value):
 
 
 def read_path(source, path):
-    """Reads a value from a dict supporting a path as a key."""
+    """Read a value from a dict supporting a path as a key."""
     parts = path.strip('/').split('/')
     current = source
     for part in parts[:-1]:
@@ -790,7 +793,7 @@ def read_path(source, path):
 
 
 def path_exists(source, path):
-    """Checks a dict for the existence of a path as a key."""
+    """Check a dict for the existence of a path as a key."""
     if path == '/' and isinstance(source, dict):
         return True
     parts = path.strip('/').split('/')
@@ -888,7 +891,7 @@ def evaluate(function_string):
 
 
 def check_all_output(params, find="ERROR"):
-    """Detects 'find' string in params, returning a list of all matching lines
+    """Detect 'find' string in params, returning a list of all matching lines.
 
     Similar to subprocess.check_output, but parses both stdout and stderr
     and detects any string passed in as the find parameter.
@@ -899,7 +902,6 @@ def check_all_output(params, find="ERROR"):
     were piped to stdout and the actual error did not have everything we
     needed because knife did not exit with an error code, but now we're just
     keeping it for the script provider (coming soon)
-
     """
     on_posix = 'posix' in sys.builtin_module_names
 
@@ -1030,7 +1032,7 @@ def filter_resources(resources, provider_name):
 
 
 def cap_limit(limit, tenant_id):
-    """Checks limit param and resets it to max allowable if needed."""
+    """Check limit param and resets it to max allowable if needed."""
     # So that we don't end up with a DoS due to unchecked limit:
     if limit is None or limit > 100 or limit < 0:
         LOG.warn('Request for tenant %s with limit of %s. Defaulting '
@@ -1071,14 +1073,16 @@ def get_ips_from_server(server, is_rackconnected_account=False,
 
 
 def is_rackconnect_account(context):
-    """Checks if the context has information that indicates that the account
+    """Check if the context has information that indicates that the account
      is a RackConnect account
      """
     return 'rack_connect' in context['roles']
 
 
 class Simulation(object):
+
     """Generic object used to set simulation attrs."""
+
     def __init__(self, *args, **kwargs):
         """Assigns arguments to attributes.  Kwargs sets key to attr name."""
         self.args = args
@@ -1087,7 +1091,9 @@ class Simulation(object):
 
 
 class QueryParams(object):
+
     """Query Parameters Class."""
+
     @staticmethod
     def parse(params, whitelist=None):
         """Parse query params based on whitelist if provided."""
@@ -1111,7 +1117,7 @@ class QueryParams(object):
 
 
 def hide_url_password(url):
-    """Detects a password part of a URL and replaces it with *****."""
+    """Detect a password part of a URL and replaces it with *****."""
     try:
         parsed = urlparse.urlsplit(url)
         if parsed.password:
@@ -1122,7 +1128,7 @@ def hide_url_password(url):
 
 
 def format_check(data):
-    """Calculates a deployment's deltas and returns a formatted result.
+    """Calculate a deployment's deltas and returns a formatted result.
 
     :param data: a dict containing 4 sections (see expected_keys)
     """
@@ -1172,7 +1178,7 @@ def format_check(data):
 
 
 def run_ruby_command(path, command, params, env=None, lock=True):
-    """Runs a knife-like command (ex. librarian-chef).
+    """Run a knife-like command (ex. librarian-chef).
 
     Since knife-ike command errors are returned to stderr, we need to
     capture stderr and check for errors.

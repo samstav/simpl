@@ -1,6 +1,20 @@
-"""
-    Celery tasks to handle SSH connections
-"""
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Celery tasks to handle SSH connections."""
+
 import logging
 import os
 import StringIO
@@ -19,6 +33,7 @@ LOG = logging.getLogger(__name__)
 
 
 class AcceptMissingHostKey(paramiko.client.MissingHostKeyPolicy):
+
     """Add missing host keys to the client.
 
     Do not save in the known_hosts file since we can easily spin up servers
@@ -46,7 +61,7 @@ def test_connection(context, ip, username, timeout=10, password=None,
                     identity_file=None, port=22, callback=None,
                     private_key=None, proxy_address=None,
                     proxy_credentials=None):
-    """Connect to an ssh server and verify that it responds
+    """Connect to an ssh server and verify that it responds.
 
     ip:             the ip address or host name of the server
     username:       the username to use
@@ -110,9 +125,9 @@ def execute_2(context, ip_address, command, username, timeout=10,
 def execute(ip, command, username, timeout=10, password=None,
             identity_file=None, port=22, callback=None, private_key=None,
             proxy_address=None, proxy_credentials=None):
-    """Executes an ssh command on a remote host and returns a dict with stdin
-    and stdout of the call. Tries cert auth first and falls back to password
-    auth if password provided
+    """Execute an ssh command on a remote host.
+
+    Tries cert auth first and falls back to password auth if password provided
 
     ip:                 the ip address or host name of the server
     command:            shell command to execute
@@ -126,6 +141,7 @@ def execute(ip, command, username, timeout=10, password=None,
                         using a file)
     proxy_address:      optional proxy server address
     proxy_credentials:  dict of username and password or private_key for proxy
+    :returns: a dict with stdin and stdout of the call.
     """
     match_celery_logging(LOG)
     LOG.debug("Executing '%s' on ssh://%s@%s:%s.", command, username, ip, port)
@@ -148,7 +164,7 @@ def execute(ip, command, username, timeout=10, password=None,
 
 def remote_execute(host, command, username, password=None, identity_file=None,
                    private_key=None, port=22, timeout=10, gateway=None):
-    """Executes an ssh command on a remote host.
+    """Execute an ssh command on a remote host.
 
     Tries cert auth first and falls back to password auth if password provided
 
@@ -183,7 +199,8 @@ def remote_execute(host, command, username, password=None, identity_file=None,
 
 def connect(ip, port=22, username="root", timeout=10, identity_file=None,
             private_key=None, password=None, gateway=None):
-    """Attempts SSH connection and returns SSHClient object
+    """Attempt SSH connection and returns SSHClient object.
+
     ip:             the ip address or host name of the server
     username:       the username to use
     timeout:        timeout in seconds

@@ -1,5 +1,19 @@
-'''
-Signature for Database Driver Modules
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Signature for Database Driver Modules.
 
 The API defines IDs as 32 character strings. The API ID is passed in to the
 driver calls. It is up to the driver to map that to a native ID and abstract
@@ -16,8 +30,7 @@ The ID must start with an alphanumeric character.
 
 TODO:
 - implement partial saves (formalize what we do in save_deployment)
-
-'''
+"""
 
 # pylint: disable=C0111
 
@@ -30,10 +43,11 @@ LOG = logging.getLogger()
 
 
 class DbBase(object):  # pylint: disable=R0921
-    '''Interface for all database drivers.'''
+
+    """Interface for all database drivers."""
 
     def __init__(self, connection_string, driver=None, *args, **kwargs):
-        '''Initialize database driver
+        """Initialize database driver.
 
         Drivers can also be serialized/deserialized from strings which are
         effectively the connection strings.
@@ -43,7 +57,7 @@ class DbBase(object):  # pylint: disable=R0921
                                   modules
         :param driver: used to inject a driver for testing or connection
                        sharing
-        '''
+        """
         LOG.debug("Initializing driver %s with connection_string='%s', "
                   "args=%s, driver=%s, and kwargs=%s", self.__class__.__name__,
                   connection_string, args, driver, kwargs)
@@ -51,49 +65,49 @@ class DbBase(object):  # pylint: disable=R0921
         self.driver = driver
 
     def __getstate__(self):
-        '''Support serializing to connection string.'''
+        """Support serializing to connection string."""
         return {'connection_string': self.connection_string}
 
     def __setstate__(self, dict):  # pylint: disable=W0622
-        '''Support deserializing from connection string.'''
+        """Support deserializing from connection string."""
         self.connection_string = dict['connection_string']
 
     def __str__(self):
-        '''Support serializing to connection string.'''
+        """Support serializing to connection string."""
         return self.connection_string
 
     def __repr__(self):
-        '''Support displaying connection string.'''
+        """Support displaying connection string."""
         return ("<%s.%s connection_string='%s'>" % (self.__class__.__module__,
                 self.__class__.__name__,
                 utils.hide_url_password(self.connection_string)))
 
     def dump(self):
-        '''Dump all data n the database.'''
+        """Dump all data n the database."""
         raise NotImplementedError()
 
     # ENVIRONMENTS
     def get_environment(self, api_id, with_secrets=None):
-        '''Get the environment that matches the API ID supplied
+        """Get the environment that matches the API ID supplied.
 
         :param api_id: the API ID of the environment to get
         :param with_secrets: set to true to also return passwords and keys
         :returns: dict -- the environment
-        '''
+        """
         raise NotImplementedError()
 
     def get_environments(self, tenant_id=None, with_secrets=None):
-        '''Get a list of environments that matches the tenant ID supplied
+        """Get a list of environments that matches the tenant ID supplied.
 
         :param tenant_id: the tenant ID for which to return environments
         :param with_secrets: set to true to also return passwords and keys
         :returns: dict -- a dict of all environments where the key is the
                   environment ID
-        '''
+        """
         raise NotImplementedError()
 
     def save_environment(self, api_id, body, secrets=None, tenant_id=None):
-        '''Save (Update or Create) an environment
+        """Save (Update or Create) an environment.
 
         :param api_id: the API ID of the environment to store
         :param body: the dict of the environment to store
@@ -103,7 +117,7 @@ class DbBase(object):  # pylint: disable=R0921
                   _modified by_ date may have taken place)
 
         Note:: Use utils.extract_sensitive_keys to split secrets from the body
-        '''
+        """
         raise NotImplementedError()
 
     # TENANTS
@@ -171,13 +185,12 @@ class DbBase(object):  # pylint: disable=R0921
     }
 
     def convert_data(self, klass, data):
-        '''
-        Used to perform transformations on objects post reading them from
-        the DB.
+        """Perform transformations on objects post reading them from the DB.
+
         :param klass:
         :param data:
         :return:
-        '''
+        """
         if klass == 'deployments':
             if 'status' in data:
                 if data['status'] in self.legacy_statuses:

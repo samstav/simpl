@@ -14,6 +14,7 @@
 #    under the License.
 
 """Common code, utilities, and classes for managing the 'operation' object."""
+
 import logging
 import time
 
@@ -39,7 +40,7 @@ LOCK_DB = db.get_lock_db_driver()
               lock_timeout=2)
 @statsd.collect
 def create(dep_id, workflow_id, op_type, tenant_id=None):
-    """Decouples statsd and celery from the underlying implementation."""
+    """Decouple statsd and celery from the underlying implementation."""
     _create(dep_id, workflow_id, op_type, tenant_id)
 
 
@@ -62,7 +63,7 @@ def add(deployment, spiff_wf, op_type, tenant_id=None):
 
 
 def add_operation(deployment, op_type, **kwargs):
-    """Adds an operation to a deployment
+    """Add an operation to a deployment.
 
     Moves any existing operation to history
 
@@ -86,14 +87,13 @@ def add_operation(deployment, op_type, **kwargs):
 def update_operation(deployment_id, workflow_id, driver=None,
                      deployment_status=None, check_only=False,
                      **kwargs):
-    """Update the the operation in the deployment
+    """Update the the operation in the deployment.
 
     Note: exposed in common.tasks as a celery task
 
     :param deployment_id: the string ID of the deployment
     :param driver: the backend driver to use to get the deployments
     :param kwargs: the key/value pairs to write into the operation
-
     """
     if not kwargs and not deployment_status:
         return  # Nothing to do!
@@ -145,7 +145,7 @@ def current_workflow_id(deployment):
 
 
 def get_operation(deployment, workflow_id):
-    """Gets an operation by Workflow ID.
+    """Get an operation by Workflow ID.
 
     Looks at the current deployment's OPERATION and OPERATIONS-HISTORY
     blocks for an operation that has a workflow-id that matches the passed

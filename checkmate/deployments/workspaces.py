@@ -12,8 +12,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Workspace: a directory where file operations can be performed for a deployment.
+"""Workspace.
+
+A directory where file operations can be performed for a deployment.
 
 Handles:
 - directory creation
@@ -26,8 +27,8 @@ Handles:
 Examples:
 - chef: kitchen for knife solo
 - script: repo to rsync up to hosts
-
 """
+
 import errno
 import hashlib
 import logging
@@ -47,7 +48,7 @@ LOG = logging.getLogger(__name__)
 
 
 def workspace_root_path():
-    """Get the root path for all worksaces.
+    """Get the root path for all workspaces.
 
     Ensure it exists.
     :returns: string path

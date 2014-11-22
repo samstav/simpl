@@ -13,8 +13,8 @@
 #    under the License.
 # pylint: disable=R0903
 
-"""Creates spiff workflow spec for different actions
-"""
+"""Workflow Spec Creation."""
+
 import copy
 import logging
 
@@ -26,9 +26,12 @@ LOG = logging.getLogger(__name__)
 
 
 class ProviderFactory:
-    """For a deployment, gives out the required provider for a given
-    resource
+
+    """Instantiate Required Provider for Resource.
+
+    For a deployment, gives out the required provider for a given resource.
     """
+
     def __init__(self, deployment, environment):
         self.providers = {}
 
@@ -46,7 +49,8 @@ class ProviderFactory:
                 self.providers[resource['provider']] = provider
 
     def get_provider(self, resource):
-        """Returns a provider suitable for the resource in the parameter
+        """Return a provider suitable for the resource in the parameter.
+
         :param resource: Resource
         :return provider matching resource
         """
@@ -54,15 +58,18 @@ class ProviderFactory:
         return self.providers[resource['provider']]
 
     def get_all_providers(self):
-        """Returns a list of all providers for the deployment."""
+        """Return a list of all providers for the deployment."""
         return self.providers
 
 
 class WorkflowSpec(specs.WorkflowSpec):
+
     """Workflow Spec related methods."""
+
     @staticmethod
     def create_take_offline_spec(context, deployment, **kwargs):
-        """Creates the workflow spec for taking a resource offline
+        """Create the workflow spec for taking a resource offline.
+
         :param deployment:
         :param resource_id:
         :param context:
@@ -98,7 +105,8 @@ class WorkflowSpec(specs.WorkflowSpec):
 
     @staticmethod
     def create_bring_online_spec(context, deployment, **kwargs):
-        """Creates the workflow spec for getting a resource online
+        """Create the workflow spec for getting a resource online.
+
         :param deployment:
         :param resource_id:
         :param context:
@@ -135,7 +143,8 @@ class WorkflowSpec(specs.WorkflowSpec):
 
     @staticmethod
     def create_delete_dep_wf_spec(deployment, context):
-        """Creates a SpiffWorkflow spec for deleting a deployment
+        """Create a SpiffWorkflow spec for deleting a deployment.
+
         :param deployment:
         :param context:
         :return: SpiffWorkflow.WorkflowSpec
@@ -211,7 +220,7 @@ class WorkflowSpec(specs.WorkflowSpec):
     @staticmethod
     def get_host_delete_tasks(resource, deployment, factory, wf_spec,
                               context):
-        """For a given resource, gets all the hosted-resource deletion tasks
+        """Get all the hosted-resource deletion tasks for a given resource.
 
         :param resource: resource
         :param deployment: deployment
@@ -220,7 +229,6 @@ class WorkflowSpec(specs.WorkflowSpec):
         :param context: Context
         :return: A list of hosted-resource deletion tasks.
         """
-
         hosts = resource.get("hosts", [])
         host_resources = []
         for host in hosts:
@@ -241,7 +249,8 @@ class WorkflowSpec(specs.WorkflowSpec):
     @staticmethod
     def create_reset_failed_resource_spec(context, deployment,
                                           task_to_reset, workflow_id):
-        """Creates workflow spec for passed in failed resource and task
+        """Create workflow spec for passed in failed resource and task.
+
         :param context: request context
         :param deployment: deployment
         :param task_to_reset: failed task id
@@ -344,8 +353,8 @@ class WorkflowSpec(specs.WorkflowSpec):
 
     @staticmethod
     def create_build_spec(context, deployment):
-        """Creates a SpiffWorkflow spec for initial deployment of a Checkmate
-        deployment
+        """Create a SpiffWorkflow spec for initial deployment of a Checkmate
+        deployment.
 
         :return: SpiffWorkflow.WorkflowSpec
         """
@@ -527,7 +536,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         return tasks
 
     def wait_for(self, task, wait_list, name=None, **kwargs):
-        """Wires up tasks so that 'task' will wait for all tasks in 'wait_list'
+        """Wire up tasks so that 'task' will wait for all tasks in 'wait_list'
         to complete before proceeding.
 
         If wait_list has more than one task, we'll use a Merge task. If
@@ -599,7 +608,8 @@ class WorkflowSpec(specs.WorkflowSpec):
 
     @staticmethod
     def create_scale_down_spec(context, deployment, **kwargs):
-        """Create the workflow spec for deleting a node in a deployment
+        """Create the workflow spec for deleting a node in a deployment.
+
         :param deployment: The deployment to delete the node from
         :param resources_to_delete: Comma separated list of resource ids
         which need to be deleted
@@ -667,7 +677,8 @@ class WorkflowSpec(specs.WorkflowSpec):
     @staticmethod
     def _add_del_tasks_for_res_relatns(wf_spec, deployment,
                                        resource_key, context):
-        """Adds the delete task for a resource relation
+        """Add the delete task for a resource relation.
+
         :param wf_spec: Workflow Spec to add the tasks to
         :param deployment: The deployment from which the resourced need to
         be deleted

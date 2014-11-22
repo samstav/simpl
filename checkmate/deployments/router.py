@@ -12,10 +12,12 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Deployments Resource Router
+
+"""Deployments Resource Router.
 
 Handles API calls to /deployments and routes them appropriately
 """
+
 import copy
 import logging
 import random
@@ -48,7 +50,7 @@ LOG = logging.getLogger(__name__)
 #
 def _content_to_deployment(request=bottle.request, deployment_id=None,
                            tenant_id=None):
-    """Receives request content and puts it in a deployment.
+    """Receive request content and put it in a deployment.
 
     :param bottle_request: the bottlepy request object
     :param deployment_id: the expected/requested ID
@@ -150,10 +152,11 @@ def write_deploy_headers(deployment_id, tenant_id=None):
 
 
 class Router(object):
+
     """Route /deployments/ calls."""
 
     def __init__(self, app, manager):
-        """Takes a bottle app and routes traffic for it."""
+        """Take a bottle app and routes traffic for it."""
         self.app = app
         self.manager = manager
 
@@ -229,7 +232,7 @@ class Router(object):
 
     @utils.with_tenant
     def post_deployment(self, tenant_id=None):
-        """Creates deployment and workflow.
+        """Create deployment and workflow.
 
         Triggers workflow execution.
         """
@@ -409,8 +412,9 @@ class Router(object):
 
     @utils.with_tenant
     def delete_nodes(self, api_id, tenant_id=None):
-        """Deletes nodes from a  deployment, based on the resource ids that
+        """Delete nodes from a  deployment, based on the resource ids that
         are to be provided in the request body.
+
         :param api_id:
         :param tenant_id:
         :return:
@@ -568,7 +572,7 @@ class Router(object):
 
     @utils.with_tenant
     def clone_deployment(self, api_id, tenant_id=None):
-        """Creates deployment and wokflow from a deleted deployment."""
+        """Create deployment and wokflow from a deleted deployment."""
         assert api_id, "Deployment ID cannot be empty"
         deployment = self.manager.clone(
             api_id,
@@ -792,7 +796,7 @@ class Router(object):
 
     @utils.with_tenant
     def take_resource_offline(self, api_id, r_id, tenant_id=None):
-        """Creates and executes the workflow for taking the passed in
+        """Create and execute the workflow for taking the passed in
         resource offline.
         """
         if utils.is_simulation(api_id):
@@ -814,7 +818,7 @@ class Router(object):
 
     @utils.with_tenant
     def bring_resource_online(self, api_id, r_id, tenant_id=None):
-        """Creates and executes the workflow for getting the passed in
+        """Create and execute the workflow for getting the passed in
         resource online.
         """
         if utils.is_simulation(api_id):
@@ -836,7 +840,7 @@ class Router(object):
 
     @staticmethod
     def _validate_node_update_call(deployment, resource):
-        """Validates lb node status update calls."""
+        """Validate lb node status update calls."""
         service = resource.get('service')
         index = resource.get('index')
         valid_resource_keys = deployment.get_resources_for_service(

@@ -14,6 +14,7 @@
 #    under the License.
 
 """Analyzes a Checkmate deployment and persists the analysis results."""
+
 import copy
 import logging
 import string
@@ -80,6 +81,7 @@ mfCNuJ71hzS3"""
 
 
 class Planner(classes.ExtensibleDict):
+
     """Analyzes a Checkmate deployment and persists the analysis results
 
     This class will do the following:
@@ -121,6 +123,7 @@ class Planner(classes.ExtensibleDict):
     The class behaves like a dict and will contain the analysis results.
     The resources attribute will contain the planned resources as well.
     """
+
     def __init__(self, deployment, parse_only=False, *args, **kwargs):
         """Object Initialization.
 
@@ -143,7 +146,7 @@ class Planner(classes.ExtensibleDict):
                                                "Nowhere to deploy to.")
 
     def plan_additional_nodes(self, context, service_name, count):
-        """Adds 'count' number of service_name nodes to a deployment.
+        """Add 'count' number of service_name nodes to a deployment.
 
         Deployment must already be in 'PLANNED' state.
 
@@ -201,7 +204,7 @@ class Planner(classes.ExtensibleDict):
         return self.resources
 
     def _unique_providers(self):
-        """Returns a list of provider instances, one per provider type."""
+        """Return a list of provider instances, one per provider type."""
         providers = []
         names = []
         for name, provider in self.environment.providers.iteritems():
@@ -247,7 +250,7 @@ class Planner(classes.ExtensibleDict):
         return results
 
     def evaluate_defaults(self):
-        """Evaluate option defaults
+        """Evaluate option defaults.
 
         Replaces defaults if they are a function with a final value so that the
         defaults are not evaluated once per workflow or once per component.
@@ -260,7 +263,7 @@ class Planner(classes.ExtensibleDict):
                     option['default'] = utils.evaluate(default[1:])
 
     def add_custom_resources(self):
-        """Adds custom resources to the deployment.
+        """Add custom resources to the deployment.
 
         Looks for an array of custom_resources in deployment[inputs]
         and adds them to deployment[resources]
@@ -275,8 +278,8 @@ class Planner(classes.ExtensibleDict):
     def add_resources(self, context):
         """Container for the original plan() function.
 
-        It contains
-        code that is not yet fully refactored. This will go away over time.
+        It contains code that is not yet fully refactored. This will go away
+        over time.
         """
         blueprint = self.blueprint
         environment = self.environment
@@ -307,9 +310,7 @@ class Planner(classes.ExtensibleDict):
                                               service_index)
 
     def add_resource_for_service(self, context, service_name, service_index):
-        """Adds a new 'resource' block to the deployment,
-
-        based on the service name
+        """Add a new 'resource' block to the deployment, based on service name.
 
         :param service_name: Name of the service
         :param context: Request context
@@ -608,7 +609,7 @@ class Planner(classes.ExtensibleDict):
         relations[write_key] = result
 
     def resolve_components(self, context):
-        """Identify needed components and resolve them to provider components
+        """Identify needed components and resolve them to provider components.
 
         :param context: the call context. Component catalog may depend on
                 current context
@@ -634,7 +635,7 @@ class Planner(classes.ExtensibleDict):
             self['services'][service_name]['component'] = component
 
     def resolve_relations(self):
-        """Identify source and target provides/requires keys for all relations
+        """Identify source and target provides/requires keys for all relations.
 
         Assumes that find_components() has already run and identified all the
         components in the deployment. If not, this will effectively be a noop
@@ -705,7 +706,7 @@ class Planner(classes.ExtensibleDict):
     @staticmethod
     def connect(source, target, interface, connection_key,
                 relation_type='reference', relation_key=None, attribute=None):
-        """Connect two components by adding the connection information to them
+        """Connect two components by adding the connection information to them.
 
         :param source: a map of the source 'component', 'service' name, and
                        'endpoint, as shown below
@@ -738,7 +739,6 @@ class Planner(classes.ExtensibleDict):
             extra-key: key of component if it is an extra component
             attribute: if needed by v0.2 connection
         """
-
         # Write to source connections
 
         if 'connections' not in source['component']:
@@ -782,7 +782,7 @@ class Planner(classes.ExtensibleDict):
             connections[connection_key] = info
 
     def resolve_remaining_requirements(self, context):
-        """Resolves requirements by finding and loading appropriate components
+        """Resolve requirements by finding and loading appropriate components.
 
         Requirements that have been already resolved by an explicit relation
         are left alone. This is expected to be run after relations are resolved
@@ -853,7 +853,7 @@ class Planner(classes.ExtensibleDict):
                              key, relation_type=relation)
 
     def resolve_recursive_requirements(self, context, history):
-        """Goes through extra-component and resolves any of their requirements
+        """Go through extra-component and resolves any of their requirements.
 
         Loops recursively until all requirements are met. Detects cyclic Loops
         by keeping track of requirements met.
@@ -931,15 +931,12 @@ class Planner(classes.ExtensibleDict):
             self.resolve_recursive_requirements(context, history)
 
     def _get_next_resource_index(self):
-        """Calculates the next resource index based on the current resources
-
-        :return:
-        """
+        """Calculate the next resource index based on the current resources."""
         return (str(len([res for res in self.resources.keys()
                          if res.isdigit()])))
 
     def _get_number_of_resources(self, provider_key, service_name):
-        """Gets the number of resources for a specific service and provider
+        """Get the number of resources for a specific service and provider.
 
         :param provider_key:
         :param service_name:
@@ -954,7 +951,7 @@ class Planner(classes.ExtensibleDict):
 
     def _satisfy_requirement(self, requirement, requirement_key, component,
                              component_service, relation_key=None, name=None):
-        """Mark requirement as satisfied by component
+        """Mark requirement as satisfied by component.
 
         Format is:
             satisfied-by:
@@ -982,7 +979,7 @@ class Planner(classes.ExtensibleDict):
         requirement['satisfied-by'] = info
 
     def identify_component(self, definition, context):
-        """Identifies a component based on blueprint-type keys."""
+        """Identify a component based on blueprint-type keys."""
         assert not isinstance(definition, list)  # deprecated syntax
         found = self.environment.find_component(definition, context)
         if not found:
@@ -1000,7 +997,7 @@ class Planner(classes.ExtensibleDict):
 
     @staticmethod
     def _format_relation(key, value, service):
-        """Parses relation and returns expanded relation as key and map tuple
+        """Parse relation and return expanded relation as key and map tuple.
 
         A Relation's syntax is one of:
         1 - service: interface
@@ -1056,7 +1053,7 @@ class Planner(classes.ExtensibleDict):
 
     @staticmethod
     def _find_requires_key(relation, component):
-        """Matches a requirement on the source component based on relation.
+        """Match a requirement on the source component based on relation.
 
         Will not match a requirement that is already satisfied.
 
@@ -1081,7 +1078,7 @@ class Planner(classes.ExtensibleDict):
 
     @staticmethod
     def _find_provides_key(relation, component):
-        """Returns a 'provides' key for a given component based on relation.
+        """Return a 'provides' key for a given component based on relation.
 
         Matches a provided interface on the target component as the target of a
         relation

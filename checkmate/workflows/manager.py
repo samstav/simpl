@@ -12,10 +12,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Workflows Manager
+"""Workflows Manager,
 
-Handles workflow logic
+Handles workflow logic,
 """
 import logging
 
@@ -28,6 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
+
     """Contains Workflows Model and Logic for Accessing Workflows."""
 
     @staticmethod
@@ -45,7 +45,8 @@ class Manager(object):
             api_id, with_secrets=with_secrets)
 
     def workflow_lock(self, workflow_id):
-        """Returns a lock object for locking the workflow and unlocking it
+        """Return a lock object for locking the workflow and unlocking it.
+
         :param workflow_id: workflow id
         :return: a lock object for locking the workflow and unlocking it
         """
@@ -53,8 +54,10 @@ class Manager(object):
         return db.get_lock_db_driver().lock(lock_key, 5)
 
     def save_spiff_workflow(self, d_wf, **kwargs):
-        """Serializes a spiff worklfow and save it. Worflow status can be
-        overriden by providing a custom value for the 'status' parameter.
+        """Serialize a spiff worklfow and save it.
+
+        Worflow status can be overriden by providing a custom value for the
+        'status' parameter.
 
         :param d_wf: De-serialized workflow
         :param tenant_id: Tenant Id

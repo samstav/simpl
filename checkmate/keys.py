@@ -1,4 +1,20 @@
-#!/usr/bin/env python
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Key management module"""
+
 import logging
 
 from Crypto.PublicKey import RSA  # pip install pycrypto
@@ -9,11 +25,9 @@ from passlib.hash import sha512_crypt
 
 LOG = logging.getLogger(__name__)
 
-"""Key management module"""
-
 
 def generate_key_pair(bits=2048):
-    """Generates a private/public key pair.
+    """Generate a private/public key pair.
 
     returns them as a private, public tuple of dicts. The dicts have key,
     and PEM values. The public key also has an ssh value in it
@@ -29,13 +43,13 @@ def generate_key_pair(bits=2048):
 
 
 def get_ssh_public_key(private_key):
-    """Generates an ssh public key from a private key string."""
+    """Generate an ssh public key from a private key string."""
     key = RSA.importKey(private_key)
     return key.publickey().exportKey('OpenSSH')
 
 
 def get_public_key(private_key):
-    """Generates a PEM public key from a private key string."""
+    """Generate a PEM public key from a private key string."""
     key = RSA.importKey(private_key)
     return key.publickey().exportKey('PEM')
 
