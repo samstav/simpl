@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Rackspace Nova compute provider."""
+
 import copy
 import json
 import logging
@@ -721,7 +722,8 @@ class TestNovaCompute(test.ProviderTester):
         context = dict(deployment_id='DEP', resource_key='1')
         ssh.test_connection(mox.IgnoreArg(), "4.4.4.4", "root", timeout=10,
                             password=None, identity_file=None, port=22,
-                            private_key=None).AndReturn(True)
+                            private_key=None, proxy_address=None,
+                            proxy_credentials=None).AndReturn(True)
 
         self.mox.ReplayAll()
         compute.tasks.verify_ssh_connection(context, server.id, "4.4.4.4",
