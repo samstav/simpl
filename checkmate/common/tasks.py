@@ -56,18 +56,3 @@ def update_operation(deployment_id, workflow_id, driver=None,
                                        driver=driver,
                                        deployment_status=deployment_status,
                                        **kwargs)
-
-
-@task.task(base=celery.SingleTask, default_retry_delay=3, max_retries=10,
-           lock_db=LOCK_DB, lock_key="async_dep_writer:{args[0]}",
-           lock_timeout=2)
-@statsd.collect
-def update_deployment_status(deployment_id, new_status, driver=None):
-    """DEPRECATED  will be removed around v0.14.
-
-    Use checkmate.common.tasks.update_operation and pass in a deployment
-    status
-    """
-    return deployment.update_deployment_status(deployment_id,
-                                               new_status,
-                                               driver=driver)

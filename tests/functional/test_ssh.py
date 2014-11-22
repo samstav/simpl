@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for SSH."""
+
 import mock
 import unittest
 
@@ -50,6 +51,7 @@ HNLoMGWDbYkodusmrHUN5Ed3E3w8Y+wpREa7vhX4Mey98gQ7Sgwcu0U=
 
 
 class TestSSH(unittest.TestCase):
+
     """Test Checkmate's built-in SSH Tasks."""
 
     @mock.patch.object(ssh, 'connect')
@@ -79,7 +81,8 @@ class TestSSH(unittest.TestCase):
                                         timeout=timeout,
                                         private_key=private_key,
                                         identity_file=identity_file,
-                                        password=password)
+                                        password=password,
+                                        gateway=None)
 
     @mock.patch.object(ssh, 'connect')
     def test_execute(self, mock_connect):
@@ -93,14 +96,13 @@ class TestSSH(unittest.TestCase):
         password = "secret"
 
         client = mock.Mock()
-        stdout = mock.Mock()
-        stdout.read.return_value = "Outputs"
-        stderr = mock.Mock()
-        stderr.read.return_value = "Errors"
 
         #Stub out _connect call
         mock_connect.return_value = client
-        client.exec_command.return_value = (None, stdout, stderr)
+        client.execute.return_value = {
+            'stdout': "Outputs",
+            'stderr': "Errors",
+        }
         client.close.return_value = None
 
         expected = {
@@ -112,13 +114,14 @@ class TestSSH(unittest.TestCase):
                               port=port, private_key=private_key)
 
         self.assertDictEqual(results, expected)
-        client.exec_command.assert_called_with('test')
+        client.execute.assert_called_with('test')
         mock_connect.assert_called_with(ip_addr, port=port,
                                         username=username,
                                         timeout=timeout,
                                         private_key=private_key,
                                         identity_file=identity_file,
-                                        password=password)
+                                        password=password,
+                                        gateway=None)
 
     @mock.patch.object(ssh, 'connect')
     def test_execute_2(self, mock_connect):
@@ -132,13 +135,12 @@ class TestSSH(unittest.TestCase):
         password = "secret"
 
         client = mock.Mock()
-        stdout = mock.Mock()
-        stdout.read.return_value = "Outputs"
-        stderr = mock.Mock()
-        stderr.read.return_value = "Errors"
 
         mock_connect.return_value = client
-        client.exec_command.return_value = (None, stdout, stderr)
+        client.execute.return_value = {
+            'stdout': "Outputs",
+            'stderr': "Errors",
+        }
         client.close.return_value = None
 
         expected = {
@@ -150,19 +152,18 @@ class TestSSH(unittest.TestCase):
                                 port=port, private_key=private_key)
 
         self.assertDictEqual(results, expected)
-        client.exec_command.assert_called_with('test')
+        client.execute.assert_called_with('test')
         mock_connect.assert_called_with(ip_addr,
                                         port=port,
                                         username=username,
                                         timeout=timeout,
                                         private_key=private_key,
                                         identity_file=identity_file,
-                                        password=password)
+                                        password=password,
+                                        gateway=None)
 
 
 if __name__ == '__main__':
     import sys
-
     from checkmate import test as cmtest
-
     cmtest.run_with_params(sys.argv[:])

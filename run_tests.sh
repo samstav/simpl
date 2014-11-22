@@ -91,9 +91,9 @@ function run_pep8 {
   echo "Running pep8 ..."
   # Opt-out files from pep8
   ignore_scripts="*.sh:"
-  ignore_files="*eventlet-patch:*pip-requires:test.py:vcsversion.py"
-  ignore_dirs="*ajaxterm*"
-  GLOBIGNORE="$ignore_scripts:$ignore_files:$ignore_dirs"
+  ignore_files="*eventlet-patch,*pip-requires,test.py,vcsversion.py"
+  ignore_dirs="*ajaxterm*,contrib"
+  GLOBIGNORE="$ignore_scripts,$ignore_files,$ignore_dirs"
   srcfiles=`find bin -type f ! -name .*.swp`
   srcfiles+=" checkmate"
   # Just run PEP8 in current environment

@@ -12,7 +12,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """Test Chef Environment domain object."""
+
 import errno
 import json
 import subprocess
@@ -23,12 +25,13 @@ import mock
 import unittest
 
 from checkmate import exceptions, utils
-from checkmate.providers.opscode.solo.blueprint_cache import BlueprintCache
-from checkmate.providers.opscode.solo.chef_environment import ChefEnvironment
+from checkmate.providers.opscode.blueprint_cache import BlueprintCache
+from checkmate.providers.opscode.solo.kitchen_solo import KitchenSolo
 from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
 
 
-class TestChefEnvironment(unittest.TestCase):
+class TestKitchenSolo(unittest.TestCase):
+
     @mock.patch('os.path.exists')
     def setUp(self, mock_path_exists):
         mock_path_exists.return_value = True
@@ -41,10 +44,11 @@ class TestChefEnvironment(unittest.TestCase):
         self.kitchen_name = "kitchen"
         self.kitchen_path = "%s/%s/%s" % (self.path, self.env_name,
                                           self.kitchen_name)
-        self.env = ChefEnvironment(self.env_name, self.path, self.kitchen_name)
+        self.env = KitchenSolo(self.env_name, self.path, self.kitchen_name)
 
 
-class TestCreateEnvironmentKeys(TestChefEnvironment):
+class TestCreateEnvironmentKeys(TestKitchenSolo):
+
     @mock.patch('subprocess.check_output')
     @mock.patch('os.chmod')
     @mock.patch('os.path.exists')
@@ -131,7 +135,7 @@ class TestCreateEnvironmentKeys(TestChefEnvironment):
                           private_key="private_key")
 
 
-class TestCreateKitchen(TestChefEnvironment):
+class TestCreateKitchen(TestKitchenSolo):
     @mock.patch('os.listdir')
     @mock.patch('os.path.exists')
     def test_existing_node_files(self, mock_path_exists, mock_list_dir):
@@ -209,7 +213,7 @@ class TestCreateKitchen(TestChefEnvironment):
                                                    create_path=True)
 
 
-class TestDeleteCookbooks(TestChefEnvironment):
+class TestDeleteCookbooks(TestKitchenSolo):
     @mock.patch('os.path.exists')
     @mock.patch('shutil.rmtree')
     def test_success(self, mock_rm_tree, mock_path_exists):
@@ -247,7 +251,7 @@ class TestDeleteCookbooks(TestChefEnvironment):
             "/tmp/local/checkmate/DEP_ID/kitchen/cookbooks")
 
 
-class TestDeleteEnvironment(TestChefEnvironment):
+class TestDeleteEnvironment(TestKitchenSolo):
     @mock.patch('shutil.rmtree')
     def test_success(self, mock_rmtree):
         self.env.delete()
@@ -269,7 +273,7 @@ class TestDeleteEnvironment(TestChefEnvironment):
         mock_rmtree.assert_called_once_with("/tmp/local/checkmate/DEP_ID")
 
 
-class TestFetchCookbooks(TestChefEnvironment):
+class TestFetchCookbooks(TestKitchenSolo):
     @mock.patch('checkmate.utils.run_ruby_command')
     @mock.patch('os.path.exists')
     def test_fetch_with_chef_file(self, mock_path_exists, mock_run_command):
@@ -286,7 +290,7 @@ class TestFetchCookbooks(TestChefEnvironment):
                                                  'librarian-chef',
                                                  ['install'], lock=True)
 
-    @mock.patch.object(ChefEnvironment, '_ensure_berkshelf_environment')
+    @mock.patch.object(KitchenSolo, '_ensure_berkshelf_environment')
     @mock.patch('checkmate.utils.run_ruby_command')
     @mock.patch('os.path.exists')
     def test_fetch_with_berks_file(self, mock_path_exists, mock_run_command,
@@ -306,7 +310,7 @@ class TestFetchCookbooks(TestChefEnvironment):
         self.assertTrue(mock_ensure_env.called)
 
 
-class TestRegisterNode(TestChefEnvironment):
+class TestRegisterNode(TestKitchenSolo):
     @mock.patch.object(KnifeSolo, 'prepare')
     def test_success(self, mock_prepare):
         self.env.register_node("1.1.1.1", password="password",
@@ -316,7 +320,7 @@ class TestRegisterNode(TestChefEnvironment):
                                              identity_file="file")
 
 
-class TestWriteNodeAttributes(TestChefEnvironment):
+class TestWriteNodeAttributes(TestKitchenSolo):
     @mock.patch("json.dump")
     @mock.patch("json.load")
     @mock.patch("__builtin__.file")
@@ -386,7 +390,7 @@ class TestWriteNodeAttributes(TestChefEnvironment):
         mock_path_exists.assert_called_once_with(node_path)
 
 
-class TestWriteRole(TestChefEnvironment):
+class TestWriteRole(TestKitchenSolo):
     @mock.patch('json.dump')
     @mock.patch('json.load')
     @mock.patch('__builtin__.file')
@@ -446,7 +450,7 @@ class TestWriteRole(TestChefEnvironment):
         mock_json_dump.assert_called_once_with(expected, file_handle)
 
 
-class TestRubyRoleExists(TestChefEnvironment):
+class TestRubyRoleExists(TestKitchenSolo):
     @mock.patch('os.path.exists')
     def test_success(self, mock_path_exists):
         role_path = "%s/roles/web.rb" % self.kitchen_path
@@ -462,7 +466,7 @@ class TestRubyRoleExists(TestChefEnvironment):
         mock_path_exists.assert_called_once_with(role_path)
 
 
-class TestWriteDataBag(TestChefEnvironment):
+class TestWriteDataBag(TestKitchenSolo):
     @mock.patch.object(KnifeSolo, 'create_data_bag_item')
     @mock.patch.object(KnifeSolo, 'create_data_bag')
     @mock.patch('eventlet.green.threading.Lock')
@@ -520,7 +524,7 @@ class TestWriteDataBag(TestChefEnvironment):
         self.assertTrue(mock_lock.return_value.release.called)
 
 
-class TestCook(TestChefEnvironment):
+class TestCook(TestKitchenSolo):
     @mock.patch.object(KnifeSolo, 'cook')
     def test_success(self, mock_cook):
         self.env.cook("1.1.1.1", username="foo", password="password",
@@ -531,3 +535,8 @@ class TestCook(TestChefEnvironment):
                                           identity_file="identity", port=200,
                                           run_list=['list'],
                                           attributes={"foo": "bar"})
+
+if __name__ == '__main__':
+    import sys
+    from checkmate import test as cmtest
+    cmtest.run_with_params(sys.argv[:])

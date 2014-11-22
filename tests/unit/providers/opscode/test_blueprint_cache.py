@@ -11,7 +11,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """Test Blueprints cache."""
+
 import subprocess
 import time
 
@@ -19,7 +21,7 @@ import mock
 import unittest
 
 from checkmate import exceptions
-from checkmate.providers.opscode.solo.blueprint_cache import BlueprintCache
+from checkmate.providers.opscode.blueprint_cache import BlueprintCache
 
 
 class TestUpdate(unittest.TestCase):
@@ -137,3 +139,8 @@ class TestUpdate(unittest.TestCase):
         mock_mtime.assert_called_once_with(head_file_path)
         mock_tags.assert_called_once_with(self.cache.cache_path)
         mock_pull.assert_called_once_with(self.cache.cache_path, 'master')
+
+if __name__ == '__main__':
+    import sys
+    from checkmate import test as cmtest
+    cmtest.run_with_params(sys.argv[:])

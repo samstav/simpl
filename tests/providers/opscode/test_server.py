@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Chef Server."""
+
 import logging
 import unittest
 import uuid
@@ -1435,7 +1436,7 @@ class TestTransform(unittest.TestCase):
                           database_name: db1
             """)
 
-        self.mox.StubOutWithMock(deployments.resource_postback, "delay")
+        self.mox.StubOutWithMock(deployments.tasks.resource_postback, "delay")
         fxn = transforms.Transforms.collect_options
         task = self.mox.CreateMockAnything()
         spec = self.mox.CreateMockAnything()
@@ -1443,8 +1444,8 @@ class TestTransform(unittest.TestCase):
         spec.get_property('chef_options', {}).AndReturn({})
         spec.get_property('chef_output').AndReturn(output or {})
         spec.get_property('deployment').AndReturn(1)
-        deployments.resource_postback.delay(mox.IgnoreArg(),
-                                            mox.IgnoreArg()).AndReturn(None)
+        deployments.tasks.resource_postback.delay(
+            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
         results = {}
         task.attributes = results
         self.mox.ReplayAll()

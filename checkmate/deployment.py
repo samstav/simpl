@@ -1107,7 +1107,8 @@ class Deployment(morpheus.MorpheusDict):
         elif parsed_url['scheme'] == 'services':
             return utils.read_path(kwargs['services'], parsed_url['path'])
         else:
-            msg = "Unsupported display-output scheme: %s" % parsed_url['scheme']
+            msg = ("Unsupported display-output scheme: %s" %
+                   parsed_url['scheme'])
             LOG.info(msg)
             raise exceptions.CheckmateValidationException(msg)
         return None

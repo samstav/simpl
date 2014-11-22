@@ -14,9 +14,9 @@
 
 # encoding: utf-8
 # pylint: disable=E1103
-"""
-Rackspace Cloud Databases provider manager.
-"""
+
+"""Rackspace Cloud Databases provider manager."""
+
 import copy
 import logging
 
@@ -29,11 +29,14 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
-    """Contains database provider model and logic for interaction."""
+
+    """Database provider model and logic for interaction."""
 
     @staticmethod
     def wait_on_build(instance_id, api, callback, simulate=False):
-        """Checks provider resource.  Returns True when built otherwise False.
+        """Check provider resource.
+
+        Returns True when built otherwise False.
         If resource goes into error state, raises exception.
         """
         assert api, "API is required in wait_on_build"
@@ -78,7 +81,7 @@ class Manager(object):
 
     @staticmethod
     def sync_resource(resource, api, simulate=False):
-        """Syncronizes provider status with checkmate resource status."""
+        """Syncronize provider status with checkmate resource status."""
         if simulate:
             results = {'status': 'ACTIVE'}
         else:
@@ -102,7 +105,7 @@ class Manager(object):
     @staticmethod
     def create_instance(instance_name, flavor, size, databases, context,
                         api, callback, simulate=False):
-        """Creates a Cloud Database instance with optional initial databases.
+        """Create a Cloud Database instance with optional initial databases.
 
         :param databases: an array of dictionaries with keys to set the
         database name, character set and collation.  For example:
@@ -176,8 +179,9 @@ class Manager(object):
     def create_database(name, instance_id, api, callback, context,
                         character_set=None, collate=None, instance_attrs=None,
                         simulate=False):
-        """Creates database in existing db instance.  Returns
-        instance, dbs and its interfaces. If resource goes into
+        """Create database in existing db instance.
+
+        Returns instance, dbs and its interfaces. If resource goes into
         error state, raises exception.
         """
         assert api, "API is required in create_database_pop"
@@ -263,7 +267,6 @@ class Manager(object):
         """Add a database user to an instance for one or more databases.
         Returns instance data.
         """
-
         assert instance_id, "Instance ID not supplied"
 
         if simulate:

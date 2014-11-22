@@ -12,9 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Provider module for Rackspace Loadbalancers.
-"""
+"""Provider module for Rackspace Loadbalancers."""
+
 import copy
 import logging
 import os

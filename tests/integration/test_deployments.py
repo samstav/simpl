@@ -14,15 +14,15 @@
 #    under the License.
 
 """Tests for Deployments."""
-import bottle
+
 import copy
 import json
 import logging
-from checkmate.exceptions import CheckmateBadState
 import os
 import time
 import unittest
 
+import bottle
 from celery.app import task
 import mock
 import mox
@@ -32,7 +32,9 @@ from checkmate.common import tasks as common_tasks
 from checkmate import db
 from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps
+from checkmate.deployments import tasks as deployment_tasks
 from checkmate import exceptions
+from checkmate.exceptions import CheckmateBadState
 from checkmate import inputs as cminp
 from checkmate import keys
 from checkmate import middleware as cmmid
@@ -1472,7 +1474,7 @@ class TestDeleteDeployments(unittest.TestCase):
                                             complete=0, driver=mock_driver
                                             ).AndReturn(True)
         self._mox.ReplayAll()
-        cmdeps.delete_deployment_task('1234', driver=mock_driver)
+        deployment_tasks.delete_deployment_task('1234', driver=mock_driver)
         self._mox.VerifyAll()
 
 
@@ -1647,9 +1649,8 @@ class TestPostbackHelpers(unittest.TestCase):
         cmdeps.tasks.resource_postback.delay(
             '1234', mox.IgnoreArg(), driver=mock_db).AndReturn(True)
         self._mox.ReplayAll()
-        ret = cmdeps.update_all_provider_resources('foo', '1234', 'NEW',
-                                                   message='I test u',
-                                                   driver=mock_db)
+        ret = deployment_tasks.update_all_provider_resources(
+            'foo', '1234', 'NEW', message='I test u', driver=mock_db)
         self.assertIn('instance:1', ret)
         self.assertIn('instance:9', ret)
         self.assertEquals('NEW', ret.get('instance:1', {}).get('status'))
@@ -1820,7 +1821,7 @@ class TestCeleryTasks(unittest.TestCase):
                 'field_name': 1
             }
         }
-        cmdeps.resource_postback('1234', contents, driver=mock_db)
+        deployment_tasks.resource_postback('1234', contents, driver=mock_db)
         self.mox.VerifyAll()
 
 
@@ -1884,7 +1885,6 @@ class TestDeploymentMigrate(unittest.TestCase):
         self.assertEquals(context.exception.message, expected_message)
 
         self.mox.VerifyAll()
-
 
     def test_cannot_migrate_from_invalid_state(self):
         mock_driver = self.mox.CreateMockAnything()
