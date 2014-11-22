@@ -305,7 +305,7 @@ class BaseOpscodeProvider(ProviderBase):
                 collect_data.properties['task_tags'].append('options-ready')
         return result
 
-    def get_catalog(self, context, type_filter=None):
+    def get_catalog(self, context, type_filter=None, source=None):
         """Return stored/override catalog if it exists, else connect, build,
         and return one.
 
