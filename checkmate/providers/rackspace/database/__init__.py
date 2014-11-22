@@ -12,9 +12,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-'''
+"""
 Rackspace Cloud Databases Provider
-'''
+"""
 import logging
 
 from celery.task import task
@@ -50,7 +50,7 @@ GET_RESOURCE_BY_ID = MANAGERS['deployments'].get_resource_by_id
 #
 @task(default_retry_delay=30, max_retries=120, acks_late=True)
 def wait_on_build(context, instance_id, region=None, api=None):
-    '''Celery task registration for backwards comp.'''
+    """Celery task registration for backwards comp."""
     try:
         return _wait_on_build(context, instance_id, region=region, api=api)
     except exceptions.CheckmateException as exc:
@@ -60,7 +60,7 @@ def wait_on_build(context, instance_id, region=None, api=None):
 
 @task
 def sync_resource_task(context, resource, resource_key, api=None):
-    '''Celery task registration for backwards comp.'''
+    """Celery task registration for backwards comp."""
     assert context.__class__.__name__ == 'RequestContext'
     _sync_resource_task(context, resource, api=api)
 
@@ -68,7 +68,7 @@ def sync_resource_task(context, resource, resource_key, api=None):
 @task(default_retry_delay=10, max_retries=2)
 def create_instance(context, instance_name, flavor, size, databases,
                     region=None, api=None):
-    '''Celery task registration for backwards comp.'''
+    """Celery task registration for backwards comp."""
     return _create_instance(context, instance_name, flavor, size, databases,
                             region=region, api=api)
 
@@ -76,7 +76,7 @@ def create_instance(context, instance_name, flavor, size, databases,
 @task(default_retry_delay=10, max_retries=10)
 def add_user(context, instance_id, databases, username, password, region,
              api=None):
-    '''Add a database user to an instance for one or more databases.'''
+    """Add a database user to an instance for one or more databases."""
     return _add_user(context, instance_id, databases, username, password,
                      api=api)
 
@@ -84,7 +84,7 @@ def add_user(context, instance_id, databases, username, password, region,
 @task(default_retry_delay=15, max_retries=40)  # max 10 minute wait
 def create_database(context, name, region, character_set=None, collate=None,
                     instance_id=None, instance_attributes=None, api=None):
-    '''Celery task registration for backwards comp.'''
+    """Celery task registration for backwards comp."""
     return _create_database(context, name, region=region,
                             character_set=character_set, collate=collate,
                             instance_id=instance_id,
@@ -93,7 +93,7 @@ def create_database(context, name, region, character_set=None, collate=None,
 
 @task(default_retry_delay=10, max_retries=10)
 def add_databases(context, instance_id, databases, region, api=None):
-    '''Adds new database(s) to an existing instance.
+    """Adds new database(s) to an existing instance.
 
     :param databases: a list of dictionaries with a required key for database
     name and optional keys for setting the character set and collation.
@@ -103,7 +103,7 @@ def add_databases(context, instance_id, databases, region, api=None):
         databases = [{'name': 'mydb2', 'character_set': 'latin5',
                     'collate': 'latin5_turkish_ci'}]
         databases = [{'name': 'mydb3'}, {'name': 'mydb4'}]
-    '''
+    """
     utils.match_celery_logging(LOG)
 
     dbnames = []
@@ -127,14 +127,14 @@ def add_databases(context, instance_id, databases, region, api=None):
 @task(default_retry_delay=2, max_retries=60)
 @statsd.collect
 def delete_instance_task(context, api=None):
-    '''Deletes a database server instance and its associated databases and
+    """Deletes a database server instance and its associated databases and
     users.
-    '''
+    """
 
     utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        '''Handle task failure.'''
+        """Handle task failure."""
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -241,12 +241,12 @@ def delete_instance_task(context, api=None):
 @task(default_retry_delay=5, max_retries=60)
 @statsd.collect
 def wait_on_del_instance(context, api=None):
-    '''Wait for the specified instance to be deleted.'''
+    """Wait for the specified instance to be deleted."""
 
     utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        '''Handle task failure.'''
+        """Handle task failure."""
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -334,12 +334,12 @@ def wait_on_del_instance(context, api=None):
 @task(default_retry_delay=2, max_retries=30)
 @statsd.collect
 def delete_database(context, api=None):
-    '''Delete a database from an instance.'''
+    """Delete a database from an instance."""
 
     utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
-        '''Handle task failure.'''
+        """Handle task failure."""
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
@@ -427,7 +427,7 @@ def delete_database(context, api=None):
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def delete_user(context, instance_id, username, region, api=None):
-    '''Delete a database user from an instance.'''
+    """Delete a database user from an instance."""
     utils.match_celery_logging(LOG)
     if api is None:
         api = Provider.connect(context, region)
@@ -440,5 +440,5 @@ def delete_user(context, instance_id, username, region, api=None):
 
 #Database provider specific exceptions
 class CheckmateDatabaseBuildFailed(exceptions.CheckmateException):
+
     """Error building database."""
-    pass

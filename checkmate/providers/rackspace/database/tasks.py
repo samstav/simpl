@@ -13,9 +13,9 @@
 #    under the License.
 
 # encoding: utf-8
-"""
-Rackspace Cloud Databases provider tasks
-"""
+
+"""Rackspace Cloud Databases provider tasks."""
+
 import logging
 from celery.task import task
 
@@ -25,6 +25,7 @@ from checkmate.providers.rackspace.database import Manager
 from checkmate.providers.rackspace.database import Provider
 
 LOG = logging.getLogger(__name__)
+
 
 # Disable pylint on api and callback as their passed in from ProviderTask
 # pylint: disable=W0613

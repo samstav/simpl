@@ -12,9 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Provider for Rackspace Cloud Servers 1.0 API
-"""
+"""Provider for Rackspace Cloud Servers 1.0 API."""
+
 import copy
 import logging
 
@@ -107,7 +106,9 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
 
 
 class Provider(RackspaceComputeProviderBase):
+
     """Rackspace Cloud Servers Legacy Provider."""
+
     name = 'legacy'
 
     def generate_template(self, deployment, resource_type, service, context,

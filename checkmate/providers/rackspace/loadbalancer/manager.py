@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Rackspace Loadbalancer provider manager.
-"""
+"""Rackspace Loadbalancer provider manager."""
+
 import logging
 import pyrax
 
@@ -29,6 +28,7 @@ PLACEHOLDER_IP = '1.2.3.4'
 
 
 class Manager(object):
+
     """Contains loadbalancer provider model and logic for interaction."""
 
     @staticmethod

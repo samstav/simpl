@@ -14,7 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Base class for testing database drivers
+"""Base class for testing database drivers.
 
 This performs a full suite of tests on a driver to make sure it conforms to the
 expected interface.
@@ -32,6 +32,7 @@ class TestMyDriver(TestDBDriver):
     def test_your_extra_tests(self):
         pass
 """
+
 import copy
 import uuid
 
@@ -43,6 +44,7 @@ from checkmate import utils
 
 
 class DBDriverTests(object):
+
     """Test Any Driver; mix in with unittest.TestCase."""
 
     __metaclass__ = abc.ABCMeta

@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for SSH."""
+
 import mock
 import unittest
 
@@ -50,6 +51,7 @@ HNLoMGWDbYkodusmrHUN5Ed3E3w8Y+wpREa7vhX4Mey98gQ7Sgwcu0U=
 
 
 class TestSSH(unittest.TestCase):
+
     """Test Checkmate's built-in SSH Tasks."""
 
     @mock.patch.object(ssh, 'connect')
@@ -163,7 +165,5 @@ class TestSSH(unittest.TestCase):
 
 if __name__ == '__main__':
     import sys
-
     from checkmate import test as cmtest
-
     cmtest.run_with_params(sys.argv[:])

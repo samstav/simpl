@@ -15,7 +15,9 @@
 #    under the License.
 
 # pylint: disable=R0913,E1102
+
 """Rackspace Cloud Load Balancer provider and specs.Celery tasks."""
+
 import logging
 
 from celery import task
@@ -110,5 +112,5 @@ def sync_resource_task(context, resource, resource_key, api=None):
 
 
 class CheckmateLoadbalancerBuildFailed(exceptions.CheckmateException):
-    """Error building loadbalancer"""
-    pass
+
+    """Error building loadbalancer."""

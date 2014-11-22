@@ -12,7 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-'''Rackspace Cloud DNS provider'''
+"""Rackspace Cloud DNS provider."""
+
 import logging
 
 from celery import task
@@ -33,7 +34,7 @@ LOG = logging.getLogger(__name__)
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def get_domains(context, limit=None, offset=None):
-    '''Returns list of domains for an account.'''
+    """Returns list of domains for an account."""
     checkmate.utils.match_celery_logging(LOG)
     api = provider.Provider.connect(context)
     try:
@@ -49,7 +50,7 @@ def get_domains(context, limit=None, offset=None):
 @statsd.collect
 def create_domain(context, domain, email=None,
                   dom_ttl=300):
-    '''Create zone.'''
+    """Create zone."""
     utils.match_celery_logging(LOG)
     api = provider.Provider.connect(context)
     if not email:
@@ -79,7 +80,7 @@ def create_domain(context, domain, email=None,
 @task
 @statsd.collect
 def delete_domain(context, name):
-    '''Find and delete the specified domain name.'''
+    """Find and delete the specified domain name."""
     utils.match_celery_logging(LOG)
     api = provider.Provider.connect(context)
     try:
@@ -111,7 +112,7 @@ def delete_domain(context, name):
 def create_record(context, domain, name, dnstype, data,
                   rec_ttl=1800, makedomain=False,
                   email=None):
-    '''Create a DNS record of the specified type for the specified domain.'''
+    """Create a DNS record of the specified type for the specified domain."""
     utils.match_celery_logging(LOG)
     api = provider.Provider.connect(context)
     try:
@@ -162,7 +163,7 @@ def create_record(context, domain, name, dnstype, data,
 @task(default_retry_delay=5, max_retries=12)
 @statsd.collect
 def delete_record_task(context, domain_id, record_id):
-    '''Delete the specified record.'''
+    """Delete the specified record."""
     utils.match_celery_logging(LOG)
     api = provider.Provider.connect(context)
     try:
@@ -195,7 +196,7 @@ def delete_record_task(context, domain_id, record_id):
 @task(default_retry_delay=20, max_retries=10)
 @statsd.collect
 def delete_record_by_name(context, domain, name):
-    '''Find the DNS record by name and delete it.'''
+    """Find the DNS record by name and delete it."""
     utils.match_celery_logging(LOG)
     api = provider.Provider.connect(context)
     try:

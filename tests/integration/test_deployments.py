@@ -14,15 +14,15 @@
 #    under the License.
 
 """Tests for Deployments."""
-import bottle
+
 import copy
 import json
 import logging
-from checkmate.exceptions import CheckmateBadState
 import os
 import time
 import unittest
 
+import bottle
 from celery.app import task
 import mock
 import mox
@@ -34,6 +34,7 @@ from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps
 from checkmate.deployments import tasks as deployment_tasks
 from checkmate import exceptions
+from checkmate.exceptions import CheckmateBadState
 from checkmate import inputs as cminp
 from checkmate import keys
 from checkmate import middleware as cmmid
@@ -1884,7 +1885,6 @@ class TestDeploymentMigrate(unittest.TestCase):
         self.assertEquals(context.exception.message, expected_message)
 
         self.mox.VerifyAll()
-
 
     def test_cannot_migrate_from_invalid_state(self):
         mock_driver = self.mox.CreateMockAnything()

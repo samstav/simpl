@@ -13,7 +13,9 @@
 #    under the License.
 
 # encoding: utf-8
+
 """Provider module for interfacing with Cloud Databases."""
+
 import logging
 import os
 import string
@@ -55,7 +57,9 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
 
 
 class Provider(providers.ProviderBase):
+
     """Provider class for Cloud Databases."""
+
     name = 'database'
     method = 'cloud_databases'
     vendor = 'rackspace'
@@ -177,8 +181,7 @@ class Provider(providers.ProviderBase):
         return messages
 
     def verify_access(self, context):
-        """Verify that the user has permissions to create database
-        resources.
+        """Verify that the user has permissions to create database resources.
         """
         roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
         if providers.user_has_access(context, roles):
@@ -367,7 +370,8 @@ class Provider(providers.ProviderBase):
     @staticmethod
     def delete_one_resource(context):
         """Used by the ProviderTask baseclass to create delete tasks that
-        are used to delete errored instances
+        are used to delete errored instances.
+
         :param context:
         :return:
         """
@@ -421,7 +425,8 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def _delete_comp_res_task(context):
-        """Returns a chain of delete tasks to remove an instance
+        """Return a chain of delete tasks to remove an instance.
+
         :param context:
         :return:
         """
@@ -434,7 +439,7 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def _delete_db_res_task(context):
-        """Returns a chain of delete task to remove a db resource
+        """Return a chain of delete task to remove a db resource
         :param context:
         :return:
         """
@@ -458,7 +463,6 @@ class Provider(providers.ProviderBase):
         """Return stored/override catalog if it exists, else connect, build,
         and return one.
         """
-
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
         results = providers.ProviderBase.get_catalog(
@@ -543,7 +547,7 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def get_resources(context, tenant_id=None):
-        """Proxy request through to cloud database provider"""
+        """Proxy request through to cloud database provider."""
         if not (pyrax.identity and pyrax.identity.authenticated):
             Provider.connect(context)
         db_hosts = []
@@ -579,7 +583,7 @@ class Provider(providers.ProviderBase):
 
     @staticmethod
     def find_url(catalog, region):
-        """Returns a URL for a region/catalog."""
+        """Return a URL for a region/catalog."""
         for service in catalog:
             if service['type'] == 'rax:database':
                 endpoints = service['endpoints']
